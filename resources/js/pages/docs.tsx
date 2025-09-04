@@ -1,5 +1,4 @@
 import AppLayout from '@/layouts/app-layout';
-import { docs } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import {
@@ -10,10 +9,10 @@ import {
 import { ChevronDown } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Documentation',
-        href: docs().url,
-    },
+        {
+            title: 'Documentation',
+            href: '/docs',
+        },
 ];
 
 export default function Docs() {
@@ -29,8 +28,14 @@ export default function Docs() {
                     <CollapsibleContent className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert">
                         <p>To create a new user via the console, run:</p>
                         <pre>
-                            <code>php artisan make:user</code>
+                            <code>
+                                php artisan add-user &lt;name&gt; &lt;email&gt; &lt;password&gt;
+                            </code>
                         </pre>
+                        <p>
+                            Replace the placeholders with the new user's name, email address, and
+                            password.
+                        </p>
                     </CollapsibleContent>
                 </Collapsible>
             </div>
