@@ -70,8 +70,6 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 Log in
                             </Button>
                         </div>
-
-                        
                     </>
                 )}
             </Form>
