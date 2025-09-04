@@ -2,6 +2,12 @@ import AppLayout from '@/layouts/app-layout';
 import { docs } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -14,15 +20,19 @@ export default function Docs() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Documentation" />
-            <div className="prose max-w-none p-4 dark:prose-invert">
-                <h1>Documentation</h1>
-                <section>
-                    <h2>For Admins</h2>
-                    <p>To create a new user via the console, run:</p>
-                    <pre>
-                        <code>php artisan make:user</code>
-                    </pre>
-                </section>
+            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <Collapsible className="w-full rounded-lg border">
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between p-4 text-left font-medium">
+                        For Admins
+                        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert">
+                        <p>To create a new user via the console, run:</p>
+                        <pre>
+                            <code>php artisan make:user</code>
+                        </pre>
+                    </CollapsibleContent>
+                </Collapsible>
             </div>
         </AppLayout>
     );
