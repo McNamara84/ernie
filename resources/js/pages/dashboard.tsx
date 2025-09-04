@@ -21,21 +21,21 @@ export default function Dashboard() {
                 <div className="grid gap-4 md:grid-cols-3">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Hallo {auth.user.name}!</CardTitle>
+                            <CardTitle>Hello {auth.user.name}!</CardTitle>
                             <CardDescription>
-                                Schön dich heute zu sehen! Du hast noch x Datensätze zu kuratieren. Viel Spaß wünscht dir dein
+                                Nice to see you today! You still have x datasets to curate. Have fun, your
                                 ERNIE!
                             </CardDescription>
                         </CardHeader>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>x Datensätze aus y Datencentern von z Institutionen</CardTitle>
+                            <CardTitle>x datasets from y data centers of z institutions</CardTitle>
                         </CardHeader>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>ERNIE Version 0.1.0 MySQL 8.0 PHP 8.4</CardTitle>
+                            <CardTitle>ERNIE version 0.1.0 MySQL 8.0 PHP 8.4</CardTitle>
                         </CardHeader>
                     </Card>
                 </div>
