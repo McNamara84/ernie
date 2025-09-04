@@ -12,9 +12,18 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <coverage includeUncoveredFiles="true">
+        <report>
+            <clover outputFile="clover.xml" />
+        </report>
+    </coverage>
     <source>
         <include>
-            <directory>app</directory>
+            <directory suffix=".php">app</directory>
+            <directory suffix=".php">bootstrap</directory>
+            <directory suffix=".php">config</directory>
+            <directory suffix=".php">database</directory>
+            <directory suffix=".php">routes</directory>
         </include>
     </source>
     <php>
