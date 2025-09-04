@@ -25,7 +25,10 @@ export default function Dashboard() {
 
     function handleDragLeave(event: React.DragEvent<HTMLDivElement>) {
         event.preventDefault();
-        setIsDragging(false);
+        const related = event.relatedTarget as Node | null;
+        if (!related || !event.currentTarget.contains(related)) {
+            setIsDragging(false);
+        }
     }
 
     function handleDrop(event: React.DragEvent<HTMLDivElement>) {
@@ -74,7 +77,7 @@ export default function Dashboard() {
                     <CardHeader className="items-center text-center">
                         <CardTitle>Dropzone for XML files</CardTitle>
                         <CardDescription>
-                            Here you can Upload new XML files sent by ELMO for curation.
+                            Here you can upload new XML files sent by ELMO for curation.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
