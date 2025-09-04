@@ -20,8 +20,20 @@ jobs:
           extensions: xdebug
           coverage: xdebug
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
       - name: Install Composer deps
         run: composer install --no-interaction --prefer-dist
+
+      - name: Build assets
+        run: npm run build
 
       - name: Copy .env file
         run: cp .env.example .env
