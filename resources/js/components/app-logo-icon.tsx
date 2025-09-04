@@ -1,5 +1,6 @@
 import { ImgHTMLAttributes } from 'react';
+import { cn } from '@/lib/utils';
 
-export default function AppLogoIcon(props: ImgHTMLAttributes<HTMLImageElement>) {
-    return <img src="/favicon.svg" alt="App logo" {...props} />;
+export default function AppLogoIcon({ className, ...props }: ImgHTMLAttributes<HTMLImageElement>) {
+    return <img src="/favicon.svg" alt="App logo" className={cn('dark:invert', className)} {...props} />;
 }
