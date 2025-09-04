@@ -46,16 +46,12 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
-      - name: Tests
-        run: ./vendor/bin/pest --coverage-clover=coverage.xml
+      - name: Execute tests (Unit and Feature tests) via PestPHP
+        run: vendor/bin/pest --coverage-clover clover.xml
 
-      - name: Generate coverage badge
-        uses: tj-actions/coverage-badge@v2
+      - name: Generate test coverage badge
+        uses: timkrase/phpunit-coverage-badge@v1.2.0
         with:
-          path: coverage.xml
-
-      - name: Commit coverage badge
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update coverage badge"
-          file_pattern: coverage.svg
+          coverage_badge_path: 'badge-coverage.svg'
+          push_badge: true
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
