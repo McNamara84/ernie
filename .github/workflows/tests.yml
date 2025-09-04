@@ -1,4 +1,4 @@
-name: tests
+name: Pest PHP unit tests
 
 on:
   push:
