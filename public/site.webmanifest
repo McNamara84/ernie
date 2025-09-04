@@ -1,6 +1,6 @@
 {
-  "name": "ERNIE",
-  "short_name": "ERNIE",
+  "name": "{{APP_NAME}}",
+  "short_name": "{{APP_NAME}}",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
