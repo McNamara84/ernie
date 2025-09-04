@@ -27,7 +27,7 @@ export default function Welcome() {
                         ERNIE - Earth Research Notary for Information & Editing
                     </h1>
                     <p>
-                        A metadata editor for rewiewers of research data at GFZ Helmholtz Centre for Geosciences.
+                        A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.
                     </p>
                 </main>
             </div>
