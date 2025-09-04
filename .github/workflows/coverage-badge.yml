@@ -1,0 +1,53 @@
+name: Coverage Badge
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # PHP + Xdebug for Coverage
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: xdebug
+          coverage: xdebug
+
+      - name: Install Composer deps
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Copy .env file
+        run: cp .env.example .env
+
+      - name: Generate application key
+        run: php artisan key:generate --force
+
+      # Laravel Tests with Clover Report
+      - name: Run tests with coverage
+        env:
+          XDEBUG_MODE: coverage
+        run: php artisan test --coverage-clover=coverage.xml
+
+      # Create Badge from coverage.xml and commit
+      - name: Create coverage badge
+        uses: timkrase/phpunit-coverage-badge@v1.2.1
+        with:
+          report: coverage.xml
+          coverage_badge_path: output/coverage.svg
+          push_badge: false
+
+      - name: Git push to image-data branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          publish_dir: ./output
+          publish_branch: image-data
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
