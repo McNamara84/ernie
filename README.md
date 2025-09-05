@@ -11,6 +11,14 @@
 
 A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.
 
+## Tech Stack
+
+- **Backend:** Laravel 12 (PHP 8)
+- **Database:** MySQL 8
+- **Frontend:** React 19 with TypeScript via Inertia.js and Vite
+- **Styling:** Tailwind CSS 4
+- **Testing:** Pest for PHP, Vitest for JavaScript, Playwright for end-to-end tests
+
 ## Installation
 
 - Clone the repository and switch to the project directory
