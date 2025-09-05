@@ -58,7 +58,7 @@ jobs:
       - name: Run Vitest with coverage
         env:
           LARAVEL_BYPASS_ENV_CHECK: 1
-        run: npx vitest run --coverage --coverage.reporter=json-summary
+        run: npx vitest run --coverage
 
       - name: Create Vitest coverage badge
         run: |
