@@ -12,18 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
       with:
-        node-version: lts/*
+        php-version: 8.4
+        tools: composer:v2
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+    - name: Install Node dependencies
+      run: npm ci
     - name: Install PHP dependencies
-      run: composer install
+      run: composer install --no-interaction --prefer-dist --optimize-autoloader
+    - name: Build assets
+      run: npm run build
     - name: Prepare application
       run: |
         cp .env.example .env
         sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+        touch database/database.sqlite
+        php artisan migrate --force
         php artisan key:generate
-    - name: Install dependencies
-      run: npm ci
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
