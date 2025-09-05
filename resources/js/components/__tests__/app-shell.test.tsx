@@ -5,9 +5,19 @@ import { AppShell } from '../app-shell';
 
 const usePageMock = vi.hoisted(() => vi.fn());
 const SidebarProviderMock = vi.hoisted(() =>
-    vi.fn(({ children }: { children: React.ReactNode; defaultOpen: boolean }) => (
-        <div data-testid="sidebar-provider">{children}</div>
-    ))
+    vi.fn(
+        ({
+            children,
+            defaultOpen,
+        }: {
+            children: React.ReactNode;
+            defaultOpen: boolean;
+        }) => (
+            <div data-testid="sidebar-provider" data-default-open={String(defaultOpen)}>
+                {children}
+            </div>
+        ),
+    ),
 );
 
 vi.mock('@inertiajs/react', () => ({
@@ -26,7 +36,8 @@ describe('AppShell', () => {
                 <p>Content</p>
             </AppShell>,
         );
-        const wrapper = screen.getByText('Content').parentElement as HTMLElement;
+        const wrapper = screen.getByText('Content').parentElement;
+        if (!wrapper) throw new Error('wrapper not found');
         expect(wrapper).toHaveClass('flex', 'min-h-screen');
     });
 
@@ -39,7 +50,9 @@ describe('AppShell', () => {
         );
         const callArgs = SidebarProviderMock.mock.calls[0][0];
         expect(callArgs.defaultOpen).toBe(true);
-        expect(screen.getByTestId('sidebar-provider')).toBeInTheDocument();
+        const provider = screen.getByTestId('sidebar-provider');
+        expect(provider).toBeInTheDocument();
+        expect(provider).toHaveAttribute('data-default-open', 'true');
     });
 });
 
