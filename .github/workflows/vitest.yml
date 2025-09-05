@@ -1,4 +1,4 @@
-name: Vitest TS integretion Tests
+name: Vitest TS integration Tests
 
 on:
   push:
