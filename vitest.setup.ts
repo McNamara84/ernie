@@ -6,4 +6,6 @@ class ResizeObserver {
     disconnect() {}
 }
 
-(globalThis as any).ResizeObserver = ResizeObserver;
+Object.defineProperty(globalThis, 'ResizeObserver', {
+    value: ResizeObserver,
+});

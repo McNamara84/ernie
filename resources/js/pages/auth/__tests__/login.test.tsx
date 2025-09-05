@@ -8,9 +8,11 @@ let formProcessing = false;
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    Form: ({ children }: { children: any }) => (
-        <form>{children({ processing: formProcessing, errors: formErrors })}</form>
-    ),
+    Form: ({
+        children,
+    }: {
+        children: (args: { processing: boolean; errors: typeof formErrors }) => React.ReactNode;
+    }) => <form>{children({ processing: formProcessing, errors: formErrors })}</form>,
     Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
