@@ -55,6 +55,9 @@ jobs:
           coverage_badge_path: output/coverage.svg
           push_badge: false
 
+      - name: Ensure output directory is writable
+        run: sudo chown -R $USER:$USER output
+
       - name: Run Vitest with coverage
         env:
           LARAVEL_BYPASS_ENV_CHECK: 1
