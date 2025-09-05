@@ -20,3 +20,48 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 - Generate the application key: `php artisan key:generate`
 - Run database migrations: `php artisan migrate`
 - Start the development server: `composer run dev`
+
+## Testing
+
+### Pest Unit Tests and Laravel Feature Tests
+
+Run all PHP tests:
+
+```bash
+php artisan test
+```
+
+Run only unit tests:
+
+```bash
+php artisan test --testsuite=Unit
+```
+
+Run only feature tests:
+
+```bash
+php artisan test --testsuite=Feature
+```
+
+### Vitest Unit Tests and Integration Tests
+
+Run the JavaScript test suites:
+
+```bash
+npm test
+```
+
+Run a specific test file or directory:
+
+```bash
+npx vitest run resources/js
+```
+
+### Playwright E2E Tests
+
+Ensure the application server is running and the Playwright browsers are installed:
+
+```bash
+npx playwright install
+npx playwright test
+```
