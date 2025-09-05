@@ -3,8 +3,8 @@ import { render, screen } from '@testing-library/react';
 import ForgotPassword from '../forgot-password';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const formErrors: { email?: string } = {};
-let formProcessing = false;
+let formErrors: { email?: string };
+let formProcessing: boolean;
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -29,7 +29,7 @@ vi.mock('@/routes', () => ({
 
 describe('ForgotPassword page', () => {
     beforeEach(() => {
-        formErrors.email = undefined;
+        formErrors = {};
         formProcessing = false;
     });
 
