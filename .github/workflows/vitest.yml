@@ -26,6 +26,7 @@ jobs:
 
       - name: Run Vitest
         env:
+          # Bypass Laravel's environment check so Vitest can run without a full PHP app environment
           LARAVEL_BYPASS_ENV_CHECK: 1
         run: npm test
 
