@@ -15,6 +15,13 @@ jobs:
     - uses: actions/setup-node@v4
       with:
         node-version: lts/*
+    - name: Install PHP dependencies
+      run: composer install
+    - name: Prepare application
+      run: |
+        cp .env.example .env
+        sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+        php artisan key:generate
     - name: Install dependencies
       run: npm ci
     - name: Install Playwright Browsers
