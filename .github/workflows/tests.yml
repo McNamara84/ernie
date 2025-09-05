@@ -3,11 +3,9 @@ name: Pest PHP Unit Tests
 on:
   push:
     branches:
-      - develop
       - main
   pull_request:
     branches:
-      - develop
       - main
 
 jobs:
