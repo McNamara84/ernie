@@ -55,6 +55,19 @@ jobs:
           coverage_badge_path: output/coverage.svg
           push_badge: false
 
+      - name: Run Vitest with coverage
+        env:
+          LARAVEL_BYPASS_ENV_CHECK: 1
+        run: npx vitest run --coverage
+
+      - name: Create Vitest coverage badge
+        run: |
+          mkdir -p output
+          COVERAGE=$(node -e "console.log(Math.round(JSON.parse(require('fs').readFileSync('coverage/coverage-summary.json')).total.lines.pct))")
+          COLOR=orange
+          if [ $COVERAGE -ge 90 ]; then COLOR=brightgreen; elif [ $COVERAGE -ge 80 ]; then COLOR=green; elif [ $COVERAGE -ge 70 ]; then COLOR=yellow; fi
+          npx --yes badge-maker "Vitest Coverage" "$COVERAGE%" "$COLOR" > output/vitest-coverage.svg
+
       - name: Git push to image-data branch
         uses: peaceiris/actions-gh-pages@v3
         with:
