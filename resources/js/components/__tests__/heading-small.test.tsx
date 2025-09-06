@@ -11,8 +11,8 @@ describe('HeadingSmall', () => {
     });
 
     it('renders without description', () => {
-        render(<HeadingSmall title="Only Small Title" />);
+        const { container } = render(<HeadingSmall title="Only Small Title" />);
         expect(screen.getByText('Only Small Title')).toBeInTheDocument();
-        expect(screen.queryByText('Small Description')).toBeNull();
+        expect(container.querySelector('p')).toBeNull();
     });
 });

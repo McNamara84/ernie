@@ -11,8 +11,8 @@ describe('Heading', () => {
     });
 
     it('renders without description', () => {
-        render(<Heading title="Only Title" />);
+        const { container } = render(<Heading title="Only Title" />);
         expect(screen.getByText('Only Title')).toBeInTheDocument();
-        expect(screen.queryByText('Test Description')).toBeNull();
+        expect(container.querySelector('p')).toBeNull();
     });
 });
