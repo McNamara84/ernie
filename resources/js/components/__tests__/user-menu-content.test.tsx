@@ -39,7 +39,7 @@ vi.mock('@/routes/profile', () => ({
 }));
 
 vi.mock('@/components/user-info', () => ({
-    UserInfo: ({ user, showEmail }: { user: any; showEmail?: boolean }) => (
+    UserInfo: ({ user, showEmail }: { user: { name: string; email: string }; showEmail?: boolean }) => (
         <div>
             <span>{user.name}</span>
             {showEmail && <span>{user.email}</span>}
