@@ -10,7 +10,10 @@ const matchMediaMock = vi.fn().mockImplementation((query) => ({
 }));
 
 beforeEach(() => {
-    (window as any).matchMedia = matchMediaMock;
+    Object.defineProperty(window, 'matchMedia', {
+        value: matchMediaMock,
+        writable: true,
+    });
     document.cookie = '';
     localStorage.clear();
     document.documentElement.className = '';

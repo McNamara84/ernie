@@ -3,14 +3,15 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NavUser } from '../nav-user';
 
-const dropdownCalls: any[] = vi.hoisted(() => [] as any[]);
+type DropdownProps = { side?: string; [key: string]: unknown };
+const dropdownCalls: DropdownProps[] = vi.hoisted(() => [] as DropdownProps[]);
 const useSidebarMock = vi.hoisted(() => vi.fn());
 const useIsMobileMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    DropdownMenuContent: (props: any) => {
+    DropdownMenuContent: (props: DropdownProps) => {
         dropdownCalls.push(props);
         return (
             <div data-testid="dropdown-content" {...props}>
