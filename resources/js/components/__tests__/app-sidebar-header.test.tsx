@@ -2,6 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AppSidebarHeader } from '../app-sidebar-header';
+import { ComponentProps } from 'react';
 
 vi.mock('@/components/breadcrumbs', () => ({
     Breadcrumbs: ({ breadcrumbs }: { breadcrumbs: { title: string }[] }) => (
@@ -14,7 +15,9 @@ vi.mock('@/components/breadcrumbs', () => ({
 }));
 
 vi.mock('@/components/ui/sidebar', () => ({
-    SidebarTrigger: (props: any) => <button data-testid="sidebar-trigger" {...props} />,
+    SidebarTrigger: (props: ComponentProps<'button'>) => (
+        <button data-testid="sidebar-trigger" {...props} />
+    ),
 }));
 
 describe('AppSidebarHeader', () => {

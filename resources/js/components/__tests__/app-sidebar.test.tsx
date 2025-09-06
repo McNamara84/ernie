@@ -2,9 +2,10 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AppSidebar } from '../app-sidebar';
+import type { NavItem } from '@/types';
 
 const NavMainMock = vi.hoisted(() =>
-    vi.fn(({ items }: { items: any[] }) => (
+    vi.fn(({ items }: { items: NavItem[] }) => (
         <nav data-testid="nav-main">
             {items.map((item) => {
                 const href = typeof item.href === 'string' ? item.href : item.href.url;
@@ -19,7 +20,7 @@ const NavMainMock = vi.hoisted(() =>
 );
 
 const NavFooterMock = vi.hoisted(() =>
-    vi.fn(({ items, className }: { items: any[]; className?: string }) => (
+    vi.fn(({ items, className }: { items: NavItem[]; className?: string }) => (
         <footer data-testid="nav-footer" className={className}>
             {items.map((item) => {
                 const href = typeof item.href === 'string' ? item.href : item.href.url;
