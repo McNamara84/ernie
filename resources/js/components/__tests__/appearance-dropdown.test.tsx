@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AppearanceToggleDropdown from '../appearance-dropdown';
 
 const updateAppearance = vi.fn();
-const appearanceState = { appearance: 'system' as 'light' | 'dark' | 'system', updateAppearance };
+type Appearance = 'light' | 'dark' | 'system';
+const appearanceState: { appearance: Appearance; updateAppearance: typeof updateAppearance } = {
+    appearance: 'system',
+    updateAppearance,
+};
 
 vi.mock('@/hooks/use-appearance', () => ({
     useAppearance: () => appearanceState,
@@ -25,12 +29,15 @@ describe('AppearanceToggleDropdown', () => {
         updateAppearance.mockClear();
     });
 
-    it.each([
+    it.each<[
+        Appearance,
+        string,
+    ]>([
         ['light', 'lucide-sun'],
         ['dark', 'lucide-moon'],
         ['system', 'lucide-monitor'],
     ])('renders correct icon for %s appearance', (mode, expectedClass) => {
-        appearanceState.appearance = mode as any;
+        appearanceState.appearance = mode;
         render(<AppearanceToggleDropdown />);
         const toggle = screen.getByRole('button', { name: /toggle theme/i });
         const icon = toggle.querySelector('svg');
