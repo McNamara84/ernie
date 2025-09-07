@@ -29,6 +29,12 @@ export default defineConfig({
             provider: 'v8',
             reporter: ['text', 'json-summary'],
             reportsDirectory: 'coverage',
+            include: ['resources/js/**/*.{js,ts,jsx,tsx}'],
+            exclude: [
+                'resources/js/**/*.{test,spec}.{js,ts,jsx,tsx}',
+                'resources/js/**/__tests__/**',
+                'resources/js/**/__mocks__/**',
+            ],
         },
     },
 });
