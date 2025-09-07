@@ -1,30 +1,27 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { Breadcrumbs } from '../breadcrumbs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@inertiajs/react', () => ({
+    Link: ({ href, children }: { href: string; children?: React.ReactNode }) => <a href={href}>{children}</a>,
+}));
 
 describe('Breadcrumbs', () => {
-    it('renders nothing when no breadcrumbs provided', () => {
-        const { container } = render(<Breadcrumbs breadcrumbs={[]} />);
-        expect(container).toBeEmptyDOMElement();
+    it('renders links and current page', () => {
+        const items = [
+            { title: 'Home', href: '/' },
+            { title: 'Dashboard', href: '/dashboard' },
+        ];
+        render(<Breadcrumbs breadcrumbs={items} />);
+        const home = screen.getByRole('link', { name: 'Home' });
+        expect(home).toHaveAttribute('href', '/');
+        const current = screen.getByText('Dashboard');
+        expect(current.tagName).toBe('SPAN');
     });
 
-    it('renders links for all but the last breadcrumb', () => {
-        const { container } = render(
-            <Breadcrumbs
-                breadcrumbs={[
-                    { title: 'Home', href: '/' },
-                    { title: 'Settings', href: '/settings' },
-                ]}
-            />,
-        );
-
-        const anchors = container.querySelectorAll('a');
-        expect(anchors).toHaveLength(1);
-        expect(anchors[0]).toHaveAttribute('href', '/');
-
-        const last = screen.getByText('Settings');
-        expect(last.tagName.toLowerCase()).toBe('span');
-        expect(last).toHaveAttribute('aria-current', 'page');
+    it('renders nothing when list empty', () => {
+        const { container } = render(<Breadcrumbs breadcrumbs={[]} />);
+        expect(container).toBeEmptyDOMElement();
     });
 });

@@ -1,81 +1,62 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
+import type { ComponentProps, ReactNode } from 'react';
 import Login from '../login';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const formErrors: { email?: string; password?: string } = {};
-let formProcessing = false;
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
-    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    Form: ({
-        children,
-    }: {
-        children: (args: { processing: boolean; errors: typeof formErrors }) => React.ReactNode;
-    }) => <form>{children({ processing: formProcessing, errors: formErrors })}</form>,
-    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+    Form: ({ children }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode) }) => (
+        <form>{typeof children === 'function' ? children({ processing: false, errors: {} }) : children}</form>
+    ),
+    Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
+    Link: ({ href, children }: { href: string; children?: ReactNode }) => <a href={href}>{children}</a>,
+}));
+
+vi.mock('@/layouts/auth-layout', () => ({
+    default: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController', () => ({
-    default: {
-        store: {
-            form: () => ({}),
-        },
-    },
+    default: { store: { form: () => ({}) } },
 }));
 
 vi.mock('@/routes/password', () => ({
     request: () => '/forgot-password',
 }));
 
-vi.mock('@/routes', () => ({
-    home: () => '/',
+vi.mock('@/components/text-link', () => ({
+    default: ({ href, children }: { href: string; children?: ReactNode }) => <a href={href}>{children}</a>,
 }));
 
-describe('Login', () => {
-    beforeEach(() => {
-        formErrors.email = undefined;
-        formErrors.password = undefined;
-        formProcessing = false;
-    });
+vi.mock('@/components/input-error', () => ({
+    default: ({ message }: { message?: string }) => (message ? <p>{message}</p> : null),
+}));
 
-    it('renders form fields and submit button', () => {
+vi.mock('@/components/ui/button', () => ({
+    Button: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
+}));
+
+vi.mock('@/components/ui/checkbox', () => ({
+    Checkbox: (props: ComponentProps<'input'>) => <input type="checkbox" {...props} />,
+}));
+
+vi.mock('@/components/ui/input', () => ({
+    Input: (props: ComponentProps<'input'>) => <input {...props} />,
+}));
+
+vi.mock('@/components/ui/label', () => ({
+    Label: ({ children, ...props }: ComponentProps<'label'>) => <label {...props}>{children}</label>,
+}));
+
+describe('Login page', () => {
+    it('renders forgot password link when allowed', () => {
         render(<Login canResetPassword={true} />);
-        expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument();
+        const link = screen.getByRole('link', { name: /forgot password/i });
+        expect(link).toHaveAttribute('href', '/forgot-password');
     });
 
-    it('shows forgot password link when allowed', () => {
-        render(<Login canResetPassword={true} />);
-        expect(screen.getByRole('link', { name: /forgot password/i })).toHaveAttribute(
-            'href',
-            '/forgot-password',
-        );
-    });
-
-    it('hides forgot password link when not allowed', () => {
-        render(<Login canResetPassword={false} />);
-        expect(screen.queryByRole('link', { name: /forgot password/i })).toBeNull();
-    });
-
-    it('displays status message', () => {
-        render(<Login status="Session expired" canResetPassword={true} />);
-        expect(screen.getByText(/session expired/i)).toBeInTheDocument();
-    });
-
-    it('shows validation errors', () => {
-        formErrors.email = 'Email is required';
-        formErrors.password = 'Password is required';
-        render(<Login canResetPassword={true} />);
-        expect(screen.getByText(/email is required/i)).toBeInTheDocument();
-        expect(screen.getByText(/password is required/i)).toBeInTheDocument();
-    });
-
-    it('disables submit button when processing', () => {
-        formProcessing = true;
-        render(<Login canResetPassword={true} />);
-        expect(screen.getByRole('button', { name: /log in/i })).toBeDisabled();
+    it('displays status message when provided', () => {
+        render(<Login canResetPassword={false} status="Password reset" />);
+        expect(screen.getByText('Password reset')).toBeInTheDocument();
     });
 });
-

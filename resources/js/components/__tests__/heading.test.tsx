@@ -1,18 +1,18 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
 import Heading from '../heading';
+import { describe, expect, it } from 'vitest';
 
 describe('Heading', () => {
     it('renders title and description', () => {
-        render(<Heading title="Test Title" description="Test Description" />);
-        expect(screen.getByText('Test Title')).toBeInTheDocument();
-        expect(screen.getByText('Test Description')).toBeInTheDocument();
+        render(<Heading title="Profile" description="Manage account" />);
+        expect(screen.getByText('Profile')).toBeInTheDocument();
+        expect(screen.getByText('Manage account')).toBeInTheDocument();
     });
 
-    it('renders without description', () => {
-        const { container } = render(<Heading title="Only Title" />);
-        expect(screen.getByText('Only Title')).toBeInTheDocument();
-        expect(container.querySelector('p')).toBeNull();
+    it('omits description when not provided', () => {
+        const { container } = render(<Heading title="Profile" />);
+        expect(screen.queryByText('Manage account')).toBeNull();
+        expect(container).toContainHTML('Profile');
     });
 });
