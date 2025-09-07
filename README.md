@@ -73,3 +73,12 @@ Ensure the application server is running and the Playwright browsers are install
 npx playwright install
 npx playwright test
 ```
+
+## Sitemap
+
+- `/` – project root with configuration files.
+- `app/` – Laravel backend code.
+- `resources/` – front-end assets and views.
+- `routes/` – application routes.
+- `tests/` – test suites.
+
