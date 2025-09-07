@@ -22,7 +22,11 @@ vi.mock('@/components/heading-small', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, asChild, ...props }: any) =>
+    Button: (
+        { children, asChild, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+            asChild?: boolean;
+        },
+    ) =>
         asChild && React.isValidElement(children)
             ? React.cloneElement(children, props)
             : <button {...props}>{children}</button>,
@@ -45,11 +49,23 @@ vi.mock('@/components/ui/input', () => ({
 }));
 
 vi.mock('@/components/ui/label', () => ({
-    Label: ({ children, ...props }: any) => <label {...props}>{children}</label>,
+    Label: ({ children, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
+        <label {...props}>{children}</label>
+    ),
 }));
 
 vi.mock('@inertiajs/react', () => ({
-    Form: ({ children, onError }: any) => {
+    Form: ({
+        children,
+        onError,
+    }: {
+        children: (args: {
+            resetAndClearErrors: () => void;
+            processing: boolean;
+            errors: Record<string, string>;
+        }) => React.ReactNode;
+        onError: (errors: Record<string, string>) => void;
+    }) => {
         onErrorMock.mockImplementation(onError);
         return <div>{children({ resetAndClearErrors: vi.fn(), processing: false, errors: {} })}</div>;
     },
