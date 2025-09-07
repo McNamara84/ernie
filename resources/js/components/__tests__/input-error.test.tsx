@@ -4,14 +4,15 @@ import InputError from '../input-error';
 import { describe, expect, it } from 'vitest';
 
 describe('InputError', () => {
-    it('renders the message', () => {
-        render(<InputError message="Something went wrong" />);
-        expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
+    it('renders the message when provided', () => {
+        render(<InputError message="Invalid" />);
+        const message = screen.getByText('Invalid');
+        expect(message).toBeInTheDocument();
+        expect(message).toHaveClass('text-sm');
     });
 
-    it('renders nothing when message is undefined', () => {
-        const { container } = render(<InputError message={undefined} />);
+    it('returns null when no message', () => {
+        const { container } = render(<InputError />);
         expect(container).toBeEmptyDOMElement();
     });
 });
-

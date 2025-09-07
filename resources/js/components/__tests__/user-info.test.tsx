@@ -1,28 +1,32 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
+import { UserInfo } from '../user-info';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/components/ui/avatar', () => ({
-    Avatar: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    AvatarImage: ({ src, alt }: { src?: string; alt?: string }) => <img src={src} alt={alt} />,
-    AvatarFallback: ({ children }: { children?: React.ReactNode }) => <span>{children}</span>,
+vi.mock('@/hooks/use-initials', () => ({
+    useInitials: () => () => 'JD',
 }));
 
-import { UserInfo } from '../user-info';
-
-const user = { name: 'Jane Doe', email: 'jane@example.com', avatar: undefined } as const;
+vi.mock('@/components/ui/avatar', () => ({
+    Avatar: ({ children }: { children?: React.ReactNode }) => <div data-testid="avatar">{children}</div>,
+    AvatarImage: ({ ...props }: any) => <img data-testid="avatar-image" {...props} />,
+    AvatarFallback: ({ children }: { children?: React.ReactNode }) => (
+        <div data-testid="avatar-fallback">{children}</div>
+    ),
+}));
 
 describe('UserInfo', () => {
-    it('renders user name and initials', () => {
-        render(<UserInfo user={user} />);
-        expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-        expect(screen.getByText('JD')).toBeInTheDocument();
-        expect(screen.queryByText('jane@example.com')).toBeNull();
+    const user = { name: 'John Doe', email: 'john@example.com', avatar: '' };
+
+    it('shows name, email and initials', () => {
+        render(<UserInfo user={user} showEmail />);
+        expect(screen.getByText('John Doe')).toBeInTheDocument();
+        expect(screen.getByText('john@example.com')).toBeInTheDocument();
+        expect(screen.getByTestId('avatar-fallback')).toHaveTextContent('JD');
     });
 
-    it('shows email when showEmail is true', () => {
-        render(<UserInfo user={user} showEmail />);
-        expect(screen.getByText('jane@example.com')).toBeInTheDocument();
+    it('hides email when showEmail is false', () => {
+        render(<UserInfo user={user} />);
+        expect(screen.queryByText('john@example.com')).toBeNull();
     });
 });
-
