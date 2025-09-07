@@ -70,13 +70,14 @@ vi.mock('@/hooks/use-initials', () => ({
     useInitials: () => getInitialsMock,
 }));
 vi.mock('lucide-react', () => ({
-    BookOpen: () => <svg />, 
-    LayoutGrid: () => <svg />, 
-    Menu: () => <svg />, 
+    BookOpen: () => <svg />,
+    LayoutGrid: () => <svg />,
+    Menu: () => <svg />,
     Search: () => <svg />,
 }));
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
+    docs: () => ({ url: '/docs' }),
 }));
 
 describe('AppHeader', () => {
@@ -99,9 +100,8 @@ describe('AppHeader', () => {
         screen
             .getAllByRole('link', { name: /dashboard/i })
             .forEach((link) => expect(link).toHaveAttribute('href', '/dashboard'));
-        screen
-            .getAllByRole('link', { name: /documentation/i })
-            .forEach((link) => expect(link).toHaveAttribute('href', '/docs'));
+        const docLinks = screen.getAllByRole('link', { name: /documentation/i });
+        docLinks.forEach((link) => expect(link).toHaveAttribute('href', '/docs'));
         expect(getInitialsMock).toHaveBeenCalledWith('John Doe');
         expect(screen.getByText('JD')).toBeInTheDocument();
         expect(screen.getByTestId('breadcrumbs')).toBeInTheDocument();
