@@ -2,6 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppHeader } from '../app-header';
+import type { BreadcrumbItem } from '@/types';
+import type { ComponentProps } from 'react';
 
 const usePageMock = vi.fn();
 const getInitialsMock = vi.fn(() => 'JD');
@@ -12,14 +14,16 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/breadcrumbs', () => ({
-    Breadcrumbs: ({ breadcrumbs }: { breadcrumbs: Array<any> }) => (
+    Breadcrumbs: ({ breadcrumbs }: { breadcrumbs: Array<BreadcrumbItem> }) => (
         <nav data-testid="breadcrumbs">{breadcrumbs.length}</nav>
     ),
 }));
 vi.mock('@/components/icon', () => ({ Icon: () => <span data-testid="icon" /> }));
 vi.mock('@/components/ui/avatar', () => ({
     Avatar: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    AvatarImage: (props: any) => <img data-testid="avatar-image" {...props} />,
+    AvatarImage: (props: ComponentProps<'img'>) => (
+        <img data-testid="avatar-image" {...props} />
+    ),
     AvatarFallback: ({ children }: { children?: React.ReactNode }) => (
         <div data-testid="avatar-fallback">{children}</div>
     ),

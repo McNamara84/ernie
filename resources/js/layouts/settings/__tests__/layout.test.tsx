@@ -38,12 +38,12 @@ vi.mock('@/routes/profile', () => ({
 
 describe('SettingsLayout', () => {
     it('returns null when window is undefined', () => {
-        const realWindow = (global as any).window;
-        // @ts-expect-error - simulate server environment
-        delete (global as any).window;
+        const g = globalThis as { window?: Window };
+        const realWindow = g.window;
+        delete g.window;
         const result = SettingsLayout({ children: <div /> });
         expect(result).toBeNull();
-        (global as any).window = realWindow;
+        g.window = realWindow;
     });
 
     it('renders navigation and highlights current path', () => {
