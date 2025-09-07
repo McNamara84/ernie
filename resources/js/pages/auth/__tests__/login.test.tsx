@@ -1,16 +1,19 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
+import type { ComponentProps, ReactNode } from 'react';
 import Login from '../login';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
-    Form: ({ children }: any) => <form>{typeof children === 'function' ? children({ processing: false, errors: {} }) : children}</form>,
-    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    Link: ({ href, children }: { href: string; children?: React.ReactNode }) => <a href={href}>{children}</a>,
+    Form: ({ children }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode) }) => (
+        <form>{typeof children === 'function' ? children({ processing: false, errors: {} }) : children}</form>
+    ),
+    Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
+    Link: ({ href, children }: { href: string; children?: ReactNode }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/layouts/auth-layout', () => ({
-    default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    default: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController', () => ({
@@ -22,7 +25,7 @@ vi.mock('@/routes/password', () => ({
 }));
 
 vi.mock('@/components/text-link', () => ({
-    default: ({ href, children }: { href: string; children?: React.ReactNode }) => <a href={href}>{children}</a>,
+    default: ({ href, children }: { href: string; children?: ReactNode }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/components/input-error', () => ({
@@ -30,19 +33,19 @@ vi.mock('@/components/input-error', () => ({
 }));
 
 vi.mock('@/components/ui/button', () => ({
-    Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+    Button: ({ children, ...props }: ComponentProps<'button'>) => <button {...props}>{children}</button>,
 }));
 
 vi.mock('@/components/ui/checkbox', () => ({
-    Checkbox: (props: any) => <input type="checkbox" {...props} />,
+    Checkbox: (props: ComponentProps<'input'>) => <input type="checkbox" {...props} />,
 }));
 
 vi.mock('@/components/ui/input', () => ({
-    Input: (props: any) => <input {...props} />,
+    Input: (props: ComponentProps<'input'>) => <input {...props} />,
 }));
 
 vi.mock('@/components/ui/label', () => ({
-    Label: ({ children, ...props }: any) => <label {...props}>{children}</label>,
+    Label: ({ children, ...props }: ComponentProps<'label'>) => <label {...props}>{children}</label>,
 }));
 
 describe('Login page', () => {

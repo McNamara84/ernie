@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
+import type { ComponentProps, ReactNode } from 'react';
 import { UserInfo } from '../user-info';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -8,9 +9,9 @@ vi.mock('@/hooks/use-initials', () => ({
 }));
 
 vi.mock('@/components/ui/avatar', () => ({
-    Avatar: ({ children }: { children?: React.ReactNode }) => <div data-testid="avatar">{children}</div>,
-    AvatarImage: ({ ...props }: any) => <img data-testid="avatar-image" {...props} />,
-    AvatarFallback: ({ children }: { children?: React.ReactNode }) => (
+    Avatar: ({ children }: { children?: ReactNode }) => <div data-testid="avatar">{children}</div>,
+    AvatarImage: (props: ComponentProps<'img'>) => <img data-testid="avatar-image" {...props} />,
+    AvatarFallback: ({ children }: { children?: ReactNode }) => (
         <div data-testid="avatar-fallback">{children}</div>
     ),
 }));
