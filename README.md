@@ -76,9 +76,26 @@ npx playwright test
 
 ## Sitemap
 
-- `/` – project root with configuration files.
-- `app/` – Laravel backend code.
-- `resources/` – front-end assets and views.
-- `routes/` – application routes.
-- `tests/` – test suites.
+```
+/
+├─ confirm-password
+├─ dashboard
+├─ docs
+├─ email
+│  └─ verification-notification
+├─ forgot-password
+├─ login
+├─ logout
+├─ reset-password
+│  └─ {token}
+├─ settings
+│  ├─ appearance
+│  ├─ password
+│  └─ profile
+├─ storage
+│  └─ {path}
+├─ up
+└─ verify-email
+   └─ {id}/{hash}
+```
 
