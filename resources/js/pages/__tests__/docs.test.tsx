@@ -19,9 +19,9 @@ describe('Docs page', () => {
     });
 
     it('toggles admin collapsible content', () => {
-        const { container } = render(<Docs />);
+        render(<Docs />);
         const trigger = screen.getByText('For Admins');
-        const content = container.querySelectorAll('[data-slot="collapsible-content"]')[1] as HTMLElement;
+        const content = screen.getByTestId('admin-collapsible-content');
         expect(content).toHaveAttribute('data-state', 'closed');
         fireEvent.click(trigger);
         expect(content).toHaveAttribute('data-state', 'open');

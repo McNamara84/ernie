@@ -25,7 +25,9 @@ export default function Docs() {
                         For Users
                         <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert">
+                    <CollapsibleContent
+                        className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert"
+                    >
                         <p>Read guides for using the system.</p>
                         <p>
                             <a href="/docs/users" className="underline">
@@ -39,7 +41,10 @@ export default function Docs() {
                         For Admins
                         <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert">
+                    <CollapsibleContent
+                        data-testid="admin-collapsible-content"
+                        className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert"
+                    >
                         <p>To create a new user via the console, run:</p>
                         <pre>
                             <code>
