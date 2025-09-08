@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect } from 'vitest';
 import {
@@ -19,8 +19,8 @@ describe('Collapsible', () => {
       </Collapsible>
     );
 
-    const trigger = document.querySelector('[data-slot="collapsible-trigger"]')!;
-    const content = document.querySelector('[data-testid="content"]')!;
+    const trigger = screen.getByRole('button', { name: 'Toggle' });
+    const content = screen.getByTestId('content');
     expect(content).toHaveAttribute('data-state', 'closed');
     await userEvent.click(trigger);
     expect(content).toHaveAttribute('data-state', 'open');

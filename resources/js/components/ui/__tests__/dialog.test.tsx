@@ -20,7 +20,7 @@ describe('Dialog', () => {
                 </DialogContent>
             </Dialog>,
         );
-        expect(document.querySelector('[data-slot="dialog-overlay"]')).toBeInTheDocument();
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByText('Title')).toBeInTheDocument();
         expect(screen.getByText('Description')).toBeInTheDocument();
     });
