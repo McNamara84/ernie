@@ -12,19 +12,27 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 
 describe('Docs page', () => {
-    it('renders collapsible trigger', () => {
+    it('renders collapsible triggers', () => {
         render(<Docs />);
+        expect(screen.getByText('For Users')).toBeInTheDocument();
         expect(screen.getByText('For Admins')).toBeInTheDocument();
     });
 
-    it('toggles collapsible content', () => {
-        const { container } = render(<Docs />);
+    it('toggles admin collapsible content', () => {
+        render(<Docs />);
         const trigger = screen.getByText('For Admins');
-        const content = container.querySelector('[data-slot="collapsible-content"]') as HTMLElement;
+        const content = screen.getByTestId('admin-collapsible-content');
         expect(content).toHaveAttribute('data-state', 'closed');
         fireEvent.click(trigger);
         expect(content).toHaveAttribute('data-state', 'open');
         expect(screen.getByText(/php artisan add-user/i)).toBeInTheDocument();
+    });
+
+    it('links to user documentation', () => {
+        render(<Docs />);
+        fireEvent.click(screen.getByText('For Users'));
+        const link = screen.getByText('Go to the user documentation');
+        expect(link).toHaveAttribute('href', '/docs/users');
     });
 });
 
