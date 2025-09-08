@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { Tooltip, TooltipTrigger, TooltipContent } from '../tooltip';
 
@@ -11,7 +11,9 @@ describe('Tooltip', () => {
                 <TooltipContent>Tooltip text</TooltipContent>
             </Tooltip>,
         );
-        const content = document.querySelector('[data-slot="tooltip-content"]');
+        const content = screen.getByText('Tooltip text', {
+            selector: '[data-slot="tooltip-content"]',
+        });
         expect(content).toBeInTheDocument();
     });
 });
