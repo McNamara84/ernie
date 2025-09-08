@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ComponentProps, ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import Login from '../login';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -13,8 +13,6 @@ const submitMock = vi.fn<
 const originalLocation = window.location;
 
 vi.mock('@inertiajs/react', () => {
-    const React = require('react');
-    const { useState } = React;
     return {
         Form: ({
             children,
