@@ -15,6 +15,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('docs', function () {
         return Inertia::render('docs');
     })->name('docs');
+
+    Route::get('docs/users', function () {
+        return Inertia::render('docs-users');
+    })->name('docs.users');
 });
 
 require __DIR__.'/settings.php';

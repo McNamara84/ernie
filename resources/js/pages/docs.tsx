@@ -22,6 +22,20 @@ export default function Docs() {
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Collapsible className="w-full rounded-lg border">
                     <CollapsibleTrigger className="group flex w-full items-center justify-between p-4 text-left font-medium">
+                        For Users
+                        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert">
+                        <p>Read guides for using the system.</p>
+                        <p>
+                            <a href="/docs/users" className="underline">
+                                Go to the user documentation
+                            </a>
+                        </p>
+                    </CollapsibleContent>
+                </Collapsible>
+                <Collapsible className="w-full rounded-lg border">
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between p-4 text-left font-medium">
                         For Admins
                         <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
                     </CollapsibleTrigger>
