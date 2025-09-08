@@ -33,8 +33,8 @@ jobs:
         cp .env.example .env
         sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
         touch database/database.sqlite
-        php artisan migrate --force
         php artisan key:generate
+        php artisan migrate:fresh --seed --force
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
