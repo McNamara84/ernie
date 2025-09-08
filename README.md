@@ -73,3 +73,29 @@ Ensure the application server is running and the Playwright browsers are install
 npx playwright install
 npx playwright test
 ```
+
+## Sitemap
+
+```
+/
+├─ confirm-password
+├─ dashboard
+├─ docs
+├─ email
+│  └─ verification-notification
+├─ forgot-password
+├─ login
+├─ logout
+├─ reset-password
+│  └─ {token}
+├─ settings
+│  ├─ appearance
+│  ├─ password
+│  └─ profile
+├─ storage
+│  └─ {path}
+├─ up
+└─ verify-email
+   └─ {id}/{hash}
+```
+
