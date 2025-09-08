@@ -30,6 +30,7 @@ describe('Docs page', () => {
 
     it('links to user documentation', () => {
         render(<Docs />);
+        fireEvent.click(screen.getByText('For Users'));
         const link = screen.getByText('Go to the user documentation');
         expect(link).toHaveAttribute('href', '/docs/users');
     });
