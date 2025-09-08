@@ -66,7 +66,12 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </div>
 
                             <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
-                                {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                                {processing && (
+                                    <LoaderCircle
+                                        data-testid="loading-spinner"
+                                        className="h-4 w-4 animate-spin"
+                                    />
+                                )}
                                 Log in
                             </Button>
                         </div>

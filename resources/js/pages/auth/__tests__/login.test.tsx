@@ -74,6 +74,6 @@ describe('Login page', () => {
         render(<Login canResetPassword={false} />);
         const button = screen.getByRole('button', { name: /log in/i });
         expect(button).toBeDisabled();
-        expect(button.querySelector('.animate-spin')).toBeInTheDocument();
+        expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
     });
 });
