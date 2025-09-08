@@ -8,7 +8,7 @@ vi.mock('@inertiajs/react', () => ({
     Form: ({ children }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode) }) => (
         <form>
             {typeof children === 'function'
-                ? children({ processing: false, errors: { email: 'Invalid email', password: 'Required' } })
+                ? children({ processing: true, errors: { email: 'Invalid email', password: 'Required' } })
                 : children}
         </form>
     ),
@@ -68,5 +68,12 @@ describe('Login page', () => {
         render(<Login canResetPassword={false} />);
         expect(screen.getByText('Invalid email')).toBeInTheDocument();
         expect(screen.getByText('Required')).toBeInTheDocument();
+    });
+
+    it('disables the submit button and shows a spinner while processing', () => {
+        render(<Login canResetPassword={false} />);
+        const button = screen.getByRole('button', { name: /log in/i });
+        expect(button).toBeDisabled();
+        expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
     });
 });
