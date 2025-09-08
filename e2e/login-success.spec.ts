@@ -7,6 +7,6 @@ test('redirects to dashboard after valid login', async ({ page }) => {
   await page.getByLabel('Password').fill('password');
   await page.getByRole('button', { name: 'Log in' }).click();
 
-  await page.waitForURL('**/dashboard', { timeout: 15000 });
+  await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
   await expect(page.getByText('Hello Test User!')).toBeVisible();
 });
