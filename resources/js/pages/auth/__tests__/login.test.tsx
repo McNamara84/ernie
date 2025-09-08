@@ -6,7 +6,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Form: ({ children }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode) }) => (
-        <form>{typeof children === 'function' ? children({ processing: false, errors: {} }) : children}</form>
+        <form>
+            {typeof children === 'function'
+                ? children({ processing: false, errors: { email: 'Invalid email', password: 'Required' } })
+                : children}
+        </form>
     ),
     Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
     Link: ({ href, children }: { href: string; children?: ReactNode }) => <a href={href}>{children}</a>,
@@ -58,5 +62,11 @@ describe('Login page', () => {
     it('displays status message when provided', () => {
         render(<Login canResetPassword={false} status="Password reset" />);
         expect(screen.getByText('Password reset')).toBeInTheDocument();
+    });
+
+    it('renders validation errors', () => {
+        render(<Login canResetPassword={false} />);
+        expect(screen.getByText('Invalid email')).toBeInTheDocument();
+        expect(screen.getByText('Required')).toBeInTheDocument();
     });
 });
