@@ -1,14 +1,21 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
+import AuthenticatedSessionController from '@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController';
 import Login from '../login';
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
-    Form: ({ children }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode) }) => (
+    Form: ({
+        children,
+        processing = false,
+    }: {
+        children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode);
+        processing?: boolean;
+    }) => (
         <form>
             {typeof children === 'function'
-                ? children({ processing: false, errors: { email: 'Invalid email', password: 'Required' } })
+                ? children({ processing, errors: { email: 'Invalid email', password: 'Required' } })
                 : children}
         </form>
     ),
@@ -21,7 +28,7 @@ vi.mock('@/layouts/auth-layout', () => ({
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/AuthenticatedSessionController', () => ({
-    default: { store: { form: () => ({}) } },
+    default: { store: { form: vi.fn(() => ({})) } },
 }));
 
 vi.mock('@/routes/password', () => ({
@@ -68,5 +75,13 @@ describe('Login page', () => {
         render(<Login canResetPassword={false} />);
         expect(screen.getByText('Invalid email')).toBeInTheDocument();
         expect(screen.getByText('Required')).toBeInTheDocument();
+    });
+
+    it('disables submit button and shows loader when processing', () => {
+        vi.mocked(AuthenticatedSessionController.store.form).mockReturnValueOnce({ processing: true });
+        render(<Login canResetPassword={false} />);
+        const button = screen.getByRole('button', { name: /log in/i });
+        expect(button).toBeDisabled();
+        expect(button.querySelector('svg.lucide-loader-circle')).toBeInTheDocument();
     });
 });
