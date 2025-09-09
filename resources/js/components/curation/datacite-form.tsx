@@ -14,6 +14,7 @@ interface DataCiteFormData {
 }
 
 interface TitleEntry {
+    id: string;
     title: string;
     titleType: string;
 }
@@ -39,7 +40,7 @@ export default function DataCiteForm({
     });
 
     const [titles, setTitles] = useState<TitleEntry[]>([
-        { title: '', titleType: 'main-title' },
+        { id: crypto.randomUUID(), title: '', titleType: 'main-title' },
     ]);
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
@@ -48,7 +49,7 @@ export default function DataCiteForm({
 
     const handleTitleChange = (
         index: number,
-        field: keyof TitleEntry,
+        field: keyof Omit<TitleEntry, 'id'>,
         value: string,
     ) => {
         setTitles((prev) => {
@@ -61,7 +62,10 @@ export default function DataCiteForm({
     const addTitle = () => {
         if (titles.length >= MAX_TITLES) return;
         const defaultType = titleTypes.find((t) => t.slug !== 'main-title')?.slug ?? '';
-        setTitles((prev) => [...prev, { title: '', titleType: defaultType }]);
+        setTitles((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), title: '', titleType: defaultType },
+        ]);
     };
 
     const removeTitle = (index: number) => {
@@ -121,8 +125,8 @@ export default function DataCiteForm({
             <div className="space-y-4">
                 {titles.map((entry, index) => (
                     <TitleField
-                        key={index}
-                        index={index}
+                        key={entry.id}
+                        id={entry.id}
                         title={entry.title}
                         titleType={entry.titleType}
                         options={titleTypes

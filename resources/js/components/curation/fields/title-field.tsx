@@ -10,7 +10,7 @@ interface Option {
 }
 
 interface TitleFieldProps {
-    index: number;
+    id: string;
     title: string;
     titleType: string;
     options: Option[];
@@ -24,7 +24,7 @@ interface TitleFieldProps {
 }
 
 export function TitleField({
-    index,
+    id,
     title,
     titleType,
     options,
@@ -39,7 +39,7 @@ export function TitleField({
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
             <InputField
-                id={`title-${index}`}
+                id={`${id}-title`}
                 label="Title"
                 value={title}
                 onChange={(e) => onTitleChange(e.target.value)}
@@ -47,7 +47,7 @@ export function TitleField({
                 className="md:col-span-8"
             />
             <SelectField
-                id={`titleType-${index}`}
+                id={`${id}-titleType`}
                 label="Title Type"
                 value={titleType}
                 onValueChange={onTypeChange}

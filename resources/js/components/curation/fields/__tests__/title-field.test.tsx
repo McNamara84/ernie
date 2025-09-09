@@ -9,7 +9,7 @@ describe('TitleField', () => {
         const onAdd = vi.fn();
         render(
             <TitleField
-                index={0}
+                id="row-0"
                 title=""
                 titleType=""
                 options={[]}
@@ -18,7 +18,7 @@ describe('TitleField', () => {
                 onAdd={onAdd}
                 onRemove={() => {}}
                 isFirst
-            />,
+            />, 
         );
         const addButton = screen.getByRole('button', { name: 'Add title' });
         await userEvent.click(addButton);
@@ -29,7 +29,7 @@ describe('TitleField', () => {
         const onRemove = vi.fn();
         render(
             <TitleField
-                index={1}
+                id="row-1"
                 title=""
                 titleType=""
                 options={[]}
@@ -48,7 +48,7 @@ describe('TitleField', () => {
     it('hides labels for non-first rows', () => {
         render(
             <TitleField
-                index={1}
+                id="row-1"
                 title=""
                 titleType=""
                 options={[]}
@@ -57,7 +57,7 @@ describe('TitleField', () => {
                 onAdd={() => {}}
                 onRemove={() => {}}
                 isFirst={false}
-            />,
+            />, 
         );
         expect(screen.getByText('Title')).toHaveClass('sr-only');
         expect(screen.getByText('Title Type')).toHaveClass('sr-only');
@@ -66,7 +66,7 @@ describe('TitleField', () => {
     it('disables add button when cannot add', () => {
         render(
             <TitleField
-                index={0}
+                id="row-0"
                 title=""
                 titleType=""
                 options={[]}
@@ -76,7 +76,7 @@ describe('TitleField', () => {
                 onRemove={() => {}}
                 isFirst
                 canAdd={false}
-            />,
+            />, 
         );
         expect(
             screen.getByRole('button', { name: 'Add title' }),
