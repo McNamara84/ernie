@@ -9,13 +9,10 @@ vi.mock('@/layouts/app-layout', () => ({
   default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
-let DataCiteFormMock: any;
-vi.mock('@/components/curation/datacite-form', () => {
-  DataCiteFormMock = vi.fn(() => <div>DataCiteForm</div>);
-  return {
-    default: DataCiteFormMock,
-  };
-});
+const DataCiteFormMock = vi.fn(() => <div>DataCiteForm</div>);
+vi.mock('@/components/curation/datacite-form', () => ({
+  default: DataCiteFormMock,
+}));
 
 describe('Curation page', () => {
   it('renders DataCiteForm with provided resource types', async () => {
