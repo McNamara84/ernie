@@ -40,6 +40,16 @@ describe('VerifyEmail page', () => {
         ).toBeInTheDocument();
     });
 
+    it('enables resend button by default and hides status message', () => {
+        render(<VerifyEmail />);
+        expect(screen.getByRole('button', { name: /resend verification email/i })).not.toBeDisabled();
+        expect(
+            screen.queryByText(
+                /a new verification link has been sent to the email address you provided during registration./i,
+            ),
+        ).not.toBeInTheDocument();
+    });
+
     it('disables resend button when processing', () => {
         formProcessing = true;
         render(<VerifyEmail />);
@@ -51,4 +61,3 @@ describe('VerifyEmail page', () => {
         expect(screen.getByRole('link', { name: /log out/i })).toHaveAttribute('href', '/logout');
     });
 });
-
