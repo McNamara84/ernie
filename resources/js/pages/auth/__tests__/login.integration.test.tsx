@@ -56,16 +56,20 @@ vi.mock('@inertiajs/react', () => {
                 setProcessing(true);
                 const data = new FormData(e.currentTarget);
                 const response = await fetch('/login', {
-                    method: 'post',
+                    method: 'POST',
                     body: data,
                 });
                 setProcessing(false);
                 if (response.ok) {
                     const json = await response.json();
-                    window.location.assign(json.redirect);
+                    const redirect =
+                        typeof json.redirect === 'string' && json.redirect.startsWith('/')
+                            ? json.redirect
+                            : '/';
+                    window.location.assign(redirect);
                 } else {
                     const json = await response.json();
-                    setErrors(json.errors);
+                    setErrors(json.errors ?? {});
                 }
             };
             return (
