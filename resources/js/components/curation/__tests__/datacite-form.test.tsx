@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
 import DataCiteForm from '../datacite-form';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
-import type { ResourceType } from '@/types';
+import type { ResourceType, TitleType } from '@/types';
 
 describe('DataCiteForm', () => {
     beforeAll(() => {
@@ -19,8 +19,13 @@ describe('DataCiteForm', () => {
         { id: 1, name: 'Dataset', slug: 'dataset' },
     ];
 
-    it('renders fields and language options', async () => {
-        render(<DataCiteForm resourceTypes={resourceTypes} />);
+    const titleTypes: TitleType[] = [
+        { id: 1, name: 'Main Title', slug: 'main-title' },
+        { id: 2, name: 'Alternative Title', slug: 'alternative-title' },
+    ];
+
+    it('renders fields, title options and supports adding/removing titles', async () => {
+        render(<DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />);
         // basic fields
         expect(screen.getByLabelText('DOI')).toBeInTheDocument();
         expect(screen.getByLabelText('Year')).toBeInTheDocument();
@@ -42,5 +47,24 @@ describe('DataCiteForm', () => {
                 await screen.findByRole('option', { name: option.label }),
             ).toBeInTheDocument();
         }
+        await user.keyboard('{Escape}');
+
+        // title fields
+        expect(screen.getByLabelText('Title')).toBeInTheDocument();
+        const titleTypeTrigger = screen.getByLabelText('Title Type');
+        expect(titleTypeTrigger).toHaveTextContent('Main Title');
+
+        // add and remove title rows
+        const addButton = screen.getByRole('button', { name: 'Add title' });
+        await user.click(addButton);
+        const titleInputs = screen.getAllByLabelText('Title');
+        expect(titleInputs).toHaveLength(2);
+        const secondTitleTypeTrigger = screen.getAllByLabelText('Title Type')[1];
+        await user.click(secondTitleTypeTrigger);
+        expect(screen.queryByRole('option', { name: 'Main Title' })).not.toBeInTheDocument();
+        await user.click(secondTitleTypeTrigger);
+        const removeButton = screen.getByRole('button', { name: 'Remove title' });
+        await user.click(removeButton);
+        expect(screen.getAllByLabelText('Title')).toHaveLength(1);
     });
 });

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
+import TitleField from './fields/title-field';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
-import type { ResourceType } from '@/types';
+import type { ResourceType, TitleType } from '@/types';
 
 interface DataCiteFormData {
     doi: string;
@@ -12,11 +13,17 @@ interface DataCiteFormData {
     language: string;
 }
 
-interface DataCiteFormProps {
-    resourceTypes: ResourceType[];
+interface TitleEntry {
+    title: string;
+    titleType: string;
 }
 
-export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
+interface DataCiteFormProps {
+    resourceTypes: ResourceType[];
+    titleTypes: TitleType[];
+}
+
+export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteFormProps) {
     const [form, setForm] = useState<DataCiteFormData>({
         doi: '',
         year: '',
@@ -25,12 +32,54 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
         language: '',
     });
 
+    const [titles, setTitles] = useState<TitleEntry[]>([
+        { title: '', titleType: 'main-title' },
+    ]);
+
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
     };
 
+    const handleTitleChange = (
+        index: number,
+        field: keyof TitleEntry,
+        value: string,
+    ) => {
+        setTitles((prev) => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            return next;
+        });
+    };
+
+    const addTitle = () => {
+        setTitles((prev) => [...prev, { title: '', titleType: '' }]);
+    };
+
+    const removeTitle = (index: number) => {
+        setTitles((prev) => prev.filter((_, i) => i !== index));
+    };
+
     return (
         <form className="space-y-6">
+            <div className="space-y-4">
+                {titles.map((entry, index) => (
+                    <TitleField
+                        key={index}
+                        index={index}
+                        title={entry.title}
+                        titleType={entry.titleType}
+                        options={titleTypes
+                            .filter((t) => index === 0 || t.slug !== 'main-title')
+                            .map((t) => ({ value: t.slug, label: t.name }))}
+                        onTitleChange={(val) => handleTitleChange(index, 'title', val)}
+                        onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
+                        onAdd={addTitle}
+                        onRemove={() => removeTitle(index)}
+                        isFirst={index === 0}
+                    />
+                ))}
+            </div>
             <div className="grid gap-4 md:grid-cols-12">
                 <InputField
                     id="doi"
