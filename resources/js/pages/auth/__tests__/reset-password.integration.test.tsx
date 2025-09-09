@@ -89,7 +89,10 @@ describe('ResetPassword integration', () => {
     await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/login'));
-    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(fetchSpy).toHaveBeenCalled();
+    const bodyString = fetchSpy.mock.calls[0]?.[1]?.body;
+    expect(typeof bodyString).toBe('string');
+    const body = JSON.parse(bodyString as string);
     expect(body.token).toBe(token);
     expect(body.email).toBe(email);
   });
