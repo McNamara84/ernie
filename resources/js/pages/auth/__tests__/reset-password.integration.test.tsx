@@ -36,6 +36,14 @@ vi.mock('@inertiajs/react', () => {
     Form: ({ children, transform }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode); transform?: (data: Record<string, unknown>) => Record<string, unknown> }) => {
       const [processing, setProcessing] = useState(false);
       const [errors, setErrors] = useState<Record<string, string>>({});
+      const isSafeRedirect = (url: string) => {
+        try {
+          const parsed = new URL(url, window.location.origin);
+          return parsed.origin === window.location.origin && url.startsWith('/') && !url.startsWith('//');
+        } catch {
+          return false;
+        }
+      };
       const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setProcessing(true);
@@ -51,7 +59,11 @@ vi.mock('@inertiajs/react', () => {
         setProcessing(false);
         if (response.ok) {
           const json = await response.json();
-          window.location.assign(json.redirect);
+          const redirect =
+            typeof json.redirect === 'string' && isSafeRedirect(json.redirect)
+              ? json.redirect
+              : '/';
+          window.location.assign(redirect);
         } else {
           const json = await response.json();
           setErrors(json.errors ?? {});
@@ -82,7 +94,7 @@ describe('ResetPassword integration', () => {
     const fetchSpy = vi.fn(async () => ({ ok: true, json: async () => ({ redirect: '/login' }) }));
     vi.stubGlobal('fetch', fetchSpy);
     const assignSpy = vi.fn();
-    Object.defineProperty(window, 'location', { value: { assign: assignSpy } });
+    Object.defineProperty(window, 'location', { value: { assign: assignSpy, origin: 'http://localhost' } });
     render(<ResetPassword token={token} email={email} />);
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('Password'), 'newpassword');
@@ -106,5 +118,18 @@ describe('ResetPassword integration', () => {
     await user.type(screen.getByLabelText(/confirm password/i), 'short');
     await user.click(screen.getByRole('button', { name: /reset password/i }));
     expect(await screen.findByText('Too short')).toBeInTheDocument();
+  });
+
+  it.each(['https://evil.com', '//evil.com'])('falls back to root for invalid redirect %s', async (redirectValue) => {
+    const fetchSpy = vi.fn(async () => ({ ok: true, json: async () => ({ redirect: redirectValue }) }));
+    vi.stubGlobal('fetch', fetchSpy);
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, 'location', { value: { assign: assignSpy, origin: 'http://localhost' } });
+    render(<ResetPassword token={token} email={email} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Password'), 'newpassword');
+    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
+    await user.click(screen.getByRole('button', { name: /reset password/i }));
+    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/'));
   });
 });

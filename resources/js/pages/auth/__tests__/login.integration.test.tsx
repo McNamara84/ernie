@@ -51,6 +51,18 @@ vi.mock('@inertiajs/react', () => {
         }) => {
             const [errors, setErrors] = useState<Record<string, string>>({});
             const [processing, setProcessing] = useState(false);
+            const isSafeRedirect = (url: string) => {
+                try {
+                    const parsed = new URL(url, window.location.origin);
+                    return (
+                        parsed.origin === window.location.origin &&
+                        url.startsWith('/') &&
+                        !url.startsWith('//')
+                    );
+                } catch {
+                    return false;
+                }
+            };
             const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
                 setProcessing(true);
@@ -63,7 +75,7 @@ vi.mock('@inertiajs/react', () => {
                 if (response.ok) {
                     const json = await response.json();
                     const redirect =
-                        typeof json.redirect === 'string' && json.redirect.startsWith('/')
+                        typeof json.redirect === 'string' && isSafeRedirect(json.redirect)
                             ? json.redirect
                             : '/';
                     window.location.assign(redirect);
@@ -101,7 +113,7 @@ describe('Login integration', () => {
         })));
         const assignSpy = vi.fn();
         Object.defineProperty(window, 'location', {
-            value: { assign: assignSpy },
+            value: { assign: assignSpy, origin: 'http://localhost' },
         });
         render(<Login canResetPassword={false} />);
         fireEvent.input(screen.getByLabelText(/email address/i), {
@@ -110,7 +122,10 @@ describe('Login integration', () => {
         fireEvent.input(screen.getByLabelText(/password/i), {
             target: { value: 'password' },
         });
-        fireEvent.submit(screen.getByRole('button', { name: /log in/i }).closest('form')!);
+        const button = screen.getByRole('button', { name: /log in/i });
+        const form = button.closest('form');
+        if (!form) throw new Error('Form not found');
+        fireEvent.submit(form);
         await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/dashboard'));
     });
 
@@ -126,7 +141,36 @@ describe('Login integration', () => {
         fireEvent.input(screen.getByLabelText(/password/i), {
             target: { value: 'bad' },
         });
-        fireEvent.submit(screen.getByRole('button', { name: /log in/i }).closest('form')!);
+        const button = screen.getByRole('button', { name: /log in/i });
+        const form = button.closest('form');
+        if (!form) throw new Error('Form not found');
+        fireEvent.submit(form);
         expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
     });
+
+    it.each(['https://evil.com', '//evil.com'])(
+        'falls back to root for invalid redirect %s',
+        async (redirectValue) => {
+            vi.stubGlobal('fetch', vi.fn(async () => ({
+                ok: true,
+                json: async () => ({ redirect: redirectValue }),
+            }))); 
+            const assignSpy = vi.fn();
+            Object.defineProperty(window, 'location', {
+                value: { assign: assignSpy, origin: 'http://localhost' },
+            });
+            render(<Login canResetPassword={false} />);
+            fireEvent.input(screen.getByLabelText(/email address/i), {
+                target: { value: 'user@example.com' },
+            });
+            fireEvent.input(screen.getByLabelText(/password/i), {
+                target: { value: 'password' },
+            });
+            const button = screen.getByRole('button', { name: /log in/i });
+            const form = button.closest('form');
+            if (!form) throw new Error('Form not found');
+            fireEvent.submit(form);
+            await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/'));
+        },
+    );
 });
