@@ -33,13 +33,14 @@ vi.mock('@/components/ui/label', () => ({
 
 vi.mock('@inertiajs/react', () => {
   return {
-    Form: ({ children, transform }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode); transform?: (data: any) => any }) => {
+    Form: ({ children, transform }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode); transform?: (data: Record<string, unknown>) => Record<string, unknown> }) => {
       const [processing, setProcessing] = useState(false);
       const [errors, setErrors] = useState<Record<string, string>>({});
       const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setProcessing(true);
-        let data: any = Object.fromEntries(new FormData(e.currentTarget) as any);
+        const formData = new FormData(e.currentTarget);
+        let data: Record<string, unknown> = Object.fromEntries(formData.entries());
         if (transform) {
           data = transform(data);
         }
