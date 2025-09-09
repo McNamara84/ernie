@@ -6,6 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Head, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
+export const handleXmlFiles = (files: File[]): void => {
+    // Placeholder for XML file processing
+    void files;
+};
+
+type DashboardProps = {
+    onXmlFiles?: (files: File[]) => void;
+};
+
+function filterXmlFiles(files: File[]): File[] {
+    return files.filter((file) => file.type === 'text/xml' || file.name.endsWith('.xml'));
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'Dashboard',
@@ -13,7 +26,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Dashboard() {
+export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProps = {}) {
     const { auth } = usePage<SharedData>().props;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -35,16 +48,19 @@ export default function Dashboard() {
         event.preventDefault();
         setIsDragging(false);
         const files = Array.from(event.dataTransfer.files);
-        const xmlFiles = files.filter((file) => file.type === 'text/xml' || file.name.endsWith('.xml'));
+        const xmlFiles = filterXmlFiles(files);
         if (xmlFiles.length) {
-            // TODO: handle uploaded XML files
+            onXmlFiles(xmlFiles);
         }
     }
 
     function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
         const files = event.target.files;
         if (files && files.length) {
-            // TODO: handle uploaded XML files
+            const xmlFiles = filterXmlFiles(Array.from(files));
+            if (xmlFiles.length) {
+                onXmlFiles(xmlFiles);
+            }
         }
     }
 
