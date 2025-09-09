@@ -53,12 +53,15 @@ export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteForm
     };
 
     const addTitle = () => {
-        setTitles((prev) => [...prev, { title: '', titleType: '' }]);
+        const defaultType = titleTypes.find((t) => t.slug !== 'main-title')?.slug ?? '';
+        setTitles((prev) => [...prev, { title: '', titleType: defaultType }]);
     };
 
     const removeTitle = (index: number) => {
         setTitles((prev) => prev.filter((_, i) => i !== index));
     };
+
+    const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
 
     return (
         <form className="space-y-6">
@@ -70,7 +73,12 @@ export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteForm
                         title={entry.title}
                         titleType={entry.titleType}
                         options={titleTypes
-                            .filter((t) => index === 0 || t.slug !== 'main-title')
+                            .filter(
+                                (t) =>
+                                    t.slug !== 'main-title' ||
+                                    !mainTitleUsed ||
+                                    entry.titleType === 'main-title',
+                            )
                             .map((t) => ({ value: t.slug, label: t.name }))}
                         onTitleChange={(val) => handleTitleChange(index, 'title', val)}
                         onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}

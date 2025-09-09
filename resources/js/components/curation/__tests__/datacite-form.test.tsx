@@ -50,21 +50,22 @@ describe('DataCiteForm', () => {
         await user.keyboard('{Escape}');
 
         // title fields
-        expect(screen.getByLabelText('Title')).toBeInTheDocument();
-        const titleTypeTrigger = screen.getByLabelText('Title Type');
+        expect(screen.getByRole('textbox', { name: 'Title' })).toBeInTheDocument();
+        const titleTypeTrigger = screen.getByRole('combobox', { name: 'Title Type' });
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
         await user.click(addButton);
-        const titleInputs = screen.getAllByLabelText('Title');
+        const titleInputs = screen.getAllByRole('textbox', { name: 'Title' });
         expect(titleInputs).toHaveLength(2);
-        const secondTitleTypeTrigger = screen.getAllByLabelText('Title Type')[1];
+        const secondTitleTypeTrigger = screen.getAllByRole('combobox', { name: 'Title Type' })[1];
+        expect(secondTitleTypeTrigger).toHaveTextContent('Alternative Title');
         await user.click(secondTitleTypeTrigger);
         expect(screen.queryByRole('option', { name: 'Main Title' })).not.toBeInTheDocument();
         await user.click(secondTitleTypeTrigger);
         const removeButton = screen.getByRole('button', { name: 'Remove title' });
         await user.click(removeButton);
-        expect(screen.getAllByLabelText('Title')).toHaveLength(1);
+        expect(screen.getAllByRole('textbox', { name: 'Title' })).toHaveLength(1);
     });
 });
