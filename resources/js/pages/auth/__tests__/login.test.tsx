@@ -148,6 +148,18 @@ describe('Login page', () => {
         await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/dashboard'));
     });
 
+    it('submits remember value when checkbox is selected', async () => {
+        submitMock.mockResolvedValue({ ok: false });
+        renderLogin();
+        fireEvent.click(screen.getByLabelText(/remember me/i));
+        fireEvent.submit(screen.getByRole('button', { name: /log in/i }).closest('form')!);
+        await waitFor(() =>
+            expect(submitMock).toHaveBeenCalledWith(
+                expect.objectContaining({ remember: 'on' }),
+            ),
+        );
+    });
+
     it('shows error message on invalid credentials', async () => {
         submitMock.mockResolvedValue({
             ok: false,
