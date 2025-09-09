@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useState, type ComponentProps, type ReactNode } from 'react';
 import ForgotPassword from '../forgot-password';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -64,8 +65,9 @@ describe('ForgotPassword integration', () => {
     const fetchSpy = vi.fn(async () => ({ ok: true }));
     vi.stubGlobal('fetch', fetchSpy);
     render(<ForgotPassword />);
-    fireEvent.input(screen.getByLabelText(/email address/i), { target: { value: 'user@example.com' } });
-    fireEvent.submit(screen.getByRole('button', { name: /email password reset link/i }).closest('form')!);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email address/i), 'user@example.com');
+    await user.click(screen.getByRole('button', { name: /email password reset link/i }));
     await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
     expect(fetchSpy).toHaveBeenCalledWith('/forgot-password', expect.objectContaining({ method: 'POST' }));
   });
