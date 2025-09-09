@@ -1,16 +1,19 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import AuthLayout from '../auth-layout';
 
 const AuthLayoutTemplateMock = vi.hoisted(() =>
-    vi.fn(({ title, description, children }: any) => (
-        <div>
-            <h1>{title}</h1>
-            <p>{description}</p>
-            <div data-testid="content">{children}</div>
-        </div>
-    )),
+    vi.fn(
+        ({ title, description, children }: { title: string; description: string; children: ReactNode }) => (
+            <div>
+                <h1>{title}</h1>
+                <p>{description}</p>
+                <div data-testid="content">{children}</div>
+            </div>
+        ),
+    ),
 );
 
 vi.mock('@/layouts/auth/auth-simple-layout', () => ({

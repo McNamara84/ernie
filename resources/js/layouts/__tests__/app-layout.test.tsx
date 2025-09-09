@@ -1,19 +1,23 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import type { BreadcrumbItem } from '@/types';
 import { describe, expect, it, vi } from 'vitest';
 import AppLayout from '../app-layout';
 
 const AppLayoutTemplateMock = vi.hoisted(() =>
-    vi.fn(({ children, breadcrumbs }: any) => (
-        <div>
-            {breadcrumbs && (
-                <nav data-testid="breadcrumbs">
-                    {breadcrumbs.map((b: any) => b.title).join(',')}
-                </nav>
-            )}
-            <div data-testid="content">{children}</div>
-        </div>
-    )),
+    vi.fn(
+        ({ children, breadcrumbs }: { children: ReactNode; breadcrumbs?: BreadcrumbItem[] }) => (
+            <div>
+                {breadcrumbs && (
+                    <nav data-testid="breadcrumbs">
+                        {breadcrumbs.map((b: BreadcrumbItem) => b.title).join(',')}
+                    </nav>
+                )}
+                <div data-testid="content">{children}</div>
+            </div>
+        ),
+    ),
 );
 
 vi.mock('@/layouts/app/app-sidebar-layout', () => ({
