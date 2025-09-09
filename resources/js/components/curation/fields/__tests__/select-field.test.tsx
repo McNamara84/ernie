@@ -21,11 +21,27 @@ describe('SelectField', () => {
                 value=""
                 onValueChange={() => {}}
                 options={[{ value: 'en', label: 'English' }]}
-            />,
+            />
         );
         const trigger = screen.getByLabelText('Language');
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         await user.click(trigger);
         expect(await screen.findByText('English')).toBeInTheDocument();
+    });
+
+    it('applies custom className', () => {
+        render(
+            <SelectField
+                id="lang"
+                label="Lang"
+                value=""
+                onValueChange={() => {}}
+                options={[]}
+                className="col-span-2"
+            />
+        );
+        const trigger = screen.getByLabelText('Lang');
+        const wrapper = trigger.closest('.col-span-2');
+        expect(wrapper).toHaveClass('col-span-2');
     });
 });

@@ -10,4 +10,10 @@ describe('InputField', () => {
         expect(input).toHaveAttribute('id', 'test');
         expect(input).toHaveAttribute('type', 'number');
     });
+
+    it('applies custom className', () => {
+        render(<InputField id="cls" label="Class" className="col-span-2" />);
+        const wrapper = screen.getByLabelText('Class').parentElement;
+        expect(wrapper).toHaveClass('col-span-2');
+    });
 });

@@ -31,13 +31,14 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
 
     return (
         <form className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-12">
                 <InputField
                     id="doi"
                     label="DOI"
                     value={form.doi}
                     onChange={(e) => handleChange('doi', e.target.value)}
                     placeholder="10.xxxx/xxxxx"
+                    className="md:col-span-3"
                 />
                 <InputField
                     id="year"
@@ -46,6 +47,7 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
                     value={form.year}
                     onChange={(e) => handleChange('year', e.target.value)}
                     placeholder="2024"
+                    className="md:col-span-2"
                 />
                 <SelectField
                     id="resourceType"
@@ -56,6 +58,7 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
                         value: type.slug,
                         label: type.name,
                     }))}
+                    className="md:col-span-4"
                 />
                 <InputField
                     id="version"
@@ -63,15 +66,17 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
                     value={form.version}
                     onChange={(e) => handleChange('version', e.target.value)}
                     placeholder="1.0"
+                    className="md:col-span-1"
                 />
-                  <SelectField
-                      id="language"
-                      label="Language of Data"
-                      value={form.language}
-                      onValueChange={(val) => handleChange('language', val)}
-                      options={LANGUAGE_OPTIONS}
-                  />
-              </div>
-          </form>
-      );
-  }
+                <SelectField
+                    id="language"
+                    label="Language of Data"
+                    value={form.language}
+                    onValueChange={(val) => handleChange('language', val)}
+                    options={LANGUAGE_OPTIONS}
+                    className="md:col-span-2"
+                />
+            </div>
+        </form>
+    );
+}

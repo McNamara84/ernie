@@ -6,6 +6,7 @@ import {
     SelectItem,
     SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface Option {
     value: string;
@@ -19,6 +20,7 @@ interface SelectFieldProps {
     onValueChange: (value: string) => void;
     options: Option[];
     placeholder?: string;
+    className?: string;
 }
 
 export function SelectField({
@@ -28,9 +30,10 @@ export function SelectField({
     onValueChange,
     options,
     placeholder = 'Select',
+    className,
 }: SelectFieldProps) {
     return (
-        <div className="flex flex-col gap-2">
+        <div className={cn('flex flex-col gap-2', className)}>
             <Label htmlFor={id}>{label}</Label>
             <Select value={value} onValueChange={onValueChange}>
                 <SelectTrigger id={id}>
