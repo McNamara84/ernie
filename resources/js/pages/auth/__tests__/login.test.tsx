@@ -9,14 +9,7 @@ interface MockFormState {
     processing: boolean;
 }
 
-const mockFormState: MockFormState = { errors: {}, processing: false };
-const setMockFormState = (state: Partial<MockFormState>) => {
-    Object.assign(mockFormState, state);
-};
-const resetMockFormState = () => {
-    mockFormState.errors = {};
-    mockFormState.processing = false;
-};
+let initialFormState: MockFormState = { errors: {}, processing: false };
 const submitMock = vi.fn<
     [Record<string, FormDataEntryValue>],
     Promise<{ ok: boolean; errors?: Record<string, string> }>
@@ -30,8 +23,8 @@ vi.mock('@inertiajs/react', () => {
         }: {
             children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode);
         }) => {
-            const [errors, setErrors] = useState(mockFormState.errors);
-            const [processing, setProcessing] = useState(mockFormState.processing);
+            const [errors, setErrors] = useState(() => ({ ...initialFormState.errors }));
+            const [processing, setProcessing] = useState(() => initialFormState.processing);
             const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
                 setProcessing(true);
@@ -96,9 +89,17 @@ vi.mock('@/components/ui/label', () => ({
 }));
 
 beforeEach(() => {
-    resetMockFormState();
+    initialFormState = { errors: {}, processing: false };
     submitMock.mockReset();
 });
+
+const renderLogin = (
+    props: Partial<ComponentProps<typeof Login>> = {},
+    formState?: Partial<MockFormState>,
+) => {
+    initialFormState = { errors: {}, processing: false, ...formState };
+    return render(<Login canResetPassword={false} {...props} />);
+};
 
 afterEach(() => {
     Object.defineProperty(window, 'location', { value: originalLocation });
@@ -107,26 +108,24 @@ afterEach(() => {
 
 describe('Login page', () => {
     it('renders forgot password link when allowed', () => {
-        render(<Login canResetPassword={true} />);
+        renderLogin({ canResetPassword: true });
         const link = screen.getByRole('link', { name: /forgot password/i });
         expect(link).toHaveAttribute('href', '/forgot-password');
     });
 
     it('displays status message when provided', () => {
-        render(<Login canResetPassword={false} status="Password reset" />);
+        renderLogin({ status: 'Password reset' });
         expect(screen.getByText('Password reset')).toBeInTheDocument();
     });
 
     it('renders validation errors', () => {
-        setMockFormState({ errors: { email: 'Invalid email', password: 'Required' } });
-        render(<Login canResetPassword={false} />);
+        renderLogin({}, { errors: { email: 'Invalid email', password: 'Required' } });
         expect(screen.getByText('Invalid email')).toBeInTheDocument();
         expect(screen.getByText('Required')).toBeInTheDocument();
     });
 
     it('disables the submit button and shows a spinner while processing', () => {
-        setMockFormState({ processing: true });
-        render(<Login canResetPassword={false} />);
+        renderLogin({}, { processing: true });
         const button = screen.getByRole('button', { name: /log in/i });
         expect(button).toBeDisabled();
         expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
@@ -138,7 +137,7 @@ describe('Login page', () => {
         Object.defineProperty(window, 'location', {
             value: { assign: assignSpy },
         });
-        render(<Login canResetPassword={false} />);
+        renderLogin();
         fireEvent.input(screen.getByLabelText(/email address/i), {
             target: { value: 'user@example.com' },
         });
@@ -154,7 +153,7 @@ describe('Login page', () => {
             ok: false,
             errors: { email: 'Invalid credentials' },
         });
-        render(<Login canResetPassword={false} />);
+        renderLogin();
         fireEvent.submit(screen.getByRole('button', { name: /log in/i }).closest('form')!);
         expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
     });

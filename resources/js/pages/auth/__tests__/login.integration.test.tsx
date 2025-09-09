@@ -54,11 +54,10 @@ vi.mock('@inertiajs/react', () => {
             const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
                 setProcessing(true);
-                const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+                const data = new FormData(e.currentTarget);
                 const response = await fetch('/login', {
                     method: 'post',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data),
+                    body: data,
                 });
                 setProcessing(false);
                 if (response.ok) {
