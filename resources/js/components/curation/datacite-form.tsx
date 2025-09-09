@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import InputField from './fields/input-field';
-import SelectField from './fields/select-field';
+import { SelectField } from './fields/select-field';
+import type { ResourceType } from '@/types';
 
 interface DataCiteFormData {
     doi: string;
@@ -10,7 +11,11 @@ interface DataCiteFormData {
     language: string;
 }
 
-export default function DataCiteForm() {
+interface DataCiteFormProps {
+    resourceTypes: ResourceType[];
+}
+
+export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
     const [form, setForm] = useState<DataCiteFormData>({
         doi: '',
         year: '',
@@ -46,10 +51,10 @@ export default function DataCiteForm() {
                     label="Resource Type"
                     value={form.resourceType}
                     onValueChange={(val) => handleChange('resourceType', val)}
-                    options={[
-                        { value: 'dataset', label: 'Dataset' },
-                        { value: 'software', label: 'Software' },
-                    ]}
+                    options={resourceTypes.map((type) => ({
+                        value: type.slug,
+                        label: type.name,
+                    }))}
                 />
                 <InputField
                     id="version"

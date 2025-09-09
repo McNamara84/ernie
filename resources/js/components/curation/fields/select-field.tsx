@@ -47,5 +47,3 @@ export function SelectField({
         </div>
     );
 }
-
-export default SelectField;
