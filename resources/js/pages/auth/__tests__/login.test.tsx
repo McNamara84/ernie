@@ -4,8 +4,19 @@ import { useState, type ComponentProps, type ReactNode } from 'react';
 import Login from '../login';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-let formErrors: Record<string, string> = {};
-let formProcessing = false;
+interface MockFormState {
+    errors: Record<string, string>;
+    processing: boolean;
+}
+
+const mockFormState: MockFormState = { errors: {}, processing: false };
+const setMockFormState = (state: Partial<MockFormState>) => {
+    Object.assign(mockFormState, state);
+};
+const resetMockFormState = () => {
+    mockFormState.errors = {};
+    mockFormState.processing = false;
+};
 const submitMock = vi.fn<
     [Record<string, FormDataEntryValue>],
     Promise<{ ok: boolean; errors?: Record<string, string> }>
@@ -19,8 +30,8 @@ vi.mock('@inertiajs/react', () => {
         }: {
             children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode);
         }) => {
-            const [errors, setErrors] = useState(formErrors);
-            const [processing, setProcessing] = useState(formProcessing);
+            const [errors, setErrors] = useState(mockFormState.errors);
+            const [processing, setProcessing] = useState(mockFormState.processing);
             const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
                 setProcessing(true);
@@ -85,8 +96,7 @@ vi.mock('@/components/ui/label', () => ({
 }));
 
 beforeEach(() => {
-    formErrors = {};
-    formProcessing = false;
+    resetMockFormState();
     submitMock.mockReset();
 });
 
@@ -108,14 +118,14 @@ describe('Login page', () => {
     });
 
     it('renders validation errors', () => {
-        formErrors = { email: 'Invalid email', password: 'Required' };
+        setMockFormState({ errors: { email: 'Invalid email', password: 'Required' } });
         render(<Login canResetPassword={false} />);
         expect(screen.getByText('Invalid email')).toBeInTheDocument();
         expect(screen.getByText('Required')).toBeInTheDocument();
     });
 
     it('disables the submit button and shows a spinner while processing', () => {
-        formProcessing = true;
+        setMockFormState({ processing: true });
         render(<Login canResetPassword={false} />);
         const button = screen.getByRole('button', { name: /log in/i });
         expect(button).toBeDisabled();

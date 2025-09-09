@@ -47,7 +47,7 @@ vi.mock('@inertiajs/react', () => {
         Form: ({
             children,
         }: {
-            children: (args: { processing: boolean; errors: Record<string, string> }) => ReactNode;
+            children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode);
         }) => {
             const [errors, setErrors] = useState<Record<string, string>>({});
             const [processing, setProcessing] = useState(false);
@@ -57,6 +57,7 @@ vi.mock('@inertiajs/react', () => {
                 const data = Object.fromEntries(new FormData(e.currentTarget).entries());
                 const response = await fetch('/login', {
                     method: 'post',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data),
                 });
                 setProcessing(false);
@@ -68,7 +69,13 @@ vi.mock('@inertiajs/react', () => {
                     setErrors(json.errors);
                 }
             };
-            return <form onSubmit={handleSubmit}>{children({ processing, errors })}</form>;
+            return (
+                <form onSubmit={handleSubmit}>
+                    {typeof children === 'function'
+                        ? children({ processing, errors })
+                        : children}
+                </form>
+            );
         },
         Head: ({ children }: { children?: ReactNode }) => <>{children}</>,
         Link: ({ href, children }: { href: string; children?: ReactNode }) => (
