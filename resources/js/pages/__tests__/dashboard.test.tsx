@@ -59,6 +59,15 @@ describe('Dashboard', () => {
         expect(handleXmlFilesSpy).toHaveBeenCalledWith([xmlFile]);
     });
 
+    it('ignores non-xml files on drop', () => {
+        render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
+        const dropzone = screen.getByText(/drag & drop xml files here/i).parentElement as HTMLElement;
+        const textFile = new File(['data'], 'readme.txt', { type: 'text/plain' });
+        fireEvent.dragOver(dropzone, { dataTransfer: { files: [textFile] } });
+        fireEvent.drop(dropzone, { dataTransfer: { files: [textFile] } });
+        expect(handleXmlFilesSpy).not.toHaveBeenCalled();
+    });
+
     it('handles only xml files on file selection', () => {
         const { container } = render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
