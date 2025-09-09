@@ -6,13 +6,23 @@ import { type InputHTMLAttributes } from 'react';
 interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     id: string;
     label: string;
+    hideLabel?: boolean;
     className?: string;
 }
 
-export function InputField({ id, label, type = 'text', className, ...props }: InputFieldProps) {
+export function InputField({
+    id,
+    label,
+    hideLabel = false,
+    type = 'text',
+    className,
+    ...props
+}: InputFieldProps) {
     return (
         <div className={cn('flex flex-col gap-2', className)}>
-            <Label htmlFor={id}>{label}</Label>
+            <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
+                {label}
+            </Label>
             <Input id={id} type={type} {...props} />
         </div>
     );

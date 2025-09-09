@@ -65,29 +65,6 @@ export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteForm
 
     return (
         <form className="space-y-6">
-            <div className="space-y-4">
-                {titles.map((entry, index) => (
-                    <TitleField
-                        key={index}
-                        index={index}
-                        title={entry.title}
-                        titleType={entry.titleType}
-                        options={titleTypes
-                            .filter(
-                                (t) =>
-                                    t.slug !== 'main-title' ||
-                                    !mainTitleUsed ||
-                                    entry.titleType === 'main-title',
-                            )
-                            .map((t) => ({ value: t.slug, label: t.name }))}
-                        onTitleChange={(val) => handleTitleChange(index, 'title', val)}
-                        onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
-                        onAdd={addTitle}
-                        onRemove={() => removeTitle(index)}
-                        isFirst={index === 0}
-                    />
-                ))}
-            </div>
             <div className="grid gap-4 md:grid-cols-12">
                 <InputField
                     id="doi"
@@ -133,6 +110,29 @@ export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteForm
                     options={LANGUAGE_OPTIONS}
                     className="md:col-span-2"
                 />
+            </div>
+            <div className="space-y-4">
+                {titles.map((entry, index) => (
+                    <TitleField
+                        key={index}
+                        index={index}
+                        title={entry.title}
+                        titleType={entry.titleType}
+                        options={titleTypes
+                            .filter(
+                                (t) =>
+                                    t.slug !== 'main-title' ||
+                                    !mainTitleUsed ||
+                                    entry.titleType === 'main-title',
+                            )
+                            .map((t) => ({ value: t.slug, label: t.name }))}
+                        onTitleChange={(val) => handleTitleChange(index, 'title', val)}
+                        onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
+                        onAdd={addTitle}
+                        onRemove={() => removeTitle(index)}
+                        isFirst={index === 0}
+                    />
+                ))}
             </div>
         </form>
     );

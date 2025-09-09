@@ -38,10 +38,28 @@ describe('TitleField', () => {
                 onAdd={() => {}}
                 onRemove={onRemove}
                 isFirst={false}
-            />,
+            />, 
         );
         const removeButton = screen.getByRole('button', { name: 'Remove title' });
         await userEvent.click(removeButton);
         expect(onRemove).toHaveBeenCalled();
+    });
+
+    it('hides labels for non-first rows', () => {
+        render(
+            <TitleField
+                index={1}
+                title=""
+                titleType=""
+                options={[]}
+                onTitleChange={() => {}}
+                onTypeChange={() => {}}
+                onAdd={() => {}}
+                onRemove={() => {}}
+                isFirst={false}
+            />,
+        );
+        expect(screen.getByText('Title')).toHaveClass('sr-only');
+        expect(screen.getByText('Title Type')).toHaveClass('sr-only');
     });
 });

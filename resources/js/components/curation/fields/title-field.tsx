@@ -41,6 +41,7 @@ export function TitleField({
                 label="Title"
                 value={title}
                 onChange={(e) => onTitleChange(e.target.value)}
+                hideLabel={!isFirst}
                 className="md:col-span-6"
             />
             <SelectField
@@ -49,6 +50,7 @@ export function TitleField({
                 value={titleType}
                 onValueChange={onTypeChange}
                 options={options}
+                hideLabel={!isFirst}
                 className="md:col-span-5"
             />
             <div className="flex items-end md:col-span-1">
