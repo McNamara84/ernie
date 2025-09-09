@@ -1,8 +1,7 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState, type ComponentProps, type ReactNode } from 'react';
-import ResetPassword from '../reset-password';
+import ConfirmPassword from '../confirm-password';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const originalLocation = window.location;
@@ -11,7 +10,7 @@ vi.mock('@/layouts/auth-layout', () => ({
   default: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock('@/actions/App/Http/Controllers/Auth/NewPasswordController', () => ({
+vi.mock('@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController', () => ({
   default: { store: { form: () => ({}) } },
 }));
 
@@ -33,9 +32,9 @@ vi.mock('@/components/ui/label', () => ({
 
 vi.mock('@inertiajs/react', () => {
   return {
-    Form: ({ children, transform }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode); transform?: (data: Record<string, unknown>) => Record<string, unknown> }) => {
-      const [processing, setProcessing] = useState(false);
+    Form: ({ children }: { children?: ReactNode | ((args: { processing: boolean; errors: Record<string, string> }) => ReactNode) }) => {
       const [errors, setErrors] = useState<Record<string, string>>({});
+      const [processing, setProcessing] = useState(false);
       const isSafeRedirect = (url: string) => {
         try {
           const parsed = new URL(url, window.location.origin);
@@ -47,15 +46,8 @@ vi.mock('@inertiajs/react', () => {
       const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setProcessing(true);
-        const formData = new FormData(e.currentTarget);
-        let data: Record<string, unknown> = Object.fromEntries(formData.entries());
-        if (transform) {
-          data = transform(data);
-        }
-        const response = await fetch('/reset-password', {
-          method: 'POST',
-          body: JSON.stringify(data),
-        });
+        const data = new FormData(e.currentTarget);
+        const response = await fetch('/confirm-password', { method: 'POST', body: data });
         setProcessing(false);
         if (response.ok) {
           const json = await response.json();
@@ -86,50 +78,50 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('ResetPassword integration', () => {
-  const token = 'token123';
-  const email = 'user@example.com';
-
-  it('submits form and redirects on success', async () => {
-    const fetchSpy = vi.fn(async () => ({ ok: true, json: async () => ({ redirect: '/login' }) }));
-    vi.stubGlobal('fetch', fetchSpy);
+describe('ConfirmPassword integration', () => {
+  it('redirects after successful confirmation', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ redirect: '/dashboard' }),
+    })));
     const assignSpy = vi.fn();
     Object.defineProperty(window, 'location', { value: { assign: assignSpy, origin: 'http://localhost' } });
-    render(<ResetPassword token={token} email={email} />);
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Password'), 'newpassword');
-    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
-    await user.click(screen.getByRole('button', { name: /reset password/i }));
-    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/login'));
-    expect(fetchSpy).toHaveBeenCalled();
-    const bodyString = fetchSpy.mock.calls[0]?.[1]?.body;
-    expect(typeof bodyString).toBe('string');
-    const body = JSON.parse(bodyString as string);
-    expect(body.token).toBe(token);
-    expect(body.email).toBe(email);
+    render(<ConfirmPassword />);
+    fireEvent.input(screen.getByLabelText(/password/i), { target: { value: 'password' } });
+    const button = screen.getByRole('button', { name: /confirm password/i });
+    const form = button.closest('form');
+    if (!form) throw new Error('Form not found');
+    fireEvent.submit(form);
+    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/dashboard'));
   });
 
-  it('shows errors returned from server', async () => {
-    const fetchSpy = vi.fn(async () => ({ ok: false, json: async () => ({ errors: { password: 'Too short' } }) }));
-    vi.stubGlobal('fetch', fetchSpy);
-    render(<ResetPassword token={token} email={email} />);
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Password'), 'short');
-    await user.type(screen.getByLabelText(/confirm password/i), 'short');
-    await user.click(screen.getByRole('button', { name: /reset password/i }));
-    expect(await screen.findByText('Too short')).toBeInTheDocument();
+  it('shows error message on failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      json: async () => ({ errors: { password: 'Invalid password' } }),
+    })));
+    render(<ConfirmPassword />);
+    fireEvent.input(screen.getByLabelText(/password/i), { target: { value: 'wrong' } });
+    const button = screen.getByRole('button', { name: /confirm password/i });
+    const form = button.closest('form');
+    if (!form) throw new Error('Form not found');
+    fireEvent.submit(form);
+    expect(await screen.findByText('Invalid password')).toBeInTheDocument();
   });
 
   it.each(['https://evil.com', '//evil.com'])('falls back to root for invalid redirect %s', async (redirectValue) => {
-    const fetchSpy = vi.fn(async () => ({ ok: true, json: async () => ({ redirect: redirectValue }) }));
-    vi.stubGlobal('fetch', fetchSpy);
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ redirect: redirectValue }),
+    })));
     const assignSpy = vi.fn();
     Object.defineProperty(window, 'location', { value: { assign: assignSpy, origin: 'http://localhost' } });
-    render(<ResetPassword token={token} email={email} />);
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Password'), 'newpassword');
-    await user.type(screen.getByLabelText(/confirm password/i), 'newpassword');
-    await user.click(screen.getByRole('button', { name: /reset password/i }));
+    render(<ConfirmPassword />);
+    fireEvent.input(screen.getByLabelText(/password/i), { target: { value: 'password' } });
+    const button = screen.getByRole('button', { name: /confirm password/i });
+    const form = button.closest('form');
+    if (!form) throw new Error('Form not found');
+    fireEvent.submit(form);
     await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/'));
   });
 });
