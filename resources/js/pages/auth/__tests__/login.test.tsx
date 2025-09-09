@@ -38,7 +38,7 @@ vi.mock('@inertiajs/react', () => {
                 }
             };
             return (
-                <form onSubmit={handleSubmit}>
+                <form data-testid="login-form" onSubmit={handleSubmit}>
                     {typeof children === 'function'
                         ? children({ processing, errors })
                         : children}
@@ -144,8 +144,20 @@ describe('Login page', () => {
         fireEvent.input(screen.getByLabelText(/password/i), {
             target: { value: 'password' },
         });
-        fireEvent.submit(screen.getByRole('button', { name: /log in/i }).closest('form')!);
+        fireEvent.submit(screen.getByTestId('login-form'));
         await waitFor(() => expect(assignSpy).toHaveBeenCalledWith('/dashboard'));
+    });
+
+    it('submits remember value when checkbox is selected', async () => {
+        submitMock.mockResolvedValue({ ok: false });
+        renderLogin();
+        fireEvent.click(screen.getByLabelText(/remember me/i));
+        fireEvent.submit(screen.getByTestId('login-form'));
+        await waitFor(() =>
+            expect(submitMock).toHaveBeenCalledWith(
+                expect.objectContaining({ remember: 'on' }),
+            ),
+        );
     });
 
     it('shows error message on invalid credentials', async () => {
@@ -154,7 +166,7 @@ describe('Login page', () => {
             errors: { email: 'Invalid credentials' },
         });
         renderLogin();
-        fireEvent.submit(screen.getByRole('button', { name: /log in/i }).closest('form')!);
+        fireEvent.submit(screen.getByTestId('login-form'));
         expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
     });
 });
