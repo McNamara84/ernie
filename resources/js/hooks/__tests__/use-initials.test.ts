@@ -17,4 +17,9 @@ describe('useInitials', () => {
         const { result } = renderHook(() => useInitials());
         expect(result.current('John Ronald Reuel Tolkien')).toBe('JT');
     });
+
+    it('handles hyphenated names with extra spaces', () => {
+        const { result } = renderHook(() => useInitials());
+        expect(result.current('  Mary-Jane   Watson  ')).toBe('MW');
+    });
 });

@@ -38,6 +38,17 @@ describe('wayfinder utilities', () => {
       const result = queryParams({ mergeQuery: { b: '2', a: '3' } });
       expect(result).toBe('?a=3&b=2');
     });
+
+    it('returns empty string when no options provided', () => {
+      expect(queryParams()).toBe('');
+      expect(queryParams({})).toBe('');
+    });
+
+    it('removes params when merged value is null', () => {
+      window.history.replaceState({}, '', '/?a=1&b=2');
+      const result = queryParams({ mergeQuery: { a: null } });
+      expect(result).toBe('?b=2');
+    });
   });
 
   describe('url defaults', () => {
@@ -56,6 +67,10 @@ describe('wayfinder utilities', () => {
 
     it('allows missing trailing optional parameters', () => {
       expect(() => validateParameters({}, ['a', 'b'])).not.toThrow();
+    });
+
+    it('does not throw when all parameters are provided', () => {
+      expect(() => validateParameters({ a: 1, b: 2 }, ['a', 'b'])).not.toThrow();
     });
   });
 });
