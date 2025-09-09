@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
+import { LANGUAGE_OPTIONS } from '@/constants/languages';
 import type { ResourceType } from '@/types';
 
 interface DataCiteFormData {
@@ -63,18 +64,14 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
                     onChange={(e) => handleChange('version', e.target.value)}
                     placeholder="1.0"
                 />
-                <SelectField
-                    id="language"
-                    label="Language of Data"
-                    value={form.language}
-                    onValueChange={(val) => handleChange('language', val)}
-                    options={[
-                        { value: 'en', label: 'English' },
-                        { value: 'de', label: 'German' },
-                        { value: 'fr', label: 'French' },
-                    ]}
-                />
-            </div>
-        </form>
-    );
-}
+                  <SelectField
+                      id="language"
+                      label="Language of Data"
+                      value={form.language}
+                      onValueChange={(val) => handleChange('language', val)}
+                      options={LANGUAGE_OPTIONS}
+                  />
+              </div>
+          </form>
+      );
+  }
