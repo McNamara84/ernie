@@ -21,3 +21,20 @@ test('user can add and remove title rows', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove title' }).click();
   await expect(titleInputs).toHaveCount(1);
 });
+
+test('limits title rows to 100', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+  await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+  await page.getByRole('button', { name: 'Log in' }).click();
+  await page.waitForURL(/\/dashboard/);
+
+  await page.goto('/curation');
+  const addButton = page.getByRole('button', { name: 'Add title' });
+  for (let i = 0; i < 99; i++) {
+    await addButton.click();
+  }
+  const titleInputs = page.getByRole('textbox', { name: 'Title' });
+  await expect(titleInputs).toHaveCount(100);
+  await expect(addButton).toBeDisabled();
+});

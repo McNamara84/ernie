@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
 import DataCiteForm from '../datacite-form';
@@ -68,4 +68,25 @@ describe('DataCiteForm', () => {
         await user.click(removeButton);
         expect(screen.getAllByRole('textbox', { name: 'Title' })).toHaveLength(1);
     });
+
+    it(
+        'limits title rows to 100',
+        async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    maxTitles={3}
+                />,
+            );
+            const addButton = screen.getByRole('button', { name: 'Add title' });
+            fireEvent.click(addButton);
+            fireEvent.click(addButton);
+            expect(
+                screen.getAllByRole('textbox', { name: 'Title' }),
+            ).toHaveLength(3);
+            expect(addButton).toBeDisabled();
+        },
+        10000,
+    );
 });

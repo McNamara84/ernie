@@ -21,9 +21,15 @@ interface TitleEntry {
 interface DataCiteFormProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
+    maxTitles?: number;
 }
 
-export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteFormProps) {
+export default function DataCiteForm({
+    resourceTypes,
+    titleTypes,
+    maxTitles = 100,
+}: DataCiteFormProps) {
+    const MAX_TITLES = maxTitles;
     const [form, setForm] = useState<DataCiteFormData>({
         doi: '',
         year: '',
@@ -53,6 +59,7 @@ export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteForm
     };
 
     const addTitle = () => {
+        if (titles.length >= MAX_TITLES) return;
         const defaultType = titleTypes.find((t) => t.slug !== 'main-title')?.slug ?? '';
         setTitles((prev) => [...prev, { title: '', titleType: defaultType }]);
     };
@@ -131,6 +138,7 @@ export default function DataCiteForm({ resourceTypes, titleTypes }: DataCiteForm
                         onAdd={addTitle}
                         onRemove={() => removeTitle(index)}
                         isFirst={index === 0}
+                        canAdd={titles.length < MAX_TITLES}
                     />
                 ))}
             </div>

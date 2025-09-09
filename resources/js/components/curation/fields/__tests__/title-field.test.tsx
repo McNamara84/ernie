@@ -62,4 +62,24 @@ describe('TitleField', () => {
         expect(screen.getByText('Title')).toHaveClass('sr-only');
         expect(screen.getByText('Title Type')).toHaveClass('sr-only');
     });
+
+    it('disables add button when cannot add', () => {
+        render(
+            <TitleField
+                index={0}
+                title=""
+                titleType=""
+                options={[]}
+                onTitleChange={() => {}}
+                onTypeChange={() => {}}
+                onAdd={() => {}}
+                onRemove={() => {}}
+                isFirst
+                canAdd={false}
+            />,
+        );
+        expect(
+            screen.getByRole('button', { name: 'Add title' }),
+        ).toBeDisabled();
+    });
 });

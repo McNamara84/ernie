@@ -19,6 +19,7 @@ interface TitleFieldProps {
     onAdd: () => void;
     onRemove: () => void;
     isFirst: boolean;
+    canAdd?: boolean;
     className?: string;
 }
 
@@ -32,6 +33,7 @@ export function TitleField({
     onAdd,
     onRemove,
     isFirst,
+    canAdd = true,
     className,
 }: TitleFieldProps) {
     return (
@@ -42,7 +44,7 @@ export function TitleField({
                 value={title}
                 onChange={(e) => onTitleChange(e.target.value)}
                 hideLabel={!isFirst}
-                className="md:col-span-6"
+                className="md:col-span-8"
             />
             <SelectField
                 id={`titleType-${index}`}
@@ -51,7 +53,7 @@ export function TitleField({
                 onValueChange={onTypeChange}
                 options={options}
                 hideLabel={!isFirst}
-                className="md:col-span-5"
+                className="md:col-span-3"
             />
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
@@ -61,6 +63,7 @@ export function TitleField({
                         size="icon"
                         aria-label="Add title"
                         onClick={onAdd}
+                        disabled={!canAdd}
                     >
                         <Plus className="h-4 w-4" />
                     </Button>
