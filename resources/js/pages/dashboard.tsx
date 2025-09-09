@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Head, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
-export let handleXmlFiles = (files: File[]): void => {
+export const handleXmlFiles = (files: File[]): void => {
     // Placeholder for XML file processing
     void files;
 };
