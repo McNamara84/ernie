@@ -2,7 +2,9 @@
 
 use App\Models\User;
 use App\Models\ResourceType;
+use App\Models\TitleType;
 use Database\Seeders\ResourceTypeSeeder;
+use Database\Seeders\TitleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use function Pest\Laravel\withoutVite;
@@ -13,8 +15,8 @@ test('guests are redirected to login page', function () {
     $this->get(route('curation'))->assertRedirect(route('login'));
 });
 
-test('authenticated users can view curation page with resource types', function () {
-    $this->seed(ResourceTypeSeeder::class);
+test('authenticated users can view curation page with resource and title types', function () {
+    $this->seed([ResourceTypeSeeder::class, TitleTypeSeeder::class]);
     $this->actingAs(User::factory()->create());
 
     withoutVite();
@@ -24,5 +26,6 @@ test('authenticated users can view curation page with resource types', function 
     $response->assertInertia(fn (Assert $page) =>
         $page->component('curation')
             ->has('resourceTypes', ResourceType::count())
+            ->has('titleTypes', TitleType::count())
     );
 });

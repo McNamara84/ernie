@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ResourceType;
+use App\Models\TitleType;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -24,6 +25,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('curation', function () {
         return Inertia::render('curation', [
             'resourceTypes' => ResourceType::orderBy('name')->get(),
+            'titleTypes' => TitleType::orderBy('name')->get(),
         ]);
     })->name('curation');
 });

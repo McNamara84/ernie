@@ -1,26 +1,37 @@
-import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
+import { render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import Curation from '../curation';
+import type { ResourceType, TitleType } from '@/types';
+
+const renderForm = vi.fn(() => null);
 
 vi.mock('@inertiajs/react', () => ({
-  Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
-  default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
-const DataCiteFormMock = vi.fn(() => <div>DataCiteForm</div>);
 vi.mock('@/components/curation/datacite-form', () => ({
-  default: DataCiteFormMock,
+    default: (props: unknown) => {
+        renderForm(props);
+        return <div data-testid="datacite-form" />;
+    },
 }));
 
 describe('Curation page', () => {
-  it('renders DataCiteForm with provided resource types', async () => {
-    const { default: Curation } = await import('../curation');
-    const resourceTypes = [{ id: 1, name: 'Dataset' }];
-    render(<Curation resourceTypes={resourceTypes} />);
-    expect(screen.getByText('DataCiteForm')).toBeInTheDocument();
-    expect(DataCiteFormMock).toHaveBeenCalledWith({ resourceTypes }, undefined);
-  });
+    it('passes resource and title types to DataCiteForm', () => {
+        const resourceTypes: ResourceType[] = [
+            { id: 1, name: 'Dataset', slug: 'dataset' },
+        ];
+        const titleTypes: TitleType[] = [
+            { id: 1, name: 'Main Title', slug: 'main-title' },
+        ];
+        render(<Curation resourceTypes={resourceTypes} titleTypes={titleTypes} />);
+        expect(renderForm).toHaveBeenCalledWith(
+            expect.objectContaining({ resourceTypes, titleTypes })
+        );
+    });
 });
-

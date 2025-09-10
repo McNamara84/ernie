@@ -46,3 +46,9 @@ export interface ResourceType {
     name: string;
     slug: string;
 }
+
+export interface TitleType {
+    id: number;
+    name: string;
+    slug: string;
+}

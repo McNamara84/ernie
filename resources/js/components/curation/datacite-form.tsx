@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
+import TitleField from './fields/title-field';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
-import type { ResourceType } from '@/types';
+import type { ResourceType, TitleType } from '@/types';
 
 interface DataCiteFormData {
     doi: string;
@@ -12,11 +13,24 @@ interface DataCiteFormData {
     language: string;
 }
 
-interface DataCiteFormProps {
-    resourceTypes: ResourceType[];
+interface TitleEntry {
+    id: string;
+    title: string;
+    titleType: string;
 }
 
-export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
+interface DataCiteFormProps {
+    resourceTypes: ResourceType[];
+    titleTypes: TitleType[];
+    maxTitles?: number;
+}
+
+export default function DataCiteForm({
+    resourceTypes,
+    titleTypes,
+    maxTitles = 100,
+}: DataCiteFormProps) {
+    const MAX_TITLES = maxTitles;
     const [form, setForm] = useState<DataCiteFormData>({
         doi: '',
         year: '',
@@ -25,9 +39,40 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
         language: '',
     });
 
+    const [titles, setTitles] = useState<TitleEntry[]>([
+        { id: crypto.randomUUID(), title: '', titleType: 'main-title' },
+    ]);
+
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
     };
+
+    const handleTitleChange = (
+        index: number,
+        field: keyof Omit<TitleEntry, 'id'>,
+        value: string,
+    ) => {
+        setTitles((prev) => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            return next;
+        });
+    };
+
+    const addTitle = () => {
+        if (titles.length >= MAX_TITLES) return;
+        const defaultType = titleTypes.find((t) => t.slug !== 'main-title')?.slug ?? '';
+        setTitles((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), title: '', titleType: defaultType },
+        ]);
+    };
+
+    const removeTitle = (index: number) => {
+        setTitles((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
 
     return (
         <form className="space-y-6">
@@ -76,6 +121,30 @@ export default function DataCiteForm({ resourceTypes }: DataCiteFormProps) {
                     options={LANGUAGE_OPTIONS}
                     className="md:col-span-2"
                 />
+            </div>
+            <div className="space-y-4">
+                {titles.map((entry, index) => (
+                    <TitleField
+                        key={entry.id}
+                        id={entry.id}
+                        title={entry.title}
+                        titleType={entry.titleType}
+                        options={titleTypes
+                            .filter(
+                                (t) =>
+                                    t.slug !== 'main-title' ||
+                                    !mainTitleUsed ||
+                                    entry.titleType === 'main-title',
+                            )
+                            .map((t) => ({ value: t.slug, label: t.name }))}
+                        onTitleChange={(val) => handleTitleChange(index, 'title', val)}
+                        onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
+                        onAdd={addTitle}
+                        onRemove={() => removeTitle(index)}
+                        isFirst={index === 0}
+                        canAdd={titles.length < MAX_TITLES}
+                    />
+                ))}
             </div>
         </form>
     );

@@ -21,6 +21,7 @@ interface SelectFieldProps {
     options: Option[];
     placeholder?: string;
     className?: string;
+    hideLabel?: boolean;
 }
 
 export function SelectField({
@@ -31,10 +32,13 @@ export function SelectField({
     options,
     placeholder = 'Select',
     className,
+    hideLabel = false,
 }: SelectFieldProps) {
     return (
         <div className={cn('flex flex-col gap-2', className)}>
-            <Label htmlFor={id}>{label}</Label>
+            <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
+                {label}
+            </Label>
             <Select value={value} onValueChange={onValueChange}>
                 <SelectTrigger id={id}>
                     <SelectValue placeholder={placeholder} />

@@ -1,10 +1,10 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
 import DataCiteForm from '../datacite-form';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
-import type { ResourceType } from '@/types';
+import type { ResourceType, TitleType } from '@/types';
 
 describe('DataCiteForm', () => {
     beforeAll(() => {
@@ -19,8 +19,13 @@ describe('DataCiteForm', () => {
         { id: 1, name: 'Dataset', slug: 'dataset' },
     ];
 
-    it('renders fields and language options', async () => {
-        render(<DataCiteForm resourceTypes={resourceTypes} />);
+    const titleTypes: TitleType[] = [
+        { id: 1, name: 'Main Title', slug: 'main-title' },
+        { id: 2, name: 'Alternative Title', slug: 'alternative-title' },
+    ];
+
+    it('renders fields, title options and supports adding/removing titles', async () => {
+        render(<DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />);
         // basic fields
         expect(screen.getByLabelText('DOI')).toBeInTheDocument();
         expect(screen.getByLabelText('Year')).toBeInTheDocument();
@@ -42,5 +47,46 @@ describe('DataCiteForm', () => {
                 await screen.findByRole('option', { name: option.label }),
             ).toBeInTheDocument();
         }
+        await user.keyboard('{Escape}');
+
+        // title fields
+        expect(screen.getByRole('textbox', { name: 'Title' })).toBeInTheDocument();
+        const titleTypeTrigger = screen.getByRole('combobox', { name: 'Title Type' });
+        expect(titleTypeTrigger).toHaveTextContent('Main Title');
+
+        // add and remove title rows
+        const addButton = screen.getByRole('button', { name: 'Add title' });
+        await user.click(addButton);
+        const titleInputs = screen.getAllByRole('textbox', { name: 'Title' });
+        expect(titleInputs).toHaveLength(2);
+        const secondTitleTypeTrigger = screen.getAllByRole('combobox', { name: 'Title Type' })[1];
+        expect(secondTitleTypeTrigger).toHaveTextContent('Alternative Title');
+        await user.click(secondTitleTypeTrigger);
+        expect(screen.queryByRole('option', { name: 'Main Title' })).not.toBeInTheDocument();
+        await user.click(secondTitleTypeTrigger);
+        const removeButton = screen.getByRole('button', { name: 'Remove title' });
+        await user.click(removeButton);
+        expect(screen.getAllByRole('textbox', { name: 'Title' })).toHaveLength(1);
     });
+
+    it(
+        'limits title rows to 100',
+        async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    maxTitles={3}
+                />,
+            );
+            const addButton = screen.getByRole('button', { name: 'Add title' });
+            fireEvent.click(addButton);
+            fireEvent.click(addButton);
+            expect(
+                screen.getAllByRole('textbox', { name: 'Title' }),
+            ).toHaveLength(3);
+            expect(addButton).toBeDisabled();
+        },
+        10000,
+    );
 });
