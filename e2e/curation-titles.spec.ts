@@ -18,6 +18,7 @@ test('user can add and remove title rows', async ({ page }) => {
   await expect(titleInputs).toHaveCount(2);
   await page.getByRole('combobox', { name: 'Title Type' }).nth(1).click();
   await expect(page.getByRole('option', { name: 'Main Title' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Remove title' }).click();
   await expect(titleInputs).toHaveCount(1);
 });
