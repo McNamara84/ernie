@@ -2,6 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Head, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
@@ -72,21 +73,47 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                     <Card>
                         <CardHeader>
                             <CardTitle>Hello {auth.user.name}!</CardTitle>
-                            <CardDescription>
-                                Nice to see you today! You still have x datasets to curate. Have fun, your
-                                ERNIE!
-                            </CardDescription>
                         </CardHeader>
+                        <CardContent className="text-sm text-muted-foreground">
+                            Nice to see you today! You still have x datasets to curate. Have fun, your ERNIE!
+                        </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>x datasets from y data centers of z institutions</CardTitle>
+                            <CardTitle>Statistics</CardTitle>
                         </CardHeader>
+                        <CardContent className="text-sm text-muted-foreground">
+                            x datasets from y data centers of z institutions
+                        </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>ERNIE version 0.1.0 MySQL 8.0 PHP 8.4</CardTitle>
+                            <CardTitle>Environment</CardTitle>
                         </CardHeader>
+                        <CardContent className="text-sm text-muted-foreground">
+                            <table className="w-full">
+                                <tbody>
+                                    <tr>
+                                        <td className="py-1">ERNIE Version</td>
+                                        <td className="py-1 text-right">
+                                            <Badge className="w-14 bg-[#003da6] text-white">0.1.0</Badge>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-1">PHP Version</td>
+                                        <td className="py-1 text-right">
+                                            <Badge className="w-14 bg-[#777BB4] text-white">8.4.12</Badge>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-1">Laravel Version</td>
+                                        <td className="py-1 text-right">
+                                            <Badge className="w-14 bg-[#FF2D20] text-white">12.28.1</Badge>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </CardContent>
                     </Card>
                 </div>
                 <Card className="flex flex-col items-center justify-center">
