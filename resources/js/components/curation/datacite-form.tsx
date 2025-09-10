@@ -89,7 +89,7 @@ export default function DataCiteForm({
             >
                 <AccordionItem value="resource-info">
                     <AccordionTrigger>Resource Information</AccordionTrigger>
-                    <AccordionContent className="space-y-12">
+                    <AccordionContent className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-12">
                             <InputField
                                 id="doi"
@@ -136,7 +136,7 @@ export default function DataCiteForm({
                                 className="md:col-span-2"
                             />
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-4 mt-3">
                             {titles.map((entry, index) => (
                                 <TitleField
                                     key={entry.id}
