@@ -26,6 +26,22 @@ describe('DataCiteForm', () => {
 
     it('renders fields, title options and supports adding/removing titles', async () => {
         render(<DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />);
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        // accordion sections
+        const resourceTrigger = screen.getByRole('button', {
+            name: 'Resource Information',
+        });
+        const licenseTrigger = screen.getByRole('button', {
+            name: 'Licenses and Rights',
+        });
+        expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(licenseTrigger).toHaveAttribute('aria-expanded', 'true');
+        await user.click(resourceTrigger);
+        expect(resourceTrigger).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByLabelText('DOI')).not.toBeInTheDocument();
+        await user.click(resourceTrigger);
+
         // basic fields
         expect(screen.getByLabelText('DOI')).toBeInTheDocument();
         expect(screen.getByLabelText('Year')).toBeInTheDocument();
@@ -33,7 +49,6 @@ describe('DataCiteForm', () => {
 
         // resource type option
         const resourceTypeTrigger = screen.getByLabelText('Resource Type');
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
         await user.click(resourceTypeTrigger);
         expect(
             await screen.findByRole('option', { name: 'Dataset' }),
@@ -59,10 +74,14 @@ describe('DataCiteForm', () => {
         await user.click(addButton);
         const titleInputs = screen.getAllByRole('textbox', { name: 'Title' });
         expect(titleInputs).toHaveLength(2);
-        const secondTitleTypeTrigger = screen.getAllByRole('combobox', { name: 'Title Type' })[1];
+        const secondTitleTypeTrigger = screen.getAllByRole('combobox', {
+            name: 'Title Type',
+        })[1];
         expect(secondTitleTypeTrigger).toHaveTextContent('Alternative Title');
         await user.click(secondTitleTypeTrigger);
-        expect(screen.queryByRole('option', { name: 'Main Title' })).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('option', { name: 'Main Title' }),
+        ).not.toBeInTheDocument();
         await user.click(secondTitleTypeTrigger);
         const removeButton = screen.getByRole('button', { name: 'Remove title' });
         await user.click(removeButton);
