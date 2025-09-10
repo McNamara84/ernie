@@ -1,4 +1,5 @@
 import { AppContent } from '@/components/app-content';
+import { AppFooter } from '@/components/app-footer';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
@@ -12,6 +13,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWi
             <AppContent variant="sidebar" className="overflow-x-hidden">
                 <AppSidebarHeader breadcrumbs={breadcrumbs} />
                 {children}
+                <AppFooter />
             </AppContent>
         </AppShell>
     );

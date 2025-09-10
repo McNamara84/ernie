@@ -11,6 +11,8 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('@/routes', () => ({
     home: () => '/',
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 describe('AuthSimpleLayout', () => {
@@ -21,7 +23,7 @@ describe('AuthSimpleLayout', () => {
             </AuthSimpleLayout>,
         );
 
-        expect(screen.getByRole('link')).toHaveAttribute('href', '/');
+        expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/');
         expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
         expect(screen.getByText('Welcome')).toBeInTheDocument();
         expect(screen.getByText('Child content')).toBeInTheDocument();

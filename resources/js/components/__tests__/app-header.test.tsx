@@ -79,6 +79,8 @@ vi.mock('lucide-react', () => ({
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
     docs: () => ({ url: '/docs' }),
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 describe('AppHeader', () => {

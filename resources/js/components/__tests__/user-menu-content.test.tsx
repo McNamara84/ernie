@@ -32,6 +32,8 @@ vi.mock('@/hooks/use-mobile-navigation', () => ({
 
 vi.mock('@/routes', () => ({
     logout: () => '/logout',
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 vi.mock('@/routes/profile', () => ({

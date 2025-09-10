@@ -24,6 +24,8 @@ vi.mock('@/actions/App/Http/Controllers/Auth/EmailVerificationNotificationContro
 vi.mock('@/routes', () => ({
     logout: () => '/logout',
     home: () => '/',
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 describe('VerifyEmail page', () => {

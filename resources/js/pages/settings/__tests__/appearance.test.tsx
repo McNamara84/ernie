@@ -23,6 +23,8 @@ vi.mock('@/hooks/use-appearance', () => ({
 
 vi.mock('@/routes', () => ({
     appearance: () => ({ url: '/settings/appearance' }),
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 describe('Appearance settings page', () => {
