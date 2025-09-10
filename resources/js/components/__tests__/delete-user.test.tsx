@@ -1,10 +1,11 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import DeleteUser from '../delete-user';
 
 const onErrorMock = vi.fn();
+const resetAndClearErrorsMock = vi.fn();
 
 vi.mock('@/actions/App/Http/Controllers/Settings/ProfileController', () => ({
     default: {
@@ -67,7 +68,11 @@ vi.mock('@inertiajs/react', () => ({
         onError: (errors: Record<string, string>) => void;
     }) => {
         onErrorMock.mockImplementation(onError);
-        return <div>{children({ resetAndClearErrors: vi.fn(), processing: false, errors: {} })}</div>;
+        return (
+            <div>
+                {children({ resetAndClearErrors: resetAndClearErrorsMock, processing: false, errors: {} })}
+            </div>
+        );
     },
 }));
 
@@ -91,6 +96,13 @@ describe('DeleteUser', () => {
         expect(document.activeElement).not.toBe(input);
         onErrorMock({});
         expect(document.activeElement).toBe(input);
+    });
+
+    it('resets form when cancel is clicked', () => {
+        render(<DeleteUser />);
+        const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+        fireEvent.click(cancelButton);
+        expect(resetAndClearErrorsMock).toHaveBeenCalled();
     });
 });
 
