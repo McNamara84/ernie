@@ -73,11 +73,10 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                     <Card>
                         <CardHeader>
                             <CardTitle>Hello {auth.user.name}!</CardTitle>
-                            <CardDescription>
-                                Nice to see you today! You still have x datasets to curate. Have fun, your
-                                ERNIE!
-                            </CardDescription>
                         </CardHeader>
+                        <CardContent className="text-sm text-muted-foreground">
+                            Nice to see you today! You still have x datasets to curate. Have fun, your ERNIE!
+                        </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
@@ -97,19 +96,19 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                     <tr>
                                         <td className="py-1">ERNIE Version</td>
                                         <td className="py-1 text-right">
-                                            <Badge className="bg-[#003da6] text-white">0.1.0</Badge>
+                                            <Badge className="w-24 bg-[#003da6] text-white">0.1.0</Badge>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="py-1">PHP Version</td>
                                         <td className="py-1 text-right">
-                                            <Badge className="bg-[#777BB4] text-white">8.4.12</Badge>
+                                            <Badge className="w-24 bg-[#777BB4] text-white">8.4.12</Badge>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="py-1">Laravel Version</td>
                                         <td className="py-1 text-right">
-                                            <Badge className="bg-[#FF2D20] text-white">12.28.1</Badge>
+                                            <Badge className="w-24 bg-[#FF2D20] text-white">12.28.1</Badge>
                                         </td>
                                     </tr>
                                 </tbody>
