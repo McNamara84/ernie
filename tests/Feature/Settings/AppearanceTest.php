@@ -8,7 +8,7 @@ use function Pest\Laravel\withoutVite;
 uses(RefreshDatabase::class);
 
 test('guests are redirected to login when accessing settings root', function () {
-    $this->get('/settings')->assertRedirect(route('login'));
+    $this->get(route('settings'))->assertRedirect(route('login'));
 });
 
 test('guests are redirected to login when accessing appearance settings', function () {
@@ -17,7 +17,7 @@ test('guests are redirected to login when accessing appearance settings', functi
 
 test('authenticated users are redirected to profile when visiting settings root', function () {
     $this->actingAs(User::factory()->create());
-    $this->get('/settings')->assertRedirect('/settings/profile');
+    $this->get(route('settings'))->assertRedirect(route('profile.edit'));
 });
 
 test('authenticated users can view the appearance settings page', function () {
