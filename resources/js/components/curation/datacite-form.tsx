@@ -89,7 +89,7 @@ export default function DataCiteForm({
             >
                 <AccordionItem value="resource-info">
                     <AccordionTrigger>Resource Information</AccordionTrigger>
-                    <AccordionContent className="space-y-9">
+                    <AccordionContent className="space-y-12">
                         <div className="grid gap-4 md:grid-cols-12">
                             <InputField
                                 id="doi"
