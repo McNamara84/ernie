@@ -83,25 +83,37 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                         <CardHeader>
                             <CardTitle>Statistics</CardTitle>
                         </CardHeader>
-                        <CardContent>x datasets from y data centers of z institutions</CardContent>
+                        <CardContent className="text-sm text-muted-foreground">
+                            x datasets from y data centers of z institutions
+                        </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
                             <CardTitle>Environment</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-2">
-                            <div className="flex items-center gap-2">
-                                <span>ERNIE Version</span>
-                                <Badge className="bg-[#003da6] text-white">0.1.0</Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span>PHP Version</span>
-                                <Badge className="bg-[#777BB4] text-white">8.4.12</Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span>Laravel Version</span>
-                                <Badge className="bg-[#FF2D20] text-white">12.28.1</Badge>
-                            </div>
+                        <CardContent className="text-sm text-muted-foreground">
+                            <table className="w-full">
+                                <tbody>
+                                    <tr>
+                                        <td className="py-1">ERNIE Version</td>
+                                        <td className="py-1 text-right">
+                                            <Badge className="bg-[#003da6] text-white">0.1.0</Badge>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-1">PHP Version</td>
+                                        <td className="py-1 text-right">
+                                            <Badge className="bg-[#777BB4] text-white">8.4.12</Badge>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="py-1">Laravel Version</td>
+                                        <td className="py-1 text-right">
+                                            <Badge className="bg-[#FF2D20] text-white">12.28.1</Badge>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </CardContent>
                     </Card>
                 </div>
