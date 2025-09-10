@@ -108,7 +108,12 @@ export default function LegalNotice() {
             </p>
             <hr className="my-6" />
             <p>
-                <a href="/web/about-us/data-protection" className="text-primary underline">
+                <a
+                    href="https://dataservices.gfz-potsdam.de/web/about-us/data-protection"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline"
+                >
                     Data Privacy Protection
                 </a>
             </p>

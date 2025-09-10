@@ -25,6 +25,8 @@ vi.mock('@/actions/App/Http/Controllers/Auth/PasswordResetLinkController', () =>
 vi.mock('@/routes', () => ({
     login: () => '/login',
     home: () => '/',
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 describe('ForgotPassword page', () => {

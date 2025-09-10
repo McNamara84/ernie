@@ -18,6 +18,8 @@ vi.mock('@inertiajs/react', () => ({
 
 vi.mock('@/routes', () => ({
     home: () => '/',
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController', () => ({

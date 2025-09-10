@@ -17,6 +17,8 @@ vi.mock('@/layouts/app-layout', () => ({
 
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 
 describe('Dashboard', () => {

@@ -28,6 +28,8 @@ vi.mock('@/components/ui/separator', () => ({
 
 vi.mock('@/routes', () => ({
     appearance: () => '/settings/appearance',
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 vi.mock('@/routes/password', () => ({
     edit: () => '/settings/password',

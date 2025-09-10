@@ -55,6 +55,8 @@ vi.mock('@inertiajs/react', () => ({
 }));
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
+    about: () => '/about',
+    legalNotice: () => '/legal-notice',
 }));
 vi.mock('../app-logo', () => ({
     default: () => <span>Logo</span>,
