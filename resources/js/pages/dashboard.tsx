@@ -4,16 +4,27 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
-export const handleXmlFiles = (files: File[]): void => {
-    // Placeholder for XML file processing
-    void files;
+export const handleXmlFiles = async (files: File[]): Promise<void> => {
+    if (!files.length) return;
+    const formData = new FormData();
+    formData.append('file', files[0]);
+    const response = await fetch('/dashboard/upload-xml', {
+        method: 'POST',
+        body: formData,
+    });
+    if (response.ok) {
+        const data: { doi?: string } = await response.json();
+        if (data.doi) {
+            router.get('/curation', { doi: data.doi });
+        }
+    }
 };
 
 type DashboardProps = {
-    onXmlFiles?: (files: File[]) => void;
+    onXmlFiles?: (files: File[]) => void | Promise<void>;
 };
 
 function filterXmlFiles(files: File[]): File[] {
@@ -51,7 +62,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         const files = Array.from(event.dataTransfer.files);
         const xmlFiles = filterXmlFiles(files);
         if (xmlFiles.length) {
-            onXmlFiles(xmlFiles);
+            void onXmlFiles(xmlFiles);
         }
     }
 
@@ -60,7 +71,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         if (files && files.length) {
             const xmlFiles = filterXmlFiles(Array.from(files));
             if (xmlFiles.length) {
-                onXmlFiles(xmlFiles);
+                void onXmlFiles(xmlFiles);
             }
         }
     }

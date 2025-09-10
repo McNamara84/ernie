@@ -1,14 +1,16 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import Dashboard from '../dashboard';
+import Dashboard, { handleXmlFiles } from '../dashboard';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
+const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     usePage: () => usePageMock(),
+    router: routerMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -78,6 +80,22 @@ describe('Dashboard', () => {
         fireEvent.change(input, { target: { files: [xmlFile, otherFile] } });
         expect(handleXmlFilesSpy).toHaveBeenCalledTimes(1);
         expect(handleXmlFilesSpy).toHaveBeenCalledWith([xmlFile]);
+    });
+});
+
+describe('handleXmlFiles', () => {
+    it('posts xml file and redirects to curation with DOI', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue({ ok: true, json: async () => ({ doi: '10.1234/abc' }) } as Response);
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { doi: '10.1234/abc' });
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
     });
 });
 

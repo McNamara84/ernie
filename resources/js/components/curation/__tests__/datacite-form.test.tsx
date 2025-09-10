@@ -19,10 +19,10 @@ describe('DataCiteForm', () => {
         { id: 1, name: 'Dataset', slug: 'dataset' },
     ];
 
-    const titleTypes: TitleType[] = [
-        { id: 1, name: 'Main Title', slug: 'main-title' },
-        { id: 2, name: 'Alternative Title', slug: 'alternative-title' },
-    ];
+      const titleTypes: TitleType[] = [
+          { id: 1, name: 'Main Title', slug: 'main-title' },
+          { id: 2, name: 'Alternative Title', slug: 'alternative-title' },
+      ];
 
     it('renders fields, title options and supports adding/removing titles', async () => {
         render(<DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />);
@@ -86,6 +86,17 @@ describe('DataCiteForm', () => {
         const removeButton = screen.getByRole('button', { name: 'Remove title' });
         await user.click(removeButton);
         expect(screen.getAllByRole('textbox', { name: 'Title' })).toHaveLength(1);
+    });
+
+    it('prefills DOI when initialDoi is provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                initialDoi="10.1234/abc"
+            />,
+        );
+        expect(screen.getByLabelText('DOI')).toHaveValue('10.1234/abc');
     });
 
     it(
