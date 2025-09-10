@@ -2,6 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Head, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
@@ -80,13 +81,28 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>x datasets from y data centers of z institutions</CardTitle>
+                            <CardTitle>Statistics</CardTitle>
                         </CardHeader>
+                        <CardContent>x datasets from y data centers of z institutions</CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>ERNIE version 0.1.0 MySQL 8.0 PHP 8.4</CardTitle>
+                            <CardTitle>Environment</CardTitle>
                         </CardHeader>
+                        <CardContent className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <span>ERNIE Version</span>
+                                <Badge className="bg-[#003da6] text-white">0.1.0</Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span>PHP Version</span>
+                                <Badge className="bg-[#777BB4] text-white">8.4.12</Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span>Laravel Version</span>
+                                <Badge className="bg-[#FF2D20] text-white">12.28.1</Badge>
+                            </div>
+                        </CardContent>
                     </Card>
                 </div>
                 <Card className="flex flex-col items-center justify-center">
