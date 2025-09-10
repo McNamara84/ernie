@@ -32,7 +32,8 @@ test('limits title rows to 100', async ({ page }) => {
 
   await page.goto('/curation');
   const addButton = page.getByRole('button', { name: 'Add title' });
-  for (let i = 0; i < 99 && (await addButton.isEnabled()); i++) {
+  for (let i = 0; i < 99; i++) {
+    if (!(await addButton.isEnabled())) break;
     await addButton.click();
   }
   const titleInputs = page.getByRole('textbox', { name: 'Title' });
