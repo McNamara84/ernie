@@ -54,7 +54,11 @@ describe('Password settings integration', () => {
         fireEvent.input(screen.getByLabelText(/^new password$/i), { target: { value: 'newpass' } });
         fireEvent.input(screen.getByLabelText(/confirm password/i), { target: { value: 'newpass' } });
         const button = screen.getByRole('button', { name: /save password/i });
-        fireEvent.submit(button.closest('form')!);
+        const form = button.closest('form');
+        if (!form) {
+            throw new Error('Save password button is not inside a form');
+        }
+        fireEvent.submit(form);
         await waitFor(() => expect(fetchMock).toHaveBeenCalled());
         expect(await screen.findByText('Saved')).toBeInTheDocument();
     });
@@ -65,7 +69,11 @@ describe('Password settings integration', () => {
         render(<Password />);
         const current = screen.getByLabelText(/current password/i) as HTMLInputElement;
         const button = screen.getByRole('button', { name: /save password/i });
-        fireEvent.submit(button.closest('form')!);
+        const form = button.closest('form');
+        if (!form) {
+            throw new Error('Save password button is not inside a form');
+        }
+        fireEvent.submit(form);
         expect(await screen.findByText('Incorrect')).toBeInTheDocument();
         expect(document.activeElement).toBe(current);
     });

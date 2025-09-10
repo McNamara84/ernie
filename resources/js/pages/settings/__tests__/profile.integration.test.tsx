@@ -60,7 +60,11 @@ describe('Profile settings integration', () => {
         fireEvent.input(screen.getByLabelText(/name/i), { target: { value: 'Jane Doe' } });
         fireEvent.input(screen.getByLabelText(/email address/i), { target: { value: 'jane@example.com' } });
         const button = screen.getByRole('button', { name: /^save$/i });
-        fireEvent.submit(button.closest('form')!);
+        const form = button.closest('form');
+        if (!form) {
+            throw new Error('Save button is not inside a form');
+        }
+        fireEvent.submit(form);
         await waitFor(() => expect(fetchMock).toHaveBeenCalled());
         expect(await screen.findByText('Saved')).toBeInTheDocument();
     });
@@ -70,7 +74,11 @@ describe('Profile settings integration', () => {
         vi.stubGlobal('fetch', fetchMock);
         render(<Profile mustVerifyEmail={false} />);
         const button = screen.getByRole('button', { name: /^save$/i });
-        fireEvent.submit(button.closest('form')!);
+        const form = button.closest('form');
+        if (!form) {
+            throw new Error('Save button is not inside a form');
+        }
+        fireEvent.submit(form);
         expect(await screen.findByText('Required')).toBeInTheDocument();
     });
 });
