@@ -9,21 +9,41 @@ import { useRef, useState } from 'react';
 
 export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
+
+    const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+    if (!token) {
+        alert('CSRF token not found');
+        return;
+    }
+
     const formData = new FormData();
     formData.append('file', files[0]);
-    const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
-    const response = await fetch('/dashboard/upload-xml', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRF-TOKEN': token ?? '',
-        },
-    });
-    if (response.ok) {
+
+    try {
+        const response = await fetch('/dashboard/upload-xml', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRF-TOKEN': token,
+            },
+        });
+        if (!response.ok) {
+            let message = 'Upload failed';
+            try {
+                const errorData: { message?: string } = await response.json();
+                message = errorData.message ?? message;
+            } catch {
+                /* ignore */
+            }
+            alert(message);
+            return;
+        }
         const data: { doi?: string } = await response.json();
         if (data.doi) {
             router.get('/curation', { doi: data.doi });
         }
+    } catch {
+        alert('Upload failed');
     }
 };
 

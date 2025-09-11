@@ -104,5 +104,37 @@ describe('handleXmlFiles', () => {
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
+
+    it('alerts when csrf token is missing', async () => {
+        document.head.innerHTML = '';
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+        const fetchMock = vi.spyOn(global, 'fetch');
+
+        await handleXmlFiles([file]);
+
+        expect(alertMock).toHaveBeenCalledWith('CSRF token not found');
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        alertMock.mockRestore();
+        fetchMock.mockRestore();
+    });
+
+    it('alerts when server responds with error', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue({ ok: false, json: async () => ({ message: 'Upload failed' }) } as Response);
+
+        await handleXmlFiles([file]);
+
+        expect(alertMock).toHaveBeenCalledWith('Upload failed');
+        expect(routerMock.get).not.toHaveBeenCalled();
+
+        alertMock.mockRestore();
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
 });
 
