@@ -129,4 +129,27 @@ describe('Curation page', () => {
             expect.objectContaining({ initialResourceType: 'dataset' })
         );
     });
+
+    it('passes titles to DataCiteForm when provided', () => {
+        const resourceTypes: ResourceType[] = [
+            { id: 1, name: 'Dataset', slug: 'dataset' },
+        ];
+        const titleTypes: TitleType[] = [
+            { id: 1, name: 'Main Title', slug: 'main-title' },
+        ];
+        const titles = [
+            { title: 'Main', titleType: 'main-title' },
+            { title: 'Alt', titleType: 'alternative-title' },
+        ];
+        render(
+            <Curation
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                titles={titles}
+            />,
+        );
+        expect(renderForm).toHaveBeenCalledWith(
+            expect.objectContaining({ initialTitles: titles })
+        );
+    });
 });

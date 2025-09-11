@@ -99,12 +99,27 @@ describe('handleXmlFiles', () => {
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
     });
 
-    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language and Resource Type', async () => {
+    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language, Resource Type and Titles', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: '10.1234/abc', year: '2024', version: '1.0', language: 'en', resourceType: 'dataset' }) } as Response,
+                {
+                    ok: true,
+                    json: async () => ({
+                        doi: '10.1234/abc',
+                        year: '2024',
+                        version: '1.0',
+                        language: 'en',
+                        resourceType: 'dataset',
+                        titles: [
+                            { title: 'Example Title', titleType: 'main-title' },
+                            { title: 'Example Subtitle', titleType: 'subtitle' },
+                            { title: 'Example TranslatedTitle', titleType: 'translated-title' },
+                            { title: 'Example AlternativeTitle', titleType: 'alternative-title' },
+                        ],
+                    }),
+                } as Response,
             );
 
         await handleXmlFiles([file]);
@@ -119,6 +134,40 @@ describe('handleXmlFiles', () => {
             version: '1.0',
             language: 'en',
             resourceType: 'dataset',
+            'titles[0][title]': 'Example Title',
+            'titles[0][titleType]': 'main-title',
+            'titles[1][title]': 'Example Subtitle',
+            'titles[1][titleType]': 'subtitle',
+            'titles[2][title]': 'Example TranslatedTitle',
+            'titles[2][titleType]': 'translated-title',
+            'titles[3][title]': 'Example AlternativeTitle',
+            'titles[3][titleType]': 'alternative-title',
+        });
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('redirects to curation with a single main title', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue(
+                {
+                    ok: true,
+                    json: async () => ({
+                        titles: [
+                            { title: 'A mandatory Event', titleType: 'main-title' },
+                        ],
+                    }),
+                } as Response,
+            );
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', {
+            'titles[0][title]': 'A mandatory Event',
+            'titles[0][titleType]': 'main-title',
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();

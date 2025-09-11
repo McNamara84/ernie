@@ -24,6 +24,27 @@ class UploadXmlController extends Controller
         $version = $reader->xpathValue('//version')->first();
         $language = $reader->xpathValue('//language')->first();
 
+        $titleElements = $reader->xpathElement('/resource/titles/title')->get();
+        $titles = [];
+
+        foreach ($titleElements as $element) {
+            $titleType = $element->getAttribute('titleType');
+            $titles[] = [
+                'title' => $element->getContent(),
+                'titleType' => $titleType ? Str::kebab($titleType) : 'main-title',
+            ];
+        }
+
+        $mainTitles = array_values(array_filter(
+            $titles,
+            fn ($t) => $t['titleType'] === 'main-title'
+        ));
+        $otherTitles = array_values(array_filter(
+            $titles,
+            fn ($t) => $t['titleType'] !== 'main-title'
+        ));
+        $titles = array_merge($mainTitles, $otherTitles);
+
         $resourceTypeElement = $reader->xpathElement('//resourceType')->first();
         $resourceTypeName = $resourceTypeElement?->getAttribute('resourceTypeGeneral');
         $resourceType = null;
@@ -39,6 +60,7 @@ class UploadXmlController extends Controller
             'version' => $version,
             'language' => $language,
             'resourceType' => $resourceType,
+            'titles' => $titles,
         ]);
     }
 }
