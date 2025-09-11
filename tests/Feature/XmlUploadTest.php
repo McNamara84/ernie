@@ -85,6 +85,268 @@ it('handles xml with a single main title', function () {
     ]);
 });
 
+it('extracts main title from namespaced DataCite xml inside an envelope', function () {
+    $this->actingAs(User::factory()->create());
+    ResourceType::create(['name' => 'Book', 'slug' => 'book']);
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<envelope>
+    
+<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 file:///C:/xampp/htdocs/msl-mde/schemas/DataCite/DataCiteSchema45.xsd">
+  <identifier identifierType="DOI"/>
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Hernandez, Sofia</creatorName>
+      <givenName>Sofia</givenName>
+      <familyName>Hernandez</familyName>
+      <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/">0000-0002-2771-9344</nameIdentifier>
+    </creator>
+  </creators>
+  <titles>
+    <title xml:lang="en">A mandatory Event</title>
+  </titles>
+  <publisher xml:lang="en">GFZ Data Services</publisher>
+  <publicationYear>1956</publicationYear>
+  <resourceType resourceTypeGeneral="Book">Dataset</resourceType>
+  <subjects/>
+  <dates>
+    <date dateType="Created">2025-02-10</date>
+  </dates>
+  <language>en</language>
+  <rightsList>
+    <rights rightsURI="https://creativecommons.org/licenses/by/4.0/legalcode" rightsIdentifier="CC-BY-4.0" rightsIdentifierScheme="SPDX" schemeURI="https://spdx.org/licenses/" xml:lang="en">Creative Commons Attribution 4.0 International</rights>
+  </rightsList>
+  <descriptions>
+    <description descriptionType="Abstract" xml:lang="en">dsfdf</description>
+  </descriptions>
+  <geoLocations/>
+</resource>
+
+
+    
+<MD_Metadata xmlns="http://www.isotc211.org/2005/gmd" xmlns:gco="http://www.isotc211.org/2005/gco" xmlns:gsr="http://www.isotc211.org/2005/gsr" xmlns:gss="http://www.isotc211.org/2005/gss" xmlns:gts="http://www.isotc211.org/2005/gts" xmlns:gml="http://www.opengis.net/gml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.isotc211.org/2005/gmd file:///C:/xampp/htdocs/msl-mde/schemas/ISO/gmd.xsd">
+  <fileIdentifier/>
+  <language>
+    <LanguageCode codeList="http://www.loc.gov/standards/iso639-1/" codeListValue="en">en</LanguageCode>
+  </language>
+  <characterSet>
+    <MD_CharacterSetCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_CharacterSetCode" codeListValue="utf8"/>
+  </characterSet>
+  <hierarchyLevel>
+    <MD_ScopeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ScopeCode" codeListValue="dataset"/>
+  </hierarchyLevel>
+  <contact>
+    <CI_ResponsibleParty>
+      <organisationName>
+        <gco:CharacterString>GFZ German Research Center for Geosciences</gco:CharacterString>
+      </organisationName>
+      <contactInfo>
+        <CI_Contact>
+          <onlineResource>
+            <CI_OnlineResource>
+              <linkage>
+                <URL>https://www.gfz-potsdam.de/</URL>
+              </linkage>
+              <function>
+                <CI_OnLineFunctionCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information">information</CI_OnLineFunctionCode>
+              </function>
+            </CI_OnlineResource>
+          </onlineResource>
+        </CI_Contact>
+      </contactInfo>
+      <role>
+        <CI_RoleCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+      </role>
+    </CI_ResponsibleParty>
+  </contact>
+  <dateStamp>
+    <gco:Date>2025-02-10</gco:Date>
+  </dateStamp>
+  <referenceSystemInfo>
+    <MD_ReferenceSystem>
+      <referenceSystemIdentifier>
+        <RS_Identifier>
+          <code>
+            <gco:CharacterString>urn:ogc:def:crs:EPSG:4326</gco:CharacterString>
+          </code>
+        </RS_Identifier>
+      </referenceSystemIdentifier>
+    </MD_ReferenceSystem>
+  </referenceSystemInfo>
+  <identificationInfo>
+    <MD_DataIdentification>
+      <citation>
+        <CI_Citation>
+          <title>
+            <gco:CharacterString>A mandatory Event</gco:CharacterString>
+          </title>
+          <date>
+            <CI_Date>
+              <date>
+                <gco:Date>2025-02-10</gco:Date>
+              </date>
+              <dateType>
+                <CI_DateTypeCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_DateTypeCode" codeListValue="creation">creation</CI_DateTypeCode>
+              </dateType>
+            </CI_Date>
+          </date>
+          <citedResponsibleParty xlink:href="http://orcid.org/0000-0002-2771-9344">
+            <CI_ResponsibleParty>
+              <individualName>
+                <gco:CharacterString>Hernandez, Sofia</gco:CharacterString>
+              </individualName>
+              <role>
+                <CI_RoleCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode" codeListValue="author">author</CI_RoleCode>
+              </role>
+            </CI_ResponsibleParty>
+          </citedResponsibleParty>
+        </CI_Citation>
+      </citation>
+      <abstract>
+        <gco:CharacterString>dsfdf</gco:CharacterString>
+      </abstract>
+      <status>
+        <MD_ProgressCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#MD_ProgressCode" codeListValue="Complete">Complete</MD_ProgressCode>
+      </status>
+      <pointOfContact>
+        <CI_ResponsibleParty>
+          <individualName>
+            <gco:CharacterString>Ehrmann, Holger</gco:CharacterString>
+          </individualName>
+          <positionName>
+            <gco:CharacterString/>
+          </positionName>
+          <contactInfo>
+            <CI_Contact>
+              <address>
+                <CI_Address>
+                  <electronicMailAddress>
+                    <gco:CharacterString>holger.ehrmann@gfz-potsdam.de</gco:CharacterString>
+                  </electronicMailAddress>
+                </CI_Address>
+              </address>
+            </CI_Contact>
+          </contactInfo>
+          <role>
+            <CI_RoleCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode" codeListValue="pointOfContact">pointOfContact</CI_RoleCode>
+          </role>
+        </CI_ResponsibleParty>
+      </pointOfContact>
+      <descriptiveKeywords/>
+      <descriptiveKeywords>
+        <MD_Keywords>
+          <thesaurusName>
+            <CI_Citation>
+              <title>
+                <gco:CharacterString>NASA/GCMD Earth Science Keywords</gco:CharacterString>
+              </title>
+            </CI_Citation>
+          </thesaurusName>
+        </MD_Keywords>
+      </descriptiveKeywords>
+      <resourceConstraints>
+        <MD_Constraints>
+          <useLimitation>
+            <gco:CharacterString>Creative Commons Attribution 4.0 International</gco:CharacterString>
+          </useLimitation>
+        </MD_Constraints>
+      </resourceConstraints>
+      <resourceConstraints>
+        <MD_LegalConstraints>
+          <accessConstraints>
+            <MD_RestrictionCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_RestrictionCode" codeListValue="otherRestrictions"/>
+          </accessConstraints>
+          <otherConstraints>
+            <gco:CharacterString>Creative Commons Attribution 4.0 International</gco:CharacterString>
+          </otherConstraints>
+        </MD_LegalConstraints>
+      </resourceConstraints>
+      <resourceConstraints>
+        <MD_SecurityConstraints>
+          <classification>
+            <MD_ClassificationCode codeList="http://www.isotc211.org/2005/resources/codeList.xml#MD_ClassificationCode" codeListValue="unclassified"/>
+          </classification>
+        </MD_SecurityConstraints>
+      </resourceConstraints>
+      <language>
+        <gco:CharacterString>en</gco:CharacterString>
+      </language>
+    </MD_DataIdentification>
+  </identificationInfo>
+  <distributionInfo>
+    <MD_Distribution>
+      <transferOptions>
+        <MD_DigitalTransferOptions>
+          <onLine>
+            <CI_OnlineResource>
+              <linkage/>
+              <protocol>
+                <gco:CharacterString>WWW:LINK-1.0-http--link</gco:CharacterString>
+              </protocol>
+              <name>
+                <gco:CharacterString>Download</gco:CharacterString>
+              </name>
+              <description>
+                <gco:CharacterString>Download</gco:CharacterString>
+              </description>
+              <function>
+                <CI_OnLineFunctionCode codeList="http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_OnLineFunctionCode" codeListValue="information">download</CI_OnLineFunctionCode>
+              </function>
+            </CI_OnlineResource>
+          </onLine>
+        </MD_DigitalTransferOptions>
+      </transferOptions>
+    </MD_Distribution>
+  </distributionInfo>
+</MD_Metadata>
+
+
+    
+<DIF xmlns="http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://gcmd.gsfc.nasa.gov/Aboutus/xml/dif/&#10;&#9;&#9;&#9;&#9;file:///C:/xampp2/htdocs/mde-msl/schemas/GCMD/DIF.xsd">
+  <Entry_ID/>
+  <Entry_Title>A mandatory Event</Entry_Title>
+  <Data_Set_Citation>
+    <Dataset_Creator>Hernandez, Sofia</Dataset_Creator>
+    <Dataset_Title>A mandatory Event</Dataset_Title>
+    <Dataset_Release_Date>1956</Dataset_Release_Date>
+  </Data_Set_Citation>
+  <Data_Center>
+    <Data_Center_Name>
+      <Short_Name>Deutsches GeoForschungsZentrum GFZ</Short_Name>
+      <Long_Name>GFZ</Long_Name>
+    </Data_Center_Name>
+    <Personnel>
+      <Role>DATA CENTER CONTACT</Role>
+      <Last_Name>Deutsches GeoForschungsZentrum GFZ</Last_Name>
+    </Personnel>
+  </Data_Center>
+  <Summary>
+    <Abstract>dsfdf</Abstract>
+  </Summary>
+  <Metadata_Name>DIF</Metadata_Name>
+  <Metadata_Version>9.9.3</Metadata_Version>
+</DIF>
+
+</envelope>
+XML;
+    $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk()->assertJson([
+        'year' => '1956',
+        'language' => 'en',
+        'resourceType' => 'book',
+        'titles' => [
+            ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
+        ],
+    ]);
+});
+
 it('validates xml file type and size', function () {
     $this->actingAs(User::factory()->create());
 

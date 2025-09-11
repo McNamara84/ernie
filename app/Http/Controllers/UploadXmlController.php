@@ -19,12 +19,14 @@ class UploadXmlController extends Controller
         $contents = $request->file('file')->get();
 
         $reader = XmlReader::fromString($contents);
-        $doi = $reader->xpathValue('//identifier[@identifierType="DOI"]')->first();
-        $year = $reader->xpathValue('//publicationYear')->first();
-        $version = $reader->xpathValue('//version')->first();
-        $language = $reader->xpathValue('//language')->first();
+        $doi = $reader->xpathValue('//*[local-name()="identifier" and @identifierType="DOI"]')->first();
+        $year = $reader->xpathValue('//*[local-name()="publicationYear"]')->first();
+        $version = $reader->xpathValue('//*[local-name()="version"]')->first();
+        $language = $reader->xpathValue('//*[local-name()="language"]')->first();
 
-        $titleElements = $reader->xpathElement('/resource/titles/title')->get();
+        $titleElements = $reader
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="titles"]/*[local-name()="title"]')
+            ->get();
         $titles = [];
 
         foreach ($titleElements as $element) {
@@ -45,7 +47,7 @@ class UploadXmlController extends Controller
         ));
         $titles = array_merge($mainTitles, $otherTitles);
 
-        $resourceTypeElement = $reader->xpathElement('//resourceType')->first();
+        $resourceTypeElement = $reader->xpathElement('//*[local-name()="resourceType"]')->first();
         $resourceTypeName = $resourceTypeElement?->getAttribute('resourceTypeGeneral');
         $resourceType = null;
 
