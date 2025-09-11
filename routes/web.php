@@ -2,6 +2,7 @@
 
 use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Http\Controllers\UploadXmlController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -18,6 +19,9 @@ Route::get('/legal-notice', function () {
 })->name('legal-notice');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::post('dashboard/upload-xml', UploadXmlController::class)
+        ->name('dashboard.upload-xml');
+
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
@@ -30,10 +34,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('docs-users');
     })->name('docs.users');
 
-    Route::get('curation', function () {
+    Route::get('curation', function (\Illuminate\Http\Request $request) {
         return Inertia::render('curation', [
             'resourceTypes' => ResourceType::orderBy('name')->get(),
             'titleTypes' => TitleType::orderBy('name')->get(),
+            'doi' => $request->query('doi'),
         ]);
     })->name('curation');
 });

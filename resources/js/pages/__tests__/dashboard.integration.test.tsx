@@ -4,6 +4,7 @@ import Dashboard from '../dashboard';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const usePageMock = vi.fn();
+const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ title, children }: { title?: string; children?: React.ReactNode }) => {
@@ -11,6 +12,7 @@ vi.mock('@inertiajs/react', () => ({
         return <>{children}</>;
     },
     usePage: () => usePageMock(),
+    router: routerMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({

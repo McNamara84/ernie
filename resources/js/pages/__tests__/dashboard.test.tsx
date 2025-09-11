@@ -1,14 +1,16 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import Dashboard from '../dashboard';
+import Dashboard, { handleXmlFiles } from '../dashboard';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
+const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     usePage: () => usePageMock(),
+    router: routerMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -78,6 +80,90 @@ describe('Dashboard', () => {
         fireEvent.change(input, { target: { files: [xmlFile, otherFile] } });
         expect(handleXmlFilesSpy).toHaveBeenCalledTimes(1);
         expect(handleXmlFilesSpy).toHaveBeenCalledWith([xmlFile]);
+    });
+
+    it('shows an error alert when upload fails', async () => {
+        handleXmlFilesSpy.mockRejectedValue(new Error('Invalid file'));
+        render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
+        const dropzone = screen.getByText(/drag & drop xml files here/i).parentElement as HTMLElement;
+        const xmlFile = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        fireEvent.dragOver(dropzone, { dataTransfer: { files: [xmlFile] } });
+        fireEvent.drop(dropzone, { dataTransfer: { files: [xmlFile] } });
+        await screen.findByText('Invalid file');
+        expect(screen.getByRole('alert')).toHaveTextContent('Invalid file');
+    });
+});
+
+describe('handleXmlFiles', () => {
+    beforeEach(() => {
+        document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+    });
+
+    it('posts xml file with csrf token and redirects to curation with DOI', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue({ ok: true, json: async () => ({ doi: '10.1234/abc' }) } as Response);
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        const [url, options] = fetchMock.mock.calls[0];
+        expect(url).toBe('/dashboard/upload-xml');
+        expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { doi: '10.1234/abc' });
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('redirects to curation without DOI when none is returned', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue({ ok: true, json: async () => ({ doi: null }) } as Response);
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', {});
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('throws when csrf token is missing', async () => {
+        document.head.innerHTML = '';
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi.spyOn(global, 'fetch');
+
+        await expect(handleXmlFiles([file])).rejects.toThrow('CSRF token not found');
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        fetchMock.mockRestore();
+    });
+
+    it('throws server error message', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue({ ok: false, json: async () => ({ message: 'Bad request' }) } as Response);
+
+        await expect(handleXmlFiles([file])).rejects.toThrow('Bad request');
+        expect(routerMock.get).not.toHaveBeenCalled();
+
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('logs and throws when fetch fails', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi.spyOn(global, 'fetch').mockRejectedValue(new Error('network down'));
+        const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        await expect(handleXmlFiles([file])).rejects.toThrow('Upload failed: network down');
+        expect(consoleErrorMock).toHaveBeenCalled();
+
+        fetchMock.mockRestore();
+        consoleErrorMock.mockRestore();
     });
 });
 

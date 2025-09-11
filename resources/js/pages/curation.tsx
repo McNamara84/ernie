@@ -13,14 +13,19 @@ const breadcrumbs: BreadcrumbItem[] = [
 interface CurationProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
+    doi?: string;
 }
 
-export default function Curation({ resourceTypes, titleTypes }: CurationProps) {
+export default function Curation({ resourceTypes, titleTypes, doi = '' }: CurationProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Curation" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    initialDoi={doi}
+                />
             </div>
         </AppLayout>
     );
