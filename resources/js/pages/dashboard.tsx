@@ -42,12 +42,14 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             year?: string | null;
             version?: string | null;
             language?: string | null;
+            resourceType?: string | null;
         } = await response.json();
         const query: Record<string, string> = {};
         if (data.doi) query.doi = data.doi;
         if (data.year) query.year = data.year;
         if (data.version) query.version = data.version;
         if (data.language) query.language = data.language;
+        if (data.resourceType) query.resourceType = data.resourceType;
         router.get('/curation', query);
     } catch (error) {
         console.error('XML upload failed', error);
