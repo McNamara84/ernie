@@ -51,7 +51,12 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         if (data.version) query.version = data.version;
         if (data.language) query.language = data.language;
         if (data.resourceType) query.resourceType = data.resourceType;
-        if (data.titles && data.titles.length > 0) query.titles = data.titles;
+        if (data.titles && data.titles.length > 0) {
+            data.titles.forEach((t, index) => {
+                query[`titles[${index}][title]`] = t.title;
+                query[`titles[${index}][titleType]`] = t.titleType;
+            });
+        }
         router.get('/curation', query);
     } catch (error) {
         console.error('XML upload failed', error);

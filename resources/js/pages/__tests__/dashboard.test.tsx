@@ -104,7 +104,20 @@ describe('handleXmlFiles', () => {
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: '10.1234/abc', year: '2024', version: '1.0', language: 'en', resourceType: 'dataset', titles: [{ title: 'Example Title', titleType: 'main-title' }] }) } as Response,
+                {
+                    ok: true,
+                    json: async () => ({
+                        doi: '10.1234/abc',
+                        year: '2024',
+                        version: '1.0',
+                        language: 'en',
+                        resourceType: 'dataset',
+                        titles: [
+                            { title: 'Example Title', titleType: 'main-title' },
+                            { title: 'Example Subtitle', titleType: 'subtitle' },
+                        ],
+                    }),
+                } as Response,
             );
 
         await handleXmlFiles([file]);
@@ -119,7 +132,10 @@ describe('handleXmlFiles', () => {
             version: '1.0',
             language: 'en',
             resourceType: 'dataset',
-            titles: [{ title: 'Example Title', titleType: 'main-title' }],
+            'titles[0][title]': 'Example Title',
+            'titles[0][titleType]': 'main-title',
+            'titles[1][title]': 'Example Subtitle',
+            'titles[1][titleType]': 'subtitle',
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();

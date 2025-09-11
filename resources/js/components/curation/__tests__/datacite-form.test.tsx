@@ -161,6 +161,9 @@ describe('DataCiteForm', () => {
         const inputs = screen.getAllByRole('textbox', { name: 'Title' });
         expect(inputs[0]).toHaveValue('Main');
         expect(inputs[1]).toHaveValue('Alt');
+        const selects = screen.getAllByRole('combobox', { name: 'Title Type' });
+        expect(selects[0]).toHaveTextContent('Main Title');
+        expect(selects[1]).toHaveTextContent('Alternative Title');
     });
 
     it(
