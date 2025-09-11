@@ -132,10 +132,35 @@ describe('handleXmlFiles', () => {
             version: '1.0',
             language: 'en',
             resourceType: 'dataset',
-            'titles[0][title]': 'Example Title',
-            'titles[0][titleType]': 'main-title',
-            'titles[1][title]': 'Example Subtitle',
-            'titles[1][titleType]': 'subtitle',
+            titles: [
+                { title: 'Example Title', titleType: 'main-title' },
+                { title: 'Example Subtitle', titleType: 'subtitle' },
+            ],
+        });
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('redirects to curation with a single main title', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue(
+                {
+                    ok: true,
+                    json: async () => ({
+                        titles: [
+                            { title: 'A mandatory Event', titleType: 'main-title' },
+                        ],
+                    }),
+                } as Response,
+            );
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', {
+            titles: [{ title: 'A mandatory Event', titleType: 'main-title' }],
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();

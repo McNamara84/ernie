@@ -52,10 +52,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         if (data.language) query.language = data.language;
         if (data.resourceType) query.resourceType = data.resourceType;
         if (data.titles && data.titles.length > 0) {
-            data.titles.forEach((t, index) => {
-                query[`titles[${index}][title]`] = t.title;
-                query[`titles[${index}][titleType]`] = t.titleType;
-            });
+            query.titles = data.titles;
         }
         router.get('/curation', query);
     } catch (error) {

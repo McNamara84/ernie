@@ -51,6 +51,24 @@ it('returns null when doi, publication year, version, language and resource type
     $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => []]);
 });
 
+it('handles xml with a single main title', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = '<resource><titles><title xml:lang="en">A mandatory Event</title></titles></resource>';
+    $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk()->assertJson([
+        'titles' => [
+            ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
+        ],
+    ]);
+});
+
 it('validates xml file type and size', function () {
     $this->actingAs(User::factory()->create());
 
