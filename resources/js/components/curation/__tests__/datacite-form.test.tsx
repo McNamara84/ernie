@@ -21,7 +21,9 @@ describe('DataCiteForm', () => {
 
       const titleTypes: TitleType[] = [
           { id: 1, name: 'Main Title', slug: 'main-title' },
-          { id: 2, name: 'Alternative Title', slug: 'alternative-title' },
+          { id: 2, name: 'Subtitle', slug: 'subtitle' },
+          { id: 3, name: 'TranslatedTitle', slug: 'translated-title' },
+          { id: 4, name: 'Alternative Title', slug: 'alternative-title' },
       ];
 
     it('renders fields, title options and supports adding/removing titles', async () => {
@@ -77,7 +79,7 @@ describe('DataCiteForm', () => {
         const secondTitleTypeTrigger = screen.getAllByRole('combobox', {
             name: 'Title Type',
         })[1];
-        expect(secondTitleTypeTrigger).toHaveTextContent('Alternative Title');
+        expect(secondTitleTypeTrigger).toHaveTextContent('Subtitle');
         await user.click(secondTitleTypeTrigger);
         expect(
             screen.queryByRole('option', { name: 'Main Title' }),
@@ -153,17 +155,23 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 initialTitles={[
-                    { title: 'Main', titleType: 'main-title' },
-                    { title: 'Alt', titleType: 'alternative-title' },
+                    { title: 'Example Title', titleType: 'main-title' },
+                    { title: 'Example Subtitle', titleType: 'subtitle' },
+                    { title: 'Example TranslatedTitle', titleType: 'translated-title' },
+                    { title: 'Example AlternativeTitle', titleType: 'alternative-title' },
                 ]}
             />,
         );
         const inputs = screen.getAllByRole('textbox', { name: 'Title' });
-        expect(inputs[0]).toHaveValue('Main');
-        expect(inputs[1]).toHaveValue('Alt');
+        expect(inputs[0]).toHaveValue('Example Title');
+        expect(inputs[1]).toHaveValue('Example Subtitle');
+        expect(inputs[2]).toHaveValue('Example TranslatedTitle');
+        expect(inputs[3]).toHaveValue('Example AlternativeTitle');
         const selects = screen.getAllByRole('combobox', { name: 'Title Type' });
         expect(selects[0]).toHaveTextContent('Main Title');
-        expect(selects[1]).toHaveTextContent('Alternative Title');
+        expect(selects[1]).toHaveTextContent('Subtitle');
+        expect(selects[2]).toHaveTextContent('TranslatedTitle');
+        expect(selects[3]).toHaveTextContent('Alternative Title');
     });
 
     it(
