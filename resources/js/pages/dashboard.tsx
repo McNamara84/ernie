@@ -4,6 +4,7 @@ import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Head, usePage, router } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 
@@ -12,8 +13,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
 
     const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
     if (!token) {
-        alert('CSRF token not found');
-        return;
+        throw new Error('CSRF token not found');
     }
 
     const formData = new FormData();
@@ -32,23 +32,26 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             try {
                 const errorData: { message?: string } = await response.json();
                 message = errorData.message ?? message;
-            } catch {
-                /* ignore */
+            } catch (err) {
+                console.error('Failed to parse error response', err);
             }
-            alert(message);
-            return;
+            throw new Error(message);
         }
         const data: { doi?: string } = await response.json();
         if (data.doi) {
             router.get('/curation', { doi: data.doi });
         }
-    } catch {
-        alert('Upload failed');
+    } catch (error) {
+        console.error('XML upload failed', error);
+        if (error instanceof Error) {
+            throw new Error(`Upload failed: ${error.message}`);
+        }
+        throw new Error('Upload failed');
     }
 };
 
 type DashboardProps = {
-    onXmlFiles?: (files: File[]) => void | Promise<void>;
+    onXmlFiles?: (files: File[]) => Promise<void>;
 };
 
 function filterXmlFiles(files: File[]): File[] {
@@ -66,6 +69,16 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
     const { auth } = usePage<SharedData>().props;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    async function uploadXml(files: File[]) {
+        try {
+            await onXmlFiles(files);
+            setError(null);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Upload failed');
+        }
+    }
 
     function handleDragOver(event: React.DragEvent<HTMLDivElement>) {
         event.preventDefault();
@@ -86,7 +99,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         const files = Array.from(event.dataTransfer.files);
         const xmlFiles = filterXmlFiles(files);
         if (xmlFiles.length) {
-            void onXmlFiles(xmlFiles);
+            void uploadXml(xmlFiles);
         }
     }
 
@@ -95,7 +108,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         if (files && files.length) {
             const xmlFiles = filterXmlFiles(Array.from(files));
             if (xmlFiles.length) {
-                void onXmlFiles(xmlFiles);
+                void uploadXml(xmlFiles);
             }
         }
     }
@@ -104,6 +117,12 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                {error && (
+                    <Alert variant="destructive">
+                        <AlertTitle>Upload error</AlertTitle>
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
                 <div className="grid gap-4 md:grid-cols-3">
                     <Card>
                         <CardHeader>
