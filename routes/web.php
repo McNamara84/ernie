@@ -3,7 +3,6 @@
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Http\Controllers\UploadXmlController;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -21,8 +20,7 @@ Route::get('/legal-notice', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/upload-xml', UploadXmlController::class)
-        ->name('dashboard.upload-xml')
-        ->withoutMiddleware([VerifyCsrfToken::class]);
+        ->name('dashboard.upload-xml');
 
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');

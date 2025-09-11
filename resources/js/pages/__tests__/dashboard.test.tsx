@@ -84,7 +84,11 @@ describe('Dashboard', () => {
 });
 
 describe('handleXmlFiles', () => {
-    it('posts xml file and redirects to curation with DOI', async () => {
+    beforeEach(() => {
+        document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+    });
+
+    it('posts xml file with csrf token and redirects to curation with DOI', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
@@ -93,6 +97,9 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
+        const [url, options] = fetchMock.mock.calls[0];
+        expect(url).toBe('/dashboard/upload-xml');
+        expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
         expect(routerMock.get).toHaveBeenCalledWith('/curation', { doi: '10.1234/abc' });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
