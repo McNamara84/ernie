@@ -121,6 +121,19 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Version')).toHaveValue('1.5');
     });
 
+    it('prefills Language when initialLanguage is provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                initialLanguage="de"
+            />,
+        );
+        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+            'German',
+        );
+    });
+
     it(
         'limits title rows to 100',
         async () => {

@@ -99,12 +99,12 @@ describe('handleXmlFiles', () => {
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
     });
 
-    it('posts xml file with csrf token and redirects to curation with DOI, Year and Version', async () => {
+    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version and Language', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: '10.1234/abc', year: '2024', version: '1.0' }) } as Response,
+                { ok: true, json: async () => ({ doi: '10.1234/abc', year: '2024', version: '1.0', language: 'en' }) } as Response,
             );
 
         await handleXmlFiles([file]);
@@ -117,17 +117,18 @@ describe('handleXmlFiles', () => {
             doi: '10.1234/abc',
             year: '2024',
             version: '1.0',
+            language: 'en',
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
 
-    it('redirects to curation without DOI, Year or Version when none is returned', async () => {
+    it('redirects to curation without DOI, Year, Version or Language when none is returned', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: null, version: null }) } as Response,
+                { ok: true, json: async () => ({ doi: null, year: null, version: null, language: null }) } as Response,
             );
 
         await handleXmlFiles([file]);
@@ -138,34 +139,50 @@ describe('handleXmlFiles', () => {
         routerMock.get.mockReset();
     });
 
-    it('redirects to curation with Year when DOI is missing', async () => {
+    it('redirects to curation with Year and Language when DOI is missing', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: '2023' }) } as Response,
+                { ok: true, json: async () => ({ doi: null, year: '2023', language: 'en' }) } as Response,
             );
 
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { year: '2023' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { year: '2023', language: 'en' });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
 
-    it('redirects to curation with Version when DOI and Year are missing', async () => {
+    it('redirects to curation with Version and Language when DOI and Year are missing', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: null, version: '2.0' }) } as Response,
+                { ok: true, json: async () => ({ doi: null, year: null, version: '2.0', language: 'en' }) } as Response,
             );
 
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { version: '2.0' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { version: '2.0', language: 'en' });
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('redirects to curation with Language when DOI, Year and Version are missing', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue(
+                { ok: true, json: async () => ({ doi: null, year: null, version: null, language: 'de' }) } as Response,
+            );
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { language: 'de' });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });

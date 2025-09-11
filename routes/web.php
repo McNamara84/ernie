@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'doi' => $request->query('doi'),
             'year' => $request->query('year'),
             'version' => $request->query('version'),
+            'language' => $request->query('language'),
         ]);
     })->name('curation');
 });

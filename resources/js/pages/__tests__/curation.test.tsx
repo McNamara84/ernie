@@ -91,4 +91,23 @@ describe('Curation page', () => {
             expect.objectContaining({ initialVersion: '2.0' })
         );
     });
+
+    it('passes language to DataCiteForm when provided', () => {
+        const resourceTypes: ResourceType[] = [
+            { id: 1, name: 'Dataset', slug: 'dataset' },
+        ];
+        const titleTypes: TitleType[] = [
+            { id: 1, name: 'Main Title', slug: 'main-title' },
+        ];
+        render(
+            <Curation
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                language="de"
+            />,
+        );
+        expect(renderForm).toHaveBeenCalledWith(
+            expect.objectContaining({ initialLanguage: 'de' })
+        );
+    });
 });
