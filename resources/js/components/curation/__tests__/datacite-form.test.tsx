@@ -134,6 +134,19 @@ describe('DataCiteForm', () => {
         );
     });
 
+    it('prefills Resource Type when initialResourceType is provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                initialResourceType="dataset"
+            />,
+        );
+        expect(screen.getByLabelText('Resource Type')).toHaveTextContent(
+            'Dataset',
+        );
+    });
+
     it(
         'limits title rows to 100',
         async () => {

@@ -110,4 +110,23 @@ describe('Curation page', () => {
             expect.objectContaining({ initialLanguage: 'de' })
         );
     });
+
+    it('passes resource type to DataCiteForm when provided', () => {
+        const resourceTypes: ResourceType[] = [
+            { id: 1, name: 'Dataset', slug: 'dataset' },
+        ];
+        const titleTypes: TitleType[] = [
+            { id: 1, name: 'Main Title', slug: 'main-title' },
+        ];
+        render(
+            <Curation
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                resourceType="dataset"
+            />,
+        );
+        expect(renderForm).toHaveBeenCalledWith(
+            expect.objectContaining({ initialResourceType: 'dataset' })
+        );
+    });
 });

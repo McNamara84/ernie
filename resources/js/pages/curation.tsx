@@ -17,6 +17,7 @@ interface CurationProps {
     year?: string;
     version?: string;
     language?: string;
+    resourceType?: string;
 }
 
 export default function Curation({
@@ -26,6 +27,7 @@ export default function Curation({
     year = '',
     version = '',
     language = '',
+    resourceType = '',
 }: CurationProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -38,6 +40,7 @@ export default function Curation({
                     initialYear={year}
                     initialVersion={version}
                     initialLanguage={language}
+                    initialResourceType={resourceType}
                 />
             </div>
         </AppLayout>

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Models\ResourceType;
+use Illuminate\Support\Str;
 use Saloon\XmlWrangler\XmlReader;
 
 class UploadXmlController extends Controller
@@ -22,11 +24,21 @@ class UploadXmlController extends Controller
         $version = $reader->xpathValue('//version')->first();
         $language = $reader->xpathValue('//language')->first();
 
+        $resourceTypeElement = $reader->xpathElement('//resourceType')->first();
+        $resourceTypeName = $resourceTypeElement?->getAttribute('resourceTypeGeneral');
+        $resourceType = null;
+
+        if ($resourceTypeName !== null) {
+            $resourceTypeModel = ResourceType::whereRaw('LOWER(name) = ?', [Str::lower($resourceTypeName)])->first();
+            $resourceType = $resourceTypeModel?->slug;
+        }
+
         return response()->json([
             'doi' => $doi,
             'year' => $year,
             'version' => $version,
             'language' => $language,
+            'resourceType' => $resourceType,
         ]);
     }
 }
