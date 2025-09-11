@@ -20,11 +20,13 @@ class UploadXmlController extends Controller
         $doi = $reader->xpathValue('//identifier[@identifierType="DOI"]')->first();
         $year = $reader->xpathValue('//publicationYear')->first();
         $version = $reader->xpathValue('//version')->first();
+        $language = $reader->xpathValue('//language')->first();
 
         return response()->json([
             'doi' => $doi,
             'year' => $year,
             'version' => $version,
+            'language' => $language,
         ]);
     }
 }
