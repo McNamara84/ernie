@@ -116,6 +116,20 @@ describe('handleXmlFiles', () => {
         routerMock.get.mockReset();
     });
 
+    it('redirects to curation without DOI when none is returned', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue({ ok: true, json: async () => ({ doi: null }) } as Response);
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', {});
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
     it('throws when csrf token is missing', async () => {
         document.head.innerHTML = '';
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });

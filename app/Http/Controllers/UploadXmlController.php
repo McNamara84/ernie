@@ -19,10 +19,6 @@ class UploadXmlController extends Controller
         $reader = XmlReader::fromString($contents);
         $doi = $reader->xpathValue('//identifier[@identifierType="DOI"]')->first();
 
-        if (! $doi) {
-            return response()->json(['message' => 'DOI not found'], 422);
-        }
-
         return response()->json(['doi' => $doi]);
     }
 }

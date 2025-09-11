@@ -19,7 +19,7 @@ it('extracts doi from uploaded xml', function () {
     $response->assertOk()->assertJson(['doi' => '10.1234/xyz']);
 });
 
-it('returns error when doi is missing', function () {
+it('returns null when doi is missing', function () {
     $this->actingAs(User::factory()->create());
 
     $xml = '<resource></resource>';
@@ -28,9 +28,9 @@ it('returns error when doi is missing', function () {
     $response = $this->post(route('dashboard.upload-xml'), [
         'file' => $file,
         '_token' => csrf_token(),
-    ], ['Accept' => 'application/json']);
+    ]);
 
-    $response->assertStatus(422)->assertJson(['message' => 'DOI not found']);
+    $response->assertOk()->assertJson(['doi' => null]);
 });
 
 it('validates xml file type and size', function () {
