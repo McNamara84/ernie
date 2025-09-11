@@ -10,11 +10,27 @@ it('extracts doi, publication year, version, language, resource type and titles 
     $this->actingAs(User::factory()->create());
     ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
-    $xml = '<resource><identifier identifierType="DOI">10.1234/xyz</identifier><publicationYear>2024</publicationYear><version>1'
-        . '.0</version><language>de</language><titles><title>Example Title</title><title titleType="Subtitle">Example Subtitle</title>'
-        . '<title titleType="TranslatedTitle">Example TranslatedTitle</title><title titleType="AlternativeTitle">Example AlternativeTitle</title></titles>'
-        . '<relatedItem><titles><title>Example RelatedItem Title</title><title titleType="TranslatedTitle">Example RelatedItem TranslatedTitle</title></titles></relatedItem>'
-        . '<resourceType resourceTypeGeneral="Dataset">Dataset</resourceType></resource>';
+    $xml = <<<XML
+<resource>
+    <identifier identifierType="DOI">10.1234/xyz</identifier>
+    <publicationYear>2024</publicationYear>
+    <version>1.0</version>
+    <language>de</language>
+    <titles>
+        <title>Example Title</title>
+        <title titleType="Subtitle">Example Subtitle</title>
+        <title titleType="TranslatedTitle">Example TranslatedTitle</title>
+        <title titleType="AlternativeTitle">Example AlternativeTitle</title>
+    </titles>
+    <relatedItem>
+        <titles>
+            <title>Example RelatedItem Title</title>
+            <title titleType="TranslatedTitle">Example RelatedItem TranslatedTitle</title>
+        </titles>
+    </relatedItem>
+    <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+</resource>
+XML;
     $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
 
     $response = $this->post(route('dashboard.upload-xml'), [
