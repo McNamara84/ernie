@@ -99,6 +99,17 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('DOI')).toHaveValue('10.1234/abc');
     });
 
+    it('prefills Year when initialYear is provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                initialYear="2024"
+            />,
+        );
+        expect(screen.getByLabelText('Year')).toHaveValue(2024);
+    });
+
     it(
         'limits title rows to 100',
         async () => {

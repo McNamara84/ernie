@@ -37,8 +37,11 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             }
             throw new Error(message);
         }
-        const data: { doi?: string | null } = await response.json();
-        router.get('/curation', data.doi ? { doi: data.doi } : {});
+        const data: { doi?: string | null; year?: string | null } = await response.json();
+        const query: Record<string, string> = {};
+        if (data.doi) query.doi = data.doi;
+        if (data.year) query.year = data.year;
+        router.get('/curation', query);
     } catch (error) {
         console.error('XML upload failed', error);
         if (error instanceof Error) {

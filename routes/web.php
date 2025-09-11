@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'resourceTypes' => ResourceType::orderBy('name')->get(),
             'titleTypes' => TitleType::orderBy('name')->get(),
             'doi' => $request->query('doi'),
+            'year' => $request->query('year'),
         ]);
     })->name('curation');
 });
