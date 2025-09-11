@@ -110,6 +110,17 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Year')).toHaveValue(2024);
     });
 
+    it('prefills Version when initialVersion is provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                initialVersion="1.5"
+            />,
+        );
+        expect(screen.getByLabelText('Version')).toHaveValue('1.5');
+    });
+
     it(
         'limits title rows to 100',
         async () => {
