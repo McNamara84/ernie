@@ -3,7 +3,7 @@
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Http\Controllers\UploadXmlController;
-use App\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
