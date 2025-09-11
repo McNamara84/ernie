@@ -24,7 +24,7 @@ class UploadXmlController extends Controller
         $version = $reader->xpathValue('//version')->first();
         $language = $reader->xpathValue('//language')->first();
 
-        $titleElements = $reader->xpathElement('//titles/title')->get();
+        $titleElements = $reader->xpathElement('/resource/titles/title')->get();
         $titles = [];
 
         foreach ($titleElements as $element) {
