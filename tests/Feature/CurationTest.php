@@ -27,5 +27,6 @@ test('authenticated users can view curation page with resource and title types',
         $page->component('curation')
             ->has('resourceTypes', ResourceType::count())
             ->has('titleTypes', TitleType::count())
+            ->where('titles', [])
     );
 });
