@@ -25,7 +25,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 - Ensure the required PHP extensions are installed and enabled:
   `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`,
   `libxml`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `simplexml`,
-  `tokenizer`, `xml`, `xmlwriter`, `xsl`
+  `sodium`, `tokenizer`, `xml`, `xmlwriter`, `xsl`
 - Install PHP dependencies: `composer install`
 - Install Node dependencies: `npm install`
 - Copy `.env.example` to `.env` and adjust settings
