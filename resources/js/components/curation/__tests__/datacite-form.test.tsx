@@ -174,6 +174,22 @@ describe('DataCiteForm', () => {
         expect(selects[3]).toHaveTextContent('Alternative Title');
     });
 
+    it('prefills a single main title', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                initialTitles={[{ title: 'A mandatory Event', titleType: 'main-title' }]}
+            />,
+        );
+        expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue(
+            'A mandatory Event',
+        );
+        expect(screen.getByRole('combobox', { name: 'Title Type' })).toHaveTextContent(
+            'Main Title',
+        );
+    });
+
     it(
         'limits title rows to 100',
         async () => {

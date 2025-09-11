@@ -134,14 +134,12 @@ describe('handleXmlFiles', () => {
             version: '1.0',
             language: 'en',
             resourceType: 'dataset',
-            'titles[0][title]': 'Example Title',
-            'titles[0][titleType]': 'main-title',
-            'titles[1][title]': 'Example Subtitle',
-            'titles[1][titleType]': 'subtitle',
-            'titles[2][title]': 'Example TranslatedTitle',
-            'titles[2][titleType]': 'translated-title',
-            'titles[3][title]': 'Example AlternativeTitle',
-            'titles[3][titleType]': 'alternative-title',
+            titles: [
+                { title: 'Example Title', titleType: 'main-title' },
+                { title: 'Example Subtitle', titleType: 'subtitle' },
+                { title: 'Example TranslatedTitle', titleType: 'translated-title' },
+                { title: 'Example AlternativeTitle', titleType: 'alternative-title' },
+            ],
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
@@ -166,8 +164,7 @@ describe('handleXmlFiles', () => {
 
         expect(fetchMock).toHaveBeenCalled();
         expect(routerMock.get).toHaveBeenCalledWith('/curation', {
-            'titles[0][title]': 'A mandatory Event',
-            'titles[0][titleType]': 'main-title',
+            titles: [{ title: 'A mandatory Event', titleType: 'main-title' }],
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
