@@ -40,6 +40,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'titleTypes' => TitleType::orderBy('name')->get(),
             'doi' => $request->query('doi'),
             'year' => $request->query('year'),
+            'version' => $request->query('version'),
         ]);
     })->name('curation');
 });
