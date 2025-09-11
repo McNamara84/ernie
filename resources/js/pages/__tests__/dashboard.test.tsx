@@ -99,11 +99,13 @@ describe('handleXmlFiles', () => {
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
     });
 
-    it('posts xml file with csrf token and redirects to curation with DOI', async () => {
+    it('posts xml file with csrf token and redirects to curation with DOI and Year', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
-            .mockResolvedValue({ ok: true, json: async () => ({ doi: '10.1234/abc' }) } as Response);
+            .mockResolvedValue(
+                { ok: true, json: async () => ({ doi: '10.1234/abc', year: '2024' }) } as Response,
+            );
 
         await handleXmlFiles([file]);
 
@@ -111,21 +113,39 @@ describe('handleXmlFiles', () => {
         const [url, options] = fetchMock.mock.calls[0];
         expect(url).toBe('/dashboard/upload-xml');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { doi: '10.1234/abc' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { doi: '10.1234/abc', year: '2024' });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
 
-    it('redirects to curation without DOI when none is returned', async () => {
+    it('redirects to curation without DOI or Year when none is returned', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
-            .mockResolvedValue({ ok: true, json: async () => ({ doi: null }) } as Response);
+            .mockResolvedValue(
+                { ok: true, json: async () => ({ doi: null, year: null }) } as Response,
+            );
 
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
         expect(routerMock.get).toHaveBeenCalledWith('/curation', {});
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('redirects to curation with Year when DOI is missing', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue(
+                { ok: true, json: async () => ({ doi: null, year: '2023' }) } as Response,
+            );
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { year: '2023' });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });

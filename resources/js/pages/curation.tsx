@@ -14,9 +14,10 @@ interface CurationProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
     doi?: string;
+    year?: string;
 }
 
-export default function Curation({ resourceTypes, titleTypes, doi = '' }: CurationProps) {
+export default function Curation({ resourceTypes, titleTypes, doi = '', year = '' }: CurationProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Curation" />
@@ -25,6 +26,7 @@ export default function Curation({ resourceTypes, titleTypes, doi = '' }: Curati
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
                     initialDoi={doi}
+                    initialYear={year}
                 />
             </div>
         </AppLayout>

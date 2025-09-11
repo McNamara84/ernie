@@ -30,6 +30,7 @@ interface DataCiteFormProps {
     titleTypes: TitleType[];
     maxTitles?: number;
     initialDoi?: string;
+    initialYear?: string;
 }
 
 export default function DataCiteForm({
@@ -37,11 +38,12 @@ export default function DataCiteForm({
     titleTypes,
     maxTitles = 100,
     initialDoi = '',
+    initialYear = '',
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
-        year: '',
+        year: initialYear,
         resourceType: '',
         version: '',
         language: '',

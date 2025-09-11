@@ -5,10 +5,10 @@ use Illuminate\Http\UploadedFile;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-it('extracts doi from uploaded xml', function () {
+it('extracts doi and publication year from uploaded xml', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = '<resource><identifier identifierType="DOI">10.1234/xyz</identifier></resource>';
+    $xml = '<resource><identifier identifierType="DOI">10.1234/xyz</identifier><publicationYear>2024</publicationYear></resource>';
     $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
 
     $response = $this->post(route('dashboard.upload-xml'), [
@@ -16,10 +16,10 @@ it('extracts doi from uploaded xml', function () {
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson(['doi' => '10.1234/xyz']);
+    $response->assertOk()->assertJson(['doi' => '10.1234/xyz', 'year' => '2024']);
 });
 
-it('returns null when doi is missing', function () {
+it('returns null when doi and publication year are missing', function () {
     $this->actingAs(User::factory()->create());
 
     $xml = '<resource></resource>';
@@ -30,7 +30,7 @@ it('returns null when doi is missing', function () {
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson(['doi' => null]);
+    $response->assertOk()->assertJson(['doi' => null, 'year' => null]);
 });
 
 it('validates xml file type and size', function () {
