@@ -43,13 +43,15 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             version?: string | null;
             language?: string | null;
             resourceType?: string | null;
+            titles?: { title: string; titleType: string }[] | null;
         } = await response.json();
-        const query: Record<string, string> = {};
+        const query: Record<string, unknown> = {};
         if (data.doi) query.doi = data.doi;
         if (data.year) query.year = data.year;
         if (data.version) query.version = data.version;
         if (data.language) query.language = data.language;
         if (data.resourceType) query.resourceType = data.resourceType;
+        if (data.titles && data.titles.length > 0) query.titles = data.titles;
         router.get('/curation', query);
     } catch (error) {
         console.error('XML upload failed', error);

@@ -6,11 +6,11 @@ use Illuminate\Http\UploadedFile;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
-it('extracts doi, publication year, version, language and resource type from uploaded xml', function () {
+it('extracts doi, publication year, version, language, resource type and titles from uploaded xml', function () {
     $this->actingAs(User::factory()->create());
     ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
-    $xml = '<resource><identifier identifierType="DOI">10.1234/xyz</identifier><publicationYear>2024</publicationYear><version>1.0</version><language>de</language><resourceType resourceTypeGeneral="Dataset">Dataset</resourceType></resource>';
+    $xml = '<resource><identifier identifierType="DOI">10.1234/xyz</identifier><publicationYear>2024</publicationYear><version>1.0</version><language>de</language><titles><title>Example Title</title><title titleType="Subtitle">Example Subtitle</title><title titleType="TranslatedTitle">Example TranslatedTitle</title></titles><resourceType resourceTypeGeneral="Dataset">Dataset</resourceType></resource>';
     $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
 
     $response = $this->post(route('dashboard.upload-xml'), [
@@ -24,6 +24,11 @@ it('extracts doi, publication year, version, language and resource type from upl
         'version' => '1.0',
         'language' => 'de',
         'resourceType' => 'dataset',
+        'titles' => [
+            ['title' => 'Example Title', 'titleType' => 'main-title'],
+            ['title' => 'Example Subtitle', 'titleType' => 'subtitle'],
+            ['title' => 'Example TranslatedTitle', 'titleType' => 'translated-title'],
+        ],
     ]);
 });
 
@@ -38,7 +43,7 @@ it('returns null when doi, publication year, version, language and resource type
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null]);
+    $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => []]);
 });
 
 it('validates xml file type and size', function () {

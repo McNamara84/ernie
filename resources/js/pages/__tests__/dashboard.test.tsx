@@ -99,12 +99,12 @@ describe('handleXmlFiles', () => {
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
     });
 
-    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language and Resource Type', async () => {
+    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language, Resource Type and Titles', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: '10.1234/abc', year: '2024', version: '1.0', language: 'en', resourceType: 'dataset' }) } as Response,
+                { ok: true, json: async () => ({ doi: '10.1234/abc', year: '2024', version: '1.0', language: 'en', resourceType: 'dataset', titles: [{ title: 'Example Title', titleType: 'main-title' }] }) } as Response,
             );
 
         await handleXmlFiles([file]);
@@ -119,6 +119,7 @@ describe('handleXmlFiles', () => {
             version: '1.0',
             language: 'en',
             resourceType: 'dataset',
+            titles: [{ title: 'Example Title', titleType: 'main-title' }],
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();

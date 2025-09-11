@@ -34,6 +34,7 @@ interface DataCiteFormProps {
     initialVersion?: string;
     initialLanguage?: string;
     initialResourceType?: string;
+    initialTitles?: { title: string; titleType: string }[];
 }
 
 export default function DataCiteForm({
@@ -45,6 +46,7 @@ export default function DataCiteForm({
     initialVersion = '',
     initialLanguage = '',
     initialResourceType = '',
+    initialTitles = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const [form, setForm] = useState<DataCiteFormData>({
@@ -55,9 +57,15 @@ export default function DataCiteForm({
         language: initialLanguage,
     });
 
-    const [titles, setTitles] = useState<TitleEntry[]>([
-        { id: crypto.randomUUID(), title: '', titleType: 'main-title' },
-    ]);
+    const [titles, setTitles] = useState<TitleEntry[]>(
+        initialTitles.length
+            ? initialTitles.map((t) => ({
+                  id: crypto.randomUUID(),
+                  title: t.title,
+                  titleType: t.titleType,
+              }))
+            : [{ id: crypto.randomUUID(), title: '', titleType: 'main-title' }],
+    );
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));

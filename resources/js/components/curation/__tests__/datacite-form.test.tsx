@@ -147,6 +147,22 @@ describe('DataCiteForm', () => {
         );
     });
 
+    it('prefills titles when initialTitles are provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                initialTitles={[
+                    { title: 'Main', titleType: 'main-title' },
+                    { title: 'Alt', titleType: 'alternative-title' },
+                ]}
+            />,
+        );
+        const inputs = screen.getAllByRole('textbox', { name: 'Title' });
+        expect(inputs[0]).toHaveValue('Main');
+        expect(inputs[1]).toHaveValue('Alt');
+    });
+
     it(
         'limits title rows to 100',
         async () => {
