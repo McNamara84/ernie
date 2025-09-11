@@ -22,6 +22,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 ## Installation
 
 - Clone the repository and switch to the project directory
+- Ensure the required PHP extensions `xsl` and `intl` are installed and enabled
 - Install PHP dependencies: `composer install`
 - Install Node dependencies: `npm install`
 - Copy `.env.example` to `.env` and adjust settings
