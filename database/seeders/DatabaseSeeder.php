@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
+            LicenseSeeder::class,
         ]);
     }
 }

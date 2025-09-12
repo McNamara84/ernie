@@ -26,6 +26,7 @@ describe('Docs page', () => {
         fireEvent.click(trigger);
         expect(content).toHaveAttribute('data-state', 'open');
         expect(screen.getByText(/php artisan add-user/i)).toBeInTheDocument();
+        expect(screen.getByText(/php artisan spdx:sync-licenses/i)).toBeInTheDocument();
     });
 
     it('links to user documentation', () => {
