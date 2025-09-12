@@ -14,8 +14,8 @@ class EditorSettingsController extends Controller
     {
         return Inertia::render('settings/index', [
             'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name']),
-            'maxTitles' => (int) Setting::getValue('max_titles', 99),
-            'maxLicenses' => (int) Setting::getValue('max_licenses', 99),
+            'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
+            'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
         ]);
     }
 

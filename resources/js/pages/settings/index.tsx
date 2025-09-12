@@ -3,6 +3,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
 interface ResourceTypeRow {
@@ -16,7 +17,7 @@ interface EditorSettingsProps {
     maxLicenses: number;
 }
 
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: '/settings' }];
+const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
 export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
@@ -31,7 +32,7 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/settings');
+        post(settings().url);
     };
 
     return (

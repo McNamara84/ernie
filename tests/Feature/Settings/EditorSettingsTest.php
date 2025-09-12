@@ -16,16 +16,16 @@ test('guests are redirected to login when accessing editor settings', function (
 test('authenticated users can view editor settings page', function () {
     $user = User::factory()->create();
     ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
-    Setting::create(['key' => 'max_titles', 'value' => '99']);
-    Setting::create(['key' => 'max_licenses', 'value' => '99']);
+    Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
+    Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
     $this->actingAs($user);
     withoutVite();
     $response = $this->get(route('settings'))->assertOk();
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
         ->has('resourceTypes', 1)
-        ->where('maxTitles', 99)
-        ->where('maxLicenses', 99)
+        ->where('maxTitles', Setting::DEFAULT_LIMIT)
+        ->where('maxLicenses', Setting::DEFAULT_LIMIT)
     );
 });
 

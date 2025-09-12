@@ -15,6 +15,9 @@ vi.mock('@inertiajs/react', () => ({
     useForm: (initial: unknown) => useFormMock(initial),
 }));
 
+const settingsRoute = vi.hoisted(() => ({ url: '/settings' }));
+vi.mock('@/routes', () => ({ settings: () => settingsRoute }));
+
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
