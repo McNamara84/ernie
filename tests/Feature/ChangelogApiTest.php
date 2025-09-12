@@ -13,7 +13,7 @@ it('returns changelog data grouped by release', function () {
             'title' => 'Resource Information form group',
         ])
         ->assertJsonFragment([
-            'title' => 'License and Rights',
+            'title' => 'License and Rights form group',
         ]);
 });
 
