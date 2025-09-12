@@ -81,17 +81,27 @@ describe('DataCiteForm', () => {
         expect(
             screen.getByRole('combobox', { name: 'License' }),
         ).toBeInTheDocument();
+        const addLicense = screen.getByRole('button', { name: 'Add license' });
+        expect(addLicense).toBeDisabled();
         const licenseTrigger = screen.getByLabelText('License');
         await user.click(licenseTrigger);
-        expect(
-            await screen.findByRole('option', { name: 'MIT License' }),
-        ).toBeInTheDocument();
-        await user.keyboard('{Escape}');
-        const addLicense = screen.getByRole('button', { name: 'Add license' });
+        const mitOption = await screen.findByRole('option', {
+            name: 'MIT License',
+        });
+        await user.click(mitOption);
+        expect(addLicense).toBeEnabled();
         await user.click(addLicense);
         expect(
             screen.getAllByRole('combobox', { name: 'License' }),
         ).toHaveLength(2);
+        expect(addLicense).toBeDisabled();
+        const secondLicense = screen.getAllByLabelText('License')[1];
+        await user.click(secondLicense);
+        const apacheOption = await screen.findByRole('option', {
+            name: 'Apache License 2.0',
+        });
+        await user.click(apacheOption);
+        expect(addLicense).toBeEnabled();
         const removeLicense = screen.getByRole('button', { name: 'Remove license' });
         await user.click(removeLicense);
         expect(

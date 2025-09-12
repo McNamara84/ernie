@@ -247,7 +247,10 @@ export default function DataCiteForm({
                                     onAdd={addLicense}
                                     onRemove={() => removeLicense(index)}
                                     isFirst={index === 0}
-                                    canAdd={licenseEntries.length < MAX_LICENSES}
+                                    canAdd={
+                                        licenseEntries.length < MAX_LICENSES &&
+                                        !!licenseEntries[licenseEntries.length - 1].license
+                                    }
                                 />
                             ))}
                         </div>
