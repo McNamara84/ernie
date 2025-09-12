@@ -55,6 +55,13 @@ export default function Docs() {
                             Replace the placeholders with the new user's name, email address, and
                             password.
                         </p>
+                        <p>
+                            To update the list of available licenses, run:
+                        </p>
+                        <pre>
+                            <code>php artisan spdx:sync-licenses</code>
+                        </pre>
+                        <p>This fetches the latest license identifiers and names from SPDX.</p>
                     </CollapsibleContent>
                 </Collapsible>
             </div>

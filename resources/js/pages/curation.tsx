@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import DataCiteForm from '@/components/curation/datacite-form';
 import { Head } from '@inertiajs/react';
-import { type BreadcrumbItem, type ResourceType, type TitleType } from '@/types';
+import { type BreadcrumbItem, type ResourceType, type TitleType, type License } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -13,6 +13,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 interface CurationProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
+    licenses: License[];
     doi?: string;
     year?: string;
     version?: string;
@@ -24,6 +25,7 @@ interface CurationProps {
 export default function Curation({
     resourceTypes,
     titleTypes,
+    licenses,
     doi = '',
     year = '',
     version = '',
@@ -38,6 +40,7 @@ export default function Curation({
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    licenses={licenses}
                     initialDoi={doi}
                     initialYear={year}
                     initialVersion={version}

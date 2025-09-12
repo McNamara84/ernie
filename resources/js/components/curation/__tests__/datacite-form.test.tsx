@@ -2,9 +2,9 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
-import DataCiteForm from '../datacite-form';
+import DataCiteForm, { canAddLicense } from '../datacite-form';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
-import type { ResourceType, TitleType } from '@/types';
+import type { ResourceType, TitleType, License } from '@/types';
 
 describe('DataCiteForm', () => {
     beforeAll(() => {
@@ -19,26 +19,37 @@ describe('DataCiteForm', () => {
         { id: 1, name: 'Dataset', slug: 'dataset' },
     ];
 
-      const titleTypes: TitleType[] = [
-          { id: 1, name: 'Main Title', slug: 'main-title' },
-          { id: 2, name: 'Subtitle', slug: 'subtitle' },
-          { id: 3, name: 'TranslatedTitle', slug: 'translated-title' },
-          { id: 4, name: 'Alternative Title', slug: 'alternative-title' },
-      ];
+    const titleTypes: TitleType[] = [
+        { id: 1, name: 'Main Title', slug: 'main-title' },
+        { id: 2, name: 'Subtitle', slug: 'subtitle' },
+        { id: 3, name: 'TranslatedTitle', slug: 'translated-title' },
+        { id: 4, name: 'Alternative Title', slug: 'alternative-title' },
+    ];
+
+    const licenses: License[] = [
+        { id: 1, identifier: 'MIT', name: 'MIT License' },
+        { id: 2, identifier: 'Apache-2.0', name: 'Apache License 2.0' },
+    ];
 
     it('renders fields, title options and supports adding/removing titles', async () => {
-        render(<DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />);
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+            />,
+        );
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         // accordion sections
         const resourceTrigger = screen.getByRole('button', {
             name: 'Resource Information',
         });
-        const licenseTrigger = screen.getByRole('button', {
+        const licensesTrigger = screen.getByRole('button', {
             name: 'Licenses and Rights',
         });
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
-        expect(licenseTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
         await user.click(resourceTrigger);
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'false');
         expect(screen.queryByLabelText('DOI')).not.toBeInTheDocument();
@@ -65,6 +76,37 @@ describe('DataCiteForm', () => {
             ).toBeInTheDocument();
         }
         await user.keyboard('{Escape}');
+
+        // license fields
+        expect(
+            screen.getByRole('combobox', { name: 'License' }),
+        ).toBeInTheDocument();
+        const addLicense = screen.getByRole('button', { name: 'Add license' });
+        expect(addLicense).toBeDisabled();
+        const licenseTrigger = screen.getByLabelText('License');
+        await user.click(licenseTrigger);
+        const mitOption = await screen.findByRole('option', {
+            name: 'MIT License',
+        });
+        await user.click(mitOption);
+        expect(addLicense).toBeEnabled();
+        await user.click(addLicense);
+        expect(
+            screen.getAllByRole('combobox', { name: 'License' }),
+        ).toHaveLength(2);
+        expect(addLicense).toBeDisabled();
+        const secondLicense = screen.getAllByLabelText('License')[1];
+        await user.click(secondLicense);
+        const apacheOption = await screen.findByRole('option', {
+            name: 'Apache License 2.0',
+        });
+        await user.click(apacheOption);
+        expect(addLicense).toBeEnabled();
+        const removeLicense = screen.getByRole('button', { name: 'Remove license' });
+        await user.click(removeLicense);
+        expect(
+            screen.getAllByRole('combobox', { name: 'License' }),
+        ).toHaveLength(1);
 
         // title fields
         expect(screen.getByRole('textbox', { name: 'Title' })).toBeInTheDocument();
@@ -95,6 +137,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 initialDoi="10.1234/abc"
             />,
         );
@@ -106,6 +149,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 initialYear="2024"
             />,
         );
@@ -117,10 +161,15 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 initialVersion="1.5"
             />,
         );
         expect(screen.getByLabelText('Version')).toHaveValue('1.5');
+    });
+
+    it('disables add license when entries list is empty', () => {
+        expect(canAddLicense([], 3)).toBe(false);
     });
 
     it('prefills Language when initialLanguage is provided', () => {
@@ -128,6 +177,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 initialLanguage="de"
             />,
         );
@@ -141,6 +191,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 initialResourceType="dataset"
             />,
         );
@@ -150,7 +201,13 @@ describe('DataCiteForm', () => {
     });
 
     it('marks year and resource type as required', () => {
-        render(<DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />);
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+            />,
+        );
         const yearInput = screen.getByLabelText('Year', { exact: false });
         expect(yearInput).toBeRequired();
         const resourceTrigger = screen.getByLabelText('Resource Type', { exact: false });
@@ -164,6 +221,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 initialTitles={[
                     { title: 'Example Title', titleType: 'main-title' },
                     { title: 'Example Subtitle', titleType: 'subtitle' },
@@ -189,6 +247,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 initialTitles={[{ title: 'A mandatory Event', titleType: 'main-title' }]}
             />,
         );
@@ -204,11 +263,12 @@ describe('DataCiteForm', () => {
         'limits title rows to 100',
         async () => {
             render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    maxTitles={3}
-                />,
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                maxTitles={3}
+            />,
             );
             const addButton = screen.getByRole('button', { name: 'Add title' });
             fireEvent.click(addButton);

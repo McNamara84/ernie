@@ -2,6 +2,7 @@ import { useState } from 'react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
+import LicenseField from './fields/license-field';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
 import {
     Accordion,
@@ -9,7 +10,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from '@/components/ui/accordion';
-import type { ResourceType, TitleType } from '@/types';
+import type { ResourceType, TitleType, License } from '@/types';
 
 interface DataCiteFormData {
     doi: string;
@@ -25,30 +26,53 @@ interface TitleEntry {
     titleType: string;
 }
 
+interface LicenseEntry {
+    id: string;
+    license: string;
+}
+
 interface DataCiteFormProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
+    licenses: License[];
     maxTitles?: number;
+    maxLicenses?: number;
     initialDoi?: string;
     initialYear?: string;
     initialVersion?: string;
     initialLanguage?: string;
     initialResourceType?: string;
     initialTitles?: { title: string; titleType: string }[];
+    initialLicenses?: string[];
+}
+
+export function canAddLicense(
+    licenseEntries: LicenseEntry[],
+    maxLicenses: number,
+) {
+    return (
+        licenseEntries.length < maxLicenses &&
+        licenseEntries.length > 0 &&
+        !!licenseEntries[licenseEntries.length - 1].license
+    );
 }
 
 export default function DataCiteForm({
     resourceTypes,
     titleTypes,
+    licenses,
     maxTitles = 100,
+    maxLicenses = 100,
     initialDoi = '',
     initialYear = '',
     initialVersion = '',
     initialLanguage = '',
     initialResourceType = '',
     initialTitles = [],
+    initialLicenses = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
+    const MAX_LICENSES = maxLicenses;
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
         year: initialYear,
@@ -65,6 +89,15 @@ export default function DataCiteForm({
                   titleType: t.titleType,
               }))
             : [{ id: crypto.randomUUID(), title: '', titleType: 'main-title' }],
+    );
+
+    const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(
+        initialLicenses.length
+            ? initialLicenses.map((l) => ({
+                  id: crypto.randomUUID(),
+                  license: l,
+              }))
+            : [{ id: crypto.randomUUID(), license: '' }],
     );
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
@@ -97,6 +130,26 @@ export default function DataCiteForm({
     };
 
     const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
+
+    const handleLicenseChange = (index: number, value: string) => {
+        setLicenseEntries((prev) => {
+            const next = [...prev];
+            next[index] = { ...next[index], license: value };
+            return next;
+        });
+    };
+
+    const addLicense = () => {
+        if (licenseEntries.length >= MAX_LICENSES) return;
+        setLicenseEntries((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), license: '' },
+        ]);
+    };
+
+    const removeLicense = (index: number) => {
+        setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
+    };
 
     return (
         <form>
@@ -188,7 +241,31 @@ export default function DataCiteForm({
                 </AccordionItem>
                 <AccordionItem value="licenses-rights">
                     <AccordionTrigger>Licenses and Rights</AccordionTrigger>
-                    <AccordionContent />
+                    <AccordionContent>
+                        <div className="space-y-4">
+                            {licenseEntries.map((entry, index) => (
+                                <LicenseField
+                                    key={entry.id}
+                                    id={entry.id}
+                                    license={entry.license}
+                                    options={licenses.map((l) => ({
+                                        value: l.identifier,
+                                        label: l.name,
+                                    }))}
+                                    onLicenseChange={(val) =>
+                                        handleLicenseChange(index, val)
+                                    }
+                                    onAdd={addLicense}
+                                    onRemove={() => removeLicense(index)}
+                                    isFirst={index === 0}
+                                    canAdd={canAddLicense(
+                                        licenseEntries,
+                                        MAX_LICENSES,
+                                    )}
+                                />
+                            ))}
+                        </div>
+                    </AccordionContent>
                 </AccordionItem>
             </Accordion>
         </form>
