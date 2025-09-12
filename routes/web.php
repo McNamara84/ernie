@@ -19,6 +19,10 @@ Route::get('/legal-notice', function () {
     return Inertia::render('legal-notice');
 })->name('legal-notice');
 
+Route::get('/changelog', function () {
+    return Inertia::render('changelog');
+})->name('changelog');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');

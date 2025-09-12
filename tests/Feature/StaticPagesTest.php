@@ -20,3 +20,9 @@ it('displays the legal notice page', function () {
     $response = $this->get(route('legal-notice'))->assertOk();
     $response->assertInertia(fn (Assert $page) => $page->component('legal-notice'));
 });
+
+it('displays the changelog page', function () {
+    withoutVite();
+    $response = $this->get(route('changelog'))->assertOk();
+    $response->assertInertia(fn (Assert $page) => $page->component('changelog'));
+});
