@@ -46,6 +46,14 @@ interface DataCiteFormProps {
     initialLicenses?: string[];
 }
 
+export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
+    return (
+        titles.length < maxTitles &&
+        titles.length > 0 &&
+        !!titles[titles.length - 1].title
+    );
+}
+
 export function canAddLicense(
     licenseEntries: LicenseEntry[],
     maxLicenses: number,
@@ -233,7 +241,7 @@ export default function DataCiteForm({
                                     onAdd={addTitle}
                                     onRemove={() => removeTitle(index)}
                                     isFirst={index === 0}
-                                    canAdd={titles.length < MAX_TITLES}
+                                    canAdd={canAddTitle(titles, MAX_TITLES)}
                                 />
                             ))}
                         </div>
