@@ -22,6 +22,7 @@ interface SelectFieldProps {
     placeholder?: string;
     className?: string;
     hideLabel?: boolean;
+    required?: boolean;
 }
 
 export function SelectField({
@@ -33,13 +34,15 @@ export function SelectField({
     placeholder = 'Select',
     className,
     hideLabel = false,
+    required = false,
 }: SelectFieldProps) {
     return (
         <div className={cn('flex flex-col gap-2', className)}>
             <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
                 {label}
+                {required && <span className="text-destructive ml-1">*</span>}
             </Label>
-            <Select value={value} onValueChange={onValueChange}>
+            <Select value={value} onValueChange={onValueChange} required={required}>
                 <SelectTrigger id={id}>
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>

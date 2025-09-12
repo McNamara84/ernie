@@ -16,14 +16,16 @@ export function InputField({
     hideLabel = false,
     type = 'text',
     className,
+    required,
     ...props
 }: InputFieldProps) {
     return (
         <div className={cn('flex flex-col gap-2', className)}>
             <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
                 {label}
+                {required && <span className="text-destructive ml-1">*</span>}
             </Label>
-            <Input id={id} type={type} {...props} />
+            <Input id={id} type={type} required={required} {...props} />
         </div>
     );
 }

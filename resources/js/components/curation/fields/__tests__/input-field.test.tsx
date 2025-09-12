@@ -16,4 +16,11 @@ describe('InputField', () => {
         const wrapper = screen.getByLabelText('Class').parentElement;
         expect(wrapper).toHaveClass('col-span-2');
     });
+
+    it('renders required indicator', () => {
+        render(<InputField id="req" label="Required" required />);
+        const input = screen.getByLabelText('Required', { exact: false });
+        expect(input).toBeRequired();
+        expect(screen.getByText('Required')).toHaveTextContent('*');
+    });
 });

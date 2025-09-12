@@ -44,4 +44,20 @@ describe('SelectField', () => {
         const wrapper = trigger.closest('.col-span-2');
         expect(wrapper).toHaveClass('col-span-2');
     });
+
+    it('renders required indicator', () => {
+        render(
+            <SelectField
+                id="req"
+                label="Required"
+                value=""
+                onValueChange={() => {}}
+                options={[]}
+                required
+            />,
+        );
+        const trigger = screen.getByLabelText('Required', { exact: false });
+        expect(trigger).toHaveAttribute('aria-required', 'true');
+        expect(screen.getByText('Required')).toHaveTextContent('*');
+    });
 });

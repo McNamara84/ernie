@@ -125,6 +125,7 @@ export default function DataCiteForm({
                                 onChange={(e) => handleChange('year', e.target.value)}
                                 placeholder="2024"
                                 className="md:col-span-2"
+                                required
                             />
                             <SelectField
                                 id="resourceType"
@@ -136,6 +137,7 @@ export default function DataCiteForm({
                                     label: type.name,
                                 }))}
                                 className="md:col-span-4"
+                                required
                             />
                             <InputField
                                 id="version"
