@@ -25,25 +25,37 @@ const sectionConfig: Record<keyof Omit<Release, 'version' | 'date'>, { label: st
 export default function Changelog() {
     const [releases, setReleases] = useState<Release[]>([]);
     const [active, setActive] = useState<number | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/changelog')
-            .then((res) => res.json())
-            .then((data: Release[]) => setReleases(data));
+            .then((res) => {
+                if (!res.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return res.json();
+            })
+            .then((data: Release[]) => setReleases(data))
+            .catch(() => setError('Unable to load changelog.'));
     }, []);
 
     return (
         <PublicLayout>
             <Head title="Changelog" />
             <h1 className="mb-6 text-2xl font-semibold">Changelog</h1>
-            <ul
-                className="relative space-y-4 border-l border-gray-300 pl-6"
-                aria-label="Changelog Timeline"
-            >
-                {releases.map((release, index) => {
-                    const isOpen = active === index;
-                    const prev = releases[index - 1];
-                    const [currMajor, currMinor] = release.version.split('.').map(Number);
+            {error ? (
+                <p role="alert" className="text-red-600">
+                    {error}
+                </p>
+            ) : (
+                <ul
+                    className="relative space-y-4 border-l border-gray-300 pl-6"
+                    aria-label="Changelog Timeline"
+                >
+                    {releases.map((release, index) => {
+                        const isOpen = active === index;
+                        const prev = releases[index - 1];
+                        const [currMajor, currMinor] = release.version.split('.').map(Number);
                     const [prevMajor, prevMinor] = prev
                         ? prev.version.split('.').map(Number)
                         : [currMajor, currMinor];
@@ -108,7 +120,8 @@ export default function Changelog() {
                         </li>
                     );
                 })}
-            </ul>
+                </ul>
+            )}
         </PublicLayout>
     );
 }

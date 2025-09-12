@@ -17,10 +17,10 @@
     "version": "1.0.0",
     "date": "2025-01-15",
     "features": [
-      {
-        "title": "Interaktive Timeline",
-        "description": "Introduced interactive timeline for changelog entries."
-      }
+        {
+          "title": "Interactive Timeline",
+          "description": "Introduced interactive timeline for changelog entries."
+        }
     ],
     "improvements": [
       {

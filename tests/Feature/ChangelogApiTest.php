@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\File;
 use function Pest\Laravel\getJson;
 
 it('returns changelog data grouped by release', function () {
@@ -14,4 +15,19 @@ it('returns changelog data grouped by release', function () {
         ->assertJsonFragment([
             'title' => 'License and Rights',
         ]);
+});
+
+it('returns an error when changelog JSON is invalid', function () {
+    $path = resource_path('data/changelog.json');
+    $original = File::get($path);
+    File::put($path, '{invalid');
+    try {
+        getJson('/api/changelog')
+            ->assertStatus(500)
+            ->assertJson([
+                'error' => 'Invalid changelog data',
+            ]);
+    } finally {
+        File::put($path, $original);
+    }
 });

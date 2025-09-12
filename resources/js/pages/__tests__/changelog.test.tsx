@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, Mock } from 'vitest';
 import Changelog from '../changelog';
 
 vi.mock('@/layouts/public-layout', () => ({
@@ -56,7 +56,7 @@ describe('Changelog', () => {
                         date: '2025-01-15',
                         features: [
                             {
-                                title: 'Interaktive Timeline',
+                                title: 'Interactive Timeline',
                                 description:
                                     'Introduced interactive timeline for changelog entries.',
                             },
@@ -96,7 +96,7 @@ describe('Changelog', () => {
         expect(await screen.findByText(/Resource Information form group/i)).toBeInTheDocument();
         expect(screen.getByText('License and Rights')).toBeInTheDocument();
         await user.click(lastButton);
-        expect(await screen.findByText(/Interaktive Timeline/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Interactive Timeline/i)).toBeInTheDocument();
         expect(screen.getByText(/Fixed accessibility issues/i)).toBeInTheDocument();
         expect(screen.getByText(/Performance enhancements/i)).toBeInTheDocument();
     });
@@ -108,5 +108,12 @@ describe('Changelog', () => {
         expect(anchors[1]).toHaveClass('ring-red-500');
         expect(anchors[2]).toHaveClass('ring-blue-500');
         expect(anchors[3]).toHaveClass('ring-green-500');
+    });
+
+    it('shows an error message when fetch fails', async () => {
+        (global.fetch as unknown as Mock).mockRejectedValueOnce(new Error('fail'));
+        render(<Changelog />);
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(/unable to load changelog/i);
     });
 });
