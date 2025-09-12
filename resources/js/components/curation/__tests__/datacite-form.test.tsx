@@ -78,8 +78,10 @@ describe('DataCiteForm', () => {
         await user.keyboard('{Escape}');
 
         // license field
-        const licenseTriggers = screen.getAllByLabelText('License', { exact: false });
-        const licenseTrigger = licenseTriggers.find((el) => el.tagName === 'BUTTON')!;
+        let licenseTriggers = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        });
+        const licenseTrigger = licenseTriggers[0];
         expect(licenseTrigger).toHaveAttribute('aria-required', 'true');
         const licenseLabel = screen.getAllByText('License', { selector: 'label' })[0];
         expect(licenseLabel).toHaveTextContent('*');
@@ -91,6 +93,19 @@ describe('DataCiteForm', () => {
             name: 'MIT License',
         });
         await user.click(mitOption);
+        const addLicenseButton = screen.getByRole('button', { name: 'Add license' });
+        await user.click(addLicenseButton);
+        licenseTriggers = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        });
+        expect(licenseTriggers).toHaveLength(2);
+        expect(licenseTriggers[1]).not.toHaveAttribute('aria-required', 'true');
+        expect(
+            screen.getByRole('button', { name: 'Remove license' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add license' }),
+        ).not.toBeInTheDocument();
 
         // title fields
         const titleInput = screen.getByRole('textbox', { name: /Title/ });
@@ -161,6 +176,29 @@ describe('DataCiteForm', () => {
 
     it('disables add license when entries list is empty', () => {
         expect(canAddLicense([], 1)).toBe(false);
+    });
+
+    it('allows adding license when last entry filled and under limit', () => {
+        expect(
+            canAddLicense(
+                [
+                    { id: '1', license: 'MIT' },
+                ],
+                2,
+            ),
+        ).toBe(true);
+    });
+
+    it('prevents adding license when last entry is empty', () => {
+        expect(
+            canAddLicense(
+                [
+                    { id: '1', license: 'MIT' },
+                    { id: '2', license: '' },
+                ],
+                3,
+            ),
+        ).toBe(false);
     });
 
     it('determines whether titles can be added', () => {
