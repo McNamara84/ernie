@@ -4,7 +4,9 @@ import { screen } from '@testing-library/react';
 import { act } from 'react';
 
 vi.mock('swagger-ui-react', () => ({
-  default: ({ spec }: { spec: any }) => <div>{spec.info.title}</div>,
+  default: ({ spec }: { spec: { info: { title: string } } }) => (
+    <div>{spec.info.title}</div>
+  ),
 }));
 
 import { renderSwagger } from '../swagger';
