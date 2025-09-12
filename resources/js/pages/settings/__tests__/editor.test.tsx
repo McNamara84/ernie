@@ -42,18 +42,19 @@ describe('EditorSettings page', () => {
     it('renders resource types and settings fields', () => {
         render(
             <EditorSettings
-                resourceTypes={[{ id: 1, name: 'Dataset', active: true }]}
+                resourceTypes={[{ id: 1, name: 'Dataset', active: true, elmo_active: false }]}
                 maxTitles={10}
                 maxLicenses={5}
             />,
         );
         expect(screen.getByLabelText('Name')).toBeInTheDocument();
-        expect(screen.getByLabelText('Active')).toBeInTheDocument();
+        expect(screen.getByLabelText('ERNIE active')).toBeInTheDocument();
+        expect(screen.getByLabelText('ELMO active')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
         expect(useFormMock).toHaveBeenCalledWith(
             expect.objectContaining({
-                resourceTypes: [{ id: 1, name: 'Dataset', active: true }],
+                resourceTypes: [{ id: 1, name: 'Dataset', active: true, elmo_active: false }],
                 maxTitles: 10,
                 maxLicenses: 5,
             }),
