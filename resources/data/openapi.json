@@ -1,0 +1,45 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ernie API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/resource-types/elmo": {
+      "get": {
+        "summary": "List resource types enabled for ELMO",
+        "responses": {
+          "200": {
+            "description": "List of resource types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ResourceType": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "active": { "type": "boolean" },
+          "elmo_active": { "type": "boolean" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}
