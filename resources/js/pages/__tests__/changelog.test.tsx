@@ -18,6 +18,20 @@ describe('Changelog', () => {
             json: () =>
                 Promise.resolve([
                     {
+                        version: '0.1.0',
+                        date: '2024-12-01',
+                        features: [
+                            {
+                                title: 'Resource Information form group',
+                                description: 'Add structured resource information section.',
+                            },
+                            {
+                                title: 'License and Rights',
+                                description: 'Include license and rights details for resources.',
+                            },
+                        ],
+                    },
+                    {
                         version: '1.0.0',
                         date: '2025-01-15',
                         features: [
@@ -49,15 +63,26 @@ describe('Changelog', () => {
         window.scrollTo = vi.fn();
     });
 
-    it('loads release and toggles grouped details', async () => {
+    it('renders releases on a timeline and toggles grouped details', async () => {
         const user = userEvent.setup();
         render(<Changelog />);
-        const button = await screen.findByRole('button', { name: /version 1.0.0/i });
-        expect(button).toBeInTheDocument();
-        expect(screen.queryByText(/Features/i)).not.toBeInTheDocument();
-        await user.click(button);
-        expect(await screen.findByText(/Features/i)).toBeInTheDocument();
-        expect(screen.getByText(/Interaktive Timeline/i)).toBeInTheDocument();
+        const list = await screen.findByRole('list', { name: /changelog timeline/i });
+        expect(list).toBeInTheDocument();
+        const firstButton = await screen.findByRole('button', {
+            name: /version 0.1.0/i,
+        });
+        const secondButton = await screen.findByRole('button', {
+            name: /version 1.0.0/i,
+        });
+        expect(firstButton).toBeInTheDocument();
+        expect(secondButton).toBeInTheDocument();
+        await user.click(firstButton);
+        expect(
+            await screen.findByText(/Resource Information form group/i),
+        ).toBeInTheDocument();
+        expect(screen.getByText('License and Rights')).toBeInTheDocument();
+        await user.click(secondButton);
+        expect(await screen.findByText(/Interaktive Timeline/i)).toBeInTheDocument();
         expect(screen.getByText(/Fixed accessibility issues/i)).toBeInTheDocument();
         expect(screen.getByText(/Performance enhancements/i)).toBeInTheDocument();
     });

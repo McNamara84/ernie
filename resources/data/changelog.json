@@ -1,5 +1,19 @@
 [
   {
+    "version": "0.1.0",
+    "date": "2024-12-01",
+    "features": [
+      {
+        "title": "Resource Information form group",
+        "description": "Add structured resource information section."
+      },
+      {
+        "title": "License and Rights",
+        "description": "Include license and rights details for resources."
+      }
+    ]
+  },
+  {
     "version": "1.0.0",
     "date": "2025-01-15",
     "features": [

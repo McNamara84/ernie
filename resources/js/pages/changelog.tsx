@@ -36,11 +36,18 @@ export default function Changelog() {
         <PublicLayout>
             <Head title="Changelog" />
             <h1 className="mb-6 text-2xl font-semibold">Changelog</h1>
-            <ul className="space-y-4" aria-label="Changelog Timeline">
+            <ul
+                className="relative space-y-4 border-l border-gray-300 pl-6"
+                aria-label="Changelog Timeline"
+            >
                 {releases.map((release, index) => {
                     const isOpen = active === index;
                     return (
                         <li key={release.version} className="relative">
+                            <span
+                                aria-hidden="true"
+                                className="absolute -left-3 top-3 h-3 w-3 rounded-full bg-white ring-2 ring-indigo-500"
+                            ></span>
                             <motion.button
                                 whileHover={{ scale: 1.01 }}
                                 onClick={() => setActive(isOpen ? null : index)}
