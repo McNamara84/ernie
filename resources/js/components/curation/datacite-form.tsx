@@ -69,7 +69,7 @@ export default function DataCiteForm({
     resourceTypes,
     titleTypes,
     licenses,
-    maxTitles = 100,
+    maxTitles = 99,
     maxLicenses = 1,
     initialDoi = '',
     initialYear = '',

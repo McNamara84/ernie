@@ -230,7 +230,7 @@ describe('DataCiteForm', () => {
         expect(licenseLabel2).toHaveTextContent('*');
     });
 
-    it('marks only first title as required', async () => {
+    it('marks only main title as required', async () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -239,19 +239,35 @@ describe('DataCiteForm', () => {
             />,
         );
         const user = userEvent.setup({ pointerEventsCheck: 0 });
-        const titleInput = screen.getByRole('textbox', { name: /Title/ });
-        expect(titleInput).toBeRequired();
-        expect(screen.getByText('Title')).toHaveTextContent('*');
+        const firstInput = screen.getByRole('textbox', { name: /Title/ });
+        expect(firstInput).toBeRequired();
         const addButton = screen.getByRole('button', { name: 'Add title' });
-        await user.type(titleInput, 'My Title');
+        await user.type(firstInput, 'My Title');
         await user.click(addButton);
-        const titleInputs = screen.getAllByRole('textbox', { name: /Title/ });
-        expect(titleInputs[1]).not.toBeRequired();
-        const labels = screen
+        let inputs = screen.getAllByRole('textbox', { name: /Title/ });
+        expect(inputs[1]).not.toBeRequired();
+        let labels = screen
             .getAllByText(/Title/, { selector: 'label' })
             .filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''));
         expect(labels[0]).toHaveTextContent('*');
         expect(labels[1]).not.toHaveTextContent('*');
+
+        const typeTriggers = screen.getAllByRole('combobox', { name: 'Title Type' });
+        await user.click(typeTriggers[0]);
+        const subtitleOption = await screen.findByRole('option', { name: 'Subtitle' });
+        await user.click(subtitleOption);
+        await user.click(typeTriggers[1]);
+        const mainOption = await screen.findByRole('option', { name: 'Main Title' });
+        await user.click(mainOption);
+
+        inputs = screen.getAllByRole('textbox', { name: /Title/ });
+        labels = screen
+            .getAllByText(/Title/, { selector: 'label' })
+            .filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''));
+        expect(inputs[0]).not.toBeRequired();
+        expect(inputs[1]).toBeRequired();
+        expect(labels[0]).not.toHaveTextContent('*');
+        expect(labels[1]).toHaveTextContent('*');
     });
 
     it('prefills titles when initialTitles are provided', () => {
@@ -298,7 +314,7 @@ describe('DataCiteForm', () => {
     });
 
     it(
-        'limits title rows to 100',
+        'limits title rows to max titles',
         async () => {
             render(
             <DataCiteForm
