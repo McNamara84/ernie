@@ -16,7 +16,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ResourceType"
+                    "$ref": "#/components/schemas/ElmoResourceType"
                   }
                 }
               }
@@ -28,16 +28,11 @@
   },
   "components": {
     "schemas": {
-      "ResourceType": {
+      "ElmoResourceType": {
         "type": "object",
         "properties": {
           "id": { "type": "integer", "readOnly": true },
-          "name": { "type": "string" },
-          "slug": { "type": "string" },
-          "active": { "type": "boolean" },
-          "elmo_active": { "type": "boolean" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
+          "name": { "type": "string" }
         }
       }
     }

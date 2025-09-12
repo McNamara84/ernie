@@ -22,13 +22,10 @@ it('returns only resource types enabled for ELMO', function () {
         'elmo_active' => false,
     ]);
 
-    getJson('/api/v1/resource-types/elmo')
+    $response = getJson('/api/v1/resource-types/elmo')
         ->assertOk()
-        ->assertJsonCount(1)
-        ->assertJsonFragment([
-            'id' => $enabled->id,
-            'name' => 'Type A',
-            'slug' => 'type-a',
-            'elmo_active' => true,
-        ]);
+        ->assertJsonCount(1);
+
+    expect($response->json('0'))
+        ->toBe(['id' => $enabled->id, 'name' => 'Type A']);
 });

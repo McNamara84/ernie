@@ -15,7 +15,7 @@ class ResourceTypeController extends Controller
         $types = ResourceType::query()
             ->where('active', true)
             ->where('elmo_active', true)
-            ->get();
+            ->get(['id', 'name']);
 
         return response()->json($types);
     }
