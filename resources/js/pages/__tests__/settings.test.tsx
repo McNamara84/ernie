@@ -8,7 +8,7 @@ const setData = vi.fn();
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     useForm: (initial: unknown) => ({
-        data: initial as any,
+        data: initial,
         setData,
         post: vi.fn(),
         processing: false,
