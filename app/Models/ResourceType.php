@@ -12,5 +12,10 @@ class ResourceType extends Model
     protected $fillable = [
         'name',
         'slug',
+        'active',
+    ];
+
+    protected $casts = [
+        'active' => 'boolean',
     ];
 }

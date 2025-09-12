@@ -3,12 +3,14 @@ import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
 interface ResourceTypeRow {
     id: number;
     name: string;
+    active: boolean;
 }
 
 interface EditorSettingsProps {
@@ -21,13 +23,23 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: setting
 
 export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
-        resourceTypes: resourceTypes.map((r) => ({ id: r.id, name: r.name })),
+        resourceTypes: resourceTypes.map((r) => ({ id: r.id, name: r.name, active: r.active })),
         maxTitles,
         maxLicenses,
     });
 
     const handleTypeChange = (index: number, value: string) => {
-        setData('resourceTypes', data.resourceTypes.map((r, i) => (i === index ? { ...r, name: value } : r)));
+        setData(
+            'resourceTypes',
+            data.resourceTypes.map((r, i) => (i === index ? { ...r, name: value } : r)),
+        );
+    };
+
+    const handleActiveChange = (index: number, value: boolean) => {
+        setData(
+            'resourceTypes',
+            data.resourceTypes.map((r, i) => (i === index ? { ...r, active: value } : r)),
+        );
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -46,6 +58,7 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
                             <tr className="text-left">
                                 <th className="border-b p-2">ID</th>
                                 <th className="border-b p-2">Name</th>
+                                <th className="border-b p-2">Active</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -60,6 +73,18 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
                                             id={`rt-${type.id}`}
                                             value={type.name}
                                             onChange={(e) => handleTypeChange(index, e.target.value)}
+                                        />
+                                    </td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`active-${type.id}`} className="sr-only">
+                                            Active
+                                        </Label>
+                                        <Checkbox
+                                            id={`active-${type.id}`}
+                                            checked={type.active}
+                                            onCheckedChange={(checked) =>
+                                                handleActiveChange(index, checked === true)
+                                            }
                                         />
                                     </td>
                                 </tr>

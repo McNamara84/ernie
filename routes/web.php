@@ -42,7 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('curation', function (\Illuminate\Http\Request $request) {
         return Inertia::render('curation', [
-            'resourceTypes' => ResourceType::orderBy('name')->get(),
+            'resourceTypes' => ResourceType::where('active', true)->orderBy('name')->get(['id', 'name', 'slug', 'active']),
             'titleTypes' => TitleType::orderBy('name')->get(),
             'licenses' => License::orderBy('name')->get(),
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),

@@ -13,7 +13,7 @@ class EditorSettingsController extends Controller
     public function index()
     {
         return Inertia::render('settings/index', [
-            'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name']),
+            'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name', 'active']),
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
         ]);
@@ -25,12 +25,16 @@ class EditorSettingsController extends Controller
             'resourceTypes' => ['required', 'array'],
             'resourceTypes.*.id' => ['required', 'integer', 'exists:resource_types,id'],
             'resourceTypes.*.name' => ['required', 'string'],
+            'resourceTypes.*.active' => ['required', 'boolean'],
             'maxTitles' => ['required', 'integer', 'min:1'],
             'maxLicenses' => ['required', 'integer', 'min:1'],
         ]);
 
         foreach ($validated['resourceTypes'] as $type) {
-            ResourceType::where('id', $type['id'])->update(['name' => $type['name']]);
+            ResourceType::where('id', $type['id'])->update([
+                'name' => $type['name'],
+                'active' => $type['active'],
+            ]);
         }
 
         Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
