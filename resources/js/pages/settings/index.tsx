@@ -11,6 +11,7 @@ interface ResourceTypeRow {
     id: number;
     name: string;
     active: boolean;
+    elmo_active: boolean;
 }
 
 interface EditorSettingsProps {
@@ -23,7 +24,12 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: setting
 
 export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
-        resourceTypes: resourceTypes.map((r) => ({ id: r.id, name: r.name, active: r.active })),
+        resourceTypes: resourceTypes.map((r) => ({
+            id: r.id,
+            name: r.name,
+            active: r.active,
+            elmo_active: r.elmo_active,
+        })),
         maxTitles,
         maxLicenses,
     });
@@ -39,6 +45,13 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
         setData(
             'resourceTypes',
             data.resourceTypes.map((r, i) => (i === index ? { ...r, active: value } : r)),
+        );
+    };
+
+    const handleElmoActiveChange = (index: number, value: boolean) => {
+        setData(
+            'resourceTypes',
+            data.resourceTypes.map((r, i) => (i === index ? { ...r, elmo_active: value } : r)),
         );
     };
 
@@ -59,6 +72,7 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
                                 <th className="border-b p-2">ID</th>
                                 <th className="border-b p-2">Name</th>
                                 <th className="border-b p-2">Active</th>
+                                <th className="border-b p-2">ELMO active</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -84,6 +98,18 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
                                             checked={type.active}
                                             onCheckedChange={(checked) =>
                                                 handleActiveChange(index, checked === true)
+                                            }
+                                        />
+                                    </td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`elmo-active-${type.id}`} className="sr-only">
+                                            ELMO active
+                                        </Label>
+                                        <Checkbox
+                                            id={`elmo-active-${type.id}`}
+                                            checked={type.elmo_active}
+                                            onCheckedChange={(checked) =>
+                                                handleElmoActiveChange(index, checked === true)
                                             }
                                         />
                                     </td>

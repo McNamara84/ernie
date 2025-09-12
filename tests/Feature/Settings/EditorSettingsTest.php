@@ -25,6 +25,7 @@ test('authenticated users can view editor settings page', function () {
         ->component('settings/index')
         ->has('resourceTypes', 1)
         ->where('resourceTypes.0.active', true)
+        ->where('resourceTypes.0.elmo_active', false)
         ->where('maxTitles', Setting::DEFAULT_LIMIT)
         ->where('maxLicenses', Setting::DEFAULT_LIMIT)
     );
@@ -39,13 +40,18 @@ test('authenticated users can update resource types and settings', function () {
 
     $this->post(route('settings.update'), [
         'resourceTypes' => [
-            ['id' => $type->id, 'name' => 'Data Set', 'active' => false],
+            ['id' => $type->id, 'name' => 'Data Set', 'active' => false, 'elmo_active' => true],
         ],
         'maxTitles' => 10,
         'maxLicenses' => 7,
     ])->assertRedirect();
 
-    $this->assertDatabaseHas('resource_types', ['id' => $type->id, 'name' => 'Data Set', 'active' => false]);
+    $this->assertDatabaseHas('resource_types', [
+        'id' => $type->id,
+        'name' => 'Data Set',
+        'active' => false,
+        'elmo_active' => true,
+    ]);
     expect(Setting::getValue('max_titles'))->toBe('10');
     expect(Setting::getValue('max_licenses'))->toBe('7');
 });
