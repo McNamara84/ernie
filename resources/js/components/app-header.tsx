@@ -27,14 +27,14 @@ const mainNavItems: NavItem[] = [
         href: '/curation',
         icon: Database,
     },
+];
+
+const rightNavItems: NavItem[] = [
     {
         title: 'Editor Settings',
         href: settings(),
         icon: Settings,
     },
-];
-
-const rightNavItems: NavItem[] = [
     {
         title: 'Changelog',
         href: '/changelog',

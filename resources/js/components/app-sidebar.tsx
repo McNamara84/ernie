@@ -19,14 +19,14 @@ const mainNavItems: NavItem[] = [
         href: '/curation',
         icon: Database,
     },
+];
+
+const footerNavItems: NavItem[] = [
     {
         title: 'Editor Settings',
         href: settings(),
         icon: Settings,
     },
-];
-
-const footerNavItems: NavItem[] = [
     {
         title: 'Changelog',
         href: '/changelog',
