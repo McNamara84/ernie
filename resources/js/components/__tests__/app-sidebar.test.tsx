@@ -53,10 +53,12 @@ vi.mock('@inertiajs/react', () => ({
         <a href={href}>{children}</a>
     ),
 }));
+const settingsRoute = vi.hoisted(() => ({ url: '/settings' }));
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
     about: () => '/about',
     legalNotice: () => '/legal-notice',
+    settings: () => settingsRoute,
 }));
 vi.mock('../app-logo', () => ({
     default: () => <span>Logo</span>,
@@ -72,14 +74,29 @@ describe('AppSidebar', () => {
         const curationLink = screen.getByRole('link', { name: /curation/i });
         expect(curationLink).toHaveAttribute('href', '/curation');
 
+        const mainArgs = NavMainMock.mock.calls[0][0];
+        expect(mainArgs.items.map((i: NavItem) => i.title)).toEqual([
+            'Dashboard',
+            'Curation',
+        ]);
+
+        const footerArgs = NavFooterMock.mock.calls[0][0];
+        expect(footerArgs.items.map((i: NavItem) => i.title)).toEqual([
+            'Editor Settings',
+            'Changelog',
+            'Documentation',
+        ]);
+        expect(footerArgs.className).toBe('mt-auto');
+
+        const settingsLink = screen.getByRole('link', { name: /editor settings/i });
+        expect(settingsLink).toHaveAttribute('href', settingsRoute.url);
+
         const changelogLink = screen.getByRole('link', { name: /changelog/i });
         expect(changelogLink).toHaveAttribute('href', '/changelog');
 
         const docsLink = screen.getByRole('link', { name: /documentation/i });
         expect(docsLink).toHaveAttribute('href', '/docs');
 
-        const footerArgs = NavFooterMock.mock.calls[0][0];
-        expect(footerArgs.className).toBe('mt-auto');
         expect(screen.getByTestId('nav-user')).toBeInTheDocument();
     });
 });

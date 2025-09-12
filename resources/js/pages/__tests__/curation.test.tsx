@@ -37,10 +37,30 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
             />,
         );
         expect(renderForm).toHaveBeenCalledWith(
             expect.objectContaining({ resourceTypes, titleTypes, licenses })
+        );
+    });
+
+    it('passes limits to DataCiteForm', () => {
+        const resourceTypes: ResourceType[] = [];
+        const titleTypes: TitleType[] = [];
+        const licenses: License[] = [];
+        render(
+            <Curation
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                maxTitles={5}
+                maxLicenses={7}
+            />,
+        );
+        expect(renderForm).toHaveBeenCalledWith(
+            expect.objectContaining({ maxTitles: 5, maxLicenses: 7 })
         );
     });
 
@@ -59,6 +79,8 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
                 doi="10.1234/xyz"
             />,
         );
@@ -82,6 +104,8 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
                 year="2024"
             />,
         );
@@ -105,6 +129,8 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
                 version="2.0"
             />,
         );
@@ -128,6 +154,8 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
                 language="de"
             />,
         );
@@ -151,6 +179,8 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
                 resourceType="dataset"
             />,
         );
@@ -178,6 +208,8 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
                 titles={titles}
             />,
         );
@@ -202,6 +234,8 @@ describe('Curation page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
                 initialLicenses={initialLicenses}
             />,
         );

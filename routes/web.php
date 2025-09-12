@@ -4,6 +4,7 @@ use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -44,6 +45,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'resourceTypes' => ResourceType::orderBy('name')->get(),
             'titleTypes' => TitleType::orderBy('name')->get(),
             'licenses' => License::orderBy('name')->get(),
+            'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
+            'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'doi' => $request->query('doi'),
             'year' => $request->query('year'),
             'version' => $request->query('version'),

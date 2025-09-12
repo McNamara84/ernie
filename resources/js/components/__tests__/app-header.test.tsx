@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppHeader } from '../app-header';
 import type { BreadcrumbItem } from '@/types';
@@ -76,12 +76,15 @@ vi.mock('lucide-react', () => ({
     Search: () => <svg />,
     Database: () => <svg />,
     History: () => <svg />,
+    Settings: () => <svg />,
 }));
+const settingsRoute = vi.hoisted(() => ({ url: '/settings' }));
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
     docs: () => ({ url: '/docs' }),
     about: () => '/about',
     legalNotice: () => '/legal-notice',
+    settings: () => settingsRoute,
 }));
 
 describe('AppHeader', () => {
@@ -110,6 +113,18 @@ describe('AppHeader', () => {
         docLinks.forEach((link) => expect(link).toHaveAttribute('href', '/docs'));
         const curationLinks = screen.getAllByRole('link', { name: /curation/i });
         curationLinks.forEach((link) => expect(link).toHaveAttribute('href', '/curation'));
+        const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
+        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', settingsRoute.url));
+        const navs = screen.getAllByRole('navigation');
+        expect(
+            within(navs[0]).queryByRole('link', { name: /editor settings/i })
+        ).not.toBeInTheDocument();
+        const changelogTexts = screen.getAllByText(/changelog/i);
+        const editorTexts = screen.getAllByText(/editor settings/i);
+        expect(
+            editorTexts[1].compareDocumentPosition(changelogTexts[1]) &
+                Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy();
         expect(getInitialsMock).toHaveBeenCalledWith('John Doe');
         expect(screen.getByText('JD')).toBeInTheDocument();
         expect(screen.getByTestId('breadcrumbs')).toBeInTheDocument();
