@@ -15,26 +15,50 @@ vi.mock('@inertiajs/react', () => ({
 describe('Changelog', () => {
     beforeEach(() => {
         global.fetch = vi.fn().mockResolvedValue({
-            json: () => Promise.resolve([
-                {
-                    date: '2025-01-01',
-                    type: 'feature',
-                    title: 'Interaktive Timeline',
-                    description: 'Introduced interactive timeline for changelog entries.',
-                },
-            ]),
+            json: () =>
+                Promise.resolve([
+                    {
+                        version: '1.0.0',
+                        date: '2025-01-15',
+                        features: [
+                            {
+                                title: 'Interaktive Timeline',
+                                description:
+                                    'Introduced interactive timeline for changelog entries.',
+                            },
+                        ],
+                        fixes: [
+                            {
+                                title: 'Fixed accessibility issues',
+                                description:
+                                    'Resolved color contrast and focus styles.',
+                            },
+                        ],
+                        improvements: [
+                            {
+                                title: 'Performance enhancements',
+                                description:
+                                    'Optimized rendering of changelog entries.',
+                            },
+                        ],
+                    },
+                ]),
         }) as unknown as typeof fetch;
         // framer-motion calls scrollTo in tests
         // @ts-expect-error missing on jsdom
         window.scrollTo = vi.fn();
     });
 
-    it('loads entries and toggles details', async () => {
+    it('loads release and toggles grouped details', async () => {
         const user = userEvent.setup();
         render(<Changelog />);
-        expect(await screen.findByText(/Interaktive Timeline/i)).toBeInTheDocument();
-        expect(screen.queryByText(/interactive timeline for changelog/i)).not.toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: /Interaktive Timeline/i }));
-        expect(await screen.findByText(/interactive timeline for changelog/i)).toBeInTheDocument();
+        const button = await screen.findByRole('button', { name: /version 1.0.0/i });
+        expect(button).toBeInTheDocument();
+        expect(screen.queryByText(/Features/i)).not.toBeInTheDocument();
+        await user.click(button);
+        expect(await screen.findByText(/Features/i)).toBeInTheDocument();
+        expect(screen.getByText(/Interaktive Timeline/i)).toBeInTheDocument();
+        expect(screen.getByText(/Fixed accessibility issues/i)).toBeInTheDocument();
+        expect(screen.getByText(/Performance enhancements/i)).toBeInTheDocument();
     });
 });

@@ -1,20 +1,24 @@
 [
   {
-    "date": "2025-01-01",
-    "type": "feature",
-    "title": "Interaktive Timeline",
-    "description": "Introduced interactive timeline for changelog entries."
-  },
-  {
-    "date": "2025-01-10",
-    "type": "fix",
-    "title": "Fixed accessibility issues",
-    "description": "Resolved color contrast and focus styles."
-  },
-  {
+    "version": "1.0.0",
     "date": "2025-01-15",
-    "type": "improvement",
-    "title": "Performance enhancements",
-    "description": "Optimized rendering of changelog entries."
+    "features": [
+      {
+        "title": "Interaktive Timeline",
+        "description": "Introduced interactive timeline for changelog entries."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Performance enhancements",
+        "description": "Optimized rendering of changelog entries."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Fixed accessibility issues",
+        "description": "Resolved color contrast and focus styles."
+      }
+    ]
   }
 ]
