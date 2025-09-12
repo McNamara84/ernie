@@ -42,11 +42,23 @@ export default function Changelog() {
             >
                 {releases.map((release, index) => {
                     const isOpen = active === index;
+                    const prev = releases[index - 1];
+                    const [currMajor, currMinor] = release.version.split('.').map(Number);
+                    const [prevMajor, prevMinor] = prev
+                        ? prev.version.split('.').map(Number)
+                        : [currMajor, currMinor];
+                    const ringColor = (() => {
+                        if (!prev) return 'ring-green-500';
+                        if (currMajor !== prevMajor) return 'ring-green-500';
+                        if (currMinor !== prevMinor) return 'ring-blue-500';
+                        return 'ring-red-500';
+                    })();
                     return (
                         <li key={release.version} className="relative">
                             <span
                                 aria-hidden="true"
-                                className="absolute -left-3 top-3 h-3 w-3 rounded-full bg-white ring-2 ring-indigo-500"
+                                data-testid="version-anchor"
+                                className={`absolute -left-3 top-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
                             ></span>
                             <motion.button
                                 whileHover={{ scale: 1.01 }}

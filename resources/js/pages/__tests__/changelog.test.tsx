@@ -32,6 +32,26 @@ describe('Changelog', () => {
                         ],
                     },
                     {
+                        version: '0.1.1',
+                        date: '2024-12-10',
+                        fixes: [
+                            {
+                                title: 'Hotfix',
+                                description: 'Quick patch release.',
+                            },
+                        ],
+                    },
+                    {
+                        version: '0.2.0',
+                        date: '2024-12-20',
+                        improvements: [
+                            {
+                                title: 'Minor improvements',
+                                description: 'UI enhancements.',
+                            },
+                        ],
+                    },
+                    {
                         version: '1.0.0',
                         date: '2025-01-15',
                         features: [
@@ -68,22 +88,25 @@ describe('Changelog', () => {
         render(<Changelog />);
         const list = await screen.findByRole('list', { name: /changelog timeline/i });
         expect(list).toBeInTheDocument();
-        const firstButton = await screen.findByRole('button', {
-            name: /version 0.1.0/i,
-        });
-        const secondButton = await screen.findByRole('button', {
-            name: /version 1.0.0/i,
-        });
+        const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
+        const lastButton = await screen.findByRole('button', { name: /version 1.0.0/i });
         expect(firstButton).toBeInTheDocument();
-        expect(secondButton).toBeInTheDocument();
+        expect(lastButton).toBeInTheDocument();
         await user.click(firstButton);
-        expect(
-            await screen.findByText(/Resource Information form group/i),
-        ).toBeInTheDocument();
+        expect(await screen.findByText(/Resource Information form group/i)).toBeInTheDocument();
         expect(screen.getByText('License and Rights')).toBeInTheDocument();
-        await user.click(secondButton);
+        await user.click(lastButton);
         expect(await screen.findByText(/Interaktive Timeline/i)).toBeInTheDocument();
         expect(screen.getByText(/Fixed accessibility issues/i)).toBeInTheDocument();
         expect(screen.getByText(/Performance enhancements/i)).toBeInTheDocument();
+    });
+
+    it('colors anchors based on version changes', async () => {
+        render(<Changelog />);
+        const anchors = await screen.findAllByTestId('version-anchor');
+        expect(anchors[0]).toHaveClass('ring-green-500');
+        expect(anchors[1]).toHaveClass('ring-red-500');
+        expect(anchors[2]).toHaveClass('ring-blue-500');
+        expect(anchors[3]).toHaveClass('ring-green-500');
     });
 });
