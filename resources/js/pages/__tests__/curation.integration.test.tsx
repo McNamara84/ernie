@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { render } from '@testing-library/react';
 import Curation from '../curation';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ResourceType, TitleType } from '@/types';
+import type { ResourceType, TitleType, License } from '@/types';
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -27,7 +27,14 @@ describe('Curation integration', () => {
     it('sets the document title', () => {
         const resourceTypes: ResourceType[] = [];
         const titleTypes: TitleType[] = [];
-        render(<Curation resourceTypes={resourceTypes} titleTypes={titleTypes} />);
+        const licenses: License[] = [];
+        render(
+            <Curation
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+            />,
+        );
         expect(document.title).toBe('Curation');
     });
 });

@@ -3,6 +3,7 @@
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Http\Controllers\UploadXmlController;
+use App\Models\License;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -38,6 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('curation', [
             'resourceTypes' => ResourceType::orderBy('name')->get(),
             'titleTypes' => TitleType::orderBy('name')->get(),
+            'licenses' => License::orderBy('name')->get(),
             'doi' => $request->query('doi'),
             'year' => $request->query('year'),
             'version' => $request->query('version'),

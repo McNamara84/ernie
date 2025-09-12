@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Models\License;
 use Database\Seeders\ResourceTypeSeeder;
 use Database\Seeders\TitleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -17,6 +18,7 @@ test('guests are redirected to login page', function () {
 
 test('authenticated users can view curation page with resource and title types', function () {
     $this->seed([ResourceTypeSeeder::class, TitleTypeSeeder::class]);
+    License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
     $this->actingAs(User::factory()->create());
 
     withoutVite();
@@ -27,6 +29,7 @@ test('authenticated users can view curation page with resource and title types',
         $page->component('curation')
             ->has('resourceTypes', ResourceType::count())
             ->has('titleTypes', TitleType::count())
+            ->has('licenses', License::count())
             ->where('titles', [])
     );
 });

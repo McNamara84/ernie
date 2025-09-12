@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { render } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import Curation from '../curation';
-import type { ResourceType, TitleType } from '@/types';
+import type { ResourceType, TitleType, License } from '@/types';
 
 const renderForm = vi.fn(() => null);
 
@@ -22,16 +22,25 @@ vi.mock('@/components/curation/datacite-form', () => ({
 }));
 
 describe('Curation page', () => {
-    it('passes resource and title types to DataCiteForm', () => {
+    it('passes resource, title types and licenses to DataCiteForm', () => {
         const resourceTypes: ResourceType[] = [
             { id: 1, name: 'Dataset', slug: 'dataset' },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
         ];
-        render(<Curation resourceTypes={resourceTypes} titleTypes={titleTypes} />);
+        const licenses: License[] = [
+            { id: 1, identifier: 'MIT', name: 'MIT License' },
+        ];
+        render(
+            <Curation
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+            />,
+        );
         expect(renderForm).toHaveBeenCalledWith(
-            expect.objectContaining({ resourceTypes, titleTypes })
+            expect.objectContaining({ resourceTypes, titleTypes, licenses })
         );
     });
 
@@ -42,10 +51,14 @@ describe('Curation page', () => {
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
         ];
+        const licenses: License[] = [
+            { id: 1, identifier: 'MIT', name: 'MIT License' },
+        ];
         render(
             <Curation
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 doi="10.1234/xyz"
             />,
         );
@@ -61,12 +74,16 @@ describe('Curation page', () => {
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
         ];
+        const licenses: License[] = [
+            { id: 1, identifier: 'MIT', name: 'MIT License' },
+        ];
         render(
             <Curation
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 year="2024"
-            />, 
+            />,
         );
         expect(renderForm).toHaveBeenCalledWith(
             expect.objectContaining({ initialYear: '2024' })
@@ -80,10 +97,14 @@ describe('Curation page', () => {
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
         ];
+        const licenses: License[] = [
+            { id: 1, identifier: 'MIT', name: 'MIT License' },
+        ];
         render(
             <Curation
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 version="2.0"
             />,
         );
@@ -99,10 +120,14 @@ describe('Curation page', () => {
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
         ];
+        const licenses: License[] = [
+            { id: 1, identifier: 'MIT', name: 'MIT License' },
+        ];
         render(
             <Curation
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 language="de"
             />,
         );
@@ -118,10 +143,14 @@ describe('Curation page', () => {
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
         ];
+        const licenses: License[] = [
+            { id: 1, identifier: 'MIT', name: 'MIT License' },
+        ];
         render(
             <Curation
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 resourceType="dataset"
             />,
         );
@@ -137,6 +166,9 @@ describe('Curation page', () => {
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
         ];
+        const licenses: License[] = [
+            { id: 1, identifier: 'MIT', name: 'MIT License' },
+        ];
         const titles = [
             { title: 'Main', titleType: 'main-title' },
             { title: 'Alt', titleType: 'alternative-title' },
@@ -145,6 +177,7 @@ describe('Curation page', () => {
             <Curation
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                licenses={licenses}
                 titles={titles}
             />,
         );

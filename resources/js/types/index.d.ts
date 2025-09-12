@@ -52,3 +52,9 @@ export interface TitleType {
     name: string;
     slug: string;
 }
+
+export interface License {
+    id: number;
+    identifier: string;
+    name: string;
+}
