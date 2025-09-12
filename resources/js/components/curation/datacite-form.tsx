@@ -70,7 +70,7 @@ export default function DataCiteForm({
     titleTypes,
     licenses,
     maxTitles = 100,
-    maxLicenses = 100,
+    maxLicenses = 1,
     initialDoi = '',
     initialYear = '',
     initialVersion = '',
@@ -270,6 +270,7 @@ export default function DataCiteForm({
                                         licenseEntries,
                                         MAX_LICENSES,
                                     )}
+                                    required
                                 />
                             ))}
                         </div>
