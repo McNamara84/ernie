@@ -46,11 +46,11 @@ describe('DataCiteForm', () => {
 
         // basic fields
         expect(screen.getByLabelText('DOI')).toBeInTheDocument();
-        expect(screen.getByLabelText('Year')).toBeInTheDocument();
+        expect(screen.getByLabelText('Year', { exact: false })).toBeInTheDocument();
         expect(screen.getByLabelText('Version')).toBeInTheDocument();
 
         // resource type option
-        const resourceTypeTrigger = screen.getByLabelText('Resource Type');
+        const resourceTypeTrigger = screen.getByLabelText('Resource Type', { exact: false });
         await user.click(resourceTypeTrigger);
         expect(
             await screen.findByRole('option', { name: 'Dataset' }),
@@ -109,7 +109,7 @@ describe('DataCiteForm', () => {
                 initialYear="2024"
             />,
         );
-        expect(screen.getByLabelText('Year')).toHaveValue(2024);
+        expect(screen.getByLabelText('Year', { exact: false })).toHaveValue(2024);
     });
 
     it('prefills Version when initialVersion is provided', () => {
@@ -144,9 +144,19 @@ describe('DataCiteForm', () => {
                 initialResourceType="dataset"
             />,
         );
-        expect(screen.getByLabelText('Resource Type')).toHaveTextContent(
+        expect(screen.getByLabelText('Resource Type', { exact: false })).toHaveTextContent(
             'Dataset',
         );
+    });
+
+    it('marks year and resource type as required', () => {
+        render(<DataCiteForm resourceTypes={resourceTypes} titleTypes={titleTypes} />);
+        const yearInput = screen.getByLabelText('Year', { exact: false });
+        expect(yearInput).toBeRequired();
+        const resourceTrigger = screen.getByLabelText('Resource Type', { exact: false });
+        expect(resourceTrigger).toHaveAttribute('aria-required', 'true');
+        expect(screen.getByText('Year')).toHaveTextContent('*');
+        expect(screen.getByText('Resource Type')).toHaveTextContent('*');
     });
 
     it('prefills titles when initialTitles are provided', () => {
