@@ -71,8 +71,8 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
                             <tr className="text-left">
                                 <th className="border-b p-2">ID</th>
                                 <th className="border-b p-2">Name</th>
-                                <th className="border-b p-2">Active</th>
-                                <th className="border-b p-2">ELMO active</th>
+                                <th className="border-b p-2 text-center">ERNIE<br />active</th>
+                                <th className="border-b p-2 text-center">ELMO<br />active</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -91,7 +91,7 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
                                     </td>
                                     <td className="border-b p-2 text-center">
                                         <Label htmlFor={`active-${type.id}`} className="sr-only">
-                                            Active
+                                            ERNIE active
                                         </Label>
                                         <Checkbox
                                             id={`active-${type.id}`}

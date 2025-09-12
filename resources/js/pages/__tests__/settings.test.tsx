@@ -50,18 +50,46 @@ beforeEach(() => {
 });
 
 describe('EditorSettings page', () => {
-    it('renders ELMO active column and updates value when toggled', () => {
+    it('renders centered active columns with line breaks in headers', () => {
         const resourceTypes = [
             { id: 1, name: 'Dataset', active: true, elmo_active: false },
         ];
         render(
             <EditorSettings resourceTypes={resourceTypes} maxTitles={1} maxLicenses={1} />,
         );
-        expect(
-            screen.getByRole('columnheader', { name: 'ELMO active' }),
-        ).toBeInTheDocument();
-        const checkbox = screen.getByLabelText('ELMO active');
-        fireEvent.click(checkbox);
+        const ernieHeader = screen.getByRole('columnheader', { name: 'ERNIE active' });
+        expect(ernieHeader).toHaveClass('text-center');
+        expect(ernieHeader.innerHTML).toContain('ERNIE<br');
+        const elmoHeader = screen.getByRole('columnheader', { name: 'ELMO active' });
+        expect(elmoHeader).toHaveClass('text-center');
+        expect(elmoHeader.innerHTML).toContain('ELMO<br');
+        const ernieCell = screen.getByLabelText('ERNIE active').closest('td')!;
+        const elmoCell = screen.getByLabelText('ELMO active').closest('td')!;
+        expect(ernieCell).toHaveClass('text-center');
+        expect(elmoCell).toHaveClass('text-center');
+    });
+
+    it('updates ERNIE active when toggled', () => {
+        const resourceTypes = [
+            { id: 1, name: 'Dataset', active: false, elmo_active: false },
+        ];
+        render(
+            <EditorSettings resourceTypes={resourceTypes} maxTitles={1} maxLicenses={1} />,
+        );
+        fireEvent.click(screen.getByLabelText('ERNIE active'));
+        expect(setData).toHaveBeenCalledWith('resourceTypes', [
+            { id: 1, name: 'Dataset', active: true, elmo_active: false },
+        ]);
+    });
+
+    it('updates ELMO active when toggled', () => {
+        const resourceTypes = [
+            { id: 1, name: 'Dataset', active: true, elmo_active: false },
+        ];
+        render(
+            <EditorSettings resourceTypes={resourceTypes} maxTitles={1} maxLicenses={1} />,
+        );
+        fireEvent.click(screen.getByLabelText('ELMO active'));
         expect(setData).toHaveBeenCalledWith('resourceTypes', [
             { id: 1, name: 'Dataset', active: true, elmo_active: true },
         ]);
