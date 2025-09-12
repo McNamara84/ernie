@@ -245,6 +245,20 @@ describe('DataCiteForm', () => {
         );
     });
 
+    it('prefills licenses when initialLicenses are provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                initialLicenses={['MIT', 'Apache-2.0']}
+            />,
+        );
+        const triggers = screen.getAllByLabelText(/^License/, { selector: 'button' });
+        expect(triggers[0]).toHaveTextContent('MIT License');
+        expect(triggers[1]).toHaveTextContent('Apache License 2.0');
+    });
+
     it('marks year, resource type and license as required', () => {
         render(
             <DataCiteForm

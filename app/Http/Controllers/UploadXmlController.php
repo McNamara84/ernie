@@ -24,6 +24,18 @@ class UploadXmlController extends Controller
         $version = $reader->xpathValue('//*[local-name()="version"]')->first();
         $language = $reader->xpathValue('//*[local-name()="language"]')->first();
 
+        $rightsElements = $reader
+            ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
+            ->get();
+        $licenses = [];
+
+        foreach ($rightsElements as $element) {
+            $identifier = $element->getAttribute('rightsIdentifier');
+            if ($identifier) {
+                $licenses[] = $identifier;
+            }
+        }
+
         $titleElements = $reader
             ->xpathElement('//*[local-name()="resource"]/*[local-name()="titles"]/*[local-name()="title"]')
             ->get();
@@ -63,6 +75,7 @@ class UploadXmlController extends Controller
             'language' => $language,
             'resourceType' => $resourceType,
             'titles' => $titles,
+            'licenses' => $licenses,
         ]);
     }
 }

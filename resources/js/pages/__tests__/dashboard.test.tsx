@@ -114,7 +114,7 @@ describe('handleXmlFiles', () => {
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
     });
 
-    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language, Resource Type and Titles', async () => {
+    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language, Resource Type, Titles and Licenses', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi
             .spyOn(global, 'fetch')
@@ -133,6 +133,7 @@ describe('handleXmlFiles', () => {
                             { title: 'Example TranslatedTitle', titleType: 'translated-title' },
                             { title: 'Example AlternativeTitle', titleType: 'alternative-title' },
                         ],
+                        licenses: ['CC-BY-4.0', 'MIT'],
                     }),
                 } as Response,
             );
@@ -157,6 +158,8 @@ describe('handleXmlFiles', () => {
             'titles[2][titleType]': 'translated-title',
             'titles[3][title]': 'Example AlternativeTitle',
             'titles[3][titleType]': 'alternative-title',
+            'licenses[0]': 'CC-BY-4.0',
+            'licenses[1]': 'MIT',
         });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
