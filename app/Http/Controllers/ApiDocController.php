@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File;
 
 class ApiDocController extends Controller
@@ -12,7 +13,7 @@ class ApiDocController extends Controller
     /**
      * Return the OpenAPI documentation.
      */
-    public function __invoke(Request $request): JsonResponse|View
+    public function __invoke(Request $request): JsonResponse|View|Response
     {
         $path = resource_path('data/openapi.json');
 
