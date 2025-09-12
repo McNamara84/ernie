@@ -10,7 +10,7 @@
     <div id="swagger-ui" aria-label="API documentation"></div>
     <script>window.__spec__ = @json($spec);</script>
     @unless(app()->environment('testing'))
-        @vite('resources/js/swagger.js')
+        @vite('resources/js/swagger.tsx')
     @endunless
 </main>
 </body>
