@@ -3,8 +3,6 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schedule;
-use App\Console\Commands\SyncSpdxLicenses;
 use App\Models\User;
 
 Artisan::command('inspire', function () {
@@ -20,5 +18,3 @@ Artisan::command('add-user {name} {email} {password}', function (string $name, s
 
     $this->info("User {$user->email} created.");
 })->purpose('Add a new user to the database');
-
-Schedule::command(SyncSpdxLicenses::class)->monthly();

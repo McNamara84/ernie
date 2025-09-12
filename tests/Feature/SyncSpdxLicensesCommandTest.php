@@ -28,3 +28,13 @@ it('syncs licenses from SPDX', function () {
         ->and(License::where('identifier', 'Apache-2.0')->exists())->toBeTrue();
 });
 
+it('reports detailed error when fetch fails', function () {
+    Http::fake([
+        'https://spdx.org/licenses/licenses.json' => Http::response('oops', 500),
+    ]);
+
+    $this->artisan('spdx:sync-licenses')
+        ->expectsOutput('Failed to fetch SPDX licenses: HTTP 500 oops')
+        ->assertExitCode(1);
+});
+
