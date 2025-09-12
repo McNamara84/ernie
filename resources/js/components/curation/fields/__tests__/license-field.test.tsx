@@ -56,7 +56,7 @@ describe('LicenseField', () => {
         expect(screen.getByText('License')).toHaveClass('sr-only');
     });
 
-    it('disables add button when cannot add', () => {
+    it('hides add button when cannot add', () => {
         render(
             <LicenseField
                 id="row-0"
@@ -69,7 +69,29 @@ describe('LicenseField', () => {
                 canAdd={false}
             />,
         );
-        expect(screen.getByRole('button', { name: 'Add license' })).toBeDisabled();
+        expect(
+            screen.queryByRole('button', { name: 'Add license' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('marks license as required when specified', () => {
+        render(
+            <LicenseField
+                id="row-0"
+                license=""
+                options={[]}
+                onLicenseChange={() => {}}
+                onAdd={() => {}}
+                onRemove={() => {}}
+                isFirst
+                required
+            />,
+        );
+        const triggers = screen.getAllByLabelText('License', { exact: false });
+        const trigger = triggers.find((el) => el.tagName === 'BUTTON')!;
+        expect(trigger).toHaveAttribute('aria-required', 'true');
+        const label = screen.getAllByText('License', { selector: 'label' })[0];
+        expect(label).toHaveTextContent('*');
     });
 });
 

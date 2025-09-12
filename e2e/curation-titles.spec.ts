@@ -22,7 +22,7 @@ test('user can add and remove title rows', async ({ page }) => {
     await expect(titleInputs).toHaveCount(1);
 });
 
-test('limits title rows to 100', async ({ page }) => {
+test('limits title rows to 99', async ({ page }) => {
     test.setTimeout(120_000);
     await page.goto('/login');
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
@@ -33,11 +33,11 @@ test('limits title rows to 100', async ({ page }) => {
     await page.goto('/curation');
     const addButton = page.getByRole('button', { name: 'Add title' });
     const titleInputs = page.getByRole('textbox', { name: /Title/ });
-    for (let i = 0; i < 99; i++) {
+    for (let i = 0; i < 98; i++) {
         await titleInputs.nth(i).fill(`Title ${i + 1}`);
         await addButton.click();
     }
-    await expect(titleInputs).toHaveCount(100);
-    await titleInputs.last().fill('Title 100');
+    await expect(titleInputs).toHaveCount(99);
+    await titleInputs.last().fill('Title 99');
     await expect(addButton).toBeDisabled();
 });

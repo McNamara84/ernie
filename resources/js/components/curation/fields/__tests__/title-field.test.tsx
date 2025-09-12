@@ -83,12 +83,12 @@ describe('TitleField', () => {
         ).toBeDisabled();
     });
 
-    it('marks title input as required only for first row', () => {
+    it('marks title input as required only for main title type', () => {
         const { rerender } = render(
             <TitleField
                 id="row-0"
                 title=""
-                titleType=""
+                titleType="main-title"
                 options={[]}
                 onTitleChange={() => {}}
                 onTypeChange={() => {}}
@@ -97,18 +97,18 @@ describe('TitleField', () => {
                 isFirst
             />,
         );
-        const firstInput = screen.getByRole('textbox', { name: /Title/ });
-        expect(firstInput).toBeRequired();
-        const firstLabel = screen.getAllByText(/Title/, {
-            selector: 'label',
-        })[0];
-        expect(firstLabel).toHaveTextContent('*');
+        const mainInput = screen.getByRole('textbox', { name: /Title/ });
+        expect(mainInput).toBeRequired();
+        const mainLabel = screen
+            .getAllByText(/Title/, { selector: 'label' })
+            .filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''))[0];
+        expect(mainLabel).toHaveTextContent('*');
 
         rerender(
             <TitleField
                 id="row-1"
                 title=""
-                titleType=""
+                titleType="subtitle"
                 options={[]}
                 onTitleChange={() => {}}
                 onTypeChange={() => {}}
@@ -117,8 +117,8 @@ describe('TitleField', () => {
                 isFirst={false}
             />,
         );
-        const secondInput = screen.getByRole('textbox', { name: /Title/ });
-        expect(secondInput).not.toBeRequired();
+        const subInput = screen.getByRole('textbox', { name: /Title/ });
+        expect(subInput).not.toBeRequired();
         expect(screen.getByText('Title')).not.toHaveTextContent('*');
     });
 });

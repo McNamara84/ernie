@@ -18,6 +18,7 @@ interface LicenseFieldProps {
     isFirst: boolean;
     canAdd?: boolean;
     className?: string;
+    required?: boolean;
 }
 
 export function LicenseField({
@@ -30,6 +31,7 @@ export function LicenseField({
     isFirst,
     canAdd = true,
     className,
+    required = false,
 }: LicenseFieldProps) {
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
@@ -41,19 +43,21 @@ export function LicenseField({
                 options={options}
                 hideLabel={!isFirst}
                 className="md:col-span-11"
+                required={required}
             />
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Add license"
-                        onClick={onAdd}
-                        disabled={!canAdd}
-                    >
-                        <Plus className="h-4 w-4" />
-                    </Button>
+                    canAdd ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label="Add license"
+                            onClick={onAdd}
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    ) : null
                 ) : (
                     <Button
                         type="button"
