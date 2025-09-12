@@ -24,7 +24,7 @@ vi.mock('@/components/curation/datacite-form', () => ({
 describe('Curation page', () => {
     it('passes resource, title types and licenses to DataCiteForm', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -66,7 +66,7 @@ describe('Curation page', () => {
 
     it('passes doi to DataCiteForm when provided', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -91,7 +91,7 @@ describe('Curation page', () => {
 
     it('passes year to DataCiteForm when provided', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -116,7 +116,7 @@ describe('Curation page', () => {
 
     it('passes version to DataCiteForm when provided', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -141,7 +141,7 @@ describe('Curation page', () => {
 
     it('passes language to DataCiteForm when provided', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -166,7 +166,7 @@ describe('Curation page', () => {
 
     it('passes resource type to DataCiteForm when provided', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -191,7 +191,7 @@ describe('Curation page', () => {
 
     it('passes titles to DataCiteForm when provided', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -220,7 +220,7 @@ describe('Curation page', () => {
 
     it('passes initial licenses to DataCiteForm when provided', () => {
         const resourceTypes: ResourceType[] = [
-            { id: 1, name: 'Dataset', slug: 'dataset' },
+            { id: 1, name: 'Dataset', slug: 'dataset', active: true },
         ];
         const titleTypes: TitleType[] = [
             { id: 1, name: 'Main Title', slug: 'main-title' },

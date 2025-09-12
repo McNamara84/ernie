@@ -16,7 +16,7 @@ describe('DataCiteForm', () => {
     });
 
     const resourceTypes: ResourceType[] = [
-        { id: 1, name: 'Dataset', slug: 'dataset' },
+        { id: 1, name: 'Dataset', slug: 'dataset', active: true },
     ];
 
     const titleTypes: TitleType[] = [

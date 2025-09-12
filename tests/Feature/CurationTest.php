@@ -19,6 +19,7 @@ test('guests are redirected to login page', function () {
 test('authenticated users can view curation page with resource and title types', function () {
     $this->seed([ResourceTypeSeeder::class, TitleTypeSeeder::class]);
     License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
+    ResourceType::create(['name' => 'Inactive', 'slug' => 'inactive', 'active' => false]);
     $this->actingAs(User::factory()->create());
 
     withoutVite();
@@ -27,7 +28,7 @@ test('authenticated users can view curation page with resource and title types',
 
     $response->assertInertia(fn (Assert $page) =>
         $page->component('curation')
-            ->has('resourceTypes', ResourceType::count())
+            ->has('resourceTypes', ResourceType::where('active', true)->count())
             ->has('titleTypes', TitleType::count())
             ->has('licenses', License::count())
             ->where('titles', [])

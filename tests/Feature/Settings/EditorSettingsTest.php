@@ -24,6 +24,7 @@ test('authenticated users can view editor settings page', function () {
     $response->assertInertia(fn (Assert $page) => $page
         ->component('settings/index')
         ->has('resourceTypes', 1)
+        ->where('resourceTypes.0.active', true)
         ->where('maxTitles', Setting::DEFAULT_LIMIT)
         ->where('maxLicenses', Setting::DEFAULT_LIMIT)
     );
@@ -38,13 +39,13 @@ test('authenticated users can update resource types and settings', function () {
 
     $this->post(route('settings.update'), [
         'resourceTypes' => [
-            ['id' => $type->id, 'name' => 'Data Set'],
+            ['id' => $type->id, 'name' => 'Data Set', 'active' => false],
         ],
         'maxTitles' => 10,
         'maxLicenses' => 7,
     ])->assertRedirect();
 
-    $this->assertDatabaseHas('resource_types', ['id' => $type->id, 'name' => 'Data Set']);
+    $this->assertDatabaseHas('resource_types', ['id' => $type->id, 'name' => 'Data Set', 'active' => false]);
     expect(Setting::getValue('max_titles'))->toBe('10');
     expect(Setting::getValue('max_licenses'))->toBe('7');
 });

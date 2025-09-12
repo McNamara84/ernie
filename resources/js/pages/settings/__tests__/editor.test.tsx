@@ -42,14 +42,21 @@ describe('EditorSettings page', () => {
     it('renders resource types and settings fields', () => {
         render(
             <EditorSettings
-                resourceTypes={[{ id: 1, name: 'Dataset' }]}
+                resourceTypes={[{ id: 1, name: 'Dataset', active: true }]}
                 maxTitles={10}
                 maxLicenses={5}
             />,
         );
         expect(screen.getByLabelText('Name')).toBeInTheDocument();
+        expect(screen.getByLabelText('Active')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
-        expect(useFormMock).toHaveBeenCalled();
+        expect(useFormMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                resourceTypes: [{ id: 1, name: 'Dataset', active: true }],
+                maxTitles: 10,
+                maxLicenses: 5,
+            }),
+        );
     });
 });
