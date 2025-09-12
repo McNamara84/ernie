@@ -76,6 +76,7 @@ vi.mock('lucide-react', () => ({
     Search: () => <svg />,
     Database: () => <svg />,
     History: () => <svg />,
+    Settings: () => <svg />,
 }));
 vi.mock('@/routes', () => ({
     dashboard: () => ({ url: '/dashboard' }),
@@ -110,6 +111,8 @@ describe('AppHeader', () => {
         docLinks.forEach((link) => expect(link).toHaveAttribute('href', '/docs'));
         const curationLinks = screen.getAllByRole('link', { name: /curation/i });
         curationLinks.forEach((link) => expect(link).toHaveAttribute('href', '/curation'));
+        const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
+        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/settings'));
         expect(getInitialsMock).toHaveBeenCalledWith('John Doe');
         expect(screen.getByText('JD')).toBeInTheDocument();
         expect(screen.getByTestId('breadcrumbs')).toBeInTheDocument();

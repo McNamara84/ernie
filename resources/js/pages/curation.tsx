@@ -14,6 +14,8 @@ interface CurationProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
     licenses: License[];
+    maxTitles: number;
+    maxLicenses: number;
     doi?: string;
     year?: string;
     version?: string;
@@ -27,6 +29,8 @@ export default function Curation({
     resourceTypes,
     titleTypes,
     licenses,
+    maxTitles,
+    maxLicenses,
     doi = '',
     year = '',
     version = '',
@@ -43,6 +47,8 @@ export default function Curation({
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
                     licenses={licenses}
+                    maxTitles={maxTitles}
+                    maxLicenses={maxLicenses}
                     initialDoi={doi}
                     initialYear={year}
                     initialVersion={version}

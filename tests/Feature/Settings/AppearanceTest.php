@@ -15,10 +15,6 @@ test('guests are redirected to login when accessing appearance settings', functi
     $this->get(route('appearance'))->assertRedirect(route('login'));
 });
 
-test('authenticated users are redirected to profile when visiting settings root', function () {
-    $this->actingAs(User::factory()->create());
-    $this->get(route('settings'))->assertRedirect(route('profile.edit'));
-});
 
 test('authenticated users can view the appearance settings page', function () {
     $this->actingAs(User::factory()->create());

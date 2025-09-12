@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, LayoutGrid, Database, History } from 'lucide-react';
+import { BookOpen, LayoutGrid, Database, History, Settings } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -18,6 +18,11 @@ const mainNavItems: NavItem[] = [
         title: 'Curation',
         href: '/curation',
         icon: Database,
+    },
+    {
+        title: 'Editor Settings',
+        href: '/settings',
+        icon: Settings,
     },
 ];
 

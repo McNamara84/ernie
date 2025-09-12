@@ -33,6 +33,8 @@ describe('Curation integration', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                maxTitles={99}
+                maxLicenses={99}
             />,
         );
         expect(document.title).toBe('Curation');

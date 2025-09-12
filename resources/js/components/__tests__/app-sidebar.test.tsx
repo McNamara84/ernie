@@ -72,6 +72,9 @@ describe('AppSidebar', () => {
         const curationLink = screen.getByRole('link', { name: /curation/i });
         expect(curationLink).toHaveAttribute('href', '/curation');
 
+        const settingsLink = screen.getByRole('link', { name: /editor settings/i });
+        expect(settingsLink).toHaveAttribute('href', '/settings');
+
         const changelogLink = screen.getByRole('link', { name: /changelog/i });
         expect(changelogLink).toHaveAttribute('href', '/changelog');
 
