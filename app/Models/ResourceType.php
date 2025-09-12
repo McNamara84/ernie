@@ -13,9 +13,11 @@ class ResourceType extends Model
         'name',
         'slug',
         'active',
+        'elmo_active',
     ];
 
     protected $casts = [
         'active' => 'boolean',
+        'elmo_active' => 'boolean',
     ];
 }

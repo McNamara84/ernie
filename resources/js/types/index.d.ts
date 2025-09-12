@@ -46,6 +46,7 @@ export interface ResourceType {
     name: string;
     slug: string;
     active: boolean;
+    elmo_active?: boolean;
 }
 
 export interface TitleType {
