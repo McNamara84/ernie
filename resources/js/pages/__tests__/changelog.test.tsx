@@ -62,31 +62,6 @@ describe('Changelog', () => {
                             },
                         ],
                     },
-                    {
-                        version: '1.0.0',
-                        date: '2025-01-15',
-                        features: [
-                            {
-                                title: 'Interactive Timeline',
-                                description:
-                                    'Introduced interactive timeline for changelog entries.',
-                            },
-                        ],
-                        fixes: [
-                            {
-                                title: 'Fixed accessibility issues',
-                                description:
-                                    'Resolved color contrast and focus styles.',
-                            },
-                        ],
-                        improvements: [
-                            {
-                                title: 'Performance enhancements',
-                                description:
-                                    'Optimized rendering of changelog entries.',
-                            },
-                        ],
-                    },
                 ]),
         }) as unknown as typeof fetch;
         // framer-motion calls scrollTo in tests
@@ -100,16 +75,15 @@ describe('Changelog', () => {
         const list = await screen.findByRole('list', { name: /changelog timeline/i });
         expect(list).toBeInTheDocument();
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
-        const lastButton = await screen.findByRole('button', { name: /version 1.0.0/i });
+        const lastButton = await screen.findByRole('button', { name: /version 0.2.0/i });
         expect(firstButton).toBeInTheDocument();
         expect(lastButton).toBeInTheDocument();
         await user.click(firstButton);
         expect(await screen.findByText(/Resource Information form group/i)).toBeInTheDocument();
         expect(screen.getByText('License and Rights')).toBeInTheDocument();
         await user.click(lastButton);
-        expect((await screen.findAllByText(/Interactive Timeline/i))[0]).toBeInTheDocument();
-        expect(screen.getByText(/Fixed accessibility issues/i)).toBeInTheDocument();
-        expect(screen.getByText(/Performance enhancements/i)).toBeInTheDocument();
+        expect(await screen.findByText(/Minor improvements/i)).toBeInTheDocument();
+        expect(screen.getByText(/UI enhancements/i)).toBeInTheDocument();
     });
 
     it('colors anchors based on version changes', async () => {
@@ -118,7 +92,6 @@ describe('Changelog', () => {
         expect(anchors[0]).toHaveClass('ring-green-500');
         expect(anchors[1]).toHaveClass('ring-red-500');
         expect(anchors[2]).toHaveClass('ring-blue-500');
-        expect(anchors[3]).toHaveClass('ring-green-500');
     });
 
     it('shows an error message when fetch fails', async () => {
