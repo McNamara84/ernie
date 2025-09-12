@@ -1,8 +1,16 @@
 <?php
 
+use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
 
-it('returns the OpenAPI documentation', function () {
+it('renders the API documentation with Swagger UI', function () {
+    get('/api/v1/doc')
+        ->assertOk()
+        ->assertSee('<title>API Documentation</title>', false)
+        ->assertSee('SwaggerUIBundle', false);
+});
+
+it('returns the OpenAPI documentation as JSON', function () {
     getJson('/api/v1/doc')
         ->assertOk()
         ->assertJsonPath('openapi', '3.1.0')
