@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
-import DataCiteForm from '../datacite-form';
+import DataCiteForm, { canAddLicense } from '../datacite-form';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
 import type { ResourceType, TitleType, License } from '@/types';
 
@@ -166,6 +166,10 @@ describe('DataCiteForm', () => {
             />,
         );
         expect(screen.getByLabelText('Version')).toHaveValue('1.5');
+    });
+
+    it('disables add license when entries list is empty', () => {
+        expect(canAddLicense([], 3)).toBe(false);
     });
 
     it('prefills Language when initialLanguage is provided', () => {

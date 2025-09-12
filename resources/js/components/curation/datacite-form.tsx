@@ -46,6 +46,17 @@ interface DataCiteFormProps {
     initialLicenses?: string[];
 }
 
+export function canAddLicense(
+    licenseEntries: LicenseEntry[],
+    maxLicenses: number,
+) {
+    return (
+        licenseEntries.length < maxLicenses &&
+        licenseEntries.length > 0 &&
+        !!licenseEntries[licenseEntries.length - 1].license
+    );
+}
+
 export default function DataCiteForm({
     resourceTypes,
     titleTypes,
@@ -247,10 +258,10 @@ export default function DataCiteForm({
                                     onAdd={addLicense}
                                     onRemove={() => removeLicense(index)}
                                     isFirst={index === 0}
-                                    canAdd={
-                                        licenseEntries.length < MAX_LICENSES &&
-                                        !!licenseEntries[licenseEntries.length - 1].license
-                                    }
+                                    canAdd={canAddLicense(
+                                        licenseEntries,
+                                        MAX_LICENSES,
+                                    )}
                                 />
                             ))}
                         </div>
