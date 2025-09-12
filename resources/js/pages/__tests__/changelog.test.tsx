@@ -12,9 +12,20 @@ vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('framer-motion', () => ({
+    AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    motion: {
+        button: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => (
+            <button {...props}>{children}</button>
+        ),
+        div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+    },
+}));
+
 describe('Changelog', () => {
     beforeEach(() => {
         global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
             json: () =>
                 Promise.resolve([
                     {
@@ -96,7 +107,7 @@ describe('Changelog', () => {
         expect(await screen.findByText(/Resource Information form group/i)).toBeInTheDocument();
         expect(screen.getByText('License and Rights')).toBeInTheDocument();
         await user.click(lastButton);
-        expect(await screen.findByText(/Interactive Timeline/i)).toBeInTheDocument();
+        expect((await screen.findAllByText(/Interactive Timeline/i))[0]).toBeInTheDocument();
         expect(screen.getByText(/Fixed accessibility issues/i)).toBeInTheDocument();
         expect(screen.getByText(/Performance enhancements/i)).toBeInTheDocument();
     });

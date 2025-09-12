@@ -14,10 +14,20 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 
+vi.mock('framer-motion', () => ({
+    AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    motion: {
+        div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
+        button: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => (
+            <button {...props}>{children}</button>
+        ),
+    },
+}));
+
 describe('Changelog integration', () => {
     beforeEach(() => {
         document.title = '';
-        global.fetch = vi.fn().mockResolvedValue({ json: () => Promise.resolve([]) }) as unknown as typeof fetch;
+        global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) }) as unknown as typeof fetch;
         // @ts-expect-error jsdom stub
         window.scrollTo = vi.fn();
     });

@@ -13,6 +13,11 @@ vi.mock('@inertiajs/react', () => ({
     },
     usePage: () => usePageMock(),
     router: routerMock,
+    Link: ({ href, children, ...props }: { href: string; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
 }));
 
 vi.mock('@/layouts/app-layout', () => ({

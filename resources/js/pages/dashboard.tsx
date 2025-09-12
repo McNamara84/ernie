@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Head, usePage, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import { latestVersion } from '@/lib/version';
 
 export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
@@ -167,7 +168,14 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                     <tr>
                                         <td className="py-1">ERNIE Version</td>
                                         <td className="py-1 text-right">
-                                            <Badge className="w-14 bg-[#003da6] text-white">0.1.0</Badge>
+                                            <Link
+                                                href="/changelog"
+                                                aria-label={`View changelog for version ${latestVersion}`}
+                                            >
+                                                <Badge className="w-14 bg-[#003da6] text-white">
+                                                    {latestVersion}
+                                                </Badge>
+                                            </Link>
                                         </td>
                                     </tr>
                                     <tr>
