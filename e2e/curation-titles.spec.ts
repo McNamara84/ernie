@@ -9,7 +9,7 @@ test('user can add and remove title rows', async ({ page }) => {
     await page.waitForURL(/\/dashboard/);
 
     await page.goto('/curation');
-    const titleInputs = page.getByRole('textbox', { name: 'Title' });
+    const titleInputs = page.getByRole('textbox', { name: /Title/ });
     await expect(titleInputs.first()).toBeVisible();
     await titleInputs.first().fill('First title');
     const addButton = page.getByRole('button', { name: 'Add title' });
@@ -32,7 +32,7 @@ test('limits title rows to 100', async ({ page }) => {
 
     await page.goto('/curation');
     const addButton = page.getByRole('button', { name: 'Add title' });
-    const titleInputs = page.getByRole('textbox', { name: 'Title' });
+    const titleInputs = page.getByRole('textbox', { name: /Title/ });
     for (let i = 0; i < 99; i++) {
         await titleInputs.nth(i).fill(`Title ${i + 1}`);
         await addButton.click();

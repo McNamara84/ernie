@@ -109,7 +109,7 @@ describe('DataCiteForm', () => {
         ).toHaveLength(1);
 
         // title fields
-        const titleInput = screen.getByRole('textbox', { name: 'Title' });
+        const titleInput = screen.getByRole('textbox', { name: /Title/ });
         expect(titleInput).toBeInTheDocument();
         const titleTypeTrigger = screen.getByRole('combobox', { name: 'Title Type' });
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
@@ -120,7 +120,7 @@ describe('DataCiteForm', () => {
         await user.type(titleInput, 'First Title');
         expect(addButton).toBeEnabled();
         await user.click(addButton);
-        const titleInputs = screen.getAllByRole('textbox', { name: 'Title' });
+        const titleInputs = screen.getAllByRole('textbox', { name: /Title/ });
         expect(titleInputs).toHaveLength(2);
         expect(addButton).toBeDisabled();
         const secondTitleTypeTrigger = screen.getAllByRole('combobox', {
@@ -134,7 +134,9 @@ describe('DataCiteForm', () => {
         await user.click(secondTitleTypeTrigger);
         const removeButton = screen.getByRole('button', { name: 'Remove title' });
         await user.click(removeButton);
-        expect(screen.getAllByRole('textbox', { name: 'Title' })).toHaveLength(1);
+        expect(
+            screen.getAllByRole('textbox', { name: /Title/ }),
+        ).toHaveLength(1);
     });
 
     it('prefills DOI when initialDoi is provided', () => {
@@ -227,7 +229,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
-            />,
+            />, 
         );
         const yearInput = screen.getByLabelText('Year', { exact: false });
         expect(yearInput).toBeRequired();
@@ -235,6 +237,30 @@ describe('DataCiteForm', () => {
         expect(resourceTrigger).toHaveAttribute('aria-required', 'true');
         expect(screen.getByText('Year')).toHaveTextContent('*');
         expect(screen.getByText('Resource Type')).toHaveTextContent('*');
+    });
+
+    it('marks only first title as required', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+            />,
+        );
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const titleInput = screen.getByRole('textbox', { name: /Title/ });
+        expect(titleInput).toBeRequired();
+        expect(screen.getByText('Title')).toHaveTextContent('*');
+        const addButton = screen.getByRole('button', { name: 'Add title' });
+        await user.type(titleInput, 'My Title');
+        await user.click(addButton);
+        const titleInputs = screen.getAllByRole('textbox', { name: /Title/ });
+        expect(titleInputs[1]).not.toBeRequired();
+        const labels = screen
+            .getAllByText(/Title/, { selector: 'label' })
+            .filter((l) => ['Title', 'Title*'].includes(l.textContent?.trim() ?? ''));
+        expect(labels[0]).toHaveTextContent('*');
+        expect(labels[1]).not.toHaveTextContent('*');
     });
 
     it('prefills titles when initialTitles are provided', () => {
@@ -251,7 +277,7 @@ describe('DataCiteForm', () => {
                 ]}
             />,
         );
-        const inputs = screen.getAllByRole('textbox', { name: 'Title' });
+        const inputs = screen.getAllByRole('textbox', { name: /Title/ });
         expect(inputs[0]).toHaveValue('Example Title');
         expect(inputs[1]).toHaveValue('Example Subtitle');
         expect(inputs[2]).toHaveValue('Example TranslatedTitle');
@@ -272,7 +298,7 @@ describe('DataCiteForm', () => {
                 initialTitles={[{ title: 'A mandatory Event', titleType: 'main-title' }]}
             />,
         );
-        expect(screen.getByRole('textbox', { name: 'Title' })).toHaveValue(
+        expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue(
             'A mandatory Event',
         );
         expect(screen.getByRole('combobox', { name: 'Title Type' })).toHaveTextContent(
@@ -293,14 +319,14 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup();
             const addButton = screen.getByRole('button', { name: 'Add title' });
-            const firstInput = screen.getByRole('textbox', { name: 'Title' });
+        const firstInput = screen.getByRole('textbox', { name: /Title/ });
             await user.type(firstInput, 'One');
             await user.click(addButton);
-            const secondInput = screen.getAllByRole('textbox', { name: 'Title' })[1];
+        const secondInput = screen.getAllByRole('textbox', { name: /Title/ })[1];
             await user.type(secondInput, 'Two');
             await user.click(addButton);
             expect(
-                screen.getAllByRole('textbox', { name: 'Title' }),
+                screen.getAllByRole('textbox', { name: /Title/ }),
             ).toHaveLength(3);
             expect(addButton).toBeDisabled();
         },
