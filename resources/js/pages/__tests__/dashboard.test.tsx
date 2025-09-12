@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Dashboard, { handleXmlFiles } from '../dashboard';
+import { latestVersion } from '@/lib/version';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const usePageMock = vi.fn();
@@ -11,6 +12,11 @@ vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     usePage: () => usePageMock(),
     router: routerMock,
+    Link: ({ href, children, ...props }: { href: string; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+        <a href={href} {...props}>
+            {children}
+        </a>
+    ),
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -32,6 +38,15 @@ describe('Dashboard', () => {
     it('greets the user by name', () => {
         render(<Dashboard />);
         expect(screen.getByText(/hello jane!/i)).toBeInTheDocument();
+    });
+
+    it('links the ERNIE version to the changelog', () => {
+        render(<Dashboard />);
+        const versionLink = screen.getByRole('link', {
+            name: new RegExp(`view changelog for version ${latestVersion}`, 'i'),
+        });
+        expect(versionLink).toHaveAttribute('href', '/changelog');
+        expect(versionLink).toHaveTextContent(latestVersion);
     });
 
     it('toggles dropzone highlight on drag events', () => {

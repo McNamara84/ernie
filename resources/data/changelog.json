@@ -1,0 +1,58 @@
+[
+  {
+    "version": "0.1.0",
+    "date": "2025-09-12",
+    "features": [
+      {
+        "title": "Dashboard",
+        "description": "Added a dashboard for quick access to key features."
+      },
+      {
+        "title": "Resource Information form group",
+        "description": "Added structured resource information section."
+      },
+      {
+        "title": "License and Rights form group",
+        "description": "Include license and rights details for resources."
+      },
+      {
+        "title": "Link to Dev Repository",
+        "description": "Added link to the development repository on GitHub for transparency."
+      },
+      {
+        "title": "Changelog",
+        "description": "Added a interactive changelog to track updates and changes."
+      },
+      {
+        "title": "User creation",
+        "description": "Added admin command to create new users."
+      },
+      {
+        "title": "User documentation",
+        "description": "Added new site for user documentation and help."
+      },
+      {
+        "title": "Footer",
+        "description": "Added a footer with link to legal notice, changelog and about page."
+      },
+      {
+        "title": "SPDX sync",
+        "description": "Added a new command for auto syncing SPDX licenses from spdx.org."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Framework Setup",
+        "description": "Set up Laravel 12 with React"
+      },
+      {
+        "title": "Testing Enhancements",
+        "description": "Improved test coverage and reliability with modern testing frameworks Pest, Vitest and Playwright."
+      },
+      {
+        "title": "Registration closed",
+        "description": "Closed registration so only admins can add new users."
+      }
+    ]
+  }
+]
