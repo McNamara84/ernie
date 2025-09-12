@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
-import DataCiteForm, { canAddLicense } from '../datacite-form';
+import DataCiteForm, { canAddLicense, canAddTitle } from '../datacite-form';
 import { LANGUAGE_OPTIONS } from '@/constants/languages';
 import type { ResourceType, TitleType, License } from '@/types';
 
@@ -109,15 +109,20 @@ describe('DataCiteForm', () => {
         ).toHaveLength(1);
 
         // title fields
-        expect(screen.getByRole('textbox', { name: 'Title' })).toBeInTheDocument();
+        const titleInput = screen.getByRole('textbox', { name: 'Title' });
+        expect(titleInput).toBeInTheDocument();
         const titleTypeTrigger = screen.getByRole('combobox', { name: 'Title Type' });
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
+        expect(addButton).toBeDisabled();
+        await user.type(titleInput, 'First Title');
+        expect(addButton).toBeEnabled();
         await user.click(addButton);
         const titleInputs = screen.getAllByRole('textbox', { name: 'Title' });
         expect(titleInputs).toHaveLength(2);
+        expect(addButton).toBeDisabled();
         const secondTitleTypeTrigger = screen.getAllByRole('combobox', {
             name: 'Title Type',
         })[1];
@@ -170,6 +175,22 @@ describe('DataCiteForm', () => {
 
     it('disables add license when entries list is empty', () => {
         expect(canAddLicense([], 3)).toBe(false);
+    });
+
+    it('determines whether titles can be added', () => {
+        expect(canAddTitle([], 3)).toBe(false);
+        expect(
+            canAddTitle(
+                [{ id: '1', title: '', titleType: 'main-title' }],
+                3,
+            ),
+        ).toBe(false);
+        expect(
+            canAddTitle(
+                [{ id: '1', title: 'First', titleType: 'main-title' }],
+                3,
+            ),
+        ).toBe(true);
     });
 
     it('prefills Language when initialLanguage is provided', () => {
@@ -270,9 +291,14 @@ describe('DataCiteForm', () => {
                 maxTitles={3}
             />,
             );
+            const user = userEvent.setup();
             const addButton = screen.getByRole('button', { name: 'Add title' });
-            fireEvent.click(addButton);
-            fireEvent.click(addButton);
+            const firstInput = screen.getByRole('textbox', { name: 'Title' });
+            await user.type(firstInput, 'One');
+            await user.click(addButton);
+            const secondInput = screen.getAllByRole('textbox', { name: 'Title' })[1];
+            await user.type(secondInput, 'Two');
+            await user.click(addButton);
             expect(
                 screen.getAllByRole('textbox', { name: 'Title' }),
             ).toHaveLength(3);
