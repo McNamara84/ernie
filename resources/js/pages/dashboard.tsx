@@ -45,6 +45,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             language?: string | null;
             resourceType?: string | null;
             titles?: { title: string; titleType: string }[] | null;
+            licenses?: string[] | null;
         } = await response.json();
         const query: Record<string, unknown> = {};
         if (data.doi) query.doi = data.doi;
@@ -56,6 +57,11 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             data.titles.forEach((t, i) => {
                 query[`titles[${i}][title]`] = t.title;
                 query[`titles[${i}][titleType]`] = t.titleType;
+            });
+        }
+        if (data.licenses && data.licenses.length > 0) {
+            data.licenses.forEach((l, i) => {
+                query[`licenses[${i}]`] = l;
             });
         }
         router.get('/curation', query);

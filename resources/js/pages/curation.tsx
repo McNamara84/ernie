@@ -20,6 +20,7 @@ interface CurationProps {
     language?: string;
     resourceType?: string;
     titles?: { title: string; titleType: string }[];
+    initialLicenses?: string[];
 }
 
 export default function Curation({
@@ -32,6 +33,7 @@ export default function Curation({
     language = '',
     resourceType = '',
     titles = [],
+    initialLicenses = [],
 }: CurationProps) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -47,6 +49,7 @@ export default function Curation({
                     initialLanguage={language}
                     initialResourceType={resourceType}
                     initialTitles={titles}
+                    initialLicenses={initialLicenses}
                 />
             </div>
         </AppLayout>

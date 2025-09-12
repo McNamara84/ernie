@@ -50,6 +50,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'language' => $request->query('language'),
             'resourceType' => $request->query('resourceType'),
             'titles' => $request->query('titles', []),
+            'initialLicenses' => $request->query('licenses', []),
         ]);
     })->name('curation');
 });

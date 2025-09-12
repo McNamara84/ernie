@@ -16,6 +16,10 @@ it('extracts doi, publication year, version, language, resource type and titles 
     <publicationYear>2024</publicationYear>
     <version>1.0</version>
     <language>de</language>
+    <rightsList>
+        <rights rightsURI="https://creativecommons.org/licenses/by/4.0/legalcode" rightsIdentifier="CC-BY-4.0" rightsIdentifierScheme="SPDX" schemeURI="https://spdx.org/licenses/">Creative Commons Attribution 4.0 International</rights>
+        <rights rightsIdentifier="MIT" rightsIdentifierScheme="SPDX" schemeURI="https://spdx.org/licenses/">MIT License</rights>
+    </rightsList>
     <titles>
         <title>Example Title</title>
         <title titleType="Subtitle">Example Subtitle</title>
@@ -50,6 +54,7 @@ XML;
             ['title' => 'Example TranslatedTitle', 'titleType' => 'translated-title'],
             ['title' => 'Example AlternativeTitle', 'titleType' => 'alternative-title'],
         ],
+        'licenses' => ['CC-BY-4.0', 'MIT'],
     ]);
 });
 
@@ -64,7 +69,7 @@ it('returns null when doi, publication year, version, language and resource type
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => []]);
+    $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => [], 'licenses' => []]);
 });
 
 it('handles xml with a single main title', function () {
@@ -82,6 +87,7 @@ it('handles xml with a single main title', function () {
         'titles' => [
             ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
         ],
+        'licenses' => [],
     ]);
 });
 
@@ -344,6 +350,7 @@ XML;
         'titles' => [
             ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
         ],
+        'licenses' => ['CC-BY-4.0'],
     ]);
 });
 
