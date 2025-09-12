@@ -24,12 +24,12 @@ vi.mock('@/components/ui/button', () => ({
 }));
 
 vi.mock('@/components/ui/input', () => ({
-    Input: ({ ...props }: any) => <input {...props} />,
+    Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }));
 
 vi.mock('@/components/ui/label', () => ({
-    Label: ({ children, htmlFor, className }: any) => (
-        <label htmlFor={htmlFor} className={className}>
+    Label: ({ children, htmlFor, className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) => (
+        <label htmlFor={htmlFor} className={className} {...props}>
             {children}
         </label>
     ),
