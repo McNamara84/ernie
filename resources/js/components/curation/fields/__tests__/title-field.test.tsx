@@ -76,10 +76,49 @@ describe('TitleField', () => {
                 onRemove={() => {}}
                 isFirst
                 canAdd={false}
-            />, 
+            />,
         );
         expect(
             screen.getByRole('button', { name: 'Add title' }),
         ).toBeDisabled();
+    });
+
+    it('marks title input as required only for first row', () => {
+        const { rerender } = render(
+            <TitleField
+                id="row-0"
+                title=""
+                titleType=""
+                options={[]}
+                onTitleChange={() => {}}
+                onTypeChange={() => {}}
+                onAdd={() => {}}
+                onRemove={() => {}}
+                isFirst
+            />,
+        );
+        const firstInput = screen.getByRole('textbox', { name: /Title/ });
+        expect(firstInput).toBeRequired();
+        const firstLabel = screen.getAllByText(/Title/, {
+            selector: 'label',
+        })[0];
+        expect(firstLabel).toHaveTextContent('*');
+
+        rerender(
+            <TitleField
+                id="row-1"
+                title=""
+                titleType=""
+                options={[]}
+                onTitleChange={() => {}}
+                onTypeChange={() => {}}
+                onAdd={() => {}}
+                onRemove={() => {}}
+                isFirst={false}
+            />,
+        );
+        const secondInput = screen.getByRole('textbox', { name: /Title/ });
+        expect(secondInput).not.toBeRequired();
+        expect(screen.getByText('Title')).not.toHaveTextContent('*');
     });
 });

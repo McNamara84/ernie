@@ -45,6 +45,7 @@ export function TitleField({
                 onChange={(e) => onTitleChange(e.target.value)}
                 hideLabel={!isFirst}
                 className="md:col-span-8"
+                required={isFirst}
             />
             <SelectField
                 id={`${id}-titleType`}
