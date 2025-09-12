@@ -24,10 +24,6 @@
         "description": "Added a interacitve changelog to track updates and changes."
       },
       {
-        "title": "Changelog",
-        "description": "Added a interacitve changelog to track updates and changes."
-      },
-      {
         "title": "User creation",
         "description": "Added admin command to create new users."
       },
