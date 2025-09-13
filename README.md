@@ -11,6 +11,12 @@
 
 A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.
 
+## Features
+
+- Configurable resource and title types
+- REST API with OpenAPI documentation at `/api/v1/doc`
+- Accessible interface built with Radix UI and Tailwind CSS
+
 ## Tech Stack
 
 - **Backend:** Laravel 12 (PHP 8)
@@ -77,6 +83,15 @@ Ensure the application server is running and the Playwright browsers are install
 npx playwright install
 npx playwright test
 ```
+
+## API Endpoints
+
+The service exposes a read-only REST API for metadata types.
+
+- `GET /api/v1/resource-types` – list available resource types
+- `GET /api/v1/title-types` – list available title types
+- `GET /api/v1/doc` – OpenAPI specification
+- `GET /api/changelog` – changelog information
 
 ## Sitemap
 
