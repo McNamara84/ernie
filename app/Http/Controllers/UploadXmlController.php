@@ -65,7 +65,7 @@ class UploadXmlController extends Controller
 
         if ($resourceTypeName !== null) {
             $resourceTypeModel = ResourceType::whereRaw('LOWER(name) = ?', [Str::lower($resourceTypeName)])->first();
-            $resourceType = $resourceTypeModel?->slug;
+            $resourceType = $resourceTypeModel?->id;
         }
 
         return response()->json([
@@ -73,7 +73,7 @@ class UploadXmlController extends Controller
             'year' => $year,
             'version' => $version,
             'language' => $language,
-            'resourceType' => $resourceType,
+            'resourceType' => $resourceType !== null ? (string) $resourceType : null,
             'titles' => $titles,
             'licenses' => $licenses,
         ]);

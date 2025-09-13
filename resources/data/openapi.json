@@ -16,7 +16,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ResourceType"
+                    "$ref": "#/components/schemas/ElmoResourceType"
                   }
                 }
               }
@@ -56,7 +56,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ErnieResourceType"
+                    "$ref": "#/components/schemas/ElmoResourceType"
                   }
                 }
               }
@@ -73,25 +73,6 @@
         "properties": {
           "id": { "type": "integer", "readOnly": true },
           "name": { "type": "string" }
-        }
-      },
-      "ErnieResourceType": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer", "readOnly": true },
-          "name": { "type": "string" },
-          "slug": { "type": "string" },
-          "active": { "type": "boolean" }
-        }
-      },
-      "ResourceType": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "integer", "readOnly": true },
-          "name": { "type": "string" },
-          "slug": { "type": "string" },
-          "active": { "type": "boolean" },
-          "elmo_active": { "type": "boolean" }
         }
       }
     }

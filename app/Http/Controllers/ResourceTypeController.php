@@ -14,7 +14,7 @@ class ResourceTypeController extends Controller
     {
         $types = ResourceType::query()
             ->orderBy('name')
-            ->get(['id', 'name', 'slug', 'active', 'elmo_active']);
+            ->get(['id', 'name']);
 
         return response()->json($types);
     }
@@ -40,7 +40,7 @@ class ResourceTypeController extends Controller
         $types = ResourceType::query()
             ->where('active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'slug', 'active']);
+            ->get(['id', 'name']);
 
         return response()->json($types);
     }

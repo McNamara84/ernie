@@ -17,7 +17,11 @@ it('returns the OpenAPI documentation as JSON', function () {
         ->assertOk()
         ->assertJsonPath('openapi', '3.1.0')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.summary', 'List resource types enabled for ELMO')
+        ->assertJsonPath('paths./api/v1/resource-types.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
         ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
+        ->assertJsonPath('paths./api/v1/resource-types/ernie.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
+        ->assertJsonMissingPath('components.schemas.ResourceType')
+        ->assertJsonMissingPath('components.schemas.ErnieResourceType')
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.id.type', 'integer')
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.name.type', 'string');
 });

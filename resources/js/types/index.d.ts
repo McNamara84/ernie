@@ -44,9 +44,6 @@ export interface User {
 export interface ResourceType {
     id: number;
     name: string;
-    slug: string;
-    active: boolean;
-    elmo_active?: boolean;
 }
 
 export interface TitleType {

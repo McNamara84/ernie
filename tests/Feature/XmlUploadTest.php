@@ -8,7 +8,7 @@ uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
 it('extracts doi, publication year, version, language, resource type and titles from uploaded xml, ignoring related item titles', function () {
     $this->actingAs(User::factory()->create());
-    ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
     $xml = <<<XML
 <resource>
@@ -47,7 +47,7 @@ XML;
         'year' => '2024',
         'version' => '1.0',
         'language' => 'de',
-        'resourceType' => 'dataset',
+        'resourceType' => (string) $type->id,
         'titles' => [
             ['title' => 'Example Title', 'titleType' => 'main-title'],
             ['title' => 'Example Subtitle', 'titleType' => 'subtitle'],
@@ -93,7 +93,7 @@ it('handles xml with a single main title', function () {
 
 it('extracts main title from namespaced DataCite xml inside an envelope', function () {
     $this->actingAs(User::factory()->create());
-    ResourceType::create(['name' => 'Book', 'slug' => 'book']);
+    $type = ResourceType::create(['name' => 'Book', 'slug' => 'book']);
 
     $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -346,7 +346,7 @@ XML;
     $response->assertOk()->assertJson([
         'year' => '1956',
         'language' => 'en',
-        'resourceType' => 'book',
+        'resourceType' => (string) $type->id,
         'titles' => [
             ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
         ],
