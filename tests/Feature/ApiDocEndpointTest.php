@@ -20,14 +20,22 @@ it('renders the API documentation with Swagger UI', function () {
           ->assertJsonPath('paths./api/v1/resource-types.get.tags.0', 'Editor Configuration')
           ->assertJsonPath('paths./api/v1/resource-types/elmo.get.tags.0', 'Editor Configuration')
           ->assertJsonPath('paths./api/v1/resource-types/ernie.get.tags.0', 'Editor Configuration')
+          ->assertJsonPath('paths./api/v1/title-types.get.tags.0', 'Editor Configuration')
+          ->assertJsonPath('paths./api/v1/title-types/elmo.get.tags.0', 'Editor Configuration')
+          ->assertJsonPath('paths./api/v1/title-types/ernie.get.tags.0', 'Editor Configuration')
           ->assertJsonPath('paths./api/v1/resource-types/elmo.get.summary', 'List resource types enabled for ELMO')
+          ->assertJsonPath('paths./api/v1/title-types/elmo.get.summary', 'List title types enabled for ELMO')
           ->assertJsonPath('paths./api/v1/resource-types.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
           ->assertJsonPath('paths./api/v1/resource-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
           ->assertJsonPath('paths./api/v1/resource-types/ernie.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/ElmoResourceType')
+          ->assertJsonPath('paths./api/v1/title-types.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/TitleType')
+          ->assertJsonPath('paths./api/v1/title-types/elmo.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/TitleType')
+          ->assertJsonPath('paths./api/v1/title-types/ernie.get.responses.200.content.application/json.schema.items.$ref', '#/components/schemas/TitleType')
         ->assertJsonMissingPath('components.schemas.ResourceType')
         ->assertJsonMissingPath('components.schemas.ErnieResourceType')
         ->assertJsonPath('components.schemas.ElmoResourceType.properties.id.type', 'integer')
-        ->assertJsonPath('components.schemas.ElmoResourceType.properties.name.type', 'string');
+        ->assertJsonPath('components.schemas.ElmoResourceType.properties.name.type', 'string')
+        ->assertJsonPath('components.schemas.TitleType.properties.slug.type', 'string');
 });
 
 it('returns 500 when the OpenAPI file is missing (JSON)', function () {

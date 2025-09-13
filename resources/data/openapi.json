@@ -72,6 +72,69 @@
           }
         }
       }
+    },
+    "/api/v1/title-types": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List all title types",
+        "responses": {
+          "200": {
+            "description": "List of title types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TitleType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/title-types/elmo": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List title types enabled for ELMO",
+        "responses": {
+          "200": {
+            "description": "List of title types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TitleType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/title-types/ernie": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List active title types for Ernie",
+        "responses": {
+          "200": {
+            "description": "List of title types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TitleType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -81,6 +144,14 @@
         "properties": {
           "id": { "type": "integer", "readOnly": true },
           "name": { "type": "string" }
+        }
+      },
+      "TitleType": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
         }
       }
     }

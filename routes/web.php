@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\ResourceType;
-use App\Models\TitleType;
 use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
 use App\Models\Setting;
@@ -42,7 +40,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('curation', function (\Illuminate\Http\Request $request) {
         return Inertia::render('curation', [
-            'titleTypes' => TitleType::orderBy('name')->get(),
             'licenses' => License::orderBy('name')->get(),
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),

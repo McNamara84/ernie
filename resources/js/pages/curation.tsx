@@ -17,7 +17,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 interface CurationProps {
-    titleTypes: TitleType[];
     licenses: License[];
     maxTitles: number;
     maxLicenses: number;
@@ -31,7 +30,6 @@ interface CurationProps {
 }
 
 export default function Curation({
-    titleTypes,
     licenses,
     maxTitles,
     maxLicenses,
@@ -44,33 +42,44 @@ export default function Curation({
     initialLicenses = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
+    const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
     const [error, setError] = useState(false);
 
     useEffect(() => {
-        fetch('/api/v1/resource-types/ernie')
-            .then((res) => {
-                if (!res.ok) throw new Error('Network error');
-                return res.json();
+        Promise.all([
+            fetch('/api/v1/resource-types/ernie'),
+            fetch('/api/v1/title-types/ernie'),
+        ])
+            .then(async ([resTypes, titleRes]) => {
+                if (!resTypes.ok || !titleRes.ok) throw new Error('Network error');
+                const [rData, tData] = await Promise.all([
+                    resTypes.json() as Promise<ResourceType[]>,
+                    titleRes.json() as Promise<TitleType[]>,
+                ]);
+                setResourceTypes(rData);
+                setTitleTypes(tData);
             })
-            .then((data: ResourceType[]) => setResourceTypes(data))
             .catch(() => setError(true));
     }, []);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Curation" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4" aria-busy={resourceTypes === null}>
+            <div
+                className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
+                aria-busy={resourceTypes === null || titleTypes === null}
+            >
                 {error && (
                     <p role="alert" className="text-red-600">
-                        Unable to load resource types.
+                        Unable to load resource or title types.
                     </p>
                 )}
-                {resourceTypes === null && !error && (
+                {resourceTypes === null && titleTypes === null && !error && (
                     <p role="status" aria-live="polite">
-                        Loading resource types...
+                        Loading resource and title types...
                     </p>
                 )}
-                {resourceTypes && (
+                {resourceTypes && titleTypes && (
                     <DataCiteForm
                         resourceTypes={resourceTypes}
                         titleTypes={titleTypes}
