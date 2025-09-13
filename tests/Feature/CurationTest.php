@@ -1,10 +1,8 @@
 <?php
 
 use App\Models\User;
-use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\License;
-use Database\Seeders\ResourceTypeSeeder;
 use Database\Seeders\TitleTypeSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -16,10 +14,9 @@ test('guests are redirected to login page', function () {
     $this->get(route('curation'))->assertRedirect(route('login'));
 });
 
-test('authenticated users can view curation page with resource and title types', function () {
-    $this->seed([ResourceTypeSeeder::class, TitleTypeSeeder::class]);
+test('authenticated users can view curation page with title types and licenses', function () {
+    $this->seed([TitleTypeSeeder::class]);
     License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
-    ResourceType::create(['name' => 'Inactive', 'slug' => 'inactive', 'active' => false]);
     $this->actingAs(User::factory()->create());
 
     withoutVite();
@@ -28,7 +25,6 @@ test('authenticated users can view curation page with resource and title types',
 
     $response->assertInertia(fn (Assert $page) =>
         $page->component('curation')
-            ->has('resourceTypes', ResourceType::where('active', true)->count())
             ->has('titleTypes', TitleType::count())
             ->has('licenses', License::count())
             ->where('titles', [])

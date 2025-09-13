@@ -19,4 +19,17 @@ class ResourceTypeController extends Controller
 
         return response()->json($types);
     }
+
+    /**
+     * Return all resource types that are active for Ernie.
+     */
+    public function ernie(): JsonResponse
+    {
+        $types = ResourceType::query()
+            ->where('active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'active']);
+
+        return response()->json($types);
+    }
 }

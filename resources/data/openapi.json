@@ -24,6 +24,26 @@
           }
         }
       }
+    },
+    "/api/v1/resource-types/ernie": {
+      "get": {
+        "summary": "List active resource types for Ernie",
+        "responses": {
+          "200": {
+            "description": "List of resource types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ErnieResourceType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -33,6 +53,15 @@
         "properties": {
           "id": { "type": "integer", "readOnly": true },
           "name": { "type": "string" }
+        }
+      },
+      "ErnieResourceType": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "name": { "type": "string" },
+          "slug": { "type": "string" },
+          "active": { "type": "boolean" }
         }
       }
     }
