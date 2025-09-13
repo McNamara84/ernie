@@ -4,9 +4,15 @@
     "title": "Ernie API",
     "version": "1.0.0"
   },
+  "tags": [
+    {
+      "name": "Editor Configuration"
+    }
+  ],
   "paths": {
     "/api/v1/resource-types": {
       "get": {
+        "tags": ["Editor Configuration"],
         "summary": "List all resource types",
         "responses": {
           "200": {
@@ -27,6 +33,7 @@
     },
     "/api/v1/resource-types/elmo": {
       "get": {
+        "tags": ["Editor Configuration"],
         "summary": "List resource types enabled for ELMO",
         "responses": {
           "200": {
@@ -47,6 +54,7 @@
     },
     "/api/v1/resource-types/ernie": {
       "get": {
+        "tags": ["Editor Configuration"],
         "summary": "List active resource types for Ernie",
         "responses": {
           "200": {
