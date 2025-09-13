@@ -13,7 +13,7 @@ class ResourceTypeController extends Controller
     public function index(): JsonResponse
     {
         $types = ResourceType::query()
-            ->orderBy('name')
+            ->orderByName()
             ->get(['id', 'name']);
 
         return response()->json($types);
@@ -25,8 +25,9 @@ class ResourceTypeController extends Controller
     public function elmo(): JsonResponse
     {
         $types = ResourceType::query()
-            ->where('active', true)
-            ->where('elmo_active', true)
+            ->active()
+            ->elmoActive()
+            ->orderByName()
             ->get(['id', 'name']);
 
         return response()->json($types);
@@ -38,8 +39,8 @@ class ResourceTypeController extends Controller
     public function ernie(): JsonResponse
     {
         $types = ResourceType::query()
-            ->where('active', true)
-            ->orderBy('name')
+            ->active()
+            ->orderByName()
             ->get(['id', 'name']);
 
         return response()->json($types);
