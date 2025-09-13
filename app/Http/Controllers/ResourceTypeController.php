@@ -8,6 +8,18 @@ use Illuminate\Http\JsonResponse;
 class ResourceTypeController extends Controller
 {
     /**
+     * Return all resource types.
+     */
+    public function index(): JsonResponse
+    {
+        $types = ResourceType::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'active', 'elmo_active']);
+
+        return response()->json($types);
+    }
+
+    /**
      * Return all resource types that are active for ELMO.
      */
     public function elmo(): JsonResponse

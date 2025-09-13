@@ -43,4 +43,12 @@ describe('Welcome', () => {
         render(<Welcome />);
         expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/dashboard');
     });
+
+    it('includes link to API documentation', () => {
+        render(<Welcome />);
+        expect(screen.getByRole('link', { name: /api documentation/i })).toHaveAttribute(
+            'href',
+            '/api/v1/doc'
+        );
+    });
 });

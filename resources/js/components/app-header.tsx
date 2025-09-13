@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { dashboard, settings } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, LayoutGrid, Menu, Search, Database, History, Settings } from 'lucide-react';
+import { BookOpen, LayoutGrid, Menu, Search, Database, History, Settings, FileText } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 
@@ -44,6 +44,11 @@ const rightNavItems: NavItem[] = [
         title: 'Documentation',
         href: '/docs',
         icon: BookOpen,
+    },
+    {
+        title: 'API Documentation',
+        href: '/api/v1/doc',
+        icon: FileText,
     },
 ];
 

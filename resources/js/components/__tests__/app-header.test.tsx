@@ -77,6 +77,7 @@ vi.mock('lucide-react', () => ({
     Database: () => <svg />,
     History: () => <svg />,
     Settings: () => <svg />,
+    FileText: () => <svg />,
 }));
 const settingsRoute = vi.hoisted(() => ({ url: '/settings' }));
 vi.mock('@/routes', () => ({
@@ -109,8 +110,10 @@ describe('AppHeader', () => {
             .forEach((link) => expect(link).toHaveAttribute('href', '/dashboard'));
         const changelogLinks = screen.getAllByRole('link', { name: /changelog/i });
         changelogLinks.forEach((link) => expect(link).toHaveAttribute('href', '/changelog'));
-        const docLinks = screen.getAllByRole('link', { name: /documentation/i });
+        const docLinks = screen.getAllByRole('link', { name: /^documentation$/i });
         docLinks.forEach((link) => expect(link).toHaveAttribute('href', '/docs'));
+        const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
+        apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', '/api/v1/doc'));
         const curationLinks = screen.getAllByRole('link', { name: /curation/i });
         curationLinks.forEach((link) => expect(link).toHaveAttribute('href', '/curation'));
         const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });

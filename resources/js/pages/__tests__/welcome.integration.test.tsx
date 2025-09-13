@@ -12,6 +12,7 @@ vi.mock('@inertiajs/react', () => ({
         if (title) document.title = title;
         return <>{children}</>;
     },
+    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
 }));
 
 describe('Welcome integration', () => {
