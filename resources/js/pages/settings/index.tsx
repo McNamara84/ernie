@@ -22,16 +22,31 @@ interface TitleTypeRow {
     elmo_active: boolean;
 }
 
+interface LicenseRow {
+    id: number;
+    identifier: string;
+    name: string;
+    active: boolean;
+    elmo_active: boolean;
+}
+
 interface EditorSettingsProps {
     resourceTypes: ResourceTypeRow[];
     titleTypes: TitleTypeRow[];
+    licenses: LicenseRow[];
     maxTitles: number;
     maxLicenses: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
-export default function EditorSettings({ resourceTypes, titleTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
+export default function EditorSettings({
+    resourceTypes,
+    titleTypes,
+    licenses,
+    maxTitles,
+    maxLicenses,
+}: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
@@ -45,6 +60,13 @@ export default function EditorSettings({ resourceTypes, titleTypes, maxTitles, m
             slug: t.slug,
             active: t.active,
             elmo_active: t.elmo_active,
+        })),
+        licenses: licenses.map((l) => ({
+            id: l.id,
+            identifier: l.identifier,
+            name: l.name,
+            active: l.active,
+            elmo_active: l.elmo_active,
         })),
         maxTitles,
         maxLicenses,
@@ -89,6 +111,20 @@ export default function EditorSettings({ resourceTypes, titleTypes, maxTitles, m
         setData(
             'titleTypes',
             data.titleTypes.map((t, i) => (i === index ? { ...t, elmo_active: value } : t)),
+        );
+    };
+
+    const handleLicenseActiveChange = (index: number, value: boolean) => {
+        setData(
+            'licenses',
+            data.licenses.map((l, i) => (i === index ? { ...l, active: value } : l)),
+        );
+    };
+
+    const handleLicenseElmoActiveChange = (index: number, value: boolean) => {
+        setData(
+            'licenses',
+            data.licenses.map((l, i) => (i === index ? { ...l, elmo_active: value } : l)),
         );
     };
 
@@ -217,6 +253,57 @@ export default function EditorSettings({ resourceTypes, titleTypes, maxTitles, m
                                             checked={type.elmo_active}
                                             onCheckedChange={(checked) =>
                                                 handleTitleElmoActiveChange(index, checked === true)
+                                            }
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h2 className="mb-4 text-lg font-semibold">Licenses</h2>
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="text-left">
+                                <th className="border-b p-2">ID</th>
+                                <th className="border-b p-2">Identifier</th>
+                                <th className="border-b p-2">Name</th>
+                                <th className="border-b p-2 text-center">ERNIE<br />active</th>
+                                <th className="border-b p-2 text-center">ELMO<br />active</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.licenses.map((license, index) => (
+                                <tr key={license.id}>
+                                    <td className="border-b p-2">{license.id}</td>
+                                    <td className="border-b p-2">{license.identifier}</td>
+                                    <td className="border-b p-2">{license.name}</td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
+                                            ERNIE active
+                                        </Label>
+                                        <Checkbox
+                                            id={`lic-active-${license.id}`}
+                                            checked={license.active}
+                                            onCheckedChange={(checked) =>
+                                                handleLicenseActiveChange(index, checked === true)
+                                            }
+                                        />
+                                    </td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
+                                            ELMO active
+                                        </Label>
+                                        <Checkbox
+                                            id={`lic-elmo-active-${license.id}`}
+                                            checked={license.elmo_active}
+                                            onCheckedChange={(checked) =>
+                                                handleLicenseElmoActiveChange(
+                                                    index,
+                                                    checked === true,
+                                                )
                                             }
                                         />
                                     </td>

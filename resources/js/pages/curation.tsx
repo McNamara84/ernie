@@ -17,7 +17,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 interface CurationProps {
-    licenses: License[];
     maxTitles: number;
     maxLicenses: number;
     doi?: string;
@@ -30,7 +29,6 @@ interface CurationProps {
 }
 
 export default function Curation({
-    licenses,
     maxTitles,
     maxLicenses,
     doi = '',
@@ -43,21 +41,26 @@ export default function Curation({
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
+    const [licenses, setLicenses] = useState<License[] | null>(null);
     const [error, setError] = useState(false);
 
     useEffect(() => {
         Promise.all([
             fetch('/api/v1/resource-types/ernie'),
             fetch('/api/v1/title-types/ernie'),
+            fetch('/api/v1/licenses/ernie'),
         ])
-            .then(async ([resTypes, titleRes]) => {
-                if (!resTypes.ok || !titleRes.ok) throw new Error('Network error');
-                const [rData, tData] = await Promise.all([
+            .then(async ([resTypes, titleRes, licenseRes]) => {
+                if (!resTypes.ok || !titleRes.ok || !licenseRes.ok)
+                    throw new Error('Network error');
+                const [rData, tData, lData] = await Promise.all([
                     resTypes.json() as Promise<ResourceType[]>,
                     titleRes.json() as Promise<TitleType[]>,
+                    licenseRes.json() as Promise<License[]>,
                 ]);
                 setResourceTypes(rData);
                 setTitleTypes(tData);
+                setLicenses(lData);
             })
             .catch(() => setError(true));
     }, []);
@@ -67,19 +70,26 @@ export default function Curation({
             <Head title="Curation" />
             <div
                 className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
-                aria-busy={resourceTypes === null || titleTypes === null}
+                aria-busy={
+                    resourceTypes === null ||
+                    titleTypes === null ||
+                    licenses === null
+                }
             >
                 {error && (
                     <p role="alert" className="text-red-600">
-                        Unable to load resource or title types.
+                        Unable to load resource or title types or licenses.
                     </p>
                 )}
-                {(resourceTypes === null || titleTypes === null) && !error && (
-                    <p role="status" aria-live="polite">
-                        Loading resource and title types...
-                    </p>
-                )}
-                {resourceTypes && titleTypes && (
+                {(resourceTypes === null ||
+                    titleTypes === null ||
+                    licenses === null) &&
+                    !error && (
+                        <p role="status" aria-live="polite">
+                            Loading resource and title types and licenses...
+                        </p>
+                    )}
+                {resourceTypes && titleTypes && licenses && (
                     <DataCiteForm
                         resourceTypes={resourceTypes}
                         titleTypes={titleTypes}

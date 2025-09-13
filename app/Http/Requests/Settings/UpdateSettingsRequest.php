@@ -24,6 +24,10 @@ class UpdateSettingsRequest extends FormRequest
             'titleTypes.*.slug' => ['required', 'string'],
             'titleTypes.*.active' => ['required', 'boolean'],
             'titleTypes.*.elmo_active' => ['required', 'boolean'],
+            'licenses' => ['required', 'array'],
+            'licenses.*.id' => ['required', 'integer', 'exists:licenses,id'],
+            'licenses.*.active' => ['required', 'boolean'],
+            'licenses.*.elmo_active' => ['required', 'boolean'],
             'maxTitles' => ['required', 'integer', 'min:1'],
             'maxLicenses' => ['required', 'integer', 'min:1'],
         ];
