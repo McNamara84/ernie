@@ -14,6 +14,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 ## Features
 
 - Configurable resource and title types
+- Configurable licenses with automatic SPDX updates
 - REST API with OpenAPI documentation at `/api/v1/doc`
 - Accessible interface built with Radix UI and Tailwind CSS
 
