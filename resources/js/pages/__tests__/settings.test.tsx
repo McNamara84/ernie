@@ -55,16 +55,25 @@ describe('EditorSettings page', () => {
             { id: 1, name: 'Dataset', active: true, elmo_active: false },
         ];
         render(
-            <EditorSettings resourceTypes={resourceTypes} maxTitles={1} maxLicenses={1} />,
+            <EditorSettings
+                resourceTypes={resourceTypes}
+                titleTypes={[]}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
         );
-        const ernieHeader = screen.getByRole('columnheader', { name: 'ERNIE active' });
+        const [ernieHeader] = screen.getAllByRole('columnheader', {
+            name: 'ERNIE active',
+        });
         expect(ernieHeader).toHaveClass('text-center');
         expect(ernieHeader.innerHTML).toContain('ERNIE<br');
-        const elmoHeader = screen.getByRole('columnheader', { name: 'ELMO active' });
+        const [elmoHeader] = screen.getAllByRole('columnheader', {
+            name: 'ELMO active',
+        });
         expect(elmoHeader).toHaveClass('text-center');
         expect(elmoHeader.innerHTML).toContain('ELMO<br');
-        const ernieCell = screen.getByLabelText('ERNIE active').closest('td')!;
-        const elmoCell = screen.getByLabelText('ELMO active').closest('td')!;
+        const ernieCell = screen.getAllByLabelText('ERNIE active')[0].closest('td')!;
+        const elmoCell = screen.getAllByLabelText('ELMO active')[0].closest('td')!;
         expect(ernieCell).toHaveClass('text-center');
         expect(elmoCell).toHaveClass('text-center');
     });
@@ -74,7 +83,12 @@ describe('EditorSettings page', () => {
             { id: 1, name: 'Dataset', active: false, elmo_active: false },
         ];
         render(
-            <EditorSettings resourceTypes={resourceTypes} maxTitles={1} maxLicenses={1} />,
+            <EditorSettings
+                resourceTypes={resourceTypes}
+                titleTypes={[]}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
         expect(setData).toHaveBeenCalledWith('resourceTypes', [
@@ -87,12 +101,33 @@ describe('EditorSettings page', () => {
             { id: 1, name: 'Dataset', active: true, elmo_active: false },
         ];
         render(
-            <EditorSettings resourceTypes={resourceTypes} maxTitles={1} maxLicenses={1} />,
+            <EditorSettings
+                resourceTypes={resourceTypes}
+                titleTypes={[]}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));
         expect(setData).toHaveBeenCalledWith('resourceTypes', [
             { id: 1, name: 'Dataset', active: true, elmo_active: true },
         ]);
+    });
+
+    it('renders limit fields without extra top margin', () => {
+        const resourceTypes = [
+            { id: 1, name: 'Dataset', active: true, elmo_active: false },
+        ];
+        render(
+            <EditorSettings
+                resourceTypes={resourceTypes}
+                titleTypes={[]}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
+        );
+        const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
+        expect(grid).not.toHaveClass('mt-8');
     });
 });
 

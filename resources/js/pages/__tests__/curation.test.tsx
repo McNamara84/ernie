@@ -32,9 +32,20 @@ vi.mock('@/components/curation/datacite-form', () => ({
 describe('Curation page', () => {
     beforeEach(() => {
         renderForm.mockClear();
-        vi.stubGlobal('fetch', vi.fn(() =>
-            Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) }),
-        ));
+        vi.stubGlobal(
+            'fetch',
+            vi.fn((url: RequestInfo) =>
+                Promise.resolve({
+                    ok: true,
+                    json: () =>
+                        Promise.resolve(
+                            url.toString().includes('resource-types')
+                                ? resourceTypes
+                                : titleTypes,
+                        ),
+                }),
+            ),
+        );
     });
 
     afterEach(() => {
@@ -42,14 +53,7 @@ describe('Curation page', () => {
     });
 
     it('fetches resource types and passes data to DataCiteForm', async () => {
-        render(
-            <Curation
-                titleTypes={titleTypes}
-                licenses={licenses}
-                maxTitles={99}
-                maxLicenses={99}
-            />, 
-        );
+        render(<Curation licenses={licenses} maxTitles={99} maxLicenses={99} />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
                 expect.objectContaining({ resourceTypes, titleTypes, licenses }),
@@ -57,29 +61,32 @@ describe('Curation page', () => {
         );
     });
 
-    it('shows loading state before resource types load', () => {
+    it('shows loading state before types load', () => {
         (fetch as unknown as vi.Mock).mockImplementation(
             () => new Promise(() => {}),
         );
-        render(
-            <Curation
-                titleTypes={titleTypes}
-                licenses={licenses}
-                maxTitles={99}
-                maxLicenses={99}
-            />, 
+        render(<Curation licenses={licenses} maxTitles={99} maxLicenses={99} />);
+        expect(screen.getByRole('status')).toHaveTextContent(
+            /loading resource and title types/i,
         );
-        expect(screen.getByRole('status')).toHaveTextContent(/loading resource types/i);
+    });
+
+    it('shows loading state when only one type set has loaded', async () => {
+        const unresolved = new Promise<unknown>(() => {});
+        (fetch as unknown as vi.Mock).mockImplementation((url: RequestInfo) =>
+            url.toString().includes('resource-types')
+                ? Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) })
+                : unresolved,
+        );
+        render(<Curation licenses={licenses} maxTitles={99} maxLicenses={99} />);
+        expect(screen.getByRole('status')).toHaveTextContent(
+            /loading resource and title types/i,
+        );
     });
 
     it('passes limits to DataCiteForm', async () => {
         render(
-            <Curation
-                titleTypes={titleTypes}
-                licenses={licenses}
-                maxTitles={5}
-                maxLicenses={7}
-            />, 
+            <Curation licenses={licenses} maxTitles={5} maxLicenses={7} />,
         );
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
@@ -91,12 +98,11 @@ describe('Curation page', () => {
     it('passes doi to DataCiteForm when provided', async () => {
         render(
             <Curation
-                titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
                 maxLicenses={99}
                 doi="10.1234/xyz"
-            />, 
+            />,
         );
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
@@ -108,12 +114,11 @@ describe('Curation page', () => {
     it('passes year to DataCiteForm when provided', async () => {
         render(
             <Curation
-                titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
                 maxLicenses={99}
                 year="2024"
-            />, 
+            />,
         );
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
@@ -125,12 +130,11 @@ describe('Curation page', () => {
     it('passes version to DataCiteForm when provided', async () => {
         render(
             <Curation
-                titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
                 maxLicenses={99}
                 version="2.0"
-            />, 
+            />,
         );
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
@@ -142,12 +146,11 @@ describe('Curation page', () => {
     it('passes language to DataCiteForm when provided', async () => {
         render(
             <Curation
-                titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
                 maxLicenses={99}
                 language="de"
-            />, 
+            />,
         );
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
@@ -159,7 +162,6 @@ describe('Curation page', () => {
     it('passes resource type to DataCiteForm when provided', async () => {
         render(
             <Curation
-                titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
                 maxLicenses={99}
@@ -180,12 +182,11 @@ describe('Curation page', () => {
         ];
         render(
             <Curation
-                titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
                 maxLicenses={99}
                 titles={titles}
-            />, 
+            />,
         );
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
@@ -198,12 +199,11 @@ describe('Curation page', () => {
         const initialLicenses = ['MIT'];
         render(
             <Curation
-                titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
                 maxLicenses={99}
                 initialLicenses={initialLicenses}
-            />, 
+            />,
         );
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(

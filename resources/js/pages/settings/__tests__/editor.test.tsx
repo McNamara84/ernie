@@ -39,22 +39,33 @@ vi.mock('@/components/ui/label', () => ({
 }));
 
 describe('EditorSettings page', () => {
-    it('renders resource types and settings fields', () => {
+    it('renders resource and title types and settings fields', () => {
         render(
             <EditorSettings
                 resourceTypes={[{ id: 1, name: 'Dataset', active: true, elmo_active: false }]}
+                titleTypes={[{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false }]}
                 maxTitles={10}
                 maxLicenses={5}
             />,
         );
-        expect(screen.getByLabelText('Name')).toBeInTheDocument();
-        expect(screen.getByLabelText('ERNIE active')).toBeInTheDocument();
-        expect(screen.getByLabelText('ELMO active')).toBeInTheDocument();
+        expect(screen.getAllByLabelText('Name')).toHaveLength(2);
+        expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(2);
+        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(2);
+        expect(screen.getByLabelText('Slug')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
         expect(useFormMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 resourceTypes: [{ id: 1, name: 'Dataset', active: true, elmo_active: false }],
+                titleTypes: [
+                    {
+                        id: 1,
+                        name: 'Main Title',
+                        slug: 'main-title',
+                        active: true,
+                        elmo_active: false,
+                    },
+                ],
                 maxTitles: 10,
                 maxLicenses: 5,
             }),

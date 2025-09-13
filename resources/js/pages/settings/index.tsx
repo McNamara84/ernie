@@ -14,21 +14,37 @@ interface ResourceTypeRow {
     elmo_active: boolean;
 }
 
+interface TitleTypeRow {
+    id: number;
+    name: string;
+    slug: string;
+    active: boolean;
+    elmo_active: boolean;
+}
+
 interface EditorSettingsProps {
     resourceTypes: ResourceTypeRow[];
+    titleTypes: TitleTypeRow[];
     maxTitles: number;
     maxLicenses: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
-export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
+export default function EditorSettings({ resourceTypes, titleTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
             name: r.name,
             active: r.active,
             elmo_active: r.elmo_active,
+        })),
+        titleTypes: titleTypes.map((t) => ({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            active: t.active,
+            elmo_active: t.elmo_active,
         })),
         maxTitles,
         maxLicenses,
@@ -52,6 +68,27 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
         setData(
             'resourceTypes',
             data.resourceTypes.map((r, i) => (i === index ? { ...r, elmo_active: value } : r)),
+        );
+    };
+
+    const handleTitleTypeChange = (index: number, field: 'name' | 'slug', value: string) => {
+        setData(
+            'titleTypes',
+            data.titleTypes.map((t, i) => (i === index ? { ...t, [field]: value } : t)),
+        );
+    };
+
+    const handleTitleActiveChange = (index: number, value: boolean) => {
+        setData(
+            'titleTypes',
+            data.titleTypes.map((t, i) => (i === index ? { ...t, active: value } : t)),
+        );
+    };
+
+    const handleTitleElmoActiveChange = (index: number, value: boolean) => {
+        setData(
+            'titleTypes',
+            data.titleTypes.map((t, i) => (i === index ? { ...t, elmo_active: value } : t)),
         );
     };
 
@@ -110,6 +147,76 @@ export default function EditorSettings({ resourceTypes, maxTitles, maxLicenses }
                                             checked={type.elmo_active}
                                             onCheckedChange={(checked) =>
                                                 handleElmoActiveChange(index, checked === true)
+                                            }
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h2 className="mb-4 text-lg font-semibold">Title Types</h2>
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="text-left">
+                                <th className="border-b p-2">ID</th>
+                                <th className="border-b p-2">Name</th>
+                                <th className="border-b p-2">Slug</th>
+                                <th className="border-b p-2 text-center">ERNIE<br />active</th>
+                                <th className="border-b p-2 text-center">ELMO<br />active</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.titleTypes.map((type, index) => (
+                                <tr key={type.id}>
+                                    <td className="border-b p-2">{type.id}</td>
+                                    <td className="border-b p-2">
+                                        <Label htmlFor={`tt-name-${type.id}`} className="sr-only">
+                                            Name
+                                        </Label>
+                                        <Input
+                                            id={`tt-name-${type.id}`}
+                                            value={type.name}
+                                            onChange={(e) =>
+                                                handleTitleTypeChange(index, 'name', e.target.value)
+                                            }
+                                        />
+                                    </td>
+                                    <td className="border-b p-2">
+                                        <Label htmlFor={`tt-slug-${type.id}`} className="sr-only">
+                                            Slug
+                                        </Label>
+                                        <Input
+                                            id={`tt-slug-${type.id}`}
+                                            value={type.slug}
+                                            onChange={(e) =>
+                                                handleTitleTypeChange(index, 'slug', e.target.value)
+                                            }
+                                        />
+                                    </td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`tt-active-${type.id}`} className="sr-only">
+                                            ERNIE active
+                                        </Label>
+                                        <Checkbox
+                                            id={`tt-active-${type.id}`}
+                                            checked={type.active}
+                                            onCheckedChange={(checked) =>
+                                                handleTitleActiveChange(index, checked === true)
+                                            }
+                                        />
+                                    </td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`tt-elmo-active-${type.id}`} className="sr-only">
+                                            ELMO active
+                                        </Label>
+                                        <Checkbox
+                                            id={`tt-elmo-active-${type.id}`}
+                                            checked={type.elmo_active}
+                                            onCheckedChange={(checked) =>
+                                                handleTitleElmoActiveChange(index, checked === true)
                                             }
                                         />
                                     </td>
