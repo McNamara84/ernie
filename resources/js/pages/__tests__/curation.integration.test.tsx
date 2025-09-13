@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { render } from '@testing-library/react';
 import Curation from '../curation';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ResourceType, TitleType, License } from '@/types';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import type { TitleType, License } from '@/types';
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -22,15 +22,18 @@ vi.mock('@/components/curation/datacite-form', () => ({
 describe('Curation integration', () => {
     beforeEach(() => {
         document.title = '';
+        vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([]) })));
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
     });
 
     it('sets the document title', () => {
-        const resourceTypes: ResourceType[] = [];
         const titleTypes: TitleType[] = [];
         const licenses: License[] = [];
         render(
             <Curation
-                resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
                 maxTitles={99}
@@ -40,4 +43,3 @@ describe('Curation integration', () => {
         expect(document.title).toBe('Curation');
     });
 });
-

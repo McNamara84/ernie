@@ -7,7 +7,7 @@ vi.mock('swagger-ui-react', () => ({
   default: ({ spec }: { spec: { info: { title: string } } }) => (
     <div>{spec.info.title}</div>
   ),
-}));
+}), { virtual: true });
 
 import { renderSwagger } from '../swagger';
 
