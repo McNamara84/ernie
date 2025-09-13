@@ -74,7 +74,7 @@ export default function Curation({
                         Unable to load resource or title types.
                     </p>
                 )}
-                {resourceTypes === null && titleTypes === null && !error && (
+                {(resourceTypes === null || titleTypes === null) && !error && (
                     <p role="status" aria-live="polite">
                         Loading resource and title types...
                     </p>

@@ -157,7 +157,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, maxTitles, m
                 </div>
 
                 <div>
-                    <h2 className="mb-4 mt-8 text-lg font-semibold">Title Types</h2>
+                    <h2 className="mb-4 text-lg font-semibold">Title Types</h2>
                     <table className="w-full border-collapse">
                         <thead>
                             <tr className="text-left">
@@ -226,7 +226,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, maxTitles, m
                     </table>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 mt-8">
+                <div className="grid gap-4 md:grid-cols-2">
                     <div className="grid gap-2">
                         <Label htmlFor="maxTitles">Max Titles</Label>
                         <Input

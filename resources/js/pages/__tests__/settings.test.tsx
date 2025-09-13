@@ -113,5 +113,21 @@ describe('EditorSettings page', () => {
             { id: 1, name: 'Dataset', active: true, elmo_active: true },
         ]);
     });
+
+    it('renders limit fields without extra top margin', () => {
+        const resourceTypes = [
+            { id: 1, name: 'Dataset', active: true, elmo_active: false },
+        ];
+        render(
+            <EditorSettings
+                resourceTypes={resourceTypes}
+                titleTypes={[]}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
+        );
+        const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
+        expect(grid).not.toHaveClass('mt-8');
+    });
 });
 

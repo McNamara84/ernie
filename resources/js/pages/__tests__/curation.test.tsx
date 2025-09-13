@@ -71,6 +71,19 @@ describe('Curation page', () => {
         );
     });
 
+    it('shows loading state when only one type set has loaded', async () => {
+        const unresolved = new Promise<unknown>(() => {});
+        (fetch as unknown as vi.Mock).mockImplementation((url: RequestInfo) =>
+            url.toString().includes('resource-types')
+                ? Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) })
+                : unresolved,
+        );
+        render(<Curation licenses={licenses} maxTitles={99} maxLicenses={99} />);
+        expect(screen.getByRole('status')).toHaveTextContent(
+            /loading resource and title types/i,
+        );
+    });
+
     it('passes limits to DataCiteForm', async () => {
         render(
             <Curation licenses={licenses} maxTitles={5} maxLicenses={7} />,
