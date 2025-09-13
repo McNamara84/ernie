@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\ResourceType;
 use App\Models\Setting;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class EditorSettingsController extends Controller
@@ -19,17 +19,9 @@ class EditorSettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request)
+    public function update(UpdateSettingsRequest $request)
     {
-        $validated = $request->validate([
-            'resourceTypes' => ['required', 'array'],
-            'resourceTypes.*.id' => ['required', 'integer', 'exists:resource_types,id'],
-            'resourceTypes.*.name' => ['required', 'string'],
-            'resourceTypes.*.active' => ['required', 'boolean'],
-            'resourceTypes.*.elmo_active' => ['required', 'boolean'],
-            'maxTitles' => ['required', 'integer', 'min:1'],
-            'maxLicenses' => ['required', 'integer', 'min:1'],
-        ]);
+        $validated = $request->validated();
 
         foreach ($validated['resourceTypes'] as $type) {
             ResourceType::where('id', $type['id'])->update([

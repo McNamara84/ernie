@@ -55,3 +55,21 @@ test('authenticated users can update resource types and settings', function () {
     expect(Setting::getValue('max_titles'))->toBe('10');
     expect(Setting::getValue('max_licenses'))->toBe('7');
 });
+
+test('updating settings with invalid data returns errors', function () {
+    $user = User::factory()->create();
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $this->actingAs($user);
+
+    $response = $this->from(route('settings'))
+        ->post(route('settings.update'), [
+            'resourceTypes' => [
+                ['id' => $type->id, 'name' => 'Data Set', 'active' => true, 'elmo_active' => false],
+            ],
+            'maxTitles' => 0,
+            'maxLicenses' => 7,
+        ]);
+
+    $response->assertSessionHasErrors('maxTitles')
+        ->assertRedirect(route('settings'));
+});

@@ -31,3 +31,13 @@ XML;
 
     $response->assertJsonPath('resourceType', (string) $type->id);
 });
+
+test('uploading a non-xml file returns validation errors', function () {
+    $this->actingAs(User::factory()->create());
+
+    $file = UploadedFile::fake()->create('test.txt', 10, 'text/plain');
+
+    $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertStatus(422)
+        ->assertInvalid('file');
+});

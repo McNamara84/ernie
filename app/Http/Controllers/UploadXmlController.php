@@ -2,21 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use Saloon\XmlWrangler\XmlReader;
 
 class UploadXmlController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(UploadXmlRequest $request): JsonResponse
     {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:xml', 'max:4096'],
-        ]);
+        $validated = $request->validated();
 
-        $contents = $request->file('file')->get();
+        $contents = $validated['file']->get();
 
         $reader = XmlReader::fromString($contents);
         $doi = $reader->xpathValue('//*[local-name()="identifier" and @identifierType="DOI"]')->first();
