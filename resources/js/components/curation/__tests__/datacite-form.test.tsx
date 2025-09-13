@@ -15,9 +15,7 @@ describe('DataCiteForm', () => {
         Element.prototype.scrollIntoView = () => {};
     });
 
-    const resourceTypes: ResourceType[] = [
-        { id: 1, name: 'Dataset', slug: 'dataset', active: true },
-    ];
+    const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
 
     const titleTypes: TitleType[] = [
         { id: 1, name: 'Main Title', slug: 'main-title' },
@@ -237,7 +235,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
-                initialResourceType="dataset"
+                initialResourceType="1"
             />,
         );
         expect(screen.getByLabelText('Resource Type', { exact: false })).toHaveTextContent(

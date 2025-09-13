@@ -126,7 +126,7 @@ describe('handleXmlFiles', () => {
                         year: '2024',
                         version: '1.0',
                         language: 'en',
-                        resourceType: 'dataset',
+                        resourceType: '1',
                         titles: [
                             { title: 'Example Title', titleType: 'main-title' },
                             { title: 'Example Subtitle', titleType: 'subtitle' },
@@ -149,7 +149,7 @@ describe('handleXmlFiles', () => {
             year: '2024',
             version: '1.0',
             language: 'en',
-            resourceType: 'dataset',
+            resourceType: '1',
             'titles[0][title]': 'Example Title',
             'titles[0][titleType]': 'main-title',
             'titles[1][title]': 'Example Subtitle',
@@ -260,13 +260,13 @@ describe('handleXmlFiles', () => {
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: null, version: null, language: null, resourceType: 'dataset' }) } as Response,
+                { ok: true, json: async () => ({ doi: null, year: null, version: null, language: null, resourceType: '1' }) } as Response,
             );
 
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { resourceType: 'dataset' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation', { resourceType: '1' });
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });

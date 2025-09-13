@@ -194,7 +194,7 @@ export default function DataCiteForm({
                                 value={form.resourceType}
                                 onValueChange={(val) => handleChange('resourceType', val)}
                                 options={resourceTypes.map((type) => ({
-                                    value: type.slug,
+                                    value: String(type.id),
                                     label: type.name,
                                 }))}
                                 className="md:col-span-4"

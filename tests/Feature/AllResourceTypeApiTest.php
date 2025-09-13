@@ -24,14 +24,12 @@ test('returns all resource types', function () {
 
     $response->assertJsonCount(ResourceType::count());
     $response->assertJsonStructure([
-        '*' => ['id', 'name', 'slug', 'active', 'elmo_active'],
+        '*' => ['id', 'name'],
     ]);
     $response->assertJsonFragment([
         'id' => $typeB->id,
         'name' => 'Type B',
-        'slug' => 'type-b',
-        'active' => false,
-        'elmo_active' => false,
     ]);
+    $response->assertJsonMissingPath('0.slug');
 });
 
