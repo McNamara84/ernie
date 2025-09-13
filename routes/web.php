@@ -40,7 +40,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('curation', function (\Illuminate\Http\Request $request) {
         return Inertia::render('curation', [
-            'licenses' => License::orderBy('name')->get(),
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'doi' => $request->query('doi'),

@@ -2,7 +2,6 @@ import '@testing-library/jest-dom/vitest';
 import { render } from '@testing-library/react';
 import Curation from '../curation';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import type { License } from '@/types';
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -30,10 +29,7 @@ describe('Curation integration', () => {
     });
 
     it('sets the document title', () => {
-        const licenses: License[] = [];
-        render(
-            <Curation licenses={licenses} maxTitles={99} maxLicenses={99} />,
-        );
+        render(<Curation maxTitles={99} maxLicenses={99} />);
         expect(document.title).toBe('Curation');
     });
 });
