@@ -16,6 +16,7 @@ describe('Docs page', () => {
         render(<Docs />);
         expect(screen.getByText('For Users')).toBeInTheDocument();
         expect(screen.getByText('For Admins')).toBeInTheDocument();
+        expect(screen.getByText('For Developers')).toBeInTheDocument();
     });
 
     it('toggles admin collapsible content', () => {
@@ -34,6 +35,13 @@ describe('Docs page', () => {
         fireEvent.click(screen.getByText('For Users'));
         const link = screen.getByText('Go to the user documentation');
         expect(link).toHaveAttribute('href', '/docs/users');
+    });
+
+    it('links to API documentation', () => {
+        render(<Docs />);
+        fireEvent.click(screen.getByText('For Developers'));
+        const link = screen.getByText('View the API documentation');
+        expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 });
 
