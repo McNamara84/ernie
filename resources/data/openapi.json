@@ -83,8 +83,7 @@
           "slug": { "type": "string" },
           "active": { "type": "boolean" }
         }
-      }
-      ,
+      },
       "ResourceType": {
         "type": "object",
         "properties": {
