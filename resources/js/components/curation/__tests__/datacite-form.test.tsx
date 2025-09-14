@@ -3,8 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '../datacite-form';
-import { LANGUAGE_OPTIONS } from '@/constants/languages';
-import type { ResourceType, TitleType, License } from '@/types';
+import type { ResourceType, TitleType, License, Language } from '@/types';
 
 describe('DataCiteForm', () => {
     beforeAll(() => {
@@ -29,12 +28,18 @@ describe('DataCiteForm', () => {
         { id: 2, identifier: 'Apache-2.0', name: 'Apache License 2.0' },
     ];
 
+    const languages: Language[] = [
+        { id: 1, code: 'en', name: 'English' },
+        { id: 2, code: 'de', name: 'German' },
+    ];
+
     it('renders fields, title options and supports adding/removing titles', async () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
             />,
         );
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -68,9 +73,9 @@ describe('DataCiteForm', () => {
         // language options
         const languageTrigger = screen.getByLabelText('Language of Data');
         await user.click(languageTrigger);
-        for (const option of LANGUAGE_OPTIONS) {
+        for (const option of languages) {
             expect(
-                await screen.findByRole('option', { name: option.label }),
+                await screen.findByRole('option', { name: option.name }),
             ).toBeInTheDocument();
         }
         await user.keyboard('{Escape}');
@@ -142,6 +147,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialDoi="10.1234/abc"
             />,
         );
@@ -154,6 +160,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialYear="2024"
             />,
         );
@@ -166,6 +173,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialVersion="1.5"
             />,
         );
@@ -221,6 +229,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialLanguage="de"
             />,
         );
@@ -235,6 +244,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialResourceType="1"
             />,
         );
@@ -249,6 +259,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialLicenses={['MIT', 'Apache-2.0']}
             />,
         );
@@ -263,6 +274,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
             />,
         );
         const yearInput = screen.getByLabelText('Year', { exact: false });
@@ -286,6 +298,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
             />,
         );
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -326,6 +339,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialTitles={[
                     { title: 'Example Title', titleType: 'main-title' },
                     { title: 'Example Subtitle', titleType: 'subtitle' },
@@ -352,6 +366,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 initialTitles={[{ title: 'A mandatory Event', titleType: 'main-title' }]}
             />,
         );
@@ -371,6 +386,7 @@ describe('DataCiteForm', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
+                languages={languages}
                 maxTitles={3}
             />,
             );

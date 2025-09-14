@@ -57,3 +57,9 @@ export interface License {
     identifier: string;
     name: string;
 }
+
+export interface Language {
+    id: number;
+    code: string;
+    name: string;
+}

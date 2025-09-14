@@ -3,14 +3,13 @@ import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
 import LicenseField from './fields/license-field';
-import { LANGUAGE_OPTIONS } from '@/constants/languages';
 import {
     Accordion,
     AccordionContent,
     AccordionItem,
     AccordionTrigger,
 } from '@/components/ui/accordion';
-import type { ResourceType, TitleType, License } from '@/types';
+import type { ResourceType, TitleType, License, Language } from '@/types';
 
 interface DataCiteFormData {
     doi: string;
@@ -35,6 +34,7 @@ interface DataCiteFormProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
     licenses: License[];
+    languages: Language[];
     maxTitles?: number;
     maxLicenses?: number;
     initialDoi?: string;
@@ -69,6 +69,7 @@ export default function DataCiteForm({
     resourceTypes,
     titleTypes,
     licenses,
+    languages,
     maxTitles = 99,
     maxLicenses = 99,
     initialDoi = '',
@@ -213,7 +214,10 @@ export default function DataCiteForm({
                                 label="Language of Data"
                                 value={form.language}
                                 onValueChange={(val) => handleChange('language', val)}
-                                options={LANGUAGE_OPTIONS}
+                                options={languages.map((l) => ({
+                                    value: l.code,
+                                    label: l.name,
+                                }))}
                                 className="md:col-span-2"
                             />
                         </div>

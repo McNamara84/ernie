@@ -192,6 +192,63 @@
           }
         }
       }
+    },
+    "/api/v1/languages": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List all languages",
+        "responses": {
+          "200": {
+            "description": "List of languages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Language" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/languages/elmo": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List languages enabled for ELMO",
+        "responses": {
+          "200": {
+            "description": "List of languages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Language" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/languages/ernie": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List active languages for Ernie",
+        "responses": {
+          "200": {
+            "description": "List of languages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Language" }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -216,6 +273,14 @@
         "properties": {
           "id": { "type": "integer", "readOnly": true },
           "identifier": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      },
+      "Language": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "code": { "type": "string" },
           "name": { "type": "string" }
         }
       }

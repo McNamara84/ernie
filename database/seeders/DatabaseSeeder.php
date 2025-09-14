@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
             LicenseSeeder::class,
+            LanguageSeeder::class,
         ]);
     }
 }
