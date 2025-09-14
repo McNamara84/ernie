@@ -44,6 +44,7 @@ describe('EditorSettings page', () => {
             <EditorSettings
                 resourceTypes={[{ id: 1, name: 'Dataset', active: true, elmo_active: false }]}
                 titleTypes={[{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false }]}
+                licenses={[]}
                 maxTitles={10}
                 maxLicenses={5}
             />,
@@ -66,6 +67,7 @@ describe('EditorSettings page', () => {
                         elmo_active: false,
                     },
                 ],
+                licenses: [],
                 maxTitles: 10,
                 maxLicenses: 5,
             }),

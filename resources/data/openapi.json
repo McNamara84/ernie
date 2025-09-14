@@ -135,6 +135,63 @@
           }
         }
       }
+    },
+    "/api/v1/licenses": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List all licenses",
+        "responses": {
+          "200": {
+            "description": "List of licenses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/License" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/licenses/elmo": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List licenses enabled for ELMO",
+        "responses": {
+          "200": {
+            "description": "List of licenses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/License" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/licenses/ernie": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List active licenses for Ernie",
+        "responses": {
+          "200": {
+            "description": "List of licenses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/License" }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -152,6 +209,14 @@
           "id": { "type": "integer", "readOnly": true },
           "name": { "type": "string" },
           "slug": { "type": "string" }
+        }
+      },
+      "License": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "identifier": { "type": "string" },
+          "name": { "type": "string" }
         }
       }
     }

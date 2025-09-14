@@ -58,6 +58,7 @@ describe('EditorSettings page', () => {
             <EditorSettings
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
+                licenses={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -86,6 +87,7 @@ describe('EditorSettings page', () => {
             <EditorSettings
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
+                licenses={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -104,6 +106,7 @@ describe('EditorSettings page', () => {
             <EditorSettings
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
+                licenses={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -122,12 +125,34 @@ describe('EditorSettings page', () => {
             <EditorSettings
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
+                licenses={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
         );
         const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
         expect(grid).not.toHaveClass('mt-8');
+    });
+});
+
+describe('License settings', () => {
+    it('updates license ERNIE active when toggled', () => {
+        const licenses = [
+            { id: 1, identifier: 'MIT', name: 'MIT License', active: false, elmo_active: false },
+        ];
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={licenses}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
+        );
+        fireEvent.click(screen.getByLabelText('ERNIE active'));
+        expect(setData).toHaveBeenCalledWith('licenses', [
+            { id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false },
+        ]);
     });
 });
 
