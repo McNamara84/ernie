@@ -51,12 +51,17 @@ describe('EditorSettings page', () => {
             />,
         );
         expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
+        expect(screen.getByTestId('bento-grid')).toHaveClass('md:grid-cols-2');
+        expect(screen.getByTestId('bento-grid')).not.toHaveClass('lg:grid-cols-3');
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
         expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(3);
         expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);
         expect(screen.getByLabelText('Slug')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
+        screen.getAllByRole('table').forEach((table) => {
+            expect(table.parentElement).toHaveClass('overflow-x-auto');
+        });
         expect(useFormMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 resourceTypes: [{ id: 1, name: 'Dataset', active: true, elmo_active: false }],

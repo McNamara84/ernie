@@ -167,9 +167,10 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         <h2 id="resource-types-heading" className="text-lg font-semibold">
                             Resource Types
                         </h2>
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="text-left">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="text-left">
                                     <th className="border-b p-2">ID</th>
                                     <th className="border-b p-2">Name</th>
                                     <th className="border-b p-2 text-center">
@@ -183,50 +184,56 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                                         active
                                     </th>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {data.resourceTypes.map((type, index) => (
-                                    <tr key={type.id}>
-                                        <td className="border-b p-2">{type.id}</td>
-                                        <td className="border-b p-2">
-                                            <Label htmlFor={`rt-${type.id}`} className="sr-only">
-                                                Name
-                                            </Label>
-                                            <Input id={`rt-${type.id}`} value={type.name} onChange={(e) => handleTypeChange(index, e.target.value)} />
-                                        </td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`active-${type.id}`} className="sr-only">
-                                                ERNIE active
-                                            </Label>
-                                            <Checkbox
-                                                id={`active-${type.id}`}
-                                                checked={type.active}
-                                                onCheckedChange={(checked) => handleActiveChange(index, checked === true)}
-                                            />
-                                        </td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`elmo-active-${type.id}`} className="sr-only">
-                                                ELMO active
-                                            </Label>
-                                            <Checkbox
-                                                id={`elmo-active-${type.id}`}
-                                                checked={type.elmo_active}
-                                                onCheckedChange={(checked) => handleElmoActiveChange(index, checked === true)}
-                                            />
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {data.resourceTypes.map((type, index) => (
+                                        <tr key={type.id}>
+                                            <td className="border-b p-2">{type.id}</td>
+                                            <td className="border-b p-2">
+                                                <Label htmlFor={`rt-${type.id}`} className="sr-only">
+                                                    Name
+                                                </Label>
+                                                <Input
+                                                    id={`rt-${type.id}`}
+                                                    value={type.name}
+                                                    onChange={(e) => handleTypeChange(index, e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`active-${type.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`active-${type.id}`}
+                                                    checked={type.active}
+                                                    onCheckedChange={(checked) => handleActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`elmo-active-${type.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`elmo-active-${type.id}`}
+                                                    checked={type.elmo_active}
+                                                    onCheckedChange={(checked) => handleElmoActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </BentoGridItem>
 
                     <BentoGridItem aria-labelledby="title-types-heading" className="md:col-span-2">
                         <h2 id="title-types-heading" className="text-lg font-semibold">
                             Title Types
                         </h2>
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="text-left">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="text-left">
                                     <th className="border-b p-2">ID</th>
                                     <th className="border-b p-2">Name</th>
                                     <th className="border-b p-2">Slug</th>
@@ -240,65 +247,67 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                                         <br />
                                         active
                                     </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.titleTypes.map((type, index) => (
-                                    <tr key={type.id}>
-                                        <td className="border-b p-2">{type.id}</td>
-                                        <td className="border-b p-2">
-                                            <Label htmlFor={`tt-name-${type.id}`} className="sr-only">
-                                                Name
-                                            </Label>
-                                            <Input
-                                                id={`tt-name-${type.id}`}
-                                                value={type.name}
-                                                onChange={(e) => handleTitleTypeChange(index, 'name', e.target.value)}
-                                            />
-                                        </td>
-                                        <td className="border-b p-2">
-                                            <Label htmlFor={`tt-slug-${type.id}`} className="sr-only">
-                                                Slug
-                                            </Label>
-                                            <Input
-                                                id={`tt-slug-${type.id}`}
-                                                value={type.slug}
-                                                onChange={(e) => handleTitleTypeChange(index, 'slug', e.target.value)}
-                                            />
-                                        </td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`tt-active-${type.id}`} className="sr-only">
-                                                ERNIE active
-                                            </Label>
-                                            <Checkbox
-                                                id={`tt-active-${type.id}`}
-                                                checked={type.active}
-                                                onCheckedChange={(checked) => handleTitleActiveChange(index, checked === true)}
-                                            />
-                                        </td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`tt-elmo-active-${type.id}`} className="sr-only">
-                                                ELMO active
-                                            </Label>
-                                            <Checkbox
-                                                id={`tt-elmo-active-${type.id}`}
-                                                checked={type.elmo_active}
-                                                onCheckedChange={(checked) => handleTitleElmoActiveChange(index, checked === true)}
-                                            />
-                                        </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {data.titleTypes.map((type, index) => (
+                                        <tr key={type.id}>
+                                            <td className="border-b p-2">{type.id}</td>
+                                            <td className="border-b p-2">
+                                                <Label htmlFor={`tt-name-${type.id}`} className="sr-only">
+                                                    Name
+                                                </Label>
+                                                <Input
+                                                    id={`tt-name-${type.id}`}
+                                                    value={type.name}
+                                                    onChange={(e) => handleTitleTypeChange(index, 'name', e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2">
+                                                <Label htmlFor={`tt-slug-${type.id}`} className="sr-only">
+                                                    Slug
+                                                </Label>
+                                                <Input
+                                                    id={`tt-slug-${type.id}`}
+                                                    value={type.slug}
+                                                    onChange={(e) => handleTitleTypeChange(index, 'slug', e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`tt-active-${type.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`tt-active-${type.id}`}
+                                                    checked={type.active}
+                                                    onCheckedChange={(checked) => handleTitleActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`tt-elmo-active-${type.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`tt-elmo-active-${type.id}`}
+                                                    checked={type.elmo_active}
+                                                    onCheckedChange={(checked) => handleTitleElmoActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </BentoGridItem>
 
                     <BentoGridItem aria-labelledby="licenses-heading">
                         <h2 id="licenses-heading" className="text-lg font-semibold">
                             Licenses
                         </h2>
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="text-left">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="text-left">
                                     <th className="border-b p-2">ID</th>
                                     <th className="border-b p-2">Identifier</th>
                                     <th className="border-b p-2">Name</th>
@@ -312,47 +321,49 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                                         <br />
                                         active
                                     </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.licenses.map((license, index) => (
-                                    <tr key={license.id}>
-                                        <td className="border-b p-2">{license.id}</td>
-                                        <td className="border-b p-2">{license.identifier}</td>
-                                        <td className="border-b p-2">{license.name}</td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
-                                                ERNIE active
-                                            </Label>
-                                            <Checkbox
-                                                id={`lic-active-${license.id}`}
-                                                checked={license.active}
-                                                onCheckedChange={(checked) => handleLicenseActiveChange(index, checked === true)}
-                                            />
-                                        </td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
-                                                ELMO active
-                                            </Label>
-                                            <Checkbox
-                                                id={`lic-elmo-active-${license.id}`}
-                                                checked={license.elmo_active}
-                                                onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
-                                            />
-                                        </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {data.licenses.map((license, index) => (
+                                        <tr key={license.id}>
+                                            <td className="border-b p-2">{license.id}</td>
+                                            <td className="border-b p-2">{license.identifier}</td>
+                                            <td className="border-b p-2">{license.name}</td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lic-active-${license.id}`}
+                                                    checked={license.active}
+                                                    onCheckedChange={(checked) => handleLicenseActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lic-elmo-active-${license.id}`}
+                                                    checked={license.elmo_active}
+                                                    onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </BentoGridItem>
 
                     <BentoGridItem aria-labelledby="languages-heading">
                         <h2 id="languages-heading" className="text-lg font-semibold">
                             Languages
                         </h2>
-                        <table className="w-full border-collapse">
-                            <thead>
-                                <tr className="text-left">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="text-left">
                                     <th className="border-b p-2">ID</th>
                                     <th className="border-b p-2">Code</th>
                                     <th className="border-b p-2">Name</th>
@@ -366,38 +377,39 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                                         <br />
                                         active
                                     </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.languages.map((language, index) => (
-                                    <tr key={language.id}>
-                                        <td className="border-b p-2">{language.id}</td>
-                                        <td className="border-b p-2">{language.code}</td>
-                                        <td className="border-b p-2">{language.name}</td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`lang-active-${language.id}`} className="sr-only">
-                                                ERNIE active
-                                            </Label>
-                                            <Checkbox
-                                                id={`lang-active-${language.id}`}
-                                                checked={language.active}
-                                                onCheckedChange={(checked) => handleLanguageActiveChange(index, checked === true)}
-                                            />
-                                        </td>
-                                        <td className="border-b p-2 text-center">
-                                            <Label htmlFor={`lang-elmo-active-${language.id}`} className="sr-only">
-                                                ELMO active
-                                            </Label>
-                                            <Checkbox
-                                                id={`lang-elmo-active-${language.id}`}
-                                                checked={language.elmo_active}
-                                                onCheckedChange={(checked) => handleLanguageElmoActiveChange(index, checked === true)}
-                                            />
-                                        </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {data.languages.map((language, index) => (
+                                        <tr key={language.id}>
+                                            <td className="border-b p-2">{language.id}</td>
+                                            <td className="border-b p-2">{language.code}</td>
+                                            <td className="border-b p-2">{language.name}</td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`lang-active-${language.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lang-active-${language.id}`}
+                                                    checked={language.active}
+                                                    onCheckedChange={(checked) => handleLanguageActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`lang-elmo-active-${language.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lang-elmo-active-${language.id}`}
+                                                    checked={language.elmo_active}
+                                                    onCheckedChange={(checked) => handleLanguageElmoActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </BentoGridItem>
 
                     <BentoGridItem className="md:col-span-2">
