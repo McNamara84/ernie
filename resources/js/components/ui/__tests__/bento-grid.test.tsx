@@ -16,7 +16,6 @@ describe('BentoGrid', () => {
     expect(grid).toBeInTheDocument()
     expect(grid?.children).toHaveLength(2)
     expect(screen.getByText('One')).toHaveAttribute('data-slot', 'bento-grid-item')
-    expect(grid).toHaveClass('grid', 'gap-4', 'md:grid-cols-2')
-    expect(grid).not.toHaveClass('lg:grid-cols-3')
+    expect(grid).toHaveClass('grid', 'gap-4', 'md:grid-cols-2', 'lg:grid-cols-3')
   })
 })

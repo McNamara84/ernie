@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import EditorSettings from '../index';
 
@@ -50,9 +50,14 @@ describe('EditorSettings page', () => {
                 maxLicenses={5}
             />,
         );
-        expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
-        expect(screen.getByTestId('bento-grid')).toHaveClass('md:grid-cols-2');
-        expect(screen.getByTestId('bento-grid')).not.toHaveClass('lg:grid-cols-3');
+        const grid = screen.getByTestId('bento-grid');
+        expect(grid).toBeInTheDocument();
+        expect(grid).toHaveClass('md:grid-cols-2', 'lg:grid-cols-3');
+        const items = grid.querySelectorAll('[data-slot="bento-grid-item"]');
+        expect(items).toHaveLength(5);
+        expect(items[0]).toHaveClass('md:row-span-4', 'lg:row-span-2');
+        expect(within(items[0]).getByText('Licenses')).toBeInTheDocument();
+        expect(within(items[1]).getByText('Resource Types')).toBeInTheDocument();
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
         expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(3);
         expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);

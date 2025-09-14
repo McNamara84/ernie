@@ -163,7 +163,63 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
             <Head title="Editor Settings" />
             <form onSubmit={handleSubmit} className="p-4">
                 <BentoGrid data-testid="bento-grid">
-                    <BentoGridItem aria-labelledby="resource-types-heading" className="md:col-span-2">
+                    <BentoGridItem aria-labelledby="licenses-heading" className="md:row-span-4 lg:row-span-2">
+                        <h2 id="licenses-heading" className="text-lg font-semibold">
+                            Licenses
+                        </h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="text-left">
+                                    <th className="border-b p-2">ID</th>
+                                    <th className="border-b p-2">Identifier</th>
+                                    <th className="border-b p-2">Name</th>
+                                    <th className="border-b p-2 text-center">
+                                        ERNIE
+                                        <br />
+                                        active
+                                    </th>
+                                    <th className="border-b p-2 text-center">
+                                        ELMO
+                                        <br />
+                                        active
+                                    </th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                    {data.licenses.map((license, index) => (
+                                        <tr key={license.id}>
+                                            <td className="border-b p-2">{license.id}</td>
+                                            <td className="border-b p-2">{license.identifier}</td>
+                                            <td className="border-b p-2">{license.name}</td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lic-active-${license.id}`}
+                                                    checked={license.active}
+                                                    onCheckedChange={(checked) => handleLicenseActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`lic-elmo-active-${license.id}`}
+                                                    checked={license.elmo_active}
+                                                    onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </BentoGridItem>
+
+                    <BentoGridItem aria-labelledby="resource-types-heading">
                         <h2 id="resource-types-heading" className="text-lg font-semibold">
                             Resource Types
                         </h2>
@@ -226,7 +282,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="title-types-heading" className="md:col-span-2">
+                    <BentoGridItem aria-labelledby="title-types-heading">
                         <h2 id="title-types-heading" className="text-lg font-semibold">
                             Title Types
                         </h2>
@@ -300,62 +356,6 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="licenses-heading">
-                        <h2 id="licenses-heading" className="text-lg font-semibold">
-                            Licenses
-                        </h2>
-                        <div className="overflow-x-auto">
-                            <table className="w-full border-collapse">
-                                <thead>
-                                    <tr className="text-left">
-                                    <th className="border-b p-2">ID</th>
-                                    <th className="border-b p-2">Identifier</th>
-                                    <th className="border-b p-2">Name</th>
-                                    <th className="border-b p-2 text-center">
-                                        ERNIE
-                                        <br />
-                                        active
-                                    </th>
-                                    <th className="border-b p-2 text-center">
-                                        ELMO
-                                        <br />
-                                        active
-                                    </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.licenses.map((license, index) => (
-                                        <tr key={license.id}>
-                                            <td className="border-b p-2">{license.id}</td>
-                                            <td className="border-b p-2">{license.identifier}</td>
-                                            <td className="border-b p-2">{license.name}</td>
-                                            <td className="border-b p-2 text-center">
-                                                <Label htmlFor={`lic-active-${license.id}`} className="sr-only">
-                                                    ERNIE active
-                                                </Label>
-                                                <Checkbox
-                                                    id={`lic-active-${license.id}`}
-                                                    checked={license.active}
-                                                    onCheckedChange={(checked) => handleLicenseActiveChange(index, checked === true)}
-                                                />
-                                            </td>
-                                            <td className="border-b p-2 text-center">
-                                                <Label htmlFor={`lic-elmo-active-${license.id}`} className="sr-only">
-                                                    ELMO active
-                                                </Label>
-                                                <Checkbox
-                                                    id={`lic-elmo-active-${license.id}`}
-                                                    checked={license.elmo_active}
-                                                    onCheckedChange={(checked) => handleLicenseElmoActiveChange(index, checked === true)}
-                                                />
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </BentoGridItem>
-
                     <BentoGridItem aria-labelledby="languages-heading">
                         <h2 id="languages-heading" className="text-lg font-semibold">
                             Languages
@@ -412,7 +412,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem className="md:col-span-2">
+                    <BentoGridItem>
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="grid gap-2">
                                 <Label htmlFor="maxTitles">Max Titles</Label>
