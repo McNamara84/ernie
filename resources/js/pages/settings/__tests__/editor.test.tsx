@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import EditorSettings from '../index';
 
 const useFormMock = vi.fn((initial) => ({
@@ -50,6 +50,7 @@ describe('EditorSettings page', () => {
                 maxLicenses={5}
             />,
         );
+        expect(screen.getByTestId('bento-grid')).toBeInTheDocument();
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
         expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(3);
         expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);
