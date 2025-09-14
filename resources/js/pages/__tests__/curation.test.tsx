@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import Curation from '../curation';
-import type { ResourceType, TitleType, License } from '@/types';
+import type { ResourceType, TitleType, License, Language } from '@/types';
 
 const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
 const titleTypes: TitleType[] = [
@@ -10,6 +10,10 @@ const titleTypes: TitleType[] = [
 ];
 const licenses: License[] = [
     { id: 1, identifier: 'MIT', name: 'MIT License' },
+];
+
+const languages: Language[] = [
+    { id: 1, code: 'en', name: 'English' },
 ];
 
 const renderForm = vi.fn(() => null);
@@ -43,7 +47,9 @@ describe('Curation page', () => {
                                 ? resourceTypes
                                 : url.toString().includes('title-types')
                                   ? titleTypes
-                                  : licenses,
+                                  : url.toString().includes('licenses')
+                                    ? licenses
+                                    : languages,
                         ),
                 }),
             ),
@@ -58,7 +64,7 @@ describe('Curation page', () => {
         render(<Curation maxTitles={99} maxLicenses={99} />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ resourceTypes, titleTypes, licenses }),
+                expect.objectContaining({ resourceTypes, titleTypes, licenses, languages }),
             ),
         );
     });
@@ -69,7 +75,7 @@ describe('Curation page', () => {
         );
         render(<Curation maxTitles={99} maxLicenses={99} />);
         expect(screen.getByRole('status')).toHaveTextContent(
-            /loading resource and title types and licenses/i,
+            /loading resource and title types, licenses, and languages/i,
         );
     });
 
@@ -82,7 +88,7 @@ describe('Curation page', () => {
         );
         render(<Curation maxTitles={99} maxLicenses={99} />);
         expect(screen.getByRole('status')).toHaveTextContent(
-            /loading resource and title types and licenses/i,
+            /loading resource and title types, licenses, and languages/i,
         );
     });
 

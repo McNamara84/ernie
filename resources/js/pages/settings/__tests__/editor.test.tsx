@@ -45,13 +45,14 @@ describe('EditorSettings page', () => {
                 resourceTypes={[{ id: 1, name: 'Dataset', active: true, elmo_active: false }]}
                 titleTypes={[{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false }]}
                 licenses={[]}
+                languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
                 maxTitles={10}
                 maxLicenses={5}
             />,
         );
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
-        expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(2);
-        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(2);
+        expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(3);
+        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);
         expect(screen.getByLabelText('Slug')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
@@ -68,6 +69,15 @@ describe('EditorSettings page', () => {
                     },
                 ],
                 licenses: [],
+                languages: [
+                    {
+                        id: 1,
+                        code: 'en',
+                        name: 'English',
+                        active: true,
+                        elmo_active: false,
+                    },
+                ],
                 maxTitles: 10,
                 maxLicenses: 5,
             }),

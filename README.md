@@ -15,6 +15,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 
 - Configurable resource and title types
 - Configurable licenses with automatic SPDX updates
+- Configurable dataset languages
 - REST API with OpenAPI documentation at `/api/v1/doc`
 - Accessible interface built with Radix UI and Tailwind CSS
 
@@ -91,6 +92,9 @@ The service exposes a read-only REST API for metadata types.
 
 - `GET /api/v1/resource-types` – list available resource types
 - `GET /api/v1/title-types` – list available title types
+- `GET /api/v1/languages` – list available languages
+- `GET /api/v1/languages/ernie` – list languages active for ERNIE
+- `GET /api/v1/languages/elmo` – list languages active for ELMO
 - `GET /api/v1/doc` – OpenAPI specification
 - `GET /api/changelog` – changelog information
 

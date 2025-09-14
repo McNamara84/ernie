@@ -5,6 +5,7 @@ use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ResourceTypeController;
 use App\Http\Controllers\TitleTypeController;
 use App\Http\Controllers\LicenseController;
+use App\Http\Controllers\LanguageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/changelog', [ChangelogController::class, 'index']);
@@ -18,4 +19,7 @@ Route::get('/v1/title-types/ernie', [TitleTypeController::class, 'ernie']);
 Route::get('/v1/licenses', [LicenseController::class, 'index']);
 Route::get('/v1/licenses/elmo', [LicenseController::class, 'elmo']);
 Route::get('/v1/licenses/ernie', [LicenseController::class, 'ernie']);
+Route::get('/v1/languages', [LanguageController::class, 'index']);
+Route::get('/v1/languages/elmo', [LanguageController::class, 'elmo']);
+Route::get('/v1/languages/ernie', [LanguageController::class, 'ernie']);
 Route::get('/v1/doc', ApiDocController::class);

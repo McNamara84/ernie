@@ -30,10 +30,19 @@ interface LicenseRow {
     elmo_active: boolean;
 }
 
+interface LanguageRow {
+    id: number;
+    code: string;
+    name: string;
+    active: boolean;
+    elmo_active: boolean;
+}
+
 interface EditorSettingsProps {
     resourceTypes: ResourceTypeRow[];
     titleTypes: TitleTypeRow[];
     licenses: LicenseRow[];
+    languages: LanguageRow[];
     maxTitles: number;
     maxLicenses: number;
 }
@@ -44,6 +53,7 @@ export default function EditorSettings({
     resourceTypes,
     titleTypes,
     licenses,
+    languages,
     maxTitles,
     maxLicenses,
 }: EditorSettingsProps) {
@@ -64,6 +74,13 @@ export default function EditorSettings({
         licenses: licenses.map((l) => ({
             id: l.id,
             identifier: l.identifier,
+            name: l.name,
+            active: l.active,
+            elmo_active: l.elmo_active,
+        })),
+        languages: languages.map((l) => ({
+            id: l.id,
+            code: l.code,
             name: l.name,
             active: l.active,
             elmo_active: l.elmo_active,
@@ -125,6 +142,20 @@ export default function EditorSettings({
         setData(
             'licenses',
             data.licenses.map((l, i) => (i === index ? { ...l, elmo_active: value } : l)),
+        );
+    };
+
+    const handleLanguageActiveChange = (index: number, value: boolean) => {
+        setData(
+            'languages',
+            data.languages.map((l, i) => (i === index ? { ...l, active: value } : l)),
+        );
+    };
+
+    const handleLanguageElmoActiveChange = (index: number, value: boolean) => {
+        setData(
+            'languages',
+            data.languages.map((l, i) => (i === index ? { ...l, elmo_active: value } : l)),
         );
     };
 
@@ -304,6 +335,54 @@ export default function EditorSettings({
                                                     index,
                                                     checked === true,
                                                 )
+                                            }
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div>
+                    <h2 className="mb-4 text-lg font-semibold">Languages</h2>
+                    <table className="w-full border-collapse">
+                        <thead>
+                            <tr className="text-left">
+                                <th className="border-b p-2">ID</th>
+                                <th className="border-b p-2">Code</th>
+                                <th className="border-b p-2">Name</th>
+                                <th className="border-b p-2 text-center">ERNIE<br />active</th>
+                                <th className="border-b p-2 text-center">ELMO<br />active</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.languages.map((language, index) => (
+                                <tr key={language.id}>
+                                    <td className="border-b p-2">{language.id}</td>
+                                    <td className="border-b p-2">{language.code}</td>
+                                    <td className="border-b p-2">{language.name}</td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`lang-active-${language.id}`} className="sr-only">
+                                            ERNIE active
+                                        </Label>
+                                        <Checkbox
+                                            id={`lang-active-${language.id}`}
+                                            checked={language.active}
+                                            onCheckedChange={(checked) =>
+                                                handleLanguageActiveChange(index, checked === true)
+                                            }
+                                        />
+                                    </td>
+                                    <td className="border-b p-2 text-center">
+                                        <Label htmlFor={`lang-elmo-active-${language.id}`} className="sr-only">
+                                            ELMO active
+                                        </Label>
+                                        <Checkbox
+                                            id={`lang-elmo-active-${language.id}`}
+                                            checked={language.elmo_active}
+                                            onCheckedChange={(checked) =>
+                                                handleLanguageElmoActiveChange(index, checked === true)
                                             }
                                         />
                                     </td>

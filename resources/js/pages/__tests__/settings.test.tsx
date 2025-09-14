@@ -59,6 +59,7 @@ describe('EditorSettings page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
                 licenses={[]}
+                languages={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -88,6 +89,7 @@ describe('EditorSettings page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
                 licenses={[]}
+                languages={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -107,6 +109,7 @@ describe('EditorSettings page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
                 licenses={[]}
+                languages={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -126,6 +129,7 @@ describe('EditorSettings page', () => {
                 resourceTypes={resourceTypes}
                 titleTypes={[]}
                 licenses={[]}
+                languages={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -145,6 +149,7 @@ describe('License settings', () => {
                 resourceTypes={[]}
                 titleTypes={[]}
                 licenses={licenses}
+                languages={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -152,6 +157,28 @@ describe('License settings', () => {
         fireEvent.click(screen.getByLabelText('ERNIE active'));
         expect(setData).toHaveBeenCalledWith('licenses', [
             { id: 1, identifier: 'MIT', name: 'MIT License', active: true, elmo_active: false },
+        ]);
+    });
+});
+
+describe('Language settings', () => {
+    it('updates language ERNIE active when toggled', () => {
+        const languages = [
+            { id: 1, code: 'en', name: 'English', active: false, elmo_active: false },
+        ];
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={languages}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
+        );
+        fireEvent.click(screen.getByLabelText('ERNIE active'));
+        expect(setData).toHaveBeenCalledWith('languages', [
+            { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
         ]);
     });
 });
