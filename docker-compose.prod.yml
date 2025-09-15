@@ -1,6 +1,6 @@
 services:
   app:
-    image: bitnami/laravel:12
+    image: bitnami/laravel:latest
     env_file:
       - stack.env
     ports:
@@ -22,16 +22,17 @@ services:
       - frontend
 
   dbernie:
-    image: mariadb:11
+    image: mariadb:latest
     env_file:
       - stack.env
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USERNAME}", "-p${DB_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - internal
 
