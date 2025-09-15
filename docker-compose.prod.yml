@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    image: ${APP_NAME:-laravel-app}:latest
+    image: ernie:latest
     container_name: ${APP_NAME:-laravel-app}_app
     restart: unless-stopped
     working_dir: /var/www/html
