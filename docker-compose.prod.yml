@@ -1,11 +1,9 @@
 services:
   migration:
-    image: bitnami/laravel:latest
+    build: .
     env_file:
       - stack.env
-    volumes:
-      - ./:/app
-    command: ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force"]
+    command: ["php", "artisan", "migrate", "--force"]
     depends_on:
       dbernie:
         condition: service_healthy
@@ -14,13 +12,14 @@ services:
     restart: "no"
 
   app:
-    image: bitnami/laravel:latest
+    build: .
     env_file:
       - stack.env
     ports:
       - "${APP_PORT:-8080}:80"
     volumes:
-      - ./:/app
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
     depends_on:
       dbernie:
         condition: service_healthy
