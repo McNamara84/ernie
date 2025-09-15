@@ -1,52 +1,143 @@
-FROM composer:latest as composer
-WORKDIR /app
-COPY composer.json composer.lock* ./
-RUN composer install --no-dev --optimize-autoloader --no-scripts --ignore-platform-reqs
+# ============================================
+# Build Stage für Node/React
+# ============================================
+FROM node:20-alpine AS node-builder
 
-FROM node:18 as node
 WORKDIR /app
+
+# Package files kopieren
 COPY package*.json ./
+COPY yarn.lock* ./
+COPY pnpm-lock.yaml* ./
 
-RUN if [ -f "package.json" ]; then \
-        npm ci || npm install; \
-    fi
+# Dependencies installieren
+RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+    elif [ -f pnpm-lock.yaml ]; then corepack enable && pnpm install --frozen-lockfile; \
+    else npm ci; fi
+
+# App-Dateien kopieren und Build ausführen
+COPY . .
+RUN if [ -f yarn.lock ]; then yarn build; \
+    elif [ -f pnpm-lock.yaml ]; then pnpm build; \
+    else npm run build; fi
+
+# ============================================
+# Composer Dependencies Stage
+# ============================================
+FROM composer:2 AS composer-builder
+
+WORKDIR /app
+
+# Composer files kopieren
+COPY composer.json composer.lock ./
+
+# Dependencies ohne Dev-Pakete installieren
+RUN composer install \
+    --no-interaction \
+    --no-dev \
+    --no-scripts \
+    --no-autoloader \
+    --prefer-dist \
+    --optimize-autoloader
+
+# App-Dateien kopieren
 COPY . .
 
-RUN if [ -f "package.json" ]; then \
-        npm run build || \
-        npm run production || \
-        npm run prod || \
-        echo "No build script found, skipping..."; \
-    fi
+# Autoloader generieren
+RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 
-FROM php:8.2-apache
+# ============================================
+# Production Stage
+# ============================================
+FROM php:8.4-fpm AS production
 
+# System-Dependencies installieren
 RUN apt-get update && apt-get install -y \
+    git \
+    curl \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
+    libzip-dev \
     zip \
     unzip \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd \
+    nginx \
+    supervisor \
+    mariadb-client \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf \
-    && sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf \
-    && a2enmod rewrite
+# PHP Extensions installieren
+RUN docker-php-ext-install \
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    opcache \
+    intl
 
+# Redis Extension installieren
+RUN pecl install redis && docker-php-ext-enable redis
+
+# OPcache konfigurieren
+RUN { \
+    echo 'opcache.memory_consumption=256'; \
+    echo 'opcache.interned_strings_buffer=16'; \
+    echo 'opcache.max_accelerated_files=20000'; \
+    echo 'opcache.revalidate_freq=2'; \
+    echo 'opcache.fast_shutdown=1'; \
+    echo 'opcache.enable_cli=1'; \
+    echo 'opcache.jit=tracing'; \
+    echo 'opcache.jit_buffer_size=100M'; \
+    } > /usr/local/etc/php/conf.d/opcache-recommended.ini
+
+# PHP Konfiguration für Production
+RUN { \
+    echo 'expose_php = Off'; \
+    echo 'display_errors = Off'; \
+    echo 'log_errors = On'; \
+    echo 'error_log = /var/log/php/error.log'; \
+    echo 'upload_max_filesize = 50M'; \
+    echo 'post_max_size = 50M'; \
+    echo 'max_execution_time = 60'; \
+    echo 'memory_limit = 512M'; \
+    } > /usr/local/etc/php/conf.d/production.ini
+
+# User für Laravel erstellen
+RUN groupadd -g 1000 www && \
+    useradd -u 1000 -ms /bin/bash -g www www
+
+# Working Directory setzen
 WORKDIR /var/www/html
 
-COPY --from=composer /app/vendor ./vendor
+# App-Dateien vom Composer Builder kopieren
+COPY --from=composer-builder --chown=www:www /app .
 
-COPY . .
+# Build-Artefakte vom Node Builder kopieren
+COPY --from=node-builder --chown=www:www /app/public/build ./public/build
+COPY --from=node-builder --chown=www:www /app/node_modules ./node_modules
 
-COPY --from=node /app/public/build ./public/build/
-COPY --from=node /app/public/js ./public/js/
-COPY --from=node /app/public/css ./public/css/
-
-RUN chown -R www-data:www-data storage bootstrap/cache \
+# Storage und Cache Verzeichnisse vorbereiten
+RUN mkdir -p storage/framework/{sessions,views,cache} \
+    && mkdir -p storage/logs \
+    && mkdir -p bootstrap/cache \
+    && mkdir -p /var/log/php \
+    && chown -R www:www storage bootstrap/cache /var/log/php \
     && chmod -R 775 storage bootstrap/cache
 
-EXPOSE 80
+# Entrypoint Script kopieren
+COPY --chown=www:www docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# User wechseln
+USER www
+
+# Ports exponieren
+EXPOSE 9000
+
+# Entrypoint und Command setzen
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["php-fpm"]

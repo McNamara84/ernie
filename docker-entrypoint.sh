@@ -1,19 +1,53 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-# Generiere APP_KEY nur wenn nicht gesetzt
+echo "🚀 Starting Laravel Application..."
+
+# Warten auf MariaDB
+echo "⏳ Waiting for MariaDB..."
+until php artisan db:monitor --database=mysql > /dev/null 2>&1; do
+    echo "MariaDB is unavailable - sleeping"
+    sleep 3
+done
+echo "✅ MariaDB is ready!"
+
+# Warten auf Redis
+echo "⏳ Waiting for Redis..."
+until php artisan redis:monitor > /dev/null 2>&1; do
+    echo "Redis is unavailable - sleeping"
+    sleep 3
+done
+echo "✅ Redis is ready!"
+
+# Application Key generieren falls nicht vorhanden
 if [ -z "$APP_KEY" ]; then
-    echo "APP_KEY not set, generating new key..."
-    php artisan key:generate --show > /tmp/app_key
-    export APP_KEY=$(cat /tmp/app_key)
-    echo "Generated APP_KEY: $APP_KEY"
-    echo "⚠️  WARNUNG: Füge diesen Key zu deiner stack.env hinzu!"
+    echo "⚙️ Generating application key..."
+    php artisan key:generate --force
 fi
 
-# Cache-Optimierungen (optional)
+# Migrations ausführen
+echo "🔄 Running migrations..."
+php artisan migrate --force
+
+# Cache optimieren
+echo "🎯 Optimizing application..."
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+php artisan event:cache
 
-# Starte Apache
+# Storage Link erstellen
+echo "🔗 Creating storage link..."
+php artisan storage:link || true
+
+# Permissions sicherstellen
+echo "🔒 Setting permissions..."
+chmod -R 775 storage bootstrap/cache
+
+# Queue Restart (falls Queue Worker läuft)
+php artisan queue:restart || true
+
+echo "✅ Application setup complete!"
+
+# Original command ausführen
 exec "$@"
