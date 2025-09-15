@@ -18,9 +18,7 @@ COPY . .
 RUN echo "Available npm scripts:" && npm run
 
 # Build ausführen mit Fallback
-RUN npm run build || \
-    npm run production || \
-    echo "Warning: No build script found, skipping frontend build"
+RUN npm run build || npm run production
 
 # ============================================
 # Production Stage
@@ -86,7 +84,7 @@ RUN composer install \
     --optimize-autoloader \
     --prefer-dist
 
-# Node Build-Artefakte kopieren (nur wenn vorhanden)
+# Node Build-Artefakte kopieren
 COPY --from=node-builder --chown=www:www /app/public/build ./public/build
 
 # Storage Verzeichnisse vorbereiten
