@@ -8,7 +8,7 @@ services:
     volumes:
       - ./:/app
     depends_on:
-      - db
+      - dbernie
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
@@ -20,7 +20,7 @@ services:
     networks:
       - internal
 
-  db:
+  dbernie:
     image: mariadb:11
     env_file:
       - stack.env
