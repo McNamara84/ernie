@@ -3,7 +3,7 @@ services:
     build: .
     env_file:
       - stack.env
-    command: ["php", "artisan", "migrate", "--force"]
+    command: ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force || true"]
     depends_on:
       dbernie:
         condition: service_healthy
@@ -41,6 +41,11 @@ services:
     image: mariadb:latest
     env_file:
       - stack.env
+    environment:
+      - MARIADB_DATABASE=${DB_DATABASE}
+      - MARIADB_USER=${DB_USERNAME}
+      - MARIADB_PASSWORD=${DB_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
