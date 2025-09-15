@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '../datacite-form';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+import { router } from '@inertiajs/react';
+
+vi.mock('@inertiajs/react', () => ({
+    router: { post: vi.fn() },
+}));
 
 describe('DataCiteForm', () => {
     beforeAll(() => {
@@ -376,6 +381,38 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('combobox', { name: 'Title Type' })).toHaveTextContent(
             'Main Title',
         );
+    });
+
+    it('posts form data when Save is clicked', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await user.type(screen.getByRole('textbox', { name: /Title/ }), 'My Title');
+        await user.type(screen.getByLabelText('Year', { exact: false }), '2024');
+        const resourceTrigger = screen.getByLabelText('Resource Type', { exact: false });
+        await user.click(resourceTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+        const licenseTrigger = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        })[0];
+        await user.click(licenseTrigger);
+        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+        expect(router.post).toHaveBeenCalledWith('/curation', {
+            doi: '',
+            year: '2024',
+            resourceType: '1',
+            version: '',
+            language: '',
+            titles: [{ title: 'My Title', titleType: 'main-title' }],
+            licenses: ['MIT'],
+        });
     });
 
     it(

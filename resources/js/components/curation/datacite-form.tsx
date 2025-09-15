@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
@@ -10,6 +11,7 @@ import {
     AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+import { Button } from '@/components/ui/button';
 
 interface DataCiteFormData {
     doi: string;
@@ -160,8 +162,17 @@ export default function DataCiteForm({
         setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
     };
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        router.post('/curation', {
+            ...form,
+            titles: titles.map(({ title, titleType }) => ({ title, titleType })),
+            licenses: licenseEntries.map((l) => l.license),
+        });
+    };
+
     return (
-        <form>
+        <form onSubmit={handleSubmit}>
             <Accordion
                 type="multiple"
                 defaultValue={['resource-info', 'licenses-rights']}
@@ -281,6 +292,9 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+            <div className="mt-4">
+                <Button type="submit">Save</Button>
+            </div>
         </form>
     );
 }
