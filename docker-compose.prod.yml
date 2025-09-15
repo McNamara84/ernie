@@ -1,0 +1,45 @@
+services:
+  app:
+    image: bitnami/laravel:12
+    env_file:
+      - stack.env
+    ports:
+      - "${APP_PORT:-8080}:8000"
+    volumes:
+      - ./:/app
+    depends_on:
+      - dbernie
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
+      - "traefik.http.routers.ernie-router.entrypoints=https"
+      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
+      - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
+      - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik"
+    networks:
+      - internal
+
+  dbernie:
+    image: mariadb:11
+    env_file:
+      - stack.env
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+volumes:
+  db_data:
+
+networks:
+  internal:
+    driver: bridge
+  frontend:
+    external:
+      name: traefik
