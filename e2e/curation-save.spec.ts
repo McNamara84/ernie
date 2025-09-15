@@ -1,7 +1,7 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, Page } from '@playwright/test';
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
-async function login(page) {
+async function login(page: Page) {
     await page.goto('/login');
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);

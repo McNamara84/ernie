@@ -19,7 +19,8 @@ test('guests are redirected to login page', function () {
 });
 
 test('authenticated users can view curation page', function () {
-    $this->actingAs(User::factory()->create());
+    $user = User::factory()->create();
+    $this->actingAs($user);
 
     withoutVite();
 
@@ -33,7 +34,8 @@ test('authenticated users can view curation page', function () {
 });
 
 test('authenticated users can save curation data', function () {
-    $this->actingAs($user = User::factory()->create());
+    $user = User::factory()->create();
+    $this->actingAs($user);
 
     $resourceType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
     $titleTypes = [

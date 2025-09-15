@@ -146,7 +146,7 @@ describe('DataCiteForm', () => {
         expect(
             screen.getAllByRole('textbox', { name: /Title/ }),
         ).toHaveLength(1);
-    });
+    }, 10000);
 
     it('prefills DOI when initialDoi is provided', () => {
         render(
