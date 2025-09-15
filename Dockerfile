@@ -24,26 +24,64 @@ RUN if [ -f yarn.lock ]; then yarn build; \
 # ============================================
 # Composer Dependencies Stage
 # ============================================
-FROM composer:2 AS composer-builder
+FROM php:8.4-fpm AS composer-builder
+
+# System-Dependencies für Composer installieren
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# PHP Extensions installieren die Composer/Laravel braucht
+RUN docker-php-ext-install \
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    intl
+
+# Composer installieren
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Composer files kopieren
-COPY composer.json composer.lock ./
+# Erst composer.json und composer.lock kopieren (falls vorhanden)
+COPY composer.json ./
+COPY composer.lock* ./
 
-# Dependencies ohne Dev-Pakete installieren
-RUN composer install \
-    --no-interaction \
-    --no-dev \
-    --no-scripts \
-    --no-autoloader \
-    --prefer-dist \
-    --optimize-autoloader
+# Auth file kopieren falls vorhanden (für private Repositories)
+COPY auth.json* ./
 
-# App-Dateien kopieren
+# Dependencies installieren - mit Fehlerbehandlung für fehlende lock-Datei
+RUN if [ -f composer.lock ]; then \
+        composer install \
+            --no-interaction \
+            --no-dev \
+            --no-scripts \
+            --no-autoloader \
+            --prefer-dist \
+            --optimize-autoloader; \
+    else \
+        composer install \
+            --no-interaction \
+            --no-dev \
+            --no-scripts \
+            --no-autoloader \
+            --prefer-dist; \
+    fi
+
+# Rest der App-Dateien kopieren
 COPY . .
 
-# Autoloader generieren
+# Autoloader generieren und optimieren
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 
 # ============================================
