@@ -26,10 +26,9 @@ class CurationController extends Controller
             'licenses.*' => ['required', 'exists:licenses,identifier'],
         ]);
 
-        $languageId = null;
-        if (isset($validated['language'])) {
-            $languageId = Language::where('code', $validated['language'])->value('id');
-        }
+        $languageId = isset($validated['language'])
+            ? Language::where('code', $validated['language'])->first()?->id
+            : null;
 
         $resource = Resource::create([
             'doi' => $validated['doi'] ?? null,
@@ -40,11 +39,15 @@ class CurationController extends Controller
             'last_editor_id' => Auth::id(),
         ]);
 
+        $titleTypeIds = TitleType::whereIn(
+            'slug',
+            collect($validated['titles'])->pluck('titleType')
+        )->pluck('id', 'slug');
+
         foreach ($validated['titles'] as $titleData) {
-            $titleTypeId = TitleType::where('slug', $titleData['titleType'])->value('id');
             $resource->titles()->create([
                 'title' => $titleData['title'],
-                'title_type_id' => $titleTypeId,
+                'title_type_id' => $titleTypeIds[$titleData['titleType']],
             ]);
         }
 

@@ -34,7 +34,10 @@ test('authenticated users can save curation data', function () {
     $this->actingAs($user = User::factory()->create());
 
     $resourceType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
-    $titleType = TitleType::create(['name' => 'Main Title', 'slug' => 'main-title']);
+    $titleTypes = [
+        'main-title' => TitleType::create(['name' => 'Main Title', 'slug' => 'main-title']),
+        'alternative-title' => TitleType::create(['name' => 'Alternative Title', 'slug' => 'alternative-title']),
+    ];
     $license = License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
     $language = Language::create(['code' => 'en', 'name' => 'English']);
 
@@ -46,6 +49,7 @@ test('authenticated users can save curation data', function () {
         'language' => $language->code,
         'titles' => [
             ['title' => 'My Title', 'titleType' => 'main-title'],
+            ['title' => 'Another Title', 'titleType' => 'alternative-title'],
         ],
         'licenses' => [$license->identifier],
     ];
@@ -66,7 +70,12 @@ test('authenticated users can save curation data', function () {
     $this->assertDatabaseHas('titles', [
         'resource_id' => $resource->id,
         'title' => 'My Title',
-        'title_type_id' => $titleType->id,
+        'title_type_id' => $titleTypes['main-title']->id,
+    ]);
+    $this->assertDatabaseHas('titles', [
+        'resource_id' => $resource->id,
+        'title' => 'Another Title',
+        'title_type_id' => $titleTypes['alternative-title']->id,
     ]);
     $this->assertDatabaseHas('license_resource', [
         'resource_id' => $resource->id,
