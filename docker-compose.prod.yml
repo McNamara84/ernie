@@ -17,6 +17,8 @@ services:
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
+    networks:
+      - internal
 
   db:
     image: mariadb:11
@@ -29,6 +31,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
 volumes:
   db_data:
+
+networks:
+  internal:
+    driver: bridge
+  frontend:
+    external:
+      name: traefik
