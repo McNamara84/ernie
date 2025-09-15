@@ -8,6 +8,8 @@ use App\Models\Language;
 use App\Models\Resource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Illuminate\Support\Facades\Cache;
+use Mockery;
 use function Pest\Laravel\withoutVite;
 
 uses(RefreshDatabase::class);
@@ -53,6 +55,19 @@ test('authenticated users can save curation data', function () {
         ],
         'licenses' => [$license->identifier],
     ];
+
+    Cache::shouldReceive('rememberForever')
+        ->with("language_id:{$language->code}", Mockery::type('Closure'))
+        ->once()
+        ->andReturnUsing(fn ($key, $closure) => $closure());
+    Cache::shouldReceive('rememberForever')
+        ->with('title_type_ids_by_slug', Mockery::type('Closure'))
+        ->once()
+        ->andReturnUsing(fn ($key, $closure) => $closure());
+    Cache::shouldReceive('rememberForever')
+        ->with('license_ids_by_identifier', Mockery::type('Closure'))
+        ->once()
+        ->andReturnUsing(fn ($key, $closure) => $closure());
 
     $this->post(route('curation.store'), $data)->assertRedirect(route('curation'));
 

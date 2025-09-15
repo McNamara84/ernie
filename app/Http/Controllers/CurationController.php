@@ -27,7 +27,7 @@ class CurationController extends Controller
         ]);
 
         $languageId = isset($validated['language'])
-            ? Language::where('code', $validated['language'])->first()?->id
+            ? Language::idByCode($validated['language'])
             : null;
 
         $resource = Resource::create([
@@ -39,10 +39,7 @@ class CurationController extends Controller
             'last_editor_id' => Auth::id(),
         ]);
 
-        $titleTypeIds = TitleType::whereIn(
-            'slug',
-            collect($validated['titles'])->pluck('titleType')
-        )->pluck('id', 'slug');
+        $titleTypeIds = TitleType::idsBySlug();
 
         foreach ($validated['titles'] as $titleData) {
             $resource->titles()->create([
@@ -51,7 +48,10 @@ class CurationController extends Controller
             ]);
         }
 
-        $licenseIds = License::whereIn('identifier', $validated['licenses'])->pluck('id');
+        $licenseMap = License::idsByIdentifier();
+        $licenseIds = collect($validated['licenses'])
+            ->map(fn ($identifier) => $licenseMap[$identifier])
+            ->all();
         $resource->licenses()->sync($licenseIds);
 
         return redirect()->route('curation');

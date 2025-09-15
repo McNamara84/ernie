@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 
 class TitleType extends Model
 {
@@ -35,5 +37,10 @@ class TitleType extends Model
     public function scopeOrderByName(Builder $query): Builder
     {
         return $query->orderBy('name');
+    }
+
+    public static function idsBySlug(): Collection
+    {
+        return Cache::rememberForever('title_type_ids_by_slug', fn () => static::pluck('id', 'slug'));
     }
 }
