@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import EditorSettings from '../settings/index';
 
@@ -136,6 +136,28 @@ describe('EditorSettings page', () => {
         );
         const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
         expect(grid).not.toHaveClass('mt-8');
+    });
+
+    it('associates limits section with a heading for accessibility', () => {
+        const resourceTypes = [
+            { id: 1, name: 'Dataset', active: true, elmo_active: false },
+        ];
+        render(
+            <EditorSettings
+                resourceTypes={resourceTypes}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
+        );
+        const region = screen.getByRole('region', { name: 'Limits' });
+        expect(region).toHaveAttribute('aria-labelledby', 'limits-heading');
+        const heading = within(region).getByRole('heading', { name: 'Limits' });
+        expect(heading).toHaveAttribute('id', 'limits-heading');
+        expect(within(region).getByLabelText('Max Titles')).toBeInTheDocument();
+        expect(within(region).getByLabelText('Max Licenses')).toBeInTheDocument();
     });
 });
 
