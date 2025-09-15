@@ -415,7 +415,10 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem>
+                    <BentoGridItem aria-labelledby="limits-heading">
+                        <h2 id="limits-heading" className="text-lg font-semibold">
+                            Limits
+                        </h2>
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="grid gap-2">
                                 <Label htmlFor="maxTitles">Max Titles</Label>
