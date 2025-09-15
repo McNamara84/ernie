@@ -55,6 +55,7 @@ describe('EditorSettings page', () => {
         expect(grid).toHaveClass('md:grid-cols-2', 'lg:grid-cols-3');
         const items = grid.querySelectorAll('[data-slot="bento-grid-item"]');
         expect(items).toHaveLength(5);
+        items.forEach((item) => expect(item).toHaveClass('self-start'));
         expect(items[0]).toHaveClass('md:row-span-4', 'lg:row-span-2');
         expect(within(items[0]).getByText('Licenses')).toBeInTheDocument();
         expect(within(items[1]).getByText('Resource Types')).toBeInTheDocument();

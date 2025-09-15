@@ -20,7 +20,7 @@ function BentoGridItem({ className, ...props }: React.ComponentProps<"section">)
     <section
       data-slot="bento-grid-item"
       className={cn(
-        "flex flex-col gap-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm",
+        "self-start flex flex-col gap-4 rounded-lg border bg-card p-4 text-card-foreground shadow-sm",
         className
       )}
       {...props}
