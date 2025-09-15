@@ -91,7 +91,6 @@ FROM php:8.4-fpm AS production
 
 # System-Dependencies installieren
 RUN apt-get update && apt-get install -y \
-    git \
     curl \
     libpng-dev \
     libonig-dev \
@@ -99,7 +98,6 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     zip \
     unzip \
-    nginx \
     supervisor \
     mariadb-client \
     && apt-get clean \
@@ -154,13 +152,14 @@ WORKDIR /var/www/html
 # App-Dateien vom Composer Builder kopieren
 COPY --from=composer-builder --chown=www:www /app .
 
-# Build-Artefakte vom Node Builder kopieren
+# Build-Artefakte vom Node Builder kopieren (nur wenn vorhanden)
 COPY --from=node-builder --chown=www:www /app/public/build ./public/build
 COPY --from=node-builder --chown=www:www /app/node_modules ./node_modules
 
 # Storage und Cache Verzeichnisse vorbereiten
 RUN mkdir -p storage/framework/{sessions,views,cache} \
     && mkdir -p storage/logs \
+    && mkdir -p storage/app/public \
     && mkdir -p bootstrap/cache \
     && mkdir -p /var/log/php \
     && chown -R www:www storage bootstrap/cache /var/log/php \
