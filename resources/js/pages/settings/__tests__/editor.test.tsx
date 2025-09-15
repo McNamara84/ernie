@@ -67,6 +67,11 @@ describe('EditorSettings page', () => {
         screen.getAllByRole('table').forEach((table) => {
             expect(table.parentElement).toHaveClass('overflow-x-auto');
         });
+        const saveButtons = screen.getAllByRole('button', { name: 'Save' });
+        expect(saveButtons).toHaveLength(2);
+        expect(saveButtons[0].nextElementSibling).toBe(grid);
+        expect(grid.nextElementSibling).toBe(saveButtons[1]);
+        expect(within(grid).queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
         expect(useFormMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 resourceTypes: [{ id: 1, name: 'Dataset', active: true, elmo_active: false }],

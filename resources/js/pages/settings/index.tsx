@@ -161,7 +161,10 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Editor Settings" />
-            <form onSubmit={handleSubmit} className="p-4">
+            <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4">
+                <Button type="submit" className="self-start" disabled={processing}>
+                    Save
+                </Button>
                 <BentoGrid data-testid="bento-grid">
                     <BentoGridItem aria-labelledby="licenses-heading" className="md:row-span-4 lg:row-span-2">
                         <h2 id="licenses-heading" className="text-lg font-semibold">
@@ -435,11 +438,11 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                                 />
                             </div>
                         </div>
-                        <Button type="submit" className="self-start" disabled={processing}>
-                            Save
-                        </Button>
                     </BentoGridItem>
                 </BentoGrid>
+                <Button type="submit" className="self-start" disabled={processing}>
+                    Save
+                </Button>
             </form>
         </AppLayout>
     );
