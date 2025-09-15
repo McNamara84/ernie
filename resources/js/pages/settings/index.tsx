@@ -166,7 +166,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                     Save
                 </Button>
                 <BentoGrid data-testid="bento-grid">
-                    <BentoGridItem aria-labelledby="licenses-heading">
+                    <BentoGridItem aria-labelledby="licenses-heading" className="md:row-span-4 lg:row-span-2">
                         <h2 id="licenses-heading" className="text-lg font-semibold">
                             Licenses
                         </h2>
@@ -222,7 +222,6 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <div className="grid gap-4 md:col-span-1 lg:col-span-2 md:grid-cols-1 lg:grid-cols-2">
                     <BentoGridItem aria-labelledby="resource-types-heading">
                         <h2 id="resource-types-heading" className="text-lg font-semibold">
                             Resource Types
@@ -440,7 +439,6 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                             </div>
                         </div>
                     </BentoGridItem>
-                    </div>
                 </BentoGrid>
                 <Button type="submit" className="self-start" disabled={processing}>
                     Save
