@@ -4,7 +4,7 @@ services:
     env_file:
       - stack.env
     ports:
-      - "${APP_PORT:-8080}:8000"
+      - "${APP_PORT:-8080}:80"
     volumes:
       - ./:/app
     depends_on:
