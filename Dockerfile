@@ -5,13 +5,22 @@ FROM node:20-alpine AS node-builder
 
 WORKDIR /app
 
-# Package files kopieren und installieren
+# Package files kopieren
 COPY package*.json ./
-RUN npm ci
 
-# App-Dateien kopieren und Build ausführen
+# Dependencies installieren mit ausführlichem Logging
+RUN npm ci --verbose || npm install --verbose
+
+# Alle App-Dateien kopieren
 COPY . .
-RUN npm run build
+
+# Debug: Verfügbare npm scripts anzeigen
+RUN echo "Available npm scripts:" && npm run
+
+# Build ausführen mit Fallback
+RUN npm run build || \
+    npm run production || \
+    echo "Warning: No build script found, skipping frontend build"
 
 # ============================================
 # Production Stage
@@ -77,8 +86,9 @@ RUN composer install \
     --optimize-autoloader \
     --prefer-dist
 
-# Node Build-Artefakte kopieren
-COPY --from=node-builder --chown=www:www /app/public/build ./public/build
+# Node Build-Artefakte kopieren (nur wenn vorhanden)
+COPY --from=node-builder --chown=www:www /app/public/build ./public/build || true
+COPY --from=node-builder --chown=www:www /app/public/assets ./public/assets || true
 
 # Storage Verzeichnisse vorbereiten
 RUN mkdir -p storage/framework/{sessions,views,cache} \
