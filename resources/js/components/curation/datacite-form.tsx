@@ -141,6 +141,17 @@ export default function DataCiteForm({
     };
 
     const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
+    const hasMainTitle = titles.some(
+        (t) => t.title && t.titleType === 'main-title',
+    );
+    const hasLicense = licenseEntries.some((l) => l.license);
+    const isFormValid = Boolean(
+        form.year &&
+            form.resourceType &&
+            form.language &&
+            hasMainTitle &&
+            hasLicense,
+    );
 
     const handleLicenseChange = (index: number, value: string) => {
         setLicenseEntries((prev) => {
@@ -222,7 +233,7 @@ export default function DataCiteForm({
                             />
                             <SelectField
                                 id="language"
-                                label="Language of Data"
+                                label="Language of Dataset"
                                 value={form.language}
                                 onValueChange={(val) => handleChange('language', val)}
                                 options={languages.map((l) => ({
@@ -230,6 +241,7 @@ export default function DataCiteForm({
                                     label: l.name,
                                 }))}
                                 className="md:col-span-2"
+                                required
                             />
                         </div>
                         <div className="space-y-4 mt-3">
@@ -293,7 +305,9 @@ export default function DataCiteForm({
                 </AccordionItem>
             </Accordion>
             <div className="mt-4">
-                <Button type="submit">Save</Button>
+                <Button type="submit" disabled={!isFormValid} aria-disabled={!isFormValid}>
+                    Save
+                </Button>
             </div>
         </form>
     );
