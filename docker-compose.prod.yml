@@ -97,7 +97,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    image: ${APP_NAME:-laravel-app}:latest
+    image: ernie:latest
     container_name: ${APP_NAME:-laravel-app}_queue
     restart: unless-stopped
     working_dir: /var/www/html
@@ -118,7 +118,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    image: ${APP_NAME:-laravel-app}:latest
+    image: ernie:latest
     container_name: ${APP_NAME:-laravel-app}_scheduler
     restart: unless-stopped
     working_dir: /var/www/html
