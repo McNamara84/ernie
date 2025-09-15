@@ -87,8 +87,8 @@ RUN composer install \
     --prefer-dist
 
 # Node Build-Artefakte kopieren (nur wenn vorhanden)
-COPY --from=node-builder --chown=www:www /app/public/build ./public/build || true
-COPY --from=node-builder --chown=www:www /app/public/assets ./public/assets || true
+COPY --from=node-builder --chown=www:www /app/public/build ./public/build
+COPY --from=node-builder --chown=www:www /app/public/assets ./public/assets
 
 # Storage Verzeichnisse vorbereiten
 RUN mkdir -p storage/framework/{sessions,views,cache} \
