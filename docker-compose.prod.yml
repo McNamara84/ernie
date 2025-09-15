@@ -1,4 +1,18 @@
 services:
+  migration:
+    image: bitnami/laravel:latest
+    env_file:
+      - stack.env
+    volumes:
+      - ./:/app
+    command: ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force"]
+    depends_on:
+      dbernie:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: "no"
+
   app:
     image: bitnami/laravel:latest
     env_file:
@@ -8,7 +22,10 @@ services:
     volumes:
       - ./:/app
     depends_on:
-      - dbernie
+      dbernie:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
