@@ -14,6 +14,8 @@ services:
     depends_on:
       - db
     environment:
+      - APP_URL=https://env.rz-vm182.gfz.de/ernie
+      - ASSET_URL=https://env.rz-vm182.gfz.de/ernie
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
