@@ -62,13 +62,30 @@ class AppServiceProvider extends ServiceProvider
     {
         $configured = Env::get('DB_DATABASE');
 
-        if (is_string($configured) && $configured !== '') {
-            return $this->isAbsolutePath($configured)
+        if ($configured === ':memory:') {
+            return ':memory:';
+        }
+
+        $path = database_path('database.sqlite');
+
+        if (is_string($configured) && $configured !== '' && $this->looksLikeSqlitePath($configured)) {
+            $path = $this->isAbsolutePath($configured)
                 ? $configured
                 : base_path($configured);
         }
 
-        return database_path('database.sqlite');
+        $this->ensureSqliteDatabaseExists($path);
+
+        return $path;
+    }
+
+    private function looksLikeSqlitePath(string $path): bool
+    {
+        $normalized = strtolower($path);
+
+        return str_contains($path, '/')
+            || str_contains($path, '\\')
+            || str_ends_with($normalized, '.sqlite');
     }
 
     private function isAbsolutePath(string $path): bool
@@ -82,6 +99,23 @@ class AppServiceProvider extends ServiceProvider
         }
 
         return strlen($path) > 1 && ctype_alpha($path[0]) && $path[1] === ':';
+    }
+
+    private function ensureSqliteDatabaseExists(string $path): void
+    {
+        if ($path === ':memory:') {
+            return;
+        }
+
+        $directory = dirname($path);
+
+        if (! is_dir($directory) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw new \RuntimeException(sprintf('Unable to create directory for SQLite database at [%s].', $directory));
+        }
+
+        if (! file_exists($path) && ! touch($path)) {
+            throw new \RuntimeException(sprintf('Unable to create SQLite database file at [%s].', $path));
+        }
     }
 
     private function setEnvironmentValue(string $key, string $value): void
