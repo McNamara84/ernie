@@ -1,13 +1,16 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/react-starter-kit",
+    "name": "mcnamara84/ernie",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.",
     "keywords": [
-        "laravel",
-        "framework"
+        "rdm",
+        "gfz",
+        "research data",
+        "metadata",
+        "editor"
     ],
-    "license": "MIT",
+    "license": "GPL-3.0-or-later",
     "require": {
         "php": "^8.2",
         "inertiajs/inertia-laravel": "^2.0",
