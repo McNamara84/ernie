@@ -43,9 +43,10 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
-      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix,ernie-headers"
+      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix@docker,ernie-headers@docker"
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
       - "traefik.http.middlewares.ernie-headers.headers.customrequestheaders.X-Forwarded-Prefix=/ernie"
+      - "traefik.http.services.ernie-router.service=ernie-service"
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
 
