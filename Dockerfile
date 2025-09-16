@@ -11,6 +11,8 @@ RUN apt-get update \
         php-cli \
         php-mbstring \
         php-xml \
+        php-xsl \
+        php-sodium \
         php-zip \
         php-intl \
         php-bcmath \
