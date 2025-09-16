@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     libsodium-dev \
     libxslt1-dev \
+    libicu-dev \
+    g++ \
     nodejs \
     npm \
     netcat-traditional
