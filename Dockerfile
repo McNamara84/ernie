@@ -6,6 +6,8 @@ FROM node:20-bookworm-slim AS node-builder
 # Benötigte PHP-CLI Pakete für Wayfinder-Generierung installieren
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
         php-cli \
         php-mbstring \
         php-xml \
@@ -15,19 +17,36 @@ RUN apt-get update \
         php-gd \
         php-curl \
         php-mysql \
+        php-sodium \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Composer bereitstellen
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
 WORKDIR /app
 
-# Package files kopieren
-COPY package*.json ./
+# Package und Composer Dateien kopieren
+COPY package*.json composer.json composer.lock ./
 
 # Dependencies installieren mit ausführlichem Logging
 RUN npm ci --verbose || npm install --verbose
 
 # Alle App-Dateien kopieren
 COPY . .
+
+# Laravel für Wayfinder vorbereiten und Composer Dependencies installieren
+RUN set -eux; \
+    if [ ! -f .env ]; then cp .env.example .env; fi; \
+    mkdir -p storage/framework/{cache,sessions,views}; \
+    mkdir -p storage/logs; \
+    mkdir -p storage/app/public; \
+    composer install \
+        --no-interaction \
+        --no-dev \
+        --prefer-dist \
+        --optimize-autoloader
 
 # Debug: Verfügbare npm scripts anzeigen
 RUN echo "Available npm scripts:" && npm run
