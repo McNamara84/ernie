@@ -17,7 +17,7 @@ RUN apt-get update \
         php-gd \
         php-curl \
         php-mysql \
-        php-sodium \
+        && php -m | grep -qi sodium \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
