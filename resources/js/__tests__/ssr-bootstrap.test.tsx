@@ -54,7 +54,7 @@ describe('SSR bootstrap', () => {
             page: typeof page;
             title: (title?: string) => string;
             resolve: (name: string) => unknown;
-            setup: (args: { App: React.ComponentType<any>; props: any }) => React.ReactElement;
+            setup: <P>(args: { App: React.ComponentType<P>; props: P }) => React.ReactElement<P>;
             render: (...args: unknown[]) => unknown;
         };
 
@@ -72,7 +72,9 @@ describe('SSR bootstrap', () => {
         expect(resolved).toBe('resolved-component');
 
         const props = { greeting: 'Hello from SSR' };
-        const AppComponent = (componentProps: typeof props) => <div {...componentProps} />;
+        const AppComponent: React.ComponentType<typeof props> = (componentProps) => (
+            <div {...componentProps} />
+        );
         const rendered = options.setup({ App: AppComponent, props });
         expect(rendered.type).toBe(AppComponent);
         expect(rendered.props).toEqual(props);

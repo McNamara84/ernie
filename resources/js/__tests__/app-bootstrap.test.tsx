@@ -53,7 +53,7 @@ describe('client bootstrap', () => {
         const options = mocks.createInertiaAppMock.mock.calls[0][0] as {
             title: (title?: string) => string;
             resolve: (name: string) => unknown;
-            setup: (args: { el: Element; App: React.ComponentType<any>; props: any }) => void;
+            setup: <P>(args: { el: Element; App: React.ComponentType<P>; props: P }) => void;
             progress: { color: string };
         };
 
@@ -68,7 +68,9 @@ describe('client bootstrap', () => {
 
         const el = document.createElement('div');
         const props = { initialPage: { component: 'Dashboard' } };
-        const AppComponent = (componentProps: typeof props) => <div {...componentProps} />;
+        const AppComponent: React.ComponentType<typeof props> = (componentProps) => (
+            <div {...componentProps} />
+        );
 
         options.setup({ el, App: AppComponent, props });
 
