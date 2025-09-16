@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        if (request()->header('X-Forwarded-Prefix')) {
+        URL::forceRootUrl(
+            request()->getSchemeAndHttpHost() . 
+            request()->header('X-Forwarded-Prefix')
+        );
+    }
     }
 }
