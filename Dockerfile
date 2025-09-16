@@ -68,6 +68,8 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    libxslt1-dev \
+    libsodium-dev \
     zip \
     supervisor \
     mariadb-client \
@@ -84,7 +86,9 @@ RUN docker-php-ext-install \
     gd \
     zip \
     opcache \
-    intl
+    intl \
+    sodium \
+    xsl
 
 # Redis Extension
 RUN pecl install redis && docker-php-ext-enable redis
