@@ -8,7 +8,6 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernelContract;
 use App\Console\Kernel as ConsoleKernel;
-use App\Http\Middleware\HandleSubpath;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withSingletons([
@@ -25,7 +24,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
         $middleware->web(append: [
-            HandleSubpath::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

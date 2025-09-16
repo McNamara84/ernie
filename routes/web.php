@@ -22,10 +22,6 @@ Route::get('/changelog', function () {
     return Inertia::render('changelog');
 })->name('changelog');
 
-Route::get('/api-docs', function () {
-    return redirect('/api/v1/doc');
-})->name('api-docs');
-
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');

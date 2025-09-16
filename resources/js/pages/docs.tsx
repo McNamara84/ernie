@@ -74,7 +74,7 @@ export default function Docs() {
                     >
                         <p>Explore the REST API for integrating with the platform.</p>
                         <p>
-                            <a href="/api-docs" className="underline">
+                            <a href="/api/v1/doc" className="underline">
                                 View the API documentation
                             </a>
                         </p>
