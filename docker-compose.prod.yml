@@ -3,11 +3,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: app
     container_name: dockerized-laravel-app
     restart: unless-stopped
     volumes:
-      - ./:/var/www/html
-      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - storage-data:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
     networks:
       - dockerized-laravel-network
     depends_on:
@@ -23,14 +24,16 @@ services:
       - PUSHER_APP_CLUSTER=${PUSHER_APP_CLUSTER}
 
   webserver:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
     volumes:
-      - ./:/var/www/html
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - storage-data:/var/www/html/storage:ro
     networks:
       - dockerized-laravel-network
       - traefik
@@ -78,4 +81,8 @@ networks:
 
 volumes:
   dockerized-laravel-data:
+    driver: local
+  storage-data:
+    driver: local
+  bootstrap-cache:
     driver: local

@@ -12,6 +12,7 @@ BOOTSTRAP_CACHE="$APP_PATH/bootstrap/cache"
 ENV_FILE="$APP_PATH/.env"
 ENV_EXAMPLE_FILE="$APP_PATH/.env.example"
 ENV_PRODUCTION_FILE="$APP_PATH/.env.production"
+ARTISAN_BIN="$APP_PATH/artisan"
 
 mkdir -p "$CACHE_PATH"
 mkdir -p "$SESSIONS_PATH"
@@ -34,19 +35,31 @@ if [ ! -f "$ENV_FILE" ]; then
     fi
 fi
 
-if [ -f "$ENV_FILE" ] && [ -z "$(grep '^APP_KEY=' "$ENV_FILE" | grep -v '=$')" ]; then
-    php artisan key:generate
-elif [ ! -f "$ENV_FILE" ]; then
-    echo "Warning: skipping APP_KEY generation because $ENV_FILE is missing" >&2
-fi
+if [ -f "$ARTISAN_BIN" ]; then
+    if [ -f "$ENV_FILE" ]; then
+        if [ -z "$(grep '^APP_KEY=' "$ENV_FILE" | grep -v '=$')" ]; then
+            php artisan key:generate --force --no-interaction
+        fi
+    elif [ "${APP_KEY:-}" != "" ]; then
+        echo "Info: using APP_KEY from environment"
+    else
+        echo "Warning: skipping APP_KEY generation because $ENV_FILE is missing" >&2
+    fi
 
-if [ "$DB_HOST" != "" ]; then
-    until nc -z -v -w30 "$DB_HOST" 3306; do
-      echo "Waiting for database connection..."
-      sleep 5
-    done
+    if [ "${DB_HOST:-}" != "" ]; then
+        until nc -z -v -w30 "$DB_HOST" 3306; do
+          echo "Waiting for database connection..."
+          sleep 5
+        done
 
-    php artisan migrate --force
+        php artisan migrate --force --no-interaction
+    fi
+
+    if [ "${SKIP_STORAGE_LINK:-}" != "1" ]; then
+        php artisan storage:link --force --no-interaction
+    fi
+else
+    echo "Warning: artisan not found at $ARTISAN_BIN; skipping artisan commands" >&2
 fi
 
 exec "$@"

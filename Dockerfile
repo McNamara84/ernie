@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.2-fpm AS app
 
 WORKDIR /var/www/html
 
@@ -28,12 +28,23 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
+
 COPY . /var/www/html
 
-RUN composer install --no-interaction --no-plugins --no-scripts
-RUN npm install && npm run build
+RUN composer install --no-interaction --no-plugins --no-scripts \
+    && npm install \
+    && npm run build
 
 EXPOSE 9000
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
+
+FROM nginx:alpine AS nginx
+
+WORKDIR /var/www/html
+
+COPY docker/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
+COPY --from=app /var/www/html/public /var/www/html/public
+COPY --from=app /var/www/html/storage /var/www/html/storage
