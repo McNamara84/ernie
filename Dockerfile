@@ -30,8 +30,9 @@ WORKDIR /app
 # Package und Composer Dateien kopieren
 COPY package*.json composer.json composer.lock ./
 
-# Dependencies installieren mit ausführlichem Logging
-RUN npm ci --verbose || npm install --verbose
+# Dependencies inklusive optionaler Native-Binaries installieren
+# (wichtig für Rollup, Lightning CSS & Tailwind Oxide in CI-Umgebungen)
+RUN npm ci --include=optional --verbose || npm install --include=optional --verbose
 
 # Alle App-Dateien kopieren
 COPY . .
