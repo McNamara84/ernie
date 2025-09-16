@@ -11,7 +11,6 @@ RUN apt-get update \
         php-cli \
         php-mbstring \
         php-xml \
-        php-xsl \
         php-sodium \
         php-zip \
         php-intl \
@@ -20,6 +19,7 @@ RUN apt-get update \
         php-curl \
         php-mysql \
         && php -m | grep -qi sodium \
+        && php -m | grep -qi xsl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
