@@ -14,7 +14,7 @@ export default function Welcome() {
                 </p>
                 <p className="mt-6">
                     <Link
-                        href="/api/v1/doc"
+                        href="/api-docs"
                         className="rounded-sm border px-5 py-1.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         API Documentation
