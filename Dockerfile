@@ -4,24 +4,45 @@
 FROM node:20-bookworm-slim AS node-builder
 
 # Benötigte PHP-CLI Pakete für Wayfinder-Generierung installieren
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
         git \
         unzip \
         php-cli \
         php-mbstring \
         php-xml \
-        php-sodium \
         php-zip \
         php-intl \
         php-bcmath \
         php-gd \
         php-curl \
-        php-mysql \
-        && php -m | grep -qi sodium \
-        && php -m | grep -qi xsl \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+        php-mysql; \
+    PHP_MAJOR_MINOR="$(php -r 'echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;')"; \
+    if ! php -m | grep -qi sodium; then \
+        if apt-cache show "php${PHP_MAJOR_MINOR}-sodium" >/dev/null 2>&1; then \
+            apt-get install -y --no-install-recommends "php${PHP_MAJOR_MINOR}-sodium"; \
+        elif apt-cache show php-sodium >/dev/null 2>&1; then \
+            apt-get install -y --no-install-recommends php-sodium; \
+        else \
+            echo "Sodium extension not available for PHP ${PHP_MAJOR_MINOR}" >&2; \
+            exit 1; \
+        fi; \
+    fi; \
+    if ! php -m | grep -qi xsl; then \
+        if apt-cache show "php${PHP_MAJOR_MINOR}-xsl" >/dev/null 2>&1; then \
+            apt-get install -y --no-install-recommends "php${PHP_MAJOR_MINOR}-xsl"; \
+        elif apt-cache show php-xsl >/dev/null 2>&1; then \
+            apt-get install -y --no-install-recommends php-xsl; \
+        else \
+            echo "XSL extension not available for PHP ${PHP_MAJOR_MINOR}" >&2; \
+            exit 1; \
+        fi; \
+    fi; \
+    php -m | grep -qi sodium; \
+    php -m | grep -qi xsl; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # Composer bereitstellen
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
