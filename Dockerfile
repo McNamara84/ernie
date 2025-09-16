@@ -18,7 +18,7 @@ COPY . .
 RUN echo "Available npm scripts:" && npm run
 
 # Build ausführen mit Fallback
-RUN npm run build || npm run production
+RUN npm run build
 
 # ============================================
 # Production Stage
