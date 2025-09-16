@@ -1,7 +1,22 @@
 # ============================================
 # Build Stage für Node/React
 # ============================================
-FROM node:20-alpine AS node-builder
+FROM node:20-bookworm-slim AS node-builder
+
+# Benötigte PHP-CLI Pakete für Wayfinder-Generierung installieren
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        php-cli \
+        php-mbstring \
+        php-xml \
+        php-zip \
+        php-intl \
+        php-bcmath \
+        php-gd \
+        php-curl \
+        php-mysql \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
