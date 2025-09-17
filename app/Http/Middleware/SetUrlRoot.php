@@ -16,14 +16,13 @@ class SetUrlRoot
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Force die Root-URL mit dem /ernie Präfix
-        URL::forceRootUrl(config('app.url'));
+        $prefix = $request->header('X-Forwarded-Prefix');
         
-        // Wichtig für HTTPS
-        if (config('app.env') === 'production') {
-            URL::forceScheme('https');
+        if ($prefix) {
+            $prefix = '/' . trim($prefix, '/');
+            URL::forceRootUrl($request->getSchemeAndHttpHost() . $prefix);
         }
-        
+
         return $next($request);
     }
 }
