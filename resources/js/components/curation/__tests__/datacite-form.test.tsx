@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, it, expect } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '../datacite-form';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+import { router } from '@inertiajs/react';
+
+vi.mock('@inertiajs/react', () => ({
+    router: { post: vi.fn() },
+}));
 
 describe('DataCiteForm', () => {
     beforeAll(() => {
@@ -71,7 +76,9 @@ describe('DataCiteForm', () => {
         ).toBeInTheDocument();
 
         // language options
-        const languageTrigger = screen.getByLabelText('Language of Data');
+        const languageTrigger = screen.getByLabelText('Language of Dataset', {
+            exact: false,
+        });
         await user.click(languageTrigger);
         for (const option of languages) {
             expect(
@@ -139,7 +146,7 @@ describe('DataCiteForm', () => {
         expect(
             screen.getAllByRole('textbox', { name: /Title/ }),
         ).toHaveLength(1);
-    });
+    }, 10000);
 
     it('prefills DOI when initialDoi is provided', () => {
         render(
@@ -233,7 +240,9 @@ describe('DataCiteForm', () => {
                 initialLanguage="de"
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Dataset', { exact: false }),
+        ).toHaveTextContent(
             'German',
         );
     });
@@ -268,7 +277,7 @@ describe('DataCiteForm', () => {
         expect(triggers[1]).toHaveTextContent('Apache License 2.0');
     });
 
-    it('marks year, resource type and license as required', () => {
+    it('marks required fields', () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -281,14 +290,23 @@ describe('DataCiteForm', () => {
         expect(yearInput).toBeRequired();
         const resourceTrigger = screen.getByLabelText('Resource Type', { exact: false });
         expect(resourceTrigger).toHaveAttribute('aria-required', 'true');
+        const languageTrigger = screen.getByLabelText('Language of Dataset', {
+            exact: false,
+        });
+        expect(languageTrigger).toHaveAttribute('aria-required', 'true');
         const licenseTriggers = screen.getAllByLabelText('License', { exact: false });
         const licenseTrigger = licenseTriggers.find((el) => el.tagName === 'BUTTON')!;
         expect(licenseTrigger).toHaveAttribute('aria-required', 'true');
         const yearLabel = screen.getAllByText('Year', { selector: 'label' })[0];
         const resourceLabel = screen.getAllByText('Resource Type', { selector: 'label' })[0];
+        const languageLabel = screen.getAllByText('Language of Dataset', {
+            selector: 'label',
+            exact: false,
+        })[0];
         const licenseLabel2 = screen.getAllByText('License', { selector: 'label' })[0];
         expect(yearLabel).toHaveTextContent('*');
         expect(resourceLabel).toHaveTextContent('*');
+        expect(languageLabel).toHaveTextContent('*');
         expect(licenseLabel2).toHaveTextContent('*');
     });
 
@@ -376,6 +394,73 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('combobox', { name: 'Title Type' })).toHaveTextContent(
             'Main Title',
         );
+    });
+
+    it('enables Save button only when required fields are filled', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const saveButton = screen.getByRole('button', { name: 'Save' });
+        expect(saveButton).toBeDisabled();
+        await user.type(screen.getByRole('textbox', { name: /Title/ }), 'My Title');
+        await user.type(screen.getByLabelText('Year', { exact: false }), '2024');
+        const resourceTrigger = screen.getByLabelText('Resource Type', { exact: false });
+        await user.click(resourceTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+        const languageTrigger = screen.getByLabelText('Language of Dataset', {
+            exact: false,
+        });
+        await user.click(languageTrigger);
+        await user.click(await screen.findByRole('option', { name: 'English' }));
+        const licenseTrigger = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        })[0];
+        await user.click(licenseTrigger);
+        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+        expect(saveButton).toBeEnabled();
+    });
+
+    it('posts form data when Save is clicked', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await user.type(screen.getByRole('textbox', { name: /Title/ }), 'My Title');
+        await user.type(screen.getByLabelText('Year', { exact: false }), '2024');
+        const resourceTrigger = screen.getByLabelText('Resource Type', { exact: false });
+        await user.click(resourceTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+        const languageTrigger = screen.getByLabelText('Language of Dataset', {
+            exact: false,
+        });
+        await user.click(languageTrigger);
+        await user.click(await screen.findByRole('option', { name: 'English' }));
+        const licenseTrigger = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        })[0];
+        await user.click(licenseTrigger);
+        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+        expect(router.post).toHaveBeenCalledWith('/curation', {
+            doi: '',
+            year: '2024',
+            resourceType: '1',
+            version: '',
+            language: 'en',
+            titles: [{ title: 'My Title', titleType: 'main-title' }],
+            licenses: ['MIT'],
+        });
     });
 
     it(

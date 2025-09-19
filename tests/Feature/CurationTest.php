@@ -1,8 +1,15 @@
 <?php
 
 use App\Models\User;
+use App\Models\ResourceType;
+use App\Models\TitleType;
+use App\Models\License;
+use App\Models\Language;
+use App\Models\Resource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Illuminate\Support\Facades\Cache;
+use Mockery;
 use function Pest\Laravel\withoutVite;
 
 uses(RefreshDatabase::class);
@@ -12,7 +19,8 @@ test('guests are redirected to login page', function () {
 });
 
 test('authenticated users can view curation page', function () {
-    $this->actingAs(User::factory()->create());
+    $user = User::factory()->create();
+    $this->actingAs($user);
 
     withoutVite();
 
@@ -23,4 +31,71 @@ test('authenticated users can view curation page', function () {
             ->where('titles', [])
             ->where('initialLicenses', [])
     );
+});
+
+test('authenticated users can save curation data', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $resourceType = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $titleTypes = [
+        'main-title' => TitleType::create(['name' => 'Main Title', 'slug' => 'main-title']),
+        'alternative-title' => TitleType::create(['name' => 'Alternative Title', 'slug' => 'alternative-title']),
+    ];
+    $license = License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
+    $language = Language::create(['code' => 'en', 'name' => 'English']);
+
+    $data = [
+        'doi' => '10.1234/abc',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'version' => '1.0',
+        'language' => $language->code,
+        'titles' => [
+            ['title' => 'My Title', 'titleType' => 'main-title'],
+            ['title' => 'Another Title', 'titleType' => 'alternative-title'],
+        ],
+        'licenses' => [$license->identifier],
+    ];
+
+    Cache::shouldReceive('rememberForever')
+        ->with("language_id:{$language->code}", Mockery::type('Closure'))
+        ->once()
+        ->andReturnUsing(fn ($key, $closure) => $closure());
+    Cache::shouldReceive('rememberForever')
+        ->with('title_type_ids_by_slug', Mockery::type('Closure'))
+        ->once()
+        ->andReturnUsing(fn ($key, $closure) => $closure());
+    Cache::shouldReceive('rememberForever')
+        ->with('license_ids_by_identifier', Mockery::type('Closure'))
+        ->once()
+        ->andReturnUsing(fn ($key, $closure) => $closure());
+
+    $this->post(route('curation.store'), $data)->assertRedirect(route('curation'));
+
+    $this->assertDatabaseHas('resources', [
+        'doi' => '10.1234/abc',
+        'year' => 2024,
+        'resource_type_id' => $resourceType->id,
+        'version' => '1.0',
+        'language_id' => $language->id,
+        'last_editor_id' => $user->id,
+        'curation' => false,
+    ]);
+
+    $resource = Resource::first();
+    $this->assertDatabaseHas('titles', [
+        'resource_id' => $resource->id,
+        'title' => 'My Title',
+        'title_type_id' => $titleTypes['main-title']->id,
+    ]);
+    $this->assertDatabaseHas('titles', [
+        'resource_id' => $resource->id,
+        'title' => 'Another Title',
+        'title_type_id' => $titleTypes['alternative-title']->id,
+    ]);
+    $this->assertDatabaseHas('license_resource', [
+        'resource_id' => $resource->id,
+        'license_id' => $license->id,
+    ]);
 });

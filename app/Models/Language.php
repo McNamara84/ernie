@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 
 class Language extends Model
 {
@@ -35,5 +36,13 @@ class Language extends Model
     public function scopeOrderByName(Builder $query): Builder
     {
         return $query->orderBy('name');
+    }
+
+    public static function idByCode(string $code): ?int
+    {
+        return Cache::rememberForever(
+            "language_id:{$code}",
+            fn () => static::where('code', $code)->value('id')
+        );
     }
 }

@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 
 class License extends Model
 {
@@ -35,6 +37,11 @@ class License extends Model
     public function scopeOrderByName(Builder $query): Builder
     {
         return $query->orderBy('name');
+    }
+
+    public static function idsByIdentifier(): Collection
+    {
+        return Cache::rememberForever('license_ids_by_identifier', fn () => static::pluck('id', 'identifier'));
     }
 }
 

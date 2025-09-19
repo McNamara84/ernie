@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\UploadXmlController;
+use App\Http\Controllers\CurationController;
 use App\Models\License;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Route;
@@ -51,6 +52,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'initialLicenses' => $request->query('licenses', []),
         ]);
     })->name('curation');
+
+    Route::post('curation', [CurationController::class, 'store'])
+        ->name('curation.store');
 });
 
 require __DIR__.'/settings.php';

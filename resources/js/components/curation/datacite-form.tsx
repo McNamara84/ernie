@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
@@ -10,6 +11,7 @@ import {
     AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+import { Button } from '@/components/ui/button';
 
 interface DataCiteFormData {
     doi: string;
@@ -139,6 +141,17 @@ export default function DataCiteForm({
     };
 
     const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
+    const hasMainTitle = titles.some(
+        (t) => t.title && t.titleType === 'main-title',
+    );
+    const hasLicense = licenseEntries.some((l) => l.license);
+    const isFormValid = Boolean(
+        form.year &&
+            form.resourceType &&
+            form.language &&
+            hasMainTitle &&
+            hasLicense,
+    );
 
     const handleLicenseChange = (index: number, value: string) => {
         setLicenseEntries((prev) => {
@@ -160,8 +173,17 @@ export default function DataCiteForm({
         setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
     };
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        router.post('/curation', {
+            ...form,
+            titles: titles.map(({ title, titleType }) => ({ title, titleType })),
+            licenses: licenseEntries.map((l) => l.license),
+        });
+    };
+
     return (
-        <form>
+        <form onSubmit={handleSubmit}>
             <Accordion
                 type="multiple"
                 defaultValue={['resource-info', 'licenses-rights']}
@@ -211,7 +233,7 @@ export default function DataCiteForm({
                             />
                             <SelectField
                                 id="language"
-                                label="Language of Data"
+                                label="Language of Dataset"
                                 value={form.language}
                                 onValueChange={(val) => handleChange('language', val)}
                                 options={languages.map((l) => ({
@@ -219,6 +241,7 @@ export default function DataCiteForm({
                                     label: l.name,
                                 }))}
                                 className="md:col-span-2"
+                                required
                             />
                         </div>
                         <div className="space-y-4 mt-3">
@@ -281,6 +304,11 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+            <div className="mt-4">
+                <Button type="submit" disabled={!isFormValid} aria-disabled={!isFormValid}>
+                    Save
+                </Button>
+            </div>
         </form>
     );
 }
