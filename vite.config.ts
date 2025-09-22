@@ -5,15 +5,6 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-    base: process.env.NODE_ENV === 'production' ? '/ernie/' : '/',
-    build: {
-        assetsDir: 'assets',
-        rollupOptions: {
-            output: {
-                manualChunks: undefined
-            }
-        }
-    },
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],
