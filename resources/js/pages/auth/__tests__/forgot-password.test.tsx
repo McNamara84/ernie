@@ -6,12 +6,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 let formErrors: { email?: string };
 let formProcessing: boolean;
 
+function resolveHref(href: unknown): string {
+    if (typeof href === 'string') {
+        return href;
+    }
+
+    if (href && typeof href === 'object' && 'url' in href && typeof (href as { url?: unknown }).url === 'string') {
+        return (href as { url: string }).url;
+    }
+
+    return '';
+}
+
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     Form: ({ children }: { children: (args: { processing: boolean; errors: typeof formErrors }) => React.ReactNode }) => (
         <form>{children({ processing: formProcessing, errors: formErrors })}</form>
     ),
-    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+    Link: ({ children, href }: { children?: React.ReactNode; href: unknown }) => (
+        <a href={resolveHref(href)}>{children}</a>
+    ),
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/PasswordResetLinkController', () => ({
@@ -22,11 +36,18 @@ vi.mock('@/actions/App/Http/Controllers/Auth/PasswordResetLinkController', () =>
     },
 }));
 
+function createRoute(path: string) {
+    const routeFn = () => ({ url: path });
+    routeFn.url = () => path;
+    return routeFn;
+}
+
 vi.mock('@/routes', () => ({
-    login: () => '/login',
-    home: () => '/',
-    about: () => '/about',
-    legalNotice: () => '/legal-notice',
+    login: createRoute('/login'),
+    home: createRoute('/'),
+    about: createRoute('/about'),
+    legalNotice: createRoute('/legal-notice'),
+    changelog: createRoute('/changelog'),
 }));
 
 describe('ForgotPassword page', () => {

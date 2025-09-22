@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach, Mock } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach, Mock } from 'vitest';
 import Changelog from '../changelog';
+import { __testing as basePathTesting } from '@/lib/base-path';
 
 vi.mock('@/layouts/public-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -69,6 +70,11 @@ describe('Changelog', () => {
         window.scrollTo = vi.fn();
     });
 
+    afterEach(() => {
+        document.head.innerHTML = '';
+        basePathTesting.resetBasePathCache();
+    });
+
     it('renders releases on a timeline and toggles grouped details', async () => {
         const user = userEvent.setup();
         render(<Changelog />);
@@ -99,5 +105,16 @@ describe('Changelog', () => {
         render(<Changelog />);
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent(/unable to load changelog/i);
+    });
+
+    it('fetches releases using the configured base path', async () => {
+        basePathTesting.setMetaBasePath('/ernie');
+        const fetchSpy = global.fetch as unknown as Mock;
+
+        render(<Changelog />);
+
+        await vi.waitFor(() => {
+            expect(fetchSpy).toHaveBeenCalledWith('/ernie/api/changelog');
+        });
     });
 });
