@@ -2,10 +2,11 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
+import { resolveBasePath } from './resources/js/lib/vite-base';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig({
-    base: '/ernie/',
+export default defineConfig(({ command }) => ({
+    base: resolveBasePath(command),
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],
@@ -38,4 +39,4 @@ export default defineConfig({
             ],
         },
     },
-});
+}));
