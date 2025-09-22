@@ -10,6 +10,10 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+Route::get('/ernie', function () {
+    return Inertia::render('welcome');
+})->name('home.subpath');
+
 Route::get('/about', function () {
     return Inertia::render('about');
 })->name('about');
