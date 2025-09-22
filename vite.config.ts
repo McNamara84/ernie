@@ -3,14 +3,18 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
+import { resolveViteBase } from './resources/js/lib/vite-base';
+
+const base = resolveViteBase(process.env.ASSET_URL);
 
 export default defineConfig({
-    base: '/ernie/',
+    base,
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],
             ssr: 'resources/js/ssr.tsx',
             refresh: true,
+            buildDirectory: 'build',
         }),
         react(),
         tailwindcss(),
