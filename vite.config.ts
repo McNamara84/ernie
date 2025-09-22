@@ -4,12 +4,14 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
-import { laravelPluginOptions, viteBasePath } from './resources/js/config/vite';
-
 export default defineConfig({
-    base: viteBasePath,
+    base: '/ernie/',
     plugins: [
-        laravel(laravelPluginOptions),
+        laravel({
+            input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],
+            ssr: 'resources/js/ssr.tsx',
+            refresh: true,
+        }),
         react(),
         tailwindcss(),
         wayfinder({
