@@ -1,27 +1,49 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import Welcome from '../welcome';
-import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { __testing as basePathTesting } from '@/lib/base-path';
+import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
 
 // mock @inertiajs/react and routes used in the component
 const usePageMock = vi.fn();
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+    Link: ({ children, href }: { children?: React.ReactNode; href: unknown }) => {
+        const resolvedHref =
+            typeof href === 'string'
+                ? href
+                : href && typeof href === 'object' && 'url' in (href as Record<string, unknown>)
+                  ? String((href as { url: string }).url)
+                  : '';
+
+        return <a href={resolvedHref}>{children}</a>;
+    },
     usePage: () => usePageMock(),
 }));
 
-vi.mock('@/routes', () => ({
-    dashboard: () => '/dashboard',
-    login: () => '/login',
-    about: () => '/about',
-    legalNotice: () => '/legal-notice',
-}));
+vi.mock('@/routes', async () => {
+    const { withBasePath } = await import('@/lib/base-path');
+
+    const makeRoute = (path: string) => ({ url: withBasePath(path) });
+
+    return {
+        dashboard: () => makeRoute('/dashboard'),
+        login: () => makeRoute('/login'),
+        about: () => makeRoute('/about'),
+        legalNotice: () => makeRoute('/legal-notice'),
+        changelog: () => makeRoute('/changelog'),
+    };
+});
 
 describe('Welcome', () => {
     beforeEach(() => {
         usePageMock.mockReturnValue({ props: { auth: {} } });
+    });
+
+    afterEach(() => {
+        document.head.innerHTML = '';
+        basePathTesting.resetBasePathCache();
     });
 
     it('renders the heading', () => {
@@ -49,6 +71,15 @@ describe('Welcome', () => {
         expect(screen.getByRole('link', { name: /api documentation/i })).toHaveAttribute(
             'href',
             '/api/v1/doc'
+        );
+    });
+
+    it('prefixes API documentation link with base path when configured', () => {
+        basePathTesting.setMetaBasePath('/ernie');
+        render(<Welcome />);
+        expect(screen.getByRole('link', { name: /api documentation/i })).toHaveAttribute(
+            'href',
+            '/ernie/api/v1/doc'
         );
     });
 });

@@ -3,16 +3,35 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import AuthSimpleLayout from '../auth-simple-layout';
 
+function resolveHref(href: unknown): string {
+    if (typeof href === 'string') {
+        return href;
+    }
+
+    if (href && typeof href === 'object' && 'url' in href && typeof (href as { url?: unknown }).url === 'string') {
+        return (href as { url: string }).url;
+    }
+
+    return '';
+}
+
 vi.mock('@inertiajs/react', () => ({
-    Link: ({ href, children }: { href: string; children?: React.ReactNode }) => (
-        <a href={href}>{children}</a>
+    Link: ({ href, children }: { href: unknown; children?: React.ReactNode }) => (
+        <a href={resolveHref(href)}>{children}</a>
     ),
 }));
 
+function createRoute(path: string) {
+    const routeFn = () => ({ url: path });
+    routeFn.url = () => path;
+    return routeFn;
+}
+
 vi.mock('@/routes', () => ({
-    home: () => '/',
-    about: () => '/about',
-    legalNotice: () => '/legal-notice',
+    home: createRoute('/'),
+    about: createRoute('/about'),
+    legalNotice: createRoute('/legal-notice'),
+    changelog: createRoute('/changelog'),
 }));
 
 describe('AuthSimpleLayout', () => {

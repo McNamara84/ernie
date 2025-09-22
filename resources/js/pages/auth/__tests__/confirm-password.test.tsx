@@ -6,6 +6,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const formErrors: { password?: string } = {};
 let formProcessing = false;
 
+function resolveHref(href: unknown): string {
+    if (typeof href === 'string') {
+        return href;
+    }
+
+    if (href && typeof href === 'object' && 'url' in href && typeof (href as { url?: unknown }).url === 'string') {
+        return (href as { url: string }).url;
+    }
+
+    return '';
+}
+
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     Form: ({
@@ -13,13 +25,22 @@ vi.mock('@inertiajs/react', () => ({
     }: {
         children: (args: { processing: boolean; errors: typeof formErrors }) => React.ReactNode;
     }) => <form>{children({ processing: formProcessing, errors: formErrors })}</form>,
-    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
+    Link: ({ children, href }: { children?: React.ReactNode; href: unknown }) => (
+        <a href={resolveHref(href)}>{children}</a>
+    ),
 }));
 
+function createRoute(path: string) {
+    const routeFn = () => ({ url: path });
+    routeFn.url = () => path;
+    return routeFn;
+}
+
 vi.mock('@/routes', () => ({
-    home: () => '/',
-    about: () => '/about',
-    legalNotice: () => '/legal-notice',
+    home: createRoute('/'),
+    about: createRoute('/about'),
+    legalNotice: createRoute('/legal-notice'),
+    changelog: createRoute('/changelog'),
 }));
 
 vi.mock('@/actions/App/Http/Controllers/Auth/ConfirmablePasswordController', () => ({

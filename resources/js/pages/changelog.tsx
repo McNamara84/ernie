@@ -1,4 +1,5 @@
 import PublicLayout from '@/layouts/public-layout';
+import { withBasePath } from '@/lib/base-path';
 import { Head } from '@inertiajs/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -28,7 +29,7 @@ export default function Changelog() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetch('/api/changelog')
+        fetch(withBasePath('/api/changelog'))
             .then((res) => {
                 if (!res.ok) {
                     throw new Error('Network response was not ok');
