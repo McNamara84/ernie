@@ -4,22 +4,8 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
-export const computeBasePath = (assetUrl?: string): string => {
-    if (!assetUrl) {
-        return '/build/';
-    }
-
-    const normalizedUrl = assetUrl.endsWith('/') ? assetUrl.slice(0, -1) : assetUrl;
-
-    return `${normalizedUrl}/build/`;
-};
-
-export default defineConfig(({ command }) => ({
-    ...(command === 'build'
-        ? {
-              base: computeBasePath(process.env.ASSET_URL),
-          }
-        : {}),
+export default defineConfig({
+    base: '/ernie/',
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],
@@ -52,4 +38,4 @@ export default defineConfig(({ command }) => ({
             ],
         },
     },
-}));
+});
