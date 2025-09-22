@@ -2,6 +2,7 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { withBasePath } from '@/lib/base-path';
 import { dashboard, settings } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
@@ -16,7 +17,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Curation',
-        href: '/curation',
+        href: withBasePath('/curation'),
         icon: Database,
     },
 ];
@@ -29,12 +30,12 @@ const footerNavItems: NavItem[] = [
     },
     {
         title: 'Changelog',
-        href: '/changelog',
+        href: withBasePath('/changelog'),
         icon: History,
     },
     {
         title: 'Documentation',
-        href: '/docs',
+        href: withBasePath('/docs'),
         icon: BookOpen,
     },
 ];

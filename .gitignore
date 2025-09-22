@@ -5,7 +5,11 @@
 /public/hot
 /public/storage
 /resources/js/actions
-/resources/js/routes
+/resources/js/routes/*
+!/resources/js/routes/*.ts
+!/resources/js/routes/**/*.ts
+/resources/js/routes/index.ts
+/resources/js/routes/**/index.ts
 /resources/js/wayfinder
 /storage/*.key
 /storage/pail

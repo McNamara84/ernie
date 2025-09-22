@@ -5,6 +5,13 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+    resolve: {
+        alias: [
+            { find: '@', replacement: '/resources/js' },
+            { find: '@/routes/', replacement: '/resources/js/routes-wrappers/' },
+            { find: '@/routes', replacement: '/resources/js/routes.ts' },
+        ],
+    },
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],

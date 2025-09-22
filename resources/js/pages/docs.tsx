@@ -1,4 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
+import { withBasePath } from '@/lib/base-path';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import {
@@ -8,14 +9,14 @@ import {
 } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
 
-const breadcrumbs: BreadcrumbItem[] = [
+export default function Docs() {
+    const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Documentation',
-            href: '/docs',
+            href: withBasePath('/docs'),
         },
-];
+    ];
 
-export default function Docs() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Documentation" />
@@ -30,7 +31,7 @@ export default function Docs() {
                     >
                         <p>Read guides for using the system.</p>
                         <p>
-                            <a href="/docs/users" className="underline">
+                            <a href={withBasePath('/docs/users')} className="underline">
                                 Go to the user documentation
                             </a>
                         </p>
@@ -74,7 +75,7 @@ export default function Docs() {
                     >
                         <p>Explore the REST API for integrating with the platform.</p>
                         <p>
-                            <a href="/api/v1/doc" className="underline">
+                            <a href={withBasePath('/api/v1/doc')} className="underline">
                                 View the API documentation
                             </a>
                         </p>

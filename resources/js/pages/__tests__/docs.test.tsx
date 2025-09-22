@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Docs from '../docs';
-import { describe, expect, it, vi } from 'vitest';
+import { __testing as basePathTesting } from '@/lib/base-path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -12,6 +13,11 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 
 describe('Docs page', () => {
+    afterEach(() => {
+        document.head.innerHTML = '';
+        basePathTesting.resetBasePathCache();
+    });
+
     it('renders collapsible triggers', () => {
         render(<Docs />);
         expect(screen.getByText('For Users')).toBeInTheDocument();
@@ -42,6 +48,15 @@ describe('Docs page', () => {
         fireEvent.click(screen.getByText('For Developers'));
         const link = screen.getByText('View the API documentation');
         expect(link).toHaveAttribute('href', '/api/v1/doc');
+    });
+
+    it('applies the base path to documentation links when configured', () => {
+        basePathTesting.setMetaBasePath('/ernie');
+        render(<Docs />);
+        fireEvent.click(screen.getByText('For Users'));
+        expect(screen.getByText('Go to the user documentation')).toHaveAttribute('href', '/ernie/docs/users');
+        fireEvent.click(screen.getByText('For Developers'));
+        expect(screen.getByText('View the API documentation')).toHaveAttribute('href', '/ernie/api/v1/doc');
     });
 });
 

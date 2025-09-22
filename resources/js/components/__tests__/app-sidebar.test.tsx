@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import { AppSidebar } from '../app-sidebar';
+import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { NavItem } from '@/types';
 
 const NavMainMock = vi.hoisted(() =>
@@ -53,26 +53,27 @@ vi.mock('@inertiajs/react', () => ({
         <a href={href}>{children}</a>
     ),
 }));
-const settingsRoute = vi.hoisted(() => ({ url: '/settings' }));
-vi.mock('@/routes', () => ({
-    dashboard: () => ({ url: '/dashboard' }),
-    about: () => '/about',
-    legalNotice: () => '/legal-notice',
-    settings: () => settingsRoute,
-}));
 vi.mock('../app-logo', () => ({
     default: () => <span>Logo</span>,
 }));
 
 describe('AppSidebar', () => {
-    it('renders main and footer navigation with user section', () => {
+    afterEach(() => {
+        basePathTesting.setMetaBasePath('');
+        basePathTesting.resetBasePathCache();
+        vi.resetModules();
+    });
+
+    it('renders main and footer navigation with user section', async () => {
+        const { AppSidebar } = await import('../app-sidebar');
+
         render(<AppSidebar />);
         expect(NavMainMock).toHaveBeenCalled();
         const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
-        expect(dashboardLink).toHaveAttribute('href', '/dashboard');
+        expect(dashboardLink).toHaveAttribute('href', withBasePath('/dashboard'));
 
         const curationLink = screen.getByRole('link', { name: /curation/i });
-        expect(curationLink).toHaveAttribute('href', '/curation');
+        expect(curationLink).toHaveAttribute('href', withBasePath('/curation'));
 
         const mainArgs = NavMainMock.mock.calls[0][0];
         expect(mainArgs.items.map((i: NavItem) => i.title)).toEqual([
@@ -89,15 +90,39 @@ describe('AppSidebar', () => {
         expect(footerArgs.className).toBe('mt-auto');
 
         const settingsLink = screen.getByRole('link', { name: /editor settings/i });
-        expect(settingsLink).toHaveAttribute('href', settingsRoute.url);
+        expect(settingsLink).toHaveAttribute('href', withBasePath('/settings'));
 
         const changelogLink = screen.getByRole('link', { name: /changelog/i });
-        expect(changelogLink).toHaveAttribute('href', '/changelog');
+        expect(changelogLink).toHaveAttribute('href', withBasePath('/changelog'));
 
         const docsLink = screen.getByRole('link', { name: /documentation/i });
-        expect(docsLink).toHaveAttribute('href', '/docs');
+        expect(docsLink).toHaveAttribute('href', withBasePath('/docs'));
 
         expect(screen.getByTestId('nav-user')).toBeInTheDocument();
+    });
+
+    it('applies the base path to navigation links when configured', async () => {
+        basePathTesting.setMetaBasePath('/ernie');
+        basePathTesting.resetBasePathCache();
+
+        vi.resetModules();
+        const routes = await import('@/routes');
+        const { applyBasePathToRoutes } = await import('@/lib/base-path');
+        applyBasePathToRoutes({
+            dashboard: routes.dashboard,
+            settings: routes.settings,
+            changelog: routes.changelog,
+            docs: routes.docs,
+        });
+        const { AppSidebar } = await import('../app-sidebar');
+
+        render(<AppSidebar />);
+
+        expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/ernie/dashboard');
+        expect(screen.getByRole('link', { name: /curation/i })).toHaveAttribute('href', '/ernie/curation');
+        expect(screen.getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/ernie/changelog');
+        expect(screen.getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/ernie/docs');
+        expect(screen.getByRole('link', { name: /editor settings/i })).toHaveAttribute('href', '/ernie/settings');
     });
 });
 

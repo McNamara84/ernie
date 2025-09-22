@@ -2,7 +2,9 @@ import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Dashboard, { handleXmlFiles } from '../dashboard';
 import { latestVersion } from '@/lib/version';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { applyBasePathToRoutes, __testing as basePathTesting } from '@/lib/base-path';
+import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
@@ -12,27 +14,49 @@ vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     usePage: () => usePageMock(),
     router: routerMock,
-    Link: ({ href, children, ...props }: { href: string; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-        <a href={href} {...props}>
-            {children}
-        </a>
-    ),
+    Link: ({ href, children, ...props }: { href: unknown; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+        const resolvedHref =
+            typeof href === 'string'
+                ? href
+                : href && typeof href === 'object' && 'url' in (href as Record<string, unknown>)
+                  ? String((href as { url: string }).url)
+                  : '';
+
+        return (
+            <a href={resolvedHref} {...props}>
+                {children}
+            </a>
+        );
+    },
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
-vi.mock('@/routes', () => ({
-    dashboard: () => ({ url: '/dashboard' }),
-    about: () => '/about',
-    legalNotice: () => '/legal-notice',
-}));
+vi.mock('@/routes', async () => {
+    const { withBasePath } = await import('@/lib/base-path');
+
+    const makeRoute = (path: string) => ({ url: withBasePath(path) });
+
+    return {
+        dashboard: () => makeRoute('/dashboard'),
+        curation: () => makeRoute('/curation'),
+        changelog: () => makeRoute('/changelog'),
+        about: () => makeRoute('/about'),
+        legalNotice: () => makeRoute('/legal-notice'),
+    };
+});
 
 describe('Dashboard', () => {
     beforeEach(() => {
         usePageMock.mockReturnValue({ props: { auth: { user: { name: 'Jane' } } } });
         handleXmlFilesSpy.mockClear();
+    });
+
+    afterEach(() => {
+        document.head.innerHTML = '';
+        basePathTesting.resetBasePathCache();
     });
 
     it('greets the user by name', () => {
@@ -111,7 +135,9 @@ describe('Dashboard', () => {
 
 describe('handleXmlFiles', () => {
     beforeEach(() => {
+        routerMock.get.mockReset();
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
+        basePathTesting.resetBasePathCache();
     });
 
     it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language, Resource Type, Titles and Licenses', async () => {
@@ -267,6 +293,35 @@ describe('handleXmlFiles', () => {
 
         expect(fetchMock).toHaveBeenCalled();
         expect(routerMock.get).toHaveBeenCalledWith('/curation', { resourceType: '1' });
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
+    it('honors a configured base path for uploads and redirects', async () => {
+        basePathTesting.setMetaBasePath('/ernie');
+        applyBasePathToRoutes({ uploadXml: uploadXmlRoute });
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue(
+                {
+                    ok: true,
+                    json: async () => ({
+                        doi: null,
+                        year: null,
+                        version: null,
+                        language: null,
+                        resourceType: null,
+                        titles: [],
+                        licenses: [],
+                    }),
+                } as Response,
+            );
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalledWith('/ernie/dashboard/upload-xml', expect.any(Object));
+        expect(routerMock.get).toHaveBeenCalledWith('/ernie/curation', expect.any(Object));
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });

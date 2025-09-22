@@ -1,5 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
-import { dashboard } from '@/routes';
+import { curation as curationRoute, dashboard, changelog as changelogRoute } from '@/routes';
+import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +22,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
     formData.append('file', files[0]);
 
     try {
-        const response = await fetch('/dashboard/upload-xml', {
+        const response = await fetch(uploadXmlRoute.url(), {
             method: 'POST',
             body: formData,
             headers: {
@@ -64,7 +65,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 query[`licenses[${i}]`] = l;
             });
         }
-        router.get('/curation', query);
+        router.get(curationRoute().url, query);
     } catch (error) {
         console.error('XML upload failed', error);
         if (error instanceof Error) {
@@ -175,7 +176,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                         <td className="py-1">ERNIE Version</td>
                                         <td className="py-1 text-right">
                                             <Link
-                                                href="/changelog"
+                                                href={changelogRoute().url}
                                                 aria-label={`View changelog for version ${latestVersion}`}
                                             >
                                                 <Badge className="w-14 bg-[#003da6] text-white">

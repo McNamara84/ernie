@@ -1,5 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import DataCiteForm from '@/components/curation/datacite-form';
+import { curation } from '@/routes';
+import { withBasePath } from '@/lib/base-path';
 import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import {
@@ -9,13 +11,6 @@ import {
     type License,
     type Language,
 } from '@/types';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Curation',
-        href: '/curation',
-    },
-];
 
 interface CurationProps {
     maxTitles: number;
@@ -46,12 +41,19 @@ export default function Curation({
     const [languages, setLanguages] = useState<Language[] | null>(null);
     const [error, setError] = useState(false);
 
+    const breadcrumbs: BreadcrumbItem[] = [
+        {
+            title: 'Curation',
+            href: curation().url,
+        },
+    ];
+
     useEffect(() => {
         Promise.all([
-            fetch('/api/v1/resource-types/ernie'),
-            fetch('/api/v1/title-types/ernie'),
-            fetch('/api/v1/licenses/ernie'),
-            fetch('/api/v1/languages/ernie'),
+            fetch(withBasePath('/api/v1/resource-types/ernie')),
+            fetch(withBasePath('/api/v1/title-types/ernie')),
+            fetch(withBasePath('/api/v1/licenses/ernie')),
+            fetch(withBasePath('/api/v1/languages/ernie')),
         ])
             .then(async ([resTypes, titleRes, licenseRes, languageRes]) => {
                 if (!resTypes.ok || !titleRes.ok || !licenseRes.ok || !languageRes.ok)

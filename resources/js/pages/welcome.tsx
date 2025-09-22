@@ -1,4 +1,5 @@
 import PublicLayout from '@/layouts/public-layout';
+import { withBasePath } from '@/lib/base-path';
 import { Head, Link } from '@inertiajs/react';
 
 export default function Welcome() {
@@ -14,7 +15,7 @@ export default function Welcome() {
                 </p>
                 <p className="mt-6">
                     <Link
-                        href="/api/v1/doc"
+                        href={withBasePath('/api/v1/doc')}
                         className="rounded-sm border px-5 py-1.5 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         API Documentation

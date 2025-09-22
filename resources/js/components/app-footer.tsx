@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { about, legalNotice } from '@/routes';
+import { about, changelog as changelogRoute, legalNotice } from '@/routes';
 import { latestVersion } from '@/lib/version';
 
 export function AppFooter() {
@@ -7,17 +7,17 @@ export function AppFooter() {
         <footer className="border-t py-4 text-sm text-neutral-600 dark:text-neutral-300">
             <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-2 px-4 md:flex-row">
                 <Link
-                    href="/changelog"
+                    href={changelogRoute().url}
                     className="hover:underline"
                     aria-label={`View changelog for version ${latestVersion}`}
                 >
                     ERNIE v{latestVersion}
                 </Link>
                 <div className="flex gap-4">
-                    <Link href={about()} className="hover:underline">
+                    <Link href={about().url} className="hover:underline">
                         About
                     </Link>
-                    <Link href={legalNotice()} className="hover:underline">
+                    <Link href={legalNotice().url} className="hover:underline">
                         Legal Notice
                     </Link>
                 </div>

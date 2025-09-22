@@ -1,10 +1,11 @@
+import { withBasePath } from '@/lib/base-path';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Documentation', href: '/docs' },
-    { title: 'User guide', href: '/docs/users' },
+    { title: 'Documentation', href: withBasePath('/docs') },
+    { title: 'User guide', href: withBasePath('/docs/users') },
 ];
 
 export default function DocsUsers() {

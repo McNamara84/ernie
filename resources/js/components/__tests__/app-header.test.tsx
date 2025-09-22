@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppHeader } from '../app-header';
+import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 import type { BreadcrumbItem } from '@/types';
 import type { ComponentProps } from 'react';
 
@@ -79,16 +79,13 @@ vi.mock('lucide-react', () => ({
     Settings: () => <svg />,
     FileText: () => <svg />,
 }));
-const settingsRoute = vi.hoisted(() => ({ url: '/settings' }));
-vi.mock('@/routes', () => ({
-    dashboard: () => ({ url: '/dashboard' }),
-    docs: () => ({ url: '/docs' }),
-    about: () => '/about',
-    legalNotice: () => '/legal-notice',
-    settings: () => settingsRoute,
-}));
-
 describe('AppHeader', () => {
+    afterEach(() => {
+        basePathTesting.setMetaBasePath('');
+        basePathTesting.resetBasePathCache();
+        vi.resetModules();
+    });
+
     beforeEach(() => {
         usePageMock.mockReturnValue({
             props: { auth: { user: { name: 'John Doe', avatar: '/avatar.png' } } },
@@ -96,7 +93,9 @@ describe('AppHeader', () => {
         });
     });
 
-    it('renders navigation links, breadcrumbs and user initials', () => {
+    it('renders navigation links, breadcrumbs and user initials', async () => {
+        const { AppHeader } = await import('../app-header');
+
         render(
             <AppHeader
                 breadcrumbs={[
@@ -107,17 +106,17 @@ describe('AppHeader', () => {
         );
         screen
             .getAllByRole('link', { name: /dashboard/i })
-            .forEach((link) => expect(link).toHaveAttribute('href', '/dashboard'));
+            .forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/dashboard')));
         const changelogLinks = screen.getAllByRole('link', { name: /changelog/i });
-        changelogLinks.forEach((link) => expect(link).toHaveAttribute('href', '/changelog'));
+        changelogLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/changelog')));
         const docLinks = screen.getAllByRole('link', { name: /^documentation$/i });
-        docLinks.forEach((link) => expect(link).toHaveAttribute('href', '/docs'));
+        docLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/docs')));
         const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
-        apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', '/api/v1/doc'));
+        apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/api/v1/doc')));
         const curationLinks = screen.getAllByRole('link', { name: /curation/i });
-        curationLinks.forEach((link) => expect(link).toHaveAttribute('href', '/curation'));
+        curationLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/curation')));
         const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
-        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', settingsRoute.url));
+        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/settings')));
         const navs = screen.getAllByRole('navigation');
         expect(
             within(navs[0]).queryByRole('link', { name: /editor settings/i })
@@ -131,5 +130,39 @@ describe('AppHeader', () => {
         expect(getInitialsMock).toHaveBeenCalledWith('John Doe');
         expect(screen.getByText('JD')).toBeInTheDocument();
         expect(screen.getByTestId('breadcrumbs')).toBeInTheDocument();
+    });
+
+    it('applies the base path to navigation links when configured', async () => {
+        basePathTesting.setMetaBasePath('/ernie');
+        basePathTesting.resetBasePathCache();
+
+        vi.resetModules();
+        const routes = await import('@/routes');
+        const { applyBasePathToRoutes } = await import('@/lib/base-path');
+        applyBasePathToRoutes({
+            dashboard: routes.dashboard,
+            changelog: routes.changelog,
+            docs: routes.docs,
+            settings: routes.settings,
+            home: routes.home,
+            login: routes.login,
+        });
+        const { AppHeader } = await import('../app-header');
+
+        render(<AppHeader breadcrumbs={[]} />);
+
+        screen
+            .getAllByRole('link', { name: /dashboard/i })
+            .forEach((link) => expect(link).toHaveAttribute('href', '/ernie/dashboard'));
+        const curationLinks = screen.getAllByRole('link', { name: /curation/i });
+        curationLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/curation'));
+        const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
+        apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/api/v1/doc'));
+        const changelogLinks = screen.getAllByRole('link', { name: /changelog/i });
+        changelogLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/changelog'));
+        const docsLinks = screen.getAllByRole('link', { name: /^documentation$/i });
+        docsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/docs'));
+        const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
+        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/settings'));
     });
 });
