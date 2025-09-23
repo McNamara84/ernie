@@ -44,8 +44,8 @@ jobs:
       - name: Build Assets
         run: npm run build
 
-      - name: Copy Environment File
-        run: cp .env.example .env
+      - name: Copy CI Environment File
+        run: cp ci.env .env
 
       - name: Generate Application Key
         run: php artisan key:generate
