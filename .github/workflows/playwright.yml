@@ -30,7 +30,7 @@ jobs:
       run: npm run build
     - name: Prepare application
       run: |
-        cp .env.example .env
+        cp ci.env .env
         sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
         touch database/database.sqlite
         php artisan key:generate
