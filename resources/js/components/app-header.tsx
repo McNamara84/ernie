@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
+import { withBasePath } from '@/lib/base-path';
 import { cn } from '@/lib/utils';
 import { dashboard, settings } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
@@ -24,7 +25,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Curation',
-        href: '/curation',
+        href: withBasePath('/curation'),
         icon: Database,
     },
 ];
@@ -37,17 +38,17 @@ const rightNavItems: NavItem[] = [
     },
     {
         title: 'Changelog',
-        href: '/changelog',
+        href: withBasePath('/changelog'),
         icon: History,
     },
     {
         title: 'Documentation',
-        href: '/docs',
+        href: withBasePath('/docs'),
         icon: BookOpen,
     },
     {
         title: 'API Documentation',
-        href: '/api/v1/doc',
+        href: withBasePath('/api/v1/doc'),
         icon: FileText,
     },
 ];

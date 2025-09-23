@@ -35,6 +35,14 @@ const readMetaBasePath = (): string => {
 
 export const getBasePath = (): string => {
     if (typeof cachedBasePath !== 'undefined') {
+        if (typeof document !== 'undefined') {
+            const metaValue = normalizeBasePath(readMetaBasePath());
+
+            if (metaValue && metaValue !== cachedBasePath) {
+                cachedBasePath = metaValue;
+            }
+        }
+
         return cachedBasePath;
     }
 
@@ -100,23 +108,49 @@ type RouteWithDefinition = {
     };
 };
 
+const defineBasePathUrl = (definition: RouteWithDefinition['definition']) => {
+    const originalUrl = definition?.[ORIGINAL_URL_SYMBOL] ?? definition.url;
+
+    Object.defineProperty(definition, ORIGINAL_URL_SYMBOL, {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: originalUrl,
+    });
+
+    Object.defineProperty(definition, 'url', {
+        configurable: true,
+        enumerable: true,
+        get() {
+            const storedOriginal =
+                (this as typeof definition)[ORIGINAL_URL_SYMBOL] ?? originalUrl;
+
+            return withBasePath(storedOriginal);
+        },
+        set(value: string) {
+            (this as typeof definition)[ORIGINAL_URL_SYMBOL] = value;
+        },
+    });
+};
+
 export const applyBasePathToRoutes = (
     routes: Record<string, RouteWithDefinition | undefined>,
 ): void => {
-    const basePath = getBasePath();
-
     Object.values(routes).forEach((route) => {
         if (!route?.definition || typeof route.definition.url !== 'string') {
             return;
         }
 
         const definition = route.definition as RouteWithDefinition['definition'];
-        const originalUrl = definition?.[ORIGINAL_URL_SYMBOL] ?? route.definition.url;
 
-        if (definition) {
-            definition[ORIGINAL_URL_SYMBOL] = originalUrl;
-            definition.url = basePath ? withBasePath(originalUrl) : originalUrl;
+        const descriptor = Object.getOwnPropertyDescriptor(definition, 'url');
+
+        if (descriptor?.get && descriptor.set) {
+            // Already wrapped with base path support.
+            return;
         }
+
+        defineBasePathUrl(definition);
     });
 };
 
