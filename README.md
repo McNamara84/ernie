@@ -21,17 +21,40 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 
 ## Installation
 
-- Clone the repository and switch to the project directory
-- Ensure the required PHP extensions are installed and enabled:
-  `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`,
-  `libxml`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `simplexml`,
-  `sodium`, `tokenizer`, `xml`, `xmlwriter`, `xsl`
-- Install PHP dependencies: `composer install`
-- Install Node dependencies: `npm install`
-- Copy `.env.example` to `.env` and adjust settings
-- Generate the application key: `php artisan key:generate`
-- Run database migrations: `php artisan migrate`
-- Start the development server: `composer run dev`
+### Prerequisites
+
+- PHP 8.2 or newer with the following extensions enabled: `ctype`, `curl`,
+  `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`, `libxml`,
+  `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `simplexml`, `sodium`,
+  `tokenizer`, `xml`, `xmlwriter`, `xsl`
+- Node.js 20+ and npm 10+
+- MariaDB 11 (or compatible MySQL server)
+- [pnpm](https://pnpm.io/) (optional) for faster JavaScript dependency installs
+
+### Local setup
+
+1. Clone the repository and switch to the project directory
+2. Install PHP dependencies: `composer install`
+3. Install Node dependencies: `npm install` (or `pnpm install`)
+4. Copy `.env.example` to `.env`
+5. Adjust database credentials and mail settings in `.env`
+6. Generate the application key: `php artisan key:generate`
+7. Run database migrations: `php artisan migrate`
+8. Seed the default configuration (optional): `php artisan db:seed`
+9. Start the development server: `composer run dev`
+
+### Docker quick start
+
+The project ships with a production-like Docker Compose configuration.
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+
+Once the containers are healthy, ERNIE is available at
+[`http://localhost:8080`](http://localhost:8080). The first startup performs the
+migration automatically; subsequent restarts reuse the persisted database from
+`storage/docker`.
 
 ## Testing
 
@@ -77,6 +100,54 @@ Ensure the application server is running and the Playwright browsers are install
 npx playwright install
 npx playwright test
 ```
+
+### Static analysis and formatting
+
+Lint, type-check, and format code before submitting changes:
+
+```bash
+composer lint
+composer analyse
+npm run lint
+npm run format
+```
+
+These commands are also executed by CI to ensure consistent code quality.
+
+## Development workflow
+
+- Run `npm run dev` to start Vite and Tailwind in watch mode for instant UI
+  feedback.
+- Use `php artisan migrate:fresh --seed` to reset the database while iterating
+  on new features.
+- Keep accessibility in mind: verify keyboard navigation, focus states, and
+  high-contrast themes when introducing UI changes.
+- Prefer component-driven development. UI additions should be implemented as
+  Radix/Tailwind components inside `resources/js/components`.
+
+## Accessibility & UX principles
+
+ERNIE is designed for research data curators and reviewers. To maintain a
+modern, accessible experience:
+
+- Provide descriptive labels, helper text, and live-region feedback for dynamic
+  UI updates.
+- Ensure color combinations pass WCAG 2.2 AA contrast checks and support both
+  light and dark modes.
+- Validate complex forms with inline guidance and retain focus on the first
+  invalid field.
+- Prefer semantic HTML and ARIA attributes only when necessary.
+- Offer keyboard-accessible shortcuts for high-frequency reviewer workflows.
+
+## Contributing
+
+We welcome contributions from the GFZ community. Before opening a pull request:
+
+1. Create an issue describing the change and gather feedback from reviewers.
+2. Follow the coding standards enforced by the tooling listed above.
+3. Update or add unit tests that cover the behaviour under change.
+4. Document new configuration options or workflows in this README.
+5. Verify all CI commands succeed locally prior to submission.
 
 ## API Endpoints
 
