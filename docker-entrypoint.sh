@@ -44,26 +44,11 @@ if [ -f "$ARTISAN_BIN" ]; then
         echo "Info: using APP_KEY from environment"
     fi
 
+    # Database is available but we skip migration in entrypoint
+    # Migration should be run manually after containers are fully up
     if [ "${DB_HOST:-}" != "" ]; then
-        echo "Waiting for database to be ready..."
-        # Simple wait for database port
-        until nc -z -v -w30 "$DB_HOST" 3306; do
-          echo "Waiting for database connection..."
-          sleep 5
-        done
-        
-        # Wait a bit more for MySQL to initialize
-        echo "Database port is open, waiting for MySQL to initialize..."
-        sleep 15
-        
-        # Try migration, but don't fail if it doesn't work immediately
-        echo "Attempting database migration..."
-        if ! php artisan migrate --force --no-interaction 2>/dev/null; then
-            echo "Migration failed, will retry later. Container will continue to start."
-            echo "You may need to run migrations manually after all containers are up."
-        else
-            echo "Migration successful!"
-        fi
+        echo "Database configured: ${DB_HOST}:3306"
+        echo "Skipping automatic migration - run manually after deployment"
     fi
 
     if [ "${SKIP_STORAGE_LINK:-}" != "1" ]; then
