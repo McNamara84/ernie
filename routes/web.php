@@ -6,6 +6,14 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toISOString(),
+        'laravel' => app()->version()
+    ]);
+})->name('health');
+
 Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');

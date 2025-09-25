@@ -12,8 +12,16 @@ services:
     networks:
       - dockerized-laravel-network
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/health > /dev/null 2>&1 || php artisan tinker --execute='echo \"Laravel is ready\";' > /dev/null 2>&1 || exit 1"]
+      timeout: 10s
+      retries: 5
+      interval: 30s
+      start_period: 120s
     environment:
       - APP_NAME=${APP_NAME}
       - APP_KEY=${APP_KEY}
@@ -63,7 +71,8 @@ services:
       - dockerized-laravel-network
       - traefik
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
