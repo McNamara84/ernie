@@ -36,20 +36,29 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if [ -f "$ARTISAN_BIN" ]; then
-    if [ -f "$ENV_FILE" ]; then
-        if [ -z "$(grep '^APP_KEY=' "$ENV_FILE" | grep -v '=$')" ]; then
-            php artisan key:generate --force --no-interaction
-        fi
-    elif [ "${APP_KEY:-}" != "" ]; then
-        echo "Info: using APP_KEY from environment"
+    # In production, we use environment variables instead of .env file
+    if [ "${APP_KEY:-}" = "" ]; then
+        echo "Info: APP_KEY not set, generating new key..."
+        php artisan key:generate --force --no-interaction
     else
-        echo "Warning: skipping APP_KEY generation because $ENV_FILE is missing" >&2
+        echo "Info: using APP_KEY from environment"
     fi
 
     if [ "${DB_HOST:-}" != "" ]; then
+        echo "Waiting for database to be ready..."
         until nc -z -v -w30 "$DB_HOST" 3306; do
           echo "Waiting for database connection..."
           sleep 5
+        done
+        
+        # Wait a bit more to ensure MySQL is fully initialized
+        echo "Database port is open, waiting for MySQL to be ready..."
+        sleep 10
+        
+        # Test database connection with actual credentials
+        until php artisan tinker --execute="DB::connection()->getPdo(); echo 'Database connected successfully';" 2>/dev/null; do
+            echo "Waiting for database to accept connections..."
+            sleep 5
         done
 
         php artisan migrate --force --no-interaction
