@@ -14,19 +14,38 @@ services:
     depends_on:
       - db
     environment:
-      - APP_URL=https://env.rz-vm182.gfz.de/ernie
-      - ASSET_URL=https://env.rz-vm182.gfz.de/ernie
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - SESSION_SECURE_COOKIE=true
-      - DB_HOST=db
+      - APP_NAME=${APP_NAME}
+      - APP_KEY=${APP_KEY}
+      - APP_ENV=${APP_ENV}
+      - APP_DEBUG=${APP_DEBUG}
+      - APP_URL=${APP_URL}
+      - ASSET_URL=${ASSET_URL}
+      - SESSION_SECURE_COOKIE=${SESSION_SECURE_COOKIE}
+      - SESSION_SAME_SITE=${SESSION_SAME_SITE}
+      - SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS}
+      - DB_CONNECTION=${DB_CONNECTION}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - PUSHER_APP_ID=${PUSHER_APP_ID}
-      - PUSHER_APP_KEY=${PUSHER_APP_KEY}
-      - PUSHER_APP_SECRET=${PUSHER_APP_SECRET}
-      - PUSHER_APP_CLUSTER=${PUSHER_APP_CLUSTER}
+      - CACHE_DRIVER=${CACHE_DRIVER}
+      - SESSION_DRIVER=${SESSION_DRIVER}
+      - QUEUE_CONNECTION=${QUEUE_CONNECTION}
+      - BROADCAST_DRIVER=${BROADCAST_DRIVER}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PORT=${REDIS_PORT}
+      - MAIL_MAILER=${MAIL_MAILER}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME}
+      - LOG_CHANNEL=${LOG_CHANNEL}
+      - LOG_LEVEL=${LOG_LEVEL}
 
   webserver:
     build:
@@ -48,9 +67,11 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
-      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
+      - "traefik.http.routers.ernie-router.middlewares=ernie-headers,ernie-stripprefix"
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.forceSlash=false"
+      - "traefik.http.middlewares.ernie-headers.headers.customrequestheaders.X-Forwarded-Prefix=/ernie"
+      - "traefik.http.middlewares.ernie-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
 
