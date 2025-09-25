@@ -23,6 +23,10 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl
 
+# Install Redis dependencies and extension
+RUN pecl install igbinary redis \
+    && docker-php-ext-enable igbinary redis
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 COPY docker-entrypoint.sh /usr/local/bin/
