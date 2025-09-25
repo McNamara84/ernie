@@ -16,6 +16,9 @@ services:
     environment:
       - APP_URL=https://env.rz-vm182.gfz.de/ernie
       - ASSET_URL=https://env.rz-vm182.gfz.de/ernie
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - SESSION_SECURE_COOKIE=true
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
@@ -47,6 +50,7 @@ services:
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
+      - "traefik.http.middlewares.ernie-stripprefix.stripprefix.forceSlash=false"
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
 
