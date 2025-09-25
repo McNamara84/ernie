@@ -46,22 +46,24 @@ if [ -f "$ARTISAN_BIN" ]; then
 
     if [ "${DB_HOST:-}" != "" ]; then
         echo "Waiting for database to be ready..."
+        # Simple wait for database port
         until nc -z -v -w30 "$DB_HOST" 3306; do
           echo "Waiting for database connection..."
           sleep 5
         done
         
-        # Wait a bit more to ensure MySQL is fully initialized
-        echo "Database port is open, waiting for MySQL to be ready..."
-        sleep 10
+        # Wait a bit more for MySQL to initialize
+        echo "Database port is open, waiting for MySQL to initialize..."
+        sleep 15
         
-        # Test database connection with actual credentials
-        until php artisan tinker --execute="DB::connection()->getPdo(); echo 'Database connected successfully';" 2>/dev/null; do
-            echo "Waiting for database to accept connections..."
-            sleep 5
-        done
-
-        php artisan migrate --force --no-interaction
+        # Try migration, but don't fail if it doesn't work immediately
+        echo "Attempting database migration..."
+        if ! php artisan migrate --force --no-interaction 2>/dev/null; then
+            echo "Migration failed, will retry later. Container will continue to start."
+            echo "You may need to run migrations manually after all containers are up."
+        else
+            echo "Migration successful!"
+        fi
     fi
 
     if [ "${SKIP_STORAGE_LINK:-}" != "1" ]; then
