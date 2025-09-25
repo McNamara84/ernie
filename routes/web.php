@@ -4,6 +4,8 @@ use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 Route::get('/health', function () {
@@ -13,6 +15,17 @@ Route::get('/health', function () {
         'laravel' => app()->version()
     ]);
 })->name('health');
+
+Route::get('/debug', function () {
+    return response()->json([
+        'message' => 'Laravel is working!',
+        'database' => DB::connection()->getPdo() ? 'Connected' : 'Not connected',
+        'redis' => Cache::get('test') !== null ? 'Available' : 'Testing...',
+        'app_key' => config('app.key') ? 'Set' : 'Missing',
+        'app_url' => config('app.url'),
+        'environment' => app()->environment()
+    ]);
+})->name('debug');
 
 Route::get('/', function () {
     return Inertia::render('welcome');
