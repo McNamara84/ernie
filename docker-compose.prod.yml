@@ -92,6 +92,8 @@ services:
     environment:
       - MYSQL_DATABASE=${DB_DATABASE}
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_USER=laravel
+      - MYSQL_PASSWORD=${DB_PASSWORD}
     command: >
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
@@ -99,13 +101,14 @@ services:
       --bind-address=0.0.0.0
       --sql-mode=STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO
     volumes:
-      - dockerized-laravel-data:/var/lib/mysql
+      - dockerized-laravel-data-v2:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     networks:
       - dockerized-laravel-network
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "laravel", "-p${DB_PASSWORD}"]
       timeout: 20s
       retries: 10
       interval: 30s
@@ -127,7 +130,7 @@ networks:
     external: true
 
 volumes:
-  dockerized-laravel-data:
+  dockerized-laravel-data-v2:
     driver: local
   storage-data:
     driver: local
