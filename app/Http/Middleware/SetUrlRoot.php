@@ -16,65 +16,18 @@ class SetUrlRoot
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Skip URL configuration for asset requests
-        if ($this->isAssetRequest($request)) {
-            return $next($request);
-        }
-
-        try {
-            // First, try to use X-Forwarded-Prefix header if available
-            $prefix = $request->header('X-Forwarded-Prefix');
-            
-            if ($prefix) {
-                $prefix = '/' . trim($prefix, '/');
-                URL::forceRootUrl($request->getSchemeAndHttpHost() . $prefix);
-            } else {
-                // For production behind Traefik with stripprefix, use configured URLs
-                $this->configureUrlsForProduction($request);
-            }
-        } catch (\Exception $e) {
-            // Log error but continue processing
-            if (function_exists('logger')) {
-                logger()->error('SetUrlRoot middleware error: ' . $e->getMessage());
+        // In production, always set the correct URL root
+        if (app()->environment('production')) {
+            $appUrl = config('app.url');
+            if ($appUrl) {
+                URL::forceRootUrl($appUrl);
+                
+                if (str_starts_with($appUrl, 'https://')) {
+                    URL::forceScheme('https');
+                }
             }
         }
 
         return $next($request);
-    }
-
-    /**
-     * Check if this is an asset request
-     */
-    private function isAssetRequest(Request $request): bool
-    {
-        $path = $request->path();
-        
-        // Check for common asset extensions or build paths
-        return str_contains($path, '/build/') || 
-               str_contains($path, '/assets/') || 
-               preg_match('/\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/', $path);
-    }
-
-    /**
-     * Configure URLs for production deployment behind Traefik
-     */
-    private function configureUrlsForProduction(Request $request): void
-    {
-        try {
-            if (app()->environment('production')) {
-                // Use the configured app URL which includes the path prefix
-                $appUrl = config('app.url');
-                if ($appUrl) {
-                    URL::forceRootUrl($appUrl);
-                    
-                    // Force HTTPS if the app URL uses HTTPS
-                    if (str_starts_with($appUrl, 'https://')) {
-                        URL::forceScheme('https');
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            // Silently continue
-        }
     }
 }

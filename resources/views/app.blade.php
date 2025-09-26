@@ -42,8 +42,18 @@
 
         {{-- Set base URL for Inertia.js --}}
         <script>
+            // Set global variables for JavaScript
             window.APP_URL = '{{ config('app.url') }}';
-            window.ASSET_URL = '{{ config('app.asset_url', config('app.url')) }}';
+            
+            // Configure Inertia base URL if needed
+            if (typeof window !== 'undefined' && window.location.hostname === 'env.rz-vm182.gfz.de') {
+                // Override the default URL for Inertia requests in production
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (window.axios) {
+                        window.axios.defaults.baseURL = '{{ config('app.url') }}';
+                    }
+                });
+            }
         </script>
 
         @viteReactRefresh
