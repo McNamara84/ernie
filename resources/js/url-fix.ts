@@ -12,10 +12,12 @@ export function setupUrlTransformation() {
     const basePath = metaTag?.content || '';
     
     if (!basePath) {
+        console.log('No base path found, skipping URL transformation');
         return;
     }
 
     console.log('Setting up URL transformation with base path:', basePath);
+    console.log('Current origin:', window.location.origin);
 
     // Override global fetch to fix URLs
     const originalFetch = window.fetch;
@@ -23,19 +25,26 @@ export function setupUrlTransformation() {
         let url = input;
         
         if (typeof input === 'string') {
+            console.log('Fetch - Original URL:', input);
+            
+            // Fix double protocol issue first (https://https//...)
+            if (input.includes('https://https//') || input.includes('http://http//')) {
+                url = input.replace(/https?:\/\/https?\/\//, 'https://');
+                console.log('Fetch - Fixed double protocol:', input, '->', url);
+                return originalFetch.call(this, url, init);
+            }
+            
             // If it's a relative URL starting with /, prepend base path
             if (input.startsWith('/') && !input.startsWith(basePath)) {
                 url = basePath + input;
-                console.log('Transformed URL:', input, '->', url);
+                console.log('Fetch - Transformed relative URL:', input, '->', url);
             }
-        } else if (input instanceof Request) {
-            const originalUrl = input.url;
-            if (originalUrl.includes(window.location.origin) && !originalUrl.includes(basePath)) {
-                const path = originalUrl.replace(window.location.origin, '');
+            // If it's already an absolute URL, check if we need to fix the path
+            else if (input.includes(window.location.origin) && !input.includes(basePath)) {
+                const path = input.replace(window.location.origin, '');
                 if (path.startsWith('/') && !path.startsWith(basePath)) {
-                    const newUrl = window.location.origin + basePath + path;
-                    console.log('Transformed Request URL:', originalUrl, '->', newUrl);
-                    input = new Request(newUrl, input);
+                    url = window.location.origin + basePath + path;
+                    console.log('Fetch - Transformed absolute URL:', input, '->', url);
                 }
             }
         }
@@ -48,9 +57,31 @@ export function setupUrlTransformation() {
     // @ts-expect-error - Complex overload handling
     XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...rest: unknown[]) {
         let transformedUrl = url;
-        if (typeof url === 'string' && url.startsWith('/') && !url.startsWith(basePath)) {
-            transformedUrl = basePath + url;
-            console.log('Transformed XHR URL:', url, '->', transformedUrl);
+        
+        if (typeof url === 'string') {
+            console.log('XHR - Original URL:', url, 'Method:', method);
+            
+            // Fix double protocol issue first
+            if (url.includes('https://https//') || url.includes('http://http//')) {
+                transformedUrl = url.replace(/https?:\/\/https?\/\//, 'https://');
+                console.log('XHR - Fixed double protocol:', url, '->', transformedUrl);
+            }
+            // For relative URLs, prepend base path
+            else if (url.startsWith('/') && !url.startsWith(basePath)) {
+                transformedUrl = basePath + url;
+                console.log('XHR - Transformed relative URL:', url, '->', transformedUrl);
+            }
+            // For absolute URLs that don't have the base path
+            else if (url.includes(window.location.origin) && !url.includes(basePath)) {
+                const path = url.replace(window.location.origin, '');
+                if (path.startsWith('/') && !path.startsWith(basePath)) {
+                    transformedUrl = window.location.origin + basePath + path;
+                    console.log('XHR - Transformed absolute URL:', url, '->', transformedUrl);
+                }
+            }
+            else {
+                console.log('XHR - No transformation needed:', url);
+            }
         }
         
         // @ts-expect-error - Complex overload handling
