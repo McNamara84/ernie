@@ -61,7 +61,6 @@ services:
       - MARIADB_PASSWORD=${MARIADB_PASSWORD}
     volumes:
       - dockerized-laravel-data:/var/lib/mysql
-      - ./docker/mariadb/my.cnf:/etc/mysql/my.cnf
     networks:
       - dockerized-laravel-network
     ports:
