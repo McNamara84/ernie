@@ -36,11 +36,16 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
-        [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+        try {
+            [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+        } catch (\Exception $e) {
+            $message = 'Stay hungry, stay foolish';
+            $author = 'Steve Jobs';
+        }
 
         return [
             ...parent::share($request),
-            'name' => config('app.name'),
+            'name' => config('app.name', 'ERNIE'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
@@ -57,12 +62,19 @@ class HandleInertiaRequests extends Middleware
      */
     private function getBaseUrl(Request $request): string
     {
-        // In production behind proxy, use the configured URL
-        if (config('app.env') === 'production' && config('app.url')) {
-            return config('app.url');
-        }
+        try {
+            // In production behind proxy, use the configured URL
+            if (app()->environment('production')) {
+                $appUrl = config('app.url');
+                if ($appUrl) {
+                    return $appUrl;
+                }
+            }
 
-        // Otherwise use the request URL
-        return $request->getSchemeAndHttpHost();
+            // Otherwise use the request URL
+            return $request->getSchemeAndHttpHost();
+        } catch (\Exception $e) {
+            return $request->getSchemeAndHttpHost();
+        }
     }
 }

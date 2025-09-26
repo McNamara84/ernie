@@ -21,8 +21,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Set the asset URL for production when behind a proxy with path prefix
-        if (config('app.env') === 'production' && config('app.url')) {
-            $this->configureUrlGeneration();
+        try {
+            if ($this->app->environment('production')) {
+                $this->configureUrlGeneration();
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail completely
+            if ($this->app->bound('log')) {
+                logger()->error('Failed to configure URL generation: ' . $e->getMessage());
+            }
         }
     }
 
@@ -31,16 +38,23 @@ class AppServiceProvider extends ServiceProvider
      */
     private function configureUrlGeneration(): void
     {
-        // Force the asset URL to include the path prefix
-        if ($assetUrl = config('app.asset_url')) {
-            URL::forceRootUrl($assetUrl);
-        } else {
-            URL::forceRootUrl(config('app.url'));
-        }
-
-        // Ensure HTTPS is used if the app URL uses HTTPS
-        if (str_starts_with(config('app.url'), 'https://')) {
-            URL::forceScheme('https');
+        try {
+            $appUrl = config('app.url');
+            $assetUrl = config('app.asset_url');
+            
+            // Only configure if we have valid URLs
+            if ($appUrl) {
+                // Use asset URL if available, otherwise fall back to app URL
+                $rootUrl = $assetUrl ?: $appUrl;
+                URL::forceRootUrl($rootUrl);
+                
+                // Force HTTPS if the URL uses HTTPS
+                if (str_starts_with($appUrl, 'https://')) {
+                    URL::forceScheme('https');
+                }
+            }
+        } catch (\Exception $e) {
+            // Silently fail - don't break the application
         }
     }
 }
