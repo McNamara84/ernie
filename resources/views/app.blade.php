@@ -41,41 +41,6 @@
         <link rel="manifest" href="{{ asset('site.webmanifest') }}">        <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
-        {{-- Set base URL for Inertia.js --}}
-        <script>
-            // Set global variables for JavaScript  
-            window.APP_URL = '{{ config('app.url') }}';
-            
-            // Override Inertia.js at the global level before it loads
-            (function() {
-                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    // Store original fetch
-                    const originalFetch = window.fetch;
-                    
-                    // Override fetch for all HTTP requests
-                    window.fetch = function(input, init) {
-                        if (typeof input === 'string' && input.startsWith('/') && !input.startsWith('//')) {
-                            input = '{{ config('app.url') }}' + input;
-                        } else if (input && typeof input === 'object' && input.url) {
-                            if (input.url.startsWith('/') && !input.url.startsWith('//')) {
-                                input.url = '{{ config('app.url') }}' + input.url;
-                            }
-                        }
-                        return originalFetch.call(this, input, init);
-                    };
-                    
-                    // Override XMLHttpRequest as backup
-                    const originalOpen = XMLHttpRequest.prototype.open;
-                    XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                        if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
-                            url = '{{ config('app.url') }}' + url;
-                        }
-                        return originalOpen.call(this, method, url, ...args);
-                    };
-                }
-            })();
-        </script>
-
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
