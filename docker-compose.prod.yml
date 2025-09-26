@@ -12,10 +12,10 @@ services:
     networks:
       - dockerized-laravel-network
     depends_on:
-      - db
+      - dbernie
     environment:
       - APP_URL=https://env.rz-vm182.gfz.de/ernie
-      - DB_HOST=db
+      - DB_HOST=dbernie
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
@@ -50,17 +50,18 @@ services:
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
 
-  db:
-    image: mysql:8.0
-    container_name: dockerized-laravel-db
+  dbernie:
+    image: mariadb:10.6
+    container_name: dockerized-laravel-dbernie
     restart: unless-stopped
     environment:
-      - MYSQL_DATABASE=${DB_DATABASE}
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
-      - MYSQL_USER=${DB_USERNAME}
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${MARIADB_DATABASE}
+      - MARIADB_USER=${MARIADB_USER}
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
     volumes:
       - dockerized-laravel-data:/var/lib/mysql
+      - ./docker/mariadb/my.cnf:/etc/mysql/my.cnf
     networks:
       - dockerized-laravel-network
     ports:
