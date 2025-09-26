@@ -44,12 +44,20 @@
         <script>
             // Set global variables for JavaScript
             window.APP_URL = '{{ config('app.url') }}';
-            window.PATH_PREFIX = '{{ parse_url(config('app.url'), PHP_URL_PATH) ?? '/' }}';
             
-            // Configure Axios globally if available
-            if (window.axios) {
-                window.axios.defaults.baseURL = window.APP_URL;
-            }
+            // Override XMLHttpRequest to fix base URL for Inertia.js requests
+            (function() {
+                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                    const originalOpen = XMLHttpRequest.prototype.open;
+                    XMLHttpRequest.prototype.open = function(method, url, ...args) {
+                        // Fix relative URLs to use the correct base URL
+                        if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
+                            url = '{{ config('app.url') }}' + url;
+                        }
+                        return originalOpen.call(this, method, url, ...args);
+                    };
+                }
+            })();
         </script>
 
         @viteReactRefresh
