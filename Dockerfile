@@ -1,9 +1,6 @@
 FROM php:8.2-fpm AS app
 
-WORKDIR /vCOPY . /var/www/html
-
-# Copy environment file for build
-COPY .env.production /var/www/html/.envtml
+WORKDIR /var/www/html
 
 RUN apt-get update && apt-get install -y \
     git \
@@ -38,11 +35,7 @@ COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
 COPY . /var/www/html
 
-# Set build-time environment variables for Vite
-ARG APP_URL=https://env.rz-vm182.gfz.de/ernie
-ENV VITE_APP_URL=$APP_URL
-
-# Copy production environment file for build
+# Copy environment file for build
 COPY .env.production /var/www/html/.env
 
 RUN composer install --no-interaction --no-plugins --no-scripts \
