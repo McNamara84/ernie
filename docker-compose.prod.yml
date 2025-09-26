@@ -4,6 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: app
+      args:
+        - APP_URL=https://env.rz-vm182.gfz.de/ernie
     container_name: dockerized-laravel-app
     restart: unless-stopped
     volumes:
@@ -30,6 +32,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: nginx
+      args:
+        - APP_URL=https://env.rz-vm182.gfz.de/ernie
     container_name: dockerized-laravel-webserver
     restart: unless-stopped
     ports:
