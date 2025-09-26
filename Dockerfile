@@ -37,7 +37,8 @@ COPY . /var/www/html
 
 RUN composer install --no-interaction --no-plugins --no-scripts \
     && npm install \
-    && NODE_ENV=production npm run build
+    && NODE_ENV=production npm run build \
+    && rm -f public/hot
 
 EXPOSE 9000
 
