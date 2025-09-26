@@ -4,6 +4,7 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <meta name="app-base-path" content="{{ parse_url(config('app.url'), PHP_URL_PATH) ?? '' }}">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
@@ -44,20 +45,6 @@
         <script>
             // Set global variables for JavaScript
             window.APP_URL = '{{ config('app.url') }}';
-            
-            // Override XMLHttpRequest to fix base URL for Inertia.js requests
-            (function() {
-                if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    const originalOpen = XMLHttpRequest.prototype.open;
-                    XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                        // Fix relative URLs to use the correct base URL
-                        if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
-                            url = '{{ config('app.url') }}' + url;
-                        }
-                        return originalOpen.call(this, method, url, ...args);
-                    };
-                }
-            })();
         </script>
 
         @viteReactRefresh
