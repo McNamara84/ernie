@@ -16,6 +16,11 @@ class SetUrlRoot
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // Skip URL configuration for asset requests
+        if ($this->isAssetRequest($request)) {
+            return $next($request);
+        }
+
         try {
             // First, try to use X-Forwarded-Prefix header if available
             $prefix = $request->header('X-Forwarded-Prefix');
@@ -35,6 +40,19 @@ class SetUrlRoot
         }
 
         return $next($request);
+    }
+
+    /**
+     * Check if this is an asset request
+     */
+    private function isAssetRequest(Request $request): bool
+    {
+        $path = $request->path();
+        
+        // Check for common asset extensions or build paths
+        return str_contains($path, '/build/') || 
+               str_contains($path, '/assets/') || 
+               preg_match('/\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/', $path);
     }
 
     /**

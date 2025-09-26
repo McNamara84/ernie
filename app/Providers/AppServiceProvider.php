@@ -20,7 +20,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Set the asset URL for production when behind a proxy with path prefix
+        // Only configure URL generation for route generation, not assets
+        // Assets should remain at root level for proper serving
         try {
             if ($this->app->environment('production')) {
                 $this->configureUrlGeneration();
@@ -40,13 +41,11 @@ class AppServiceProvider extends ServiceProvider
     {
         try {
             $appUrl = config('app.url');
-            $assetUrl = config('app.asset_url');
             
             // Only configure if we have valid URLs
             if ($appUrl) {
-                // Use asset URL if available, otherwise fall back to app URL
-                $rootUrl = $assetUrl ?: $appUrl;
-                URL::forceRootUrl($rootUrl);
+                // Only set root URL for route generation, not assets
+                URL::forceRootUrl($appUrl);
                 
                 // Force HTTPS if the URL uses HTTPS
                 if (str_starts_with($appUrl, 'https://')) {
