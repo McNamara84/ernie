@@ -23,6 +23,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // Use custom CSRF middleware for PathPrefix compatibility
+        $middleware->validateCsrfTokens(except: [
+            // Add any routes that should be excluded from CSRF verification
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\SetUrlRoot::class,
             HandleAppearance::class,
