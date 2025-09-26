@@ -33,26 +33,22 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-        <link rel="icon" href="/favicon-96x96.png" type="image/png" sizes="96x96">
-        <link rel="manifest" href="/site.webmanifest">        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+        <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
+        <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+        <link rel="icon" href="{{ asset('favicon-96x96.png') }}" type="image/png" sizes="96x96">
+        <link rel="manifest" href="{{ asset('site.webmanifest') }}">        <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
         {{-- Set base URL for Inertia.js --}}
         <script>
             // Set global variables for JavaScript
             window.APP_URL = '{{ config('app.url') }}';
+            window.PATH_PREFIX = '{{ parse_url(config('app.url'), PHP_URL_PATH) ?? '/' }}';
             
-            // Configure Inertia base URL if needed
-            if (typeof window !== 'undefined' && window.location.hostname === 'env.rz-vm182.gfz.de') {
-                // Override the default URL for Inertia requests in production
-                document.addEventListener('DOMContentLoaded', function() {
-                    if (window.axios) {
-                        window.axios.defaults.baseURL = '{{ config('app.url') }}';
-                    }
-                });
+            // Configure Axios globally if available
+            if (window.axios) {
+                window.axios.defaults.baseURL = window.APP_URL;
             }
         </script>
 

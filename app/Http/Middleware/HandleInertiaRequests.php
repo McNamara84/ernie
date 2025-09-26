@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
+            'pathPrefix' => $this->getPathPrefix($request),
         ];
     }
 
@@ -74,6 +75,27 @@ class HandleInertiaRequests extends Middleware
             return $request->getSchemeAndHttpHost();
         } catch (\Exception $e) {
             return $request->getSchemeAndHttpHost();
+        }
+    }
+
+    /**
+     * Get the path prefix from the configured URL
+     */
+    private function getPathPrefix(Request $request): string
+    {
+        try {
+            // In production, extract path prefix from configured URL
+            if (app()->environment('production')) {
+                $appUrl = config('app.url');
+                if ($appUrl) {
+                    $parsedUrl = parse_url($appUrl);
+                    return $parsedUrl['path'] ?? '/';
+                }
+            }
+
+            return '/';
+        } catch (\Exception $e) {
+            return '/';
         }
     }
 }
