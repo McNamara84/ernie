@@ -12,49 +12,19 @@ services:
     networks:
       - dockerized-laravel-network
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/health > /dev/null 2>&1 || php artisan tinker --execute='echo \"Laravel is ready\";' > /dev/null 2>&1 || exit 1"]
-      timeout: 10s
-      retries: 5
-      interval: 30s
-      start_period: 120s
+      - db
     environment:
-      - APP_NAME=${APP_NAME}
-      - APP_KEY=${APP_KEY}
-      - APP_ENV=${APP_ENV}
-      - APP_DEBUG=${APP_DEBUG}
-      - APP_URL=${APP_URL}
-      - ASSET_URL=${ASSET_URL}
-      - SESSION_SECURE_COOKIE=${SESSION_SECURE_COOKIE}
-      - SESSION_SAME_SITE=${SESSION_SAME_SITE}
-      - SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS}
-      - DB_CONNECTION=${DB_CONNECTION}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
+      - APP_URL=https://env.rz-vm182.gfz.de/ernie
+      - ASSET_URL=https://env.rz-vm182.gfz.de/ernie
+      - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - CACHE_DRIVER=${CACHE_DRIVER}
-      - SESSION_DRIVER=${SESSION_DRIVER}
-      - QUEUE_CONNECTION=${QUEUE_CONNECTION}
-      - BROADCAST_DRIVER=${BROADCAST_DRIVER}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_PORT=${REDIS_PORT}
-      - MAIL_MAILER=${MAIL_MAILER}
-      - MAIL_HOST=${MAIL_HOST}
-      - MAIL_PORT=${MAIL_PORT}
-      - MAIL_USERNAME=${MAIL_USERNAME}
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
-      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION}
-      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
-      - MAIL_FROM_NAME=${MAIL_FROM_NAME}
-      - LOG_CHANNEL=${LOG_CHANNEL}
-      - LOG_LEVEL=${LOG_LEVEL}
+      - REDIS_HOST=redis
+      - BROADCAST_DRIVER=redis
+      - CACHE_DRIVER=redis
+      - QUEUE_CONNECTION=redis
+      - SESSION_DRIVER=redis
 
   webserver:
     build:
@@ -71,17 +41,13 @@ services:
       - dockerized-laravel-network
       - traefik
     depends_on:
-      app:
-        condition: service_healthy
+      - app
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
-      - "traefik.http.routers.ernie-router.middlewares=ernie-headers,ernie-stripprefix"
+      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
-      - "traefik.http.middlewares.ernie-stripprefix.stripprefix.forceSlash=false"
-      - "traefik.http.middlewares.ernie-headers.headers.customrequestheaders.X-Forwarded-Prefix=/ernie"
-      - "traefik.http.middlewares.ernie-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
 
@@ -91,28 +57,15 @@ services:
     restart: unless-stopped
     environment:
       - MYSQL_DATABASE=${DB_DATABASE}
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_USER=laravel
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
       - MYSQL_PASSWORD=${DB_PASSWORD}
-    command: >
-      --default-authentication-plugin=mysql_native_password
-      --character-set-server=utf8mb4
-      --collation-server=utf8mb4_unicode_ci
-      --bind-address=0.0.0.0
-      --sql-mode=STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO
+      - MYSQL_USER=${DB_USERNAME}
     volumes:
-      - dockerized-laravel-data-v2:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - dockerized-laravel-data:/var/lib/mysql
     networks:
       - dockerized-laravel-network
     ports:
       - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "laravel", "-p${DB_PASSWORD}"]
-      timeout: 20s
-      retries: 10
-      interval: 30s
-      start_period: 60s
 
   redis:
     image: redis:alpine
@@ -130,7 +83,7 @@ networks:
     external: true
 
 volumes:
-  dockerized-laravel-data-v2:
+  dockerized-laravel-data:
     driver: local
   storage-data:
     driver: local

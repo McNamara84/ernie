@@ -46,6 +46,23 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'appUrl' => config('app.url'),
+            'assetUrl' => config('app.asset_url', config('app.url')),
+            'baseUrl' => $this->getBaseUrl($request),
         ];
+    }
+
+    /**
+     * Get the correct base URL for the application
+     */
+    private function getBaseUrl(Request $request): string
+    {
+        // In production behind proxy, use the configured URL
+        if (config('app.env') === 'production' && config('app.url')) {
+            return config('app.url');
+        }
+
+        // Otherwise use the request URL
+        return $request->getSchemeAndHttpHost();
     }
 }

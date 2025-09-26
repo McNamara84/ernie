@@ -5,12 +5,14 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-    resolve: {
-        alias: [
-            { find: '@', replacement: '/resources/js' },
-            { find: '@/routes/', replacement: '/resources/js/routes-wrappers/' },
-            { find: '@/routes', replacement: '/resources/js/routes.ts' },
-        ],
+    base: process.env.NODE_ENV === 'production' ? '/ernie/' : '/',
+    build: {
+        assetsDir: 'assets',
+        rollupOptions: {
+            output: {
+                manualChunks: undefined
+            }
+        }
     },
     plugins: [
         laravel({
