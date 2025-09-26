@@ -4,14 +4,8 @@ import react from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
-export default defineConfig(({ mode }) => {
-    // Get base URL from environment for production builds
-    const isProduction = mode === 'production';
-    const appUrl = process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost';
-    const baseUrl = isProduction && appUrl !== 'http://localhost' ? new URL(appUrl).pathname : undefined;
-
+export default defineConfig(() => {
     return {
-        base: baseUrl,
         plugins: [
             laravel({
                 input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],

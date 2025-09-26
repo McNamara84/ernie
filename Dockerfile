@@ -1,6 +1,9 @@
 FROM php:8.2-fpm AS app
 
-WORKDIR /var/www/html
+WORKDIR /vCOPY . /var/www/html
+
+# Copy environment file for build
+COPY .env.production /var/www/html/.envtml
 
 RUN apt-get update && apt-get install -y \
     git \
