@@ -31,29 +31,14 @@ jobs:
       run: npm ci
     - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist --optimize-autoloader
-    - name: Build assets
+    - name: Build assets for CI
       run: npm run build
-      env:
-        NODE_ENV: development
-        VITE_APP_URL: http://127.0.0.1:8000
-    - name: Rebuild assets for CI
-      run: |
-        echo "=== VITE MANIFEST BEFORE ==="
-        cat public/build/manifest.json | head -10 || echo "No manifest found"
-        
-        # Clear any cached asset URLs
-        rm -rf public/build/.vite
-        
-        # Rebuild with CI environment
-        npm run build
-        
-        echo "=== VITE MANIFEST AFTER ==="
-        cat public/build/manifest.json | head -10 || echo "No manifest found"
       env:
         NODE_ENV: production
         APP_ENV: local
         APP_URL: http://127.0.0.1:8000
         ASSET_URL: http://127.0.0.1:8000
+        VITE_APP_URL: http://127.0.0.1:8000
     - name: Prepare application
       run: |
         cp .env.example .env
@@ -76,15 +61,7 @@ jobs:
         mkdir -p database
         touch database/database.sqlite
         chmod 666 database/database.sqlite
-        echo "Database created at: $(pwd)/database/database.sqlite"
-        ls -la database/
-        echo "=== .env configuration ==="
-        cat .env | grep -E "(APP_|DB_|SESSION_|CACHE_|QUEUE_|ASSET_|BROADCAST_)"
-        echo "============================="
         php artisan key:generate
-        php artisan config:clear
-        php artisan cache:clear
-        php artisan view:clear
         php artisan migrate:fresh --seed --force
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
@@ -105,62 +82,6 @@ jobs:
       run: |
         timeout 30 bash -c 'until curl -s http://127.0.0.1:8000 > /dev/null; do sleep 1; done'
         echo "Server is ready!"
-    - name: Debug login page content
-      run: |
-        echo "=== DEBUGGING LOGIN PAGE ==="
-        curl -s "http://127.0.0.1:8000/login" > login_page.html
-        echo "Login page downloaded successfully"
-        
-        echo "Content size: $(wc -c < login_page.html) bytes"
-        echo "First 1000 characters:"
-        head -c 1000 login_page.html
-        echo ""
-        echo "=== Searching for login form elements ==="
-        
-        echo "Lines containing 'email':"
-        grep -i "email" login_page.html || echo "No email elements found"
-        echo "Lines containing 'input':"
-        grep -i "input" login_page.html || echo "No input elements found"
-        echo "Lines containing 'label':"
-        grep -i "label" login_page.html || echo "No label elements found"
-        echo "Lines containing 'form':"
-        grep -i "form" login_page.html || echo "No form elements found"
-        
-        echo "=== ASSET LOADING ANALYSIS ==="
-        echo "JavaScript files referenced:"
-        grep -o 'src="[^"]*\.js[^"]*"' login_page.html | sed 's/src="//g' | sed 's/"//g' || echo "No JS files found"
-        
-        echo "CSS files referenced:"
-        grep -o 'href="[^"]*\.css[^"]*"' login_page.html | sed 's/href="//g' | sed 's/"//g' || echo "No CSS files found"
-        
-        echo "Testing asset accessibility:"
-        for asset in $(grep -o 'src="[^"]*\.js[^"]*"' login_page.html | sed 's/src="//g' | sed 's/"//g' | head -3); do
-          echo "Testing JS: $asset"
-          curl -s -o /dev/null -w "Status: %{http_code}, Size: %{size_download} bytes\n" "http://127.0.0.1:8000$asset" || echo "Failed to fetch $asset"
-        done
-        
-        for asset in $(grep -o 'href="[^"]*\.css[^"]*"' login_page.html | sed 's/href="//g' | sed 's/"//g' | head -3); do
-          echo "Testing CSS: $asset"
-          curl -s -o /dev/null -w "Status: %{http_code}, Size: %{size_download} bytes\n" "http://127.0.0.1:8000$asset" || echo "Failed to fetch $asset"
-        done
-        
-        echo "=== APP CONTAINER ANALYSIS ==="
-        echo "Inertia app container:"
-        grep -i "app\|inertia" login_page.html || echo "No app container found"
-        echo "Body content:"
-        grep -A 10 -B 2 "<body" login_page.html || echo "No body found"
-        
-        echo "=== VITE MANIFEST CHECK ==="
-        echo "Checking for Vite manifest:"
-        ls -la public/build/ 2>/dev/null || echo "No build directory found"
-        if [ -f "public/build/manifest.json" ]; then
-          echo "Vite manifest exists:"
-          cat public/build/manifest.json | head -20
-        else
-          echo "No Vite manifest found!"
-        fi
-        
-        echo "=== END DEBUG ==="
     - name: Run Playwright tests
       run: npx playwright test --project=${{ matrix.browser }}
       env:
