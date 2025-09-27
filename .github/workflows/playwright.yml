@@ -75,7 +75,14 @@ jobs:
         echo "Testing server response:"
         curl -I http://127.0.0.1:8000 || true
         echo "=== Testing login page ==="
-        curl -s http://127.0.0.1:8000/login | head -20
+        curl -s http://127.0.0.1:8000/login > /tmp/login.html
+        echo "Login page size: $(wc -c < /tmp/login.html) bytes"
+        echo "Login page first 50 lines:"
+        head -50 /tmp/login.html
+        echo "=== Searching for Email address label ==="
+        grep -n -i "email" /tmp/login.html || echo "No email fields found!"
+        echo "=== Searching for form elements ==="  
+        grep -n -i "form\|input\|label" /tmp/login.html | head -20 || echo "No form elements found!"
         echo "=== Login page test completed ==="
         echo "Server status check completed"
     - name: Run Playwright tests
