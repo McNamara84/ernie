@@ -13,59 +13,111 @@ import { latestVersion } from '@/lib/version';
 export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
 
-    const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
-    if (!token) {
-        throw new Error('CSRF token not found');
-    }
+    const attemptUpload = async (retryCount = 0): Promise<void> => {
+        const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+        if (!token) {
+            throw new Error('CSRF token not found');
+        }
 
-    const formData = new FormData();
-    formData.append('file', files[0]);
+        const formData = new FormData();
+        formData.append('file', files[0]);
+
+        try {
+            const response = await fetch(uploadXmlRoute.url(), {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+            });
+
+            // Handle CSRF token mismatch with retry
+            if (response.status === 419 && retryCount === 0) {
+                console.log('CSRF token mismatch detected, refreshing page and retrying...');
+                
+                // Refresh the meta tag by making a simple request that will refresh the token
+                try {
+                    await fetch(window.location.href, {
+                        method: 'HEAD',
+                        credentials: 'same-origin',
+                    });
+                    
+                    // Small delay to ensure token is updated
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // Retry once with potentially refreshed token
+                    return attemptUpload(1);
+                } catch (refreshError) {
+                    console.error('Failed to refresh page for new CSRF token:', refreshError);
+                }
+            }
+
+            if (!response.ok) {
+                let message = 'Upload failed';
+                try {
+                    // Check if response is JSON
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorData: { message?: string } = await response.json();
+                        message = errorData.message ?? message;
+                    } else {
+                        // If it's HTML (like a 419 error page), provide a meaningful message
+                        if (response.status === 419) {
+                            message = 'Session expired. Please refresh the page and try again.';
+                        } else {
+                            message = `Upload failed with status ${response.status}`;
+                        }
+                    }
+                } catch (err) {
+                    console.error('Failed to parse error response', err);
+                    if (response.status === 419) {
+                        message = 'Session expired. Please refresh the page and try again.';
+                    }
+                }
+                throw new Error(message);
+            }
+
+            const data: {
+                doi?: string | null;
+                year?: string | null;
+                version?: string | null;
+                language?: string | null;
+                resourceType?: string | null;
+                titles?: { title: string; titleType: string }[] | null;
+                licenses?: string[] | null;
+            } = await response.json();
+            
+            const query: Record<string, string | number> = {};
+            if (data.doi) query.doi = data.doi;
+            if (data.year) query.year = data.year;
+            if (data.version) query.version = data.version;
+            if (data.language) query.language = data.language;
+            if (data.resourceType) query.resourceType = data.resourceType;
+            if (data.titles && data.titles.length > 0) {
+                data.titles.forEach((t, i) => {
+                    query[`titles[${i}][title]`] = t.title;
+                    query[`titles[${i}][titleType]`] = t.titleType;
+                });
+            }
+            if (data.licenses && data.licenses.length > 0) {
+                data.licenses.forEach((l, i) => {
+                    query[`licenses[${i}]`] = l;
+                });
+            }
+            router.get(curationRoute({ query }).url);
+        } catch (error) {
+            console.error('XML upload failed during attempt', error);
+            if (error instanceof Error) {
+                throw new Error(`Upload failed: ${error.message}`);
+            }
+            throw new Error('Upload failed');
+        }
+    };
 
     try {
-        const response = await fetch(uploadXmlRoute.url(), {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRF-TOKEN': token,
-            },
-        });
-        if (!response.ok) {
-            let message = 'Upload failed';
-            try {
-                const errorData: { message?: string } = await response.json();
-                message = errorData.message ?? message;
-            } catch (err) {
-                console.error('Failed to parse error response', err);
-            }
-            throw new Error(message);
-        }
-        const data: {
-            doi?: string | null;
-            year?: string | null;
-            version?: string | null;
-            language?: string | null;
-            resourceType?: string | null;
-            titles?: { title: string; titleType: string }[] | null;
-            licenses?: string[] | null;
-        } = await response.json();
-        const query: Record<string, string | number> = {};
-        if (data.doi) query.doi = data.doi;
-        if (data.year) query.year = data.year;
-        if (data.version) query.version = data.version;
-        if (data.language) query.language = data.language;
-        if (data.resourceType) query.resourceType = data.resourceType;
-        if (data.titles && data.titles.length > 0) {
-            data.titles.forEach((t, i) => {
-                query[`titles[${i}][title]`] = t.title;
-                query[`titles[${i}][titleType]`] = t.titleType;
-            });
-        }
-        if (data.licenses && data.licenses.length > 0) {
-            data.licenses.forEach((l, i) => {
-                query[`licenses[${i}]`] = l;
-            });
-        }
-        router.get(curationRoute({ query }).url);
+        await attemptUpload();
     } catch (error) {
         console.error('XML upload failed', error);
         if (error instanceof Error) {
