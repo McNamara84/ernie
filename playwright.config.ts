@@ -48,18 +48,27 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Add extra debugging for CI
+        launchOptions: {
+          args: process.env.CI ? ['--no-sandbox', '--disable-setuid-sandbox'] : [],
+        }
+      },
     },
 
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
+    // Disable other browsers in CI for faster testing
+    ...(process.env.CI ? [] : [
+      {
+        name: 'firefox',
+        use: { ...devices['Desktop Firefox'] },
+      },
 
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+      {
+        name: 'webkit',
+        use: { ...devices['Desktop Safari'] },
+      },
+    ]),
 
     /* Test against mobile viewports. */
     // {

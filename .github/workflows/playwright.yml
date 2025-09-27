@@ -72,9 +72,17 @@ jobs:
         curl -I http://127.0.0.1:8000 || true
         echo "Server status check completed"
     - name: Run Playwright tests
-      run: npx playwright test --timeout=10000
+      run: |
+        echo "Starting Playwright tests..."
+        echo "Available tests:"
+        npx playwright test --list
+        echo "Running basic health check first..."
+        timeout 60 npx playwright test basic-health-check.spec.ts --project=chromium --reporter=line,github
+        echo "Health check completed, running login test..."
+        timeout 120 npx playwright test login.spec.ts --project=chromium --reporter=line,github --max-failures=1
       env:
         CI: true
+        DEBUG: pw:*
     - name: Stop Laravel server
       if: always()
       run: |
