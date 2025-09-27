@@ -79,7 +79,7 @@ test('debug login page content', async ({ page }) => {
   // Check if React/Inertia has loaded
   const reactLoaded = await page.evaluate(() => {
     return typeof window.React !== 'undefined' || 
-           (window as any).InertiaApp !== undefined ||
+           (window as unknown as { InertiaApp?: unknown }).InertiaApp !== undefined ||
            document.querySelector('[data-reactroot]') !== null;
   });
   console.log(`React/Inertia loaded: ${reactLoaded}`);

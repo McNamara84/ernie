@@ -9,6 +9,6 @@ const viteConfigSource = readFileSync(configPath, 'utf8');
 
 describe('vite configuration', () => {
     it('avoids hardcoding the /ernie base path', () => {
-        expect(viteConfigSource).not.toMatch(/base\s*:\s*['\"]\/ernie\//);
+        expect(viteConfigSource).not.toMatch(/base\s*:\s*['"]\/ernie\//);
     });
 });
