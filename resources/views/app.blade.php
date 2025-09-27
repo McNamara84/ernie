@@ -48,27 +48,8 @@
         {{-- Additional script to configure Inertia after it loads --}}
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                // Wait for Inertia to be available and configure it
-                function configureInertia() {
-                    if (typeof window.Inertia !== 'undefined' && window.location.hostname !== 'localhost') {
-                        console.log('Configuring Inertia for production...');
-                        const appUrl = '{{ config('app.url') }}';
-                        
-                        // Override visit method
-                        const originalVisit = window.Inertia.visit;
-                        window.Inertia.visit = function(url, options) {
-                            if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
-                                url = appUrl + url;
-                                console.log('Inertia visit redirected to:', url);
-                            }
-                            return originalVisit.call(this, url, options);
-                        };
-                    } else if (typeof window.Inertia === 'undefined') {
-                        // Retry after 100ms if Inertia is not yet loaded
-                        setTimeout(configureInertia, 100);
-                    }
-                }
-                configureInertia();
+                console.log('App URL:', '{{ config('app.url') }}');
+                console.log('Environment:', '{{ app()->environment() }}');
             });
         </script>
     </head>

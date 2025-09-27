@@ -1,15 +1,15 @@
 /**
  * URL transformation for production deployments with path prefix
  */
+import { getBasePath, withBasePath } from './lib/base-path';
 
 export function setupUrlTransformation() {
     if (!import.meta.env.PROD) {
+        console.log('Development mode detected, skipping URL transformation');
         return;
     }
 
-    // Get the base path from meta tag
-    const metaTag = document.querySelector('meta[name="app-base-path"]') as HTMLMetaElement;
-    const basePath = metaTag?.content || '';
+    const basePath = getBasePath();
     
     if (!basePath) {
         console.log('No base path found, skipping URL transformation');
@@ -19,94 +19,140 @@ export function setupUrlTransformation() {
     console.log('Setting up URL transformation with base path:', basePath);
     console.log('Current origin:', window.location.origin);
 
-    // Override global fetch to fix URLs
+    // Helper function to fix malformed URLs before transformation
+    const fixProtocolMalformation = (url: string): string => {
+        // Fix the worst case first: https://https// -> https://
+        if (url.includes('https://https://') || url.includes('http://http://') || 
+            url.includes('https://https//') || url.includes('http://http//')) {
+            return url.replace(/https?:\/\/https?\/{1,2}/, 'https://');
+        }
+        
+        // Fix simple malformed protocol: https//domain -> https://domain  
+        if (url.match(/^https?\/\/[^/]/) && !url.includes('://')) {
+            return url.replace(/^(https?)\/\//, '$1://');
+        }
+        
+        return url;
+    };
+
+    // Helper function to transform URLs using base-path library
+    const transformUrl = (url: string): string => {
+        // First fix any protocol malformation
+        const protocolFixed = fixProtocolMalformation(url);
+        
+        // If protocol was fixed and it's now a valid absolute URL, return it
+        if (protocolFixed !== url) {
+            console.log('Protocol fixed:', url, '->', protocolFixed);
+            return protocolFixed;
+        }
+        
+        // If it's a relative URL, use withBasePath
+        if (url.startsWith('/')) {
+            return withBasePath(url);
+        }
+        
+        // If it's an absolute URL with our origin but missing base path
+        if (url.includes(window.location.origin)) {
+            const path = url.replace(window.location.origin, '');
+            if (path.startsWith('/') && !path.startsWith(basePath)) {
+                return window.location.origin + withBasePath(path);
+            }
+        }
+        
+        // No transformation needed
+        return url;
+    };
+
+    // Override global fetch for all modern HTTP requests
     const originalFetch = window.fetch;
     window.fetch = function(input: RequestInfo | URL, init?: RequestInit) {
         let url = input;
         
         if (typeof input === 'string') {
-            console.log('Fetch - Original URL:', input);
-            
-            // Fix various protocol issues - order matters!
-            let fixedUrl = input;
-            
-            // Fix the worst case first: https://https// -> https://
-            if (fixedUrl.includes('https://https://') || fixedUrl.includes('http://http://') || 
-                fixedUrl.includes('https://https//') || fixedUrl.includes('http://http//')) {
-                fixedUrl = fixedUrl.replace(/https?:\/\/https?\/{1,2}/, 'https://');
-                console.log('Fetch - Fixed mixed protocol:', input, '->', fixedUrl);
-                return originalFetch.call(this, fixedUrl, init);
+            const transformed = transformUrl(input);
+            if (transformed !== input) {
+                console.log('Fetch transformed:', input, '->', transformed);
+                url = transformed;
             }
-            
-            // Fix simple malformed protocol: https//domain -> https://domain
-            if (fixedUrl.match(/^https?\/\/[^/]/) && !fixedUrl.includes('://')) {
-                fixedUrl = fixedUrl.replace(/^(https?)\/\//, '$1://');
-                console.log('Fetch - Fixed malformed protocol:', input, '->', fixedUrl);
-                return originalFetch.call(this, fixedUrl, init);
-            }
-            
-            // If it's a relative URL starting with /, prepend base path
-            if (input.startsWith('/') && !input.startsWith(basePath)) {
-                url = basePath + input;
-                console.log('Fetch - Transformed relative URL:', input, '->', url);
-            }
-            // If it's already an absolute URL, check if we need to fix the path
-            else if (input.includes(window.location.origin) && !input.includes(basePath)) {
-                const path = input.replace(window.location.origin, '');
-                if (path.startsWith('/') && !path.startsWith(basePath)) {
-                    url = window.location.origin + basePath + path;
-                    console.log('Fetch - Transformed absolute URL:', input, '->', url);
-                }
+        } else if (input instanceof URL) {
+            const urlStr = input.toString();
+            const transformed = transformUrl(urlStr);
+            if (transformed !== urlStr) {
+                console.log('Fetch URL transformed:', urlStr, '->', transformed);
+                url = new URL(transformed);
             }
         }
         
         return originalFetch.call(this, url, init);
     };
 
-    // Override XMLHttpRequest for legacy AJAX calls
+    // Override XMLHttpRequest for legacy AJAX calls (including Inertia.js)
     const originalOpen = XMLHttpRequest.prototype.open;
     // @ts-expect-error - Complex overload handling
     XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...rest: unknown[]) {
         let transformedUrl = url;
         
         if (typeof url === 'string') {
-            console.log('XHR - Original URL:', url, 'Method:', method);
-            
-            // Fix various protocol issues - order matters!
-            let fixedUrl = url;
-            
-            // Fix the worst case first: https://https// -> https://
-            if (fixedUrl.includes('https://https://') || fixedUrl.includes('http://http://') ||
-                fixedUrl.includes('https://https//') || fixedUrl.includes('http://http//')) {
-                fixedUrl = fixedUrl.replace(/https?:\/\/https?\/{1,2}/, 'https://');
-                console.log('XHR - Fixed mixed protocol:', url, '->', fixedUrl);
-                transformedUrl = fixedUrl;
+            const transformed = transformUrl(url);
+            if (transformed !== url) {
+                console.log(`XHR ${method} transformed:`, url, '->', transformed);
+                transformedUrl = transformed;
             }
-            // Fix simple malformed protocol: https//domain -> https://domain
-            else if (fixedUrl.match(/^https?\/\/[^/]/) && !fixedUrl.includes('://')) {
-                fixedUrl = fixedUrl.replace(/^(https?)\/\//, '$1://');
-                console.log('XHR - Fixed malformed protocol:', url, '->', fixedUrl);
-                transformedUrl = fixedUrl;
-            }
-            // For relative URLs, prepend base path
-            else if (url.startsWith('/') && !url.startsWith(basePath)) {
-                transformedUrl = basePath + url;
-                console.log('XHR - Transformed relative URL:', url, '->', transformedUrl);
-            }
-            // For absolute URLs that don't have the base path
-            else if (url.includes(window.location.origin) && !url.includes(basePath)) {
-                const path = url.replace(window.location.origin, '');
-                if (path.startsWith('/') && !path.startsWith(basePath)) {
-                    transformedUrl = window.location.origin + basePath + path;
-                    console.log('XHR - Transformed absolute URL:', url, '->', transformedUrl);
-                }
-            }
-            else {
-                console.log('XHR - No transformation needed:', url);
+        } else if (url instanceof URL) {
+            const urlStr = url.toString();
+            const transformed = transformUrl(urlStr);
+            if (transformed !== urlStr) {
+                console.log(`XHR ${method} URL transformed:`, urlStr, '->', transformed);
+                transformedUrl = new URL(transformed);
             }
         }
         
         // @ts-expect-error - Complex overload handling
         return originalOpen.call(this, method, transformedUrl, ...rest);
     };
+
+    // Override setAttribute to catch dynamic URL assignments
+    const originalSetAttribute = Element.prototype.setAttribute;
+    Element.prototype.setAttribute = function(name: string, value: string) {
+        if ((name === 'src' || name === 'href') && typeof value === 'string') {
+            const transformed = transformUrl(value);
+            if (transformed !== value) {
+                console.log(`Element ${name} transformed:`, value, '->', transformed);
+                return originalSetAttribute.call(this, name, transformed);
+            }
+        }
+        
+        return originalSetAttribute.call(this, name, value);
+    };
+
+    // Handle Image constructor for dynamic favicon loading  
+    const OriginalImage = window.Image;
+    // @ts-expect-error - Overriding native Image constructor
+    window.Image = function(this: HTMLImageElement, width?: number, height?: number) {
+        const img = new OriginalImage(width, height);
+        
+        // Override src setter
+        const srcDescriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src');
+        if (srcDescriptor && srcDescriptor.set) {
+            const originalSetter = srcDescriptor.set;
+            Object.defineProperty(img, 'src', {
+                get: srcDescriptor.get,
+                set: function(value: string) {
+                    const transformed = transformUrl(value);
+                    if (transformed !== value) {
+                        console.log('Image src transformed:', value, '->', transformed);
+                    }
+                    return originalSetter.call(this, transformed);
+                },
+                configurable: true,
+                enumerable: true
+            });
+        }
+        
+        return img;
+    };
+    
+    // Preserve static properties
+    Object.setPrototypeOf(window.Image, OriginalImage);
+    window.Image.prototype = OriginalImage.prototype;
 }
