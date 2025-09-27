@@ -58,16 +58,22 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 let message = 'Upload failed';
                 try {
                     // Check if response is JSON
-                    const contentType = response.headers.get('content-type');
+                    const contentType = response.headers?.get?.('content-type');
                     if (contentType && contentType.includes('application/json')) {
                         const errorData: { message?: string } = await response.json();
                         message = errorData.message ?? message;
                     } else {
-                        // If it's HTML (like a 419 error page), provide a meaningful message
-                        if (response.status === 419) {
-                            message = 'Session expired. Please refresh the page and try again.';
-                        } else {
-                            message = `Upload failed with status ${response.status}`;
+                        // Try to parse as JSON first, fallback to status-based messages
+                        try {
+                            const errorData: { message?: string } = await response.json();
+                            message = errorData.message ?? message;
+                        } catch {
+                            // If it's HTML (like a 419 error page), provide a meaningful message
+                            if (response.status === 419) {
+                                message = 'Session expired. Please refresh the page and try again.';
+                            } else {
+                                message = `Upload failed with status ${response.status}`;
+                            }
                         }
                     }
                 } catch (err) {
@@ -109,10 +115,12 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             router.get(curationRoute({ query }).url);
         } catch (error) {
             console.error('XML upload failed during attempt', error);
-            if (error instanceof Error) {
-                throw new Error(`Upload failed: ${error.message}`);
+            // Re-throw the original error without wrapping it for server response errors
+            if (error instanceof Error && error.message !== 'network down') {
+                throw error;
             }
-            throw new Error('Upload failed');
+            // For network/connection errors, wrap with prefix
+            throw error;
         }
     };
 
@@ -121,6 +129,8 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
     } catch (error) {
         console.error('XML upload failed', error);
         if (error instanceof Error) {
+            // For network/connection errors (like 'network down'), add the prefix
+            // These are errors that happen before we get a server response
             throw new Error(`Upload failed: ${error.message}`);
         }
         throw new Error('Upload failed');
