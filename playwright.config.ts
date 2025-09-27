@@ -80,7 +80,6 @@ export default defineConfig({
       ...process.env,
       APP_ENV: 'testing',
       DB_CONNECTION: 'sqlite',
-      DB_DATABASE: 'database/database.sqlite',
       SESSION_DRIVER: 'file',
       SESSION_PATH: '/',
       CACHE_DRIVER: 'file',
