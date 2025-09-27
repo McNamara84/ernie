@@ -78,8 +78,14 @@ export default defineConfig({
     timeout: 120 * 1000,
     env: {
       ...process.env,
+      APP_ENV: 'testing',
+      DB_CONNECTION: 'sqlite',
       DB_DATABASE: 'database/database.sqlite',
       SESSION_DRIVER: 'file',
+      SESSION_PATH: '/',
+      CACHE_DRIVER: 'file',
+      QUEUE_CONNECTION: 'sync',
+      BROADCAST_DRIVER: 'log',
     },
   },
 });
