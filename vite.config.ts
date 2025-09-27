@@ -8,7 +8,7 @@ export default defineConfig(() => {
     return {
         plugins: [
             laravel({
-                input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx'],
+                input: ['resources/css/app.css', 'resources/js/app.tsx', 'resources/js/swagger.tsx', 'resources/js/pages/dashboard.tsx'],
                 ssr: 'resources/js/ssr.tsx',
                 refresh: true,
             }),

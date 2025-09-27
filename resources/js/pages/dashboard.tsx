@@ -48,7 +48,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             titles?: { title: string; titleType: string }[] | null;
             licenses?: string[] | null;
         } = await response.json();
-        const query: Record<string, unknown> = {};
+        const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
         if (data.year) query.year = data.year;
         if (data.version) query.version = data.version;
@@ -65,7 +65,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 query[`licenses[${i}]`] = l;
             });
         }
-        router.get(curationRoute().url, query);
+        router.get(curationRoute({ query }).url);
     } catch (error) {
         console.error('XML upload failed', error);
         if (error instanceof Error) {
