@@ -47,8 +47,45 @@ jobs:
       - name: Copy Environment File
         run: cp .env.example .env
 
+      - name: Configure test environment
+        run: |
+          sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+          sed -i '/^DB_HOST=/d' .env
+          sed -i '/^DB_PORT=/d' .env  
+          sed -i '/^DB_DATABASE=/d' .env
+          sed -i '/^DB_USERNAME=/d' .env
+          sed -i '/^DB_PASSWORD=/d' .env
+          sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
+          sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=file/' .env
+          sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env
+          sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+          sed -i 's/^BROADCAST_CONNECTION=.*/BROADCAST_CONNECTION=log/' .env
+          sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
+          sed -i 's/^APP_DEBUG=.*/APP_DEBUG=false/' .env
+          sed -i 's/^APP_URL=.*/APP_URL=http:\/\/localhost/' .env
+          sed -i 's/^ASSET_URL=.*/ASSET_URL=http:\/\/localhost/' .env
+          mkdir -p database
+          touch database/database.sqlite
+          chmod 666 database/database.sqlite
+          echo "=== .env configuration for tests ==="
+          cat .env | grep -E "(APP_|DB_|SESSION_|CACHE_|QUEUE_|ASSET_|BROADCAST_)"
+          echo "============================="
+
+      - name: Setup database
+        run: |
+          php artisan config:clear
+          php artisan cache:clear
+          php artisan migrate:fresh --seed --force
+
       - name: Generate Application Key
         run: php artisan key:generate
 
+      - name: Debug routing
+        run: |
+          echo "=== Available routes ==="
+          php artisan route:list | head -20 || echo "Could not list routes"
+          echo "=== Application configuration ==="
+          php artisan config:show app.url || echo "Could not show app.url"
+
       - name: Tests
-        run: ./vendor/bin/pest
+        run: ./vendor/bin/pest --verbose
