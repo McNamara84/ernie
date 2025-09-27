@@ -28,6 +28,8 @@ jobs:
       run: composer install --no-interaction --prefer-dist --optimize-autoloader
     - name: Build assets
       run: npm run build
+      env:
+        NODE_ENV: development
     - name: Prepare application
       run: |
         cp .env.example .env
@@ -40,15 +42,16 @@ jobs:
         sed -i 's/^SESSION_DRIVER=.*/SESSION_DRIVER=file/' .env
         sed -i 's/^CACHE_DRIVER=.*/CACHE_DRIVER=file/' .env
         sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+        sed -i 's/^APP_ENV=.*/APP_ENV=local/' .env
+        sed -i 's/^APP_DEBUG=.*/APP_DEBUG=true/' .env
         echo "SESSION_PATH=/" >> .env
-        echo "APP_ENV=testing" >> .env
         mkdir -p database
         touch database/database.sqlite
         chmod 666 database/database.sqlite
         echo "Database created at: $(pwd)/database/database.sqlite"
         ls -la database/
-        echo "=== .env DB configuration ==="
-        cat .env | grep -E "(DB_|SESSION_|CACHE_|QUEUE_|APP_ENV)"
+        echo "=== .env configuration ==="
+        cat .env | grep -E "(APP_|DB_|SESSION_|CACHE_|QUEUE_)"
         echo "============================="
         php artisan key:generate
         php artisan migrate:fresh --seed --force
@@ -57,7 +60,8 @@ jobs:
     - name: Start Laravel server
       run: php artisan serve --host=127.0.0.1 --port=8000 &
       env:
-        APP_ENV: testing
+        APP_ENV: local
+        APP_DEBUG: true
         DB_CONNECTION: sqlite
         SESSION_DRIVER: file
         SESSION_PATH: /
@@ -70,9 +74,12 @@ jobs:
         echo "Server is ready!"
         echo "Testing server response:"
         curl -I http://127.0.0.1:8000 || true
+        echo "=== Testing login page ==="
+        curl -s http://127.0.0.1:8000/login | head -20
+        echo "=== Login page test completed ==="
         echo "Server status check completed"
     - name: Run Playwright tests
-      run: npx playwright test --timeout=10000
+      run: npx playwright test
       env:
         CI: true
     - name: Stop Laravel server
