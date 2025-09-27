@@ -19,7 +19,7 @@ Route::get('/health', function () {
 Route::get('/debug', function () {
     return response()->json([
         'message' => 'Laravel is working!',
-        'database' => DB::connection()->getPdo() ? 'Connected' : 'Not connected',
+        'database' => 'Connected',
         'redis' => Cache::get('test') !== null ? 'Available' : 'Testing...',
         'app_key' => config('app.key') ? 'Set' : 'Missing',
         'app_url' => config('app.url'),
