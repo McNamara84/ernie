@@ -37,5 +37,8 @@ jobs:
         env:
           # Bypass Laravel's environment check so Vitest can run without a full PHP app environment
           LARAVEL_BYPASS_ENV_CHECK: 1
-        run: npm test
+          # Set consistent URL generation for tests
+          VITE_APP_URL: ""
+          APP_URL: ""
+        run: npm test -- --run
 

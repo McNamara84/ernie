@@ -40,6 +40,10 @@ export default defineConfig(() => {
             globals: true,
             setupFiles: './vitest.setup.ts',
             include: ['resources/js/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+            env: {
+                VITE_APP_URL: '',
+                APP_URL: '',
+            },
             coverage: {
                 provider: 'v8',
                 reporter: ['text', 'json-summary'],

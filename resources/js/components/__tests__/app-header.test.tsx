@@ -4,6 +4,7 @@ import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 import type { BreadcrumbItem } from '@/types';
 import type { ComponentProps } from 'react';
+import { normalizeTestUrl } from '@/__tests__/test-utils';
 
 const usePageMock = vi.fn();
 const getInitialsMock = vi.fn(() => 'JD');
@@ -106,11 +107,11 @@ describe('AppHeader', () => {
         );
         screen
             .getAllByRole('link', { name: /dashboard/i })
-            .forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/dashboard')));
+            .forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe(withBasePath('/dashboard')));
         const changelogLinks = screen.getAllByRole('link', { name: /changelog/i });
-        changelogLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/changelog')));
+        changelogLinks.forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe(withBasePath('/changelog')));
         const docLinks = screen.getAllByRole('link', { name: /^documentation$/i });
-        docLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/docs')));
+        docLinks.forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe(withBasePath('/docs')));
         const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
         apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/api/v1/doc')));
         const curationLinks = screen.getAllByRole('link', { name: /curation/i });

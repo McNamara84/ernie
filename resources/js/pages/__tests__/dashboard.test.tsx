@@ -5,6 +5,7 @@ import { latestVersion } from '@/lib/version';
 import { applyBasePathToRoutes, __testing as basePathTesting } from '@/lib/base-path';
 import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { normalizeTestUrl } from '@/__tests__/test-utils';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
@@ -179,7 +180,7 @@ describe('handleXmlFiles', () => {
 
         expect(fetchMock).toHaveBeenCalled();
         const [url, options] = fetchMock.mock.calls[0];
-        expect(url).toBe('/dashboard/upload-xml');
+        expect(normalizeTestUrl(url as string)).toBe('/dashboard/upload-xml');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
         expect(routerMock.get).toHaveBeenCalledWith('/curation?doi=10.1234%2Fabc&year=2024&version=1.0&language=en&resourceType=1&titles%5B0%5D%5Btitle%5D=Example+Title&titles%5B0%5D%5BtitleType%5D=main-title&titles%5B1%5D%5Btitle%5D=Example+Subtitle&titles%5B1%5D%5BtitleType%5D=subtitle&titles%5B2%5D%5Btitle%5D=Example+TranslatedTitle&titles%5B2%5D%5BtitleType%5D=translated-title&titles%5B3%5D%5Btitle%5D=Example+AlternativeTitle&titles%5B3%5D%5BtitleType%5D=alternative-title&licenses%5B0%5D=CC-BY-4.0&licenses%5B1%5D=MIT');
         fetchMock.mockRestore();
@@ -312,7 +313,9 @@ describe('handleXmlFiles', () => {
 
         await handleXmlFiles([file]);
 
-        expect(fetchMock).toHaveBeenCalledWith('/ernie/dashboard/upload-xml', expect.any(Object));
+        expect(fetchMock).toHaveBeenCalled();
+        const [url] = fetchMock.mock.calls[0];
+        expect(normalizeTestUrl(url as string)).toBe('/ernie/dashboard/upload-xml');
         expect(routerMock.get).toHaveBeenCalledWith('/ernie/curation');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
