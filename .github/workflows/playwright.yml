@@ -10,12 +10,17 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    name: Playwright (${{ matrix.browser }})
     steps:
     - uses: actions/checkout@v4
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: 8.4
+        php-version: '8.3'
         tools: composer:v2
     - name: Setup Node
       uses: actions/setup-node@v4
@@ -82,7 +87,7 @@ jobs:
         php artisan view:clear
         php artisan migrate:fresh --seed --force
     - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      run: npx playwright install --with-deps ${{ matrix.browser }}
     - name: Start Laravel server
       run: php artisan serve --host=127.0.0.1 --port=8000 &
       env:
@@ -157,7 +162,7 @@ jobs:
         
         echo "=== END DEBUG ==="
     - name: Run Playwright tests
-      run: npx playwright test
+      run: npx playwright test --project=${{ matrix.browser }}
       env:
         CI: true
     - name: Stop Laravel server
