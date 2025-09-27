@@ -41,6 +41,14 @@ jobs:
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
+      - name: Build Assets
+        run: npm run build
+        env:
+          NODE_ENV: production
+          APP_ENV: testing
+          APP_URL: http://localhost
+          ASSET_URL: http://localhost
+
       - name: Copy Environment File
         run: cp .env.example .env
 
@@ -77,26 +85,14 @@ jobs:
       - name: Generate Application Key
         run: php artisan key:generate
 
-      - name: Create Vite manifest for testing
+      - name: Debug Vite manifest
         run: |
-          mkdir -p public/build
-          echo '{
-            "resources/js/app.tsx": {
-              "file": "assets/app.js",
-              "src": "resources/js/app.tsx",
-              "isEntry": true
-            },
-            "resources/js/pages/dashboard.tsx": {
-              "file": "assets/dashboard.js", 
-              "src": "resources/js/pages/dashboard.tsx"
-            },
-            "resources/js/pages/auth/login.tsx": {
-              "file": "assets/login.js",
-              "src": "resources/js/pages/auth/login.tsx"
-            }
-          }' > public/build/manifest.json
-          echo "Created test manifest:"
-          cat public/build/manifest.json
+          echo "=== Vite build output ==="
+          ls -la public/build/ || echo "No build directory found"
+          echo "=== Vite manifest content ==="
+          cat public/build/manifest.json | head -30 || echo "No manifest found"
+          echo "=== Total entries in manifest ==="
+          grep -c '"file"' public/build/manifest.json || echo "Could not count entries"
 
       - name: Debug routing
         run: |
