@@ -7,7 +7,7 @@ function BentoGrid({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="bento-grid"
       className={cn(
-        "grid gap-4 md:grid-cols-2 lg:grid-cols-3",
+        "grid gap-4 md:grid-cols-2",
         className
       )}
       {...props}

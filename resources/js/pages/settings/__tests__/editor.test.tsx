@@ -52,7 +52,8 @@ describe('EditorSettings page', () => {
         );
         const grid = screen.getByTestId('bento-grid');
         expect(grid).toBeInTheDocument();
-        expect(grid).toHaveClass('md:grid-cols-2', 'lg:grid-cols-3');
+        expect(grid).toHaveClass('md:grid-cols-2');
+        expect(grid).not.toHaveClass('lg:grid-cols-3');
         const items = grid.querySelectorAll('[data-slot="bento-grid-item"]');
         expect(items).toHaveLength(5);
         items.forEach((item) => expect(item).toHaveClass('self-start'));
