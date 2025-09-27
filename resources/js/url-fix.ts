@@ -27,10 +27,24 @@ export function setupUrlTransformation() {
         if (typeof input === 'string') {
             console.log('Fetch - Original URL:', input);
             
-            // Fix double protocol issue first (https://https//...)
-            if (input.includes('https://https//') || input.includes('http://http//')) {
-                url = input.replace(/https?:\/\/https?\/\//, 'https://');
-                console.log('Fetch - Fixed double protocol:', input, '->', url);
+            // Fix various protocol issues
+            let fixedUrl = input;
+            
+            // Fix double protocol: https://https:// -> https://
+            if (fixedUrl.includes('https://https://') || fixedUrl.includes('http://http://')) {
+                fixedUrl = fixedUrl.replace(/https?:\/\/https?:\/\//, 'https://');
+                console.log('Fetch - Fixed double full protocol:', input, '->', fixedUrl);
+            }
+            
+            // Fix malformed protocol: https//domain -> https://domain
+            if (fixedUrl.match(/^https?\/\/[^/]/)) {
+                fixedUrl = fixedUrl.replace(/^(https?)\/\//, '$1://');
+                console.log('Fetch - Fixed malformed protocol:', input, '->', fixedUrl);
+            }
+            
+            // If we fixed the URL, use that
+            if (fixedUrl !== input) {
+                url = fixedUrl;
                 return originalFetch.call(this, url, init);
             }
             
@@ -61,10 +75,24 @@ export function setupUrlTransformation() {
         if (typeof url === 'string') {
             console.log('XHR - Original URL:', url, 'Method:', method);
             
-            // Fix double protocol issue first
-            if (url.includes('https://https//') || url.includes('http://http//')) {
-                transformedUrl = url.replace(/https?:\/\/https?\/\//, 'https://');
-                console.log('XHR - Fixed double protocol:', url, '->', transformedUrl);
+            // Fix various protocol issues
+            let fixedUrl = url;
+            
+            // Fix double protocol: https://https:// -> https://
+            if (fixedUrl.includes('https://https://') || fixedUrl.includes('http://http://')) {
+                fixedUrl = fixedUrl.replace(/https?:\/\/https?:\/\//, 'https://');
+                console.log('XHR - Fixed double full protocol:', url, '->', fixedUrl);
+            }
+            
+            // Fix malformed protocol: https//domain -> https://domain
+            if (fixedUrl.match(/^https?\/\/[^/]/)) {
+                fixedUrl = fixedUrl.replace(/^(https?)\/\//, '$1://');
+                console.log('XHR - Fixed malformed protocol:', url, '->', fixedUrl);
+            }
+            
+            // If we fixed the URL, use that
+            if (fixedUrl !== url) {
+                transformedUrl = fixedUrl;
             }
             // For relative URLs, prepend base path
             else if (url.startsWith('/') && !url.startsWith(basePath)) {
