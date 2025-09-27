@@ -1,4 +1,4 @@
-FROM php:8.2-fpm AS app
+FROM php:8.4-fpm AS app
 
 WORKDIR /var/www/html
 
