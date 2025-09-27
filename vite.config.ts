@@ -28,12 +28,19 @@ export default defineConfig(() => {
             }
         },
         esbuild: {
-            jsx: 'automatic',
+            jsx: 'automatic' as const,
+        },
+        define: {
+            global: 'globalThis',
         },
         resolve: {
             alias: {
                 '@': '/resources/js',
             },
+        },
+        optimizeDeps: {
+            exclude: ['swagger-ui-react'],
+            include: ['react', 'react-dom'],
         },
         test: {
             environment: 'jsdom',
@@ -45,7 +52,7 @@ export default defineConfig(() => {
                 APP_URL: '',
             },
             coverage: {
-                provider: 'v8',
+                provider: 'v8' as const,
                 reporter: ['text', 'json-summary'],
                 reportsDirectory: 'coverage',
                 include: ['resources/js/**/*.{js,ts,jsx,tsx}'],
