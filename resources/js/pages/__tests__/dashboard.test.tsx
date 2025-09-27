@@ -37,11 +37,22 @@ vi.mock('@/layouts/app-layout', () => ({
 vi.mock('@/routes', async () => {
     const { withBasePath } = await import('@/lib/base-path');
 
-    const makeRoute = (path: string) => ({ url: withBasePath(path) });
+    const makeRoute = (path: string, queryParams?: Record<string, string | number>) => {
+        let url = withBasePath(path);
+        if (queryParams && Object.keys(queryParams).length > 0) {
+            const searchParams = new URLSearchParams();
+            Object.entries(queryParams).forEach(([key, value]) => {
+                searchParams.append(key, String(value));
+            });
+            url += `?${searchParams.toString()}`;
+        }
+        return { url };
+    };
 
     return {
         dashboard: () => makeRoute('/dashboard'),
-        curation: () => makeRoute('/curation'),
+        curation: (params?: { query?: Record<string, string | number> }) => 
+            makeRoute('/curation', params?.query),
         changelog: () => makeRoute('/changelog'),
         about: () => makeRoute('/about'),
         legalNotice: () => makeRoute('/legal-notice'),
@@ -170,23 +181,7 @@ describe('handleXmlFiles', () => {
         const [url, options] = fetchMock.mock.calls[0];
         expect(url).toBe('/dashboard/upload-xml');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', {
-            doi: '10.1234/abc',
-            year: '2024',
-            version: '1.0',
-            language: 'en',
-            resourceType: '1',
-            'titles[0][title]': 'Example Title',
-            'titles[0][titleType]': 'main-title',
-            'titles[1][title]': 'Example Subtitle',
-            'titles[1][titleType]': 'subtitle',
-            'titles[2][title]': 'Example TranslatedTitle',
-            'titles[2][titleType]': 'translated-title',
-            'titles[3][title]': 'Example AlternativeTitle',
-            'titles[3][titleType]': 'alternative-title',
-            'licenses[0]': 'CC-BY-4.0',
-            'licenses[1]': 'MIT',
-        });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation?doi=10.1234%2Fabc&year=2024&version=1.0&language=en&resourceType=1&titles%5B0%5D%5Btitle%5D=Example+Title&titles%5B0%5D%5BtitleType%5D=main-title&titles%5B1%5D%5Btitle%5D=Example+Subtitle&titles%5B1%5D%5BtitleType%5D=subtitle&titles%5B2%5D%5Btitle%5D=Example+TranslatedTitle&titles%5B2%5D%5BtitleType%5D=translated-title&titles%5B3%5D%5Btitle%5D=Example+AlternativeTitle&titles%5B3%5D%5BtitleType%5D=alternative-title&licenses%5B0%5D=CC-BY-4.0&licenses%5B1%5D=MIT');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -209,10 +204,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', {
-            'titles[0][title]': 'A mandatory Event',
-            'titles[0][titleType]': 'main-title',
-        });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation?titles%5B0%5D%5Btitle%5D=A+mandatory+Event&titles%5B0%5D%5BtitleType%5D=main-title');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -228,7 +220,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', {});
+        expect(routerMock.get).toHaveBeenCalledWith('/curation');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -244,7 +236,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { year: '2023', language: 'en' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation?year=2023&language=en');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -260,7 +252,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { version: '2.0', language: 'en' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation?version=2.0&language=en');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -276,7 +268,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { language: 'de' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation?language=de');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -292,7 +284,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation', { resourceType: '1' });
+        expect(routerMock.get).toHaveBeenCalledWith('/curation?resourceType=1');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -321,7 +313,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalledWith('/ernie/dashboard/upload-xml', expect.any(Object));
-        expect(routerMock.get).toHaveBeenCalledWith('/ernie/curation', expect.any(Object));
+        expect(routerMock.get).toHaveBeenCalledWith('/ernie/curation');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
