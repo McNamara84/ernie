@@ -1,220 +1,88 @@
 services:
-  # Laravel Application mit serversideup/php
   app:
-    image: serversideup/php:8.4-fpm-nginx
-    container_name: ernie-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    container_name: dockerized-laravel-app
     restart: unless-stopped
-    working_dir: /var/www/html
-    environment:
-      # Laravel Configuration
-      APP_NAME: ${APP_NAME:-ERNIE}
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${APP_KEY}
-      APP_DEBUG: ${APP_DEBUG:-false}
-      APP_URL: ${APP_URL:-https://env.rz-vm182.gfz.de/ernie}
-      ASSET_URL: ${ASSET_URL:-https://env.rz-vm182.gfz.de/ernie}
-      
-      # Database Configuration
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE:-ernie}
-      DB_USERNAME: ${DB_USERNAME:-ernie}
-      DB_PASSWORD: ${DB_PASSWORD}
-      
-      # Redis Configuration
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_CLIENT: phpredis
-      
-      # Cache & Session Configuration
-      CACHE_DRIVER: ${CACHE_DRIVER:-redis}
-      SESSION_DRIVER: ${SESSION_DRIVER:-redis}
-      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
-      BROADCAST_DRIVER: ${BROADCAST_DRIVER:-redis}
-      
-      # ServersideUp Specific Configuration
-      # Laravel Automations aktivieren
-      AUTORUN_ENABLED: true
-      AUTORUN_LARAVEL_MIGRATION: true
-      AUTORUN_LARAVEL_MIGRATION_ISOLATION: true
-      AUTORUN_LARAVEL_STORAGE_LINK: true
-      AUTORUN_LARAVEL_CONFIG_CACHE: true
-      AUTORUN_LARAVEL_ROUTE_CACHE: true
-      AUTORUN_LARAVEL_VIEW_CACHE: true
-      AUTORUN_LARAVEL_EVENT_CACHE: true
-      
-      # PHP Configuration
-      PHP_POOL_NAME: "ernie-app"
-      PHP_MAX_EXECUTION_TIME: 120
-      PHP_MAX_INPUT_TIME: 120
-      PHP_MEMORY_LIMIT: 512M
-      PHP_POST_MAX_SIZE: 64M
-      PHP_UPLOAD_MAX_FILE_SIZE: 64M
-      PHP_OPCACHE_ENABLE: 1
-      PHP_OPCACHE_INTERNED_STRINGS_BUFFER: 32
-      PHP_OPCACHE_MAX_ACCELERATED_FILES: 24000
-      PHP_OPCACHE_MEMORY_CONSUMPTION: 256
-      PHP_OPCACHE_REVALIDATE_FREQ: 0
-      PHP_OPCACHE_VALIDATE_TIMESTAMPS: 0
-      
-      # SSL/Security
-      SSL_MODE: "off"  # Traefik handles SSL
-      
     volumes:
-      - ./:/var/www/html
       - storage-data:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
-      - ./docker/php/custom.ini:/usr/local/etc/php/conf.d/99-custom.ini:ro
     networks:
-      - ernie-network
-      - traefik
-    ports:
-      - "${APP_PORT:-8084}:8080"  # serversideup uses 8080 for non-root
+      - dockerized-laravel-network
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "healthcheck"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - db
+    environment:
+      - APP_URL=https://env.rz-vm182.gfz.de/ernie
+      - DB_HOST=db
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - BROADCAST_DRIVER=log
+      - CACHE_DRIVER=file
+      - QUEUE_CONNECTION=database
+      - SESSION_DRIVER=file
+
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx
+    container_name: dockerized-laravel-webserver
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - storage-data:/var/www/html/storage:ro
+    networks:
+      - dockerized-laravel-network
+      - traefik
+    depends_on:
+      - app
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=traefik"
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
-      - "traefik.http.routers.ernie-router.tls=true"
-      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix,ernie-headers"
+      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
-      - "traefik.http.middlewares.ernie-headers.headers.customrequestheaders.X-Forwarded-Prefix=/ernie"
-      - "traefik.http.services.ernie-service.loadbalancer.server.port=8080"
+      - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik"
 
-  # Laravel Queue Worker
-  queue:
-    image: serversideup/php:8.4-cli
-    container_name: ernie-queue
-    restart: unless-stopped
-    working_dir: /var/www/html
-    command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=90"]
-    stop_signal: SIGTERM
-    environment:
-      # Same environment as app service
-      APP_NAME: ${APP_NAME:-ERNIE}
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${APP_KEY}
-      APP_DEBUG: ${APP_DEBUG:-false}
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE:-ernie}
-      DB_USERNAME: ${DB_USERNAME:-ernie}
-      DB_PASSWORD: ${DB_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_CLIENT: phpredis
-      CACHE_DRIVER: ${CACHE_DRIVER:-redis}
-      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
-    volumes:
-      - ./:/var/www/html
-      - storage-data:/var/www/html/storage
-    networks:
-      - ernie-network
-    depends_on:
-      - app
-      - redis
-    healthcheck:
-      test: ["CMD", "healthcheck-queue"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Laravel Scheduler
-  scheduler:
-    image: serversideup/php:8.4-cli
-    container_name: ernie-scheduler
-    restart: unless-stopped
-    working_dir: /var/www/html
-    command: ["/bin/sh", "-c", "while true; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"]
-    environment:
-      # Same environment as app service
-      APP_NAME: ${APP_NAME:-ERNIE}
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${APP_KEY}
-      APP_DEBUG: ${APP_DEBUG:-false}
-      DB_CONNECTION: mysql
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${DB_DATABASE:-ernie}
-      DB_USERNAME: ${DB_USERNAME:-ernie}
-      DB_PASSWORD: ${DB_PASSWORD}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_CLIENT: phpredis
-      CACHE_DRIVER: ${CACHE_DRIVER:-redis}
-    volumes:
-      - ./:/var/www/html
-      - storage-data:/var/www/html/storage
-    networks:
-      - ernie-network
-    depends_on:
-      - app
-
-  # MySQL Database
   db:
     image: mysql:8.0
-    container_name: ernie-db
+    container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MARIADB_DATABASE:-ernie}
-      MYSQL_USER: ${MARIADB_USER:-ernie}
-      MYSQL_PASSWORD: ${MARIADB_PASSWORD}
+      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MARIADB_DATABASE}
+      - MYSQL_USER=${MARIADB_USER}
+      - MYSQL_PASSWORD=${MARIADB_PASSWORD}
     volumes:
-      - db-data:/var/lib/mysql
-      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - dockerized-laravel-data:/var/lib/mysql
     networks:
-      - ernie-network
+      - dockerized-laravel-network
     ports:
       - "3306:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
-  # Redis Cache
   redis:
-    image: redis:7-alpine
-    container_name: ernie-redis
+    image: redis:alpine
+    container_name: dockerized-laravel-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redis-data:/data
     networks:
-      - ernie-network
+      - dockerized-laravel-network
     ports:
       - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
 
 networks:
-  ernie-network:
+  dockerized-laravel-network:
     driver: bridge
   traefik:
     external: true
 
 volumes:
-  db-data:
-    driver: local
-  redis-data:
+  dockerized-laravel-data:
     driver: local
   storage-data:
     driver: local
