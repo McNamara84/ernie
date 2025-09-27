@@ -285,7 +285,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="title-types-heading">
+                    <BentoGridItem aria-labelledby="title-types-heading" className="md:col-start-2">
                         <h2 id="title-types-heading" className="text-lg font-semibold">
                             Title Types
                         </h2>
@@ -415,7 +415,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="limits-heading">
+                    <BentoGridItem aria-labelledby="limits-heading" className="md:col-start-2">
                         <h2 id="limits-heading" className="text-lg font-semibold">
                             Limits
                         </h2>

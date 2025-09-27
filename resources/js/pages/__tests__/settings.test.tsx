@@ -80,6 +80,33 @@ describe('EditorSettings page', () => {
         expect(elmoCell).toHaveClass('text-center');
     });
 
+    it('uses a two-column layout with Title Types and Limits in the second column', () => {
+        render(
+            <EditorSettings
+                resourceTypes={[
+                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
+                ]}
+                titleTypes={[
+                    { id: 1, name: 'Article', slug: 'article', active: true, elmo_active: false },
+                ]}
+                licenses={[]}
+                languages={[]}
+                maxTitles={5}
+                maxLicenses={10}
+            />,
+        );
+
+        const grid = screen.getByTestId('bento-grid');
+        expect(grid).toHaveClass('md:grid-cols-2');
+        expect(grid).not.toHaveClass('lg:grid-cols-3');
+
+        const titleTypesRegion = screen.getByRole('region', { name: 'Title Types' });
+        expect(titleTypesRegion).toHaveClass('md:col-start-2');
+
+        const limitsRegion = screen.getByRole('region', { name: 'Limits' });
+        expect(limitsRegion).toHaveClass('md:col-start-2');
+    });
+
     it('updates ERNIE active when toggled', () => {
         const resourceTypes = [
             { id: 1, name: 'Dataset', active: false, elmo_active: false },

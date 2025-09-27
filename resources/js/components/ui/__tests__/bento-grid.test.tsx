@@ -18,6 +18,7 @@ describe('BentoGrid', () => {
     const first = screen.getByText('One')
     expect(first).toHaveAttribute('data-slot', 'bento-grid-item')
     expect(first).toHaveClass('self-start')
-    expect(grid).toHaveClass('grid', 'gap-4', 'md:grid-cols-2', 'lg:grid-cols-3')
+    expect(grid).toHaveClass('grid', 'gap-4', 'md:grid-cols-2')
+    expect(grid).not.toHaveClass('lg:grid-cols-3')
   })
 })
