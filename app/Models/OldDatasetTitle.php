@@ -5,6 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $id
+ * @property int $resource_id
+ * @property string|null $title
+ * @property string|null $titleType
+ * @property string|null $titletype
+ */
 class OldDatasetTitle extends Model
 {
     use HasFactory;
