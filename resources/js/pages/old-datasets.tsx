@@ -217,8 +217,8 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                         {datasets.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ? 
-                                    "Keine Datensätze verfügbar. Überprüfen Sie die Datenbankverbindung." :
-                                    "Keine Datensätze gefunden."
+                                    "No datasets available. Please check the database connection." :
+                                    "No old datasets found."
                                 }
                             </div>
                         ) : (
