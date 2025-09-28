@@ -4,7 +4,7 @@ import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import Curation from '../curation';
 import type { ResourceType, TitleType, License, Language } from '@/types';
 
-const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
+const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset', slug: 'dataset' }];
 const titleTypes: TitleType[] = [
     { id: 1, name: 'Main Title', slug: 'main-title' },
 ];
@@ -169,6 +169,22 @@ describe('Curation page', () => {
                 resourceType="1"
             />,
         );
+        await waitFor(() =>
+            expect(renderForm).toHaveBeenCalledWith(
+                expect.objectContaining({ initialResourceType: '1' }),
+            ),
+        );
+    });
+
+    it('derives the resource type from the slug when an id is not provided', async () => {
+        render(
+            <Curation
+                maxTitles={99}
+                maxLicenses={99}
+                resourceTypeSlug="Dataset"
+            />,
+        );
+
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
                 expect.objectContaining({ initialResourceType: '1' }),

@@ -44,6 +44,7 @@ export interface User {
 export interface ResourceType {
     id: number;
     name: string;
+    slug: string;
 }
 
 export interface TitleType {

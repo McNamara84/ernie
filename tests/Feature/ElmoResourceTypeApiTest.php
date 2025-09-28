@@ -27,5 +27,5 @@ it('returns only resource types enabled for ELMO', function () {
         ->assertJsonCount(1);
 
     expect($response->json('0'))
-        ->toBe(['id' => $enabled->id, 'name' => 'Type A']);
+        ->toBe(['id' => $enabled->id, 'name' => 'Type A', 'slug' => 'type-a']);
 });

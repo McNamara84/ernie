@@ -14,7 +14,7 @@ describe('DataCiteForm', () => {
         Element.prototype.scrollIntoView = () => {};
     });
 
-    const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
+    const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset', slug: 'dataset' }];
 
     const titleTypes: TitleType[] = [
         { id: 1, name: 'Main Title', slug: 'main-title' },

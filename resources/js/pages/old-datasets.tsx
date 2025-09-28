@@ -4,9 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Head } from '@inertiajs/react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Icon } from '@/components/icon';
+import { Head, router } from '@inertiajs/react';
 import { useState, useRef, useCallback } from 'react';
 import axios from 'axios';
+import { curation as curationRoute } from '@/routes';
+import { ExternalLink } from 'lucide-react';
 
 interface Dataset {
     id?: number;
@@ -19,8 +23,20 @@ interface Dataset {
     publicstatus?: string;
     publisher?: string;
     publicationyear?: number;
+    language?: string;
+    version?: string;
+    titles?: DatasetTitle[];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
+}
+
+interface DatasetTitle {
+    title: string;
+    titleType: string;
+}
+
+interface DatasetDetail extends Dataset {
+    titles?: DatasetTitle[];
 }
 
 interface PaginationInfo {
@@ -44,6 +60,8 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
+    const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+    const [actionError, setActionError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
     
     const breadcrumbs: BreadcrumbItem[] = [
@@ -104,6 +122,9 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
                         </td>
                     ))}
+                    <td className="px-6 py-4">
+                        <div className="h-4 w-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                    </td>
                 </tr>
             ))}
         </>
@@ -132,7 +153,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             'title': 'Title',
             'created_at': 'Created Date',
             'updated_at': 'Updated Date',
-            'publicstatus': 'Publication Status',
+            'publicstatus': 'Status',
             'publisher': 'Publisher',
             'publicationyear': 'Publication Year',
         };
@@ -170,7 +191,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         // Define the desired column order
         return [
             'identifier',
-            'title', 
+            'title',
             'resourcetypegeneral',
             'curator',
             'created_at',
@@ -187,10 +208,69 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             'curator': 'w-24', // Half width for curator (first names only)
             'created_at': 'w-32',
             'updated_at': 'w-32',
-            'publicstatus': 'w-28'
+            'publicstatus': 'w-28',
+            'actions': 'w-20'
         };
         return widthMap[key] || 'w-32';
     };
+
+    const toSlug = useCallback((value: string): string =>
+        value
+            .normalize('NFD')
+            .replace(/\p{Diacritic}/gu, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, ''), []);
+
+    const handleOpenWithErnie = useCallback(async (dataset: Dataset) => {
+        if (!dataset.id) {
+            setActionError('This dataset cannot be opened in ERNIE because its identifier is missing.');
+            return;
+        }
+
+        setActionError('');
+        setActionLoadingId(dataset.id);
+
+        try {
+            const response = await axios.get<DatasetDetail>(`/old-datasets/${dataset.id}`);
+            const detail = response.data;
+
+            const query: Record<string, string> = {};
+
+            if (detail.identifier) {
+                query.doi = detail.identifier;
+            }
+            if (detail.publicationyear) {
+                query.year = String(detail.publicationyear);
+            }
+            if (detail.version) {
+                query.version = detail.version;
+            }
+            if (detail.language) {
+                query.language = detail.language;
+            }
+            if (detail.resourcetypegeneral) {
+                query.resourceTypeSlug = toSlug(detail.resourcetypegeneral);
+            }
+
+            detail.titles?.forEach((titleEntry, index) => {
+                if (!titleEntry.title) {
+                    return;
+                }
+                query[`titles[${index}][title]`] = titleEntry.title;
+                if (titleEntry.titleType) {
+                    query[`titles[${index}][titleType]`] = titleEntry.titleType;
+                }
+            });
+
+            router.get(curationRoute({ query }).url);
+        } catch (error) {
+            console.error('Failed to open dataset in ERNIE', error);
+            setActionError('Could not open the dataset in ERNIE. Please try again.');
+        } finally {
+            setActionLoadingId(null);
+        }
+    }, [toSlug]);
 
     const keys = getDatasetKeys();
 
@@ -216,9 +296,15 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                             </Alert>
                         ) : null}
 
+                        {actionError && (
+                            <Alert className="mb-4" variant="destructive">
+                                <AlertDescription role="alert">{actionError}</AlertDescription>
+                            </Alert>
+                        )}
+
                         {datasets.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
-                                {error ? 
+                                {error ?
                                     "No datasets available. Please check the database connection." :
                                     "No old datasets found."
                                 }
@@ -243,6 +329,9 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                                         {formatKeyName(key)}
                                                     </th>
                                                 ))}
+                                                <th className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${getColumnWidth('actions')}`}>
+                                                    Actions
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
@@ -262,6 +351,25 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                                                 {formatValue(key, dataset[key])}
                                                             </td>
                                                         ))}
+                                                        <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${getColumnWidth('actions')}`}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        aria-label={`Open dataset ${dataset.identifier ?? dataset.id} with ERNIE`}
+                                                                        title="Open with ERNIE"
+                                                                        onClick={() => handleOpenWithErnie(dataset)}
+                                                                        disabled={actionLoadingId === dataset.id}
+                                                                        aria-busy={actionLoadingId === dataset.id}
+                                                                    >
+                                                                        <Icon iconNode={ExternalLink} className={actionLoadingId === dataset.id ? 'animate-pulse' : ''} />
+                                                                        <span className="sr-only">Open with ERNIE</span>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top">Open with ERNIE</TooltipContent>
+                                                            </Tooltip>
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}

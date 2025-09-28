@@ -3,9 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\OldDataset;
+use App\Models\OldDatasetTitle;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\JsonResponse;
 
 class OldDatasetController extends Controller
 {
@@ -90,6 +94,58 @@ class OldDatasetController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Error loading datasets:ss ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Display a specific dataset with all of its titles.
+     */
+    public function show(int $datasetId): JsonResponse
+    {
+        try {
+            $dataset = OldDataset::findOrFail($datasetId);
+
+            $titles = OldDatasetTitle::query()
+                ->where('resource_id', $dataset->id)
+                ->orderBy('id')
+                ->get()
+                ->map(function ($title) {
+                    $rawType = $title->titleType ?? $title->titletype ?? null;
+
+                    $normalisedType = $rawType
+                        ? Str::slug((string) $rawType, '-')
+                        : 'main-title';
+
+                    return [
+                        'title' => $title->title,
+                        'titleType' => $normalisedType,
+                    ];
+                })
+                ->filter(fn (array $entry) => filled($entry['title']))
+                ->values();
+
+            return response()->json([
+                'id' => $dataset->id,
+                'identifier' => $dataset->identifier,
+                'resourcetypegeneral' => $dataset->resourcetypegeneral,
+                'curator' => $dataset->curator,
+                'created_at' => $dataset->created_at,
+                'updated_at' => $dataset->updated_at,
+                'publicstatus' => $dataset->publicstatus,
+                'publisher' => $dataset->publisher,
+                'publicationyear' => $dataset->publicationyear,
+                'version' => $dataset->version,
+                'language' => $dataset->language,
+                'titles' => $titles,
+            ]);
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'error' => 'Dataset not found.',
+            ], 404);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'Failed to load dataset: ' . $e->getMessage(),
             ], 500);
         }
     }

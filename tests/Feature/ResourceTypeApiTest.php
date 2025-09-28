@@ -14,7 +14,6 @@ test('returns active resource types for Ernie', function () {
 
     $response->assertJsonCount(ResourceType::where('active', true)->count());
     $response->assertJsonStructure([
-        '*' => ['id', 'name'],
+        '*' => ['id', 'name', 'slug'],
     ]);
-    $response->assertJsonMissingPath('0.slug');
 });

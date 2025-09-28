@@ -1,11 +1,14 @@
 <?php
 
 use App\Models\OldDataset;
+use App\Models\OldDatasetTitle;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Mockery as MockeryAlias;
+use RuntimeException;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\actingAs;
@@ -199,5 +202,91 @@ it('returns an error response when the load-more endpoint fails', function (): v
         ->assertStatus(500)
         ->assertJson([
             'error' => 'Error loading datasets:ss timeout while contacting replica',
+        ]);
+});
+
+it('returns dataset details with normalised titles', function (): void {
+    $dataset = (object) [
+        'id' => 42,
+        'identifier' => '10.1234/example',
+        'resourcetypegeneral' => 'Dataset',
+        'curator' => 'Alice',
+        'publicstatus' => 'published',
+        'publisher' => 'Example Publisher',
+        'publicationyear' => 2024,
+        'version' => '1.0',
+        'language' => 'en',
+        'created_at' => '2024-01-01 10:00:00',
+        'updated_at' => '2024-01-05 12:00:00',
+    ];
+
+    MockeryAlias::mock('alias:' . OldDataset::class)
+        ->shouldReceive('findOrFail')
+        ->once()
+        ->with(42)
+        ->andReturn($dataset);
+
+    MockeryAlias::mock('alias:' . OldDatasetTitle::class)
+        ->shouldReceive('query')->once()->andReturnSelf()
+        ->shouldReceive('where')->once()->with('resource_id', 42)->andReturnSelf()
+        ->shouldReceive('orderBy')->once()->with('id')->andReturnSelf()
+        ->shouldReceive('get')->once()->andReturn(collect([
+            (object) ['title' => 'Main Title', 'titleType' => 'Main Title'],
+            (object) ['title' => 'Secondary', 'titletype' => 'ALTERNATIVE_TITLE'],
+            (object) ['title' => null, 'titleType' => null],
+        ]));
+
+    get('/old-datasets/42')
+        ->assertOk()
+        ->assertJson([
+            'id' => 42,
+            'identifier' => '10.1234/example',
+            'resourcetypegeneral' => 'Dataset',
+            'publicationyear' => 2024,
+            'version' => '1.0',
+            'language' => 'en',
+            'titles' => [
+                ['title' => 'Main Title', 'titleType' => 'main-title'],
+                ['title' => 'Secondary', 'titleType' => 'alternative-title'],
+            ],
+        ]);
+});
+
+it('returns a not found response when the dataset does not exist', function (): void {
+    MockeryAlias::mock('alias:' . OldDataset::class)
+        ->shouldReceive('findOrFail')
+        ->once()
+        ->with(404)
+        ->andThrow(new ModelNotFoundException());
+
+    get('/old-datasets/404')
+        ->assertNotFound()
+        ->assertJson([
+            'error' => 'Dataset not found.',
+        ]);
+});
+
+it('returns an error response when the dataset detail cannot be loaded', function (): void {
+    $dataset = (object) [
+        'id' => 55,
+        'identifier' => '10.1234/example',
+    ];
+
+    MockeryAlias::mock('alias:' . OldDataset::class)
+        ->shouldReceive('findOrFail')
+        ->once()
+        ->with(55)
+        ->andReturn($dataset);
+
+    MockeryAlias::mock('alias:' . OldDatasetTitle::class)
+        ->shouldReceive('query')->once()->andReturnSelf()
+        ->shouldReceive('where')->once()->with('resource_id', 55)->andReturnSelf()
+        ->shouldReceive('orderBy')->once()->with('id')->andReturnSelf()
+        ->shouldReceive('get')->once()->andThrow(new RuntimeException('metaworks unavailable'));
+
+    get('/old-datasets/55')
+        ->assertStatus(500)
+        ->assertJson([
+            'error' => 'Failed to load dataset: metaworks unavailable',
         ]);
 });

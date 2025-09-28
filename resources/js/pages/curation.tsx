@@ -20,6 +20,7 @@ interface CurationProps {
     version?: string;
     language?: string;
     resourceType?: string;
+    resourceTypeSlug?: string;
     titles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
 }
@@ -32,9 +33,18 @@ export default function Curation({
     version = '',
     language = '',
     resourceType = '',
+    resourceTypeSlug = '',
     titles = [],
     initialLicenses = [],
 }: CurationProps) {
+    const toSlug = (value: string): string =>
+        value
+            .normalize('NFD')
+            .replace(/\p{Diacritic}/gu, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '');
+
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
     const [licenses, setLicenses] = useState<License[] | null>(null);
@@ -71,6 +81,20 @@ export default function Curation({
             })
             .catch(() => setError(true));
     }, []);
+
+    const resolvedResourceType =
+        resourceType ||
+        (resourceTypeSlug && resourceTypes
+            ? (() => {
+                  const normalisedSlug = toSlug(resourceTypeSlug);
+                  const matchedType = resourceTypes.find(
+                      (type) =>
+                          toSlug(type.slug) === normalisedSlug ||
+                          toSlug(type.name) === normalisedSlug,
+                  );
+                  return matchedType ? String(matchedType.id) : '';
+              })()
+            : '');
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -110,7 +134,7 @@ export default function Curation({
                         initialYear={year}
                         initialVersion={version}
                         initialLanguage={language}
-                        initialResourceType={resourceType}
+                        initialResourceType={resolvedResourceType}
                         initialTitles={titles}
                         initialLicenses={initialLicenses}
                     />

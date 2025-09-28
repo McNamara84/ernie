@@ -21,6 +21,12 @@ test('returns all resource types ordered by name', function () {
         'Charlie',
         'Delta',
     ]);
+    expect(array_column($response->json(), 'slug'))->toBe([
+        'alpha',
+        'bravo',
+        'charlie',
+        'delta',
+    ]);
 });
 
 test('returns only active resource types for Ernie', function () {
@@ -30,6 +36,10 @@ test('returns only active resource types for Ernie', function () {
         'Alpha',
         'Bravo',
     ]);
+    expect(array_column($response->json(), 'slug'))->toBe([
+        'alpha',
+        'bravo',
+    ]);
 });
 
 test('returns only active and elmo-active resource types', function () {
@@ -37,5 +47,8 @@ test('returns only active and elmo-active resource types', function () {
     expect($response->json())->toHaveCount(1);
     expect(array_column($response->json(), 'name'))->toBe([
         'Alpha',
+    ]);
+    expect(array_column($response->json(), 'slug'))->toBe([
+        'alpha',
     ]);
 });

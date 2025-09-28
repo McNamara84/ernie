@@ -86,6 +86,8 @@ class OldDataset extends Model
                 'resource.publicstatus',
                 'resource.publisher',
                 'resource.publicationyear',
+                'resource.version',
+                'resource.language',
                 'title.title'
             ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
@@ -112,6 +114,8 @@ class OldDataset extends Model
                 'resource.publicstatus',
                 'resource.publisher',
                 'resource.publicationyear',
+                'resource.version',
+                'resource.language',
                 'title.title'
             ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id')

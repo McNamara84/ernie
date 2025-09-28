@@ -47,9 +47,13 @@ Route::get('/changelog', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
         ->name('old-datasets');
-    
+
     Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
         ->name('old-datasets.load-more');
+
+    Route::get('old-datasets/{dataset}', [OldDatasetController::class, 'show'])
+        ->whereNumber('dataset')
+        ->name('old-datasets.show');
 
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
@@ -75,6 +79,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'version' => $request->query('version'),
             'language' => $request->query('language'),
             'resourceType' => $request->query('resourceType'),
+            'resourceTypeSlug' => $request->query('resourceTypeSlug'),
             'titles' => $request->query('titles', []),
             'initialLicenses' => $request->query('licenses', []),
         ]);

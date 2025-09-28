@@ -4,6 +4,8 @@ import OldDatasets from '../old-datasets';
 import axios from 'axios';
 import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
 
+const routerGetMock = vi.hoisted(() => vi.fn());
+
 vi.mock('axios', () => {
     const get = vi.fn();
     return {
@@ -14,6 +16,7 @@ vi.mock('axios', () => {
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    router: { get: routerGetMock },
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -83,6 +86,7 @@ describe('OldDatasets page', () => {
 
     beforeEach(() => {
         mockedAxios.get.mockReset();
+        routerGetMock.mockReset();
 
         observeSpy = vi.fn();
         disconnectSpy = vi.fn();
@@ -159,7 +163,8 @@ describe('OldDatasets page', () => {
 
         const headerRow = within(table).getAllByRole('row')[0];
         expect(within(headerRow).getByText('Identifier (DOI)')).toBeVisible();
-        expect(within(headerRow).getByText('Created Date')).toBeVisible();
+        expect(within(headerRow).getByText('Status')).toBeVisible();
+        expect(within(headerRow).getByText('Actions')).toBeVisible();
 
         const bodyRows = within(table).getAllByRole('row').slice(1);
         expect(bodyRows).toHaveLength(2);
@@ -293,5 +298,69 @@ describe('OldDatasets page', () => {
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(screen.getByText(/All datasets have been loaded/i)).toBeVisible();
+    });
+
+    it('opens the curation form with dataset details when the action button is pressed', async () => {
+        mockedAxios.get.mockResolvedValueOnce({
+            data: {
+                id: 1,
+                identifier: '10.1234/example-one',
+                resourcetypegeneral: 'Dataset',
+                publicationyear: 2024,
+                version: '1.0',
+                language: 'en',
+                titles: [
+                    { title: 'Main Title', titleType: 'main-title' },
+                    { title: 'Second Title', titleType: 'alternative-title' },
+                ],
+            },
+        });
+
+        const user = userEvent.setup();
+        render(<OldDatasets {...baseProps} />);
+
+        const actionButton = screen.getByRole('button', {
+            name: /open dataset 10\.1234\/example-one with ernie/i,
+        });
+
+        await user.click(actionButton);
+
+        expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/1');
+        expect(routerGetMock).toHaveBeenCalledTimes(1);
+
+        const calledUrl = routerGetMock.mock.calls[0][0];
+        expect(calledUrl).toMatch(/^\/curation\?/);
+        const params = new URLSearchParams(calledUrl.split('?')[1]);
+        expect(params.get('doi')).toBe('10.1234/example-one');
+        expect(params.get('year')).toBe('2024');
+        expect(params.get('version')).toBe('1.0');
+        expect(params.get('language')).toBe('en');
+        expect(params.get('resourceTypeSlug')).toBe('dataset');
+        expect(params.get('titles[0][title]')).toBe('Main Title');
+        expect(params.get('titles[0][titleType]')).toBe('main-title');
+        expect(params.get('titles[1][title]')).toBe('Second Title');
+        expect(params.get('titles[1][titleType]')).toBe('alternative-title');
+    });
+
+    it('shows an error message when the dataset cannot be opened in ERNIE', async () => {
+        mockedAxios.get.mockRejectedValueOnce(new Error('network'));
+
+        const user = userEvent.setup();
+        render(<OldDatasets {...baseProps} />);
+
+        const actionButton = screen.getByRole('button', {
+            name: /open dataset 10\.1234\/example-one with ernie/i,
+        });
+
+        await user.click(actionButton);
+
+        await waitFor(() => {
+            const alerts = screen.getAllByRole('alert');
+            expect(alerts.length).toBeGreaterThan(0);
+            expect(alerts[alerts.length - 1]).toHaveTextContent(
+                /could not open the dataset in ernie/i,
+            );
+        });
+        expect(routerGetMock).not.toHaveBeenCalled();
     });
 });
