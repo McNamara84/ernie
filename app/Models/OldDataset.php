@@ -40,7 +40,7 @@ class OldDataset extends Model
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'created_at' => 'datetime',
@@ -51,7 +51,7 @@ class OldDataset extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var list<string>
      */
     protected $fillable = [
         'publicstatus',
