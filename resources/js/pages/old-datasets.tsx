@@ -37,11 +37,9 @@ interface DatasetsProps {
     datasets: Dataset[];
     pagination: PaginationInfo;
     error?: string;
-    demo?: boolean;
-    message?: string;
 }
 
-export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error, demo, message }: DatasetsProps) {
+export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error }: DatasetsProps) {
     const [datasets, setDatasets] = useState<Dataset[]>(initialDatasets);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
@@ -216,17 +214,12 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                             </Alert>
                         ) : null}
 
-                        {message ? (
-                            <Alert className="mb-4" variant="default">
-                                <AlertDescription>
-                                    {message}
-                                </AlertDescription>
-                            </Alert>
-                        ) : null}
-
                         {datasets.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
-                                No datasets found.
+                                {error ? 
+                                    "Keine Datensätze verfügbar. Überprüfen Sie die Datenbankverbindung." :
+                                    "Keine Datensätze gefunden."
+                                }
                             </div>
                         ) : (
                             <>
@@ -234,11 +227,6 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                     <Badge variant="secondary">
                                         1-{datasets.length} of {pagination.total} datasets
                                     </Badge>
-                                    {demo ? (
-                                        <Badge variant="outline">
-                                            Demo Mode
-                                        </Badge>
-                                    ) : null}
                                 </div>
                                 
                                 <div className="overflow-x-auto">
