@@ -31,9 +31,13 @@ const mockedAxios = axios as unknown as AxiosMock;
 const originalIntersectionObserver = globalThis.IntersectionObserver;
 
 const intersectionObserverHandlers = {
-    observe: (target: Element) => {},
+    observe: (target: Element) => {
+        void target;
+    },
     disconnect: () => {},
-    unobserve: (target: Element) => {},
+    unobserve: (target: Element) => {
+        void target;
+    },
     takeRecords: () => [] as IntersectionObserverEntry[],
 };
 
