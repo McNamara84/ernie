@@ -104,26 +104,36 @@ class OldDatasetController extends Controller
     public function show(int $datasetId): JsonResponse
     {
         try {
+            /** @var OldDataset $dataset */
             $dataset = OldDataset::findOrFail($datasetId);
 
-            $titles = OldDatasetTitle::query()
+            /** @var \Illuminate\Support\Collection<int, OldDatasetTitle> $rawTitles */
+            $rawTitles = OldDatasetTitle::query()
                 ->where('resource_id', $dataset->id)
                 ->orderBy('id')
-                ->get()
-                ->map(function ($title) {
-                    $rawType = $title->titleType ?? $title->titletype ?? null;
+                ->get();
 
-                    $normalisedType = $rawType
-                        ? Str::slug((string) $rawType, '-')
-                        : 'main-title';
+            /** @var list<array{title: string, titleType: string}> $titles */
+            $titles = [];
 
-                    return [
-                        'title' => $title->title,
-                        'titleType' => $normalisedType,
-                    ];
-                })
-                ->filter(fn (array $entry) => filled($entry['title']))
-                ->values();
+            foreach ($rawTitles as $title) {
+                $rawType = $title->titleType ?? $title->titletype ?? null;
+
+                $normalisedType = $rawType
+                    ? Str::slug((string) $rawType, '-')
+                    : 'main-title';
+
+                $titleValue = $title->title;
+
+                if (! filled($titleValue)) {
+                    continue;
+                }
+
+                $titles[] = [
+                    'title' => (string) $titleValue,
+                    'titleType' => $normalisedType,
+                ];
+            }
 
             return response()->json([
                 'id' => $dataset->id,
