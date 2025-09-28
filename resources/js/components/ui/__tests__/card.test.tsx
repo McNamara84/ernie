@@ -18,10 +18,27 @@ describe('Card', () => {
 
         const card = container.querySelector('[data-slot="card"]');
         expect(card).toBeInTheDocument();
-        expect(screen.getByText('Title')).toHaveAttribute('data-slot', 'card-title');
+        const cardTitle = screen.getByText('Title');
+        expect(cardTitle).toHaveAttribute('data-slot', 'card-title');
+        expect(cardTitle.tagName).toBe('H3');
         expect(screen.getByText('Description')).toHaveAttribute('data-slot', 'card-description');
         expect(screen.getByText('Content')).toHaveAttribute('data-slot', 'card-content');
         expect(screen.getByText('Footer')).toHaveAttribute('data-slot', 'card-footer');
+    });
+
+    it('allows rendering the title as a custom heading level for accessibility', () => {
+        render(
+            <Card>
+                <CardHeader>
+                    <CardTitle asChild>
+                        <h2>Accessible Title</h2>
+                    </CardTitle>
+                </CardHeader>
+            </Card>,
+        );
+
+        const heading = screen.getByRole('heading', { name: 'Accessible Title', level: 2 });
+        expect(heading).toHaveAttribute('data-slot', 'card-title');
     });
 });
 

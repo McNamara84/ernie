@@ -144,7 +144,7 @@ describe('OldDatasets page', () => {
     it('renders the legacy dataset overview with accessible labelling', () => {
         render(<OldDatasets {...baseProps} />);
 
-        expect(screen.getAllByText('Old Datasets')[0]).toBeVisible();
+        expect(screen.getByRole('heading', { name: 'Old Datasets', level: 1 })).toBeVisible();
         expect(screen.getByText('Overview of legacy resources from the SUMARIOPMD database')).toBeVisible();
 
         const badge = screen.getByText(/1-2 of 60 datasets/i);
