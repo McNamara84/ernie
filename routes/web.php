@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
 use App\Models\Setting;
@@ -49,6 +50,12 @@ Route::get('/changelog', function () {
 })->name('changelog');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('old-datasets', [OldDatasetController::class, 'index'])
+        ->name('old-datasets');
+    
+    Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
+        ->name('old-datasets.load-more');
+
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
 
