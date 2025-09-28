@@ -200,7 +200,9 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Old Datasets</CardTitle>
+                        <CardTitle asChild>
+                            <h1 className="text-2xl font-semibold tracking-tight">Old Datasets</h1>
+                        </CardTitle>
                         <CardDescription>
                             Overview of legacy resources from the SUMARIOPMD database
                         </CardDescription>

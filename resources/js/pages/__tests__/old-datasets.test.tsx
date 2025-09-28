@@ -31,9 +31,13 @@ const mockedAxios = axios as unknown as AxiosMock;
 const originalIntersectionObserver = globalThis.IntersectionObserver;
 
 const intersectionObserverHandlers = {
-    observe: (target: Element) => {},
+    observe: (target: Element) => {
+        void target;
+    },
     disconnect: () => {},
-    unobserve: (target: Element) => {},
+    unobserve: (target: Element) => {
+        void target;
+    },
     takeRecords: () => [] as IntersectionObserverEntry[],
 };
 
@@ -144,7 +148,7 @@ describe('OldDatasets page', () => {
     it('renders the legacy dataset overview with accessible labelling', () => {
         render(<OldDatasets {...baseProps} />);
 
-        expect(screen.getAllByText('Old Datasets')[0]).toBeVisible();
+        expect(screen.getByRole('heading', { name: 'Old Datasets', level: 1 })).toBeVisible();
         expect(screen.getByText('Overview of legacy resources from the SUMARIOPMD database')).toBeVisible();
 
         const badge = screen.getByText(/1-2 of 60 datasets/i);
