@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
 use App\Models\Setting;
@@ -7,11 +8,6 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
-
-// CSRF cookie route for AJAX requests
-Route::get('/csrf-token', function () {
-    return response()->json(['token' => csrf_token()]);
-})->middleware('web');
 
 Route::get('/health', function () {
     return response()->json([
@@ -49,6 +45,12 @@ Route::get('/changelog', function () {
 })->name('changelog');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('old-datasets', [OldDatasetController::class, 'index'])
+        ->name('old-datasets');
+    
+    Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
+        ->name('old-datasets.load-more');
+
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
 
