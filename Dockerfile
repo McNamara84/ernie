@@ -17,9 +17,14 @@ RUN apt-get update && apt-get install -y \
     g++ \
     nodejs \
     npm \
-    netcat-traditional
+    netcat-traditional \
+    ca-certificates
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
+RUN chmod 0644 /usr/local/share/ca-certificates/sumariopmd-ca.crt \
+    && update-ca-certificates
 
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl
 
