@@ -19,8 +19,6 @@ services:
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - MYSQL_ATTR_SSL_CA=/usr/local/share/ca-certificates/sumariopmd-ca.crt
-      - DB_SUMARIOPMD_SSL_CA=/usr/local/share/ca-certificates/sumariopmd-ca.crt
       - REDIS_HOST=redis
       - BROADCAST_DRIVER=log
       - CACHE_DRIVER=file

@@ -1,6 +1,5 @@
 <?php
 
-use App\Support\Database\MySqlSslOptions;
 use Illuminate\Support\Str;
 
 return [
@@ -58,13 +57,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql')
-                ? MySqlSslOptions::fromValues(
-                    env('MYSQL_ATTR_SSL_CA'),
-                    env('MYSQL_ATTR_SSL_CERT'),
-                    env('MYSQL_ATTR_SSL_KEY')
-                )
-                : [],
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'mariadb' => [
@@ -82,13 +77,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql')
-                ? MySqlSslOptions::fromValues(
-                    env('MYSQL_ATTR_SSL_CA'),
-                    env('MYSQL_ATTR_SSL_CERT'),
-                    env('MYSQL_ATTR_SSL_KEY')
-                )
-                : [],
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'metaworks' => [
@@ -105,13 +96,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql')
-                ? MySqlSslOptions::fromValues(
-                    env('DB_SUMARIOPMD_SSL_CA', env('MYSQL_ATTR_SSL_CA')),
-                    env('DB_SUMARIOPMD_SSL_CERT', env('MYSQL_ATTR_SSL_CERT')),
-                    env('DB_SUMARIOPMD_SSL_KEY', env('MYSQL_ATTR_SSL_KEY'))
-                )
-                : [],
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
         ],
 
         'pgsql' => [
