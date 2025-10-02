@@ -252,7 +252,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         {
             key: 'created_updated',
             label: DATE_COLUMN_HEADER_LABEL,
-            widthClass: 'min-w-[12rem]',
+            widthClass: 'min-w-[9rem]',
             cellClassName: 'whitespace-normal align-top',
             render: (dataset: Dataset) => {
                 const createdDetails = getDateDetails(dataset.created_at ?? null);
