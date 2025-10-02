@@ -52,6 +52,29 @@ const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[20rem] lg:min-w-[28rem] xl:min-w-[32r
 const TITLE_COLUMN_CELL_CLASSES = 'whitespace-normal break-words text-gray-900 dark:text-gray-100 leading-relaxed align-top';
 const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 
+type DateType = 'Created' | 'Updated';
+
+const describeDate = (
+    label: string,
+    iso: string | null,
+    rawValue: string | undefined,
+    dateType: DateType,
+): string | null => {
+    if (iso) {
+        return `${dateType} on ${label}`;
+    }
+
+    if (!rawValue) {
+        return `${dateType} date not available`;
+    }
+
+    if (label === 'Invalid date') {
+        return `${dateType} date is invalid`;
+    }
+
+    return null;
+};
+
 export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error, debug }: DatasetsProps) {
     const [datasets, setDatasets] = useState<Dataset[]>(initialDatasets);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
@@ -223,31 +246,10 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                 const createdDetails = getDateDetails(dataset.created_at ?? null);
                 const updatedDetails = getDateDetails(dataset.updated_at ?? null);
 
-                const describeDate = (
-                    label: string,
-                    iso: string | null,
-                    rawValue: string | undefined,
-                    dateType: 'Created' | 'Updated',
-                ): string | null => {
-                    if (iso) {
-                        return `${dateType} on ${label}`;
-                    }
-
-                    if (!rawValue) {
-                        return `${dateType} date not available`;
-                    }
-
-                    if (label === 'Invalid date') {
-                        return `${dateType} date is invalid`;
-                    }
-
-                    return null;
-                };
-
                 const ariaLabelParts = [
                     describeDate(createdDetails.label, createdDetails.iso, dataset.created_at, 'Created'),
                     describeDate(updatedDetails.label, updatedDetails.iso, dataset.updated_at, 'Updated'),
-                ].filter((part): part is string => Boolean(part));
+                ].filter((part): part is string => part !== null);
 
                 const dateColumnAriaLabel = ariaLabelParts.length > 0 ? ariaLabelParts.join('. ') : undefined;
 
