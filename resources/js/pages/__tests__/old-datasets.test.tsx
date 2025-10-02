@@ -200,6 +200,7 @@ describe('OldDatasets page', () => {
         expect(createdUpdatedRows[0]).toHaveTextContent('01/01/2024');
         expect(createdUpdatedRows[1]).toHaveTextContent('Updated');
         expect(createdUpdatedRows[1]).toHaveTextContent('01/02/2024');
+        expect(createdUpdatedCell.querySelector(':scope > div')).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
 
         const timeElements = createdUpdatedCell.querySelectorAll('time');
         expect(timeElements).toHaveLength(2);
@@ -327,6 +328,37 @@ describe('OldDatasets page', () => {
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(screen.getByText(/All datasets have been loaded/i)).toBeVisible();
+    });
+
+    it('announces missing and invalid dates with meaningful aria labels', () => {
+        render(
+            <OldDatasets
+                {...baseProps}
+                datasets={[
+                    {
+                        id: 7,
+                        identifier: '10.0000/no-created-date',
+                        title: 'Dataset without a created timestamp',
+                        resourcetypegeneral: 'Dataset',
+                        curator: 'Dana',
+                        updated_at: 'invalid-date',
+                        publicstatus: 'draft',
+                    },
+                ]}
+            />,
+        );
+
+        const table = screen.getByRole('table');
+        const bodyRow = within(table).getAllByRole('row')[1];
+        const createdUpdatedCell = within(bodyRow).getAllByRole('cell')[5];
+        const labelledContainer = createdUpdatedCell.querySelector(':scope > div');
+
+        expect(labelledContainer).toHaveAttribute(
+            'aria-label',
+            'Created date not available. Updated date is invalid',
+        );
+        expect(within(labelledContainer as HTMLElement).getByText('Updated')).toBeVisible();
+        expect(within(labelledContainer as HTMLElement).getByText('Invalid date')).toBeVisible();
     });
 
     it('logs the server-provided diagnostics when the initial page load fails', () => {
