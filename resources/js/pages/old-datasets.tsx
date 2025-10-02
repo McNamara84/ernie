@@ -60,6 +60,19 @@ const DATE_COLUMN_HEADER_LABEL = (
 );
 
 type DateType = 'Created' | 'Updated';
+type DateDetails = { label: string; iso: string | null };
+
+const renderDateContent = (details: DateDetails): ReactNode => {
+    if (details.iso) {
+        return (
+            <time dateTime={details.iso} className="font-medium">
+                {details.label}
+            </time>
+        );
+    }
+
+    return <span className="text-gray-600 dark:text-gray-300">{details.label}</span>;
+};
 
 const describeDate = (
     label: string,
@@ -172,7 +185,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
     }, [loading, pagination.has_more, loadMoreDatasets]);
 
     // Loading skeleton component
-    const getDateDetails = (dateString: string | null) => {
+    const getDateDetails = (dateString: string | null): DateDetails => {
         if (!dateString) {
             return { label: 'Not available', iso: null };
         }
@@ -251,18 +264,6 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                 ].filter((part): part is string => part !== null);
 
                 const dateColumnAriaLabel = ariaLabelParts.length > 0 ? ariaLabelParts.join('. ') : undefined;
-
-                const renderDateContent = (details: { label: string; iso: string | null }) => {
-                    if (details.iso) {
-                        return (
-                            <time dateTime={details.iso} className="font-medium">
-                                {details.label}
-                            </time>
-                        );
-                    }
-
-                    return <span className="text-gray-600 dark:text-gray-300">{details.label}</span>;
-                };
 
                 return (
                     <div
