@@ -51,7 +51,7 @@ interface DatasetColumn {
 
 const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[20rem] lg:min-w-[28rem] xl:min-w-[32rem]';
 const TITLE_COLUMN_CELL_CLASSES = 'whitespace-normal break-words text-gray-900 dark:text-gray-100 leading-relaxed align-top';
-const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-900 dark:text-gray-100';
+const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 const DATE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
         <span>Created</span>
@@ -252,7 +252,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         {
             key: 'created_updated',
             label: DATE_COLUMN_HEADER_LABEL,
-            widthClass: 'min-w-[9rem]',
+            widthClass: 'min-w-[12rem]',
             cellClassName: 'whitespace-normal align-top',
             render: (dataset: Dataset) => {
                 const createdDetails = getDateDetails(dataset.created_at ?? null);

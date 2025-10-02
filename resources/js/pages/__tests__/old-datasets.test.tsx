@@ -182,6 +182,9 @@ describe('OldDatasets page', () => {
         const createdHeader = within(headerRow).getByText('Created');
         expect(createdHeader).toBeVisible();
         expect(createdHeader.parentElement?.textContent).toContain('Updated');
+        const createdHeaderCell = createdHeader.closest('th');
+        expect(createdHeaderCell).not.toBeNull();
+        expect(createdHeaderCell).toHaveClass('min-w-[12rem]');
         expect(within(headerRow).queryByText('Created / Updated')).not.toBeInTheDocument();
 
         const bodyRows = within(table).getAllByRole('row').slice(1);
@@ -199,6 +202,8 @@ describe('OldDatasets page', () => {
         const createdUpdatedCell = within(firstRow).getAllByRole('cell')[5];
         const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
         expect(createdUpdatedContainer).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
+        expect(createdUpdatedContainer).toHaveClass('text-gray-600');
+        expect(createdUpdatedContainer).toHaveClass('dark:text-gray-300');
         expect(createdUpdatedContainer).not.toHaveTextContent(/Created|Updated/);
         const displayedDateValues = Array.from(
             createdUpdatedContainer?.querySelectorAll('time, span') ?? [],
