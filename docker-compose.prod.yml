@@ -19,7 +19,6 @@ services:
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_SUMARIOPMD_SSL_CA=/etc/ssl/certs/sumariopmd-ca.pem
       - REDIS_HOST=redis
       - BROADCAST_DRIVER=log
       - CACHE_DRIVER=file

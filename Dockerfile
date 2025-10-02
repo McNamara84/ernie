@@ -33,10 +33,6 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
-# Provide the SUMARIOPMD certificate for secure database connections
-COPY docker/certs/sumariopmd-ca.pem /etc/ssl/certs/sumariopmd-ca.pem
-ENV DB_SUMARIOPMD_SSL_CA=/etc/ssl/certs/sumariopmd-ca.pem
-
 COPY . /var/www/html
 
 # Copy environment file for build
