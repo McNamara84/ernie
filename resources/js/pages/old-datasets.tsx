@@ -189,17 +189,9 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         }
     };
 
-    const formatDate = (dateString: string | null): string => {
-        return getDateDetails(dateString).label;
-    };
-
     const formatValue = (key: string, value: unknown): string => {
         if (value === null || value === undefined) return 'N/A';
 
-        if (key.includes('_at') || key.includes('date')) {
-            return formatDate(value as string);
-        }
-        
         if (key === 'publicstatus') {
             const statusMap: { [key: string]: string } = {
                 'published': 'Published',

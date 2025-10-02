@@ -361,6 +361,29 @@ describe('OldDatasets page', () => {
         expect(within(labelledContainer as HTMLElement).getByText('Invalid date')).toBeVisible();
     });
 
+    it('falls back to N/A when a dataset field is missing', () => {
+        render(
+            <OldDatasets
+                {...baseProps}
+                datasets={[
+                    {
+                        id: 9,
+                        identifier: '10.0000/missing-curator',
+                        title: 'Dataset missing curator metadata',
+                        resourcetypegeneral: 'Dataset',
+                        publicstatus: 'draft',
+                    },
+                ]}
+            />,
+        );
+
+        const table = screen.getByRole('table');
+        const bodyRow = within(table).getAllByRole('row')[1];
+        const curatorCell = within(bodyRow).getAllByRole('cell')[4];
+
+        expect(curatorCell).toHaveTextContent('N/A');
+    });
+
     it('logs the server-provided diagnostics when the initial page load fails', () => {
         render(<OldDatasets
             datasets={[]}
