@@ -4,6 +4,7 @@ use App\Models\OldDataset;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
 use Mockery as MockeryAlias;
 
@@ -80,6 +81,7 @@ it('renders the old datasets page with paginated data', function (): void {
                 'has_more' => false,
             ])
             ->missing('error')
+            ->missing('debug')
         );
 });
 
@@ -164,6 +166,13 @@ it('returns JSON payload for the load-more endpoint', function (): void {
 it('exposes a helpful error state when the listing cannot be loaded', function (): void {
     $exception = new RuntimeException('database unavailable');
 
+    config()->set('database.connections.metaworks.host', 'sumario-db.gfz');
+    config()->set('database.connections.metaworks.port', 3306);
+    config()->set('database.connections.metaworks.database', 'sumario-pmd');
+    config()->set('database.connections.metaworks.username', 'sumario');
+
+    Log::spy();
+
     MockeryAlias::mock('alias:' . OldDataset::class)
         ->shouldReceive('getPaginatedOrderedByCreatedDate')
         ->once()
@@ -185,10 +194,44 @@ it('exposes a helpful error state when the listing cannot be loaded', function (
                 'has_more' => false,
             ])
             ->where('error', 'SUMARIOPMD-Datenbankverbindung fehlgeschlagen: ' . $exception->getMessage())
+            ->has('debug', fn (Assert $debug): Assert => $debug
+                ->where('connection', 'metaworks')
+                ->where('driver', 'mysql')
+                ->where('hosts', ['sumario-db.gfz'])
+                ->where('port', 3306)
+                ->where('database', 'sumario-pmd')
+                ->where('username', 'sumario')
+                ->where('error_code', $exception->getCode())
+            )
         );
+
+    Log::shouldHaveReceived('error')
+        ->once()
+        ->withArgs(function (string $message, array $context) use ($exception): bool {
+            expect($message)->toBe('SUMARIOPMD connection failure when rendering old datasets');
+            expect($context)->toMatchArray([
+                'connection' => 'metaworks',
+                'driver' => 'mysql',
+                'hosts' => ['sumario-db.gfz'],
+                'port' => 3306,
+                'database' => 'sumario-pmd',
+                'username' => 'sumario',
+                'error_code' => $exception->getCode(),
+            ]);
+            expect($context['exception'])->toBe($exception);
+
+            return true;
+        });
 });
 
 it('returns an error response when the load-more endpoint fails', function (): void {
+    config()->set('database.connections.metaworks.host', 'sumario-db.gfz');
+    config()->set('database.connections.metaworks.port', 3306);
+    config()->set('database.connections.metaworks.database', 'sumario-pmd');
+    config()->set('database.connections.metaworks.username', 'sumario');
+
+    Log::spy();
+
     MockeryAlias::mock('alias:' . OldDataset::class)
         ->shouldReceive('getPaginatedOrderedByCreatedDate')
         ->once()
@@ -199,5 +242,32 @@ it('returns an error response when the load-more endpoint fails', function (): v
         ->assertStatus(500)
         ->assertJson([
             'error' => 'Error loading datasets:ss timeout while contacting replica',
+            'debug' => [
+                'connection' => 'metaworks',
+                'driver' => 'mysql',
+                'hosts' => ['sumario-db.gfz'],
+                'port' => 3306,
+                'database' => 'sumario-pmd',
+                'username' => 'sumario',
+                'error_code' => 0,
+            ],
         ]);
+
+    Log::shouldHaveReceived('error')
+        ->once()
+        ->withArgs(function (string $message, array $context): bool {
+            expect($message)->toBe('SUMARIOPMD connection failure when loading more old datasets');
+            expect($context)->toMatchArray([
+                'connection' => 'metaworks',
+                'driver' => 'mysql',
+                'hosts' => ['sumario-db.gfz'],
+                'port' => 3306,
+                'database' => 'sumario-pmd',
+                'username' => 'sumario',
+                'error_code' => 0,
+            ]);
+            expect($context['exception'])->toBeInstanceOf(RuntimeException::class);
+
+            return true;
+        });
 });
