@@ -5,8 +5,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Head } from '@inertiajs/react';
-import { useState, useRef, useCallback } from 'react';
-import axios from 'axios';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import axios, { isAxiosError } from 'axios';
 
 interface Dataset {
     id?: number;
@@ -37,14 +37,45 @@ interface DatasetsProps {
     datasets: Dataset[];
     pagination: PaginationInfo;
     error?: string;
+    debug?: Record<string, unknown>;
 }
 
-export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error }: DatasetsProps) {
+export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error, debug }: DatasetsProps) {
     const [datasets, setDatasets] = useState<Dataset[]>(initialDatasets);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
+
+    const logDebugInformation = useCallback((source: string, message: string | undefined, payload?: Record<string, unknown>) => {
+        if (!payload || Object.keys(payload).length === 0) {
+            return;
+        }
+
+        const title = `SUMARIOPMD diagnostics – ${source}`;
+
+        if (typeof console.groupCollapsed === 'function') {
+            console.groupCollapsed(title);
+        } else {
+            console.info(title);
+        }
+
+        if (message) {
+            console.info('Message:', message);
+        }
+
+        console.info('Details:', payload);
+
+        if (typeof console.groupEnd === 'function') {
+            console.groupEnd();
+        }
+    }, []);
+
+    useEffect(() => {
+        if (error) {
+            logDebugInformation('initial page load', error, debug);
+        }
+    }, [debug, error, logDebugInformation]);
     
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -66,18 +97,25 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                     per_page: pagination.per_page,
                 },
             });
-            
+
             if (response.data.datasets) {
                 setDatasets(prev => [...prev, ...response.data.datasets]);
                 setPagination(response.data.pagination);
             }
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Error loading more datasets:', err);
+
+            if (isAxiosError(err)) {
+                const debugPayload = err.response?.data?.debug as Record<string, unknown> | undefined;
+                const errorMessage = err.message || err.response?.data?.error;
+                logDebugInformation('load more request', errorMessage, debugPayload);
+            }
+
             setLoadingError('Failed to load more datasets. Please try again.');
         } finally {
             setLoading(false);
         }
-    }, [loading, pagination.current_page, pagination.per_page, pagination.has_more]);
+    }, [loading, pagination.current_page, pagination.per_page, pagination.has_more, logDebugInformation]);
 
     // Reference to the last dataset element for intersection observer
     const lastDatasetElementRef = useCallback((node: HTMLElement | null) => {

@@ -4,11 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\OldDataset;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 class OldDatasetController extends Controller
 {
+    private const DATASET_CONNECTION = 'metaworks';
+
     /**
      * Display a listing of the datasets.
      *
@@ -40,7 +45,13 @@ class OldDatasetController extends Controller
                     'has_more' => $paginatedDatasets->hasMorePages(),
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when rendering old datasets', $debugInfo + [
+                'exception' => $e,
+            ]);
+
             // Bei Datenbankproblemen leere Resultate mit Fehlermeldung zurückgeben
             return Inertia::render('old-datasets', [
                 'datasets' => [],
@@ -54,6 +65,7 @@ class OldDatasetController extends Controller
                     'has_more' => false,
                 ],
                 'error' => 'SUMARIOPMD-Datenbankverbindung fehlgeschlagen: ' . $e->getMessage(),
+                'debug' => $debugInfo,
             ]);
         }
     }
@@ -87,10 +99,77 @@ class OldDatasetController extends Controller
                     'has_more' => $paginatedDatasets->hasMorePages(),
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading more old datasets', $debugInfo + [
+                'exception' => $e,
+            ]);
+
             return response()->json([
                 'error' => 'Error loading datasets:ss ' . $e->getMessage(),
+                'debug' => $debugInfo,
             ], 500);
         }
+    }
+
+    /**
+     * Build sanitized debug information for the SUMARIOPMD connection failure.
+     */
+    private function buildConnectionDebugInfo(Throwable $exception): array
+    {
+        $connectionName = self::DATASET_CONNECTION;
+        $connectionConfig = config("database.connections.{$connectionName}", []);
+
+        $hosts = $this->extractHosts($connectionConfig);
+
+        $debugInfo = [
+            'connection' => $connectionName,
+            'driver' => $connectionConfig['driver'] ?? null,
+            'hosts' => $hosts,
+            'port' => $connectionConfig['port'] ?? null,
+            'database' => $connectionConfig['database'] ?? null,
+            'username' => $connectionConfig['username'] ?? null,
+            'unix_socket' => $connectionConfig['unix_socket'] ?? null,
+            'error_code' => $exception->getCode(),
+            'previous_exception' => $exception->getPrevious()?->getMessage(),
+        ];
+
+        return array_filter($debugInfo, static function ($value) {
+            if (is_array($value)) {
+                return !empty($value);
+            }
+
+            return $value !== null && $value !== '';
+        });
+    }
+
+    /**
+     * Extract hosts from a Laravel database connection configuration.
+     *
+     * @param array<string, mixed> $connectionConfig
+     * @return list<string>
+     */
+    private function extractHosts(array $connectionConfig): array
+    {
+        $hosts = [];
+
+        $host = $connectionConfig['host'] ?? null;
+
+        if ($host !== null) {
+            $hosts = array_merge($hosts, Arr::wrap($host));
+        }
+
+        foreach (['read', 'write'] as $mode) {
+            $modeHost = $connectionConfig[$mode]['host'] ?? null;
+
+            if ($modeHost !== null) {
+                $hosts = array_merge($hosts, Arr::wrap($modeHost));
+            }
+        }
+
+        $hosts = array_values(array_unique(array_filter($hosts, static fn ($value) => $value !== null && $value !== '')));
+
+        return $hosts;
     }
 }
