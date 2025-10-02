@@ -184,7 +184,7 @@ describe('OldDatasets page', () => {
         expect(createdHeader.parentElement?.textContent).toContain('Updated');
         const createdHeaderCell = createdHeader.closest('th');
         expect(createdHeaderCell).not.toBeNull();
-        expect(createdHeaderCell).toHaveClass('min-w-[12rem]');
+        expect(createdHeaderCell).toHaveClass('min-w-[9rem]');
         expect(within(headerRow).queryByText('Created / Updated')).not.toBeInTheDocument();
 
         const bodyRows = within(table).getAllByRole('row').slice(1);
