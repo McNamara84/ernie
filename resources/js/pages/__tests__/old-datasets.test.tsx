@@ -2,13 +2,17 @@ import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import OldDatasets from '../old-datasets';
 import axios from 'axios';
-import { vi, beforeEach, afterEach, describe, it, expect } from 'vitest';
+import { vi, beforeEach, afterEach, describe, it, expect, type MockInstance } from 'vitest';
 
 vi.mock('axios', () => {
     const get = vi.fn();
+    const isAxiosError = (value: unknown): value is { isAxiosError: true } => {
+        return typeof value === 'object' && value !== null && (value as { isAxiosError?: boolean }).isAxiosError === true;
+    };
     return {
         default: { get },
         get,
+        isAxiosError,
     };
 });
 
@@ -80,6 +84,10 @@ if (typeof globalThis.IntersectionObserver === 'undefined') {
 describe('OldDatasets page', () => {
     let observeSpy: ReturnType<typeof vi.fn>;
     let disconnectSpy: ReturnType<typeof vi.fn>;
+    let consoleErrorSpy: MockInstance;
+    let consoleInfoSpy: MockInstance;
+    let consoleGroupCollapsedSpy: MockInstance;
+    let consoleGroupEndSpy: MockInstance;
 
     beforeEach(() => {
         mockedAxios.get.mockReset();
@@ -92,7 +100,19 @@ describe('OldDatasets page', () => {
         intersectionObserverHandlers.takeRecords = () => [];
         activeIntersectionCallback = () => undefined;
 
-        vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+
+        if (typeof console.groupCollapsed !== 'function') {
+            (console as unknown as { groupCollapsed: () => void }).groupCollapsed = () => {};
+        }
+
+        if (typeof console.groupEnd !== 'function') {
+            (console as unknown as { groupEnd: () => void }).groupEnd = () => {};
+        }
+
+        consoleGroupCollapsedSpy = vi.spyOn(console, 'groupCollapsed').mockImplementation(() => {});
+        consoleGroupEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
     });
 
     afterEach(() => {
@@ -293,5 +313,77 @@ describe('OldDatasets page', () => {
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(screen.getByText(/All datasets have been loaded/i)).toBeVisible();
+    });
+
+    it('logs the server-provided diagnostics when the initial page load fails', () => {
+        render(<OldDatasets
+            datasets={[]}
+            pagination={{
+                current_page: 1,
+                last_page: 1,
+                per_page: 50,
+                total: 0,
+                from: 0,
+                to: 0,
+                has_more: false,
+            }}
+            error="SUMARIOPMD-Datenbankverbindung fehlgeschlagen: SQLSTATE[HY000] [2002] Connection refused"
+            debug={{
+                connection: 'metaworks',
+                hosts: ['sumario-db.gfz'],
+                port: 3306,
+                database: 'sumario-pmd',
+            }}
+        />);
+
+        expect(consoleGroupCollapsedSpy).toHaveBeenCalledWith('SUMARIOPMD diagnostics – initial page load');
+        expect(consoleInfoSpy).toHaveBeenCalledWith('Message:', expect.stringContaining('Connection refused'));
+        expect(consoleInfoSpy).toHaveBeenCalledWith('Details:', expect.objectContaining({
+            connection: 'metaworks',
+            hosts: ['sumario-db.gfz'],
+        }));
+        expect(consoleGroupEndSpy).toHaveBeenCalled();
+    });
+
+    it('logs diagnostics that are returned with load more failures', async () => {
+        const axiosError = Object.assign(new Error('Request failed with status code 500'), {
+            isAxiosError: true,
+            response: {
+                data: {
+                    error: 'Internal server error',
+                    debug: {
+                        connection: 'metaworks',
+                        hosts: ['sumario-db.gfz'],
+                        port: 3306,
+                    },
+                },
+            },
+        });
+
+        mockedAxios.get.mockRejectedValueOnce(axiosError);
+
+        render(<OldDatasets {...baseProps} />);
+
+        const table = screen.getByRole('table');
+        const bodyRows = within(table).getAllByRole('row').slice(1);
+        const sentinelRow = bodyRows[bodyRows.length - 1];
+
+        activeIntersectionCallback([
+            {
+                isIntersecting: true,
+                target: sentinelRow,
+            } as IntersectionObserverEntry,
+        ], {} as IntersectionObserver);
+
+        await waitFor(() => {
+            expect(consoleGroupCollapsedSpy).toHaveBeenCalledWith('SUMARIOPMD diagnostics – load more request');
+        });
+
+        expect(consoleInfoSpy).toHaveBeenCalledWith('Message:', 'Request failed with status code 500');
+        expect(consoleInfoSpy).toHaveBeenCalledWith('Details:', expect.objectContaining({
+            connection: 'metaworks',
+            hosts: ['sumario-db.gfz'],
+        }));
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error loading more datasets:', axiosError);
     });
 });
