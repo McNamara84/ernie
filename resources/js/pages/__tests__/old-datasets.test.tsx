@@ -179,7 +179,13 @@ describe('OldDatasets page', () => {
 
         const headerRow = within(table).getAllByRole('row')[0];
         expect(within(headerRow).getByText('Identifier (DOI)')).toBeVisible();
-        expect(within(headerRow).getByText('Created / Updated')).toBeVisible();
+        const createdHeader = within(headerRow).getByText('Created');
+        expect(createdHeader).toBeVisible();
+        expect(createdHeader.parentElement?.textContent).toContain('Updated');
+        const createdHeaderCell = createdHeader.closest('th');
+        expect(createdHeaderCell).not.toBeNull();
+        expect(createdHeaderCell).toHaveClass('min-w-[12rem]');
+        expect(within(headerRow).queryByText('Created / Updated')).not.toBeInTheDocument();
 
         const bodyRows = within(table).getAllByRole('row').slice(1);
         expect(bodyRows).toHaveLength(2);
@@ -194,13 +200,15 @@ describe('OldDatasets page', () => {
         expect(titleCell).toHaveClass('break-words');
 
         const createdUpdatedCell = within(firstRow).getAllByRole('cell')[5];
-        const createdUpdatedRows = createdUpdatedCell.querySelectorAll(':scope > div > div');
-        expect(createdUpdatedRows).toHaveLength(2);
-        expect(createdUpdatedRows[0]).toHaveTextContent('Created');
-        expect(createdUpdatedRows[0]).toHaveTextContent('01/01/2024');
-        expect(createdUpdatedRows[1]).toHaveTextContent('Updated');
-        expect(createdUpdatedRows[1]).toHaveTextContent('01/02/2024');
-        expect(createdUpdatedCell.querySelector(':scope > div')).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
+        const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
+        expect(createdUpdatedContainer).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
+        expect(createdUpdatedContainer).toHaveClass('text-gray-600');
+        expect(createdUpdatedContainer).toHaveClass('dark:text-gray-300');
+        expect(createdUpdatedContainer).not.toHaveTextContent(/Created|Updated/);
+        const displayedDateValues = Array.from(
+            createdUpdatedContainer?.querySelectorAll('time, span') ?? [],
+        ).map((node) => node.textContent?.trim());
+        expect(displayedDateValues).toEqual(['01/01/2024', '01/02/2024']);
 
         const timeElements = createdUpdatedCell.querySelectorAll('time');
         expect(timeElements).toHaveLength(2);
@@ -357,8 +365,11 @@ describe('OldDatasets page', () => {
             'aria-label',
             'Created date not available. Updated date is invalid',
         );
-        expect(within(labelledContainer as HTMLElement).getByText('Updated')).toBeVisible();
-        expect(within(labelledContainer as HTMLElement).getByText('Invalid date')).toBeVisible();
+        const fallbackValues = Array.from(
+            labelledContainer?.querySelectorAll('time, span') ?? [],
+        ).map((node) => node.textContent?.trim());
+        expect(fallbackValues).toEqual(['Not available', 'Invalid date']);
+        expect(labelledContainer).not.toHaveTextContent(/Created|Updated/);
     });
 
     it('falls back to N/A when a dataset field is missing', () => {
