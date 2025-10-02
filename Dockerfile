@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y \
     g++ \
     nodejs \
     npm \
-    netcat-traditional
+    netcat-traditional \
+    ca-certificates
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -32,6 +33,9 @@ COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
+
+COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
+RUN update-ca-certificates
 
 COPY . /var/www/html
 

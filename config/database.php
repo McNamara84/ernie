@@ -96,9 +96,18 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => extension_loaded('pdo_mysql') ? (static function (): array {
+                $sslCa = env('DB_SUMARIOPMD_SSL_CA');
+
+                if ($sslCa === null || $sslCa === false || $sslCa === '') {
+                    $sslCa = '/etc/ssl/certs/ca-certificates.crt';
+                }
+
+                return [
+                    PDO::MYSQL_ATTR_SSL_CA => $sslCa,
+                    PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+                ];
+            })() : [],
         ],
 
         'pgsql' => [
