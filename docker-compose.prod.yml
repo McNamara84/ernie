@@ -4,13 +4,13 @@ services:
       context: .
       dockerfile: Dockerfile
       target: app
-    container_name: ernie-app
+    container_name: dockerized-laravel-app
     restart: unless-stopped
     volumes:
       - storage-data:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     networks:
-      - ernie-network
+      - dockerized-laravel-network
     depends_on:
       - db
     environment:
@@ -35,14 +35,14 @@ services:
       context: .
       dockerfile: Dockerfile
       target: nginx
-    container_name: ernie-webserver
+    container_name: dockerized-laravel-webserver
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
     volumes:
       - storage-data:/var/www/html/storage:ro
     networks:
-      - ernie-network
+      - dockerized-laravel-network
       - traefik
     depends_on:
       - app
@@ -57,7 +57,7 @@ services:
 
   db:
     image: mysql:8.0
-    container_name: ernie-db
+    container_name: dockerized-laravel-db
     restart: unless-stopped
     environment:
       - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
@@ -65,23 +65,23 @@ services:
       - MYSQL_USER=${MARIADB_USER}
       - MYSQL_PASSWORD=${MARIADB_PASSWORD}
     volumes:
-      - ernie-data:/var/lib/mysql
+      - dockerized-laravel-data:/var/lib/mysql
     networks:
-      - ernie-network
+      - dockerized-laravel-network
     ports:
       - "3306:3306"
 
   redis:
     image: redis:alpine
-    container_name: ernie-redis
+    container_name: dockerized-laravel-redis
     restart: unless-stopped
     networks:
-      - ernie-network
+      - dockerized-laravel-network
     ports:
       - "6379:6379"
 
 networks:
-  ernie-network:
+  dockerized-laravel-network:
     driver: bridge
   traefik:
     external: true
