@@ -179,7 +179,7 @@ describe('OldDatasets page', () => {
 
         const headerRow = within(table).getAllByRole('row')[0];
         expect(within(headerRow).getByText('Identifier (DOI)')).toBeVisible();
-        expect(within(headerRow).getByText('Created Date')).toBeVisible();
+        expect(within(headerRow).getByText('Created / Updated')).toBeVisible();
 
         const bodyRows = within(table).getAllByRole('row').slice(1);
         expect(bodyRows).toHaveLength(2);
@@ -188,9 +188,24 @@ describe('OldDatasets page', () => {
         expect(within(firstRow).getByText('1')).toBeVisible();
         expect(within(firstRow).getByText(/10\.1234\/example-one/)).toBeVisible();
         expect(within(firstRow).getByText('Under Review')).toBeVisible();
-        expect(within(firstRow).getByText(/01\/01\/2024/)).toBeVisible();
-        expect(within(firstRow).getByText(/01\/02\/2024/)).toBeVisible();
-        expect(within(firstRow).getByText(/A dataset title that is long enough/)).toHaveTextContent(/\.\.\.$/);
+        const titleCell = within(firstRow).getAllByRole('cell')[2];
+        expect(titleCell).toHaveTextContent(baseProps.datasets[0].title);
+        expect(titleCell).toHaveClass('whitespace-normal');
+        expect(titleCell).toHaveClass('break-words');
+
+        const createdUpdatedCell = within(firstRow).getAllByRole('cell')[5];
+        const createdUpdatedRows = createdUpdatedCell.querySelectorAll(':scope > div > div');
+        expect(createdUpdatedRows).toHaveLength(2);
+        expect(createdUpdatedRows[0]).toHaveTextContent('Created');
+        expect(createdUpdatedRows[0]).toHaveTextContent('01/01/2024');
+        expect(createdUpdatedRows[1]).toHaveTextContent('Updated');
+        expect(createdUpdatedRows[1]).toHaveTextContent('01/02/2024');
+        expect(createdUpdatedCell.querySelector(':scope > div')).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
+
+        const timeElements = createdUpdatedCell.querySelectorAll('time');
+        expect(timeElements).toHaveLength(2);
+        expect(timeElements[0]).toHaveAttribute('dateTime', '2024-01-01T10:00:00.000Z');
+        expect(timeElements[1]).toHaveAttribute('dateTime', '2024-01-02T10:00:00.000Z');
 
         expect(within(secondRow).getByText('2')).toBeVisible();
         expect(within(secondRow).getByText('Published')).toBeVisible();
@@ -313,6 +328,60 @@ describe('OldDatasets page', () => {
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(screen.getByText(/All datasets have been loaded/i)).toBeVisible();
+    });
+
+    it('announces missing and invalid dates with meaningful aria labels', () => {
+        render(
+            <OldDatasets
+                {...baseProps}
+                datasets={[
+                    {
+                        id: 7,
+                        identifier: '10.0000/no-created-date',
+                        title: 'Dataset without a created timestamp',
+                        resourcetypegeneral: 'Dataset',
+                        curator: 'Dana',
+                        updated_at: 'invalid-date',
+                        publicstatus: 'draft',
+                    },
+                ]}
+            />,
+        );
+
+        const table = screen.getByRole('table');
+        const bodyRow = within(table).getAllByRole('row')[1];
+        const createdUpdatedCell = within(bodyRow).getAllByRole('cell')[5];
+        const labelledContainer = createdUpdatedCell.querySelector(':scope > div');
+
+        expect(labelledContainer).toHaveAttribute(
+            'aria-label',
+            'Created date not available. Updated date is invalid',
+        );
+        expect(within(labelledContainer as HTMLElement).getByText('Updated')).toBeVisible();
+        expect(within(labelledContainer as HTMLElement).getByText('Invalid date')).toBeVisible();
+    });
+
+    it('falls back to N/A when a dataset field is missing', () => {
+        render(
+            <OldDatasets
+                {...baseProps}
+                datasets={[
+                    {
+                        id: 9,
+                        identifier: '10.0000/missing-curator',
+                        title: 'Dataset missing curator metadata',
+                        resourcetypegeneral: 'Dataset',
+                        publicstatus: 'draft',
+                    },
+                ]}
+            />,
+        );
+
+        const table = screen.getByRole('table');
+        const bodyRow = within(table).getAllByRole('row')[1];
+        const curatorCell = within(bodyRow).getAllByRole('cell')[4];
+
+        expect(curatorCell).toHaveTextContent('N/A');
     });
 
     it('logs the server-provided diagnostics when the initial page load fails', () => {
