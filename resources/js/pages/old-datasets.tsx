@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Head } from '@inertiajs/react';
 import { useState, useRef, useCallback, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import axios, { isAxiosError } from 'axios';
 
 interface Dataset {
@@ -42,7 +43,7 @@ interface DatasetsProps {
 
 interface DatasetColumn {
     key: string;
-    label: string;
+    label: ReactNode;
     widthClass: string;
     cellClassName?: string;
     render?: (dataset: Dataset) => React.ReactNode;
@@ -50,7 +51,13 @@ interface DatasetColumn {
 
 const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[20rem] lg:min-w-[28rem] xl:min-w-[32rem]';
 const TITLE_COLUMN_CELL_CLASSES = 'whitespace-normal break-words text-gray-900 dark:text-gray-100 leading-relaxed align-top';
-const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
+const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-900 dark:text-gray-100';
+const DATE_COLUMN_HEADER_LABEL = (
+    <span className="flex flex-col leading-tight normal-case">
+        <span>Created</span>
+        <span>Updated</span>
+    </span>
+);
 
 type DateType = 'Created' | 'Updated';
 
@@ -231,8 +238,8 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         },
         {
             key: 'created_updated',
-            label: 'Created / Updated',
-            widthClass: 'min-w-[12rem]',
+            label: DATE_COLUMN_HEADER_LABEL,
+            widthClass: 'min-w-[9rem]',
             cellClassName: 'whitespace-normal align-top',
             render: (dataset: Dataset) => {
                 const createdDetails = getDateDetails(dataset.created_at ?? null);
@@ -245,27 +252,25 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
 
                 const dateColumnAriaLabel = ariaLabelParts.length > 0 ? ariaLabelParts.join('. ') : undefined;
 
+                const renderDateContent = (details: { label: string; iso: string | null }) => {
+                    if (details.iso) {
+                        return (
+                            <time dateTime={details.iso} className="font-medium">
+                                {details.label}
+                            </time>
+                        );
+                    }
+
+                    return <span className="text-gray-600 dark:text-gray-300">{details.label}</span>;
+                };
+
                 return (
                     <div
                         className={DATE_COLUMN_CONTAINER_CLASSES}
                         aria-label={dateColumnAriaLabel}
                     >
-                        <div>
-                            <span className="font-medium text-gray-700 dark:text-gray-200">Created</span>{' '}
-                            {createdDetails.iso ? (
-                                <time dateTime={createdDetails.iso}>{createdDetails.label}</time>
-                            ) : (
-                                <span>{createdDetails.label}</span>
-                            )}
-                        </div>
-                        <div>
-                            <span className="font-medium text-gray-700 dark:text-gray-200">Updated</span>{' '}
-                            {updatedDetails.iso ? (
-                                <time dateTime={updatedDetails.iso}>{updatedDetails.label}</time>
-                            ) : (
-                                <span>{updatedDetails.label}</span>
-                            )}
-                        </div>
+                        {renderDateContent(createdDetails)}
+                        {renderDateContent(updatedDetails)}
                     </div>
                 );
             },
