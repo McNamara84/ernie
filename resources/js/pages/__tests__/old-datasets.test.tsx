@@ -179,7 +179,7 @@ describe('OldDatasets page', () => {
 
         const headerRow = within(table).getAllByRole('row')[0];
         expect(within(headerRow).getByText('Identifier (DOI)')).toBeVisible();
-        expect(within(headerRow).getByText('Created Date')).toBeVisible();
+        expect(within(headerRow).getByText('Created / Updated')).toBeVisible();
 
         const bodyRows = within(table).getAllByRole('row').slice(1);
         expect(bodyRows).toHaveLength(2);
@@ -188,9 +188,23 @@ describe('OldDatasets page', () => {
         expect(within(firstRow).getByText('1')).toBeVisible();
         expect(within(firstRow).getByText(/10\.1234\/example-one/)).toBeVisible();
         expect(within(firstRow).getByText('Under Review')).toBeVisible();
-        expect(within(firstRow).getByText(/01\/01\/2024/)).toBeVisible();
-        expect(within(firstRow).getByText(/01\/02\/2024/)).toBeVisible();
-        expect(within(firstRow).getByText(/A dataset title that is long enough/)).toHaveTextContent(/\.\.\.$/);
+        const titleCell = within(firstRow).getAllByRole('cell')[2];
+        expect(titleCell).toHaveTextContent(baseProps.datasets[0].title);
+        expect(titleCell).toHaveClass('whitespace-normal');
+        expect(titleCell).toHaveClass('break-words');
+
+        const createdUpdatedCell = within(firstRow).getAllByRole('cell')[5];
+        const createdUpdatedRows = createdUpdatedCell.querySelectorAll(':scope > div > div');
+        expect(createdUpdatedRows).toHaveLength(2);
+        expect(createdUpdatedRows[0]).toHaveTextContent('Created');
+        expect(createdUpdatedRows[0]).toHaveTextContent('01/01/2024');
+        expect(createdUpdatedRows[1]).toHaveTextContent('Updated');
+        expect(createdUpdatedRows[1]).toHaveTextContent('01/02/2024');
+
+        const timeElements = createdUpdatedCell.querySelectorAll('time');
+        expect(timeElements).toHaveLength(2);
+        expect(timeElements[0]).toHaveAttribute('dateTime', '2024-01-01T10:00:00.000Z');
+        expect(timeElements[1]).toHaveAttribute('dateTime', '2024-01-02T10:00:00.000Z');
 
         expect(within(secondRow).getByText('2')).toBeVisible();
         expect(within(secondRow).getByText('Published')).toBeVisible();

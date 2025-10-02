@@ -40,6 +40,14 @@ interface DatasetsProps {
     debug?: Record<string, unknown>;
 }
 
+interface DatasetColumn {
+    key: string;
+    label: string;
+    widthClass: string;
+    cellClassName?: string;
+    render?: (dataset: Dataset) => React.ReactNode;
+}
+
 export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error, debug }: DatasetsProps) {
     const [datasets, setDatasets] = useState<Dataset[]>(initialDatasets);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
@@ -130,65 +138,39 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
     }, [loading, pagination.has_more, loadMoreDatasets]);
 
     // Loading skeleton component
-    const LoadingSkeleton = () => (
-        <>
-            {[...Array(5)].map((_, index) => (
-                <tr key={`skeleton-${index}`} className="animate-pulse">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-8"></div>
-                    </td>
-                    {getDatasetKeys().map((key) => (
-                        <td key={key} className={`px-6 py-4 ${getColumnWidth(key)}`}>
-                            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                        </td>
-                    ))}
-                </tr>
-            ))}
-        </>
-    );
+    const getDateDetails = (dateString: string | null) => {
+        if (!dateString) {
+            return { label: 'Not available', iso: null };
+        }
 
-    const formatDate = (dateString: string | null): string => {
-        if (!dateString) return 'Not available';
         try {
             const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-            });
+            if (Number.isNaN(date.getTime())) {
+                return { label: 'Invalid date', iso: null };
+            }
+
+            return {
+                label: date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                }),
+                iso: date.toISOString(),
+            };
         } catch {
-            return 'Invalid date';
+            return { label: 'Invalid date', iso: null };
         }
     };
 
-    const formatKeyName = (key: string): string => {
-        const keyMappings: { [key: string]: string } = {
-            'id': 'ID',
-            'identifier': 'Identifier (DOI)',
-            'resourcetypegeneral': 'Resource Type',
-            'curator': 'Curator',
-            'title': 'Title',
-            'created_at': 'Created Date',
-            'updated_at': 'Updated Date',
-            'publicstatus': 'Publication Status',
-            'publisher': 'Publisher',
-            'publicationyear': 'Publication Year',
-        };
-
-        return keyMappings[key] || key
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const formatDate = (dateString: string | null): string => {
+        return getDateDetails(dateString).label;
     };
 
     const formatValue = (key: string, value: unknown): string => {
         if (value === null || value === undefined) return 'N/A';
-        
+
         if (key.includes('_at') || key.includes('date')) {
             return formatDate(value as string);
-        }
-        
-        if (key === 'title' && typeof value === 'string' && value.length > 110) {
-            return value.substring(0, 107) + '...';
         }
         
         if (key === 'publicstatus') {
@@ -203,34 +185,96 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         
         return String(value);
     };
+    const datasetColumns: DatasetColumn[] = [
+        {
+            key: 'identifier',
+            label: 'Identifier (DOI)',
+            widthClass: 'min-w-[8rem]',
+            cellClassName: 'whitespace-nowrap',
+        },
+        {
+            key: 'title',
+            label: 'Title',
+            widthClass: 'min-w-[20rem] lg:min-w-[28rem] xl:min-w-[32rem]',
+            cellClassName: 'whitespace-normal break-words text-gray-900 dark:text-gray-100 leading-relaxed align-top',
+        },
+        {
+            key: 'resourcetypegeneral',
+            label: 'Resource Type',
+            widthClass: 'min-w-[10rem]',
+            cellClassName: 'whitespace-nowrap',
+        },
+        {
+            key: 'curator',
+            label: 'Curator',
+            widthClass: 'min-w-[7rem]',
+            cellClassName: 'whitespace-nowrap',
+        },
+        {
+            key: 'created_updated',
+            label: 'Created / Updated',
+            widthClass: 'min-w-[12rem]',
+            cellClassName: 'whitespace-normal align-top',
+            render: (dataset: Dataset) => {
+                const createdDetails = getDateDetails(dataset.created_at ?? null);
+                const updatedDetails = getDateDetails(dataset.updated_at ?? null);
 
-    const getDatasetKeys = (): string[] => {
-        // Define the desired column order
-        return [
-            'identifier',
-            'title', 
-            'resourcetypegeneral',
-            'curator',
-            'created_at',
-            'updated_at',
-            'publicstatus'
-        ];
-    };
+                return (
+                    <div
+                        className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300"
+                        aria-label={`Dataset created on ${createdDetails.label} and updated on ${updatedDetails.label}`}
+                    >
+                        <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-200">Created</span>{' '}
+                            {createdDetails.iso ? (
+                                <time dateTime={createdDetails.iso}>{createdDetails.label}</time>
+                            ) : (
+                                <span>{createdDetails.label}</span>
+                            )}
+                        </div>
+                        <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-200">Updated</span>{' '}
+                            {updatedDetails.iso ? (
+                                <time dateTime={updatedDetails.iso}>{updatedDetails.label}</time>
+                            ) : (
+                                <span>{updatedDetails.label}</span>
+                            )}
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'publicstatus',
+            label: 'Publication Status',
+            widthClass: 'min-w-[10rem]',
+            cellClassName: 'whitespace-nowrap',
+        },
+    ];
 
-    const getColumnWidth = (key: string): string => {
-        const widthMap: { [key: string]: string } = {
-            'identifier': 'w-20', // Even smaller width for DOI
-            'title': 'w-96', // Even wider for title
-            'resourcetypegeneral': 'w-40',
-            'curator': 'w-24', // Half width for curator (first names only)
-            'created_at': 'w-32',
-            'updated_at': 'w-32',
-            'publicstatus': 'w-28'
-        };
-        return widthMap[key] || 'w-32';
-    };
-
-    const keys = getDatasetKeys();
+    const LoadingSkeleton = () => (
+        <>
+            {[...Array(5)].map((_, index) => (
+                <tr key={`skeleton-${index}`} className="animate-pulse">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 w-8 rounded bg-gray-200 dark:bg-gray-700"></div>
+                    </td>
+                    {datasetColumns.map((column) => (
+                        <td key={column.key} className={`px-6 py-4 ${column.widthClass} ${column.cellClassName ?? ''}`}>
+                            {column.key === 'created_updated' ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                    <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                </div>
+                            ) : (
+                                <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-700"></div>
+                            )}
+                        </td>
+                    ))}
+                </tr>
+            ))}
+        </>
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -276,9 +320,12 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">
                                                     ID
                                                 </th>
-                                                {keys.map((key: string) => (
-                                                    <th key={key} className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${getColumnWidth(key)}`}>
-                                                        {formatKeyName(key)}
+                                                {datasetColumns.map((column) => (
+                                                    <th
+                                                        key={column.key}
+                                                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${column.widthClass}`}
+                                                    >
+                                                        {column.label}
                                                     </th>
                                                 ))}
                                             </tr>
@@ -287,17 +334,22 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                             {datasets.map((dataset, index) => {
                                                 const isLast = index === datasets.length - 1;
                                                 return (
-                                                    <tr 
-                                                        key={dataset.id} 
+                                                    <tr
+                                                        key={dataset.id}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastDatasetElementRef : null}
                                                     >
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 w-16">
                                                             {dataset.id}
                                                         </td>
-                                                        {keys.map((key: string) => (
-                                                            <td key={key} className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${getColumnWidth(key)} ${key === 'title' ? '' : 'whitespace-nowrap'}`}>
-                                                                {formatValue(key, dataset[key])}
+                                                        {datasetColumns.map((column) => (
+                                                            <td
+                                                                key={column.key}
+                                                                className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                            >
+                                                                {column.render
+                                                                    ? column.render(dataset)
+                                                                    : formatValue(column.key, dataset[column.key])}
                                                             </td>
                                                         ))}
                                                     </tr>
