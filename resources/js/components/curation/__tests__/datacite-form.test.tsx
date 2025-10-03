@@ -1,17 +1,28 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, describe, it, expect } from 'vitest';
+import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '../datacite-form';
 import type { ResourceType, TitleType, License, Language } from '@/types';
 
 describe('DataCiteForm', () => {
+    const originalFetch = global.fetch;
+
     beforeAll(() => {
         // Polyfill methods required by Radix UI Select
         Element.prototype.hasPointerCapture = () => false;
         Element.prototype.setPointerCapture = () => {};
         Element.prototype.releasePointerCapture = () => {};
         Element.prototype.scrollIntoView = () => {};
+    });
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        global.fetch = vi.fn();
+    });
+
+    afterAll(() => {
+        global.fetch = originalFetch;
     });
 
     const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
@@ -489,7 +500,7 @@ describe('DataCiteForm', () => {
         'limits title rows to max titles',
         async () => {
             render(
-            <DataCiteForm
+                <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
                 licenses={licenses}
@@ -512,4 +523,113 @@ describe('DataCiteForm', () => {
         },
         10000,
     );
+
+    it('submits data and shows success modal when saving succeeds', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const responseData = { message: 'Dataset stored!' };
+        const jsonMock = vi.fn().mockResolvedValue(responseData);
+        const response = {
+            ok: true,
+            status: 201,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await user.click(saveButton);
+
+        expect(global.fetch).toHaveBeenCalledWith('/curation/datasets', expect.objectContaining({
+            method: 'POST',
+            credentials: 'same-origin',
+        }));
+
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
+        expect(fetchArgs).toBeDefined();
+        const body = JSON.parse((fetchArgs as RequestInit).body as string);
+        expect(body).toMatchObject({
+            year: 2024,
+            resourceType: 1,
+            titles: [
+                {
+                    title: 'First Title',
+                    titleType: 'main-title',
+                },
+            ],
+            licenses: ['MIT'],
+        });
+
+        await screen.findByRole('dialog', { name: /successfully saved dataset/i });
+        expect(screen.getByText('Dataset stored!')).toBeInTheDocument();
+    });
+
+    it('shows validation feedback when saving fails', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const validationResponse = {
+            message: 'Validation failed',
+            errors: {
+                titles: ['A main title is required.'],
+            },
+        };
+
+        const jsonMock = vi.fn().mockResolvedValue(validationResponse);
+        const errorResponse = {
+            ok: false,
+            status: 422,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(errorResponse);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Only Subtitle', titleType: 'subtitle' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await user.click(saveButton);
+
+        expect(global.fetch).toHaveBeenCalledWith('/curation/datasets', expect.any(Object));
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
+        expect(fetchArgs).toBeDefined();
+        const body = JSON.parse((fetchArgs as RequestInit).body as string);
+        expect(body).toMatchObject({
+            licenses: ['MIT'],
+            titles: [
+                {
+                    title: 'Only Subtitle',
+                    titleType: 'subtitle',
+                },
+            ],
+        });
+
+        await screen.findByText('Validation failed');
+        const alert = screen.getByText('Validation failed').closest('[role="alert"]');
+        expect(alert).not.toBeNull();
+        expect(screen.getByText('A main title is required.')).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: /successfully saved dataset/i })).not.toBeInTheDocument();
+    });
 });

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
@@ -79,6 +80,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'initialLicenses' => $request->query('licenses', []),
         ]);
     })->name('curation');
+
+    Route::post('curation/datasets', [DatasetController::class, 'store'])
+        ->name('curation.datasets.store');
 });
 
 require __DIR__.'/settings.php';
