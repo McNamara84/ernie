@@ -23,6 +23,22 @@ test.describe('XML Upload Functionality', () => {
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
   });
 
+  const resolveDatasetExample = (fileName: string) => {
+    const candidateDirectories = [
+      path.resolve(__dirname, '..', 'pest', 'dataset-examples'),
+      path.resolve(__dirname, '..', 'tests', 'dataset-examples'),
+    ];
+
+    for (const directory of candidateDirectories) {
+      const candidatePath = path.join(directory, fileName);
+      if (fs.existsSync(candidatePath)) {
+        return candidatePath;
+      }
+    }
+
+    throw new Error(`Unable to locate dataset example "${fileName}" in any known directory.`);
+  };
+
   test('uploads XML file and redirects to curation with populated form', async ({ page }) => {
     // Navigate to dashboard
     await page.goto('/dashboard');
@@ -39,7 +55,7 @@ test.describe('XML Upload Functionality', () => {
     await expect(fileInput).toBeAttached(); // Check if it exists, not if it's visible
     
     // Upload the XML file
-    const xmlFilePath = path.join(__dirname, '..', 'tests', 'dataset-examples', 'datacite-example-full-v4.xml');
+    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
     
     // The upload should happen automatically after file selection
@@ -180,7 +196,7 @@ test.describe('XML Upload Functionality', () => {
     await page.goto('/dashboard');
     
     const fileInput = page.locator('input[type="file"][accept=".xml"]');
-    const xmlFilePath = path.join(__dirname, '..', 'tests', 'dataset-examples', 'datacite-example-full-v4.xml');
+    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
     await expect(fileInput).toBeAttached();
     
     // Monitor for loading states or progress indicators before upload
