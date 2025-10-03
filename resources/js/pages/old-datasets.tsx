@@ -735,7 +735,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                 const idValue = hasId ? String(dataset.id) : 'Not available';
                 const hasIdentifier = typeof dataset.identifier === 'string' && dataset.identifier.trim().length > 0;
                 const identifierValue = hasIdentifier ? dataset.identifier?.trim() ?? '' : 'Not available';
-                const identifierDisplay = hasIdentifier ? identifierValue : 'Not available';
+                const identifierDisplay = identifierValue;
                 const identifierClasses = hasIdentifier
                     ? 'text-sm text-gray-600 dark:text-gray-300 break-all'
                     : 'text-sm text-gray-500 dark:text-gray-300';
