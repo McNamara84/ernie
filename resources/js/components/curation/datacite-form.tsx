@@ -339,6 +339,7 @@ export default function DataCiteForm({
                                     label: l.name,
                                 }))}
                                 className="md:col-span-2"
+                                required
                             />
                         </div>
                         <div className="space-y-4 mt-3">

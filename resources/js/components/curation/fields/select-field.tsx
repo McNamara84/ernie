@@ -43,7 +43,7 @@ export function SelectField({
                 {required && <span className="text-destructive ml-1">*</span>}
             </Label>
             <Select value={value} onValueChange={onValueChange} required={required}>
-                <SelectTrigger id={id}>
+                <SelectTrigger id={id} aria-required={required || undefined}>
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
                 <SelectContent>

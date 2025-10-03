@@ -83,7 +83,15 @@ describe('DataCiteForm', () => {
         ).toBeInTheDocument();
 
         // language options
-        const languageTrigger = screen.getByLabelText('Language of Data');
+        const languageTrigger = screen.getByLabelText('Language of Data', {
+            exact: false,
+        });
+        expect(languageTrigger).toHaveAttribute('aria-required', 'true');
+        const languageLabel = languageTrigger.closest('div')?.querySelector('label');
+        if (!languageLabel) {
+            throw new Error('Language label not found');
+        }
+        expect(languageLabel).toHaveTextContent('*');
         await user.click(languageTrigger);
         for (const option of languages) {
             expect(
@@ -245,7 +253,9 @@ describe('DataCiteForm', () => {
                 initialLanguage="de"
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'German',
         );
     });
@@ -259,7 +269,9 @@ describe('DataCiteForm', () => {
                 languages={languages}
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'English',
         );
     });
@@ -280,7 +292,9 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'English',
         );
     });
@@ -295,7 +309,9 @@ describe('DataCiteForm', () => {
                 initialLanguage="German"
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'German',
         );
     });
@@ -310,7 +326,9 @@ describe('DataCiteForm', () => {
                 initialLanguage="French"
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'French',
         );
     });
@@ -330,7 +348,9 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'German',
         );
     });
@@ -351,7 +371,9 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'English',
         );
     });
