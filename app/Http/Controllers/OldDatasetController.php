@@ -33,8 +33,14 @@ class OldDatasetController extends Controller
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert)
             $paginatedDatasets = OldDataset::getPaginatedOrderedByCreatedDate($page, $perPage);
 
+            // Load licenses for each dataset
+            $datasetsWithLicenses = $paginatedDatasets->items();
+            foreach ($datasetsWithLicenses as $dataset) {
+                $dataset->licenses = $dataset->getLicenses();
+            }
+
             return Inertia::render('old-datasets', [
-                'datasets' => $paginatedDatasets->items(),
+                'datasets' => $datasetsWithLicenses,
                 'pagination' => [
                     'current_page' => $paginatedDatasets->currentPage(),
                     'last_page' => $paginatedDatasets->lastPage(),
@@ -87,8 +93,14 @@ class OldDatasetController extends Controller
             
             $paginatedDatasets = OldDataset::getPaginatedOrderedByCreatedDate($page, $perPage);
 
+            // Load licenses for each dataset
+            $datasetsWithLicenses = $paginatedDatasets->items();
+            foreach ($datasetsWithLicenses as $dataset) {
+                $dataset->licenses = $dataset->getLicenses();
+            }
+
             return response()->json([
-                'datasets' => $paginatedDatasets->items(),
+                'datasets' => $datasetsWithLicenses,
                 'pagination' => [
                     'current_page' => $paginatedDatasets->currentPage(),
                     'last_page' => $paginatedDatasets->lastPage(),

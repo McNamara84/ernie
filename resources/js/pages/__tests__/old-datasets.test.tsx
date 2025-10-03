@@ -123,6 +123,31 @@ describe('OldDatasets page', () => {
 
         consoleGroupCollapsedSpy = vi.spyOn(console, 'groupCollapsed').mockImplementation(() => {});
         consoleGroupEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+
+        // Mock fetch for API calls in buildCurationQuery
+        global.fetch = vi.fn((url: string) => {
+            if (url.includes('/api/v1/resource-types/ernie')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve([
+                        { id: 1, name: 'Audiovisual', slug: 'audiovisual' },
+                        { id: 10, name: 'Dataset', slug: 'dataset' },
+                        { id: 13, name: 'Image', slug: 'image' },
+                    ]),
+                } as Response);
+            }
+            if (url.includes('/api/v1/licenses/ernie')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve([
+                        { id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0' },
+                        { id: 2, identifier: 'MIT', name: 'MIT License' },
+                        { id: 3, identifier: 'GPL-3.0', name: 'GNU General Public License v3.0' },
+                    ]),
+                } as Response);
+            }
+            return Promise.reject(new Error('Unknown URL'));
+        }) as unknown as typeof fetch;
     });
 
     afterEach(() => {
@@ -253,14 +278,17 @@ describe('OldDatasets page', () => {
 
         await user.click(buttons[0]);
 
-        expect(routerGetSpy).toHaveBeenCalledTimes(1);
+        // Wait for the async mapping to complete
+        await waitFor(() => {
+            expect(routerGetSpy).toHaveBeenCalledTimes(1);
+        });
 
         const params = new URLSearchParams();
         params.set('doi', '10.1234/example-one');
         params.set('year', '2024');
         params.set('version', '1.2.0');
         params.set('language', 'en');
-        params.set('resourceType', '1');
+        params.set('resourceType', '10'); // Dataset maps to ID 10
         params.append('titles[0][title]', 'Provided Main Title');
         params.append('titles[0][titleType]', 'main-title');
         params.append(
