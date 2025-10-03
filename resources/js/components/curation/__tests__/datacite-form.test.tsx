@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '../datacite-form';
@@ -170,6 +170,44 @@ describe('DataCiteForm', () => {
         expect(
             screen.getAllByRole('textbox', { name: /Title/ }),
         ).toHaveLength(1);
+    });
+
+    it('disables saving until required fields are provided', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const saveButton = screen.getByRole('button', { name: 'Save to database' });
+
+        expect(saveButton).toBeDisabled();
+        expect(saveButton).toHaveAttribute('aria-disabled', 'true');
+
+        const titleInput = screen.getByRole('textbox', { name: /Title/ });
+        await user.type(titleInput, 'Sample Title');
+        await user.type(screen.getByLabelText('Year', { exact: false }), '2024');
+
+        await user.click(screen.getByLabelText('Resource Type', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+
+        await user.click(screen.getByLabelText('Language of Data', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'English' }));
+
+        const licenseTrigger = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        })[0];
+        await user.click(licenseTrigger);
+        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+
+        await waitFor(() => {
+            expect(saveButton).toBeEnabled();
+            expect(saveButton).toHaveAttribute('aria-disabled', 'false');
+        });
     });
 
     it('prefills DOI when initialDoi is provided', () => {
@@ -679,6 +717,7 @@ describe('DataCiteForm', () => {
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
             />,
         );
 
@@ -705,6 +744,7 @@ describe('DataCiteForm', () => {
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[{ title: 'Main Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
             />,
         );
 
@@ -744,7 +784,10 @@ describe('DataCiteForm', () => {
                 languages={languages}
                 initialYear="2024"
                 initialResourceType="1"
-                initialTitles={[{ title: 'Only Subtitle', titleType: 'subtitle' }]}
+                initialTitles={[
+                    { title: 'Primary Dataset', titleType: 'main-title' },
+                    { title: 'Only Subtitle', titleType: 'subtitle' },
+                ]}
                 initialLicenses={['MIT']}
             />,
         );
@@ -766,6 +809,10 @@ describe('DataCiteForm', () => {
         expect(body).toMatchObject({
             licenses: ['MIT'],
             titles: [
+                {
+                    title: 'Primary Dataset',
+                    titleType: 'main-title',
+                },
                 {
                     title: 'Only Subtitle',
                     titleType: 'subtitle',
