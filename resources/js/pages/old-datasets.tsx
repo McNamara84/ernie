@@ -342,7 +342,161 @@ const getResourceTypeIdentifier = (dataset: Dataset): string | null => {
     return null;
 };
 
-const buildCurationQuery = (dataset: Dataset): Record<string, string> => {
+// Cache for resource types and licenses to avoid repeated API calls
+let resourceTypesCache: { id: number; name: string; slug: string }[] | null = null;
+let licensesCache: { id: number; identifier: string; name: string }[] | null = null;
+
+/**
+ * Fetch and cache resource types from ERNIE API.
+ * 
+ * This function retrieves the list of resource types available in ERNIE and caches
+ * the result to avoid repeated API calls. The cache persists for the lifetime of
+ * the page session.
+ * 
+ * @returns {Promise<Array<{id: number, name: string, slug: string}>>} Array of resource types with their IDs, names, and slugs
+ * @throws Returns empty array if the API call fails
+ * 
+ * @example
+ * const types = await getResourceTypes();
+ * // [{id: 1, name: 'Dataset', slug: 'dataset'}, ...]
+ */
+const getResourceTypes = async (): Promise<{ id: number; name: string; slug: string }[]> => {
+    if (resourceTypesCache) {
+        return resourceTypesCache;
+    }
+
+    try {
+        const response = await fetch('/api/v1/resource-types/ernie');
+        if (!response.ok) return [];
+        resourceTypesCache = await response.json();
+        return resourceTypesCache || [];
+    } catch (error) {
+        console.error('Error fetching resource types:', error);
+        return [];
+    }
+};
+
+/**
+ * Fetch and cache licenses from ERNIE API.
+ * 
+ * This function retrieves the list of licenses available in ERNIE and caches
+ * the result to avoid repeated API calls. The cache persists for the lifetime of
+ * the page session.
+ * 
+ * @returns {Promise<Array<{id: number, identifier: string, name: string}>>} Array of licenses with their IDs, identifiers, and names
+ * @throws Returns empty array if the API call fails
+ * 
+ * @example
+ * const licenses = await getLicenses();
+ * // [{id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0'}, ...]
+ */
+const getLicenses = async (): Promise<{ id: number; identifier: string; name: string }[]> => {
+    if (licensesCache) {
+        return licensesCache;
+    }
+
+    try {
+        const response = await fetch('/api/v1/licenses/ernie');
+        if (!response.ok) return [];
+        licensesCache = await response.json();
+        return licensesCache || [];
+    } catch (error) {
+        console.error('Error fetching licenses:', error);
+        return [];
+    }
+};
+
+/**
+ * Map old database resource type general strings to ERNIE resource type IDs.
+ * The mapping is based on the resource type names in ERNIE's resource_types table.
+ */
+const mapResourceTypeToId = async (resourceTypeGeneral?: string): Promise<string | null> => {
+    if (!resourceTypeGeneral) return null;
+
+    // Normalize the input
+    const normalized = resourceTypeGeneral.trim();
+    if (!normalized) return null;
+
+    try {
+        const resourceTypes = await getResourceTypes();
+
+        // Try to find a matching resource type by name (case-insensitive)
+        const match = resourceTypes.find(
+            (type) => type.name.toLowerCase() === normalized.toLowerCase()
+        );
+
+        if (match) {
+            return String(match.id);
+        }
+
+        // Try to match by slug for some special cases
+        const slugMatch = resourceTypes.find(
+            (type) => type.slug === normalized.toLowerCase().replace(/\s+/g, '-')
+        );
+
+        if (slugMatch) {
+            return String(slugMatch.id);
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error mapping resource type:', error);
+        return null;
+    }
+};
+
+/**
+ * Map old database license names to ERNIE license identifiers.
+ * This is a best-effort mapping based on common license name patterns.
+ */
+const mapLicenseToIdentifier = async (licenseName: string): Promise<string | null> => {
+    if (!licenseName) return null;
+
+    const normalized = licenseName.trim();
+    if (!normalized) return null;
+
+    try {
+        const licenses = await getLicenses();
+
+        // First, try exact match on identifier (e.g., "CC-BY-4.0")
+        const exactMatch = licenses.find(
+            (lic) => lic.identifier.toLowerCase() === normalized.toLowerCase()
+        );
+        if (exactMatch) {
+            return exactMatch.identifier;
+        }
+
+        // Try to match by name
+        const nameMatch = licenses.find(
+            (lic) => lic.name.toLowerCase() === normalized.toLowerCase()
+        );
+        if (nameMatch) {
+            return nameMatch.identifier;
+        }
+
+        // Try partial matching for common CC licenses
+        const ccMatch = normalized.match(/CC[\s-]*(BY|BY-SA|BY-NC|BY-ND|BY-NC-SA|BY-NC-ND)[\s-]*(\d\.\d)?/i);
+        if (ccMatch) {
+            const licenseType = ccMatch[1].toUpperCase();
+            const version = ccMatch[2] || '4.0';
+            const ccIdentifier = `CC-${licenseType}-${version}`;
+            
+            const found = licenses.find(
+                (lic) => lic.identifier.toLowerCase() === ccIdentifier.toLowerCase()
+            );
+            if (found) {
+                return found.identifier;
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('Error mapping license:', error);
+        return null;
+    }
+};
+
+const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, string>> => {
     const query: Record<string, string> = {};
 
     if (dataset.identifier) {
@@ -361,9 +515,12 @@ const buildCurationQuery = (dataset: Dataset): Record<string, string> => {
         query.language = dataset.language;
     }
 
-    const resourceType = getResourceTypeIdentifier(dataset);
-    if (resourceType) {
-        query.resourceType = resourceType;
+    // Map resource type from old DB string to ERNIE ID
+    if (dataset.resourcetypegeneral) {
+        const resourceTypeId = await mapResourceTypeToId(dataset.resourcetypegeneral);
+        if (resourceTypeId) {
+            query.resourceType = resourceTypeId;
+        }
     }
 
     const titles = normaliseTitles(dataset);
@@ -372,8 +529,16 @@ const buildCurationQuery = (dataset: Dataset): Record<string, string> => {
         query[`titles[${index}][titleType]`] = title.titleType;
     });
 
+    // Map licenses from old DB to ERNIE identifiers
     const licenses = normaliseLicenses(dataset);
-    licenses.forEach((license, index) => {
+    const mappedLicenses = await Promise.all(
+        licenses.map(async (license) => {
+            const identifier = await mapLicenseToIdentifier(license);
+            return identifier || license; // Fallback to original if no mapping found
+        })
+    );
+    
+    mappedLicenses.forEach((license, index) => {
         query[`licenses[${index}]`] = license;
     });
 
@@ -420,8 +585,8 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
     const [loadingError, setLoadingError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
 
-    const handleOpenInCuration = useCallback((dataset: Dataset) => {
-        const query = buildCurationQuery(dataset);
+    const handleOpenInCuration = useCallback(async (dataset: Dataset) => {
+        const query = await buildCurationQuery(dataset);
         router.get(curationRoute({ query }).url);
     }, []);
 
@@ -454,6 +619,12 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             logDebugInformation('initial page load', error, debug);
         }
     }, [debug, error, logDebugInformation]);
+
+    // Preload resource types and licenses on component mount
+    useEffect(() => {
+        getResourceTypes();
+        getLicenses();
+    }, []);
     
     const breadcrumbs: BreadcrumbItem[] = [
         {

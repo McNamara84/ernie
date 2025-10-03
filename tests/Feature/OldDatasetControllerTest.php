@@ -7,6 +7,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
 use Mockery as MockeryAlias;
+use Tests\Helpers\OldDatasetMockFactory;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\actingAs;
@@ -25,32 +26,35 @@ beforeEach(function (): void {
 });
 
 it('renders the old datasets page with paginated data', function (): void {
-    $datasets = [
-        [
-            'id' => 1,
-            'identifier' => '10.1234/example-one',
-            'resourcetypegeneral' => 'Dataset',
-            'curator' => 'Alice',
-            'title' => 'Example dataset number one',
-            'created_at' => '2024-01-01 10:00:00',
-            'updated_at' => '2024-01-05 12:00:00',
-            'publicstatus' => 'published',
-            'publisher' => 'Example Publisher',
-            'publicationyear' => 2024,
-        ],
-        [
-            'id' => 2,
-            'identifier' => '10.1234/example-two',
-            'resourcetypegeneral' => 'Dataset',
-            'curator' => 'Bob',
-            'title' => 'Example dataset number two',
-            'created_at' => '2024-02-02 14:30:00',
-            'updated_at' => '2024-02-05 09:15:00',
-            'publicstatus' => 'review',
-            'publisher' => 'Example Publisher',
-            'publicationyear' => 2023,
-        ],
-    ];
+    $dataset1 = OldDatasetMockFactory::make([
+        'id' => 1,
+        'identifier' => '10.1234/example-one',
+        'resourcetypegeneral' => 'Dataset',
+        'curator' => 'Alice',
+        'title' => 'Example dataset number one',
+        'created_at' => '2024-01-01 10:00:00',
+        'updated_at' => '2024-01-05 12:00:00',
+        'publicstatus' => 'published',
+        'publisher' => 'Example Publisher',
+        'publicationyear' => 2024,
+        'licenses' => [],
+    ]);
+
+    $dataset2 = OldDatasetMockFactory::make([
+        'id' => 2,
+        'identifier' => '10.1234/example-two',
+        'resourcetypegeneral' => 'Dataset',
+        'curator' => 'Bob',
+        'title' => 'Example dataset number two',
+        'created_at' => '2024-02-02 14:30:00',
+        'updated_at' => '2024-02-05 09:15:00',
+        'publicstatus' => 'review',
+        'publisher' => 'Example Publisher',
+        'publicationyear' => 2023,
+        'licenses' => [],
+    ]);
+
+    $datasets = [$dataset1, $dataset2];
 
     $paginator = new LengthAwarePaginator(
         $datasets,
@@ -66,11 +70,41 @@ it('renders the old datasets page with paginated data', function (): void {
         ->with(1, 50)
         ->andReturn($paginator);
 
+    // Expected datasets with licenses added
+    $expectedDatasets = [
+        [
+            'id' => 1,
+            'identifier' => '10.1234/example-one',
+            'resourcetypegeneral' => 'Dataset',
+            'curator' => 'Alice',
+            'title' => 'Example dataset number one',
+            'created_at' => '2024-01-01 10:00:00',
+            'updated_at' => '2024-01-05 12:00:00',
+            'publicstatus' => 'published',
+            'publisher' => 'Example Publisher',
+            'publicationyear' => 2024,
+            'licenses' => [],
+        ],
+        [
+            'id' => 2,
+            'identifier' => '10.1234/example-two',
+            'resourcetypegeneral' => 'Dataset',
+            'curator' => 'Bob',
+            'title' => 'Example dataset number two',
+            'created_at' => '2024-02-02 14:30:00',
+            'updated_at' => '2024-02-05 09:15:00',
+            'publicstatus' => 'review',
+            'publisher' => 'Example Publisher',
+            'publicationyear' => 2023,
+            'licenses' => [],
+        ],
+    ];
+
     get(route('old-datasets'))
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('old-datasets')
-            ->where('datasets', $datasets)
+            ->where('datasets', $expectedDatasets)
             ->where('pagination', [
                 'current_page' => 1,
                 'last_page' => 1,
@@ -118,20 +152,21 @@ it('sanitises pagination parameters before fetching datasets', function (): void
 });
 
 it('returns JSON payload for the load-more endpoint', function (): void {
-    $datasets = [
-        [
-            'id' => 3,
-            'identifier' => '10.1234/example-three',
-            'resourcetypegeneral' => 'Image',
-            'curator' => 'Carol',
-            'title' => 'Example dataset number three',
-            'created_at' => '2024-03-01 08:00:00',
-            'updated_at' => '2024-03-02 09:00:00',
-            'publicstatus' => 'draft',
-            'publisher' => 'Example Publisher',
-            'publicationyear' => 2022,
-        ],
-    ];
+    $dataset3 = OldDatasetMockFactory::make([
+        'id' => 3,
+        'identifier' => '10.1234/example-three',
+        'resourcetypegeneral' => 'Image',
+        'curator' => 'Carol',
+        'title' => 'Example dataset number three',
+        'created_at' => '2024-03-01 08:00:00',
+        'updated_at' => '2024-03-02 09:00:00',
+        'publicstatus' => 'draft',
+        'publisher' => 'Example Publisher',
+        'publicationyear' => 2022,
+        'licenses' => [],
+    ]);
+
+    $datasets = [$dataset3];
 
     $paginator = new LengthAwarePaginator(
         $datasets,
@@ -147,10 +182,27 @@ it('returns JSON payload for the load-more endpoint', function (): void {
         ->with(2, 20)
         ->andReturn($paginator);
 
+    // Expected datasets with licenses added
+    $expectedDatasets = [
+        [
+            'id' => 3,
+            'identifier' => '10.1234/example-three',
+            'resourcetypegeneral' => 'Image',
+            'curator' => 'Carol',
+            'title' => 'Example dataset number three',
+            'created_at' => '2024-03-01 08:00:00',
+            'updated_at' => '2024-03-02 09:00:00',
+            'publicstatus' => 'draft',
+            'publisher' => 'Example Publisher',
+            'publicationyear' => 2022,
+            'licenses' => [],
+        ],
+    ];
+
     get('/old-datasets/load-more?page=2&per_page=20')
         ->assertOk()
         ->assertJson([
-            'datasets' => $datasets,
+            'datasets' => $expectedDatasets,
             'pagination' => [
                 'current_page' => 2,
                 'last_page' => 2,

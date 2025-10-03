@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
+/**
+ * @property array<string>|null $licenses
+ */
 class OldDataset extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
@@ -115,10 +118,28 @@ class OldDataset extends Model
                 'resource.publicstatus',
                 'resource.publisher',
                 'resource.publicationyear',
+                'resource.version',
+                'resource.language',
                 'title.title'
             ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
             ->orderBy('resource.created_at', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    /**
+     * Get licenses for this resource from the license table.
+     *
+     * @return array<string>
+     */
+    public function getLicenses(): array
+    {
+        $licenses = \Illuminate\Support\Facades\DB::connection($this->connection)
+            ->table('license')
+            ->where('resource_id', $this->id)
+            ->pluck('name')
+            ->toArray();
+
+        return array_values(array_unique($licenses));
     }
 }
