@@ -24,19 +24,20 @@ test.describe('XML Upload Functionality', () => {
   });
 
   const resolveDatasetExample = (fileName: string) => {
-    const candidateDirectories = [
-      path.resolve(__dirname, '..', 'pest', 'dataset-examples'),
-      path.resolve(__dirname, '..', 'tests', 'dataset-examples'),
-    ];
+    const datasetExamplesDirectory = path.resolve(
+      __dirname,
+      '..',
+      'pest',
+      'dataset-examples',
+    );
 
-    for (const directory of candidateDirectories) {
-      const candidatePath = path.join(directory, fileName);
-      if (fs.existsSync(candidatePath)) {
-        return candidatePath;
-      }
+    const candidatePath = path.join(datasetExamplesDirectory, fileName);
+
+    if (fs.existsSync(candidatePath)) {
+      return candidatePath;
     }
 
-    throw new Error(`Unable to locate dataset example "${fileName}" in any known directory.`);
+    throw new Error(`Unable to locate dataset example "${fileName}" in the dataset examples directory.`);
   };
 
   test('uploads XML file and redirects to curation with populated form', async ({ page }) => {
