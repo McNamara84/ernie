@@ -7,6 +7,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
 use Mockery as MockeryAlias;
+use Tests\Helpers\OldDatasetMockFactory;
 
 use function Pest\Laravel\get;
 use function Pest\Laravel\actingAs;
@@ -25,74 +26,33 @@ beforeEach(function (): void {
 });
 
 it('renders the old datasets page with paginated data', function (): void {
-    // Create mock OldDataset objects that behave like real models
-    $dataset1 = new class {
-        public $id = 1;
-        public $identifier = '10.1234/example-one';
-        public $resourcetypegeneral = 'Dataset';
-        public $curator = 'Alice';
-        public $title = 'Example dataset number one';
-        public $created_at = '2024-01-01 10:00:00';
-        public $updated_at = '2024-01-05 12:00:00';
-        public $publicstatus = 'published';
-        public $publisher = 'Example Publisher';
-        public $publicationyear = 2024;
-        public $licenses;
-        
-        public function getLicenses(): array {
-            return [];
-        }
-        
-        public function jsonSerialize(): array {
-            return [
-                'id' => $this->id,
-                'identifier' => $this->identifier,
-                'resourcetypegeneral' => $this->resourcetypegeneral,
-                'curator' => $this->curator,
-                'title' => $this->title,
-                'created_at' => $this->created_at,
-                'updated_at' => $this->updated_at,
-                'publicstatus' => $this->publicstatus,
-                'publisher' => $this->publisher,
-                'publicationyear' => $this->publicationyear,
-                'licenses' => $this->licenses ?? [],
-            ];
-        }
-    };
+    $dataset1 = OldDatasetMockFactory::make([
+        'id' => 1,
+        'identifier' => '10.1234/example-one',
+        'resourcetypegeneral' => 'Dataset',
+        'curator' => 'Alice',
+        'title' => 'Example dataset number one',
+        'created_at' => '2024-01-01 10:00:00',
+        'updated_at' => '2024-01-05 12:00:00',
+        'publicstatus' => 'published',
+        'publisher' => 'Example Publisher',
+        'publicationyear' => 2024,
+        'licenses' => [],
+    ]);
 
-    $dataset2 = new class {
-        public $id = 2;
-        public $identifier = '10.1234/example-two';
-        public $resourcetypegeneral = 'Dataset';
-        public $curator = 'Bob';
-        public $title = 'Example dataset number two';
-        public $created_at = '2024-02-02 14:30:00';
-        public $updated_at = '2024-02-05 09:15:00';
-        public $publicstatus = 'review';
-        public $publisher = 'Example Publisher';
-        public $publicationyear = 2023;
-        public $licenses;
-        
-        public function getLicenses(): array {
-            return [];
-        }
-        
-        public function jsonSerialize(): array {
-            return [
-                'id' => $this->id,
-                'identifier' => $this->identifier,
-                'resourcetypegeneral' => $this->resourcetypegeneral,
-                'curator' => $this->curator,
-                'title' => $this->title,
-                'created_at' => $this->created_at,
-                'updated_at' => $this->updated_at,
-                'publicstatus' => $this->publicstatus,
-                'publisher' => $this->publisher,
-                'publicationyear' => $this->publicationyear,
-                'licenses' => $this->licenses ?? [],
-            ];
-        }
-    };
+    $dataset2 = OldDatasetMockFactory::make([
+        'id' => 2,
+        'identifier' => '10.1234/example-two',
+        'resourcetypegeneral' => 'Dataset',
+        'curator' => 'Bob',
+        'title' => 'Example dataset number two',
+        'created_at' => '2024-02-02 14:30:00',
+        'updated_at' => '2024-02-05 09:15:00',
+        'publicstatus' => 'review',
+        'publisher' => 'Example Publisher',
+        'publicationyear' => 2023,
+        'licenses' => [],
+    ]);
 
     $datasets = [$dataset1, $dataset2];
 
@@ -192,40 +152,19 @@ it('sanitises pagination parameters before fetching datasets', function (): void
 });
 
 it('returns JSON payload for the load-more endpoint', function (): void {
-    // Create mock OldDataset object
-    $dataset3 = new class {
-        public $id = 3;
-        public $identifier = '10.1234/example-three';
-        public $resourcetypegeneral = 'Image';
-        public $curator = 'Carol';
-        public $title = 'Example dataset number three';
-        public $created_at = '2024-03-01 08:00:00';
-        public $updated_at = '2024-03-02 09:00:00';
-        public $publicstatus = 'draft';
-        public $publisher = 'Example Publisher';
-        public $publicationyear = 2022;
-        public $licenses;
-        
-        public function getLicenses(): array {
-            return [];
-        }
-        
-        public function jsonSerialize(): array {
-            return [
-                'id' => $this->id,
-                'identifier' => $this->identifier,
-                'resourcetypegeneral' => $this->resourcetypegeneral,
-                'curator' => $this->curator,
-                'title' => $this->title,
-                'created_at' => $this->created_at,
-                'updated_at' => $this->updated_at,
-                'publicstatus' => $this->publicstatus,
-                'publisher' => $this->publisher,
-                'publicationyear' => $this->publicationyear,
-                'licenses' => $this->licenses ?? [],
-            ];
-        }
-    };
+    $dataset3 = OldDatasetMockFactory::make([
+        'id' => 3,
+        'identifier' => '10.1234/example-three',
+        'resourcetypegeneral' => 'Image',
+        'curator' => 'Carol',
+        'title' => 'Example dataset number three',
+        'created_at' => '2024-03-01 08:00:00',
+        'updated_at' => '2024-03-02 09:00:00',
+        'publicstatus' => 'draft',
+        'publisher' => 'Example Publisher',
+        'publicationyear' => 2022,
+        'licenses' => [],
+    ]);
 
     $datasets = [$dataset3];
 

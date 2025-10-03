@@ -347,7 +347,18 @@ let resourceTypesCache: { id: number; name: string; slug: string }[] | null = nu
 let licensesCache: { id: number; identifier: string; name: string }[] | null = null;
 
 /**
- * Fetch and cache resource types from ERNIE API
+ * Fetch and cache resource types from ERNIE API.
+ * 
+ * This function retrieves the list of resource types available in ERNIE and caches
+ * the result to avoid repeated API calls. The cache persists for the lifetime of
+ * the page session.
+ * 
+ * @returns {Promise<Array<{id: number, name: string, slug: string}>>} Array of resource types with their IDs, names, and slugs
+ * @throws Returns empty array if the API call fails
+ * 
+ * @example
+ * const types = await getResourceTypes();
+ * // [{id: 1, name: 'Dataset', slug: 'dataset'}, ...]
  */
 const getResourceTypes = async (): Promise<{ id: number; name: string; slug: string }[]> => {
     if (resourceTypesCache) {
@@ -366,7 +377,18 @@ const getResourceTypes = async (): Promise<{ id: number; name: string; slug: str
 };
 
 /**
- * Fetch and cache licenses from ERNIE API
+ * Fetch and cache licenses from ERNIE API.
+ * 
+ * This function retrieves the list of licenses available in ERNIE and caches
+ * the result to avoid repeated API calls. The cache persists for the lifetime of
+ * the page session.
+ * 
+ * @returns {Promise<Array<{id: number, identifier: string, name: string}>>} Array of licenses with their IDs, identifiers, and names
+ * @throws Returns empty array if the API call fails
+ * 
+ * @example
+ * const licenses = await getLicenses();
+ * // [{id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0'}, ...]
  */
 const getLicenses = async (): Promise<{ id: number; identifier: string; name: string }[]> => {
     if (licensesCache) {
