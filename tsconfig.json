@@ -111,9 +111,17 @@
         "paths": {
             "@/*": ["./resources/js/*"],
             "@/routes": ["./resources/js/routes.ts"],
-            "@/routes/*": ["./resources/js/routes-wrappers/*"]
+            "@/routes/*": ["./resources/js/routes-wrappers/*"],
+            "@data/*": ["./resources/data/*"],
+            "@tests/*": ["./tests/vitest/utils/*"]
         },
         "jsx": "react-jsx"
     },
-    "include": ["resources/js/**/*.ts", "resources/js/**/*.d.ts", "resources/js/**/*.tsx"]
+    "include": [
+        "resources/js/**/*.ts",
+        "resources/js/**/*.d.ts",
+        "resources/js/**/*.tsx",
+        "tests/vitest/**/*.ts",
+        "tests/vitest/**/*.tsx"
+    ]
 }
