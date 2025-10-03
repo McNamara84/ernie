@@ -544,7 +544,7 @@ describe('deriveDatasetRowKey', () => {
         const firstKey = deriveDatasetRowKey(dataset);
         const secondKey = deriveDatasetRowKey({ ...dataset });
 
-        expect(firstKey).toMatch(/^dataset-/);
+        expect(firstKey).toMatch(/^dataset-[a-z0-9]+-[a-z0-9-]+$/);
         expect(secondKey).toBe(firstKey);
     });
 
@@ -554,5 +554,31 @@ describe('deriveDatasetRowKey', () => {
 
         expect(deriveDatasetRowKey(datasetWithId)).toBe('id-987');
         expect(deriveDatasetRowKey(datasetWithIdentifier)).toBe('doi-10.1234/example');
+    });
+
+    it('normalises fallback serialisation ordering to avoid collisions from object key order', () => {
+        const firstDataset: DatasetLike = {
+            extras: {
+                zebra: 'last',
+                alpha: 'first',
+            },
+        };
+
+        const secondDataset: DatasetLike = {
+            extras: {
+                alpha: 'first',
+                zebra: 'last',
+            },
+        };
+
+        expect(deriveDatasetRowKey(firstDataset)).toBe(deriveDatasetRowKey(secondDataset));
+    });
+
+    it('includes a deterministic suffix in the derived key so collisions can be avoided client-side', () => {
+        const dataset: DatasetLike = {
+            curator: 'Alicia',
+        };
+
+        expect(deriveDatasetRowKey(dataset)).toMatch(/^dataset-[a-z0-9]+-[a-z0-9-]+$/);
     });
 });

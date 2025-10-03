@@ -101,15 +101,70 @@ const normaliseTitleType = (value: string | null | undefined): string => {
         .replace(/-+/g, '-');
 };
 
+const FNV_OFFSET_BASIS_64 = BigInt('0xcbf29ce484222325');
+const FNV_PRIME_64 = BigInt('0x100000001b3');
+const FNV_64_MASK = BigInt('0xffffffffffffffff');
+const KEY_SUFFIX_MAX_LENGTH = 48;
+
 const createStableHash = (value: string): string => {
-    let hash = 0;
+    let hash = FNV_OFFSET_BASIS_64;
 
     for (let index = 0; index < value.length; index += 1) {
-        hash = (hash << 5) - hash + value.charCodeAt(index);
-        hash |= 0;
+        hash ^= BigInt(value.charCodeAt(index));
+        hash = (hash * FNV_PRIME_64) & FNV_64_MASK;
     }
 
-    return Math.abs(hash).toString(36);
+    return hash.toString(36);
+};
+
+const sanitiseKeySuffix = (value: string): string =>
+    value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+const buildDatasetKey = (signature: string): string => {
+    const hash = createStableHash(signature);
+    const truncatedSignature = signature.slice(0, KEY_SUFFIX_MAX_LENGTH);
+    const suffix = sanitiseKeySuffix(truncatedSignature);
+
+    if (suffix) {
+        return `dataset-${hash}-${suffix}`;
+    }
+
+    return `dataset-${hash}`;
+};
+
+const serialiseDeterministically = (value: unknown): string => {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim().toLowerCase();
+        return trimmed;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        return `[${value.map((entry) => serialiseDeterministically(entry)).join('|')}]`;
+    }
+
+    if (typeof value === 'object') {
+        const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
+            left.localeCompare(right),
+        );
+
+        return `{${entries
+            .map(([key, entryValue]) => `${key.toLowerCase()}:${serialiseDeterministically(entryValue)}`)
+            .join('|')}}`;
+    }
+
+    return '';
 };
 
 const deriveDatasetRowKey = (dataset: Dataset): string => {
@@ -161,10 +216,10 @@ const deriveDatasetRowKey = (dataset: Dataset): string => {
     }
 
     if (metadataSegments.length === 0) {
-        return `dataset-${createStableHash(JSON.stringify(dataset))}`;
+        return buildDatasetKey(serialiseDeterministically(dataset));
     }
 
-    return `dataset-${createStableHash(metadataSegments.join('|'))}`;
+    return buildDatasetKey(metadataSegments.join('|'));
 };
 
 const normaliseTitles = (dataset: Dataset): NormalisedTitle[] => {
@@ -249,7 +304,7 @@ const normaliseLicenses = (dataset: Dataset): string[] => {
  * Returns the numeric resource type identifier for a dataset when available.
  *
  * The backend expects this identifier to be numeric. The helper therefore
- * accepts any string input but intentionally filters out values that contain
+ * accepts string and number inputs but intentionally filters out values that contain
  * non-digit characters so that we never forward invalid identifiers to the
  * curation form.
  */
