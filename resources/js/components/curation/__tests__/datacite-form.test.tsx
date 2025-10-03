@@ -1,12 +1,16 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, beforeEach, afterAll, describe, it, expect, vi } from 'vitest';
+import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '../datacite-form';
 import type { ResourceType, TitleType, License, Language } from '@/types';
 
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
+
+    const clearXsrfCookie = () => {
+        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    };
 
     beforeAll(() => {
         // Polyfill methods required by Radix UI Select
@@ -19,10 +23,17 @@ describe('DataCiteForm', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         global.fetch = vi.fn();
+        document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
+        clearXsrfCookie();
     });
 
     afterAll(() => {
         global.fetch = originalFetch;
+    });
+
+    afterEach(() => {
+        document.head.innerHTML = '';
+        clearXsrfCookie();
     });
 
     const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
@@ -620,6 +631,14 @@ describe('DataCiteForm', () => {
 
         const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
         expect(fetchArgs).toBeDefined();
+        const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
+        expect(headers).toMatchObject({
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': 'test-csrf-token',
+            'X-Requested-With': 'XMLHttpRequest',
+        });
+        expect(headers['X-XSRF-TOKEN']).toBeUndefined();
         const body = JSON.parse((fetchArgs as RequestInit).body as string);
         expect(body).toMatchObject({
             year: 2024,
@@ -635,6 +654,67 @@ describe('DataCiteForm', () => {
 
         await screen.findByRole('dialog', { name: /successfully saved resource/i });
         expect(screen.getByText('Resource stored!')).toBeInTheDocument();
+    });
+
+    it('falls back to XSRF cookie when meta token is absent', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        document.head.innerHTML = '';
+        document.cookie = 'XSRF-TOKEN=cookie-token';
+
+        const jsonMock = vi.fn().mockResolvedValue({});
+        const response = {
+            ok: true,
+            status: 201,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await user.click(saveButton);
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        const headers = fetchArgs.headers as Record<string, string>;
+        expect(headers['X-CSRF-TOKEN']).toBe('cookie-token');
+        expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
+    });
+
+    it('shows an error if no CSRF token source is available', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        document.head.innerHTML = '';
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Main Title', titleType: 'main-title' }]}
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await user.click(saveButton);
+
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(
+            await screen.findByText('Missing security token. Please refresh the page and try again.'),
+        ).toBeInTheDocument();
     });
 
     it('shows validation feedback when saving fails', async () => {
@@ -675,6 +755,13 @@ describe('DataCiteForm', () => {
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
         const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
         expect(fetchArgs).toBeDefined();
+        const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
+        expect(headers).toMatchObject({
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-CSRF-TOKEN': 'test-csrf-token',
+            'X-Requested-With': 'XMLHttpRequest',
+        });
         const body = JSON.parse((fetchArgs as RequestInit).body as string);
         expect(body).toMatchObject({
             licenses: ['MIT'],

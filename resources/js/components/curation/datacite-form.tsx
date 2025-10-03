@@ -14,6 +14,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { withBasePath } from '@/lib/base-path';
+import { buildCsrfHeaders } from '@/lib/csrf-token';
 import {
     Accordion,
     AccordionContent,
@@ -21,16 +22,6 @@ import {
     AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { ResourceType, TitleType, License, Language } from '@/types';
-
-const getCsrfToken = () => {
-    if (typeof document === 'undefined') {
-        return '';
-    }
-
-    return (
-        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
-    );
-};
 
 interface DataCiteFormData {
     doi: string;
@@ -219,12 +210,24 @@ export default function DataCiteForm({
         };
 
         try {
+            const csrfHeaders = buildCsrfHeaders();
+            const csrfToken = csrfHeaders['X-CSRF-TOKEN'];
+
+            if (!csrfToken) {
+                setErrorMessage(
+                    'Missing security token. Please refresh the page and try again.',
+                );
+                console.error('CSRF token unavailable when attempting to save resource.');
+                return;
+            }
+
             const response = await fetch(saveUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    'X-CSRF-TOKEN': getCsrfToken(),
+                    ...csrfHeaders,
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify(payload),

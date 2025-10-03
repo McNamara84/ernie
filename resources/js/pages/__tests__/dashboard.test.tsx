@@ -150,6 +150,7 @@ describe('handleXmlFiles', () => {
         routerMock.get.mockReset();
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
         basePathTesting.resetBasePathCache();
+        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
     it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language, Resource Type, Titles and Licenses', async () => {
@@ -185,6 +186,33 @@ describe('handleXmlFiles', () => {
         expect(routerMock.get).toHaveBeenCalledWith('/curation?doi=10.1234%2Fabc&year=2024&version=1.0&language=en&resourceType=1&titles%5B0%5D%5Btitle%5D=Example+Title&titles%5B0%5D%5BtitleType%5D=main-title&titles%5B1%5D%5Btitle%5D=Example+Subtitle&titles%5B1%5D%5BtitleType%5D=subtitle&titles%5B2%5D%5Btitle%5D=Example+TranslatedTitle&titles%5B2%5D%5BtitleType%5D=translated-title&titles%5B3%5D%5Btitle%5D=Example+AlternativeTitle&titles%5B3%5D%5BtitleType%5D=alternative-title&licenses%5B0%5D=CC-BY-4.0&licenses%5B1%5D=MIT');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
+    });
+
+    it('falls back to the XSRF cookie when the meta token is unavailable', async () => {
+        document.head.innerHTML = '';
+        document.cookie = 'XSRF-TOKEN=cookie-token';
+
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi
+            .spyOn(global, 'fetch')
+            .mockResolvedValue({
+                ok: true,
+                json: async () => ({}),
+            } as Response);
+
+        await handleXmlFiles([file]);
+
+        const [, options] = fetchMock.mock.calls[0];
+        const headers = (options as RequestInit).headers as Record<string, string>;
+        expect(headers['X-CSRF-TOKEN']).toBe('cookie-token');
+        expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
+
+        fetchMock.mockRestore();
+    });
+
+    afterEach(() => {
+        document.head.innerHTML = '';
+        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
     it('redirects to curation with a single main title', async () => {
