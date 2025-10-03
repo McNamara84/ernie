@@ -4,7 +4,7 @@ import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 import type { BreadcrumbItem } from '@/types';
 import type { ComponentProps } from 'react';
-import { normalizeTestUrl } from '@tests/utils/test-utils';
+import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 
 const usePageMock = vi.fn();
 const getInitialsMock = vi.fn(() => 'JD');

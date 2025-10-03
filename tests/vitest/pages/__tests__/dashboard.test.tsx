@@ -5,7 +5,7 @@ import { latestVersion } from '@/lib/version';
 import { applyBasePathToRoutes, __testing as basePathTesting } from '@/lib/base-path';
 import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { normalizeTestUrl } from '@tests/utils/test-utils';
+import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
