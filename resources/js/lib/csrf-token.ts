@@ -12,6 +12,15 @@ const safeTrim = (value?: string | null): string | null => {
     return trimmed.length > 0 ? trimmed : null;
 };
 
+/**
+ * Safely decodes URI-encoded cookie values while tolerating malformed input.
+ *
+ * The browser may persist cookie values that are not valid percent-encoded
+ * strings (for example when set by non-URI-aware tooling). Because
+ * `decodeURIComponent` throws on malformed input, this helper falls back to
+ * returning the original value when decoding fails so that consumers can still
+ * read the cookie.
+ */
 const safeDecode = (value: string): string => {
     try {
         return decodeURIComponent(value);
@@ -64,6 +73,16 @@ export const ensureCsrfToken = (): string => {
     return token;
 };
 
+/**
+ * Builds CSRF headers prioritising the meta tag token for `X-CSRF-TOKEN` while
+ * always sending the cookie token when available.
+ *
+ * Some middleware validates `X-CSRF-TOKEN`, which should mirror the meta tag
+ * value when present, while others expect `X-XSRF-TOKEN` sourced from the
+ * cookie. Sending both ensures compatibility across deployments that rely on
+ * either header, with meta tokens taking precedence over cookie fallbacks for
+ * `X-CSRF-TOKEN`.
+ */
 export const buildCsrfHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = {};
     const metaToken = getMetaCsrfToken();
