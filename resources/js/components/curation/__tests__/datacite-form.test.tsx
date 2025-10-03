@@ -632,4 +632,36 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('A main title is required.')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: /successfully saved resource/i })).not.toBeInTheDocument();
     });
+
+    it('shows a network error message when saving throws', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        (global.fetch as unknown as vi.Mock).mockRejectedValue(new Error('offline'));
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await user.click(saveButton);
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(
+            'A network error prevented saving the resource. Please try again.',
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+            'Failed to save resource',
+            expect.any(Error),
+        );
+    });
 });

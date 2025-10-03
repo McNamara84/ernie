@@ -234,7 +234,8 @@ export default function DataCiteForm({
 
             try {
                 data = await response.clone().json();
-            } catch (error) {
+            } catch (parseError) {
+                console.error('Failed to parse resource save response JSON', parseError);
                 // Ignore JSON parse errors for empty responses.
             }
 
@@ -254,6 +255,7 @@ export default function DataCiteForm({
             setSuccessMessage(parsed?.message || 'Successfully saved resource.');
             setShowSuccessModal(true);
         } catch (error) {
+            console.error('Failed to save resource', error);
             setErrorMessage('A network error prevented saving the resource. Please try again.');
         } finally {
             setIsSaving(false);
