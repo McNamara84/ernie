@@ -316,7 +316,7 @@ describe('OldDatasets page', () => {
                 datasets={[
                     {
                         ...baseProps.datasets[0],
-                        resourcetype: 'type123',
+                        resourcetypegeneral: 'type123',
                     },
                 ]}
             />,
