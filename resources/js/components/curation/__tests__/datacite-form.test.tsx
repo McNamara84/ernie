@@ -283,6 +283,29 @@ describe('DataCiteForm', () => {
         );
     });
 
+    it('defaults to English when languages include incomplete entries', () => {
+        const incompleteLanguages = [
+            { id: 1, code: null, name: null },
+            { id: 2, code: 'en', name: 'English' },
+            { id: 3, code: 'de', name: 'German' },
+        ] as unknown as Language[];
+
+        expect(() =>
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={incompleteLanguages}
+                />,
+            ),
+        ).not.toThrow();
+
+        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+            'English',
+        );
+    });
+
     it('prefills Resource Type when initialResourceType is provided', () => {
         render(
             <DataCiteForm

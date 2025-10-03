@@ -83,14 +83,17 @@ export default function DataCiteForm({
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
     const resolveInitialLanguage = () => {
-        const normalize = (value: string) => value.trim().toLowerCase();
+        const normalize = (value?: string | null) => value?.trim().toLowerCase() ?? '';
         const findCode = (...candidates: string[]) => {
             const normalized = candidates.map(normalize);
             return (
                 languages.find((lang) => {
                     const code = normalize(lang.code);
                     const name = normalize(lang.name);
-                    return normalized.includes(code) || normalized.includes(name);
+                    return (
+                        (!!code && normalized.includes(code)) ||
+                        (!!name && normalized.includes(name))
+                    );
                 })?.code ?? ''
             );
         };
