@@ -28,6 +28,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+clover.xml
 
 # Playwright
 node_modules/
