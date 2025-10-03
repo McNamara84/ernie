@@ -55,6 +55,7 @@ export function TitleField({
                 options={options}
                 hideLabel={!isFirst}
                 className="md:col-span-3"
+                required
             />
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
