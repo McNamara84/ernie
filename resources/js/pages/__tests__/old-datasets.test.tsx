@@ -279,6 +279,34 @@ describe('OldDatasets page', () => {
         expect(routerGetSpy).toHaveBeenCalledWith(`/curation?${params.toString()}`);
     });
 
+    it('omits the resource type when the identifier contains non-digit characters', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <OldDatasets
+                {...baseProps}
+                datasets={[
+                    {
+                        ...baseProps.datasets[0],
+                        resourcetype: 'type123',
+                    },
+                ]}
+            />,
+        );
+
+        const button = screen.getByRole('button', {
+            name: /open dataset 10\.1234\/example-one in curation form/i,
+        });
+
+        await user.click(button);
+
+        expect(routerGetSpy).toHaveBeenCalledTimes(1);
+        const [requestedUrl] = routerGetSpy.mock.calls[0] as [string];
+        const params = new URLSearchParams(requestedUrl.split('?')[1] ?? '');
+
+        expect(params.has('resourceType')).toBe(false);
+    });
+
     it('requests the next page when the sentinel row becomes visible', async () => {
         mockedAxios.get.mockResolvedValueOnce({
             data: {

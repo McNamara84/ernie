@@ -101,6 +101,10 @@ const normaliseTitleType = (value: string | null | undefined): string => {
         .replace(/-+/g, '-');
 };
 
+/**
+ * 64-bit FNV-1a constants sourced from the Fowler–Noll–Vo hash specification.
+ * See: http://www.isthe.com/chongo/tech/comp/fnv/
+ */
 const FNV_OFFSET_BASIS_64 = BigInt('0xcbf29ce484222325');
 const FNV_PRIME_64 = BigInt('0x100000001b3');
 const FNV_64_MASK = BigInt('0xffffffffffffffff');
@@ -305,8 +309,9 @@ const normaliseLicenses = (dataset: Dataset): string[] => {
  *
  * The backend expects this identifier to be numeric. The helper therefore
  * accepts string and number inputs but intentionally filters out values that contain
- * non-digit characters so that we never forward invalid identifiers to the
- * curation form.
+ * non-digit characters. Only purely numeric strings (for example, "123") are forwarded,
+ * while mixed alphanumeric values such as "type123" or "12abc" are rejected so the
+ * curation form never receives invalid identifiers.
  */
 const getResourceTypeIdentifier = (dataset: Dataset): string | null => {
     const candidates = [
