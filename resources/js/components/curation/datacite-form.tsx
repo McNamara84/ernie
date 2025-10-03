@@ -82,12 +82,43 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
+    const resolveInitialLanguage = () => {
+        const normalize = (value: string) => value.trim().toLowerCase();
+        const findCode = (...candidates: string[]) => {
+            const normalized = candidates.map(normalize);
+            return (
+                languages.find((lang) => {
+                    const code = normalize(lang.code);
+                    const name = normalize(lang.name);
+                    return normalized.includes(code) || normalized.includes(name);
+                })?.code ?? ''
+            );
+        };
+
+        const normalizedInitial = normalize(initialLanguage);
+        const englishCode = findCode('english', 'en') || languages[0]?.code || '';
+
+        if (['german', 'de'].includes(normalizedInitial)) {
+            return findCode('german', 'de') || englishCode;
+        }
+
+        if (['french', 'fr'].includes(normalizedInitial)) {
+            return findCode('french', 'fr') || englishCode;
+        }
+
+        if (['english', 'en'].includes(normalizedInitial)) {
+            return englishCode;
+        }
+
+        return englishCode;
+    };
+
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
         year: initialYear,
         resourceType: initialResourceType,
         version: initialVersion,
-        language: initialLanguage,
+        language: resolveInitialLanguage(),
     });
 
     const [titles, setTitles] = useState<TitleEntry[]>(

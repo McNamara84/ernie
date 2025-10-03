@@ -31,6 +31,7 @@ describe('DataCiteForm', () => {
     const languages: Language[] = [
         { id: 1, code: 'en', name: 'English' },
         { id: 2, code: 'de', name: 'German' },
+        { id: 3, code: 'fr', name: 'French' },
     ];
 
     it('renders fields, title options and supports adding/removing titles', async () => {
@@ -223,7 +224,7 @@ describe('DataCiteForm', () => {
         ).toBe(true);
     });
 
-    it('prefills Language when initialLanguage is provided', () => {
+    it('prefills Language when initialLanguage code is provided', () => {
         render(
             <DataCiteForm
                 resourceTypes={resourceTypes}
@@ -235,6 +236,50 @@ describe('DataCiteForm', () => {
         );
         expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
             'German',
+        );
+    });
+
+    it('defaults Language to English when initialLanguage is missing', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+            'English',
+        );
+    });
+
+    it('prefills Language when initialLanguage name is provided', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialLanguage="German"
+            />,
+        );
+        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+            'German',
+        );
+    });
+
+    it('prefills French when initialLanguage indicates French', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialLanguage="French"
+            />,
+        );
+        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+            'French',
         );
     });
 
