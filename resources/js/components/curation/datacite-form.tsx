@@ -1,9 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
 import LicenseField from './fields/license-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { withBasePath } from '@/lib/base-path';
 import {
     Accordion,
     AccordionContent,
@@ -11,6 +21,16 @@ import {
     AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+
+const getCsrfToken = () => {
+    if (typeof document === 'undefined') {
+        return '';
+    }
+
+    return (
+        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+    );
+};
 
 interface DataCiteFormData {
     doi: string;
@@ -83,6 +103,7 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
+    const errorRef = useRef<HTMLDivElement | null>(null);
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
         year: initialYear,
@@ -109,6 +130,12 @@ export default function DataCiteForm({
               }))
             : [{ id: crypto.randomUUID(), license: '' }],
     );
+
+    const [isSaving, setIsSaving] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('Successfully saved resource.');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -161,8 +188,100 @@ export default function DataCiteForm({
         setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
     };
 
+    useEffect(() => {
+        if (errorMessage && errorRef.current) {
+            errorRef.current.focus();
+        }
+    }, [errorMessage]);
+
+    const saveUrl = useMemo(() => withBasePath('/curation/resources'), []);
+
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        setIsSaving(true);
+        setErrorMessage(null);
+        setValidationErrors([]);
+
+        const payload = {
+            doi: form.doi?.trim() || null,
+            year: form.year ? Number(form.year) : null,
+            resourceType: form.resourceType ? Number(form.resourceType) : null,
+            version: form.version?.trim() || null,
+            language: form.language,
+            titles: titles.map((entry) => ({
+                title: entry.title,
+                titleType: entry.titleType,
+            })),
+            licenses: licenseEntries
+                .map((entry) => entry.license)
+                .filter((license): license is string => Boolean(license)),
+        };
+
+        try {
+            const response = await fetch(saveUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': getCsrfToken(),
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload),
+            });
+
+            let data: unknown = null;
+
+            try {
+                data = await response.clone().json();
+            } catch (parseError) {
+                console.error('Failed to parse resource save response JSON', parseError);
+                // Ignore JSON parse errors for empty responses.
+            }
+
+            if (!response.ok) {
+                const defaultError = 'Unable to save resource. Please review the highlighted issues.';
+                const parsed = data as { message?: string; errors?: Record<string, string[]> } | null;
+                const messages = parsed?.errors
+                    ? Object.values(parsed.errors).flat().map((message) => String(message))
+                    : [];
+
+                setValidationErrors(messages);
+                setErrorMessage(parsed?.message || defaultError);
+                return;
+            }
+
+            const parsed = data as { message?: string } | null;
+            setSuccessMessage(parsed?.message || 'Successfully saved resource.');
+            setShowSuccessModal(true);
+        } catch (error) {
+            console.error('Failed to save resource', error);
+            setErrorMessage('A network error prevented saving the resource. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
-        <form>
+        <form onSubmit={handleSubmit} className="space-y-6">
+            {errorMessage && (
+                <div
+                    ref={errorRef}
+                    tabIndex={-1}
+                    className="rounded-md border border-destructive bg-destructive/10 p-4 text-destructive"
+                    role="alert"
+                    aria-live="assertive"
+                >
+                    <p className="font-semibold">{errorMessage}</p>
+                    {validationErrors.length > 0 && (
+                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                            {validationErrors.map((message, index) => (
+                                <li key={`${message}-${index}`}>{message}</li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            )}
             <Accordion
                 type="multiple"
                 defaultValue={['resource-info', 'licenses-rights']}
@@ -282,6 +401,30 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+            <div className="flex justify-end">
+                <Button
+                    type="submit"
+                    disabled={isSaving}
+                    aria-busy={isSaving}
+                >
+                    {isSaving ? 'Saving…' : 'Save to database'}
+                </Button>
+            </div>
+            <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Successfully saved resource</DialogTitle>
+                        <DialogDescription>
+                            {successMessage}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button type="button" onClick={() => setShowSuccessModal(false)}>
+                            Close
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </form>
     );
 }
