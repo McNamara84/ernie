@@ -113,7 +113,7 @@
             "@/routes": ["./resources/js/routes.ts"],
             "@/routes/*": ["./resources/js/routes-wrappers/*"],
             "@data/*": ["./resources/data/*"],
-            "@tests/*": ["./tests/vitest/utils/*"]
+            "@tests/*": ["./tests/vitest/*"]
         },
         "jsx": "react-jsx"
     },

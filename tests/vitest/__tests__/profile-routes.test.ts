@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { edit, update, destroy } from '@/routes/profile';
-import { normalizeTestUrl, expectUrlToBe } from '@tests/test-utils';
+import { normalizeTestUrl, expectUrlToBe } from '@tests/utils/test-utils';
 
 describe('profile routes', () => {
   it('generates edit route and forms', () => {

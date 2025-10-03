@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { store } from '@/routes/login';
-import { normalizeTestUrl, expectUrlToBe } from '@tests/test-utils';
+import { normalizeTestUrl, expectUrlToBe } from '@tests/utils/test-utils';
 
 describe('login routes', () => {
   it('generates store route definitions', () => {

@@ -37,7 +37,7 @@ export default defineConfig(() => {
             alias: {
                 '@': '/resources/js',
                 '@data': '/resources/data',
-                '@tests': '/tests/vitest/utils',
+                '@tests': '/tests/vitest',
             },
         },
         optimizeDeps: {
