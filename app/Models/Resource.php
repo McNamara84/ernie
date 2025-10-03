@@ -25,25 +25,39 @@ class Resource extends Model
         'year' => 'integer',
     ];
 
+    /** @return BelongsTo<ResourceType, static> */
     public function resourceType(): BelongsTo
     {
-        return $this->belongsTo(ResourceType::class);
+        /** @var BelongsTo<ResourceType, static> $relation */
+        $relation = $this->belongsTo(ResourceType::class);
+
+        return $relation;
     }
 
+    /** @return BelongsTo<Language, static> */
     public function language(): BelongsTo
     {
-        return $this->belongsTo(Language::class);
+        /** @var BelongsTo<Language, static> $relation */
+        $relation = $this->belongsTo(Language::class);
+
+        return $relation;
     }
 
-    /** @return HasMany<ResourceTitle> */
+    /** @return HasMany<ResourceTitle, static> */
     public function titles(): HasMany
     {
-        return $this->hasMany(ResourceTitle::class);
+        /** @var HasMany<ResourceTitle, static> $relation */
+        $relation = $this->hasMany(ResourceTitle::class);
+
+        return $relation;
     }
 
-    /** @return BelongsToMany<License> */
+    /** @return BelongsToMany<License, static, \Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'> */
     public function licenses(): BelongsToMany
     {
-        return $this->belongsToMany(License::class)->withTimestamps();
+        /** @var BelongsToMany<License, static, \Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'> $relation */
+        $relation = $this->belongsToMany(License::class)->withTimestamps();
+
+        return $relation;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -14,7 +15,7 @@ class StoreResourceRequest extends FormRequest
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
+     * @return array<string, array<int, ValidationRule|Rule|string>>
      */
     public function rules(): array
     {
@@ -34,21 +35,36 @@ class StoreResourceRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $titles = collect($this->input('titles', []))
-            ->map(function ($title) {
-                return [
-                    'title' => isset($title['title']) ? trim((string) $title['title']) : null,
-                    'titleType' => isset($title['titleType']) ? trim((string) $title['titleType']) : null,
-                ];
-            })
-            ->all();
+        /** @var array<int, array<string, mixed>|mixed> $rawTitles */
+        $rawTitles = $this->input('titles', []);
 
-        $licenses = collect($this->input('licenses', []))
-            ->map(fn ($license) => trim((string) $license))
-            ->filter(fn ($license) => $license !== '')
-            ->unique()
-            ->values()
-            ->all();
+        $titles = [];
+
+        foreach ($rawTitles as $title) {
+            if (! is_array($title)) {
+                $title = [];
+            }
+
+            $titles[] = [
+                'title' => isset($title['title']) ? trim((string) $title['title']) : null,
+                'titleType' => isset($title['titleType']) ? trim((string) $title['titleType']) : null,
+            ];
+        }
+
+        /** @var array<int, mixed> $rawLicenses */
+        $rawLicenses = $this->input('licenses', []);
+
+        $licenses = [];
+
+        foreach ($rawLicenses as $license) {
+            $normalized = trim((string) $license);
+
+            if ($normalized === '' || in_array($normalized, $licenses, true)) {
+                continue;
+            }
+
+            $licenses[] = $normalized;
+        }
 
         $this->merge([
             'doi' => $this->filled('doi') ? trim((string) $this->input('doi')) : null,
@@ -66,11 +82,21 @@ class StoreResourceRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                $titles = collect($this->input('titles', []));
+                /** @var array<int, array<string, mixed>|mixed> $candidateTitles */
+                $candidateTitles = $this->input('titles', []);
 
-                $hasMainTitle = $titles->contains(function ($title) {
-                    return ($title['titleType'] ?? null) === 'main-title';
-                });
+                $hasMainTitle = false;
+
+                foreach ($candidateTitles as $title) {
+                    if (! is_array($title)) {
+                        continue;
+                    }
+
+                    if (($title['titleType'] ?? null) === 'main-title') {
+                        $hasMainTitle = true;
+                        break;
+                    }
+                }
 
                 if (! $hasMainTitle) {
                     $validator->errors()->add(

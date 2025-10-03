@@ -17,13 +17,21 @@ class ResourceTitle extends Model
         'title_type_id',
     ];
 
+    /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo
     {
-        return $this->belongsTo(Resource::class);
+        /** @var BelongsTo<Resource, static> $relation */
+        $relation = $this->belongsTo(Resource::class);
+
+        return $relation;
     }
 
+    /** @return BelongsTo<TitleType, static> */
     public function titleType(): BelongsTo
     {
-        return $this->belongsTo(TitleType::class);
+        /** @var BelongsTo<TitleType, static> $relation */
+        $relation = $this->belongsTo(TitleType::class);
+
+        return $relation;
     }
 }

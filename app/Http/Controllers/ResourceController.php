@@ -35,19 +35,30 @@ class ResourceController extends Controller
                     'language_id' => $languageId,
                 ]);
 
+                $titleTypeSlugs = [];
+
+                foreach ($validated['titles'] as $titleData) {
+                    $titleTypeSlugs[] = $titleData['titleType'];
+                }
+
+                /** @var array<string, int> $titleTypeMap */
                 $titleTypeMap = TitleType::query()
-                    ->whereIn('slug', collect($validated['titles'])->pluck('titleType')->all())
-                    ->pluck('id', 'slug');
+                    ->whereIn('slug', $titleTypeSlugs)
+                    ->pluck('id', 'slug')
+                    ->all();
 
-                $resource->titles()->createMany(
-                    collect($validated['titles'])
-                        ->map(fn (array $title) => [
-                            'title' => $title['title'],
-                            'title_type_id' => $titleTypeMap[$title['titleType']],
-                        ])
-                        ->all(),
-                );
+                $resourceTitles = [];
 
+                foreach ($validated['titles'] as $title) {
+                    $resourceTitles[] = [
+                        'title' => $title['title'],
+                        'title_type_id' => $titleTypeMap[$title['titleType']],
+                    ];
+                }
+
+                $resource->titles()->createMany($resourceTitles);
+
+                /** @var array<int, int> $licenseIds */
                 $licenseIds = License::query()
                     ->whereIn('identifier', $validated['licenses'])
                     ->pluck('id')
