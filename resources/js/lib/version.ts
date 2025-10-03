@@ -1,4 +1,4 @@
-import changelog from '../../data/changelog.json';
+import changelog from '@data/changelog.json';
 
 /**
  * Extract the latest application version from the changelog data.

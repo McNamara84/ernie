@@ -4,12 +4,12 @@
          bootstrap="vendor/autoload.php"
          colors="true"
 >
-    <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
+        <testsuites>
+            <testsuite name="Unit">
+            <directory>tests/pest/Unit</directory>
         </testsuite>
         <testsuite name="Feature">
-            <directory>tests/Feature</directory>
+            <directory>tests/pest/Feature</directory>
         </testsuite>
     </testsuites>
     <coverage includeUncoveredFiles="true">

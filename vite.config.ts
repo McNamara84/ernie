@@ -36,6 +36,8 @@ export default defineConfig(() => {
         resolve: {
             alias: {
                 '@': '/resources/js',
+                '@data': '/resources/data',
+                '@tests': '/tests',
             },
         },
         optimizeDeps: {
@@ -46,7 +48,7 @@ export default defineConfig(() => {
             environment: 'jsdom',
             globals: true,
             setupFiles: './vitest.setup.ts',
-            include: ['resources/js/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+            include: ['tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}'],
             env: {
                 VITE_APP_URL: '',
                 APP_URL: '',
@@ -57,8 +59,7 @@ export default defineConfig(() => {
                 reportsDirectory: 'coverage',
                 include: ['resources/js/**/*.{js,ts,jsx,tsx}'],
                 exclude: [
-                    'resources/js/**/*.{test,spec}.{js,ts,jsx,tsx}',
-                    'resources/js/**/__tests__/**',
+                    'tests/vitest/**',
                     'resources/js/**/__mocks__/**',
                 ],
             },
