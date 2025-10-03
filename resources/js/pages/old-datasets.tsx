@@ -4,9 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Head } from '@inertiajs/react';
+import { curation as curationRoute } from '@/routes';
+import { Head, router } from '@inertiajs/react';
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { ArrowUpRight } from 'lucide-react';
 import axios, { isAxiosError } from 'axios';
 
 interface Dataset {
@@ -15,6 +17,17 @@ interface Dataset {
     resourcetypegeneral?: string;
     curator?: string;
     title?: string;
+    titleType?: string;
+    title_type?: string;
+    titles?: { title?: string | null; titleType?: string | null; title_type?: string | null }[];
+    licenses?: (string | { identifier?: string | null; rightsIdentifier?: string | null; license?: string | null })[];
+    license?: string;
+    version?: string;
+    language?: string;
+    resourcetype?: string | number;
+    resourcetypeid?: string | number;
+    resource_type_id?: string | number;
+    resourceTypeId?: string | number;
     created_at?: string;
     updated_at?: string;
     publicstatus?: string;
@@ -58,9 +71,314 @@ const DATE_COLUMN_HEADER_LABEL = (
         <span>Updated</span>
     </span>
 );
+const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-24 min-w-[6rem]';
 
 type DateType = 'Created' | 'Updated';
 type DateDetails = { label: string; iso: string | null };
+
+interface NormalisedTitle {
+    title: string;
+    titleType: string;
+}
+
+const NORMALISED_MAIN_TITLE = 'main-title';
+
+const normaliseTitleType = (value: string | null | undefined): string => {
+    if (!value) {
+        return NORMALISED_MAIN_TITLE;
+    }
+
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+        return NORMALISED_MAIN_TITLE;
+    }
+
+    return trimmed
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+};
+
+/**
+ * 64-bit FNV-1a constants sourced from the Fowler–Noll–Vo hash specification.
+ * See: http://www.isthe.com/chongo/tech/comp/fnv/
+ */
+const FNV_OFFSET_BASIS_64 = BigInt('0xcbf29ce484222325');
+const FNV_PRIME_64 = BigInt('0x100000001b3');
+const FNV_64_MASK = BigInt('0xffffffffffffffff');
+const KEY_SUFFIX_MAX_LENGTH = 48;
+
+const createStableHash = (value: string): string => {
+    let hash = FNV_OFFSET_BASIS_64;
+
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= BigInt(value.charCodeAt(index));
+        hash = (hash * FNV_PRIME_64) & FNV_64_MASK;
+    }
+
+    return hash.toString(36);
+};
+
+const sanitiseKeySuffix = (value: string): string =>
+    value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+const buildDatasetKey = (signature: string): string => {
+    const hash = createStableHash(signature);
+    const truncatedSignature = signature.slice(0, KEY_SUFFIX_MAX_LENGTH);
+    const suffix = sanitiseKeySuffix(truncatedSignature);
+
+    if (suffix) {
+        return `dataset-${hash}-${suffix}`;
+    }
+
+    return `dataset-${hash}`;
+};
+
+const serialiseDeterministically = (value: unknown): string => {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim().toLowerCase();
+        return trimmed;
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+
+    if (Array.isArray(value)) {
+        return `[${value.map((entry) => serialiseDeterministically(entry)).join('|')}]`;
+    }
+
+    if (typeof value === 'object') {
+        const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
+            left.localeCompare(right),
+        );
+
+        return `{${entries
+            .map(([key, entryValue]) => `${key.toLowerCase()}:${serialiseDeterministically(entryValue)}`)
+            .join('|')}}`;
+    }
+
+    return '';
+};
+
+const deriveDatasetRowKey = (dataset: Dataset): string => {
+    if (dataset.id !== undefined && dataset.id !== null) {
+        return `id-${dataset.id}`;
+    }
+
+    if (dataset.identifier) {
+        return `doi-${dataset.identifier}`;
+    }
+
+    const metadataSegments: string[] = [];
+
+    const appendSegment = (value: unknown) => {
+        if (value === null || value === undefined) {
+            return;
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed) {
+                metadataSegments.push(trimmed.toLowerCase());
+            }
+            return;
+        }
+
+        if (typeof value === 'number') {
+            metadataSegments.push(String(value));
+        }
+    };
+
+    appendSegment(dataset.title);
+    appendSegment(dataset.publicationyear);
+    appendSegment(dataset.created_at);
+    appendSegment(dataset.updated_at);
+    appendSegment(dataset.curator);
+    appendSegment(dataset.publisher);
+    appendSegment(dataset.language);
+    appendSegment(getResourceTypeIdentifier(dataset));
+
+    const normalisedTitles = normaliseTitles(dataset);
+    if (normalisedTitles.length > 0) {
+        metadataSegments.push(JSON.stringify(normalisedTitles));
+    }
+
+    const normalisedLicenses = normaliseLicenses(dataset);
+    if (normalisedLicenses.length > 0) {
+        metadataSegments.push(JSON.stringify(normalisedLicenses));
+    }
+
+    if (metadataSegments.length === 0) {
+        return buildDatasetKey(serialiseDeterministically(dataset));
+    }
+
+    return buildDatasetKey(metadataSegments.join('|'));
+};
+
+const normaliseTitles = (dataset: Dataset): NormalisedTitle[] => {
+    const titles: NormalisedTitle[] = [];
+
+    if (Array.isArray(dataset.titles)) {
+        dataset.titles.forEach((raw) => {
+            if (typeof raw === 'string') {
+                const text = raw.trim();
+                if (text) {
+                    titles.push({ title: text, titleType: NORMALISED_MAIN_TITLE });
+                }
+                return;
+            }
+
+            if (!raw) return;
+
+            const value = raw.title ?? null;
+            const titleText = typeof value === 'string' ? value.trim() : '';
+
+            if (!titleText) return;
+
+            const typeValue = normaliseTitleType(raw.titleType ?? raw.title_type ?? null);
+            titles.push({ title: titleText, titleType: typeValue });
+        });
+    }
+
+    const fallbackTitle = typeof dataset.title === 'string' ? dataset.title.trim() : '';
+
+    if (fallbackTitle) {
+        const fallbackType = normaliseTitleType(dataset.titleType ?? dataset.title_type ?? null);
+        titles.push({ title: fallbackTitle, titleType: fallbackType });
+    }
+
+    const mainTitles = titles.filter((entry) => entry.titleType === NORMALISED_MAIN_TITLE);
+    const secondaryTitles = titles.filter((entry) => entry.titleType !== NORMALISED_MAIN_TITLE);
+
+    return [...mainTitles, ...secondaryTitles];
+};
+
+const normaliseLicenses = (dataset: Dataset): string[] => {
+    const licenses: string[] = [];
+
+    const appendLicense = (value: unknown) => {
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed) {
+                licenses.push(trimmed);
+            }
+            return;
+        }
+
+        if (typeof value === 'object' && value !== null) {
+            const candidate =
+                'identifier' in value
+                    ? value.identifier
+                    : 'rightsIdentifier' in value
+                        ? value.rightsIdentifier
+                        : 'license' in value
+                            ? value.license
+                            : null;
+
+            if (typeof candidate === 'string') {
+                const trimmed = candidate.trim();
+                if (trimmed) {
+                    licenses.push(trimmed);
+                }
+            }
+        }
+    };
+
+    if (Array.isArray(dataset.licenses)) {
+        dataset.licenses.forEach(appendLicense);
+    }
+
+    appendLicense(dataset.license ?? null);
+
+    return licenses;
+};
+
+/**
+ * Returns the numeric resource type identifier for a dataset when available.
+ *
+ * The backend expects this identifier to be numeric. The helper therefore
+ * accepts string and number inputs but intentionally filters out values that contain
+ * non-digit characters. Only purely numeric strings (for example, "123") are forwarded,
+ * while mixed alphanumeric values such as "type123" or "12abc" are rejected so the
+ * curation form never receives invalid identifiers.
+ */
+const getResourceTypeIdentifier = (dataset: Dataset): string | null => {
+    const candidates = [
+        dataset.resourceTypeId,
+        dataset.resource_type_id,
+        dataset.resourcetypeid,
+        dataset.resourcetype,
+    ];
+
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined) {
+            continue;
+        }
+
+        if (typeof candidate === 'number') {
+            return String(candidate);
+        }
+
+        if (typeof candidate === 'string') {
+            const trimmed = candidate.trim();
+            if (!trimmed) continue;
+            if (/^\d+$/.test(trimmed)) {
+                return trimmed;
+            }
+        }
+    }
+
+    return null;
+};
+
+const buildCurationQuery = (dataset: Dataset): Record<string, string> => {
+    const query: Record<string, string> = {};
+
+    if (dataset.identifier) {
+        query.doi = dataset.identifier;
+    }
+
+    if (dataset.publicationyear !== undefined && dataset.publicationyear !== null) {
+        query.year = String(dataset.publicationyear);
+    }
+
+    if (dataset.version) {
+        query.version = dataset.version;
+    }
+
+    if (dataset.language) {
+        query.language = dataset.language;
+    }
+
+    const resourceType = getResourceTypeIdentifier(dataset);
+    if (resourceType) {
+        query.resourceType = resourceType;
+    }
+
+    const titles = normaliseTitles(dataset);
+    titles.forEach((title, index) => {
+        query[`titles[${index}][title]`] = title.title;
+        query[`titles[${index}][titleType]`] = title.titleType;
+    });
+
+    const licenses = normaliseLicenses(dataset);
+    licenses.forEach((license, index) => {
+        query[`licenses[${index}]`] = license;
+    });
+
+    return query;
+};
 
 const renderDateContent = (details: DateDetails): ReactNode => {
     if (details.iso) {
@@ -101,6 +419,11 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
+
+    const handleOpenInCuration = useCallback((dataset: Dataset) => {
+        const query = buildCurationQuery(dataset);
+        router.get(curationRoute({ query }).url);
+    }, []);
 
     const logDebugInformation = useCallback((source: string, message: string | undefined, payload?: Record<string, unknown>) => {
         if (!payload || Object.keys(payload).length === 0) {
@@ -303,6 +626,9 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                             )}
                         </td>
                     ))}
+                    <td className={`px-6 py-4 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                        <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                    </td>
                 </tr>
             ))}
         </>
@@ -360,14 +686,23 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                                         {column.label}
                                                     </th>
                                                 ))}
+                                                <th
+                                                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                >
+                                                    Actions
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
                                             {datasets.map((dataset, index) => {
                                                 const isLast = index === datasets.length - 1;
+                                                const datasetLabel =
+                                                    dataset.identifier ??
+                                                    dataset.title ??
+                                                    (dataset.id !== undefined ? `#${dataset.id}` : 'entry');
                                                 return (
                                                     <tr
-                                                        key={dataset.id}
+                                                        key={deriveDatasetRowKey(dataset)}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastDatasetElementRef : null}
                                                     >
@@ -384,6 +719,18 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                                                     : formatValue(column.key, dataset[column.key])}
                                                             </td>
                                                         ))}
+                                                        <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleOpenInCuration(dataset)}
+                                                                aria-label={`Open dataset ${datasetLabel} in curation form`}
+                                                                title={`Open dataset ${datasetLabel} in curation form`}
+                                                            >
+                                                                <ArrowUpRight aria-hidden="true" className="size-4" />
+                                                            </Button>
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}
@@ -421,3 +768,5 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         </AppLayout>
     );
 }
+
+export { deriveDatasetRowKey };

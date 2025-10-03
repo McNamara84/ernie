@@ -1,8 +1,12 @@
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import OldDatasets from '../old-datasets';
+import OldDatasets, { deriveDatasetRowKey } from '../old-datasets';
 import axios from 'axios';
 import { vi, beforeEach, afterEach, describe, it, expect, type MockInstance } from 'vitest';
+
+const inertiaMocks = vi.hoisted(() => ({
+    routerGet: vi.fn(),
+}));
 
 vi.mock('axios', () => {
     const get = vi.fn();
@@ -18,7 +22,12 @@ vi.mock('axios', () => {
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    router: {
+        get: inertiaMocks.routerGet,
+    },
 }));
+
+const routerGetSpy = inertiaMocks.routerGet;
 
 vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => (
@@ -91,6 +100,7 @@ describe('OldDatasets page', () => {
 
     beforeEach(() => {
         mockedAxios.get.mockReset();
+        routerGetSpy.mockReset();
 
         observeSpy = vi.fn();
         disconnectSpy = vi.fn();
@@ -139,6 +149,16 @@ describe('OldDatasets page', () => {
                 publicstatus: 'review',
                 publisher: 'Example Publisher',
                 publicationyear: 2024,
+                titles: [
+                    { title: 'Subtitle Title', titleType: 'subtitle' },
+                    { title: 'Provided Main Title', titleType: 'main-title' },
+                    { title: 'Translated Title', titleType: 'Translated Title' },
+                ],
+                licenses: ['CC-BY-4.0', { rightsIdentifier: 'MIT' }],
+                license: 'GPL-3.0',
+                version: '1.2.0',
+                language: 'en',
+                resourcetype: '1',
             },
             {
                 id: 2,
@@ -220,6 +240,71 @@ describe('OldDatasets page', () => {
 
         // Ensure the infinite scroll sentinel is observed for accessibility
         expect(observeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('provides accessible actions for opening datasets in the curation form', async () => {
+        const user = userEvent.setup();
+
+        render(<OldDatasets {...baseProps} />);
+
+        const buttons = screen.getAllByRole('button', { name: /open dataset/i });
+        expect(buttons).toHaveLength(2);
+        expect(buttons[0]).toHaveAccessibleName('Open dataset 10.1234/example-one in curation form');
+
+        await user.click(buttons[0]);
+
+        expect(routerGetSpy).toHaveBeenCalledTimes(1);
+
+        const params = new URLSearchParams();
+        params.set('doi', '10.1234/example-one');
+        params.set('year', '2024');
+        params.set('version', '1.2.0');
+        params.set('language', 'en');
+        params.set('resourceType', '1');
+        params.append('titles[0][title]', 'Provided Main Title');
+        params.append('titles[0][titleType]', 'main-title');
+        params.append(
+            'titles[1][title]',
+            'A dataset title that is long enough to demonstrate truncation when rendered in the table body with additional descriptive context to push it well beyond the truncation threshold for the component',
+        );
+        params.append('titles[1][titleType]', 'main-title');
+        params.append('titles[2][title]', 'Subtitle Title');
+        params.append('titles[2][titleType]', 'subtitle');
+        params.append('titles[3][title]', 'Translated Title');
+        params.append('titles[3][titleType]', 'translated-title');
+        params.append('licenses[0]', 'CC-BY-4.0');
+        params.append('licenses[1]', 'MIT');
+        params.append('licenses[2]', 'GPL-3.0');
+
+        expect(routerGetSpy).toHaveBeenCalledWith(`/curation?${params.toString()}`);
+    });
+
+    it('omits the resource type when the identifier contains non-digit characters', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <OldDatasets
+                {...baseProps}
+                datasets={[
+                    {
+                        ...baseProps.datasets[0],
+                        resourcetype: 'type123',
+                    },
+                ]}
+            />,
+        );
+
+        const button = screen.getByRole('button', {
+            name: /open dataset 10\.1234\/example-one in curation form/i,
+        });
+
+        await user.click(button);
+
+        expect(routerGetSpy).toHaveBeenCalledTimes(1);
+        const [requestedUrl] = routerGetSpy.mock.calls[0] as [string];
+        const params = new URLSearchParams(requestedUrl.split('?')[1] ?? '');
+
+        expect(params.has('resourceType')).toBe(false);
     });
 
     it('requests the next page when the sentinel row becomes visible', async () => {
@@ -465,5 +550,63 @@ describe('OldDatasets page', () => {
             hosts: ['sumario-db.gfz'],
         }));
         expect(consoleErrorSpy).toHaveBeenCalledWith('Error loading more datasets:', axiosError);
+    });
+});
+
+describe('deriveDatasetRowKey', () => {
+    type DatasetLike = Parameters<typeof deriveDatasetRowKey>[0];
+
+    it('derives a stable hash-based key when structural identifiers are missing', () => {
+        const dataset: DatasetLike = {
+            title: 'Example legacy dataset',
+            publicationyear: 2021,
+            created_at: '2024-01-01T12:34:56Z',
+            updated_at: '2024-01-05T12:34:56Z',
+            curator: 'Clara',
+            language: 'en',
+            publisher: 'Institute of Example',
+            titles: [{ title: 'Example legacy dataset', titleType: 'Main Title' }],
+            licenses: ['CC-BY-4.0'],
+        };
+
+        const firstKey = deriveDatasetRowKey(dataset);
+        const secondKey = deriveDatasetRowKey({ ...dataset });
+
+        expect(firstKey).toMatch(/^dataset-[a-z0-9]+-[a-z0-9-]+$/);
+        expect(secondKey).toBe(firstKey);
+    });
+
+    it('prefers dataset ids and identifiers over derived hashes', () => {
+        const datasetWithId: DatasetLike = { id: 987 };
+        const datasetWithIdentifier: DatasetLike = { identifier: '10.1234/example' };
+
+        expect(deriveDatasetRowKey(datasetWithId)).toBe('id-987');
+        expect(deriveDatasetRowKey(datasetWithIdentifier)).toBe('doi-10.1234/example');
+    });
+
+    it('normalises fallback serialisation ordering to avoid collisions from object key order', () => {
+        const firstDataset: DatasetLike = {
+            extras: {
+                zebra: 'last',
+                alpha: 'first',
+            },
+        };
+
+        const secondDataset: DatasetLike = {
+            extras: {
+                alpha: 'first',
+                zebra: 'last',
+            },
+        };
+
+        expect(deriveDatasetRowKey(firstDataset)).toBe(deriveDatasetRowKey(secondDataset));
+    });
+
+    it('includes a deterministic suffix in the derived key so collisions can be avoided client-side', () => {
+        const dataset: DatasetLike = {
+            curator: 'Alicia',
+        };
+
+        expect(deriveDatasetRowKey(dataset)).toMatch(/^dataset-[a-z0-9]+-[a-z0-9-]+$/);
     });
 });
