@@ -62,13 +62,19 @@ interface DatasetColumn {
     render?: (dataset: Dataset) => React.ReactNode;
 }
 
-const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[20rem] lg:min-w-[28rem] xl:min-w-[32rem]';
+const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[24rem] lg:min-w-[36rem] xl:min-w-[44rem]';
 const TITLE_COLUMN_CELL_CLASSES = 'whitespace-normal break-words text-gray-900 dark:text-gray-100 leading-relaxed align-top';
 const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 const DATE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
         <span>Created</span>
         <span>Updated</span>
+    </span>
+);
+const IDENTIFIER_COLUMN_HEADER_LABEL = (
+    <span className="flex flex-col leading-tight normal-case">
+        <span>ID</span>
+        <span>Identifier (DOI)</span>
     </span>
 );
 const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-24 min-w-[6rem]';
@@ -720,10 +726,43 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
     };
     const datasetColumns: DatasetColumn[] = [
         {
-            key: 'identifier',
-            label: 'Identifier (DOI)',
-            widthClass: 'min-w-[8rem]',
-            cellClassName: 'whitespace-nowrap',
+            key: 'id_identifier',
+            label: IDENTIFIER_COLUMN_HEADER_LABEL,
+            widthClass: 'min-w-[12rem]',
+            cellClassName: 'align-top',
+            render: (dataset: Dataset) => {
+                const hasId = dataset.id !== undefined && dataset.id !== null;
+                const idValue = hasId ? String(dataset.id) : 'Not available';
+                const hasIdentifier = typeof dataset.identifier === 'string' && dataset.identifier.trim().length > 0;
+                const identifierValue = hasIdentifier ? dataset.identifier?.trim() ?? '' : 'Not available';
+                const identifierDisplay = hasIdentifier ? identifierValue : 'Not available';
+                const identifierClasses = hasIdentifier
+                    ? 'text-sm text-gray-600 dark:text-gray-300 break-all'
+                    : 'text-sm text-gray-500 dark:text-gray-300';
+
+                const ariaLabelSegments = [
+                    hasId ? `ID ${idValue}` : 'ID not available',
+                    hasIdentifier ? `DOI ${identifierDisplay}` : 'DOI not available',
+                ];
+
+                return (
+                    <div
+                        className="flex flex-col gap-1 text-left"
+                        aria-label={ariaLabelSegments.join('. ')}
+                    >
+                        <span
+                            className={hasId
+                                ? 'text-sm font-semibold text-gray-900 dark:text-gray-100'
+                                : 'text-sm text-gray-500 dark:text-gray-300'}
+                        >
+                            {idValue}
+                        </span>
+                        <span className={identifierClasses}>
+                            {identifierDisplay}
+                        </span>
+                    </div>
+                );
+            },
         },
         {
             key: 'title',
@@ -782,12 +821,14 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         <>
             {[...Array(5)].map((_, index) => (
                 <tr key={`skeleton-${index}`} className="animate-pulse">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="h-4 w-8 rounded bg-gray-200 dark:bg-gray-700"></div>
-                    </td>
                     {datasetColumns.map((column) => (
                         <td key={column.key} className={`px-6 py-4 ${column.widthClass} ${column.cellClassName ?? ''}`}>
-                            {column.key === 'created_updated' ? (
+                            {column.key === 'id_identifier' ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                    <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                </div>
+                            ) : column.key === 'created_updated' ? (
                                 <div className="flex flex-col gap-2">
                                     <div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700"></div>
                                     <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -846,9 +887,6 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-50 dark:bg-gray-800">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-16">
-                                                    ID
-                                                </th>
                                                 {datasetColumns.map((column) => (
                                                     <th
                                                         key={column.key}
@@ -877,9 +915,6 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastDatasetElementRef : null}
                                                     >
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 w-16">
-                                                            {dataset.id}
-                                                        </td>
                                                         {datasetColumns.map((column) => (
                                                             <td
                                                                 key={column.key}
