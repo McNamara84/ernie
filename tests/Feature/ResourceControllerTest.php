@@ -1,8 +1,8 @@
 <?php
 
-use App\Models\Dataset;
 use App\Models\Language;
 use App\Models\License;
+use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
@@ -52,47 +52,47 @@ function createCurationDependencies(): array
     return compact('resourceType', 'mainTitleType', 'subtitleType', 'license', 'language');
 }
 
-test('authenticated users can store datasets from the curation form', function () {
+test('authenticated users can store resources from the curation form', function () {
     actingAs(User::factory()->create());
 
     $dependencies = createCurationDependencies();
 
-    $response = $this->postJson(route('curation.datasets.store'), [
+    $response = $this->postJson(route('curation.resources.store'), [
         'doi' => '10.1234/example',
         'year' => 2024,
         'resourceType' => $dependencies['resourceType']->id,
         'version' => '1.0',
         'language' => $dependencies['language']->code,
         'titles' => [
-            ['title' => 'Primary Dataset', 'titleType' => 'main-title'],
+            ['title' => 'Primary Resource', 'titleType' => 'main-title'],
             ['title' => 'Secondary Title', 'titleType' => 'subtitle'],
         ],
         'licenses' => [$dependencies['license']->identifier],
     ]);
 
     $response->assertCreated()->assertJson([
-        'message' => 'Successfully saved dataset.',
+        'message' => 'Successfully saved resource.',
     ]);
 
-    $dataset = Dataset::with(['titles', 'licenses'])->first();
+    $resource = Resource::with(['titles', 'licenses'])->first();
 
-    expect($dataset)->not->toBeNull();
-    expect($dataset->year)->toBe(2024);
-    expect($dataset->resource_type_id)->toBe($dependencies['resourceType']->id);
-    expect($dataset->language_id)->toBe($dependencies['language']->id);
-    expect($dataset->titles)->toHaveCount(2);
-    expect($dataset->titles->firstWhere('title_type_id', $dependencies['mainTitleType']->id)?->title)
-        ->toBe('Primary Dataset');
-    expect($dataset->licenses)->toHaveCount(1);
-    expect($dataset->licenses->first()->identifier)->toBe($dependencies['license']->identifier);
+    expect($resource)->not->toBeNull();
+    expect($resource->year)->toBe(2024);
+    expect($resource->resource_type_id)->toBe($dependencies['resourceType']->id);
+    expect($resource->language_id)->toBe($dependencies['language']->id);
+    expect($resource->titles)->toHaveCount(2);
+    expect($resource->titles->firstWhere('title_type_id', $dependencies['mainTitleType']->id)?->title)
+        ->toBe('Primary Resource');
+    expect($resource->licenses)->toHaveCount(1);
+    expect($resource->licenses->first()->identifier)->toBe($dependencies['license']->identifier);
 });
 
-test('validation errors are returned when the dataset payload is invalid', function () {
+test('validation errors are returned when the resource payload is invalid', function () {
     actingAs(User::factory()->create());
 
     $dependencies = createCurationDependencies();
 
-    $response = $this->postJson(route('curation.datasets.store'), [
+    $response = $this->postJson(route('curation.resources.store'), [
         'year' => 2024,
         'resourceType' => $dependencies['resourceType']->id,
         'language' => $dependencies['language']->code,
@@ -106,5 +106,5 @@ test('validation errors are returned when the dataset payload is invalid', funct
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['titles']);
 
-    expect(Dataset::count())->toBe(0);
+    expect(Resource::count())->toBe(0);
 });

@@ -6,7 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
-class StoreDatasetRequest extends FormRequest
+class StoreResourceRequest extends FormRequest
 {
     public function authorize(): bool
     {

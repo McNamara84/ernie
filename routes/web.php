@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\DatasetController;
+use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
@@ -81,8 +81,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->name('curation');
 
-    Route::post('curation/datasets', [DatasetController::class, 'store'])
-        ->name('curation.datasets.store');
+    Route::post('curation/resources', [ResourceController::class, 'store'])
+        ->name('curation.resources.store');
 });
 
 require __DIR__.'/settings.php';

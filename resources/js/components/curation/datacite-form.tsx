@@ -133,7 +133,7 @@ export default function DataCiteForm({
 
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('Successfully saved dataset.');
+    const [successMessage, setSuccessMessage] = useState('Successfully saved resource.');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
@@ -194,7 +194,7 @@ export default function DataCiteForm({
         }
     }, [errorMessage]);
 
-    const saveUrl = useMemo(() => withBasePath('/curation/datasets'), []);
+    const saveUrl = useMemo(() => withBasePath('/curation/resources'), []);
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -239,7 +239,7 @@ export default function DataCiteForm({
             }
 
             if (!response.ok) {
-                const defaultError = 'Unable to save dataset. Please review the highlighted issues.';
+                const defaultError = 'Unable to save resource. Please review the highlighted issues.';
                 const parsed = data as { message?: string; errors?: Record<string, string[]> } | null;
                 const messages = parsed?.errors
                     ? Object.values(parsed.errors).flat().map((message) => String(message))
@@ -251,10 +251,10 @@ export default function DataCiteForm({
             }
 
             const parsed = data as { message?: string } | null;
-            setSuccessMessage(parsed?.message || 'Successfully saved dataset.');
+            setSuccessMessage(parsed?.message || 'Successfully saved resource.');
             setShowSuccessModal(true);
         } catch (error) {
-            setErrorMessage('A network error prevented saving the dataset. Please try again.');
+            setErrorMessage('A network error prevented saving the resource. Please try again.');
         } finally {
             setIsSaving(false);
         }
@@ -411,7 +411,7 @@ export default function DataCiteForm({
             <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Successfully saved dataset</DialogTitle>
+                        <DialogTitle>Successfully saved resource</DialogTitle>
                         <DialogDescription>
                             {successMessage}
                         </DialogDescription>

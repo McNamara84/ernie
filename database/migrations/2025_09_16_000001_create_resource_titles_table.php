@@ -7,24 +7,23 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('dataset_license', function (Blueprint $table) {
+        Schema::create('resource_titles', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('dataset_id')
-                ->constrained('datasets')
+            $table->foreignId('resource_id')
+                ->constrained('resources')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
-            $table->foreignId('license_id')
-                ->constrained('licenses')
+            $table->foreignId('title_type_id')
+                ->constrained('title_types')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();
+            $table->string('title');
             $table->timestamps();
-
-            $table->unique(['dataset_id', 'license_id']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('dataset_license');
+        Schema::dropIfExists('resource_titles');
     }
 };

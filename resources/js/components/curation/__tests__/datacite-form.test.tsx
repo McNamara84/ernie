@@ -527,7 +527,7 @@ describe('DataCiteForm', () => {
     it('submits data and shows success modal when saving succeeds', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        const responseData = { message: 'Dataset stored!' };
+        const responseData = { message: 'Resource stored!' };
         const jsonMock = vi.fn().mockResolvedValue(responseData);
         const response = {
             ok: true,
@@ -553,7 +553,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledWith('/curation/datasets', expect.objectContaining({
+        expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
             method: 'POST',
             credentials: 'same-origin',
         }));
@@ -573,8 +573,8 @@ describe('DataCiteForm', () => {
             licenses: ['MIT'],
         });
 
-        await screen.findByRole('dialog', { name: /successfully saved dataset/i });
-        expect(screen.getByText('Dataset stored!')).toBeInTheDocument();
+        await screen.findByRole('dialog', { name: /successfully saved resource/i });
+        expect(screen.getByText('Resource stored!')).toBeInTheDocument();
     });
 
     it('shows validation feedback when saving fails', async () => {
@@ -612,7 +612,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledWith('/curation/datasets', expect.any(Object));
+        expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
         const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
         expect(fetchArgs).toBeDefined();
         const body = JSON.parse((fetchArgs as RequestInit).body as string);
@@ -630,6 +630,6 @@ describe('DataCiteForm', () => {
         const alert = screen.getByText('Validation failed').closest('[role="alert"]');
         expect(alert).not.toBeNull();
         expect(screen.getByText('A main title is required.')).toBeInTheDocument();
-        expect(screen.queryByRole('dialog', { name: /successfully saved dataset/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: /successfully saved resource/i })).not.toBeInTheDocument();
     });
 });

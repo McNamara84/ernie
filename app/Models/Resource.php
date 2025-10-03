@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Dataset extends Model
+class Resource extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
@@ -35,15 +35,15 @@ class Dataset extends Model
         return $this->belongsTo(Language::class);
     }
 
-    /** @return HasMany<DatasetTitle> */
+    /** @return HasMany<ResourceTitle> */
     public function titles(): HasMany
     {
-        return $this->hasMany(DatasetTitle::class);
+        return $this->hasMany(ResourceTitle::class);
     }
 
     /** @return BelongsToMany<License> */
     public function licenses(): BelongsToMany
     {
-        return $this->belongsToMany(License::class, 'dataset_license')->withTimestamps();
+        return $this->belongsToMany(License::class)->withTimestamps();
     }
 }

@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreDatasetRequest;
-use App\Models\Dataset;
+use App\Http\Requests\StoreResourceRequest;
 use App\Models\Language;
 use App\Models\License;
+use App\Models\Resource;
 use App\Models\TitleType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-class DatasetController extends Controller
+class ResourceController extends Controller
 {
-    public function store(StoreDatasetRequest $request): JsonResponse
+    public function store(StoreResourceRequest $request): JsonResponse
     {
         try {
-            $dataset = DB::transaction(function () use ($request): Dataset {
+            $resource = DB::transaction(function () use ($request): Resource {
                 $validated = $request->validated();
 
                 $languageId = null;
@@ -27,7 +27,7 @@ class DatasetController extends Controller
                         ->value('id');
                 }
 
-                $dataset = Dataset::query()->create([
+                $resource = Resource::query()->create([
                     'doi' => $validated['doi'] ?? null,
                     'year' => $validated['year'],
                     'resource_type_id' => $validated['resourceType'],
@@ -39,7 +39,7 @@ class DatasetController extends Controller
                     ->whereIn('slug', collect($validated['titles'])->pluck('titleType')->all())
                     ->pluck('id', 'slug');
 
-                $dataset->titles()->createMany(
+                $resource->titles()->createMany(
                     collect($validated['titles'])
                         ->map(fn (array $title) => [
                             'title' => $title['title'],
@@ -53,22 +53,22 @@ class DatasetController extends Controller
                     ->pluck('id')
                     ->all();
 
-                $dataset->licenses()->sync($licenseIds);
+                $resource->licenses()->sync($licenseIds);
 
-                return $dataset->load(['titles', 'licenses']);
+                return $resource->load(['titles', 'licenses']);
             });
         } catch (Throwable $exception) {
             report($exception);
 
             return response()->json([
-                'message' => 'Unable to save dataset. Please try again later.',
+                'message' => 'Unable to save resource. Please try again later.',
             ], 500);
         }
 
         return response()->json([
-            'message' => 'Successfully saved dataset.',
-            'dataset' => [
-                'id' => $dataset->id,
+            'message' => 'Successfully saved resource.',
+            'resource' => [
+                'id' => $resource->id,
             ],
         ], 201);
     }

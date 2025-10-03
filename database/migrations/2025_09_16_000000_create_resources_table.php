@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('datasets', function (Blueprint $table) {
+        Schema::create('resources', function (Blueprint $table) {
             $table->id();
             $table->string('doi')->nullable();
             $table->unsignedSmallInteger('year');
@@ -27,6 +27,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists('datasets');
+        Schema::dropIfExists('resources');
     }
 };
