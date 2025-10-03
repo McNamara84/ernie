@@ -8,4 +8,4 @@ parameters:
         - config
         - database
         - routes
-    level: 7
+    level: 8
