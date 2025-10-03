@@ -12,7 +12,11 @@ class Setting extends Model
 
     public $timestamps = false;
 
-    public static function getValue(string $key, $default = null)
+    /**
+     * @param mixed $default
+     * @return mixed
+     */
+    public static function getValue(string $key, mixed $default = null): mixed
     {
         return static::where('key', $key)->value('value') ?? $default;
     }
