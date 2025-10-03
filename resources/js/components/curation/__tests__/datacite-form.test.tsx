@@ -306,9 +306,9 @@ describe('DataCiteForm', () => {
 
     it('falls back to the first language with a code when English is unavailable', () => {
         const limitedLanguages = [
-            { id: 4, code: null, name: null },
-            { id: 5, code: 'de', name: 'German' },
-        ] as unknown as Language[];
+            { id: 4, code: 'de', name: 'German' },
+            { id: 5, code: 'fr', name: 'French' },
+        ] satisfies Language[];
 
         render(
             <DataCiteForm
@@ -326,21 +326,19 @@ describe('DataCiteForm', () => {
 
     it('defaults to English when languages include incomplete entries', () => {
         const incompleteLanguages = [
-            { id: 1, code: null, name: null },
+            { id: 1, code: ' ', name: ' ' },
             { id: 2, code: 'en', name: 'English' },
             { id: 3, code: 'de', name: 'German' },
-        ] as unknown as Language[];
+        ] satisfies Language[];
 
-        expect(() =>
-            render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    licenses={licenses}
-                    languages={incompleteLanguages}
-                />,
-            ),
-        ).not.toThrow();
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={incompleteLanguages}
+            />,
+        );
 
         expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
             'English',

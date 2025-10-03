@@ -3,6 +3,7 @@ import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
 import LicenseField from './fields/license-field';
+import { resolveInitialLanguageCode } from './utils/language-resolver';
 import {
     Accordion,
     AccordionContent,
@@ -82,72 +83,12 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
-    const resolveInitialLanguage = () => {
-        const normalize = (value?: string | null) => value?.trim().toLowerCase() ?? '';
-
-        const expandCandidate = (value?: string | null) => {
-            const normalized = normalize(value);
-            if (!normalized) {
-                return [] as string[];
-            }
-
-            const base = normalized.split('-')[0];
-            const candidates = new Set<string>([normalized]);
-
-            if (base && base !== normalized) {
-                candidates.add(base);
-            }
-
-            return [...candidates];
-        };
-
-        const findLanguageCode = (
-            ...rawCandidates: (string | null | undefined)[]
-        ): string => {
-            const candidates = new Set(
-                rawCandidates.flatMap((candidate) => expandCandidate(candidate)),
-            );
-
-            if (!candidates.size) {
-                return '';
-            }
-
-            return (
-                languages.find((lang) => {
-                    const code = normalize(lang.code);
-                    const name = normalize(lang.name);
-
-                    return (
-                        (!!code && candidates.has(code)) || (!!name && candidates.has(name))
-                    );
-                })?.code ?? ''
-            );
-        };
-
-        const initialMatch = findLanguageCode(initialLanguage);
-        if (initialMatch) {
-            return initialMatch;
-        }
-
-        const englishMatch = findLanguageCode('english', 'en');
-        if (englishMatch) {
-            return englishMatch;
-        }
-
-        const firstWithCode = languages.find((lang) => normalize(lang.code))?.code;
-        if (firstWithCode) {
-            return firstWithCode;
-        }
-
-        return languages.find((lang) => normalize(lang.name))?.code ?? '';
-    };
-
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
         year: initialYear,
         resourceType: initialResourceType,
         version: initialVersion,
-        language: resolveInitialLanguage(),
+        language: resolveInitialLanguageCode(languages, initialLanguage),
     });
 
     const [titles, setTitles] = useState<TitleEntry[]>(
