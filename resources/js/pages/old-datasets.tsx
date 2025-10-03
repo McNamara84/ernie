@@ -96,9 +96,75 @@ const normaliseTitleType = (value: string | null | undefined): string => {
 
     return trimmed
         .toLowerCase()
-        .replace(/[^a-z0-9\s-]/gi, '')
+        .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-');
+};
+
+const createStableHash = (value: string): string => {
+    let hash = 0;
+
+    for (let index = 0; index < value.length; index += 1) {
+        hash = (hash << 5) - hash + value.charCodeAt(index);
+        hash |= 0;
+    }
+
+    return Math.abs(hash).toString(36);
+};
+
+const deriveDatasetRowKey = (dataset: Dataset): string => {
+    if (dataset.id !== undefined && dataset.id !== null) {
+        return `id-${dataset.id}`;
+    }
+
+    if (dataset.identifier) {
+        return `doi-${dataset.identifier}`;
+    }
+
+    const metadataSegments: string[] = [];
+
+    const appendSegment = (value: unknown) => {
+        if (value === null || value === undefined) {
+            return;
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed) {
+                metadataSegments.push(trimmed.toLowerCase());
+            }
+            return;
+        }
+
+        if (typeof value === 'number') {
+            metadataSegments.push(String(value));
+        }
+    };
+
+    appendSegment(dataset.title);
+    appendSegment(dataset.publicationyear);
+    appendSegment(dataset.created_at);
+    appendSegment(dataset.updated_at);
+    appendSegment(dataset.curator);
+    appendSegment(dataset.publisher);
+    appendSegment(dataset.language);
+    appendSegment(getResourceTypeIdentifier(dataset));
+
+    const normalisedTitles = normaliseTitles(dataset);
+    if (normalisedTitles.length > 0) {
+        metadataSegments.push(JSON.stringify(normalisedTitles));
+    }
+
+    const normalisedLicenses = normaliseLicenses(dataset);
+    if (normalisedLicenses.length > 0) {
+        metadataSegments.push(JSON.stringify(normalisedLicenses));
+    }
+
+    if (metadataSegments.length === 0) {
+        return `dataset-${createStableHash(JSON.stringify(dataset))}`;
+    }
+
+    return `dataset-${createStableHash(metadataSegments.join('|'))}`;
 };
 
 const normaliseTitles = (dataset: Dataset): NormalisedTitle[] => {
@@ -179,6 +245,14 @@ const normaliseLicenses = (dataset: Dataset): string[] => {
     return licenses;
 };
 
+/**
+ * Returns the numeric resource type identifier for a dataset when available.
+ *
+ * The backend expects this identifier to be numeric. The helper therefore
+ * accepts any string input but intentionally filters out values that contain
+ * non-digit characters so that we never forward invalid identifiers to the
+ * curation form.
+ */
 const getResourceTypeIdentifier = (dataset: Dataset): string | null => {
     const candidates = [
         dataset.resourceTypeId,
@@ -568,7 +642,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                                     (dataset.id !== undefined ? `#${dataset.id}` : 'entry');
                                                 return (
                                                     <tr
-                                                        key={dataset.id ?? dataset.identifier ?? `dataset-${index}`}
+                                                        key={deriveDatasetRowKey(dataset)}
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastDatasetElementRef : null}
                                                     >
@@ -634,3 +708,5 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         </AppLayout>
     );
 }
+
+export { deriveDatasetRowKey };

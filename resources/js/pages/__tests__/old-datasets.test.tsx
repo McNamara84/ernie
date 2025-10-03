@@ -1,6 +1,6 @@
 import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import OldDatasets from '../old-datasets';
+import OldDatasets, { deriveDatasetRowKey } from '../old-datasets';
 import axios from 'axios';
 import { vi, beforeEach, afterEach, describe, it, expect, type MockInstance } from 'vitest';
 
@@ -522,5 +522,37 @@ describe('OldDatasets page', () => {
             hosts: ['sumario-db.gfz'],
         }));
         expect(consoleErrorSpy).toHaveBeenCalledWith('Error loading more datasets:', axiosError);
+    });
+});
+
+describe('deriveDatasetRowKey', () => {
+    type DatasetLike = Parameters<typeof deriveDatasetRowKey>[0];
+
+    it('derives a stable hash-based key when structural identifiers are missing', () => {
+        const dataset: DatasetLike = {
+            title: 'Example legacy dataset',
+            publicationyear: 2021,
+            created_at: '2024-01-01T12:34:56Z',
+            updated_at: '2024-01-05T12:34:56Z',
+            curator: 'Clara',
+            language: 'en',
+            publisher: 'Institute of Example',
+            titles: [{ title: 'Example legacy dataset', titleType: 'Main Title' }],
+            licenses: ['CC-BY-4.0'],
+        };
+
+        const firstKey = deriveDatasetRowKey(dataset);
+        const secondKey = deriveDatasetRowKey({ ...dataset });
+
+        expect(firstKey).toMatch(/^dataset-/);
+        expect(secondKey).toBe(firstKey);
+    });
+
+    it('prefers dataset ids and identifiers over derived hashes', () => {
+        const datasetWithId: DatasetLike = { id: 987 };
+        const datasetWithIdentifier: DatasetLike = { identifier: '10.1234/example' };
+
+        expect(deriveDatasetRowKey(datasetWithId)).toBe('id-987');
+        expect(deriveDatasetRowKey(datasetWithIdentifier)).toBe('doi-10.1234/example');
     });
 });
