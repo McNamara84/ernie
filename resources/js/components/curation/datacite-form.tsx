@@ -3,6 +3,7 @@ import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
 import LicenseField from './fields/license-field';
+import { resolveInitialLanguageCode } from './utils/language-resolver';
 import {
     Accordion,
     AccordionContent,
@@ -87,7 +88,7 @@ export default function DataCiteForm({
         year: initialYear,
         resourceType: initialResourceType,
         version: initialVersion,
-        language: initialLanguage,
+        language: resolveInitialLanguageCode(languages, initialLanguage),
     });
 
     const [titles, setTitles] = useState<TitleEntry[]>(
