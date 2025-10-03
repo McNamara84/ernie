@@ -128,6 +128,23 @@ export default function DataCiteForm({
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
+    const areRequiredFieldsFilled = useMemo(() => {
+        const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
+        const mainTitleFilled = Boolean(mainTitleEntry?.title.trim());
+        const yearFilled = Boolean(form.year?.trim());
+        const resourceTypeSelected = Boolean(form.resourceType);
+        const languageSelected = Boolean(form.language);
+        const primaryLicenseFilled = Boolean(licenseEntries[0]?.license?.trim());
+
+        return (
+            mainTitleFilled &&
+            yearFilled &&
+            resourceTypeSelected &&
+            languageSelected &&
+            primaryLicenseFilled
+        );
+    }, [form.language, form.resourceType, form.year, licenseEntries, titles]);
+
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
     };
@@ -408,8 +425,9 @@ export default function DataCiteForm({
             <div className="flex justify-end">
                 <Button
                     type="submit"
-                    disabled={isSaving}
+                    disabled={isSaving || !areRequiredFieldsFilled}
                     aria-busy={isSaving}
+                    aria-disabled={isSaving || !areRequiredFieldsFilled}
                 >
                     {isSaving ? 'Saving…' : 'Save to database'}
                 </Button>
