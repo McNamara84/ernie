@@ -83,7 +83,15 @@ describe('DataCiteForm', () => {
         ).toBeInTheDocument();
 
         // language options
-        const languageTrigger = screen.getByLabelText('Language of Data');
+        const languageTrigger = screen.getByLabelText('Language of Data', {
+            exact: false,
+        });
+        expect(languageTrigger).toHaveAttribute('aria-required', 'true');
+        const languageLabel = languageTrigger.closest('div')?.querySelector('label');
+        if (!languageLabel) {
+            throw new Error('Language label not found');
+        }
+        expect(languageLabel).toHaveTextContent('*');
         await user.click(languageTrigger);
         for (const option of languages) {
             expect(
@@ -125,7 +133,7 @@ describe('DataCiteForm', () => {
         // title fields
         const titleInput = screen.getByRole('textbox', { name: /Title/ });
         expect(titleInput).toBeInTheDocument();
-        const titleTypeTrigger = screen.getByRole('combobox', { name: 'Title Type' });
+        const titleTypeTrigger = screen.getByRole('combobox', { name: /Title Type/ });
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
         // add and remove title rows
@@ -138,7 +146,7 @@ describe('DataCiteForm', () => {
         expect(titleInputs).toHaveLength(2);
         expect(addButton).toBeDisabled();
         const secondTitleTypeTrigger = screen.getAllByRole('combobox', {
-            name: 'Title Type',
+            name: /Title Type/,
         })[1];
         expect(secondTitleTypeTrigger).toHaveTextContent('Subtitle');
         await user.click(secondTitleTypeTrigger);
@@ -245,7 +253,9 @@ describe('DataCiteForm', () => {
                 initialLanguage="de"
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'German',
         );
     });
@@ -259,7 +269,9 @@ describe('DataCiteForm', () => {
                 languages={languages}
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'English',
         );
     });
@@ -280,7 +292,9 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'English',
         );
     });
@@ -295,7 +309,9 @@ describe('DataCiteForm', () => {
                 initialLanguage="German"
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'German',
         );
     });
@@ -310,7 +326,9 @@ describe('DataCiteForm', () => {
                 initialLanguage="French"
             />,
         );
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'French',
         );
     });
@@ -330,7 +348,9 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'German',
         );
     });
@@ -351,7 +371,9 @@ describe('DataCiteForm', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+        expect(
+            screen.getByLabelText('Language of Data', { exact: false }),
+        ).toHaveTextContent(
             'English',
         );
     });
@@ -410,6 +432,44 @@ describe('DataCiteForm', () => {
         expect(licenseLabel2).toHaveTextContent('*');
     });
 
+    it('marks title type as required for all titles', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const firstTitleTypeTrigger = screen.getByRole('combobox', {
+            name: /Title Type/,
+        });
+        expect(firstTitleTypeTrigger).toHaveAttribute('aria-required', 'true');
+        const firstTitleTypeLabel = screen.getAllByText(/Title Type/, {
+            selector: 'label',
+        })[0];
+        expect(firstTitleTypeLabel).toHaveTextContent('*');
+
+        const titleInput = screen.getByRole('textbox', { name: /Title/ });
+        await user.type(titleInput, 'Main Title');
+        const addButton = screen.getByRole('button', { name: 'Add title' });
+        await user.click(addButton);
+
+        const typeTriggers = screen.getAllByRole('combobox', { name: /Title Type/ });
+        expect(typeTriggers).toHaveLength(2);
+        for (const trigger of typeTriggers) {
+            expect(trigger).toHaveAttribute('aria-required', 'true');
+        }
+
+        const typeLabels = screen.getAllByText(/Title Type/, { selector: 'label' });
+        expect(typeLabels).toHaveLength(2);
+        typeLabels.forEach((label) => {
+            expect(label).toHaveTextContent('*');
+        });
+    });
+
     it('marks only main title as required', async () => {
         render(
             <DataCiteForm
@@ -433,7 +493,7 @@ describe('DataCiteForm', () => {
         expect(labels[0]).toHaveTextContent('*');
         expect(labels[1]).not.toHaveTextContent('*');
 
-        const typeTriggers = screen.getAllByRole('combobox', { name: 'Title Type' });
+        const typeTriggers = screen.getAllByRole('combobox', { name: /Title Type/ });
         await user.click(typeTriggers[0]);
         const subtitleOption = await screen.findByRole('option', { name: 'Subtitle' });
         await user.click(subtitleOption);
@@ -471,7 +531,7 @@ describe('DataCiteForm', () => {
         expect(inputs[1]).toHaveValue('Example Subtitle');
         expect(inputs[2]).toHaveValue('Example TranslatedTitle');
         expect(inputs[3]).toHaveValue('Example AlternativeTitle');
-        const selects = screen.getAllByRole('combobox', { name: 'Title Type' });
+        const selects = screen.getAllByRole('combobox', { name: /Title Type/ });
         expect(selects[0]).toHaveTextContent('Main Title');
         expect(selects[1]).toHaveTextContent('Subtitle');
         expect(selects[2]).toHaveTextContent('TranslatedTitle');
@@ -491,7 +551,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('textbox', { name: /Title/ })).toHaveValue(
             'A mandatory Event',
         );
-        expect(screen.getByRole('combobox', { name: 'Title Type' })).toHaveTextContent(
+        expect(screen.getByRole('combobox', { name: /Title Type/ })).toHaveTextContent(
             'Main Title',
         );
     });
