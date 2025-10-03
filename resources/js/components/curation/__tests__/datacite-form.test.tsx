@@ -253,6 +253,27 @@ describe('DataCiteForm', () => {
         );
     });
 
+    it('defaults Language to English even when English is not the first option', () => {
+        const shuffledLanguages: Language[] = [
+            { id: 2, code: 'de', name: 'German' },
+            { id: 3, code: 'fr', name: 'French' },
+            { id: 1, code: 'en', name: 'English' },
+        ];
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={shuffledLanguages}
+            />,
+        );
+
+        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+            'English',
+        );
+    });
+
     it('prefills Language when initialLanguage name is provided', () => {
         render(
             <DataCiteForm
@@ -280,6 +301,26 @@ describe('DataCiteForm', () => {
         );
         expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
             'French',
+        );
+    });
+
+    it('falls back to the first language with a code when English is unavailable', () => {
+        const limitedLanguages = [
+            { id: 4, code: null, name: null },
+            { id: 5, code: 'de', name: 'German' },
+        ] as unknown as Language[];
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={limitedLanguages}
+            />,
+        );
+
+        expect(screen.getByLabelText('Language of Data')).toHaveTextContent(
+            'German',
         );
     });
 

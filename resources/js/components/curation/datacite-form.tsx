@@ -84,36 +84,62 @@ export default function DataCiteForm({
     const MAX_LICENSES = maxLicenses;
     const resolveInitialLanguage = () => {
         const normalize = (value?: string | null) => value?.trim().toLowerCase() ?? '';
-        const findCode = (...candidates: string[]) => {
-            const normalized = candidates.map(normalize);
+
+        const expandCandidate = (value?: string | null) => {
+            const normalized = normalize(value);
+            if (!normalized) {
+                return [] as string[];
+            }
+
+            const base = normalized.split('-')[0];
+            const candidates = new Set<string>([normalized]);
+
+            if (base && base !== normalized) {
+                candidates.add(base);
+            }
+
+            return [...candidates];
+        };
+
+        const findLanguageCode = (
+            ...rawCandidates: (string | null | undefined)[]
+        ): string => {
+            const candidates = new Set(
+                rawCandidates.flatMap((candidate) => expandCandidate(candidate)),
+            );
+
+            if (!candidates.size) {
+                return '';
+            }
+
             return (
                 languages.find((lang) => {
                     const code = normalize(lang.code);
                     const name = normalize(lang.name);
+
                     return (
-                        (!!code && normalized.includes(code)) ||
-                        (!!name && normalized.includes(name))
+                        (!!code && candidates.has(code)) || (!!name && candidates.has(name))
                     );
                 })?.code ?? ''
             );
         };
 
-        const normalizedInitial = normalize(initialLanguage);
-        const englishCode = findCode('english', 'en') || languages[0]?.code || '';
-
-        if (['german', 'de'].includes(normalizedInitial)) {
-            return findCode('german', 'de') || englishCode;
+        const initialMatch = findLanguageCode(initialLanguage);
+        if (initialMatch) {
+            return initialMatch;
         }
 
-        if (['french', 'fr'].includes(normalizedInitial)) {
-            return findCode('french', 'fr') || englishCode;
+        const englishMatch = findLanguageCode('english', 'en');
+        if (englishMatch) {
+            return englishMatch;
         }
 
-        if (['english', 'en'].includes(normalizedInitial)) {
-            return englishCode;
+        const firstWithCode = languages.find((lang) => normalize(lang.code))?.code;
+        if (firstWithCode) {
+            return firstWithCode;
         }
 
-        return englishCode;
+        return languages.find((lang) => normalize(lang.name))?.code ?? '';
     };
 
     const [form, setForm] = useState<DataCiteFormData>({
