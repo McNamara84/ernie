@@ -6,34 +6,38 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { setupUrlTransformation } from './url-fix';
 import axios from 'axios';
+import { buildCsrfHeaders } from './lib/csrf-token';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 // Configure Axios for CSRF token with dynamic token refresh
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-// Function to get fresh CSRF token
-function getCSRFToken(): string | null {
-    const token = document.head.querySelector('meta[name="csrf-token"]') as HTMLMetaElement;
-    return token ? token.content : null;
-}
+const applyAxiosCsrfHeaders = () => {
+    const headers = buildCsrfHeaders();
 
-// Set initial CSRF token
-const initialToken = getCSRFToken();
-if (initialToken) {
-    axios.defaults.headers.common['X-CSRF-TOKEN'] = initialToken;
-} else {
-    console.error('CSRF token not found: https://laravel.com/docs/csrf#csrf-x-csrf-token');
-}
+    if (!headers['X-CSRF-TOKEN'] && !headers['X-XSRF-TOKEN']) {
+        console.error('CSRF token not found: https://laravel.com/docs/csrf#csrf-x-csrf-token');
+        return;
+    }
+
+    Object.entries(headers).forEach(([key, value]) => {
+        axios.defaults.headers.common[key] = value;
+    });
+};
+
+applyAxiosCsrfHeaders();
 
 // Add axios interceptor to refresh CSRF token on each request
 axios.interceptors.request.use(
     function (config) {
         // Get fresh CSRF token for each request
-        const freshToken = getCSRFToken();
-        if (freshToken) {
-            config.headers['X-CSRF-TOKEN'] = freshToken;
-        }
+        const freshHeaders = buildCsrfHeaders();
+        config.headers = config.headers ?? {};
+
+        Object.entries(freshHeaders).forEach(([key, value]) => {
+            config.headers![key] = value;
+        });
         return config;
     },
     function (error) {
@@ -73,11 +77,15 @@ createInertiaApp({
 
 // Listen for page events to refresh CSRF token
 document.addEventListener('inertia:finish', () => {
-    // Refresh CSRF token after each page change
-    const token = getCSRFToken();
-    if (token) {
-        axios.defaults.headers.common['X-CSRF-TOKEN'] = token;
+    const headers = buildCsrfHeaders();
+
+    if (Object.keys(headers).length === 0) {
+        return;
     }
+
+    Object.entries(headers).forEach(([key, value]) => {
+        axios.defaults.headers.common[key] = value;
+    });
 });
 
 document.addEventListener('inertia:error', (event) => {

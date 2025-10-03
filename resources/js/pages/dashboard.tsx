@@ -9,11 +9,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { latestVersion } from '@/lib/version';
+import { buildCsrfHeaders } from '@/lib/csrf-token';
 
 export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
 
-    const token = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content;
+    const csrfHeaders = buildCsrfHeaders();
+    const token = csrfHeaders['X-CSRF-TOKEN'];
+
     if (!token) {
         throw new Error('CSRF token not found');
     }
@@ -25,9 +28,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         const response = await fetch(uploadXmlRoute.url(), {
             method: 'POST',
             body: formData,
-            headers: {
-                'X-CSRF-TOKEN': token,
-            },
+            headers: csrfHeaders,
         });
         if (!response.ok) {
             let message = 'Upload failed';
