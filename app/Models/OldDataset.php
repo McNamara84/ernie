@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class OldDataset extends Model
 {
+    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
 
     /**
@@ -72,9 +75,9 @@ class OldDataset extends Model
     /**
      * Get all resources with their titles, ordered by created_at descending.
      *
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return Collection<int, OldDataset>
      */
-    public static function getAllOrderedByCreatedDate()
+    public static function getAllOrderedByCreatedDate(): Collection
     {
         return self::select([
                 'resource.id',
@@ -98,9 +101,9 @@ class OldDataset extends Model
      *
      * @param int $page
      * @param int $perPage
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @return LengthAwarePaginator<int, OldDataset>
      */
-    public static function getPaginatedOrderedByCreatedDate($page = 1, $perPage = 50)
+    public static function getPaginatedOrderedByCreatedDate($page = 1, $perPage = 50): LengthAwarePaginator
     {
         return self::select([
                 'resource.id',

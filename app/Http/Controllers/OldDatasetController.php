@@ -115,6 +115,8 @@ class OldDatasetController extends Controller
 
     /**
      * Build sanitized debug information for the SUMARIOPMD connection failure.
+     *
+     * @return array<string, mixed>
      */
     private function buildConnectionDebugInfo(Throwable $exception): array
     {

@@ -10,10 +10,12 @@ use App\Models\License;
 use App\Models\Language;
 use App\Models\Setting;
 use Inertia\Inertia;
+use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 
 class EditorSettingsController extends Controller
 {
-    public function index()
+    public function index(): Response
     {
         return Inertia::render('settings/index', [
             'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name', 'active', 'elmo_active']),
@@ -25,7 +27,7 @@ class EditorSettingsController extends Controller
         ]);
     }
 
-    public function update(UpdateSettingsRequest $request)
+    public function update(UpdateSettingsRequest $request): RedirectResponse
     {
         $validated = $request->validated();
 
