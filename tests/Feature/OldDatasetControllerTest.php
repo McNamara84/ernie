@@ -25,32 +25,76 @@ beforeEach(function (): void {
 });
 
 it('renders the old datasets page with paginated data', function (): void {
-    $datasets = [
-        [
-            'id' => 1,
-            'identifier' => '10.1234/example-one',
-            'resourcetypegeneral' => 'Dataset',
-            'curator' => 'Alice',
-            'title' => 'Example dataset number one',
-            'created_at' => '2024-01-01 10:00:00',
-            'updated_at' => '2024-01-05 12:00:00',
-            'publicstatus' => 'published',
-            'publisher' => 'Example Publisher',
-            'publicationyear' => 2024,
-        ],
-        [
-            'id' => 2,
-            'identifier' => '10.1234/example-two',
-            'resourcetypegeneral' => 'Dataset',
-            'curator' => 'Bob',
-            'title' => 'Example dataset number two',
-            'created_at' => '2024-02-02 14:30:00',
-            'updated_at' => '2024-02-05 09:15:00',
-            'publicstatus' => 'review',
-            'publisher' => 'Example Publisher',
-            'publicationyear' => 2023,
-        ],
-    ];
+    // Create mock OldDataset objects that behave like real models
+    $dataset1 = new class {
+        public $id = 1;
+        public $identifier = '10.1234/example-one';
+        public $resourcetypegeneral = 'Dataset';
+        public $curator = 'Alice';
+        public $title = 'Example dataset number one';
+        public $created_at = '2024-01-01 10:00:00';
+        public $updated_at = '2024-01-05 12:00:00';
+        public $publicstatus = 'published';
+        public $publisher = 'Example Publisher';
+        public $publicationyear = 2024;
+        public $licenses;
+        
+        public function getLicenses(): array {
+            return [];
+        }
+        
+        public function jsonSerialize(): array {
+            return [
+                'id' => $this->id,
+                'identifier' => $this->identifier,
+                'resourcetypegeneral' => $this->resourcetypegeneral,
+                'curator' => $this->curator,
+                'title' => $this->title,
+                'created_at' => $this->created_at,
+                'updated_at' => $this->updated_at,
+                'publicstatus' => $this->publicstatus,
+                'publisher' => $this->publisher,
+                'publicationyear' => $this->publicationyear,
+                'licenses' => $this->licenses ?? [],
+            ];
+        }
+    };
+
+    $dataset2 = new class {
+        public $id = 2;
+        public $identifier = '10.1234/example-two';
+        public $resourcetypegeneral = 'Dataset';
+        public $curator = 'Bob';
+        public $title = 'Example dataset number two';
+        public $created_at = '2024-02-02 14:30:00';
+        public $updated_at = '2024-02-05 09:15:00';
+        public $publicstatus = 'review';
+        public $publisher = 'Example Publisher';
+        public $publicationyear = 2023;
+        public $licenses;
+        
+        public function getLicenses(): array {
+            return [];
+        }
+        
+        public function jsonSerialize(): array {
+            return [
+                'id' => $this->id,
+                'identifier' => $this->identifier,
+                'resourcetypegeneral' => $this->resourcetypegeneral,
+                'curator' => $this->curator,
+                'title' => $this->title,
+                'created_at' => $this->created_at,
+                'updated_at' => $this->updated_at,
+                'publicstatus' => $this->publicstatus,
+                'publisher' => $this->publisher,
+                'publicationyear' => $this->publicationyear,
+                'licenses' => $this->licenses ?? [],
+            ];
+        }
+    };
+
+    $datasets = [$dataset1, $dataset2];
 
     $paginator = new LengthAwarePaginator(
         $datasets,
@@ -66,11 +110,41 @@ it('renders the old datasets page with paginated data', function (): void {
         ->with(1, 50)
         ->andReturn($paginator);
 
+    // Expected datasets with licenses added
+    $expectedDatasets = [
+        [
+            'id' => 1,
+            'identifier' => '10.1234/example-one',
+            'resourcetypegeneral' => 'Dataset',
+            'curator' => 'Alice',
+            'title' => 'Example dataset number one',
+            'created_at' => '2024-01-01 10:00:00',
+            'updated_at' => '2024-01-05 12:00:00',
+            'publicstatus' => 'published',
+            'publisher' => 'Example Publisher',
+            'publicationyear' => 2024,
+            'licenses' => [],
+        ],
+        [
+            'id' => 2,
+            'identifier' => '10.1234/example-two',
+            'resourcetypegeneral' => 'Dataset',
+            'curator' => 'Bob',
+            'title' => 'Example dataset number two',
+            'created_at' => '2024-02-02 14:30:00',
+            'updated_at' => '2024-02-05 09:15:00',
+            'publicstatus' => 'review',
+            'publisher' => 'Example Publisher',
+            'publicationyear' => 2023,
+            'licenses' => [],
+        ],
+    ];
+
     get(route('old-datasets'))
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('old-datasets')
-            ->where('datasets', $datasets)
+            ->where('datasets', $expectedDatasets)
             ->where('pagination', [
                 'current_page' => 1,
                 'last_page' => 1,
@@ -118,20 +192,42 @@ it('sanitises pagination parameters before fetching datasets', function (): void
 });
 
 it('returns JSON payload for the load-more endpoint', function (): void {
-    $datasets = [
-        [
-            'id' => 3,
-            'identifier' => '10.1234/example-three',
-            'resourcetypegeneral' => 'Image',
-            'curator' => 'Carol',
-            'title' => 'Example dataset number three',
-            'created_at' => '2024-03-01 08:00:00',
-            'updated_at' => '2024-03-02 09:00:00',
-            'publicstatus' => 'draft',
-            'publisher' => 'Example Publisher',
-            'publicationyear' => 2022,
-        ],
-    ];
+    // Create mock OldDataset object
+    $dataset3 = new class {
+        public $id = 3;
+        public $identifier = '10.1234/example-three';
+        public $resourcetypegeneral = 'Image';
+        public $curator = 'Carol';
+        public $title = 'Example dataset number three';
+        public $created_at = '2024-03-01 08:00:00';
+        public $updated_at = '2024-03-02 09:00:00';
+        public $publicstatus = 'draft';
+        public $publisher = 'Example Publisher';
+        public $publicationyear = 2022;
+        public $licenses;
+        
+        public function getLicenses(): array {
+            return [];
+        }
+        
+        public function jsonSerialize(): array {
+            return [
+                'id' => $this->id,
+                'identifier' => $this->identifier,
+                'resourcetypegeneral' => $this->resourcetypegeneral,
+                'curator' => $this->curator,
+                'title' => $this->title,
+                'created_at' => $this->created_at,
+                'updated_at' => $this->updated_at,
+                'publicstatus' => $this->publicstatus,
+                'publisher' => $this->publisher,
+                'publicationyear' => $this->publicationyear,
+                'licenses' => $this->licenses ?? [],
+            ];
+        }
+    };
+
+    $datasets = [$dataset3];
 
     $paginator = new LengthAwarePaginator(
         $datasets,
@@ -147,10 +243,27 @@ it('returns JSON payload for the load-more endpoint', function (): void {
         ->with(2, 20)
         ->andReturn($paginator);
 
+    // Expected datasets with licenses added
+    $expectedDatasets = [
+        [
+            'id' => 3,
+            'identifier' => '10.1234/example-three',
+            'resourcetypegeneral' => 'Image',
+            'curator' => 'Carol',
+            'title' => 'Example dataset number three',
+            'created_at' => '2024-03-01 08:00:00',
+            'updated_at' => '2024-03-02 09:00:00',
+            'publicstatus' => 'draft',
+            'publisher' => 'Example Publisher',
+            'publicationyear' => 2022,
+            'licenses' => [],
+        ],
+    ];
+
     get('/old-datasets/load-more?page=2&per_page=20')
         ->assertOk()
         ->assertJson([
-            'datasets' => $datasets,
+            'datasets' => $expectedDatasets,
             'pagination' => [
                 'current_page' => 2,
                 'last_page' => 2,
