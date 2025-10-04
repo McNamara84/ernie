@@ -107,7 +107,7 @@ const normaliseTitles = (titles: ResourceTitleSummary[]): { title: string; title
 
     let hasMainTitle = cleaned.some((entry) => entry.titleType === 'main-title');
 
-    const resolved = cleaned.map((entry, index) => {
+    const resolved = cleaned.map((entry) => {
         if (entry.titleType === 'main-title') {
             hasMainTitle = true;
             return entry;
