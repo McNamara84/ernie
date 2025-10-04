@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import Dashboard, { handleXmlFiles } from '@/pages/dashboard';
 import { latestVersion } from '@/lib/version';
 import { applyBasePathToRoutes, __testing as basePathTesting } from '@/lib/base-path';
@@ -62,7 +62,7 @@ vi.mock('@/routes', async () => {
 
 describe('Dashboard', () => {
     beforeEach(() => {
-        usePageMock.mockReturnValue({ props: { auth: { user: { name: 'Jane' } } } });
+        usePageMock.mockReturnValue({ props: { auth: { user: { name: 'Jane' } }, resourceCount: 17 } });
         handleXmlFilesSpy.mockClear();
     });
 
@@ -74,6 +74,23 @@ describe('Dashboard', () => {
     it('greets the user by name', () => {
         render(<Dashboard />);
         expect(screen.getByText(/hello jane!/i)).toBeInTheDocument();
+    });
+
+    it('displays the resource count in the statistics card', () => {
+        render(<Dashboard />);
+        const statsSection = screen.getByText(/datasets from y data centers of z institutions/i);
+        const count = within(statsSection).getByText('17');
+        expect(count.tagName).toBe('STRONG');
+        expect(count).toHaveClass('font-semibold');
+        expect(statsSection).toHaveTextContent('17 datasets from y data centers of z institutions');
+    });
+
+    it('falls back to zero datasets when the count is unavailable', () => {
+        usePageMock.mockReturnValueOnce({ props: { auth: { user: { name: 'Jane' } } } });
+        render(<Dashboard />);
+        const statsSection = screen.getByText(/datasets from y data centers of z institutions/i);
+        expect(within(statsSection).getByText('0')).toBeInTheDocument();
+        expect(statsSection).toHaveTextContent('0 datasets from y data centers of z institutions');
     });
 
     it('links the ERNIE version to the changelog', () => {

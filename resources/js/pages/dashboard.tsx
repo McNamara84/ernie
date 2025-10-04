@@ -91,11 +91,17 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+type DashboardPageProps = SharedData & {
+    resourceCount?: number;
+};
+
 export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProps = {}) {
-    const { auth } = usePage<SharedData>().props;
+    const { auth, resourceCount } = usePage<DashboardPageProps>().props;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const datasetCount = typeof resourceCount === 'number' ? resourceCount : 0;
 
     async function uploadXml(files: File[]) {
         try {
@@ -163,7 +169,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             <CardTitle>Statistics</CardTitle>
                         </CardHeader>
                         <CardContent className="text-sm text-muted-foreground">
-                            x datasets from y data centers of z institutions
+                            <strong className="font-semibold text-foreground">{datasetCount}</strong>{' '}
+                            datasets from y data centers of z institutions
                         </CardContent>
                     </Card>
                     <Card>
