@@ -14,27 +14,57 @@ vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
+const sanitizeButtonMotionProps = (
+    props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+        whileHover?: unknown;
+    }
+) => {
+    const rest = { ...props } as React.ButtonHTMLAttributes<HTMLButtonElement> & {
+        whileHover?: unknown;
+    };
+    delete rest.whileHover;
+    return rest;
+};
+
+const sanitizeDivMotionProps = (
+    props: React.HTMLAttributes<HTMLDivElement> & {
+        initial?: unknown;
+        animate?: unknown;
+        exit?: unknown;
+        transition?: unknown;
+    }
+) => {
+    const rest = { ...props } as React.HTMLAttributes<HTMLDivElement> & {
+        initial?: unknown;
+        animate?: unknown;
+        exit?: unknown;
+        transition?: unknown;
+    };
+    delete rest.initial;
+    delete rest.animate;
+    delete rest.exit;
+    delete rest.transition;
+    return rest;
+};
+
 vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     motion: {
         button: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => {
-            const { whileHover, ...rest } = props as React.ButtonHTMLAttributes<HTMLButtonElement> & {
-                whileHover?: unknown;
-            };
-            void whileHover;
+            const rest = sanitizeButtonMotionProps(
+                props as React.ButtonHTMLAttributes<HTMLButtonElement> & { whileHover?: unknown }
+            );
             return <button {...rest}>{children}</button>;
         },
         div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
-            const { initial, animate, exit, transition, ...rest } = props as React.HTMLAttributes<HTMLDivElement> & {
-                initial?: unknown;
-                animate?: unknown;
-                exit?: unknown;
-                transition?: unknown;
-            };
-            void initial;
-            void animate;
-            void exit;
-            void transition;
+            const rest = sanitizeDivMotionProps(
+                props as React.HTMLAttributes<HTMLDivElement> & {
+                    initial?: unknown;
+                    animate?: unknown;
+                    exit?: unknown;
+                    transition?: unknown;
+                }
+            );
             return <div {...rest}>{children}</div>;
         },
     },
