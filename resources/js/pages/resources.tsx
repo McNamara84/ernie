@@ -239,7 +239,7 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                             Detailed list of curated resources including identifiers and lifecycle information.
                                         </caption>
                                         <colgroup>
-                                            <col className="w-36" />
+                                            <col className="w-[18rem]" />
                                             <col className="min-w-[24rem]" />
                                             <col className="w-[18rem]" />
                                             <col className="w-32" />

@@ -118,6 +118,9 @@ describe('ResourcesPage', () => {
 
         const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
+        const columnDefinitions = table.querySelectorAll('colgroup col');
+        expect(columnDefinitions.length).toBeGreaterThan(0);
+        expect(columnDefinitions[0]).toHaveClass('w-[18rem]');
         expect(within(table).getByText('Primary title')).toBeInTheDocument();
         expect(within(table).getByRole('columnheader', { name: /id\s+doi/i })).toBeInTheDocument();
         expect(within(table).queryByText(/show additional titles/i)).not.toBeInTheDocument();
