@@ -239,9 +239,8 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                             Detailed list of curated resources including identifiers and lifecycle information.
                                         </caption>
                                         <colgroup>
-                                            <col className="w-20" />
-                                            <col className="min-w-[18rem]" />
-                                            <col className="w-[22rem]" />
+                                            <col className="w-36" />
+                                            <col className="min-w-[24rem]" />
                                             <col className="w-[18rem]" />
                                             <col className="w-32" />
                                         </colgroup>
@@ -251,19 +250,13 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                     scope="col"
                                                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                                                 >
-                                                    ID
+                                                    DOI
                                                 </th>
                                                 <th
                                                     scope="col"
                                                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                                                 >
                                                     Title
-                                                </th>
-                                                <th
-                                                    scope="col"
-                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                                >
-                                                    Identifiers
                                                 </th>
                                                 <th
                                                     scope="col"
@@ -294,21 +287,14 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                         key={resource.id}
                                                         className="transition-colors hover:bg-muted/40 focus-within:bg-muted/50"
                                                     >
-                                                        <td className="px-6 py-4 align-top text-sm text-muted-foreground">
-                                                            {resource.id}
-                                                        </td>
-                                                        <td className="px-6 py-4 align-top">
-                                                            <div className="flex flex-col gap-2">
-                                                                <div className="flex flex-wrap items-center gap-3">
-                                                                    <span className="text-base font-semibold text-foreground">{primaryTitle}</span>
-                                                                    <Badge variant="outline" className="rounded-full px-3 text-xs">
-                                                                        {resource.year}
-                                                                    </Badge>
-                                                                </div>
-                                                            </div>
-                                                        </td>
                                                         <td className="px-6 py-4 align-top">
                                                             <dl className="space-y-2 text-sm">
+                                                                <div>
+                                                                    <dt className="sr-only">Resource ID</dt>
+                                                                    <dd className="text-base font-semibold text-foreground">
+                                                                        {resource.id}
+                                                                    </dd>
+                                                                </div>
                                                                 <div>
                                                                     <dt className="font-medium text-muted-foreground">DOI</dt>
                                                                     <dd>
@@ -328,6 +314,16 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                     </dd>
                                                                 </div>
                                                             </dl>
+                                                        </td>
+                                                        <td className="px-6 py-4 align-top">
+                                                            <div className="flex flex-col gap-2">
+                                                                <div className="flex flex-wrap items-center gap-3">
+                                                                    <span className="text-base font-semibold text-foreground">{primaryTitle}</span>
+                                                                    <Badge variant="outline" className="rounded-full px-3 text-xs">
+                                                                        {resource.year}
+                                                                    </Badge>
+                                                                </div>
+                                                            </div>
                                                         </td>
                                                         <td className="px-6 py-4 align-top">
                                                             <dl className="space-y-2 text-sm">
