@@ -40,22 +40,8 @@ COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
 RUN update-ca-certificates
 
-# Copy dependency files first (for better layer caching)
-# This layer only rebuilds when dependencies change
-COPY composer.json composer.lock ./
-
-# Install PHP dependencies
-# Using --no-dev for production and optimized autoloader
-RUN composer install \
-    --no-dev \
-    --no-interaction \
-    --no-plugins \
-    --no-scripts \
-    --prefer-dist \
-    --optimize-autoloader \
-    --classmap-authoritative
-
-# Copy all application files (node_modules and vendor are excluded via .dockerignore)
+# Copy all application files first
+# node_modules and vendor are excluded via .dockerignore
 COPY . /var/www/html
 
 # Copy environment file for build
@@ -66,11 +52,23 @@ RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/se
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Install Node dependencies and build assets in one layer
-RUN npm ci --ignore-scripts \
+# Install PHP dependencies
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-plugins \
+    --no-scripts \
+    --prefer-dist \
+    --optimize-autoloader \
+    --classmap-authoritative
+
+# Install Node dependencies and build (use npm install instead of npm ci for flexibility)
+RUN npm install \
     && NODE_ENV=production npm run build \
-    && rm -f public/hot \
-    && npm prune --production \
+    && rm -f public/hot
+
+# Clean up node_modules to reduce image size
+RUN rm -rf node_modules \
     && npm cache clean --force
 
 EXPOSE 9000
