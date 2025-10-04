@@ -85,22 +85,6 @@ const getPrimaryTitle = (titles: ResourceTitle[]): string => {
     return (mainTitle ?? titles[0]).title || 'Untitled resource';
 };
 
-const getAdditionalTitles = (titles: ResourceTitle[]): ResourceTitle[] => {
-    if (titles.length <= 1) {
-        return [];
-    }
-
-    const primarySlug = titles.find((entry) => entry.title_type?.slug === MAIN_TITLE_SLUG)?.title_type?.slug;
-
-    return titles.filter((entry) => {
-        if (primarySlug) {
-            return entry.title_type?.slug !== primarySlug;
-        }
-
-        return entry !== titles[0];
-    });
-};
-
 const buildDoiUrl = (doi: string | null): string | null => {
     if (!doi) {
         return null;
@@ -133,24 +117,6 @@ const formatDateTime = (isoString: string | null): { label: string; iso?: string
 
     return { label: formatter.format(date), iso: date.toISOString() };
 };
-
-const describeLanguage = (language: ResourceLanguageSummary | null): string => {
-    if (!language) {
-        return 'Not specified';
-    }
-
-    if (language.name && language.code) {
-        return `${language.name} (${language.code.toUpperCase()})`;
-    }
-
-    return language.name ?? language.code ?? 'Not specified';
-};
-
-const describeResourceType = (resourceType: ResourceTypeSummary | null): string =>
-    resourceType?.name ?? 'Not classified';
-
-const describeLicense = (license: ResourceLicense): string =>
-    license.name ?? license.identifier ?? 'Unlabelled license';
 
 const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
     const hasResources = resources.length > 0;
@@ -270,11 +236,23 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <caption className="sr-only">
-                                            Detailed list of curated resources including titles, identifiers, classifications, and lifecycle
-                                            information.
+                                            Detailed list of curated resources including identifiers and lifecycle information.
                                         </caption>
+                                        <colgroup>
+                                            <col className="w-20" />
+                                            <col className="min-w-[18rem]" />
+                                            <col className="w-[22rem]" />
+                                            <col className="w-[18rem]" />
+                                            <col className="w-32" />
+                                        </colgroup>
                                         <thead className="bg-muted/60">
                                             <tr>
+                                                <th
+                                                    scope="col"
+                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    ID
+                                                </th>
                                                 <th
                                                     scope="col"
                                                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
@@ -286,18 +264,6 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                                                 >
                                                     Identifiers
-                                                </th>
-                                                <th
-                                                    scope="col"
-                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                                >
-                                                    Classification
-                                                </th>
-                                                <th
-                                                    scope="col"
-                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                                >
-                                                    Licenses
                                                 </th>
                                                 <th
                                                     scope="col"
@@ -316,7 +282,6 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                         <tbody className="divide-y divide-gray-200 bg-background text-sm dark:divide-gray-700">
                                             {resources.map((resource) => {
                                                 const primaryTitle = getPrimaryTitle(resource.titles);
-                                                const additionalTitles = getAdditionalTitles(resource.titles);
                                                 const doiUrl = buildDoiUrl(resource.doi);
                                                 const createdAt = formatDateTime(resource.created_at);
                                                 const updatedAt = formatDateTime(resource.updated_at);
@@ -329,6 +294,9 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                         key={resource.id}
                                                         className="transition-colors hover:bg-muted/40 focus-within:bg-muted/50"
                                                     >
+                                                        <td className="px-6 py-4 align-top text-sm text-muted-foreground">
+                                                            {resource.id}
+                                                        </td>
                                                         <td className="px-6 py-4 align-top">
                                                             <div className="flex flex-col gap-2">
                                                                 <div className="flex flex-wrap items-center gap-3">
@@ -337,25 +305,6 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                         {resource.year}
                                                                     </Badge>
                                                                 </div>
-                                                                {additionalTitles.length > 0 ? (
-                                                                    <details className="group rounded-md text-sm text-muted-foreground">
-                                                                        <summary className="cursor-pointer rounded-md px-1 py-0.5 font-medium text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                                                                            Show additional titles
-                                                                        </summary>
-                                                                        <ul className="mt-2 list-disc space-y-1 pl-5">
-                                                                            {additionalTitles.map((title, index) => (
-                                                                                <li key={`${resource.id}-title-${index}`} className="leading-relaxed">
-                                                                                    {title.title}
-                                                                                    {title.title_type?.name ? (
-                                                                                        <span className="ml-2 text-xs uppercase tracking-wide text-muted-foreground">
-                                                                                            {title.title_type.name}
-                                                                                        </span>
-                                                                                    ) : null}
-                                                                                </li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    </details>
-                                                                ) : null}
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 align-top">
@@ -378,38 +327,7 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                         )}
                                                                     </dd>
                                                                 </div>
-                                                                <div>
-                                                                    <dt className="font-medium text-muted-foreground">Version</dt>
-                                                                    <dd>{resource.version ?? <span className="text-muted-foreground">Not provided</span>}</dd>
-                                                                </div>
                                                             </dl>
-                                                        </td>
-                                                        <td className="px-6 py-4 align-top">
-                                                            <dl className="space-y-2 text-sm">
-                                                                <div>
-                                                                    <dt className="font-medium text-muted-foreground">Resource type</dt>
-                                                                    <dd>{describeResourceType(resource.resource_type)}</dd>
-                                                                </div>
-                                                                <div>
-                                                                    <dt className="font-medium text-muted-foreground">Language</dt>
-                                                                    <dd>{describeLanguage(resource.language)}</dd>
-                                                                </div>
-                                                            </dl>
-                                                        </td>
-                                                        <td className="px-6 py-4 align-top">
-                                                            {resource.licenses.length > 0 ? (
-                                                                <ul className="flex flex-wrap gap-2" aria-label="Licenses">
-                                                                    {resource.licenses.map((license, index) => (
-                                                                        <li key={`${resource.id}-license-${index}`}>
-                                                                            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
-                                                                                {describeLicense(license)}
-                                                                            </Badge>
-                                                                        </li>
-                                                                    ))}
-                                                                </ul>
-                                                            ) : (
-                                                                <span className="text-sm text-muted-foreground">No licenses linked</span>
-                                                            )}
                                                         </td>
                                                         <td className="px-6 py-4 align-top">
                                                             <dl className="space-y-2 text-sm">
@@ -562,4 +480,4 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
 
 export default ResourcesPage;
 
-export { getPrimaryTitle, getAdditionalTitles, buildDoiUrl, formatDateTime, describeLanguage, describeResourceType, describeLicense };
+export { getPrimaryTitle, buildDoiUrl, formatDateTime };
