@@ -4,6 +4,7 @@ use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\UploadXmlController;
 use App\Models\License;
+use App\Models\Resource;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
@@ -59,7 +60,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('dashboard.upload-xml');
 
     Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
+        return Inertia::render('dashboard', [
+            'resourceCount' => Resource::count(),
+        ]);
     })->name('dashboard');
 
     Route::get('docs', function () {
