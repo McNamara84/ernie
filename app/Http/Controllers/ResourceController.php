@@ -9,6 +9,7 @@ use App\Models\Resource;
 use App\Models\ResourceTitle;
 use App\Models\TitleType;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -185,5 +186,14 @@ class ResourceController extends Controller
                 'id' => $resource->id,
             ],
         ], $status);
+    }
+
+    public function destroy(Resource $resource): RedirectResponse
+    {
+        $resource->delete();
+
+        return redirect()
+            ->route('resources')
+            ->with('success', 'Resource deleted successfully.');
     }
 }

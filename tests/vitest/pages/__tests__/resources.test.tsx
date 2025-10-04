@@ -11,7 +11,7 @@ import ResourcesPage, {
 } from '@/pages/resources';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
+const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn() }));
 const buildCurationQueryFromResourceMock = vi.hoisted(() => vi.fn());
 const curationRouteMock = vi.hoisted(
     () =>
@@ -95,6 +95,7 @@ describe('resource helper utilities', () => {
 describe('ResourcesPage', () => {
     beforeEach(() => {
         routerMock.get.mockClear();
+        routerMock.delete.mockClear();
         buildCurationQueryFromResourceMock.mockReset();
         buildCurationQueryFromResourceMock.mockResolvedValue({});
         curationRouteMock.mockClear();
@@ -158,6 +159,9 @@ describe('ResourcesPage', () => {
         expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /edit primary title in the curation editor/i }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /delete primary title from ernie/i }),
         ).toBeInTheDocument();
 
         const timeElements = within(table).getAllByText((_, element) => element?.tagName === 'TIME');
@@ -278,5 +282,82 @@ describe('ResourcesPage', () => {
         });
         const lastCall = routerMock.get.mock.calls.at(-1);
         expect(lastCall?.[0]).toBe('/curation?doi=10.9999%2Fexample&resourceId=1');
+    });
+
+    it('confirms destructive actions before deleting a resource', async () => {
+        const resource = {
+            id: 1,
+            doi: '10.5555/example',
+            year: 2022,
+            version: null,
+            created_at: null,
+            updated_at: null,
+            resource_type: null,
+            language: null,
+            titles: [{ title: 'Primary title', title_type: null }],
+            licenses: [],
+        } as const;
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 25,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+            />,
+        );
+
+        const deleteButton = screen.getByRole('button', {
+            name: /delete primary title from ernie/i,
+        });
+
+        await act(async () => {
+            fireEvent.click(deleteButton);
+            await Promise.resolve();
+        });
+
+        expect(
+            screen.getByRole('dialog', {
+                name: /delete “primary title”\?/i,
+            }),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/this will permanently remove/i)).toBeInTheDocument();
+
+        const confirmButton = screen.getByRole('button', { name: /delete resource/i });
+
+        expect(confirmButton).toBeEnabled();
+
+        await act(async () => {
+            fireEvent.click(confirmButton);
+            await Promise.resolve();
+        });
+
+        expect(routerMock.delete).toHaveBeenCalledWith(
+            '/resources/1',
+            expect.objectContaining({
+                preserveScroll: true,
+            }),
+        );
+
+        expect(confirmButton).toBeDisabled();
+        expect(confirmButton).toHaveAttribute('aria-busy', 'true');
+
+        const [, options] = routerMock.delete.mock.calls.at(-1) ?? [];
+
+        expect(options?.onSuccess).toBeTypeOf('function');
+        expect(options?.onFinish).toBeTypeOf('function');
+
+        await act(async () => {
+            options?.onSuccess?.();
+            options?.onFinish?.();
+        });
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 });

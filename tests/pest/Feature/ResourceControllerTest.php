@@ -9,9 +9,11 @@ use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
+use function Pest\Laravel\delete;
 use function Pest\Laravel\get;
 use function Pest\Laravel\postJson;
 
@@ -290,4 +292,46 @@ it('updates an existing resource when the request includes a resource identifier
 
     expect($resource->licenses)->toHaveCount(1);
     expect($resource->licenses->first()?->identifier)->toBe('cc-by-4');
+});
+
+it('deletes a resource along with related metadata records', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $titleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $license = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $resource = Resource::query()->create([
+        'doi' => '10.1234/delete-me',
+        'year' => 2024,
+        'resource_type_id' => $resourceType->id,
+        'version' => '1.0.0',
+        'language_id' => null,
+    ]);
+
+    ResourceTitle::query()->create([
+        'resource_id' => $resource->id,
+        'title' => 'Resource scheduled for deletion',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    $resource->licenses()->attach($license->id);
+
+    delete(route('resources.destroy', $resource))
+        ->assertRedirect(route('resources'))
+        ->assertSessionHas('success', 'Resource deleted successfully.');
+
+    expect(Resource::query()->find($resource->id))->toBeNull();
+    expect(ResourceTitle::query()->where('resource_id', $resource->id)->exists())->toBeFalse();
+    expect(DB::table('license_resource')->count())->toBe(0);
+    expect(License::query()->count())->toBe(1);
 });

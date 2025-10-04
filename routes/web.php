@@ -56,6 +56,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
+    Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
+        ->name('resources.destroy');
+
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
 

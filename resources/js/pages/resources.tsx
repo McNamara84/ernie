@@ -5,10 +5,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { withBasePath } from '@/lib/base-path';
 import { buildCurationQueryFromResource } from '@/lib/curation-query';
-import { useCallback, useMemo } from 'react';
-import { PencilLine } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { PencilLine, Trash2 } from 'lucide-react';
 import { curation as curationRoute } from '@/routes';
 
 interface ResourceTitleType {
@@ -154,6 +155,19 @@ const describeLicense = (license: ResourceLicense): string =>
 const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
     const hasResources = resources.length > 0;
 
+    const [resourcePendingDeletion, setResourcePendingDeletion] = useState<ResourceListItem | null>(null);
+    const [isDeletingResource, setIsDeletingResource] = useState(false);
+
+    const pendingDeletionTitle = useMemo(() => {
+        if (!resourcePendingDeletion) {
+            return null;
+        }
+
+        return getPrimaryTitle(resourcePendingDeletion.titles);
+    }, [resourcePendingDeletion]);
+
+    const isDeleteDialogOpen = resourcePendingDeletion !== null;
+
     const summaryLabel = useMemo(() => {
         if (!hasResources) {
             return 'No resources available yet.';
@@ -189,6 +203,39 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
             router.get(curationRoute().url);
         }
     }, []);
+
+    const closeDeleteDialog = useCallback(() => {
+        if (isDeletingResource) {
+            return;
+        }
+
+        setResourcePendingDeletion(null);
+    }, [isDeletingResource]);
+
+    const handleDeleteResourceRequest = useCallback((resource: ResourceListItem) => {
+        setResourcePendingDeletion(resource);
+    }, []);
+
+    const confirmDeleteResource = useCallback(() => {
+        if (!resourcePendingDeletion) {
+            return;
+        }
+
+        setIsDeletingResource(true);
+
+        router.delete(withBasePath(`/resources/${resourcePendingDeletion.id}`), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setResourcePendingDeletion(null);
+            },
+            onError: () => {
+                // Leave the dialog open to allow retrying the deletion.
+            },
+            onFinish: () => {
+                setIsDeletingResource(false);
+            },
+        });
+    }, [resourcePendingDeletion]);
 
     const isFirstPage = pagination.current_page <= 1;
     const isLastPage = !pagination.has_more;
@@ -273,6 +320,9 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                 const doiUrl = buildDoiUrl(resource.doi);
                                                 const createdAt = formatDateTime(resource.created_at);
                                                 const updatedAt = formatDateTime(resource.updated_at);
+                                                const isResourcePendingDeletion = resourcePendingDeletion?.id === resource.id;
+                                                const isResourceBeingDeleted = isDeletingResource && isResourcePendingDeletion;
+                                                const deleteButtonLabel = `Delete ${primaryTitle} from ERNIE`;
 
                                                 return (
                                                     <tr
@@ -386,18 +436,36 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                             </dl>
                                                         </td>
                                                         <td className="px-6 py-4 align-top">
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => {
-                                                                    void handleEditResource(resource);
-                                                                }}
-                                                                aria-label={`Edit ${primaryTitle} in the curation editor`}
-                                                                title={`Edit ${primaryTitle} in the curation editor`}
-                                                            >
-                                                                <PencilLine aria-hidden="true" className="size-4" />
-                                                            </Button>
+                                                            <div className="flex items-center gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => {
+                                                                        void handleEditResource(resource);
+                                                                    }}
+                                                                    aria-label={`Edit ${primaryTitle} in the curation editor`}
+                                                                    title={`Edit ${primaryTitle} in the curation editor`}
+                                                                    disabled={isResourceBeingDeleted}
+                                                                >
+                                                                    <PencilLine aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="text-destructive hover:text-destructive focus-visible:ring-destructive/20"
+                                                                    onClick={() => {
+                                                                        handleDeleteResourceRequest(resource);
+                                                                    }}
+                                                                    aria-label={deleteButtonLabel}
+                                                                    title={deleteButtonLabel}
+                                                                    disabled={isResourceBeingDeleted}
+                                                                    aria-busy={isResourceBeingDeleted}
+                                                                >
+                                                                    <Trash2 aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
@@ -435,6 +503,58 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                         )}
                     </CardContent>
                 </Card>
+                <Dialog
+                    open={isDeleteDialogOpen}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            closeDeleteDialog();
+                        }
+                    }}
+                >
+                    <DialogContent
+                        className="space-y-4"
+                        aria-busy={isDeletingResource}
+                        aria-live="assertive"
+                    >
+                        <DialogHeader>
+                            <DialogTitle>
+                                Delete “{pendingDeletionTitle ?? 'this resource'}”?
+                            </DialogTitle>
+                            <DialogDescription>
+                                This will permanently remove the resource and its associated metadata from ERNIE. This
+                                action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {resourcePendingDeletion ? (
+                            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+                                <p className="font-medium text-foreground">{pendingDeletionTitle}</p>
+                                <p className="text-muted-foreground">
+                                    DOI: {resourcePendingDeletion.doi ?? 'Not provided'}
+                                </p>
+                            </div>
+                        ) : null}
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={closeDeleteDialog}
+                                disabled={isDeletingResource}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={confirmDeleteResource}
+                                disabled={isDeletingResource}
+                                aria-busy={isDeletingResource}
+                            >
+                                <Trash2 aria-hidden="true" className="size-4" />
+                                Delete resource
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );
