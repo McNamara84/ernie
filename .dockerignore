@@ -18,9 +18,9 @@
 
 # Environment files
 .env
-.env.*
-!.env.production
 .env.backup
+.env.local
+.env.example
 
 # Testing
 /tests

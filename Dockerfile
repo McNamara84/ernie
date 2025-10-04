@@ -62,13 +62,11 @@ RUN composer install \
     --optimize-autoloader \
     --classmap-authoritative
 
-# Install Node dependencies and build (use npm install instead of npm ci for flexibility)
+# Install Node dependencies and build frontend assets
 RUN npm install \
     && NODE_ENV=production npm run build \
-    && rm -f public/hot
-
-# Clean up node_modules to reduce image size
-RUN rm -rf node_modules \
+    && rm -f public/hot \
+    && rm -rf node_modules \
     && npm cache clean --force
 
 EXPOSE 9000
