@@ -14,57 +14,47 @@ vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
-const sanitizeButtonMotionProps = (
-    props: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-        whileHover?: unknown;
+type MotionButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    whileHover?: unknown;
+};
+
+type MotionDivProps = React.HTMLAttributes<HTMLDivElement> & {
+    initial?: unknown;
+    animate?: unknown;
+    exit?: unknown;
+    transition?: unknown;
+};
+
+const sanitizeButtonMotionProps = ({ whileHover, ...rest }: MotionButtonProps) => {
+    if (typeof whileHover !== 'undefined') {
+        // Motion-only prop intentionally dropped for DOM rendering in tests.
     }
-) => {
-    const rest = { ...props } as React.ButtonHTMLAttributes<HTMLButtonElement> & {
-        whileHover?: unknown;
-    };
-    delete rest.whileHover;
+
     return rest;
 };
 
-const sanitizeDivMotionProps = (
-    props: React.HTMLAttributes<HTMLDivElement> & {
-        initial?: unknown;
-        animate?: unknown;
-        exit?: unknown;
-        transition?: unknown;
+const sanitizeDivMotionProps = ({ initial, animate, exit, transition, ...rest }: MotionDivProps) => {
+    if (
+        typeof initial !== 'undefined' ||
+        typeof animate !== 'undefined' ||
+        typeof exit !== 'undefined' ||
+        typeof transition !== 'undefined'
+    ) {
+        // Motion-only props intentionally dropped for DOM rendering in tests.
     }
-) => {
-    const rest = { ...props } as React.HTMLAttributes<HTMLDivElement> & {
-        initial?: unknown;
-        animate?: unknown;
-        exit?: unknown;
-        transition?: unknown;
-    };
-    delete rest.initial;
-    delete rest.animate;
-    delete rest.exit;
-    delete rest.transition;
+
     return rest;
 };
 
 vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     motion: {
-        button: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => {
-            const rest = sanitizeButtonMotionProps(
-                props as React.ButtonHTMLAttributes<HTMLButtonElement> & { whileHover?: unknown }
-            );
+        button: ({ children, ...props }: MotionButtonProps & { children?: React.ReactNode }) => {
+            const rest = sanitizeButtonMotionProps(props);
             return <button {...rest}>{children}</button>;
         },
-        div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
-            const rest = sanitizeDivMotionProps(
-                props as React.HTMLAttributes<HTMLDivElement> & {
-                    initial?: unknown;
-                    animate?: unknown;
-                    exit?: unknown;
-                    transition?: unknown;
-                }
-            );
+        div: ({ children, ...props }: MotionDivProps & { children?: React.ReactNode }) => {
+            const rest = sanitizeDivMotionProps(props);
             return <div {...rest}>{children}</div>;
         },
     },
