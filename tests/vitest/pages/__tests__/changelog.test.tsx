@@ -18,19 +18,23 @@ vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     motion: {
         button: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => {
-            const { whileHover: _whileHover, ...rest } = props as React.ButtonHTMLAttributes<HTMLButtonElement> & {
+            const { whileHover, ...rest } = props as React.ButtonHTMLAttributes<HTMLButtonElement> & {
                 whileHover?: unknown;
             };
+            void whileHover;
             return <button {...rest}>{children}</button>;
         },
         div: ({ children, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
-            const { initial: _initial, animate: _animate, exit: _exit, transition: _transition, ...rest } =
-                props as React.HTMLAttributes<HTMLDivElement> & {
-                    initial?: unknown;
-                    animate?: unknown;
-                    exit?: unknown;
-                    transition?: unknown;
-                };
+            const { initial, animate, exit, transition, ...rest } = props as React.HTMLAttributes<HTMLDivElement> & {
+                initial?: unknown;
+                animate?: unknown;
+                exit?: unknown;
+                transition?: unknown;
+            };
+            void initial;
+            void animate;
+            void exit;
+            void transition;
             return <div {...rest}>{children}</div>;
         },
     },
