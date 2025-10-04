@@ -735,14 +735,13 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                 const idValue = hasId ? String(dataset.id) : 'Not available';
                 const hasIdentifier = typeof dataset.identifier === 'string' && dataset.identifier.trim().length > 0;
                 const identifierValue = hasIdentifier ? dataset.identifier?.trim() ?? '' : 'Not available';
-                const identifierDisplay = identifierValue;
                 const identifierClasses = hasIdentifier
                     ? 'text-sm text-gray-600 dark:text-gray-300 break-all'
                     : 'text-sm text-gray-500 dark:text-gray-300';
 
                 const ariaLabelSegments = [
                     hasId ? `ID ${idValue}` : 'ID not available',
-                    hasIdentifier ? `DOI ${identifierDisplay}` : 'DOI not available',
+                    hasIdentifier ? `DOI ${identifierValue}` : 'DOI not available',
                 ];
 
                 return (
@@ -758,7 +757,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                             {idValue}
                         </span>
                         <span className={identifierClasses}>
-                            {identifierDisplay}
+                            {identifierValue}
                         </span>
                     </div>
                 );
