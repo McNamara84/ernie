@@ -56,8 +56,8 @@ RUN composer install \
     --optimize-autoloader \
     --classmap-authoritative
 
-# Install Node dependencies (production only)
-RUN npm ci --only=production --ignore-scripts
+# Install ALL Node dependencies (including dev deps needed for build)
+RUN npm ci --ignore-scripts
 
 # Now copy the application code (this changes most frequently)
 COPY . /var/www/html
@@ -70,12 +70,12 @@ RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/se
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Build frontend assets
+# Build frontend assets (needs dev dependencies like vite)
 RUN NODE_ENV=production npm run build \
     && rm -f public/hot
 
-# Clean up to reduce image size
-RUN rm -rf node_modules \
+# Clean up to reduce image size - remove dev dependencies after build
+RUN npm prune --production \
     && npm cache clean --force
 
 EXPOSE 9000
