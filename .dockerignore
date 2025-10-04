@@ -1,10 +1,70 @@
+# Dependencies (will be installed in container)
 /node_modules
 /vendor
+
+# Version Control
 /.git
+/.github
+
+# IDE & Editor files
 /.idea
 /.vscode
+/.fleet
+/.zed
+/.nova
+
+# Cache files
 /bootstrap/cache/*.php
+
+# Environment files
 .env
+.env.*
+!.env.production
 .env.backup
+
+# Testing
+/tests
+/coverage
+/playwright-report
+/test-results
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+phpunit.xml
+pest.php
+playwright.config.ts
+vitest.setup.ts
+
+# Documentation & Meta
+*.md
+LICENSE
+.editorconfig
+
+# Build artifacts
+/public/hot
+/public/build
+/public/storage
+
+# Storage (will be mounted as volume)
+/storage/*.key
+/storage/logs
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/views
+
+# Development files
 docker-compose.yml
+docker-compose.dev.yml
 Dockerfile
+.dockerignore
+artisan.example
+
+# CI/CD
+/.phpunit.cache
+.phpunit.result.cache
+clover.xml
+
+# Other
+/docker/mysql
+/docker/mariadb
