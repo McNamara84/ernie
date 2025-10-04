@@ -7,8 +7,10 @@ it('renders the API documentation with Swagger UI', function () {
     get('/api/v1/doc')
         ->assertOk()
         ->assertSee('<title>API Documentation</title>', false)
-        ->assertSee('<main id="main-content">', false)
+        ->assertSee('<main id="main-content"', false)
+        ->assertSee('<h1 class="text-3xl font-bold text-zinc-900 dark:text-zinc-50">', false)
         ->assertSee('id="swagger-ui"', false)
+        ->assertSee('Interactive API documentation', false)
         ->assertDontSee('unpkg.com');
 });
 
