@@ -2,7 +2,6 @@ FROM php:8.4-fpm AS app
 
 WORKDIR /var/www/html
 
-# Install system dependencies (this layer rarely changes)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -19,19 +18,17 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm \
     netcat-traditional \
-    ca-certificates \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates
 
-# Install PHP extensions (this layer rarely changes)
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl \
-    && pecl install redis \
-    && docker-php-ext-enable redis
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy composer from official image
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl
+
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy configuration files (these rarely change)
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
@@ -40,34 +37,23 @@ COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
 RUN update-ca-certificates
 
-# Copy all application files first
-# node_modules and vendor are excluded via .dockerignore
 COPY . /var/www/html
 
 # Copy environment file for build
 COPY .env.production /var/www/html/.env
 
-# Clear any cached config files
+# Clear any cached config files that might reference old packages
 RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/services.php \
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Install PHP dependencies
-RUN composer install \
-    --no-dev \
-    --no-interaction \
-    --no-plugins \
-    --no-scripts \
-    --prefer-dist \
-    --optimize-autoloader \
-    --classmap-authoritative
+# Install dependencies - keeping it simple like the original
+RUN composer install --no-interaction --no-plugins --no-scripts \
+    && composer dump-autoload --optimize --no-scripts
 
-# Install Node dependencies and build frontend assets
 RUN npm install \
     && NODE_ENV=production npm run build \
-    && rm -f public/hot \
-    && rm -rf node_modules \
-    && npm cache clean --force
+    && rm -f public/hot
 
 EXPOSE 9000
 
