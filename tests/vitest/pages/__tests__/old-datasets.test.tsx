@@ -223,7 +223,10 @@ describe('OldDatasets page', () => {
         expect(table).toBeVisible();
 
         const headerRow = within(table).getAllByRole('row')[0];
-        expect(within(headerRow).getByText('Identifier (DOI)')).toBeVisible();
+        const identifierHeader = within(headerRow).getByText('ID');
+        expect(identifierHeader).toBeVisible();
+        const identifierHeaderCell = identifierHeader.closest('th');
+        expect(identifierHeaderCell?.textContent).toContain('Identifier (DOI)');
         const createdHeader = within(headerRow).getByText('Created');
         expect(createdHeader).toBeVisible();
         expect(createdHeader.parentElement?.textContent).toContain('Updated');
@@ -236,15 +239,20 @@ describe('OldDatasets page', () => {
         expect(bodyRows).toHaveLength(2);
 
         const [firstRow, secondRow] = bodyRows;
-        expect(within(firstRow).getByText('1')).toBeVisible();
-        expect(within(firstRow).getByText(/10\.1234\/example-one/)).toBeVisible();
+        const firstRowCells = within(firstRow).getAllByRole('cell');
+        const firstIdentifierCell = firstRowCells[0];
+        const identifierGroup = firstIdentifierCell.querySelector(':scope > div');
+        expect(identifierGroup).not.toBeNull();
+        expect(identifierGroup).toHaveAttribute('aria-label', 'ID 1. DOI 10.1234/example-one');
+        expect(within(firstIdentifierCell).getByText('1')).toBeVisible();
+        expect(within(firstIdentifierCell).getByText(/10\.1234\/example-one/)).toBeVisible();
         expect(within(firstRow).getByText('Under Review')).toBeVisible();
-        const titleCell = within(firstRow).getAllByRole('cell')[2];
+        const titleCell = firstRowCells[1];
         expect(titleCell).toHaveTextContent(baseProps.datasets[0].title);
         expect(titleCell).toHaveClass('whitespace-normal');
         expect(titleCell).toHaveClass('break-words');
 
-        const createdUpdatedCell = within(firstRow).getAllByRole('cell')[5];
+        const createdUpdatedCell = firstRowCells[4];
         const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
         expect(createdUpdatedContainer).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
         expect(createdUpdatedContainer).toHaveClass('text-gray-600');
@@ -260,7 +268,8 @@ describe('OldDatasets page', () => {
         expect(timeElements[0]).toHaveAttribute('dateTime', '2024-01-01T10:00:00.000Z');
         expect(timeElements[1]).toHaveAttribute('dateTime', '2024-01-02T10:00:00.000Z');
 
-        expect(within(secondRow).getByText('2')).toBeVisible();
+        const secondRowIdentifierCell = within(secondRow).getAllByRole('cell')[0];
+        expect(within(secondRowIdentifierCell).getByText('2')).toBeVisible();
         expect(within(secondRow).getByText('Published')).toBeVisible();
 
         // Ensure the infinite scroll sentinel is observed for accessibility
@@ -471,7 +480,7 @@ describe('OldDatasets page', () => {
 
         const table = screen.getByRole('table');
         const bodyRow = within(table).getAllByRole('row')[1];
-        const createdUpdatedCell = within(bodyRow).getAllByRole('cell')[5];
+        const createdUpdatedCell = within(bodyRow).getAllByRole('cell')[4];
         const labelledContainer = createdUpdatedCell.querySelector(':scope > div');
 
         expect(labelledContainer).toHaveAttribute(
@@ -503,7 +512,7 @@ describe('OldDatasets page', () => {
 
         const table = screen.getByRole('table');
         const bodyRow = within(table).getAllByRole('row')[1];
-        const curatorCell = within(bodyRow).getAllByRole('cell')[4];
+        const curatorCell = within(bodyRow).getAllByRole('cell')[3];
 
         expect(curatorCell).toHaveTextContent('N/A');
     });
