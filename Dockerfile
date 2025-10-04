@@ -43,16 +43,18 @@ COPY . /var/www/html
 COPY .env.production /var/www/html/.env
 
 # Clear any cached config files that might reference old packages
-# We use --no-scripts to prevent package:discover from running during install
-# because it might fail if old cached providers exist
 RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/services.php \
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
+# Install dependencies without running scripts first
+# Then manually run package discovery to ensure clean provider registration
 RUN composer install --no-interaction --no-plugins --no-scripts \
-    && composer dump-autoload --no-scripts \
-    && php artisan package:discover --ansi \
-    && npm install \
+    && composer dump-autoload --optimize --no-scripts
+
+# Don't run package:discover during build - let it happen at runtime
+# This prevents build failures if there are any environment-specific issues
+RUN npm install \
     && NODE_ENV=production npm run build \
     && rm -f public/hot
 

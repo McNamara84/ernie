@@ -36,6 +36,14 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if [ -f "$ARTISAN_BIN" ]; then
+    # CRITICAL: Remove any old cached files from the mounted volume
+    # This is necessary because the bootstrap/cache directory is mounted as a volume
+    # and may contain outdated service provider registrations from previous deployments
+    echo "Removing old cached configuration files..."
+    rm -f "$BOOTSTRAP_CACHE"/*.php
+    rm -f "$BOOTSTRAP_CACHE"/packages.php
+    rm -f "$BOOTSTRAP_CACHE"/services.php
+    
     # Clear any cached configuration and routes to prevent issues with old package references
     echo "Clearing application caches..."
     php artisan config:clear --no-interaction 2>/dev/null || true
@@ -43,7 +51,18 @@ if [ -f "$ARTISAN_BIN" ]; then
     php artisan view:clear --no-interaction 2>/dev/null || true
     
     # Rediscover packages to ensure all service providers are up to date
-    php artisan package:discover --ansi --no-interaction || true
+    echo "Discovering packages..."
+    php artisan package:discover --ansi --no-interaction || {
+        echo "ERROR: Package discovery failed!"
+        echo "This usually means there's a cached service provider that no longer exists."
+        echo "Attempting to recover..."
+        rm -rf "$BOOTSTRAP_CACHE"/*.php
+        composer dump-autoload --optimize --no-interaction 2>/dev/null || true
+        php artisan package:discover --ansi --no-interaction || {
+            echo "FATAL: Could not recover from package discovery failure"
+            exit 1
+        }
+    }
     
     # In production, we use environment variables instead of .env file
     if [ "${APP_KEY:-}" = "" ]; then
