@@ -21,6 +21,7 @@ export default defineConfig(() => {
         build: {
             outDir: 'public/build',
             assetsDir: 'assets',
+            sourcemap: false,
             rollupOptions: {
                 output: {
                     manualChunks: undefined
@@ -41,8 +42,12 @@ export default defineConfig(() => {
             },
         },
         optimizeDeps: {
-            exclude: ['swagger-ui-react'],
-            include: ['react', 'react-dom'],
+            include: ['react', 'react-dom', 'swagger-ui-react'],
+        },
+        server: {
+            warmup: {
+                clientFiles: ['resources/js/swagger.tsx'],
+            },
         },
         test: {
             environment: 'jsdom',
