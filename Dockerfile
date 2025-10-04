@@ -43,7 +43,6 @@ RUN update-ca-certificates
 # Copy dependency files first (for better layer caching)
 # This layer only rebuilds when dependencies change
 COPY composer.json composer.lock ./
-COPY package.json package-lock.json* ./
 
 # Install PHP dependencies
 # Using --no-dev for production and optimized autoloader
@@ -56,10 +55,7 @@ RUN composer install \
     --optimize-autoloader \
     --classmap-authoritative
 
-# Install ALL Node dependencies (including dev deps needed for build)
-RUN npm ci --ignore-scripts
-
-# Now copy the application code (this changes most frequently)
+# Copy all application files (node_modules and vendor are excluded via .dockerignore)
 COPY . /var/www/html
 
 # Copy environment file for build
@@ -70,12 +66,11 @@ RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/se
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Build frontend assets (needs dev dependencies like vite)
-RUN NODE_ENV=production npm run build \
-    && rm -f public/hot
-
-# Clean up to reduce image size - remove dev dependencies after build
-RUN npm prune --production \
+# Install Node dependencies and build assets in one layer
+RUN npm ci --ignore-scripts \
+    && NODE_ENV=production npm run build \
+    && rm -f public/hot \
+    && npm prune --production \
     && npm cache clean --force
 
 EXPOSE 9000
