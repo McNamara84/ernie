@@ -37,6 +37,16 @@ COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
 RUN update-ca-certificates
 
+# Copy dependency files FIRST (this layer is cached unless dependencies change)
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --no-plugins --no-scripts \
+    && composer dump-autoload --optimize --no-scripts
+
+# Copy package files and install node dependencies (cached unless package.json changes)
+COPY package.json package-lock.json ./
+RUN npm install
+
+# NOW copy the rest of the application (this changes frequently)
 COPY . /var/www/html
 
 # Copy environment file for build
@@ -47,12 +57,8 @@ RUN rm -rf bootstrap/cache/*.php bootstrap/cache/packages.php bootstrap/cache/se
     && mkdir -p bootstrap/cache \
     && chmod -R 775 bootstrap/cache
 
-# Install dependencies - keeping it simple like the original
-RUN composer install --no-interaction --no-plugins --no-scripts \
-    && composer dump-autoload --optimize --no-scripts
-
-RUN npm install \
-    && NODE_ENV=production npm run build \
+# Build frontend assets
+RUN NODE_ENV=production npm run build \
     && rm -f public/hot
 
 EXPOSE 9000
