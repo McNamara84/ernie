@@ -3,6 +3,7 @@
 /.git
 /.idea
 /.vscode
+/bootstrap/cache/*.php
 .env
 .env.backup
 docker-compose.yml
