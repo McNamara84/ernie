@@ -6,7 +6,7 @@ import { withBasePath } from '@/lib/base-path';
 import { dashboard, settings } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { BookOpen, LayoutGrid, Database, History, Settings, FileText } from 'lucide-react';
+import { BookOpen, LayoutGrid, Database, History, Settings, FileText, Layers } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -24,6 +24,11 @@ const mainNavItems: NavItem[] = [
         title: 'Old Datasets',
         href: withBasePath('/old-datasets'),
         icon: Database,
+    },
+    {
+        title: 'Resources',
+        href: withBasePath('/resources'),
+        icon: Layers,
     },
 ];
 

@@ -48,9 +48,12 @@ Route::get('/changelog', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
         ->name('old-datasets');
-    
+
     Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
         ->name('old-datasets.load-more');
+
+    Route::get('resources', [ResourceController::class, 'index'])
+        ->name('resources');
 
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
