@@ -36,7 +36,10 @@ export default function Changelog() {
                 }
                 return res.json();
             })
-            .then((data: Release[]) => setReleases(data))
+            .then((data: Release[]) => {
+                setReleases(data);
+                setActive(data.length > 0 ? 0 : null);
+            })
             .catch(() => setError('Unable to load changelog.'));
     }, []);
 
@@ -55,18 +58,20 @@ export default function Changelog() {
                 >
                     {releases.map((release, index) => {
                         const isOpen = active === index;
+                        const buttonId = `release-trigger-${index}`;
+                        const panelId = `release-${index}`;
                         const prev = releases[index - 1];
                         const [currMajor, currMinor] = release.version.split('.').map(Number);
-                    const [prevMajor, prevMinor] = prev
-                        ? prev.version.split('.').map(Number)
-                        : [currMajor, currMinor];
-                    const ringColor = (() => {
-                        if (!prev) return 'ring-green-500';
-                        if (currMajor !== prevMajor) return 'ring-green-500';
-                        if (currMinor !== prevMinor) return 'ring-blue-500';
-                        return 'ring-red-500';
-                    })();
-                    return (
+                        const [prevMajor, prevMinor] = prev
+                            ? prev.version.split('.').map(Number)
+                            : [currMajor, currMinor];
+                        const ringColor = (() => {
+                            if (!prev) return 'ring-green-500';
+                            if (currMajor !== prevMajor) return 'ring-green-500';
+                            if (currMinor !== prevMinor) return 'ring-blue-500';
+                            return 'ring-red-500';
+                        })();
+                        return (
                         <li key={release.version} className="relative">
                             <span
                                 aria-hidden="true"
@@ -76,8 +81,11 @@ export default function Changelog() {
                             <motion.button
                                 whileHover={{ scale: 1.01 }}
                                 onClick={() => setActive(isOpen ? null : index)}
+                                id={buttonId}
                                 aria-expanded={isOpen}
+                                aria-controls={panelId}
                                 className="flex w-full items-center rounded p-2 text-left focus:outline-none focus:ring"
+                                type="button"
                             >
                                 <span className="flex-1 font-medium">Version {release.version}</span>
                                 <span className="ml-4 text-sm text-gray-600">{release.date}</span>
@@ -85,12 +93,14 @@ export default function Changelog() {
                             <AnimatePresence initial={false}>
                                 {isOpen && (
                                     <motion.div
-                                        id={`release-${index}`}
+                                        id={panelId}
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
                                         transition={{ duration: 0.3 }}
                                         className="ml-5 mt-2 border-l pl-4 text-sm text-gray-700"
+                                        role="region"
+                                        aria-labelledby={buttonId}
                                     >
                                         {(
                                             Object.keys(sectionConfig) as Array<keyof typeof sectionConfig>

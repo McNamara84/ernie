@@ -4,8 +4,12 @@
     "date": "2025-09-12",
     "features": [
       {
-        "title": "Dashboard",
-        "description": "Added a dashboard for quick access to key features."
+        "title": "Resources workspace",
+        "description": "Browse curated resources with metadata badges, DOI links, pagination details, and quick edit or delete actions."
+      },
+      {
+        "title": "Dashboard overview",
+        "description": "Surface key statistics like the total resource count alongside shortcuts to curation and documentation."
       },
       {
         "title": "Resource Information form group",
@@ -52,6 +56,14 @@
       {
         "title": "Registration closed",
         "description": "Closed registration so only admins can add new users."
+      },
+      {
+        "title": "Resource table layout",
+        "description": "Streamlined the resources list with clearer spacing, responsive formatting, and accessible typography."
+      },
+      {
+        "title": "Deletion confirmations",
+        "description": "Added confirm dialogs and loading states so resource removals stay intentional and transparent."
       }
     ]
   }
