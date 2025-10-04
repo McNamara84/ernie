@@ -36,6 +36,15 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 if [ -f "$ARTISAN_BIN" ]; then
+    # Clear any cached configuration and routes to prevent issues with old package references
+    echo "Clearing application caches..."
+    php artisan config:clear --no-interaction 2>/dev/null || true
+    php artisan route:clear --no-interaction 2>/dev/null || true
+    php artisan view:clear --no-interaction 2>/dev/null || true
+    
+    # Rediscover packages to ensure all service providers are up to date
+    php artisan package:discover --ansi --no-interaction || true
+    
     # In production, we use environment variables instead of .env file
     if [ "${APP_KEY:-}" = "" ]; then
         echo "Info: APP_KEY not set, generating new key..."

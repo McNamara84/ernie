@@ -42,7 +42,10 @@ COPY . /var/www/html
 # Copy environment file for build
 COPY .env.production /var/www/html/.env
 
-RUN composer install --no-interaction --no-plugins --no-scripts \
+# Clear any cached config files that might reference old packages
+RUN rm -rf bootstrap/cache/*.php
+
+RUN composer install --no-interaction --no-plugins \
     && npm install \
     && NODE_ENV=production npm run build \
     && rm -f public/hot
