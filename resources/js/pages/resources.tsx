@@ -312,7 +312,7 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                                 <span className="sr-only">(opens in a new tab)</span>
                                                                             </a>
                                                                         ) : (
-                                                                            <span className="text-muted-foreground">Not provided</span>
+                                                                            <span className="text-muted-foreground">Not registered yet</span>
                                                                         )}
                                                                     </dd>
                                                                 </div>
@@ -446,7 +446,7 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                             <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
                                 <p className="font-medium text-foreground">{pendingDeletionTitle}</p>
                                 <p className="text-muted-foreground">
-                                    DOI: {resourcePendingDeletion.doi ?? 'Not provided'}
+                                    DOI: {resourcePendingDeletion.doi ?? 'Not registered yet'}
                                 </p>
                             </div>
                         ) : null}

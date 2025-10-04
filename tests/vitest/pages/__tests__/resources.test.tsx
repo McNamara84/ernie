@@ -193,6 +193,8 @@ describe('ResourcesPage', () => {
         expect(previousButton).toBeEnabled();
         expect(nextButton).toBeEnabled();
 
+        expect(screen.getByText('Not registered yet')).toBeInTheDocument();
+
         fireEvent.click(nextButton);
         expect(routerMock.get).toHaveBeenCalledWith(
             '/resources',
@@ -206,6 +208,46 @@ describe('ResourcesPage', () => {
             { page: 1, per_page: 25 },
             expect.objectContaining({ preserveScroll: true, preserveState: true }),
         );
+    });
+
+    it('uses a friendly placeholder when a resource has no DOI', () => {
+        const props = {
+            resources: [
+                {
+                    id: 99,
+                    doi: null,
+                    year: 2023,
+                    version: null,
+                    created_at: null,
+                    updated_at: null,
+                    resource_type: null,
+                    language: null,
+                    titles: [{ title: 'Placeholder title', title_type: null }],
+                    licenses: [],
+                },
+            ],
+            pagination: {
+                current_page: 1,
+                last_page: 1,
+                per_page: 25,
+                total: 1,
+                from: 1,
+                to: 1,
+                has_more: false,
+            },
+        } as const;
+
+        render(<ResourcesPage {...props} />);
+
+        const dataRows = screen.getAllByRole('row').slice(1);
+        expect(within(dataRows[0]).getByText('Not registered yet')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /delete placeholder title from ernie/i }));
+
+        const dialog = screen.getByRole('dialog');
+        expect(
+            within(dialog).getByText((content) => content.includes('Not registered yet')),
+        ).toBeInTheDocument();
     });
 
     it('opens the curation editor with prefilled metadata when the action is triggered', async () => {
