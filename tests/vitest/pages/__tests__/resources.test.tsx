@@ -119,7 +119,7 @@ describe('ResourcesPage', () => {
         const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
         expect(within(table).getByText('Primary title')).toBeInTheDocument();
-        expect(within(table).getAllByRole('columnheader').some((header) => header.textContent?.trim() === 'DOI')).toBe(true);
+        expect(within(table).getByRole('columnheader', { name: /id\s+doi/i })).toBeInTheDocument();
         expect(within(table).queryByText(/show additional titles/i)).not.toBeInTheDocument();
         expect(within(table).queryByText('Dataset')).not.toBeInTheDocument();
         expect(within(table).queryByText('English (EN)')).not.toBeInTheDocument();
@@ -130,6 +130,9 @@ describe('ResourcesPage', () => {
         expect(
             within(dataRows[0]).getByRole('link', { name: /10\.9999\/example/ })
         ).toHaveAttribute('href', 'https://doi.org/10.9999/example');
+        expect(
+            within(dataRows[0]).queryByText((content) => content.trim() === 'DOI')
+        ).not.toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /edit primary title in the curation editor/i }),

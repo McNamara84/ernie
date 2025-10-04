@@ -250,7 +250,10 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                     scope="col"
                                                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                                                 >
-                                                    DOI
+                                                    <span className="flex flex-col leading-tight">
+                                                        <span>ID</span>
+                                                        <span>DOI</span>
+                                                    </span>
                                                 </th>
                                                 <th
                                                     scope="col"
@@ -296,7 +299,7 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                     </dd>
                                                                 </div>
                                                                 <div>
-                                                                    <dt className="font-medium text-muted-foreground">DOI</dt>
+                                                                    <dt className="sr-only">Digital Object Identifier</dt>
                                                                     <dd>
                                                                         {doiUrl ? (
                                                                             <a
