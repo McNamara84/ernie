@@ -99,7 +99,7 @@ class ResourceController extends Controller
     public function store(StoreResourceRequest $request): JsonResponse
     {
         try {
-            $resource = DB::transaction(function () use ($request): Resource {
+            [$resource, $isUpdate] = DB::transaction(function () use ($request): array {
                 $validated = $request->validated();
 
                 $languageId = null;
@@ -110,13 +110,26 @@ class ResourceController extends Controller
                         ->value('id');
                 }
 
-                $resource = Resource::query()->create([
+                $attributes = [
                     'doi' => $validated['doi'] ?? null,
                     'year' => $validated['year'],
                     'resource_type_id' => $validated['resourceType'],
                     'version' => $validated['version'] ?? null,
                     'language_id' => $languageId,
-                ]);
+                ];
+
+                $isUpdate = ! empty($validated['resourceId']);
+
+                if ($isUpdate) {
+                    /** @var Resource $resource */
+                    $resource = Resource::query()
+                        ->lockForUpdate()
+                        ->findOrFail($validated['resourceId']);
+
+                    $resource->update($attributes);
+                } else {
+                    $resource = Resource::query()->create($attributes);
+                }
 
                 $titleTypeSlugs = [];
 
@@ -139,6 +152,10 @@ class ResourceController extends Controller
                     ];
                 }
 
+                if ($isUpdate) {
+                    $resource->titles()->delete();
+                }
+
                 $resource->titles()->createMany($resourceTitles);
 
                 /** @var array<int, int> $licenseIds */
@@ -149,7 +166,7 @@ class ResourceController extends Controller
 
                 $resource->licenses()->sync($licenseIds);
 
-                return $resource->load(['titles', 'licenses']);
+                return [$resource->load(['titles', 'licenses']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);
@@ -159,11 +176,14 @@ class ResourceController extends Controller
             ], 500);
         }
 
+        $message = $isUpdate ? 'Successfully updated resource.' : 'Successfully saved resource.';
+        $status = $isUpdate ? 200 : 201;
+
         return response()->json([
-            'message' => 'Successfully saved resource.',
+            'message' => $message,
             'resource' => [
                 'id' => $resource->id,
             ],
-        ], 201);
+        ], $status);
     }
 }

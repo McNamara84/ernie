@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, within, fireEvent } from '@testing-library/react';
+import { render, screen, within, fireEvent, act } from '@testing-library/react';
 import ResourcesPage, {
     buildDoiUrl,
     describeLanguage,
@@ -12,10 +12,30 @@ import ResourcesPage, {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));
+const buildCurationQueryFromResourceMock = vi.hoisted(() => vi.fn());
+const curationRouteMock = vi.hoisted(
+    () =>
+        vi.fn(
+            ({ query }: { query?: Record<string, string> } = {}) => ({
+                url: query
+                    ? `/curation?${new URLSearchParams(query).toString()}`
+                    : '/curation',
+                method: 'get',
+            }),
+        ),
+);
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     router: routerMock,
+}));
+
+vi.mock('@/lib/curation-query', () => ({
+    buildCurationQueryFromResource: buildCurationQueryFromResourceMock,
+}));
+
+vi.mock('@/routes', () => ({
+    curation: curationRouteMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -75,6 +95,9 @@ describe('resource helper utilities', () => {
 describe('ResourcesPage', () => {
     beforeEach(() => {
         routerMock.get.mockClear();
+        buildCurationQueryFromResourceMock.mockReset();
+        buildCurationQueryFromResourceMock.mockResolvedValue({});
+        curationRouteMock.mockClear();
     });
 
     afterEach(() => {
@@ -113,6 +136,11 @@ describe('ResourcesPage', () => {
             },
         } as const;
 
+        buildCurationQueryFromResourceMock.mockResolvedValue({
+            resourceId: '1',
+            doi: '10.9999/example',
+        });
+
         render(<ResourcesPage {...props} />);
 
         expect(screen.getByTestId('app-layout')).toBeInTheDocument();
@@ -127,6 +155,10 @@ describe('ResourcesPage', () => {
         expect(within(table).getByText('Dataset')).toBeInTheDocument();
         expect(within(table).getByText('English (EN)')).toBeInTheDocument();
         expect(within(table).getByText('CC-BY 4.0')).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: /edit primary title in the curation editor/i }),
+        ).toBeInTheDocument();
 
         const timeElements = within(table).getAllByText((_, element) => element?.tagName === 'TIME');
         expect(timeElements[0]).toHaveAttribute('dateTime', '2024-04-01T09:00:00.000Z');
@@ -193,5 +225,58 @@ describe('ResourcesPage', () => {
             { page: 1, per_page: 25 },
             expect.objectContaining({ preserveScroll: true, preserveState: true }),
         );
+    });
+
+    it('opens the curation editor with prefilled metadata when the action is triggered', async () => {
+        const resource = {
+            id: 1,
+            doi: '10.9999/example',
+            year: 2024,
+            version: '2.0',
+            created_at: '2024-04-01T09:00:00Z',
+            updated_at: '2024-04-02T10:00:00Z',
+            resource_type: { name: 'Dataset', slug: 'dataset' },
+            language: { name: 'English', code: 'en' },
+            titles: [
+                { title: 'Primary title', title_type: { name: 'Main', slug: 'main-title' } },
+            ],
+            licenses: [{ name: 'CC-BY 4.0', identifier: 'cc-by-4.0' }],
+        } as const;
+
+        buildCurationQueryFromResourceMock.mockResolvedValue({
+            doi: resource.doi,
+            resourceId: String(resource.id),
+        });
+
+        render(
+            <ResourcesPage
+                resources={[resource as never]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 25,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+            />,
+        );
+
+        const editButton = screen.getByRole('button', {
+            name: /edit primary title in the curation editor/i,
+        });
+
+        await act(async () => {
+            fireEvent.click(editButton);
+            await Promise.resolve();
+        });
+
+        expect(buildCurationQueryFromResourceMock).toHaveBeenCalledWith(resource);
+        expect(curationRouteMock).toHaveBeenCalledWith({
+            query: { doi: resource.doi, resourceId: String(resource.id) },
+        });
+        const lastCall = routerMock.get.mock.calls.at(-1);
+        expect(lastCall?.[0]).toBe('/curation?doi=10.9999%2Fexample&resourceId=1');
     });
 });

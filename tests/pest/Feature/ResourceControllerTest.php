@@ -13,6 +13,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
+use function Pest\Laravel\postJson;
 
 uses(RefreshDatabase::class);
 
@@ -186,4 +187,107 @@ it('caps the per page parameter to protect performance', function (): void {
             ->where('pagination.current_page', 1)
             ->where('pagination.has_more', true)
         );
+});
+
+it('updates an existing resource when the request includes a resource identifier', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $language = Language::query()->create([
+        'code' => 'en',
+        'name' => 'English',
+        'active' => true,
+        'elmo_active' => true,
+    ]);
+
+    $mainTitleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $subtitleType = TitleType::query()->create([
+        'name' => 'Subtitle',
+        'slug' => 'subtitle',
+    ]);
+
+    $originalLicense = License::query()->create([
+        'identifier' => 'cc-by-3',
+        'name' => 'Creative Commons Attribution 3.0',
+    ]);
+
+    $updatedLicense = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $resource = Resource::query()->create([
+        'doi' => '10.1234/original',
+        'year' => 2020,
+        'resource_type_id' => $resourceType->id,
+        'version' => '1.0',
+        'language_id' => $language->id,
+    ]);
+
+    ResourceTitle::query()->create([
+        'resource_id' => $resource->id,
+        'title' => 'Original main title',
+        'title_type_id' => $mainTitleType->id,
+    ]);
+
+    ResourceTitle::query()->create([
+        'resource_id' => $resource->id,
+        'title' => 'Original subtitle',
+        'title_type_id' => $subtitleType->id,
+    ]);
+
+    $resource->licenses()->attach($originalLicense->id);
+
+    $payload = [
+        'resourceId' => $resource->id,
+        'doi' => '10.1234/updated',
+        'year' => 2025,
+        'resourceType' => $resourceType->id,
+        'version' => '2.0',
+        'language' => 'en',
+        'titles' => [
+            ['title' => 'Updated main title', 'titleType' => 'main-title'],
+            ['title' => 'Updated subtitle', 'titleType' => 'subtitle'],
+        ],
+        'licenses' => ['cc-by-4'],
+    ];
+
+    postJson(route('curation.resources.store'), $payload)
+        ->assertStatus(200)
+        ->assertJson([
+            'message' => 'Successfully updated resource.',
+            'resource' => [
+                'id' => $resource->id,
+            ],
+        ]);
+
+    expect(Resource::query()->count())->toBe(1);
+
+    $resource->refresh();
+
+    expect($resource->doi)->toBe('10.1234/updated');
+    expect($resource->year)->toBe(2025);
+    expect($resource->version)->toBe('2.0');
+    expect($resource->language_id)->toBe($language->id);
+
+    $resource->load(['titles.titleType', 'licenses']);
+
+    expect($resource->titles)->toHaveCount(2);
+    expect($resource->titles->pluck('title')->all())->toBe([
+        'Updated main title',
+        'Updated subtitle',
+    ]);
+    expect($resource->titles->pluck('titleType.slug')->all())->toBe([
+        'main-title',
+        'subtitle',
+    ]);
+
+    expect($resource->licenses)->toHaveCount(1);
+    expect($resource->licenses->first()?->identifier)->toBe('cc-by-4');
 });

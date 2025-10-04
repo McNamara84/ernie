@@ -6,7 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { withBasePath } from '@/lib/base-path';
-import { useMemo } from 'react';
+import { buildCurationQueryFromResource } from '@/lib/curation-query';
+import { useCallback, useMemo } from 'react';
+import { PencilLine } from 'lucide-react';
+import { curation as curationRoute } from '@/routes';
 
 interface ResourceTitleType {
     name: string | null;
@@ -177,6 +180,16 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
         );
     };
 
+    const handleEditResource = useCallback(async (resource: ResourceListItem) => {
+        try {
+            const query = await buildCurationQueryFromResource(resource);
+            router.get(curationRoute({ query }).url);
+        } catch (error) {
+            console.error('Unable to open resource in curation.', error);
+            router.get(curationRoute().url);
+        }
+    }, []);
+
     const isFirstPage = pagination.current_page <= 1;
     const isLastPage = !pagination.has_more;
 
@@ -244,6 +257,12 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                     className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                                                 >
                                                     Lifecycle
+                                                </th>
+                                                <th
+                                                    scope="col"
+                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    Actions
                                                 </th>
                                             </tr>
                                         </thead>
@@ -365,6 +384,20 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                     </dd>
                                                                 </div>
                                                             </dl>
+                                                        </td>
+                                                        <td className="px-6 py-4 align-top">
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => {
+                                                                    void handleEditResource(resource);
+                                                                }}
+                                                                aria-label={`Edit ${primaryTitle} in the curation editor`}
+                                                                title={`Edit ${primaryTitle} in the curation editor`}
+                                                            >
+                                                                <PencilLine aria-hidden="true" className="size-4" />
+                                                            </Button>
                                                         </td>
                                                     </tr>
                                                 );
