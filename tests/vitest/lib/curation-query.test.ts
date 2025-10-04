@@ -27,6 +27,7 @@ describe('buildCurationQueryFromResource', () => {
         globalThis.fetch = fetchMock as unknown as typeof fetch;
 
         const query = await buildCurationQueryFromResource({
+            id: 42,
             doi: ' 10.1234/example ',
             year: 2023,
             version: ' 1.0 ',
@@ -43,6 +44,7 @@ describe('buildCurationQueryFromResource', () => {
         });
 
         expect(query).toEqual({
+            resourceId: '42',
             doi: '10.1234/example',
             year: '2023',
             version: '1.0',
@@ -57,6 +59,31 @@ describe('buildCurationQueryFromResource', () => {
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(fetchMock).toHaveBeenCalledWith('/api/v1/resource-types/ernie');
+    });
+
+    it('omits the resource identifier when unavailable or invalid', async () => {
+        const fetchMock = vi.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve([{ id: 2, name: 'Dataset' }]),
+            } as unknown as Response),
+        );
+
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const query = await buildCurationQueryFromResource({
+            id: undefined,
+            doi: null,
+            year: 2024,
+            version: null,
+            resource_type: { name: 'Dataset', slug: 'dataset' },
+            language: { code: '', name: '' },
+            titles: [{ title: 'Title', title_type: { slug: 'main-title' } }],
+            licenses: [],
+        });
+
+        expect(query).not.toHaveProperty('resourceId');
+        expect(query).toMatchObject({ year: '2024' });
     });
 
     it('reuses cached resource type data across multiple invocations', async () => {

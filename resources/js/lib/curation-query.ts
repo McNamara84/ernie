@@ -27,6 +27,7 @@ interface ResourceTypeSummary {
 }
 
 export interface ResourceForCuration {
+    id?: number;
     doi: string | null;
     year: number;
     version: string | null;
@@ -145,6 +146,10 @@ export const buildCurationQueryFromResource = async (
     resource: ResourceForCuration,
 ): Promise<Record<string, string>> => {
     const query: Record<string, string> = {};
+
+    if (Number.isInteger(resource.id)) {
+        query.resourceId = String(resource.id);
+    }
 
     const doi = resource.doi?.trim();
 

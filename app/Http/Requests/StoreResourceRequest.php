@@ -20,6 +20,7 @@ class StoreResourceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'resourceId' => ['nullable', 'integer', Rule::exists('resources', 'id')],
             'doi' => ['nullable', 'string', 'max:255'],
             'year' => ['required', 'integer', 'between:1000,9999'],
             'resourceType' => ['required', 'integer', Rule::exists('resource_types', 'id')],
@@ -74,6 +75,7 @@ class StoreResourceRequest extends FormRequest
             'language' => $this->filled('language') ? trim((string) $this->input('language')) : null,
             'titles' => $titles,
             'licenses' => $licenses,
+            'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
         ]);
     }
 

@@ -136,7 +136,10 @@ describe('ResourcesPage', () => {
             },
         } as const;
 
-        buildCurationQueryFromResourceMock.mockResolvedValue({ doi: '10.9999/example' });
+        buildCurationQueryFromResourceMock.mockResolvedValue({
+            resourceId: '1',
+            doi: '10.9999/example',
+        });
 
         render(<ResourcesPage {...props} />);
 
@@ -240,7 +243,10 @@ describe('ResourcesPage', () => {
             licenses: [{ name: 'CC-BY 4.0', identifier: 'cc-by-4.0' }],
         } as const;
 
-        buildCurationQueryFromResourceMock.mockResolvedValue({ doi: resource.doi });
+        buildCurationQueryFromResourceMock.mockResolvedValue({
+            doi: resource.doi,
+            resourceId: String(resource.id),
+        });
 
         render(
             <ResourcesPage
@@ -267,8 +273,10 @@ describe('ResourcesPage', () => {
         });
 
         expect(buildCurationQueryFromResourceMock).toHaveBeenCalledWith(resource);
-        expect(curationRouteMock).toHaveBeenCalledWith({ query: { doi: resource.doi } });
+        expect(curationRouteMock).toHaveBeenCalledWith({
+            query: { doi: resource.doi, resourceId: String(resource.id) },
+        });
         const lastCall = routerMock.get.mock.calls.at(-1);
-        expect(lastCall?.[0]).toBe('/curation?doi=10.9999%2Fexample');
+        expect(lastCall?.[0]).toBe('/curation?doi=10.9999%2Fexample&resourceId=1');
     });
 });

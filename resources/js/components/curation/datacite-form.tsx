@@ -56,6 +56,7 @@ interface DataCiteFormProps {
     initialResourceType?: string;
     initialTitles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
+    initialResourceId?: string;
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -91,6 +92,7 @@ export default function DataCiteForm({
     initialResourceType = '',
     initialTitles = [],
     initialLicenses = [],
+    initialResourceId,
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -204,6 +206,22 @@ export default function DataCiteForm({
 
     const saveUrl = useMemo(() => withBasePath('/curation/resources'), []);
 
+    const resolvedResourceId = useMemo(() => {
+        if (!initialResourceId) {
+            return null;
+        }
+
+        const trimmed = initialResourceId.trim();
+
+        if (!trimmed) {
+            return null;
+        }
+
+        const parsed = Number(trimmed);
+
+        return Number.isFinite(parsed) ? parsed : null;
+    }, [initialResourceId]);
+
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -211,7 +229,16 @@ export default function DataCiteForm({
         setErrorMessage(null);
         setValidationErrors([]);
 
-        const payload = {
+        const payload: {
+            doi: string | null;
+            year: number | null;
+            resourceType: number | null;
+            version: string | null;
+            language: string;
+            titles: { title: string; titleType: string }[];
+            licenses: string[];
+            resourceId?: number;
+        } = {
             doi: form.doi?.trim() || null,
             year: form.year ? Number(form.year) : null,
             resourceType: form.resourceType ? Number(form.resourceType) : null,
@@ -225,6 +252,10 @@ export default function DataCiteForm({
                 .map((entry) => entry.license)
                 .filter((license): license is string => Boolean(license)),
         };
+
+        if (resolvedResourceId !== null) {
+            payload.resourceId = resolvedResourceId;
+        }
 
         try {
             const csrfHeaders = buildCsrfHeaders();

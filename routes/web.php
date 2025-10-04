@@ -82,6 +82,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'version' => $request->query('version'),
             'language' => $request->query('language'),
             'resourceType' => $request->query('resourceType'),
+            'resourceId' => $request->query('resourceId'),
             'titles' => $request->query('titles', []),
             'initialLicenses' => $request->query('licenses', []),
         ]);

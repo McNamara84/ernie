@@ -694,6 +694,52 @@ describe('DataCiteForm', () => {
         expect(screen.getByText('Resource stored!')).toBeInTheDocument();
     });
 
+    it('includes the resource identifier when updating an existing dataset', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const responseData = { message: 'Resource updated!' };
+        const jsonMock = vi.fn().mockResolvedValue(responseData);
+        const response = {
+            ok: true,
+            status: 200,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialYear="2025"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Existing Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                initialResourceId=" 7 "
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await user.click(saveButton);
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        const body = JSON.parse(fetchArgs.body as string);
+
+        expect(body).toMatchObject({
+            resourceId: 7,
+            year: 2025,
+            resourceType: 1,
+            licenses: ['MIT'],
+        });
+
+        await screen.findByRole('dialog', { name: /successfully saved resource/i });
+        expect(screen.getByText('Resource updated!')).toBeInTheDocument();
+    });
+
     it('falls back to XSRF cookie when meta token is absent', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         document.head.innerHTML = '';
