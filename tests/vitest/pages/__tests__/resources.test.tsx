@@ -1,14 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen, within, fireEvent, act } from '@testing-library/react';
-import ResourcesPage, {
-    buildDoiUrl,
-    describeLanguage,
-    describeLicense,
-    describeResourceType,
-    formatDateTime,
-    getAdditionalTitles,
-    getPrimaryTitle,
-} from '@/pages/resources';
+import ResourcesPage, { buildDoiUrl, formatDateTime, getPrimaryTitle } from '@/pages/resources';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn() }));
@@ -54,18 +46,6 @@ describe('resource helper utilities', () => {
         expect(getPrimaryTitle([] as never)).toBe('Untitled resource');
     });
 
-    it('derives additional titles by excluding the primary entry', () => {
-        const titles = [
-            { title: 'Main', title_type: { name: 'Main', slug: 'main-title' } },
-            { title: 'Alt', title_type: { name: 'Alternate', slug: 'alternative-title' } },
-        ];
-
-        const extras = getAdditionalTitles(titles as never);
-        expect(extras).toHaveLength(1);
-        expect(extras[0]?.title).toBe('Alt');
-        expect(getAdditionalTitles([{ title: 'Single', title_type: null }] as never)).toHaveLength(0);
-    });
-
     it('builds DOI URLs safely', () => {
         expect(buildDoiUrl('10.1234/abc')).toBe('https://doi.org/10.1234/abc');
         expect(buildDoiUrl('  ')).toBeNull();
@@ -77,18 +57,6 @@ describe('resource helper utilities', () => {
         expect(result.iso).toBe('2024-01-01T10:00:00.000Z');
         expect(result.label).toBeTruthy();
         expect(formatDateTime(null).label).toBe('Not available');
-    });
-
-    it('describes metadata fields for accessibility', () => {
-        expect(describeLanguage({ name: 'English', code: 'en' })).toBe('English (EN)');
-        expect(describeLanguage({ name: null, code: 'fr' })).toBe('fr');
-        expect(describeLanguage(null)).toBe('Not specified');
-
-        expect(describeResourceType({ name: 'Dataset', slug: 'dataset' })).toBe('Dataset');
-        expect(describeResourceType(null)).toBe('Not classified');
-
-        expect(describeLicense({ name: 'CC-BY', identifier: 'cc-by' })).toBe('CC-BY');
-        expect(describeLicense({ name: null, identifier: 'cc0' })).toBe('cc0');
     });
 });
 
@@ -105,7 +73,7 @@ describe('ResourcesPage', () => {
         document.head.innerHTML = '';
     });
 
-    it('renders a table with resource information and accessibility enhancements', () => {
+    it('renders a table with the streamlined dataset overview', () => {
         const props = {
             resources: [
                 {
@@ -150,12 +118,24 @@ describe('ResourcesPage', () => {
 
         const table = screen.getByRole('table');
         expect(table).toBeInTheDocument();
+        const columnDefinitions = table.querySelectorAll('colgroup col');
+        expect(columnDefinitions.length).toBeGreaterThan(0);
+        expect(columnDefinitions[0]).toHaveClass('w-[18rem]');
         expect(within(table).getByText('Primary title')).toBeInTheDocument();
-        const summary = within(table).getByText(/show additional titles/i);
-        expect(summary.tagName).toBe('SUMMARY');
-        expect(within(table).getByText('Dataset')).toBeInTheDocument();
-        expect(within(table).getByText('English (EN)')).toBeInTheDocument();
-        expect(within(table).getByText('CC-BY 4.0')).toBeInTheDocument();
+        expect(within(table).getByRole('columnheader', { name: /id\s+doi/i })).toBeInTheDocument();
+        expect(within(table).queryByText(/show additional titles/i)).not.toBeInTheDocument();
+        expect(within(table).queryByText('Dataset')).not.toBeInTheDocument();
+        expect(within(table).queryByText('English (EN)')).not.toBeInTheDocument();
+        expect(within(table).queryByText('CC-BY 4.0')).not.toBeInTheDocument();
+        expect(within(table).queryByText(/version/i)).not.toBeInTheDocument();
+        const dataRows = within(table).getAllByRole('row').slice(1);
+        expect(within(dataRows[0]).getByText('1')).toBeInTheDocument();
+        expect(
+            within(dataRows[0]).getByRole('link', { name: /10\.9999\/example/ })
+        ).toHaveAttribute('href', 'https://doi.org/10.9999/example');
+        expect(
+            within(dataRows[0]).queryByText((content) => content.trim() === 'DOI')
+        ).not.toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /edit primary title in the curation editor/i }),
@@ -216,6 +196,8 @@ describe('ResourcesPage', () => {
         expect(previousButton).toBeEnabled();
         expect(nextButton).toBeEnabled();
 
+        expect(screen.getByText('Not registered yet')).toBeInTheDocument();
+
         fireEvent.click(nextButton);
         expect(routerMock.get).toHaveBeenCalledWith(
             '/resources',
@@ -229,6 +211,46 @@ describe('ResourcesPage', () => {
             { page: 1, per_page: 25 },
             expect.objectContaining({ preserveScroll: true, preserveState: true }),
         );
+    });
+
+    it('uses a friendly placeholder when a resource has no DOI', () => {
+        const props = {
+            resources: [
+                {
+                    id: 99,
+                    doi: null,
+                    year: 2023,
+                    version: null,
+                    created_at: null,
+                    updated_at: null,
+                    resource_type: null,
+                    language: null,
+                    titles: [{ title: 'Placeholder title', title_type: null }],
+                    licenses: [],
+                },
+            ],
+            pagination: {
+                current_page: 1,
+                last_page: 1,
+                per_page: 25,
+                total: 1,
+                from: 1,
+                to: 1,
+                has_more: false,
+            },
+        } as const;
+
+        render(<ResourcesPage {...props} />);
+
+        const dataRows = screen.getAllByRole('row').slice(1);
+        expect(within(dataRows[0]).getByText('Not registered yet')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /delete placeholder title from ernie/i }));
+
+        const dialog = screen.getByRole('dialog');
+        expect(
+            within(dialog).getByText((content) => content.includes('Not registered yet')),
+        ).toBeInTheDocument();
     });
 
     it('opens the curation editor with prefilled metadata when the action is triggered', async () => {
