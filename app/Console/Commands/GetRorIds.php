@@ -216,6 +216,10 @@ class GetRorIds extends Command
         $this->info('Loading JSON data into memory...');
         $jsonContent = file_get_contents($sourcePath);
         
+        if ($jsonContent === false) {
+            throw new \RuntimeException("Failed to read file: {$sourcePath}");
+        }
+        
         $this->info('Parsing JSON...');
         $organizations = json_decode($jsonContent, true, 512, JSON_THROW_ON_ERROR);
         
@@ -270,6 +274,12 @@ class GetRorIds extends Command
         return $count;
     }
 
+    /**
+     * Process a single ROR organization record.
+     *
+     * @param array<string, mixed> $decoded The organization data array
+     * @return array{prefLabel: string, rorId: string, otherLabel: array<int, string>}|null
+     */
     private function processOrganization(array $decoded): ?array
     {
         // Try schema v2 structure first
