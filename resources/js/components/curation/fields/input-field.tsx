@@ -48,7 +48,6 @@ export function InputField({
                 id={id}
                 type={type}
                 required={required}
-                aria-label={label}
                 aria-labelledby={labelId}
                 className={inputClassName}
                 {...props}
