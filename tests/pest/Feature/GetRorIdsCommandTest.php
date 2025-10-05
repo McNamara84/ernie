@@ -5,23 +5,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 it('fetches and stores ROR affiliation suggestions', function () {
-    $metadata = [
-        'hits' => [
-            'hits' => [
-                [
-                    'files' => [
-                        [
-                            'key' => 'ror-data-latest.jsonl.gz',
-                            'links' => [
-                                'download' => 'https://example.org/ror-data-latest.jsonl.gz',
-                            ],
-                        ],
-                    ],
-                ],
-            ],
-        ],
-    ];
-
     $organizations = [
         [
             'id' => 'https://ror.org/123456789',
@@ -49,15 +32,37 @@ it('fetches and stores ROR affiliation suggestions', function () {
         ],
     ];
 
-    $jsonLines = implode("\n", array_map(
-        static fn (array $row): string => json_encode($row, JSON_THROW_ON_ERROR),
-        $organizations,
-    ));
-    $gzData = gzencode($jsonLines);
+    // Create a ZIP file with JSON content
+    $jsonContent = json_encode($organizations, JSON_THROW_ON_ERROR);
+    $tempZipPath = tempnam(sys_get_temp_dir(), 'ror-test-');
+    $zip = new ZipArchive;
+    $zip->open($tempZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    $zip->addFromString('v1.0-2024-01-01-ror-data.json', $jsonContent);
+    $zip->close();
+
+    $zipData = file_get_contents($tempZipPath);
+    unlink($tempZipPath);
+
+    $metadata = [
+        'hits' => [
+            'hits' => [
+                [
+                    'files' => [
+                        [
+                            'key' => 'v1.0-2024-01-01-ror-data.zip',
+                            'links' => [
+                                'self' => 'https://example.org/ror-data-latest.zip',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ],
+    ];
 
     Http::fake([
         'https://zenodo.org/api/records*' => Http::response($metadata, 200),
-        'https://example.org/ror-data-latest.jsonl.gz' => Http::response($gzData, 200),
+        'https://example.org/ror-data-latest.zip' => Http::response($zipData, 200),
     ]);
 
     $outputPath = storage_path('app/testing/'.Str::random(8).'-ror-affiliations.json');
@@ -72,11 +77,9 @@ it('fetches and stores ROR affiliation suggestions', function () {
 
     expect($decoded)->toBe([
         [
-            'value' => 'Example University',
+            'prefLabel' => 'Example University',
             'rorId' => 'https://ror.org/123456789',
-            'country' => 'Germany',
-            'countryCode' => 'DE',
-            'searchTerms' => [
+            'otherLabel' => [
                 'Example University',
                 'University of Examples',
                 'EU',
@@ -84,11 +87,9 @@ it('fetches and stores ROR affiliation suggestions', function () {
             ],
         ],
         [
-            'value' => 'Sample Institute',
+            'prefLabel' => 'Sample Institute',
             'rorId' => 'https://ror.org/987654321',
-            'country' => 'Switzerland',
-            'countryCode' => 'CH',
-            'searchTerms' => ['Sample Institute'],
+            'otherLabel' => ['Sample Institute'],
         ],
     ]);
 

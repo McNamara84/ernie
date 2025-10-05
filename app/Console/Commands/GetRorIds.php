@@ -35,6 +35,9 @@ class GetRorIds extends Command
      */
     public function handle(): int
     {
+        // Increase memory limit for processing large ROR dump
+        ini_set('memory_limit', '2G');
+
         $this->info('Fetching latest ROR data dump metadata…');
 
         $metadataResponse = Http::retry(3, 500, throw: false)
@@ -74,7 +77,7 @@ class GetRorIds extends Command
 
             $key = Arr::get($file, 'key');
 
-            if (is_string($key) && Str::endsWith($key, ['.jsonl.gz', '.json.gz'])) {
+            if (is_string($key) && Str::endsWith($key, ['.zip', '.jsonl.gz', '.json.gz'])) {
                 $dataFile = $file;
 
                 break;
@@ -82,12 +85,12 @@ class GetRorIds extends Command
         }
 
         if (!$dataFile) {
-            $this->error('Unable to locate a JSONL data dump within the ROR record.');
+            $this->error('Unable to locate a data dump within the ROR record.');
 
             return self::FAILURE;
         }
 
-        $downloadUrl = Arr::get($dataFile, 'links.download') ?? Arr::get($dataFile, 'links.self');
+        $downloadUrl = Arr::get($dataFile, 'links.self');
 
         if (!is_string($downloadUrl) || $downloadUrl === '') {
             $this->error('The ROR data dump is missing a download URL.');
@@ -122,7 +125,14 @@ class GetRorIds extends Command
         }
 
         try {
-            $saved = $this->convertDumpToSuggestions($temporaryPath, $targetPath);
+            $fileKey = Arr::get($dataFile, 'key', '');
+            $isZip = is_string($fileKey) && Str::endsWith($fileKey, '.zip');
+
+            if ($isZip) {
+                $saved = $this->processZipDump($temporaryPath, $targetPath);
+            } else {
+                $saved = $this->convertDumpToSuggestions($temporaryPath, $targetPath);
+            }
         } catch (Throwable $exception) {
             File::delete($temporaryPath);
             $this->error(sprintf('Failed to process ROR data dump: %s', $exception->getMessage()));
@@ -141,6 +151,241 @@ class GetRorIds extends Command
         $this->info(sprintf('Saved %d ROR affiliation entries to %s', $saved, $targetPath));
 
         return self::SUCCESS;
+    }
+
+    private function processZipDump(string $zipPath, string $targetPath): int
+    {
+        $zip = new \ZipArchive;
+
+        if ($zip->open($zipPath) !== true) {
+            throw new \RuntimeException('Unable to open the downloaded ROR data archive.');
+        }
+
+        // Find the JSON file in the ZIP (prefer schema v1 for smaller size)
+        $jsonFile = null;
+
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $filename = $zip->getNameIndex($i);
+
+            if (is_string($filename) && Str::endsWith($filename, '.json')) {
+                // Prefer schema v1 files (without _schema_v2 suffix) for smaller footprint
+                if (!Str::contains($filename, 'schema_v2')) {
+                    $jsonFile = $filename;
+
+                    break;
+                }
+
+                // Fallback to v2 files
+                if ($jsonFile === null) {
+                    $jsonFile = $filename;
+                }
+            }
+        }
+
+        if ($jsonFile === null) {
+            $zip->close();
+
+            throw new \RuntimeException('No JSON file found in the ROR data archive.');
+        }
+
+        $this->info(sprintf('Processing %s from archive…', $jsonFile));
+
+        // Extract JSON content
+        $jsonContent = $zip->getFromName($jsonFile);
+        $zip->close();
+
+        if ($jsonContent === false) {
+            throw new \RuntimeException(sprintf('Failed to extract %s from archive.', $jsonFile));
+        }
+
+        // Create temporary file for JSON content
+        $tempJsonPath = (string) tempnam(sys_get_temp_dir(), 'ror-json-');
+        File::put($tempJsonPath, $jsonContent);
+
+        try {
+            $count = $this->convertJsonToSuggestions($tempJsonPath, $targetPath);
+        } finally {
+            File::delete($tempJsonPath);
+        }
+
+        return $count;
+    }
+
+    private function convertJsonToSuggestions(string $sourcePath, string $targetPath): int
+    {
+        $this->info('Loading JSON data into memory...');
+        $jsonContent = file_get_contents($sourcePath);
+        
+        $this->info('Parsing JSON...');
+        $organizations = json_decode($jsonContent, true, 512, JSON_THROW_ON_ERROR);
+        
+        // Free memory
+        unset($jsonContent);
+        
+        if (!is_array($organizations)) {
+            throw new \RuntimeException('Invalid JSON structure in ROR data file.');
+        }
+        
+        $this->info(sprintf('Found %d organizations, processing...', count($organizations)));
+
+        $outputHandle = fopen($targetPath, 'wb');
+
+        if ($outputHandle === false) {
+            throw new \RuntimeException(sprintf('Unable to open output path [%s] for writing.', $targetPath));
+        }
+
+        fwrite($outputHandle, '[');
+
+        $first = true;
+        $count = 0;
+
+        foreach ($organizations as $decoded) {
+            if (!is_array($decoded)) {
+                continue;
+            }
+
+            $entry = $this->processOrganization($decoded);
+
+            if ($entry !== null) {
+                $encoded = json_encode($entry, JSON_THROW_ON_ERROR);
+
+                if (!$first) {
+                    fwrite($outputHandle, ',');
+                } else {
+                    $first = false;
+                }
+
+                fwrite($outputHandle, $encoded);
+                $count++;
+                
+                if ($count % 10000 === 0) {
+                    $this->info(sprintf('Processed %d organizations...', $count));
+                }
+            }
+        }
+
+        fwrite($outputHandle, ']');
+        fclose($outputHandle);
+
+        return $count;
+    }
+
+    private function processOrganization(array $decoded): ?array
+    {
+        // Try schema v2 structure first
+        $identifier = Arr::get($decoded, 'id');
+
+        if (!is_string($identifier) || $identifier === '') {
+            return null;
+        }
+
+        // Get the display name from the names array (schema v2)
+        $names = Arr::get($decoded, 'names', []);
+        $preferredName = null;
+
+        if (is_array($names)) {
+            foreach ($names as $nameEntry) {
+                if (!is_array($nameEntry)) {
+                    continue;
+                }
+
+                $types = Arr::get($nameEntry, 'types', []);
+
+                if (is_array($types) && in_array('ror_display', $types, true)) {
+                    $preferredName = Arr::get($nameEntry, 'value');
+
+                    break;
+                }
+            }
+
+            // Fallback to label type
+            if ($preferredName === null) {
+                foreach ($names as $nameEntry) {
+                    if (!is_array($nameEntry)) {
+                        continue;
+                    }
+
+                    $types = Arr::get($nameEntry, 'types', []);
+
+                    if (is_array($types) && in_array('label', $types, true)) {
+                        $preferredName = Arr::get($nameEntry, 'value');
+
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fallback to v1 structure
+        if ($preferredName === null || $preferredName === '') {
+            $preferredName = Arr::get($decoded, 'name');
+        }
+
+        if (!is_string($preferredName) || $preferredName === '') {
+            return null;
+        }
+
+        // Collect all search terms from names
+        $searchTerms = [$preferredName];
+
+        if (is_array($names)) {
+            foreach ($names as $nameEntry) {
+                if (!is_array($nameEntry)) {
+                    continue;
+                }
+
+                $value = Arr::get($nameEntry, 'value');
+
+                if (is_string($value) && $value !== '' && $value !== $preferredName) {
+                    $searchTerms[] = $value;
+                }
+            }
+        }
+
+        // Fallback to v1 aliases, acronyms, labels
+        $aliases = Arr::get($decoded, 'aliases', []);
+
+        if (is_array($aliases)) {
+            $aliases = array_values(array_filter(
+                array_map('strval', $aliases),
+                fn (string $alias) => $alias !== ''
+            ));
+            $searchTerms = array_merge($searchTerms, $aliases);
+        }
+
+        $acronyms = Arr::get($decoded, 'acronyms', []);
+
+        if (is_array($acronyms)) {
+            $acronyms = array_values(array_filter(
+                array_map('strval', $acronyms),
+                fn (string $acronym) => $acronym !== ''
+            ));
+            $searchTerms = array_merge($searchTerms, $acronyms);
+        }
+
+        $rawLabels = Arr::get($decoded, 'labels', []);
+
+        if (is_array($rawLabels)) {
+            foreach ($rawLabels as $label) {
+                if (!is_array($label)) {
+                    continue;
+                }
+
+                $labelValue = Arr::get($label, 'label');
+
+                if (is_string($labelValue) && $labelValue !== '') {
+                    $searchTerms[] = $labelValue;
+                }
+            }
+        }
+
+        $searchTerms = array_values(array_unique($searchTerms));
+
+        return [
+            'prefLabel' => $preferredName,
+            'rorId' => $identifier,
+            'otherLabel' => $searchTerms,
+        ];
     }
 
     private function convertDumpToSuggestions(string $sourcePath, string $targetPath): int
