@@ -10,10 +10,12 @@ vi.mock('@yaireo/tagify', () => {
     type ChangeHandler = (event: CustomEvent) => void;
 
     type NormalisedTag = { value: string; rorId: string | null };
+    
+    type MockTagifyValue = { value: string; rorId: string | null; data: { rorId: string | null } };
 
     class MockTagify {
         public DOM: { scope: HTMLElement; input: HTMLInputElement };
-        public value: Array<{ value: string; rorId: string | null; data: { rorId: string | null } }> = [];
+        public value: MockTagifyValue[] = [];
         private inputElement: HTMLInputElement;
         private handlers = new Map<string, Set<ChangeHandler>>();
 
@@ -56,6 +58,7 @@ vi.mock('@yaireo/tagify', () => {
         }
 
         removeAllTags() {
+            this.value = [];
             this.renderTags([]);
             this.emitChange('');
         }
