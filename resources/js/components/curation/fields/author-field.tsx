@@ -107,7 +107,8 @@ export function AuthorField({
                         { value: 'person', label: 'Person' },
                         { value: 'institution', label: 'Institution' },
                     ]}
-                    className="md:col-span-3"
+                    className="md:col-span-3 md:max-w-[12rem]"
+                    containerProps={{ 'data-testid': `author-${index}-type-field` }}
                     required
                 />
 
@@ -121,7 +122,8 @@ export function AuthorField({
                                 onPersonFieldChange('orcid', event.target.value)
                             }
                             placeholder="0000-0000-0000-0000"
-                            className="md:col-span-3"
+                            className="md:col-span-3 md:max-w-[20ch]"
+                            containerProps={{ 'data-testid': `author-${index}-orcid-field` }}
                             inputMode="numeric"
                             pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
                             aria-describedby={`${author.id}-orcid-help`}
@@ -151,7 +153,10 @@ export function AuthorField({
                             }
                             className="md:col-span-4"
                         />
-                        <div className="md:col-span-4 flex items-center gap-2 pt-6">
+                        <div
+                            className="md:col-span-4 flex items-start gap-2 md:items-center"
+                            data-testid={`author-${index}-contact-field`}
+                        >
                             <Checkbox
                                 id={`${author.id}-contact`}
                                 checked={author.isContact}
@@ -188,7 +193,7 @@ export function AuthorField({
                                 <InputField
                                     id={`${author.id}-website`}
                                     type="url"
-                                    label="Website (optional)"
+                                    label="Website"
                                     value={author.website}
                                     onChange={(event) =>
                                         onPersonFieldChange('website', event.target.value)

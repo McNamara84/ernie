@@ -286,6 +286,31 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
     });
 
+    it('applies responsive layout for author inputs', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureAuthorsOpen(user);
+
+        expect(screen.getByTestId('author-0-type-field')).toHaveClass(
+            'md:max-w-[12rem]'
+        );
+        expect(screen.getByTestId('author-0-orcid-field')).toHaveClass(
+            'md:max-w-[20ch]'
+        );
+        expect(screen.getByTestId('author-0-contact-field')).toHaveClass(
+            'md:col-span-4'
+        );
+        expect(screen.getByTestId('author-0-contact-field')).not.toHaveClass('pt-6');
+    });
+
     it('requires an email address when a person author is marked as contact', async () => {
         render(
             <DataCiteForm
@@ -324,6 +349,8 @@ describe('DataCiteForm', () => {
 
         const emailInput = await screen.findByLabelText('Email address');
         expect(emailInput).toBeRequired();
+        expect(screen.getByLabelText('Website')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Website (optional)')).not.toBeInTheDocument();
         expect(saveButton).toBeDisabled();
 
         await user.type(emailInput, 'contact@example.org');

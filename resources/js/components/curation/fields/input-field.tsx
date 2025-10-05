@@ -1,13 +1,14 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { type InputHTMLAttributes } from 'react';
+import { type HTMLAttributes, type InputHTMLAttributes } from 'react';
 
 interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     id: string;
     label: string;
     hideLabel?: boolean;
     className?: string;
+    containerProps?: HTMLAttributes<HTMLDivElement>;
 }
 
 export function InputField({
@@ -17,12 +18,18 @@ export function InputField({
     type = 'text',
     className,
     required,
+    containerProps,
     ...props
 }: InputFieldProps) {
     const labelId = `${id}-label`;
+    const mergedClassName = cn(
+        'flex flex-col gap-2',
+        containerProps?.className,
+        className,
+    );
 
     return (
-        <div className={cn('flex flex-col gap-2', className)}>
+        <div {...containerProps} className={mergedClassName}>
             <Label
                 id={labelId}
                 htmlFor={id}

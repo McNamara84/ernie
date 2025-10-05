@@ -7,6 +7,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { type HTMLAttributes } from 'react';
 
 interface Option {
     value: string;
@@ -23,6 +24,7 @@ interface SelectFieldProps {
     className?: string;
     hideLabel?: boolean;
     required?: boolean;
+    containerProps?: HTMLAttributes<HTMLDivElement>;
 }
 
 export function SelectField({
@@ -35,11 +37,17 @@ export function SelectField({
     className,
     hideLabel = false,
     required = false,
+    containerProps,
 }: SelectFieldProps) {
     const labelId = `${id}-label`;
+    const mergedClassName = cn(
+        'flex flex-col gap-2',
+        containerProps?.className,
+        className,
+    );
 
     return (
-        <div className={cn('flex flex-col gap-2', className)}>
+        <div {...containerProps} className={mergedClassName}>
             <Label
                 id={labelId}
                 htmlFor={id}
