@@ -474,7 +474,7 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
 
         // Set first author as contact person
-        const firstContactCheckbox = screen.getAllByLabelText('Contact person')[0];
+        const firstContactCheckbox = screen.getAllByRole('checkbox', { name: /Contact person/i })[0];
         await user.click(firstContactCheckbox);
 
         await waitFor(() => {
@@ -615,7 +615,7 @@ describe('DataCiteForm', () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         await ensureAuthorsOpen(user);
 
-        const contactCheckbox = screen.getByLabelText('Contact person');
+        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
         await user.click(contactCheckbox);
 
         const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
@@ -676,7 +676,7 @@ describe('DataCiteForm', () => {
             'Contact Person: Select if this author should be the primary contact.'
         );
 
-        const contactCheckbox = screen.getByLabelText('Contact person');
+        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
         expect(contactCheckbox).toBeInTheDocument();
     });
 
@@ -713,7 +713,7 @@ describe('DataCiteForm', () => {
 
         await ensureAuthorsOpen(user);
 
-        const contactCheckbox = screen.getByLabelText('Contact person');
+        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
         await user.click(contactCheckbox);
 
         const emailInput = await screen.findByRole('textbox', { name: /Email address/i });
