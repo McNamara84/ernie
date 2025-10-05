@@ -6,6 +6,7 @@ use App\Http\Controllers\ResourceTypeController;
 use App\Http\Controllers\TitleTypeController;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\LanguageController;
+use App\Http\Controllers\RorAffiliationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/changelog', [ChangelogController::class, 'index']);
@@ -22,4 +23,5 @@ Route::get('/v1/licenses/ernie', [LicenseController::class, 'ernie']);
 Route::get('/v1/languages', [LanguageController::class, 'index']);
 Route::get('/v1/languages/elmo', [LanguageController::class, 'elmo']);
 Route::get('/v1/languages/ernie', [LanguageController::class, 'ernie']);
+Route::get('/v1/ror-affiliations', RorAffiliationController::class);
 Route::get('/v1/doc', ApiDocController::class);

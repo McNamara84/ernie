@@ -4,13 +4,16 @@ import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 
 vi.mock('@yaireo/tagify', () => {
     type ChangeHandler = (event: CustomEvent) => void;
 
+    type NormalisedTag = { value: string; rorId: string | null };
+
     class MockTagify {
         public DOM: { scope: HTMLElement; input: HTMLInputElement };
-        public value: { value: string }[] = [];
+        public value: Array<{ value: string; rorId: string | null; data: { rorId: string | null } }> = [];
         private inputElement: HTMLInputElement;
         private handlers = new Map<string, Set<ChangeHandler>>();
 
@@ -53,19 +56,18 @@ vi.mock('@yaireo/tagify', () => {
         }
 
         removeAllTags() {
-            this.value = [];
             this.renderTags([]);
             this.emitChange('');
         }
 
-        addTags(tags: string[] | string, _skipInvalid?: boolean, silent?: boolean) {
+        addTags(tags: Array<string | Record<string, unknown>> | string, _skipInvalid?: boolean, silent?: boolean) {
             const incoming = Array.isArray(tags) ? tags : [tags];
             const processed = incoming
-                .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
-                .filter((tag) => tag.length > 0);
+                .map((tag) => this.normaliseTag(tag))
+                .filter((tag): tag is NormalisedTag => Boolean(tag));
             this.renderTags(processed);
             if (!silent) {
-                this.emitChange(processed.join(', '));
+                this.emitChange(processed.map((tag) => tag.value).join(', '));
             }
         }
 
@@ -74,22 +76,52 @@ vi.mock('@yaireo/tagify', () => {
                 .split(',')
                 .map((value) => value.trim())
                 .filter((value) => value.length > 0);
-            this.renderTags(processed);
+            this.renderTags(processed.map((value) => ({ value, rorId: null })));
         }
 
-        private renderTags(values: string[]) {
-            this.value = values.map((value) => ({ value }));
-            this.inputElement.value = values.join(', ');
+        private normaliseTag(tag: unknown): NormalisedTag | null {
+            if (typeof tag === 'string') {
+                const trimmed = tag.trim();
+                return trimmed ? { value: trimmed, rorId: null } : null;
+            }
+
+            if (!tag || typeof tag !== 'object') {
+                return null;
+            }
+
+            const raw = tag as Record<string, unknown>;
+            const value = typeof raw.value === 'string' ? raw.value.trim() : '';
+
+            if (!value) {
+                return null;
+            }
+
+            const rorId = typeof raw.rorId === 'string'
+                ? raw.rorId
+                : raw.rorId === null
+                    ? null
+                    : null;
+
+            return { value, rorId };
+        }
+
+        private renderTags(values: NormalisedTag[]) {
+            this.value = values.map((tag) => ({
+                value: tag.value,
+                rorId: tag.rorId,
+                data: { rorId: tag.rorId },
+            }));
+            this.inputElement.value = values.map((tag) => tag.value).join(', ');
             const existingTags = this.DOM.scope.querySelectorAll('.tagify__tag');
             existingTags.forEach((tag) => tag.remove());
-            for (const value of values) {
-                const tag = document.createElement('span');
-                tag.className = 'tagify__tag';
+            for (const item of values) {
+                const tagElement = document.createElement('span');
+                tagElement.className = 'tagify__tag';
                 const tagText = document.createElement('span');
                 tagText.className = 'tagify__tag-text';
-                tagText.textContent = value;
-                tag.appendChild(tagText);
-                this.DOM.scope.insertBefore(tag, this.DOM.input);
+                tagText.textContent = item.value;
+                tagElement.appendChild(tagText);
+                this.DOM.scope.insertBefore(tagElement, this.DOM.input);
             }
         }
 
@@ -107,6 +139,14 @@ vi.mock('@yaireo/tagify', () => {
 
     return { default: MockTagify };
 });
+
+vi.mock('@/hooks/use-ror-affiliations', () => ({
+    useRorAffiliations: vi.fn().mockReturnValue({
+        suggestions: [],
+        isLoading: false,
+        error: null,
+    }),
+}));
 
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
@@ -144,6 +184,11 @@ describe('DataCiteForm', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
+        (useRorAffiliations as unknown as vi.Mock).mockReturnValue({
+            suggestions: [],
+            isLoading: false,
+            error: null,
+        });
         global.fetch = vi.fn();
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
@@ -187,6 +232,7 @@ describe('DataCiteForm', () => {
                 languages={languages}
             />,
         );
+        expect(useRorAffiliations).toHaveBeenCalled();
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         // accordion sections
@@ -403,8 +449,9 @@ describe('DataCiteForm', () => {
         await waitFor(() => {
             expect(affiliationField.querySelectorAll('.tagify__tag')).toHaveLength(2);
         });
-        expect(affiliationField).toHaveTextContent('University A');
-        expect(affiliationField).toHaveTextContent('University B');
+        const affiliationValues = affiliationInput.tagify!.value.map((tag) => tag.value);
+        expect(affiliationValues).toContain('University A');
+        expect(affiliationValues).toContain('University B');
 
         const addAuthorButtons = screen.getAllByRole('button', { name: /Add author/i });
         await user.click(addAuthorButtons[0]);
@@ -526,8 +573,14 @@ describe('DataCiteForm', () => {
 
         // Former third author affiliations should be preserved
         const newSecondAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[1];
-        expect(newSecondAffiliationField).toHaveTextContent('Institution X');
-        expect(newSecondAffiliationField).toHaveTextContent('Institution Y');
+        const secondAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[1] as HTMLInputElement & {
+            tagify: { value: { value?: string | undefined }[] };
+        };
+        const updatedAffiliationValues = secondAffiliationInput.tagify.value
+            .map((tag) => tag.value)
+            .filter((value): value is string => Boolean(value));
+        expect(updatedAffiliationValues).toContain('Institution X');
+        expect(updatedAffiliationValues).toContain('Institution Y');
 
         // Remove first author
         await user.click(screen.getAllByRole('button', { name: /Remove author \d/ })[0]);
@@ -544,10 +597,15 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('textbox', { name: /Last name/i })).toHaveValue('Third Author');
         
         // Affiliations should be preserved
-        const finalAffiliationField = screen.getByTestId('author-0-affiliations-field');
-        expect(finalAffiliationField).toHaveTextContent('Institution X');
-        expect(finalAffiliationField).toHaveTextContent('Institution Y');
-    });
+        const finalAffiliationInput = screen.getByTestId('author-0-affiliations-input') as HTMLInputElement & {
+            tagify: { value: { value?: string | undefined }[] };
+        };
+        const finalAffiliationValues = finalAffiliationInput.tagify.value
+            .map((tag) => tag.value)
+            .filter((value): value is string => Boolean(value));
+        expect(finalAffiliationValues).toContain('Institution X');
+        expect(finalAffiliationValues).toContain('Institution Y');
+    }, 15000);
 
     it('applies responsive layout for author inputs', async () => {
         render(

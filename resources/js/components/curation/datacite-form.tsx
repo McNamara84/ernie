@@ -28,6 +28,8 @@ import {
     AccordionTrigger,
 } from '@/components/ui/accordion';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import type { AffiliationTag } from '@/types/affiliations';
 
 interface DataCiteFormData {
     doi: string;
@@ -57,7 +59,7 @@ const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
     email: '',
     website: '',
     isContact: false,
-    affiliations: [],
+    affiliations: [] as AffiliationTag[],
     affiliationsInput: '',
 });
 
@@ -65,7 +67,7 @@ const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'institution',
     institutionName: '',
-    affiliations: [],
+    affiliations: [] as AffiliationTag[],
     affiliationsInput: '',
 });
 
@@ -156,6 +158,7 @@ export default function DataCiteForm({
     );
 
     const [authors, setAuthors] = useState<AuthorEntry[]>([createEmptyAuthor()]);
+    const { suggestions: affiliationSuggestions } = useRorAffiliations();
 
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -300,7 +303,7 @@ export default function DataCiteForm({
 
     const handleAffiliationsChange = (
         authorId: string,
-        value: { raw: string; tags: string[] },
+        value: { raw: string; tags: AffiliationTag[] },
     ) => {
         setAuthors((previous) =>
             previous.map((author) =>
@@ -622,14 +625,15 @@ export default function DataCiteForm({
                                     onContactChange={(checked) =>
                                         handleAuthorContactChange(author.id, checked)
                                     }
-                                    onAffiliationsChange={(value) =>
-                                        handleAffiliationsChange(author.id, value)
-                                    }
-                                    onRemoveAuthor={() => removeAuthor(author.id)}
-                                    canRemove={authors.length > 1}
-                                    onAddAuthor={addAuthor}
-                                    canAddAuthor={index === authors.length - 1}
-                                />
+                                onAffiliationsChange={(value) =>
+                                    handleAffiliationsChange(author.id, value)
+                                }
+                                onRemoveAuthor={() => removeAuthor(author.id)}
+                                canRemove={authors.length > 1}
+                                onAddAuthor={addAuthor}
+                                canAddAuthor={index === authors.length - 1}
+                                affiliationSuggestions={affiliationSuggestions}
+                            />
                             ))}
                         </div>
                     </AccordionContent>
