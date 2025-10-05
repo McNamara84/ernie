@@ -5,6 +5,109 @@ import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } 
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import type { ResourceType, TitleType, License, Language } from '@/types';
 
+vi.mock('@yaireo/tagify', () => {
+    type ChangeHandler = (event: CustomEvent) => void;
+
+    class MockTagify {
+        public DOM: { scope: HTMLElement; input: HTMLInputElement };
+        public value: { value: string }[] = [];
+        private inputElement: HTMLInputElement;
+        private handlers = new Map<string, Set<ChangeHandler>>();
+
+        constructor(inputElement: HTMLInputElement) {
+            this.inputElement = inputElement;
+            const scope = document.createElement('div');
+            scope.className = 'tagify';
+            const input = document.createElement('input');
+            input.className = 'tagify__input';
+            this.DOM = { scope, input };
+            const parent = inputElement.parentElement;
+            if (parent) {
+                parent.appendChild(scope);
+            }
+            scope.appendChild(input);
+        }
+
+        on(event: string, handler: ChangeHandler) {
+            if (!this.handlers.has(event)) {
+                this.handlers.set(event, new Set());
+            }
+            this.handlers.get(event)!.add(handler);
+        }
+
+        off(event: string, handler: ChangeHandler) {
+            this.handlers.get(event)?.delete(handler);
+        }
+
+        destroy() {
+            this.handlers.clear();
+            this.DOM.scope.remove();
+        }
+
+        setDisabled(disabled: boolean) {
+            if (disabled) {
+                this.DOM.input.setAttribute('disabled', '');
+            } else {
+                this.DOM.input.removeAttribute('disabled');
+            }
+        }
+
+        removeAllTags() {
+            this.value = [];
+            this.renderTags([]);
+            this.emitChange('');
+        }
+
+        addTags(tags: string[] | string, _skipInvalid?: boolean, silent?: boolean) {
+            const incoming = Array.isArray(tags) ? tags : [tags];
+            const processed = incoming
+                .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+                .filter((tag) => tag.length > 0);
+            this.renderTags(processed);
+            if (!silent) {
+                this.emitChange(processed.join(', '));
+            }
+        }
+
+        loadOriginalValues(raw: string) {
+            const processed = raw
+                .split(',')
+                .map((value) => value.trim())
+                .filter((value) => value.length > 0);
+            this.renderTags(processed);
+        }
+
+        private renderTags(values: string[]) {
+            this.value = values.map((value) => ({ value }));
+            this.inputElement.value = values.join(', ');
+            const existingTags = this.DOM.scope.querySelectorAll('.tagify__tag');
+            existingTags.forEach((tag) => tag.remove());
+            for (const value of values) {
+                const tag = document.createElement('span');
+                tag.className = 'tagify__tag';
+                const tagText = document.createElement('span');
+                tagText.className = 'tagify__tag-text';
+                tagText.textContent = value;
+                tag.appendChild(tagText);
+                this.DOM.scope.insertBefore(tag, this.DOM.input);
+            }
+        }
+
+        private emitChange(raw: string) {
+            const handlers = this.handlers.get('change');
+            if (!handlers || handlers.size === 0) {
+                return;
+            }
+            const event = new CustomEvent('change', {
+                detail: { value: raw, tagify: this },
+            }) as CustomEvent;
+            handlers.forEach((handler) => handler(event));
+        }
+    }
+
+    return { default: MockTagify };
+});
+
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
@@ -338,11 +441,11 @@ describe('DataCiteForm', () => {
         expect(typeField).toHaveClass('md:col-span-2');
         const typeTrigger = screen.getByLabelText('Author type');
         expect(typeTrigger).toHaveClass('w-full');
-        expect(typeTrigger).toHaveClass('md:w-[11rem]');
+        expect(typeTrigger).toHaveClass('md:w-[8.5rem]');
         const orcidField = screen.getByTestId('author-0-orcid-field');
         expect(orcidField).toHaveClass('md:col-span-3');
         const orcidInput = screen.getByLabelText('ORCID');
-        expect(orcidInput).toHaveClass('md:w-[20ch]');
+        expect(orcidInput).toHaveClass('md:max-w-[19ch]');
         const authorGrid = screen.getByTestId('author-0-fields-grid');
         expect(authorGrid).toHaveClass('md:gap-x-3');
         expect(within(authorGrid).getByRole('button', { name: 'Add author' })).toBeInTheDocument();
@@ -365,6 +468,9 @@ describe('DataCiteForm', () => {
         expect(affiliationContainer).toHaveClass('md:col-span-12');
         expect(
             screen.queryByText('Use the 16-digit ORCID identifier when available.')
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Provide details for this author and their affiliations.')
         ).not.toBeInTheDocument();
     });
 

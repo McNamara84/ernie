@@ -79,9 +79,6 @@ export function AuthorField({
                     >
                         Author {index + 1}
                     </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Provide details for this author and their affiliations.
-                    </p>
                 </div>
                 {canRemove && (
                     <Button
@@ -114,7 +111,7 @@ export function AuthorField({
                         'data-testid': `author-${index}-type-field`,
                         className: 'md:col-span-2',
                     }}
-                    triggerClassName="w-full md:w-[11rem]"
+                    triggerClassName="w-full md:w-[8.5rem]"
                     required
                 />
 
@@ -132,7 +129,7 @@ export function AuthorField({
                                 'data-testid': `author-${index}-orcid-field`,
                                 className: 'md:col-span-3',
                             }}
-                            inputClassName="w-full md:w-[20ch]"
+                            inputClassName="w-full md:max-w-[19ch]"
                             inputMode="numeric"
                             pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
                         />
