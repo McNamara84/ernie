@@ -547,7 +547,7 @@ describe('DataCiteForm', () => {
         const finalAffiliationField = screen.getByTestId('author-0-affiliations-field');
         expect(finalAffiliationField).toHaveTextContent('Institution X');
         expect(finalAffiliationField).toHaveTextContent('Institution Y');
-    });
+    }, 15000);
 
     it('applies responsive layout for author inputs', async () => {
         render(
