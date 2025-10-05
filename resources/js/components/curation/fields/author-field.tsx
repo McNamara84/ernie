@@ -130,7 +130,7 @@ export function AuthorField({
                                         'data-testid': `author-${index}-orcid-field`,
                                         className: 'md:col-span-3',
                                     }}
-                                    inputClassName="w-full"
+                                    inputClassName="w-full md:max-w-[19ch]"
                                     inputMode="numeric"
                                     pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
                                 />
