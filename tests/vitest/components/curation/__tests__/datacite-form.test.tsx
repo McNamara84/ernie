@@ -305,10 +305,45 @@ describe('DataCiteForm', () => {
         expect(screen.getByTestId('author-0-orcid-field')).toHaveClass(
             'md:max-w-[20ch]'
         );
+        expect(
+            screen.getByLabelText('Last name', { selector: 'input' }).closest('div')
+        ).toHaveClass('md:col-span-3');
+        expect(
+            screen.getByLabelText('First name', { selector: 'input' }).closest('div')
+        ).toHaveClass('md:col-span-2');
         expect(screen.getByTestId('author-0-contact-field')).toHaveClass(
-            'md:col-span-4'
+            'md:col-span-2'
         );
         expect(screen.getByTestId('author-0-contact-field')).not.toHaveClass('pt-6');
+    });
+
+    it('shows contact guidance on hover while keeping the label compact', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        await ensureAuthorsOpen(user);
+
+        const contactLabel = screen.getByText('CP');
+        expect(contactLabel).toBeVisible();
+
+        await user.hover(contactLabel);
+
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent(
+            'Contact Person: Select if this author should be the primary contact.'
+        );
+
+        const contactCheckbox = screen.getByLabelText('Contact person');
+        expect(contactCheckbox).toBeInTheDocument();
     });
 
     it('requires an email address when a person author is marked as contact', async () => {

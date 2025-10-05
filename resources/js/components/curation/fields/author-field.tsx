@@ -4,6 +4,7 @@ import { SelectField } from './select-field';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export type AuthorType = 'person' | 'institution';
@@ -65,6 +66,7 @@ export function AuthorField({
     canRemove,
 }: AuthorFieldProps) {
     const isPerson = author.type === 'person';
+    const contactLabelTextId = `${author.id}-contact-label-text`;
 
     return (
         <section
@@ -107,7 +109,7 @@ export function AuthorField({
                         { value: 'person', label: 'Person' },
                         { value: 'institution', label: 'Institution' },
                     ]}
-                    className="md:col-span-3 md:max-w-[12rem]"
+                    className="md:col-span-2 md:max-w-[12rem]"
                     containerProps={{ 'data-testid': `author-${index}-type-field` }}
                     required
                 />
@@ -128,12 +130,6 @@ export function AuthorField({
                             pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
                             aria-describedby={`${author.id}-orcid-help`}
                         />
-                        <p
-                            id={`${author.id}-orcid-help`}
-                            className="md:col-span-12 text-xs text-muted-foreground"
-                        >
-                            Use the 16-digit ORCID identifier when available.
-                        </p>
                         <InputField
                             id={`${author.id}-lastName`}
                             label="Last name"
@@ -141,7 +137,7 @@ export function AuthorField({
                             onChange={(event) =>
                                 onPersonFieldChange('lastName', event.target.value)
                             }
-                            className="md:col-span-4"
+                            className="md:col-span-3"
                             required
                         />
                         <InputField
@@ -151,10 +147,10 @@ export function AuthorField({
                             onChange={(event) =>
                                 onPersonFieldChange('firstName', event.target.value)
                             }
-                            className="md:col-span-4"
+                            className="md:col-span-2"
                         />
                         <div
-                            className="md:col-span-4 flex items-start gap-2 md:items-center"
+                            className="md:col-span-2 flex items-start gap-2 md:items-center"
                             data-testid={`author-${index}-contact-field`}
                         >
                             <Checkbox
@@ -164,19 +160,37 @@ export function AuthorField({
                                     onContactChange(checked === true)
                                 }
                                 aria-describedby={`${author.id}-contact-hint`}
+                                aria-labelledby={contactLabelTextId}
                             />
-                            <div>
-                                <Label htmlFor={`${author.id}-contact`} className="font-medium">
-                                    Contact person
-                                </Label>
-                                <p
-                                    id={`${author.id}-contact-hint`}
-                                    className="text-xs text-muted-foreground"
-                                >
-                                    Select if this author should be the primary contact.
+                            <div className="flex flex-col gap-1">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="inline-flex cursor-help">
+                                            <Label htmlFor={`${author.id}-contact`} className="font-medium">
+                                                <span aria-hidden="true">CP</span>
+                                                <span id={contactLabelTextId} className="sr-only">
+                                                    Contact person
+                                                </span>
+                                            </Label>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top">
+                                        Contact Person: Select if this author should be the primary
+                                        contact.
+                                    </TooltipContent>
+                                </Tooltip>
+                                <p id={`${author.id}-contact-hint`} className="sr-only">
+                                    Contact Person: Select if this author should be the primary
+                                    contact.
                                 </p>
                             </div>
                         </div>
+                        <p
+                            id={`${author.id}-orcid-help`}
+                            className="md:col-span-12 text-xs text-muted-foreground"
+                        >
+                            Use the 16-digit ORCID identifier when available.
+                        </p>
                         {author.isContact && (
                             <>
                                 <InputField
