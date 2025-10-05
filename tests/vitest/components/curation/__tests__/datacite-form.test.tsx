@@ -518,7 +518,7 @@ describe('DataCiteForm', () => {
         expect(screen.queryByRole('heading', { name: 'Author 3' })).not.toBeInTheDocument();
 
         // Former third author should now be second author
-        expect(screen.getAllByLabelText('Last name')[1]).toHaveValue('Third Author');
+        expect(screen.getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
 
         // First author contact data should be preserved
         expect(screen.getByRole('textbox', { name: /Email address/i })).toHaveValue('first@example.com');
@@ -577,10 +577,10 @@ describe('DataCiteForm', () => {
         // Add author button is outside the fields grid in a separate container
         expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
         expect(
-            screen.getByLabelText('Last name', { selector: 'input' }).closest('div')
+            screen.getByRole('textbox', { name: /Last name/i }).closest('div')
         ).toHaveClass('md:col-span-3');
         expect(
-            screen.getByLabelText('First name', { selector: 'input' }).closest('div')
+            screen.getByRole('textbox', { name: /First name/i }).closest('div')
         ).toHaveClass('md:col-span-3');
         const contactField = screen.getByTestId('author-0-contact-field');
         expect(contactField).toHaveClass('md:col-span-1');
