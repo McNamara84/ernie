@@ -193,7 +193,7 @@ export function AuthorField({
                                 label="Institution name"
                                 value={author.institutionName}
                                 onChange={(event) => onInstitutionNameChange(event.target.value)}
-                                containerProps={{ className: 'md:col-span-10' }}
+                                containerProps={{ className: 'md:col-span-9' }}
                                 required
                             />
                         )}
