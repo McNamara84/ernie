@@ -60,13 +60,26 @@ class GetRorIds extends Command
         }
 
         $files = Arr::get($record, 'files', []);
-        $dataFile = collect($files)
-            ->filter(fn ($file) => is_array($file))
-            ->first(function ($file) {
-                $key = Arr::get($file, 'key');
 
-                return is_string($key) && Str::endsWith($key, ['.jsonl.gz', '.json.gz']);
-            });
+        if (!is_array($files)) {
+            $files = [];
+        }
+
+        $dataFile = null;
+
+        foreach ($files as $file) {
+            if (!is_array($file)) {
+                continue;
+            }
+
+            $key = Arr::get($file, 'key');
+
+            if (is_string($key) && Str::endsWith($key, ['.jsonl.gz', '.json.gz'])) {
+                $dataFile = $file;
+
+                break;
+            }
+        }
 
         if (!$dataFile) {
             $this->error('Unable to locate a JSONL data dump within the ROR record.');
@@ -130,9 +143,6 @@ class GetRorIds extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * @return int<number-of-saved-records>
-     */
     private function convertDumpToSuggestions(string $sourcePath, string $targetPath): int
     {
         $resource = gzopen($sourcePath, 'rb');
@@ -183,29 +193,50 @@ class GetRorIds extends Command
                 continue;
             }
 
-            $aliases = array_filter(
-                array_map('strval', Arr::get($decoded, 'aliases', [])),
+            $aliases = Arr::get($decoded, 'aliases', []);
+
+            if (!is_array($aliases)) {
+                $aliases = [];
+            }
+
+            $aliases = array_values(array_filter(
+                array_map('strval', $aliases),
                 fn (string $alias) => $alias !== ''
-            );
+            ));
 
-            $acronyms = array_filter(
-                array_map('strval', Arr::get($decoded, 'acronyms', [])),
-                fn (string $alias) => $alias !== ''
-            );
+            $acronyms = Arr::get($decoded, 'acronyms', []);
 
-            $labelNames = collect(Arr::get($decoded, 'labels', []))
-                ->map(fn ($label) => is_array($label) ? Arr::get($label, 'label') : null)
-                ->filter(fn ($label) => is_string($label) && $label !== '')
-                ->values()
-                ->all();
+            if (!is_array($acronyms)) {
+                $acronyms = [];
+            }
 
-            $searchTerms = collect([$preferredName])
-                ->merge($aliases)
-                ->merge($acronyms)
-                ->merge($labelNames)
-                ->unique()
-                ->values()
-                ->all();
+            $acronyms = array_values(array_filter(
+                array_map('strval', $acronyms),
+                fn (string $acronym) => $acronym !== ''
+            ));
+
+            $rawLabels = Arr::get($decoded, 'labels', []);
+
+            if (!is_array($rawLabels)) {
+                $rawLabels = [];
+            }
+
+            $labelNames = [];
+
+            foreach ($rawLabels as $label) {
+                if (!is_array($label)) {
+                    continue;
+                }
+
+                $labelValue = Arr::get($label, 'label');
+
+                if (is_string($labelValue) && $labelValue !== '') {
+                    $labelNames[] = $labelValue;
+                }
+            }
+
+            $combinedTerms = array_merge([$preferredName], $aliases, $acronyms, $labelNames);
+            $searchTerms = array_values(array_unique($combinedTerms));
 
             $entry = [
                 'value' => $preferredName,

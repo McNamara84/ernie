@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -37,4 +38,20 @@ it('responds with an error when the cache is invalid', function () {
     $response->assertStatus(500)->assertExactJson([]);
 
     Log::shouldHaveReceived('error')->once();
+});
+
+it('responds with an error when the storage adapter returns non-string contents', function () {
+    Log::spy();
+
+    $filesystem = \Mockery::mock(Filesystem::class);
+    $filesystem->shouldReceive('exists')->once()->with('ror/ror-affiliations.json')->andReturnTrue();
+    $filesystem->shouldReceive('get')->once()->with('ror/ror-affiliations.json')->andReturn(null);
+
+    Storage::shouldReceive('disk')->once()->with('local')->andReturn($filesystem);
+
+    $response = $this->getJson('/api/v1/ror-affiliations');
+
+    $response->assertStatus(500)->assertExactJson([]);
+
+    Log::shouldHaveReceived('warning')->once();
 });

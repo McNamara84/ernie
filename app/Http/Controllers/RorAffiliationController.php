@@ -22,6 +22,16 @@ class RorAffiliationController extends Controller
 
         try {
             $contents = $disk->get(self::STORAGE_PATH);
+
+            if (!is_string($contents)) {
+                Log::warning('Cached ROR affiliations returned non-string contents.', [
+                    'path' => self::STORAGE_PATH,
+                    'type' => get_debug_type($contents),
+                ]);
+
+                return response()->json([], 500);
+            }
+
             $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
             Log::error('Failed to decode cached ROR affiliations.', [
