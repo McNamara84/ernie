@@ -4,7 +4,6 @@ import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
 import LicenseField from './fields/license-field';
 import AuthorField, {
-    type AffiliationEntry,
     type AuthorEntry,
     type AuthorType,
     type InstitutionAuthorEntry,
@@ -49,11 +48,6 @@ interface LicenseEntry {
     license: string;
 }
 
-const createEmptyAffiliation = (): AffiliationEntry => ({
-    id: crypto.randomUUID(),
-    value: '',
-});
-
 const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'person',
@@ -63,14 +57,16 @@ const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
     email: '',
     website: '',
     isContact: false,
-    affiliations: [createEmptyAffiliation()],
+    affiliations: [],
+    affiliationsInput: '',
 });
 
 const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'institution',
     institutionName: '',
-    affiliations: [createEmptyAffiliation()],
+    affiliations: [],
+    affiliationsInput: '',
 });
 
 const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
@@ -238,23 +234,20 @@ export default function DataCiteForm({
                     return author;
                 }
 
-                const baseAffiliations =
-                    author.affiliations.length > 0
-                        ? author.affiliations
-                        : [createEmptyAffiliation()];
-
                 if (type === 'person') {
                     return {
                         ...createEmptyPersonAuthor(),
                         id: author.id,
-                        affiliations: baseAffiliations,
+                        affiliations: author.affiliations,
+                        affiliationsInput: author.affiliationsInput,
                     } as PersonAuthorEntry;
                 }
 
                 return {
                     ...createEmptyInstitutionAuthor(),
                     id: author.id,
-                    affiliations: baseAffiliations,
+                    affiliations: author.affiliations,
+                    affiliationsInput: author.affiliationsInput,
                 } as InstitutionAuthorEntry;
             }),
         );
@@ -305,62 +298,22 @@ export default function DataCiteForm({
         );
     };
 
-    const handleAffiliationChange = (
-        authorId: string,
-        affiliationId: string,
-        value: string,
-    ) => {
+    const handleAffiliationsChange = (authorId: string, value: string) => {
+        const tags = value
+            .split(',')
+            .map((affiliation) => affiliation.trim())
+            .filter((affiliation) => affiliation.length > 0);
+
         setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId) {
-                    return author;
-                }
-
-                return {
-                    ...author,
-                    affiliations: author.affiliations.map((affiliation) =>
-                        affiliation.id === affiliationId
-                            ? { ...affiliation, value }
-                            : affiliation,
-                    ),
-                } as AuthorEntry;
-            }),
-        );
-    };
-
-    const addAffiliation = (authorId: string) => {
-        setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId) {
-                    return author;
-                }
-
-                return {
-                    ...author,
-                    affiliations: [...author.affiliations, createEmptyAffiliation()],
-                } as AuthorEntry;
-            }),
-        );
-    };
-
-    const removeAffiliation = (authorId: string, affiliationId: string) => {
-        setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId) {
-                    return author;
-                }
-
-                const remaining = author.affiliations.filter(
-                    (affiliation) => affiliation.id !== affiliationId,
-                );
-
-                return {
-                    ...author,
-                    affiliations: remaining.length
-                        ? remaining
-                        : [createEmptyAffiliation()],
-                } as AuthorEntry;
-            }),
+            previous.map((author) =>
+                author.id === authorId
+                    ? ({
+                          ...author,
+                          affiliations: tags,
+                          affiliationsInput: value,
+                      } as AuthorEntry)
+                    : author,
+            ),
         );
     };
 
@@ -671,12 +624,8 @@ export default function DataCiteForm({
                                     onContactChange={(checked) =>
                                         handleAuthorContactChange(author.id, checked)
                                     }
-                                    onAffiliationChange={(affiliationId, value) =>
-                                        handleAffiliationChange(author.id, affiliationId, value)
-                                    }
-                                    onAddAffiliation={() => addAffiliation(author.id)}
-                                    onRemoveAffiliation={(affiliationId) =>
-                                        removeAffiliation(author.id, affiliationId)
+                                    onAffiliationsChange={(value) =>
+                                        handleAffiliationsChange(author.id, value)
                                     }
                                     onRemoveAuthor={() => removeAuthor(author.id)}
                                     canRemove={authors.length > 1}

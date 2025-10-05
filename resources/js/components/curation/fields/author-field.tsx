@@ -1,21 +1,21 @@
-import { Minus, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import InputField from './input-field';
 import { SelectField } from './select-field';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 
 export type AuthorType = 'person' | 'institution';
 
-export interface AffiliationEntry {
+interface BaseAuthorEntry {
     id: string;
-    value: string;
+    affiliations: string[];
+    affiliationsInput: string;
 }
 
-export interface PersonAuthorEntry {
-    id: string;
+export interface PersonAuthorEntry extends BaseAuthorEntry {
     type: 'person';
     orcid: string;
     firstName: string;
@@ -23,14 +23,11 @@ export interface PersonAuthorEntry {
     email: string;
     website: string;
     isContact: boolean;
-    affiliations: AffiliationEntry[];
 }
 
-export interface InstitutionAuthorEntry {
-    id: string;
+export interface InstitutionAuthorEntry extends BaseAuthorEntry {
     type: 'institution';
     institutionName: string;
-    affiliations: AffiliationEntry[];
 }
 
 export type AuthorEntry = PersonAuthorEntry | InstitutionAuthorEntry;
@@ -45,9 +42,7 @@ interface AuthorFieldProps {
     ) => void;
     onInstitutionNameChange: (value: string) => void;
     onContactChange: (checked: boolean) => void;
-    onAffiliationChange: (affiliationId: string, value: string) => void;
-    onAddAffiliation: () => void;
-    onRemoveAffiliation: (affiliationId: string) => void;
+    onAffiliationsChange: (value: string) => void;
     onRemoveAuthor: () => void;
     canRemove: boolean;
     onAddAuthor: () => void;
@@ -61,9 +56,7 @@ export function AuthorField({
     onPersonFieldChange,
     onInstitutionNameChange,
     onContactChange,
-    onAffiliationChange,
-    onAddAffiliation,
-    onRemoveAffiliation,
+    onAffiliationsChange,
     onRemoveAuthor,
     canRemove,
     onAddAuthor,
@@ -242,52 +235,36 @@ export function AuthorField({
             </div>
 
             <div className="mt-6 space-y-3">
-                <Label className="text-sm font-medium">Affiliations</Label>
-                <div className="space-y-2">
-                    {author.affiliations.map((affiliation, affiliationIndex) => (
-                        <div
-                            key={affiliation.id}
-                            className={cn(
-                                'flex flex-col gap-2 md:flex-row md:items-center md:gap-3'
-                            )}
-                        >
-                            <InputField
-                                id={`${author.id}-affiliation-${affiliation.id}`}
-                                label={
-                                    affiliationIndex === 0
-                                        ? 'Affiliation'
-                                        : `Affiliation ${affiliationIndex + 1}`
-                                }
-                                hideLabel={affiliationIndex > 0}
-                                value={affiliation.value}
-                                onChange={(event) =>
-                                    onAffiliationChange(affiliation.id, event.target.value)
-                                }
-                                className="flex-1"
-                            />
-                            {author.affiliations.length > 1 && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => onRemoveAffiliation(affiliation.id)}
-                                    aria-label={`Remove affiliation ${affiliationIndex + 1}`}
-                                >
-                                    <Minus className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
-                    ))}
-                </div>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={onAddAffiliation}
-                    className="mt-2"
+                <InputField
+                    id={`${author.id}-affiliations`}
+                    label="Affiliations"
+                    value={author.affiliationsInput}
+                    onChange={(event) => onAffiliationsChange(event.target.value)}
+                    placeholder="Institution A, Institution B"
+                    aria-describedby={`${author.id}-affiliations-hint`}
+                />
+                <p
+                    id={`${author.id}-affiliations-hint`}
+                    className="text-sm text-muted-foreground"
                 >
-                    <Plus className="mr-2 h-4 w-4" /> Add affiliation
-                </Button>
+                    Separate multiple affiliations with commas. Tags update as you type.
+                </p>
+                {author.affiliations.length > 0 && (
+                    <div
+                        className="flex flex-wrap gap-2"
+                        aria-live="polite"
+                        aria-label="Affiliation tags"
+                    >
+                        {author.affiliations.map((affiliation, affiliationIndex) => (
+                            <Badge
+                                key={`${author.id}-affiliation-${affiliationIndex}-${affiliation}`}
+                                variant="secondary"
+                            >
+                                {affiliation}
+                            </Badge>
+                        ))}
+                    </div>
+                )}
             </div>
         </section>
     );

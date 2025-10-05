@@ -268,16 +268,17 @@ describe('DataCiteForm', () => {
 
         expect(screen.getByLabelText('First name')).toBeInTheDocument();
 
-        const affiliationInput = screen.getByLabelText('Affiliation');
-        await user.type(affiliationInput, 'University A');
-        const addAffiliation = screen.getByRole('button', { name: /Add affiliation/ });
-        await user.click(addAffiliation);
-
-        const affiliationInputs = screen.getAllByLabelText(/Affiliation/);
-        expect(affiliationInputs).toHaveLength(2);
+        const affiliationInput = screen.getByLabelText('Affiliations');
         expect(
-            screen.getByRole('button', { name: 'Remove affiliation 2' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: /Add affiliation/i }),
+        ).not.toBeInTheDocument();
+
+        await user.type(affiliationInput, 'University A, University B');
+
+        const affiliationTags = screen.getByLabelText('Affiliation tags');
+        expect(affiliationTags).toBeInTheDocument();
+        expect(affiliationTags).toHaveTextContent('University A');
+        expect(affiliationTags).toHaveTextContent('University B');
 
         await user.click(screen.getByRole('button', { name: 'Add author' }));
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
