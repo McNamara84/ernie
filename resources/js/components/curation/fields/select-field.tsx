@@ -48,11 +48,15 @@ export function SelectField({
         className,
     );
 
+    // Only use aria-label when label is hidden; otherwise use aria-labelledby
+    const ariaProps = hideLabel
+        ? { 'aria-label': label }
+        : { 'aria-labelledby': labelId };
+
     return (
         <div {...containerProps} className={mergedClassName}>
             <Label
                 id={labelId}
-                htmlFor={id}
                 className={hideLabel ? 'sr-only' : undefined}
             >
                 {label}
@@ -65,9 +69,9 @@ export function SelectField({
             <Select value={value} onValueChange={onValueChange} required={required}>
                 <SelectTrigger
                     id={id}
-                    aria-labelledby={labelId}
                     aria-required={required || undefined}
                     className={triggerClassName}
+                    {...ariaProps}
                 >
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>

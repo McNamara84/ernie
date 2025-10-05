@@ -30,6 +30,11 @@ export function InputField({
         className,
     );
 
+    // Only use aria-label when label is hidden; otherwise use aria-labelledby
+    const ariaProps = hideLabel
+        ? { 'aria-label': label }
+        : { 'aria-labelledby': labelId };
+
     return (
         <div {...containerProps} className={mergedClassName}>
             <Label
@@ -48,8 +53,8 @@ export function InputField({
                 id={id}
                 type={type}
                 required={required}
-                aria-labelledby={labelId}
                 className={inputClassName}
+                {...ariaProps}
                 {...props}
             />
         </div>
