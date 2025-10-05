@@ -131,8 +131,8 @@ export function AuthorField({
                                         className: 'md:col-span-3',
                                     }}
                                     inputClassName="w-full"
-                                    inputMode="numeric"
-                                    pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
+                                    inputMode="text"
+                                    pattern="^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$"
                                 />
                                 <InputField
                                     id={`${author.id}-firstName`}
