@@ -99,22 +99,24 @@ export function AuthorField({
                         className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
                         data-testid={`author-${index}-fields-grid`}
                     >
-                <SelectField
-                    id={`${author.id}-type`}
-                    label="Author type"
-                    value={author.type}
-                    onValueChange={(value) => onTypeChange(value as AuthorType)}
-                    options={[
-                        { value: 'person', label: 'Person' },
-                        { value: 'institution', label: 'Institution' },
-                    ]}
-                    containerProps={{
-                        'data-testid': `author-${index}-type-field`,
-                        className: 'md:col-span-2',
-                    }}
-                    triggerClassName="w-full md:w-[8.5rem]"
-                    required
-                />                        {isPerson ? (
+                        <SelectField
+                            id={`${author.id}-type`}
+                            label="Author type"
+                            value={author.type}
+                            onValueChange={(value) => onTypeChange(value as AuthorType)}
+                            options={[
+                                { value: 'person', label: 'Person' },
+                                { value: 'institution', label: 'Institution' },
+                            ]}
+                            containerProps={{
+                                'data-testid': `author-${index}-type-field`,
+                                className: 'md:col-span-2',
+                            }}
+                            triggerClassName="w-full"
+                            required
+                        />
+
+                        {isPerson ? (
                             <>
                                 <InputField
                                     id={`${author.id}-orcid`}
@@ -208,7 +210,7 @@ export function AuthorField({
                             onChange={(detail) => onAffiliationsChange(detail)}
                             placeholder="Institution A, Institution B"
                             containerProps={{
-                                className: isPerson && author.isContact ? 'md:col-span-6' : 'md:col-span-11',
+                                className: isPerson && author.isContact ? 'md:col-span-5' : 'md:col-span-11',
                                 'data-testid': `author-${index}-affiliations-field`,
                             }}
                             data-testid={`author-${index}-affiliations-input`}
@@ -263,7 +265,7 @@ export function AuthorField({
                         type="button"
                         variant="outline"
                         size="icon"
-                        aria-label={`Add author after author ${index + 1}`}
+                        aria-label="Add author"
                         onClick={onAddAuthor}
                     >
                         <Plus className="h-4 w-4" />
