@@ -360,7 +360,7 @@ describe('DataCiteForm', () => {
 
         await ensureAuthorsOpen(user);
 
-        const typeTrigger = screen.getByLabelText('Author type');
+        const typeTrigger = screen.getByRole('combobox', { name: /Author type/i });
         await user.click(typeTrigger);
         await user.click(await screen.findByRole('option', { name: 'Institution' }));
 
@@ -461,7 +461,7 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
 
         // Change second author to institution
-        const secondAuthorType = screen.getAllByLabelText('Author type')[1];
+        const secondAuthorType = screen.getAllByRole('combobox', { name: /Author type/i })[1];
         await user.click(secondAuthorType);
         await user.click(await screen.findByRole('option', { name: 'Institution' }));
 
@@ -564,12 +564,12 @@ describe('DataCiteForm', () => {
 
         const typeField = screen.getByTestId('author-0-type-field');
         expect(typeField).toHaveClass('md:col-span-2');
-        const typeTrigger = screen.getByLabelText('Author type');
+        const typeTrigger = screen.getByRole('combobox', { name: /Author type/i });
         expect(typeTrigger).toHaveClass('w-full');
         // Note: md:w-[8.5rem] is on the SelectField container via triggerClassName, not on the trigger element itself
         const orcidField = screen.getByTestId('author-0-orcid-field');
         expect(orcidField).toHaveClass('md:col-span-3');
-        const orcidInput = screen.getByLabelText('ORCID');
+        const orcidInput = screen.getByRole('textbox', { name: /ORCID/i });
         expect(orcidInput).toHaveClass('w-full');
         // ORCID field uses full width within its 3-column container
         const authorGrid = screen.getByTestId('author-0-fields-grid');
