@@ -12,6 +12,25 @@ describe('DataCiteForm', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     };
 
+    const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        const authorsTrigger = screen.getByRole('button', { name: 'Authors' });
+        if (authorsTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(authorsTrigger);
+        }
+    };
+
+    const fillRequiredAuthor = async (
+        user: ReturnType<typeof userEvent.setup>,
+        lastName = 'Curator',
+    ) => {
+        await ensureAuthorsOpen(user);
+        const lastNameInput = (await screen.findByLabelText(/Last name/)) as HTMLInputElement;
+        if (lastNameInput.value) {
+            await user.clear(lastNameInput);
+        }
+        await user.type(lastNameInput, lastName);
+    };
+
     beforeAll(() => {
         // Polyfill methods required by Radix UI Select
         Element.prototype.hasPointerCapture = () => false;
@@ -71,11 +90,16 @@ describe('DataCiteForm', () => {
         const resourceTrigger = screen.getByRole('button', {
             name: 'Resource Information',
         });
+        const authorsTrigger = screen.getByRole('button', {
+            name: 'Authors',
+        });
         const licensesTrigger = screen.getByRole('button', {
             name: 'Licenses and Rights',
         });
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(authorsTrigger).toBeInTheDocument();
         await user.click(resourceTrigger);
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'false');
         expect(screen.queryByLabelText('DOI')).not.toBeInTheDocument();
@@ -147,6 +171,12 @@ describe('DataCiteForm', () => {
         const titleTypeTrigger = screen.getByRole('combobox', { name: /Title Type/ });
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
+        // author fields
+        expect(await screen.findByText('Author type')).toBeInTheDocument();
+        expect(await screen.findByLabelText('ORCID')).toBeInTheDocument();
+        expect(screen.getByText('Affiliations')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add another author' })).toBeInTheDocument();
+
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
         expect(addButton).toBeDisabled();
@@ -204,9 +234,102 @@ describe('DataCiteForm', () => {
         await user.click(licenseTrigger);
         await user.click(await screen.findByRole('option', { name: 'MIT License' }));
 
+        await fillRequiredAuthor(user, 'Doe');
+
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
             expect(saveButton).toHaveAttribute('aria-disabled', 'false');
+        });
+    });
+
+    it('supports managing person and institution authors with affiliations', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        await ensureAuthorsOpen(user);
+
+        const typeTrigger = screen.getByLabelText('Author type');
+        await user.click(typeTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Institution' }));
+
+        expect(screen.getByLabelText('Institution name')).toBeInTheDocument();
+        expect(screen.queryByLabelText('First name')).not.toBeInTheDocument();
+
+        await user.click(typeTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Person' }));
+
+        expect(screen.getByLabelText('First name')).toBeInTheDocument();
+
+        const affiliationInput = screen.getByLabelText('Affiliation');
+        await user.type(affiliationInput, 'University A');
+        const addAffiliation = screen.getByRole('button', { name: /Add affiliation/ });
+        await user.click(addAffiliation);
+
+        const affiliationInputs = screen.getAllByLabelText(/Affiliation/);
+        expect(affiliationInputs).toHaveLength(2);
+        expect(
+            screen.getByRole('button', { name: 'Remove affiliation 2' }),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Add another author' }));
+        expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
+        const removeAuthorButton = screen.getByRole('button', { name: 'Remove author 2' });
+        await user.click(removeAuthorButton);
+        expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
+    });
+
+    it('requires an email address when a person author is marked as contact', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const saveButton = screen.getByRole('button', { name: 'Save to database' });
+
+        const titleInput = screen.getByRole('textbox', { name: /Title/ });
+        await user.type(titleInput, 'Contact Title');
+        await user.type(screen.getByLabelText('Year', { exact: false }), '2025');
+        await fillRequiredAuthor(user, 'Meyer');
+
+        await user.click(screen.getByLabelText('Resource Type', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+
+        await user.click(screen.getByLabelText('Language of Data', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'German' }));
+
+        const licenseTrigger = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        })[0];
+        await user.click(licenseTrigger);
+        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+
+        await ensureAuthorsOpen(user);
+
+        const contactCheckbox = screen.getByLabelText('Contact person');
+        await user.click(contactCheckbox);
+
+        const emailInput = await screen.findByLabelText('Email address');
+        expect(emailInput).toBeRequired();
+        expect(saveButton).toBeDisabled();
+
+        await user.type(emailInput, 'contact@example.org');
+
+        await waitFor(() => {
+            expect(saveButton).toBeEnabled();
         });
     });
 
@@ -660,6 +783,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
@@ -722,6 +846,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -768,6 +893,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -795,6 +921,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).not.toHaveBeenCalled();
@@ -839,6 +966,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
@@ -893,6 +1021,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         const alert = await screen.findByRole('alert');

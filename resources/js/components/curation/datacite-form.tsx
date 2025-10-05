@@ -3,6 +3,13 @@ import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
 import LicenseField from './fields/license-field';
+import AuthorField, {
+    type AffiliationEntry,
+    type AuthorEntry,
+    type AuthorType,
+    type InstitutionAuthorEntry,
+    type PersonAuthorEntry,
+} from './fields/author-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,6 +48,34 @@ interface LicenseEntry {
     id: string;
     license: string;
 }
+
+const createEmptyAffiliation = (): AffiliationEntry => ({
+    id: crypto.randomUUID(),
+    value: '',
+});
+
+const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
+    id: crypto.randomUUID(),
+    type: 'person',
+    orcid: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    website: '',
+    isContact: false,
+    affiliations: [createEmptyAffiliation()],
+});
+
+const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
+    id: crypto.randomUUID(),
+    type: 'institution',
+    institutionName: '',
+    affiliations: [createEmptyAffiliation()],
+});
+
+const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
+    return type === 'person' ? createEmptyPersonAuthor() : createEmptyInstitutionAuthor();
+};
 
 interface DataCiteFormProps {
     resourceTypes: ResourceType[];
@@ -124,6 +159,8 @@ export default function DataCiteForm({
             : [{ id: crypto.randomUUID(), license: '' }],
     );
 
+    const [authors, setAuthors] = useState<AuthorEntry[]>([createEmptyAuthor()]);
+
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('Successfully saved resource.');
@@ -137,15 +174,27 @@ export default function DataCiteForm({
         const resourceTypeSelected = Boolean(form.resourceType);
         const languageSelected = Boolean(form.language);
         const primaryLicenseFilled = Boolean(licenseEntries[0]?.license?.trim());
+        const authorsValid =
+            authors.length > 0 &&
+            authors.every((author) => {
+                if (author.type === 'person') {
+                    const hasLastName = Boolean(author.lastName.trim());
+                    const contactValid = !author.isContact || Boolean(author.email.trim());
+                    return hasLastName && contactValid;
+                }
+
+                return Boolean(author.institutionName.trim());
+            });
 
         return (
             mainTitleFilled &&
             yearFilled &&
             resourceTypeSelected &&
             languageSelected &&
-            primaryLicenseFilled
+            primaryLicenseFilled &&
+            authorsValid
         );
-    }, [form.language, form.resourceType, form.year, licenseEntries, titles]);
+    }, [authors, form.language, form.resourceType, form.year, licenseEntries, titles]);
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -177,6 +226,155 @@ export default function DataCiteForm({
     };
 
     const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
+
+    const handleAuthorTypeChange = (authorId: string, type: AuthorType) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId) {
+                    return author;
+                }
+
+                if (author.type === type) {
+                    return author;
+                }
+
+                const baseAffiliations =
+                    author.affiliations.length > 0
+                        ? author.affiliations
+                        : [createEmptyAffiliation()];
+
+                if (type === 'person') {
+                    return {
+                        ...createEmptyPersonAuthor(),
+                        id: author.id,
+                        affiliations: baseAffiliations,
+                    } as PersonAuthorEntry;
+                }
+
+                return {
+                    ...createEmptyInstitutionAuthor(),
+                    id: author.id,
+                    affiliations: baseAffiliations,
+                } as InstitutionAuthorEntry;
+            }),
+        );
+    };
+
+    const handlePersonAuthorChange = (
+        authorId: string,
+        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
+        value: string,
+    ) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId || author.type !== 'person') {
+                    return author;
+                }
+
+                return { ...author, [field]: value } as PersonAuthorEntry;
+            }),
+        );
+    };
+
+    const handleInstitutionNameChange = (authorId: string, value: string) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId || author.type !== 'institution') {
+                    return author;
+                }
+
+                return { ...author, institutionName: value } as InstitutionAuthorEntry;
+            }),
+        );
+    };
+
+    const handleAuthorContactChange = (authorId: string, checked: boolean) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId || author.type !== 'person') {
+                    return author;
+                }
+
+                return {
+                    ...author,
+                    isContact: checked,
+                    email: checked ? author.email : '',
+                    website: checked ? author.website : '',
+                } as PersonAuthorEntry;
+            }),
+        );
+    };
+
+    const handleAffiliationChange = (
+        authorId: string,
+        affiliationId: string,
+        value: string,
+    ) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId) {
+                    return author;
+                }
+
+                return {
+                    ...author,
+                    affiliations: author.affiliations.map((affiliation) =>
+                        affiliation.id === affiliationId
+                            ? { ...affiliation, value }
+                            : affiliation,
+                    ),
+                } as AuthorEntry;
+            }),
+        );
+    };
+
+    const addAffiliation = (authorId: string) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId) {
+                    return author;
+                }
+
+                return {
+                    ...author,
+                    affiliations: [...author.affiliations, createEmptyAffiliation()],
+                } as AuthorEntry;
+            }),
+        );
+    };
+
+    const removeAffiliation = (authorId: string, affiliationId: string) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId) {
+                    return author;
+                }
+
+                const remaining = author.affiliations.filter(
+                    (affiliation) => affiliation.id !== affiliationId,
+                );
+
+                return {
+                    ...author,
+                    affiliations: remaining.length
+                        ? remaining
+                        : [createEmptyAffiliation()],
+                } as AuthorEntry;
+            }),
+        );
+    };
+
+    const addAuthor = () => {
+        setAuthors((previous) => [...previous, createEmptyAuthor()]);
+    };
+
+    const removeAuthor = (authorId: string) => {
+        setAuthors((previous) =>
+            previous.length > 1
+                ? previous.filter((author) => author.id !== authorId)
+                : previous,
+        );
+    };
 
     const handleLicenseChange = (index: number, value: string) => {
         setLicenseEntries((prev) => {
@@ -335,7 +533,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'licenses-rights']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -420,6 +618,49 @@ export default function DataCiteForm({
                                     canAdd={canAddTitle(titles, MAX_TITLES)}
                                 />
                             ))}
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="authors">
+                    <AccordionTrigger>Authors</AccordionTrigger>
+                    <AccordionContent>
+                        <div className="space-y-6">
+                            {authors.map((author, index) => (
+                                <AuthorField
+                                    key={author.id}
+                                    author={author}
+                                    index={index}
+                                    onTypeChange={(type) =>
+                                        handleAuthorTypeChange(author.id, type)
+                                    }
+                                    onPersonFieldChange={(field, value) =>
+                                        handlePersonAuthorChange(author.id, field, value)
+                                    }
+                                    onInstitutionNameChange={(value) =>
+                                        handleInstitutionNameChange(author.id, value)
+                                    }
+                                    onContactChange={(checked) =>
+                                        handleAuthorContactChange(author.id, checked)
+                                    }
+                                    onAffiliationChange={(affiliationId, value) =>
+                                        handleAffiliationChange(author.id, affiliationId, value)
+                                    }
+                                    onAddAffiliation={() => addAffiliation(author.id)}
+                                    onRemoveAffiliation={(affiliationId) =>
+                                        removeAffiliation(author.id, affiliationId)
+                                    }
+                                    onRemoveAuthor={() => removeAuthor(author.id)}
+                                    canRemove={authors.length > 1}
+                                />
+                            ))}
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={addAuthor}
+                                className="w-full md:w-auto"
+                            >
+                                Add another author
+                            </Button>
                         </div>
                     </AccordionContent>
                 </AccordionItem>

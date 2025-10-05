@@ -36,14 +36,29 @@ export function SelectField({
     hideLabel = false,
     required = false,
 }: SelectFieldProps) {
+    const labelId = `${id}-label`;
+
     return (
         <div className={cn('flex flex-col gap-2', className)}>
-            <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
+            <Label
+                id={labelId}
+                htmlFor={id}
+                className={hideLabel ? 'sr-only' : undefined}
+            >
                 {label}
-                {required && <span className="text-destructive ml-1">*</span>}
+                {required && (
+                    <span aria-hidden="true" className="text-destructive ml-1">
+                        *
+                    </span>
+                )}
             </Label>
             <Select value={value} onValueChange={onValueChange} required={required}>
-                <SelectTrigger id={id} aria-required={required || undefined}>
+                <SelectTrigger
+                    id={id}
+                    aria-label={label}
+                    aria-labelledby={labelId}
+                    aria-required={required || undefined}
+                >
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
                 <SelectContent>
