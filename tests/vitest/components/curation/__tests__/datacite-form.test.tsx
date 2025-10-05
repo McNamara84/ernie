@@ -465,7 +465,8 @@ describe('DataCiteForm', () => {
         const affiliationContainer = screen.getByTestId('author-0-affiliations-field');
         expect(affiliationGrid).toHaveClass('md:grid-cols-12');
         expect(affiliationGrid).toHaveClass('md:gap-x-3');
-        expect(affiliationContainer).toHaveClass('md:col-span-12');
+        // Affiliations field spans 11 columns when contact person is not selected (no email/website fields)
+        expect(affiliationContainer).toHaveClass('md:col-span-11');
         expect(
             screen.queryByText('Use the 16-digit ORCID identifier when available.')
         ).not.toBeInTheDocument();
