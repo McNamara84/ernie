@@ -44,11 +44,11 @@ vi.mock('@yaireo/tagify', () => {
             this.DOM.scope.remove();
         }
 
-        setDisabled(disabled: boolean) {
-            if (disabled) {
-                this.DOM.input.setAttribute('disabled', '');
+        setReadonly(readonly: boolean) {
+            if (readonly) {
+                this.DOM.input.setAttribute('readonly', '');
             } else {
-                this.DOM.input.removeAttribute('disabled');
+                this.DOM.input.removeAttribute('readonly');
             }
         }
 

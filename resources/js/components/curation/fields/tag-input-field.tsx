@@ -116,14 +116,17 @@ export function TagInputField({
 
     useEffect(() => {
         const tagify = tagifyRef.current;
-        if (!tagify) {
+        const inputElement = inputRef.current;
+        if (!tagify || !inputElement) {
             return;
         }
 
         if (disabled) {
-            tagify.setDisabled(true);
+            tagify.setReadonly(true);
+            inputElement.disabled = true;
         } else {
-            tagify.setDisabled(false);
+            tagify.setReadonly(false);
+            inputElement.disabled = false;
         }
     }, [disabled]);
 

@@ -1,5 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, Locator } from '@playwright/test';
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
+
+/**
+ * Wait for an accordion button to reach the specified expanded state.
+ */
+async function waitForAccordionState(accordionButton: Locator, expanded: boolean) {
+    await expect(accordionButton).toHaveAttribute('aria-expanded', String(expanded));
+}
 
 test.beforeEach(async ({ page }) => {
     await page.goto('/login');
@@ -14,7 +21,7 @@ test.beforeEach(async ({ page }) => {
     const isExpanded = await authorsTrigger.getAttribute('aria-expanded');
     if (isExpanded === 'false') {
         await authorsTrigger.click();
-        await page.waitForTimeout(300); // Wait for accordion animation
+        await waitForAccordionState(authorsTrigger, true);
     }
 });
 
@@ -153,14 +160,8 @@ test('contact person tooltip provides guidance', async ({ page }) => {
     const contactCheckbox = page.getByRole('checkbox', { name: 'Contact person' });
     await expect(contactCheckbox).toBeVisible();
     
-    // Hover over the checkbox's label area to trigger tooltip
-    await contactCheckbox.hover();
-    
-    // Wait a bit for tooltip animation
-    await page.waitForTimeout(300);
-    
-    // Note: Tooltips in Playwright can be tricky to test as they may not always be in the accessibility tree
-    // The important part is that the checkbox has the correct accessible name from the sr-only text
+    // The checkbox should have the correct accessible name from the sr-only text
+    // No need to wait for tooltip animation - the accessible name is always present
     await expect(contactCheckbox).toHaveAccessibleName('Contact person');
 });
 
@@ -171,20 +172,21 @@ test('preserves author data when navigating accordion sections', async ({ page }
     await page.getByLabel('Last name').fill('Researcher');
     
     // Close Authors accordion
-    await page.getByRole('button', { name: 'Authors' }).click();
-    await page.waitForTimeout(300);
+    const authorsTrigger = page.getByRole('button', { name: 'Authors' });
+    await authorsTrigger.click();
+    await waitForAccordionState(authorsTrigger, false);
     
     // Open another accordion section (e.g., Resource Information)
     const resourceInfo = page.getByRole('button', { name: 'Resource Information' });
     const isExpanded = await resourceInfo.getAttribute('aria-expanded');
     if (isExpanded === 'false') {
         await resourceInfo.click();
-        await page.waitForTimeout(300);
+        await waitForAccordionState(resourceInfo, true);
     }
     
     // Re-open Authors accordion
-    await page.getByRole('button', { name: 'Authors' }).click();
-    await page.waitForTimeout(300);
+    await authorsTrigger.click();
+    await waitForAccordionState(authorsTrigger, true);
     
     // Data should be preserved
     await expect(page.getByLabel('ORCID')).toHaveValue('0000-0001-2345-6789');
