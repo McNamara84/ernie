@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import InputField from './input-field';
 import { SelectField } from './select-field';
 import TagInputField from './tag-input-field';
@@ -82,13 +82,13 @@ export function AuthorField({
                 {canRemove && (
                     <Button
                         type="button"
-                        variant="ghost"
-                        size="sm"
+                        variant="outline"
+                        size="icon"
                         onClick={onRemoveAuthor}
                         aria-label={`Remove author ${index + 1}`}
                         className="self-end"
                     >
-                        Remove
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                 )}
             </div>
