@@ -7,6 +7,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { type HTMLAttributes } from 'react';
 
 interface Option {
     value: string;
@@ -23,6 +24,8 @@ interface SelectFieldProps {
     className?: string;
     hideLabel?: boolean;
     required?: boolean;
+    containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
+    triggerClassName?: string;
 }
 
 export function SelectField({
@@ -35,15 +38,41 @@ export function SelectField({
     className,
     hideLabel = false,
     required = false,
+    containerProps,
+    triggerClassName,
 }: SelectFieldProps) {
+    const labelId = `${id}-label`;
+    const mergedClassName = cn(
+        'flex flex-col gap-2',
+        containerProps?.className,
+        className,
+    );
+
+    // Only use aria-label when label is hidden; otherwise use aria-labelledby
+    const ariaProps = hideLabel
+        ? { 'aria-label': label }
+        : { 'aria-labelledby': labelId };
+
     return (
-        <div className={cn('flex flex-col gap-2', className)}>
-            <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
+        <div {...containerProps} className={mergedClassName}>
+            <Label
+                id={labelId}
+                className={hideLabel ? 'sr-only' : undefined}
+            >
                 {label}
-                {required && <span className="text-destructive ml-1">*</span>}
+                {required && (
+                    <span aria-hidden="true" className="text-destructive ml-1">
+                        *
+                    </span>
+                )}
             </Label>
             <Select value={value} onValueChange={onValueChange} required={required}>
-                <SelectTrigger id={id} aria-required={required || undefined}>
+                <SelectTrigger
+                    id={id}
+                    aria-required={required || undefined}
+                    className={triggerClassName}
+                    {...ariaProps}
+                >
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
                 <SelectContent>

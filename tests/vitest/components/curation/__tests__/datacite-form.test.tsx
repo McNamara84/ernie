@@ -1,15 +1,137 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import type { ResourceType, TitleType, License, Language } from '@/types';
+
+vi.mock('@yaireo/tagify', () => {
+    type ChangeHandler = (event: CustomEvent) => void;
+
+    class MockTagify {
+        public DOM: { scope: HTMLElement; input: HTMLInputElement };
+        public value: { value: string }[] = [];
+        private inputElement: HTMLInputElement;
+        private handlers = new Map<string, Set<ChangeHandler>>();
+
+        constructor(inputElement: HTMLInputElement) {
+            this.inputElement = inputElement;
+            const scope = document.createElement('div');
+            scope.className = 'tagify';
+            const input = document.createElement('input');
+            input.className = 'tagify__input';
+            this.DOM = { scope, input };
+            const parent = inputElement.parentElement;
+            if (parent) {
+                parent.appendChild(scope);
+            }
+            scope.appendChild(input);
+        }
+
+        on(event: string, handler: ChangeHandler) {
+            if (!this.handlers.has(event)) {
+                this.handlers.set(event, new Set());
+            }
+            this.handlers.get(event)!.add(handler);
+        }
+
+        off(event: string, handler: ChangeHandler) {
+            this.handlers.get(event)?.delete(handler);
+        }
+
+        destroy() {
+            this.handlers.clear();
+            this.DOM.scope.remove();
+        }
+
+        setReadonly(readonly: boolean) {
+            if (readonly) {
+                this.DOM.input.setAttribute('readonly', '');
+            } else {
+                this.DOM.input.removeAttribute('readonly');
+            }
+        }
+
+        removeAllTags() {
+            this.value = [];
+            this.renderTags([]);
+            this.emitChange('');
+        }
+
+        addTags(tags: string[] | string, _skipInvalid?: boolean, silent?: boolean) {
+            const incoming = Array.isArray(tags) ? tags : [tags];
+            const processed = incoming
+                .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+                .filter((tag) => tag.length > 0);
+            this.renderTags(processed);
+            if (!silent) {
+                this.emitChange(processed.join(', '));
+            }
+        }
+
+        loadOriginalValues(raw: string) {
+            const processed = raw
+                .split(',')
+                .map((value) => value.trim())
+                .filter((value) => value.length > 0);
+            this.renderTags(processed);
+        }
+
+        private renderTags(values: string[]) {
+            this.value = values.map((value) => ({ value }));
+            this.inputElement.value = values.join(', ');
+            const existingTags = this.DOM.scope.querySelectorAll('.tagify__tag');
+            existingTags.forEach((tag) => tag.remove());
+            for (const value of values) {
+                const tag = document.createElement('span');
+                tag.className = 'tagify__tag';
+                const tagText = document.createElement('span');
+                tagText.className = 'tagify__tag-text';
+                tagText.textContent = value;
+                tag.appendChild(tagText);
+                this.DOM.scope.insertBefore(tag, this.DOM.input);
+            }
+        }
+
+        private emitChange(raw: string) {
+            const handlers = this.handlers.get('change');
+            if (!handlers || handlers.size === 0) {
+                return;
+            }
+            const event = new CustomEvent('change', {
+                detail: { value: raw, tagify: this },
+            }) as CustomEvent;
+            handlers.forEach((handler) => handler(event));
+        }
+    }
+
+    return { default: MockTagify };
+});
 
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
     const clearXsrfCookie = () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    };
+
+    const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        const authorsTrigger = screen.getByRole('button', { name: 'Authors' });
+        if (authorsTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(authorsTrigger);
+        }
+    };
+
+    const fillRequiredAuthor = async (
+        user: ReturnType<typeof userEvent.setup>,
+        lastName = 'Curator',
+    ) => {
+        await ensureAuthorsOpen(user);
+        const lastNameInput = (await screen.findByRole('textbox', { name: /Last name/ })) as HTMLInputElement;
+        if (lastNameInput.value) {
+            await user.clear(lastNameInput);
+        }
+        await user.type(lastNameInput, lastName);
     };
 
     beforeAll(() => {
@@ -71,11 +193,16 @@ describe('DataCiteForm', () => {
         const resourceTrigger = screen.getByRole('button', {
             name: 'Resource Information',
         });
+        const authorsTrigger = screen.getByRole('button', {
+            name: 'Authors',
+        });
         const licensesTrigger = screen.getByRole('button', {
             name: 'Licenses and Rights',
         });
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(authorsTrigger).toBeInTheDocument();
         await user.click(resourceTrigger);
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'false');
         expect(screen.queryByLabelText('DOI')).not.toBeInTheDocument();
@@ -147,6 +274,13 @@ describe('DataCiteForm', () => {
         const titleTypeTrigger = screen.getByRole('combobox', { name: /Title Type/ });
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
+        // author fields
+        expect(await screen.findByText('Author type')).toBeInTheDocument();
+        expect(await screen.findByLabelText('ORCID')).toBeInTheDocument();
+        expect(screen.getByText('Affiliations')).toBeInTheDocument();
+        // Multiple "Add author" buttons exist (desktop + mobile), use getAllByRole
+        expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
+
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
         expect(addButton).toBeDisabled();
@@ -204,9 +338,394 @@ describe('DataCiteForm', () => {
         await user.click(licenseTrigger);
         await user.click(await screen.findByRole('option', { name: 'MIT License' }));
 
+        await fillRequiredAuthor(user, 'Doe');
+
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
             expect(saveButton).toHaveAttribute('aria-disabled', 'false');
+        });
+    });
+
+    it('supports managing person and institution authors with affiliations', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        await ensureAuthorsOpen(user);
+
+        const typeTrigger = screen.getByRole('combobox', { name: /Author type/i });
+        await user.click(typeTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Institution' }));
+
+        expect(screen.getByRole('textbox', { name: /Institution name/i })).toBeInTheDocument();
+        expect(screen.queryByRole('textbox', { name: /First name/i })).not.toBeInTheDocument();
+
+        await user.click(typeTrigger);
+        await user.click(await screen.findByRole('option', { name: 'Person' }));
+
+        expect(screen.getByRole('textbox', { name: /First name/i })).toBeInTheDocument();
+
+        const affiliationField = screen.getByTestId('author-0-affiliations-field');
+        expect(
+            screen.queryByRole('button', { name: /Add affiliation/i }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Separate multiple affiliations with commas.'),
+        ).not.toBeInTheDocument();
+
+        const affiliationInput = screen.getByTestId(
+            'author-0-affiliations-input',
+        ) as HTMLInputElement & {
+            tagify?: {
+                addTags: (value: string | string[], clearInput?: boolean, skipChangeEvent?: boolean) => void;
+            };
+        };
+
+        await waitFor(() => {
+            expect(affiliationInput.tagify).toBeTruthy();
+        });
+
+        await act(async () => {
+            affiliationInput.tagify!.addTags(
+                ['University A', 'University B'],
+                true,
+                false,
+            );
+        });
+
+        await waitFor(() => {
+            expect(affiliationField.querySelectorAll('.tagify__tag')).toHaveLength(2);
+        });
+        expect(affiliationField).toHaveTextContent('University A');
+        expect(affiliationField).toHaveTextContent('University B');
+
+        const addAuthorButtons = screen.getAllByRole('button', { name: /Add author/i });
+        await user.click(addAuthorButtons[0]);
+        expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
+        
+        // After adding a second author, only the second author should have the Add button visible on desktop
+        const updatedAddButtons = screen.getAllByRole('button', { name: /Add author/i });
+        expect(updatedAddButtons.length).toBeGreaterThanOrEqual(1);
+        
+        const removeAuthorButton = screen.getByRole('button', { name: 'Remove author 2' });
+        await user.click(removeAuthorButton);
+        expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
+        
+        // After removing the second author, the Add button should be visible again
+        expect(screen.getAllByRole('button', { name: /Add author/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('supports adding, removing and managing multiple authors independently', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        await ensureAuthorsOpen(user);
+
+        // Add three authors
+        const addButtons = () => screen.getAllByRole('button', { name: /Add author/i });
+        
+        await user.type(screen.getByRole('textbox', { name: /Last name/i }), 'First Author');
+        await user.click(addButtons()[0]);
+        
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+        });
+        
+        await user.type(screen.getAllByRole('textbox', { name: /Last name/i })[1], 'Second Author');
+        await user.click(addButtons()[0]);
+        
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
+        });
+        
+        await user.type(screen.getAllByRole('textbox', { name: /Last name/i })[2], 'Third Author');
+
+        // Verify all three authors are present
+        expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
+
+        // Change second author to institution
+        const secondAuthorType = screen.getAllByRole('combobox', { name: /Author type/i })[1];
+        await user.click(secondAuthorType);
+        await user.click(await screen.findByRole('option', { name: 'Institution' }));
+
+        const institutionInput = screen.getByRole('textbox', { name: /Institution name/i });
+        await user.type(institutionInput, 'Test University');
+
+        // Verify first and third are still persons
+        expect(screen.getAllByRole('textbox', { name: /Last name/i })).toHaveLength(2);
+        expect(screen.getAllByRole('textbox', { name: /Last name/i })[0]).toHaveValue('First Author');
+        expect(screen.getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
+
+        // Set first author as contact person
+        const firstContactCheckbox = screen.getAllByRole('checkbox', { name: /Contact person/i })[0];
+        await user.click(firstContactCheckbox);
+
+        await waitFor(() => {
+            expect(screen.getByRole('textbox', { name: /Email address/i })).toBeInTheDocument();
+        });
+
+        await user.type(screen.getByRole('textbox', { name: /Email address/i }), 'first@example.com');
+        await user.type(screen.getByRole('textbox', { name: /Website/i }), 'https://first.example.com');
+
+        // Add affiliations to third author
+        const thirdAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[2] as HTMLInputElement & {
+            tagify?: {
+                addTags: (value: string | string[], clearInput?: boolean, skipChangeEvent?: boolean) => void;
+            };
+        };
+
+        await waitFor(() => {
+            expect(thirdAffiliationInput.tagify).toBeTruthy();
+        });
+
+        await act(async () => {
+            thirdAffiliationInput.tagify!.addTags(['Institution X', 'Institution Y'], true, false);
+        });
+
+        const thirdAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[2];
+        await waitFor(() => {
+            expect(thirdAffiliationField.querySelectorAll('.tagify__tag')).toHaveLength(2);
+        });
+
+        // Remove second author (institution)
+        const removeButtons = screen.getAllByRole('button', { name: /Remove author \d/ });
+        await user.click(removeButtons[1]);
+
+        // Should now have 2 authors
+        await waitFor(() => {
+            expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
+        });
+
+        expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Author 3' })).not.toBeInTheDocument();
+
+        // Former third author should now be second author
+        expect(screen.getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
+
+        // First author contact data should be preserved
+        expect(screen.getByRole('textbox', { name: /Email address/i })).toHaveValue('first@example.com');
+        expect(screen.getByRole('textbox', { name: /Website/i })).toHaveValue('https://first.example.com');
+
+        // Former third author affiliations should be preserved
+        const newSecondAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[1];
+        expect(newSecondAffiliationField).toHaveTextContent('Institution X');
+        expect(newSecondAffiliationField).toHaveTextContent('Institution Y');
+
+        // Remove first author
+        await user.click(screen.getAllByRole('button', { name: /Remove author \d/ })[0]);
+
+        // Should now have 1 author
+        await waitFor(() => {
+            expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
+        });
+
+        expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Author 2' })).not.toBeInTheDocument();
+
+        // Remaining author should be the former third author
+        expect(screen.getByRole('textbox', { name: /Last name/i })).toHaveValue('Third Author');
+        
+        // Affiliations should be preserved
+        const finalAffiliationField = screen.getByTestId('author-0-affiliations-field');
+        expect(finalAffiliationField).toHaveTextContent('Institution X');
+        expect(finalAffiliationField).toHaveTextContent('Institution Y');
+    });
+
+    it('applies responsive layout for author inputs', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureAuthorsOpen(user);
+
+        const typeField = screen.getByTestId('author-0-type-field');
+        expect(typeField).toHaveClass('md:col-span-2');
+        const typeTrigger = screen.getByRole('combobox', { name: /Author type/i });
+        expect(typeTrigger).toHaveClass('w-full');
+        // Note: md:w-[8.5rem] is on the SelectField container via triggerClassName, not on the trigger element itself
+        const orcidField = screen.getByTestId('author-0-orcid-field');
+        expect(orcidField).toHaveClass('md:col-span-3');
+        const orcidInput = screen.getByRole('textbox', { name: /ORCID/i });
+        expect(orcidInput).toHaveClass('w-full');
+        // ORCID field uses full width within its 3-column container
+        const authorGrid = screen.getByTestId('author-0-fields-grid');
+        expect(authorGrid).toHaveClass('md:gap-x-3');
+        // Add author button is outside the fields grid in a separate container
+        expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
+        expect(
+            screen.getByRole('textbox', { name: /Last name/i }).closest('div')
+        ).toHaveClass('md:col-span-3');
+        expect(
+            screen.getByRole('textbox', { name: /First name/i }).closest('div')
+        ).toHaveClass('md:col-span-3');
+        const contactField = screen.getByTestId('author-0-contact-field');
+        expect(contactField).toHaveClass('md:col-span-1');
+        expect(contactField).toHaveClass('flex');
+        expect(contactField).toHaveClass('flex-col');
+        expect(contactField).toHaveClass('items-start');
+        expect(contactField).not.toHaveClass('pt-6');
+        const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
+        const affiliationContainer = screen.getByTestId('author-0-affiliations-field');
+        expect(affiliationGrid).toHaveClass('md:grid-cols-12');
+        expect(affiliationGrid).toHaveClass('md:gap-x-3');
+        // Affiliations field spans 11 columns when contact person is not selected (no email/website fields)
+        expect(affiliationContainer).toHaveClass('md:col-span-11');
+        expect(
+            screen.queryByText('Use the 16-digit ORCID identifier when available.')
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Provide details for this author and their affiliations.')
+        ).not.toBeInTheDocument();
+    });
+
+    it('aligns contact fields alongside affiliations when marked as CP', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureAuthorsOpen(user);
+
+        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
+        await user.click(contactCheckbox);
+
+        const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
+        const affiliationContainer = screen.getByTestId('author-0-affiliations-field');
+        const emailContainer = screen
+            .getByRole('textbox', { name: /Email address/i })
+            .closest('div');
+        const websiteContainer = screen.getByRole('textbox', { name: /Website/i }).closest('div');
+
+        expect(affiliationGrid).toHaveClass('md:grid-cols-12');
+        // Affiliations field uses md:col-span-5 when contact fields are visible
+        expect(affiliationContainer).toHaveClass('md:col-span-5');
+        expect(emailContainer).toHaveClass('md:col-span-3');
+        expect(websiteContainer).toHaveClass('md:col-span-3');
+    });
+
+    it('places the Authors section after Licenses and Rights', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const licensesTrigger = screen.getByRole('button', {
+            name: 'Licenses and Rights',
+        });
+        const authorsTrigger = screen.getByRole('button', { name: 'Authors' });
+
+        const position = licensesTrigger.compareDocumentPosition(authorsTrigger);
+        expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('shows contact guidance on hover while keeping the label compact', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        await ensureAuthorsOpen(user);
+
+        const contactLabel = screen.getByText('CP');
+        expect(contactLabel).toBeVisible();
+
+        await user.hover(contactLabel);
+
+        const tooltip = await screen.findByRole('tooltip');
+        expect(tooltip).toBeVisible();
+        expect(tooltip).toHaveTextContent(
+            'Contact Person: Select if this author should be the primary contact.'
+        );
+
+        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
+        expect(contactCheckbox).toBeInTheDocument();
+    });
+
+    it('requires an email address when a person author is marked as contact', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const saveButton = screen.getByRole('button', { name: 'Save to database' });
+
+        const titleInput = screen.getByRole('textbox', { name: /Title/ });
+        await user.type(titleInput, 'Contact Title');
+        await user.type(screen.getByLabelText('Year', { exact: false }), '2025');
+        await fillRequiredAuthor(user, 'Meyer');
+
+        await user.click(screen.getByLabelText('Resource Type', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+
+        await user.click(screen.getByLabelText('Language of Data', { exact: false }));
+        await user.click(await screen.findByRole('option', { name: 'German' }));
+
+        const licenseTrigger = screen.getAllByLabelText(/^License/, {
+            selector: 'button',
+        })[0];
+        await user.click(licenseTrigger);
+        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+
+        await ensureAuthorsOpen(user);
+
+        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
+        await user.click(contactCheckbox);
+
+        const emailInput = await screen.findByRole('textbox', { name: /Email address/i });
+        expect(emailInput).toBeRequired();
+        expect(screen.getByRole('textbox', { name: /Website/i })).toBeInTheDocument();
+        expect(screen.queryByRole('textbox', { name: /Website \(optional\)/i })).not.toBeInTheDocument();
+        expect(saveButton).toBeDisabled();
+
+        await user.type(emailInput, 'contact@example.org');
+
+        await waitFor(() => {
+            expect(saveButton).toBeEnabled();
         });
     });
 
@@ -660,6 +1179,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
@@ -722,6 +1242,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -768,6 +1289,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -795,6 +1317,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).not.toHaveBeenCalled();
@@ -839,6 +1362,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
@@ -893,6 +1417,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredAuthor(user);
         await user.click(saveButton);
 
         const alert = await screen.findByRole('alert');

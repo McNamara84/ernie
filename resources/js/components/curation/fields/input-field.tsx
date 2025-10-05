@@ -1,13 +1,15 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { type InputHTMLAttributes } from 'react';
+import { type HTMLAttributes, type InputHTMLAttributes } from 'react';
 
 interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     id: string;
     label: string;
     hideLabel?: boolean;
     className?: string;
+    containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
+    inputClassName?: string;
 }
 
 export function InputField({
@@ -17,15 +19,44 @@ export function InputField({
     type = 'text',
     className,
     required,
+    containerProps,
+    inputClassName,
     ...props
 }: InputFieldProps) {
+    const labelId = `${id}-label`;
+    const mergedClassName = cn(
+        'flex flex-col gap-2',
+        containerProps?.className,
+        className,
+    );
+
+    // Only use aria-label when label is hidden; otherwise use aria-labelledby
+    const ariaProps = hideLabel
+        ? { 'aria-label': label }
+        : { 'aria-labelledby': labelId };
+
     return (
-        <div className={cn('flex flex-col gap-2', className)}>
-            <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
+        <div {...containerProps} className={mergedClassName}>
+            <Label
+                id={labelId}
+                htmlFor={id}
+                className={hideLabel ? 'sr-only' : undefined}
+            >
                 {label}
-                {required && <span className="text-destructive ml-1">*</span>}
+                {required && (
+                    <span aria-hidden="true" className="text-destructive ml-1">
+                        *
+                    </span>
+                )}
             </Label>
-            <Input id={id} type={type} required={required} {...props} />
+            <Input
+                id={id}
+                type={type}
+                required={required}
+                className={inputClassName}
+                {...ariaProps}
+                {...props}
+            />
         </div>
     );
 }
