@@ -9,6 +9,7 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     hideLabel?: boolean;
     className?: string;
     containerProps?: HTMLAttributes<HTMLDivElement>;
+    inputClassName?: string;
 }
 
 export function InputField({
@@ -19,6 +20,7 @@ export function InputField({
     className,
     required,
     containerProps,
+    inputClassName,
     ...props
 }: InputFieldProps) {
     const labelId = `${id}-label`;
@@ -48,6 +50,7 @@ export function InputField({
                 required={required}
                 aria-label={label}
                 aria-labelledby={labelId}
+                className={inputClassName}
                 {...props}
             />
         </div>

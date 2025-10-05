@@ -312,12 +312,15 @@ describe('DataCiteForm', () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         await ensureAuthorsOpen(user);
 
-        expect(screen.getByTestId('author-0-type-field')).toHaveClass(
-            'md:max-w-[12rem]'
-        );
-        expect(screen.getByTestId('author-0-orcid-field')).toHaveClass(
-            'md:max-w-[20ch]'
-        );
+        const typeField = screen.getByTestId('author-0-type-field');
+        expect(typeField).toHaveClass('md:col-span-2');
+        const typeTrigger = screen.getByLabelText('Author type');
+        expect(typeTrigger).toHaveClass('w-full');
+        expect(typeTrigger).toHaveClass('md:w-[11rem]');
+        const orcidField = screen.getByTestId('author-0-orcid-field');
+        expect(orcidField).toHaveClass('md:col-span-3');
+        const orcidInput = screen.getByLabelText('ORCID');
+        expect(orcidInput).toHaveClass('md:w-[20ch]');
         const authorGrid = screen.getByTestId('author-0-fields-grid');
         expect(authorGrid).toHaveClass('md:gap-x-3');
         expect(within(authorGrid).getByRole('button', { name: 'Add author' })).toBeInTheDocument();
@@ -333,9 +336,47 @@ describe('DataCiteForm', () => {
         expect(contactField).toHaveClass('flex-col');
         expect(contactField).toHaveClass('items-start');
         expect(contactField).not.toHaveClass('pt-6');
+        const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
+        const affiliationContainer = screen
+            .getByLabelText('Affiliations')
+            .closest('div');
+        expect(affiliationGrid).toHaveClass('md:grid-cols-12');
+        expect(affiliationGrid).toHaveClass('md:gap-x-3');
+        expect(affiliationContainer).toHaveClass('md:col-span-12');
         expect(
             screen.queryByText('Use the 16-digit ORCID identifier when available.')
         ).not.toBeInTheDocument();
+    });
+
+    it('aligns contact fields alongside affiliations when marked as CP', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureAuthorsOpen(user);
+
+        const contactCheckbox = screen.getByLabelText('Contact person');
+        await user.click(contactCheckbox);
+
+        const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
+        const affiliationContainer = screen
+            .getByLabelText('Affiliations')
+            .closest('div');
+        const emailContainer = screen
+            .getByLabelText('Email address')
+            .closest('div');
+        const websiteContainer = screen.getByLabelText('Website').closest('div');
+
+        expect(affiliationGrid).toHaveClass('md:grid-cols-12');
+        expect(affiliationContainer).toHaveClass('md:col-span-6');
+        expect(emailContainer).toHaveClass('md:col-span-3');
+        expect(websiteContainer).toHaveClass('md:col-span-3');
     });
 
     it('places the Authors section after Licenses and Rights', () => {

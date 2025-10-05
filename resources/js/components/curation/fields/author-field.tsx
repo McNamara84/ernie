@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 export type AuthorType = 'person' | 'institution';
 
@@ -109,8 +110,11 @@ export function AuthorField({
                         { value: 'person', label: 'Person' },
                         { value: 'institution', label: 'Institution' },
                     ]}
-                    className="md:col-span-2 md:max-w-[12rem]"
-                    containerProps={{ 'data-testid': `author-${index}-type-field` }}
+                    containerProps={{
+                        'data-testid': `author-${index}-type-field`,
+                        className: 'md:col-span-2',
+                    }}
+                    triggerClassName="w-full md:w-[11rem]"
                     required
                 />
 
@@ -124,8 +128,11 @@ export function AuthorField({
                                 onPersonFieldChange('orcid', event.target.value)
                             }
                             placeholder="0000-0000-0000-0000"
-                            className="md:col-span-3 md:max-w-[20ch]"
-                            containerProps={{ 'data-testid': `author-${index}-orcid-field` }}
+                            containerProps={{
+                                'data-testid': `author-${index}-orcid-field`,
+                                className: 'md:col-span-3',
+                            }}
+                            inputClassName="w-full md:w-[20ch]"
                             inputMode="numeric"
                             pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
                         />
@@ -181,32 +188,6 @@ export function AuthorField({
                                 contact.
                             </p>
                         </div>
-                        {author.isContact && (
-                            <>
-                                <InputField
-                                    id={`${author.id}-email`}
-                                    type="email"
-                                    label="Email address"
-                                    value={author.email}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('email', event.target.value)
-                                    }
-                                    className="md:col-span-4"
-                                    required
-                                />
-                                <InputField
-                                    id={`${author.id}-website`}
-                                    type="url"
-                                    label="Website"
-                                    value={author.website}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('website', event.target.value)
-                                    }
-                                    placeholder="https://example.org"
-                                    className="md:col-span-4"
-                                />
-                            </>
-                        )}
                     </>
                 ) : (
                     <InputField
@@ -235,14 +216,53 @@ export function AuthorField({
             </div>
 
             <div className="mt-6 space-y-3">
-                <InputField
-                    id={`${author.id}-affiliations`}
-                    label="Affiliations"
-                    value={author.affiliationsInput}
-                    onChange={(event) => onAffiliationsChange(event.target.value)}
-                    placeholder="Institution A, Institution B"
-                    aria-describedby={`${author.id}-affiliations-hint`}
-                />
+                <div
+                    className="grid gap-y-3 md:grid-cols-12 md:gap-x-3"
+                    data-testid={`author-${index}-affiliations-grid`}
+                >
+                    <InputField
+                        id={`${author.id}-affiliations`}
+                        label="Affiliations"
+                        value={author.affiliationsInput}
+                        onChange={(event) => onAffiliationsChange(event.target.value)}
+                        placeholder="Institution A, Institution B"
+                        aria-describedby={`${author.id}-affiliations-hint`}
+                        containerProps={{
+                            className: cn(
+                                'md:col-span-12',
+                                isPerson && author.isContact
+                                    ? 'md:col-span-6'
+                                    : 'md:col-span-12',
+                            ),
+                        }}
+                    />
+                    {isPerson && author.isContact && (
+                        <>
+                            <InputField
+                                id={`${author.id}-email`}
+                                type="email"
+                                label="Email address"
+                                value={author.email}
+                                onChange={(event) =>
+                                    onPersonFieldChange('email', event.target.value)
+                                }
+                                containerProps={{ className: 'md:col-span-3' }}
+                                required
+                            />
+                            <InputField
+                                id={`${author.id}-website`}
+                                type="url"
+                                label="Website"
+                                value={author.website}
+                                onChange={(event) =>
+                                    onPersonFieldChange('website', event.target.value)
+                                }
+                                placeholder="https://example.org"
+                                containerProps={{ className: 'md:col-span-3' }}
+                            />
+                        </>
+                    )}
+                </div>
                 <p
                     id={`${author.id}-affiliations-hint`}
                     className="text-sm text-muted-foreground"

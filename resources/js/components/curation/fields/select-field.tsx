@@ -25,6 +25,7 @@ interface SelectFieldProps {
     hideLabel?: boolean;
     required?: boolean;
     containerProps?: HTMLAttributes<HTMLDivElement>;
+    triggerClassName?: string;
 }
 
 export function SelectField({
@@ -38,6 +39,7 @@ export function SelectField({
     hideLabel = false,
     required = false,
     containerProps,
+    triggerClassName,
 }: SelectFieldProps) {
     const labelId = `${id}-label`;
     const mergedClassName = cn(
@@ -66,6 +68,7 @@ export function SelectField({
                     aria-label={label}
                     aria-labelledby={labelId}
                     aria-required={required || undefined}
+                    className={triggerClassName}
                 >
                     <SelectValue placeholder={placeholder} />
                 </SelectTrigger>
