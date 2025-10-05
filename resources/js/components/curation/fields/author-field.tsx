@@ -119,6 +119,22 @@ export function AuthorField({
                         {isPerson ? (
                             <>
                                 <InputField
+                                    id={`${author.id}-orcid`}
+                                    label="ORCID"
+                                    value={author.orcid}
+                                    onChange={(event) =>
+                                        onPersonFieldChange('orcid', event.target.value)
+                                    }
+                                    placeholder="0000-0000-0000-0000"
+                                    containerProps={{
+                                        'data-testid': `author-${index}-orcid-field`,
+                                        className: 'md:col-span-3',
+                                    }}
+                                    inputClassName="w-full"
+                                    inputMode="numeric"
+                                    pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
+                                />
+                                <InputField
                                     id={`${author.id}-firstName`}
                                     label="First name"
                                     value={author.firstName}
@@ -136,22 +152,6 @@ export function AuthorField({
                                     }
                                     containerProps={{ className: 'md:col-span-3' }}
                                     required
-                                />
-                                <InputField
-                                    id={`${author.id}-orcid`}
-                                    label="ORCID"
-                                    value={author.orcid}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('orcid', event.target.value)
-                                    }
-                                    placeholder="0000-0000-0000-0000"
-                                    containerProps={{
-                                        'data-testid': `author-${index}-orcid-field`,
-                                        className: 'md:col-span-3',
-                                    }}
-                                    inputClassName="w-full"
-                                    inputMode="numeric"
-                                    pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
                                 />
                                 <div
                                     className="flex flex-col items-start gap-2 md:col-span-1"
