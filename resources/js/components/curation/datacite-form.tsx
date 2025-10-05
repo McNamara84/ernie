@@ -298,19 +298,17 @@ export default function DataCiteForm({
         );
     };
 
-    const handleAffiliationsChange = (authorId: string, value: string) => {
-        const tags = value
-            .split(',')
-            .map((affiliation) => affiliation.trim())
-            .filter((affiliation) => affiliation.length > 0);
-
+    const handleAffiliationsChange = (
+        authorId: string,
+        value: { raw: string; tags: string[] },
+    ) => {
         setAuthors((previous) =>
             previous.map((author) =>
                 author.id === authorId
                     ? ({
                           ...author,
-                          affiliations: tags,
-                          affiliationsInput: value,
+                          affiliations: value.tags,
+                          affiliationsInput: value.raw,
                       } as AuthorEntry)
                     : author,
             ),

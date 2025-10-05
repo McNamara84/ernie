@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@yaireo/tagify/dist/tagify.css';
 
 @plugin 'tailwindcss-animate';
 
@@ -145,5 +146,62 @@
 
     body {
         @apply bg-background text-foreground;
+    }
+}
+
+@layer components {
+    .tagify {
+        --tagify-dd-color-primary: var(--color-primary);
+        --tagify-dd-item-active-bg: color-mix(in oklch, var(--color-primary) 15%, transparent);
+        --tagify-dd-item-active-color: var(--color-primary);
+        --tag-bg: var(--color-secondary);
+        --tag-hover: var(--color-accent);
+        --tag-text-color: var(--color-secondary-foreground);
+        --tag-remove-btn-bg: transparent;
+        --tag-remove-btn-color: var(--color-secondary-foreground);
+        border: 1px solid var(--color-input);
+        border-radius: var(--radius-md);
+        background-color: transparent;
+        min-height: 2.25rem;
+        padding: 0.25rem 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tagify:focus-within {
+        border-color: var(--color-ring);
+        box-shadow:
+            0 0 0 1px var(--color-ring),
+            0 0 0 3px color-mix(in oklch, var(--color-ring) 35%, transparent);
+    }
+
+    .tagify__tag {
+        border-radius: var(--radius-sm);
+        padding: 0.125rem 0.5rem;
+    }
+
+    .tagify__tag-text {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .tagify__tag__removeBtn {
+        color: inherit;
+        margin-left: 0.25rem;
+    }
+
+    .tagify__input {
+        background: transparent;
+        border: none;
+        color: var(--color-foreground);
+        font-size: 0.875rem;
+        min-width: 6ch;
+        padding: 0.125rem 0.25rem;
+    }
+
+    .tagify__input:focus {
+        outline: none;
     }
 }

@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
@@ -268,17 +268,39 @@ describe('DataCiteForm', () => {
 
         expect(screen.getByLabelText('First name')).toBeInTheDocument();
 
-        const affiliationInput = screen.getByLabelText('Affiliations');
+        const affiliationField = screen.getByTestId('author-0-affiliations-field');
         expect(
             screen.queryByRole('button', { name: /Add affiliation/i }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Separate multiple affiliations with commas.'),
+        ).not.toBeInTheDocument();
 
-        await user.type(affiliationInput, 'University A, University B');
+        const affiliationInput = screen.getByTestId(
+            'author-0-affiliations-input',
+        ) as HTMLInputElement & {
+            tagify?: {
+                addTags: (value: string | string[], clearInput?: boolean, skipChangeEvent?: boolean) => void;
+            };
+        };
 
-        const affiliationTags = screen.getByLabelText('Affiliation tags');
-        expect(affiliationTags).toBeInTheDocument();
-        expect(affiliationTags).toHaveTextContent('University A');
-        expect(affiliationTags).toHaveTextContent('University B');
+        await waitFor(() => {
+            expect(affiliationInput.tagify).toBeTruthy();
+        });
+
+        await act(async () => {
+            affiliationInput.tagify!.addTags(
+                ['University A', 'University B'],
+                true,
+                false,
+            );
+        });
+
+        await waitFor(() => {
+            expect(affiliationField.querySelectorAll('.tagify__tag')).toHaveLength(2);
+        });
+        expect(affiliationField).toHaveTextContent('University A');
+        expect(affiliationField).toHaveTextContent('University B');
 
         await user.click(screen.getByRole('button', { name: 'Add author' }));
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
@@ -337,9 +359,7 @@ describe('DataCiteForm', () => {
         expect(contactField).toHaveClass('items-start');
         expect(contactField).not.toHaveClass('pt-6');
         const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
-        const affiliationContainer = screen
-            .getByLabelText('Affiliations')
-            .closest('div');
+        const affiliationContainer = screen.getByTestId('author-0-affiliations-field');
         expect(affiliationGrid).toHaveClass('md:grid-cols-12');
         expect(affiliationGrid).toHaveClass('md:gap-x-3');
         expect(affiliationContainer).toHaveClass('md:col-span-12');
@@ -365,9 +385,7 @@ describe('DataCiteForm', () => {
         await user.click(contactCheckbox);
 
         const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
-        const affiliationContainer = screen
-            .getByLabelText('Affiliations')
-            .closest('div');
+        const affiliationContainer = screen.getByTestId('author-0-affiliations-field');
         const emailContainer = screen
             .getByLabelText('Email address')
             .closest('div');

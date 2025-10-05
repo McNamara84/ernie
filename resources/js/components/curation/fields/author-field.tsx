@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react';
 import InputField from './input-field';
 import { SelectField } from './select-field';
-import { Badge } from '@/components/ui/badge';
+import TagInputField from './tag-input-field';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -43,7 +43,7 @@ interface AuthorFieldProps {
     ) => void;
     onInstitutionNameChange: (value: string) => void;
     onContactChange: (checked: boolean) => void;
-    onAffiliationsChange: (value: string) => void;
+    onAffiliationsChange: (value: { raw: string; tags: string[] }) => void;
     onRemoveAuthor: () => void;
     canRemove: boolean;
     onAddAuthor: () => void;
@@ -220,13 +220,12 @@ export function AuthorField({
                     className="grid gap-y-3 md:grid-cols-12 md:gap-x-3"
                     data-testid={`author-${index}-affiliations-grid`}
                 >
-                    <InputField
+                    <TagInputField
                         id={`${author.id}-affiliations`}
                         label="Affiliations"
-                        value={author.affiliationsInput}
-                        onChange={(event) => onAffiliationsChange(event.target.value)}
+                        value={author.affiliations}
+                        onChange={(detail) => onAffiliationsChange(detail)}
                         placeholder="Institution A, Institution B"
-                        aria-describedby={`${author.id}-affiliations-hint`}
                         containerProps={{
                             className: cn(
                                 'md:col-span-12',
@@ -234,7 +233,9 @@ export function AuthorField({
                                     ? 'md:col-span-6'
                                     : 'md:col-span-12',
                             ),
+                            'data-testid': `author-${index}-affiliations-field`,
                         }}
+                        data-testid={`author-${index}-affiliations-input`}
                     />
                     {isPerson && author.isContact && (
                         <>
@@ -263,28 +264,6 @@ export function AuthorField({
                         </>
                     )}
                 </div>
-                <p
-                    id={`${author.id}-affiliations-hint`}
-                    className="text-sm text-muted-foreground"
-                >
-                    Separate multiple affiliations with commas. Tags update as you type.
-                </p>
-                {author.affiliations.length > 0 && (
-                    <div
-                        className="flex flex-wrap gap-2"
-                        aria-live="polite"
-                        aria-label="Affiliation tags"
-                    >
-                        {author.affiliations.map((affiliation, affiliationIndex) => (
-                            <Badge
-                                key={`${author.id}-affiliation-${affiliationIndex}-${affiliation}`}
-                                variant="secondary"
-                            >
-                                {affiliation}
-                            </Badge>
-                        ))}
-                    </div>
-                )}
             </div>
         </section>
     );
