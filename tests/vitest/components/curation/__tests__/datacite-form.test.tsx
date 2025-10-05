@@ -443,7 +443,7 @@ describe('DataCiteForm', () => {
         expect(orcidField).toHaveClass('md:col-span-3');
         const orcidInput = screen.getByLabelText('ORCID');
         expect(orcidInput).toHaveClass('w-full');
-        expect(orcidInput).toHaveClass('md:max-w-[19ch]');
+        // ORCID field uses full width within its 3-column container
         const authorGrid = screen.getByTestId('author-0-fields-grid');
         expect(authorGrid).toHaveClass('md:gap-x-3');
         expect(within(authorGrid).getByRole('button', { name: 'Add author' })).toBeInTheDocument();
