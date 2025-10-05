@@ -422,6 +422,133 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('button', { name: /Add author/i }).length).toBeGreaterThanOrEqual(1);
     });
 
+    it('supports adding, removing and managing multiple authors independently', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        await ensureAuthorsOpen(user);
+
+        // Add three authors
+        const addButtons = () => screen.getAllByRole('button', { name: /Add author/i });
+        
+        await user.type(screen.getByLabelText('Last name'), 'First Author');
+        await user.click(addButtons()[0]);
+        
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+        });
+        
+        await user.type(screen.getAllByLabelText('Last name')[1], 'Second Author');
+        await user.click(addButtons()[0]);
+        
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
+        });
+        
+        await user.type(screen.getAllByLabelText('Last name')[2], 'Third Author');
+
+        // Verify all three authors are present
+        expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
+
+        // Change second author to institution
+        const secondAuthorType = screen.getAllByLabelText('Author type')[1];
+        await user.click(secondAuthorType);
+        await user.click(await screen.findByRole('option', { name: 'Institution' }));
+
+        const institutionInput = screen.getByLabelText('Institution name');
+        await user.type(institutionInput, 'Test University');
+
+        // Verify first and third are still persons
+        expect(screen.getAllByLabelText('Last name')).toHaveLength(2);
+        expect(screen.getAllByLabelText('Last name')[0]).toHaveValue('First Author');
+        expect(screen.getAllByLabelText('Last name')[1]).toHaveValue('Third Author');
+
+        // Set first author as contact person
+        const firstContactCheckbox = screen.getAllByLabelText('Contact person')[0];
+        await user.click(firstContactCheckbox);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText('Email address')).toBeInTheDocument();
+        });
+
+        await user.type(screen.getByLabelText('Email address'), 'first@example.com');
+        await user.type(screen.getByLabelText('Website'), 'https://first.example.com');
+
+        // Add affiliations to third author
+        const thirdAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[2] as HTMLInputElement & {
+            tagify?: {
+                addTags: (value: string | string[], clearInput?: boolean, skipChangeEvent?: boolean) => void;
+            };
+        };
+
+        await waitFor(() => {
+            expect(thirdAffiliationInput.tagify).toBeTruthy();
+        });
+
+        await act(async () => {
+            thirdAffiliationInput.tagify!.addTags(['Institution X', 'Institution Y'], true, false);
+        });
+
+        const thirdAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[2];
+        await waitFor(() => {
+            expect(thirdAffiliationField.querySelectorAll('.tagify__tag')).toHaveLength(2);
+        });
+
+        // Remove second author (institution)
+        const removeButtons = screen.getAllByRole('button', { name: /Remove author \d/ });
+        await user.click(removeButtons[1]);
+
+        // Should now have 2 authors
+        await waitFor(() => {
+            expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
+        });
+
+        expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Author 3' })).not.toBeInTheDocument();
+
+        // Former third author should now be second author
+        expect(screen.getAllByLabelText('Last name')[1]).toHaveValue('Third Author');
+
+        // First author contact data should be preserved
+        expect(screen.getByLabelText('Email address')).toHaveValue('first@example.com');
+        expect(screen.getByLabelText('Website')).toHaveValue('https://first.example.com');
+
+        // Former third author affiliations should be preserved
+        const newSecondAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[1];
+        expect(newSecondAffiliationField).toHaveTextContent('Institution X');
+        expect(newSecondAffiliationField).toHaveTextContent('Institution Y');
+
+        // Remove first author
+        await user.click(screen.getAllByRole('button', { name: /Remove author \d/ })[0]);
+
+        // Should now have 1 author
+        await waitFor(() => {
+            expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
+        });
+
+        expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Author 2' })).not.toBeInTheDocument();
+
+        // Remaining author should be the former third author
+        expect(screen.getByLabelText('Last name')).toHaveValue('Third Author');
+        
+        // Affiliations should be preserved
+        const finalAffiliationField = screen.getByTestId('author-0-affiliations-field');
+        expect(finalAffiliationField).toHaveTextContent('Institution X');
+        expect(finalAffiliationField).toHaveTextContent('Institution Y');
+    });
+
     it('applies responsive layout for author inputs', async () => {
         render(
             <DataCiteForm
