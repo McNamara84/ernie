@@ -146,6 +146,24 @@ export function TagInputField({
         }
     }, [disabled]);
 
+    // Update whitelist when tagifySettings changes (e.g., when affiliations are loaded)
+    useEffect(() => {
+        const tagify = tagifyRef.current;
+        if (!tagify || !tagifySettings?.whitelist) {
+            return;
+        }
+
+        tagify.whitelist = tagifySettings.whitelist;
+        
+        // Update dropdown settings if provided
+        if (tagifySettings.dropdown) {
+            tagify.settings.dropdown = {
+                ...tagify.settings.dropdown,
+                ...tagifySettings.dropdown,
+            };
+        }
+    }, [tagifySettings]);
+
     useEffect(() => {
         const tagify = tagifyRef.current;
         const inputElement = inputRef.current;

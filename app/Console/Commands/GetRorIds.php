@@ -116,7 +116,7 @@ class GetRorIds extends Command
         $outputPath = $this->option('output');
         $targetPath = is_string($outputPath) && $outputPath !== ''
             ? $outputPath
-            : storage_path('app/'.self::OUTPUT_RELATIVE_PATH);
+            : storage_path('app/private/'.self::OUTPUT_RELATIVE_PATH);
 
         $directory = dirname($targetPath);
 

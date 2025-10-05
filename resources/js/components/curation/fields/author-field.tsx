@@ -75,8 +75,6 @@ export function AuthorField({
             value: suggestion.value,
             rorId: suggestion.rorId,
             searchTerms: suggestion.searchTerms,
-            country: suggestion.country,
-            countryCode: suggestion.countryCode,
         }));
 
         return {
@@ -84,7 +82,7 @@ export function AuthorField({
             dropdown: {
                 enabled: whitelist.length > 0 ? 1 : 0,
                 maxItems: 20,
-                closeOnSelect: false,
+                closeOnSelect: true,
                 searchKeys: ['value', 'searchTerms'],
             },
         };

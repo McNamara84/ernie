@@ -14,28 +14,25 @@ const normalizeSuggestion = (input: unknown): AffiliationSuggestion | null => {
     }
 
     const raw = input as Record<string, unknown>;
-    const value = typeof raw.value === 'string' ? raw.value.trim() : '';
+    
+    // Map new JSON structure (prefLabel, rorId, otherLabel) to internal structure (value, rorId, searchTerms)
+    const prefLabel = typeof raw.prefLabel === 'string' ? raw.prefLabel.trim() : '';
     const rorId = typeof raw.rorId === 'string' ? raw.rorId.trim() : '';
 
-    if (!value || !rorId) {
+    if (!prefLabel || !rorId) {
         return null;
     }
 
-    const searchTerms = Array.isArray(raw.searchTerms)
-        ? raw.searchTerms
+    const otherLabel = Array.isArray(raw.otherLabel)
+        ? raw.otherLabel
               .map((term) => (typeof term === 'string' ? term.trim() : ''))
               .filter((term): term is string => Boolean(term))
-        : [value];
-
-    const country = typeof raw.country === 'string' ? raw.country : null;
-    const countryCode = typeof raw.countryCode === 'string' ? raw.countryCode : null;
+        : [prefLabel];
 
     return {
-        value,
+        value: prefLabel,
         rorId,
-        searchTerms,
-        country,
-        countryCode,
+        searchTerms: otherLabel,
     };
 };
 
@@ -65,6 +62,7 @@ export function useRorAffiliations(): UseRorAffiliationsResult {
                 }
 
                 const payload = (await response.json()) as unknown;
+                
                 const parsed = Array.isArray(payload)
                     ? payload
                           .map((item) => normalizeSuggestion(item))

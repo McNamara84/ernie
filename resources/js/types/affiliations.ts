@@ -5,6 +5,4 @@ export interface AffiliationTag {
 
 export interface AffiliationSuggestion extends AffiliationTag {
     searchTerms: string[];
-    country?: string | null;
-    countryCode?: string | null;
 }

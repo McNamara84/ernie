@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.2.0",
+    "date": "2025-10-08",
+    "features": [
+      {
+        "title": "New form group Authors",
+        "description": "Added structured authors section."
+      },
+      {
+        "title": "Autocomplete for Affiliations field",
+        "description": "Added autocomplete for Affiliations field with Tagify and ROR-IDs."
+      },
+      {
+        "title": "Added statistic card on dashboard",
+        "description": "Show total datasets count on dashboard."
+      }
+    ]
+  },
+  {
     "version": "0.1.0",
     "date": "2025-10-05",
     "features": [

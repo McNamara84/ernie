@@ -22,20 +22,18 @@ describe('useRorAffiliations', () => {
             ok: true,
             json: vi.fn().mockResolvedValue([
                 {
-                    value: 'Example University',
+                    prefLabel: 'Example University',
                     rorId: 'https://ror.org/01',
-                    searchTerms: ['Example University', 'EU'],
-                    country: 'Germany',
-                    countryCode: 'DE',
+                    otherLabel: ['Example University', 'EU'],
                 },
                 {
-                    value: ' ',
+                    prefLabel: ' ',
                     rorId: 'https://ror.org/ignore',
                 },
                 {
-                    value: 'Sample Institute',
+                    prefLabel: 'Sample Institute',
                     rorId: 'https://ror.org/02',
-                    searchTerms: null,
+                    otherLabel: null,
                 },
             ]),
         } as unknown as Response;
@@ -58,15 +56,11 @@ describe('useRorAffiliations', () => {
                 value: 'Example University',
                 rorId: 'https://ror.org/01',
                 searchTerms: ['Example University', 'EU'],
-                country: 'Germany',
-                countryCode: 'DE',
             },
             {
                 value: 'Sample Institute',
                 rorId: 'https://ror.org/02',
                 searchTerms: ['Sample Institute'],
-                country: null,
-                countryCode: null,
             },
         ]);
     });
