@@ -65,7 +65,6 @@ export function SelectField({
             <Select value={value} onValueChange={onValueChange} required={required}>
                 <SelectTrigger
                     id={id}
-                    aria-label={label}
                     aria-labelledby={labelId}
                     aria-required={required || undefined}
                     className={triggerClassName}
