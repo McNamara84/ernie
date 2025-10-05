@@ -81,7 +81,7 @@ test('user can switch between person and institution author types', async ({ pag
 
 test('contact person checkbox shows email and website fields', async ({ page }) => {
     // Initially contact fields should not be visible
-    await expect(page.getByLabel('Email')).not.toBeVisible();
+    await expect(page.getByLabel('Email address')).not.toBeVisible();
     await expect(page.getByLabel('Website')).not.toBeVisible();
     
     // Click contact person checkbox
@@ -89,18 +89,18 @@ test('contact person checkbox shows email and website fields', async ({ page }) 
     await contactCheckbox.click();
     
     // Email and website fields should now be visible
-    await expect(page.getByLabel('Email')).toBeVisible();
+    await expect(page.getByLabel('Email address')).toBeVisible();
     await expect(page.getByLabel('Website')).toBeVisible();
     
     // Fill email
-    await page.getByLabel('Email').fill('author@example.com');
+    await page.getByLabel('Email address').fill('author@example.com');
     await page.getByLabel('Website').fill('https://example.com');
     
     // Uncheck contact person
     await contactCheckbox.click();
     
     // Fields should be hidden again
-    await expect(page.getByLabel('Email')).not.toBeVisible();
+    await expect(page.getByLabel('Email address')).not.toBeVisible();
     await expect(page.getByLabel('Website')).not.toBeVisible();
 });
 
