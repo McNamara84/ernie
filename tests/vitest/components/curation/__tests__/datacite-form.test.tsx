@@ -454,7 +454,7 @@ describe('DataCiteForm', () => {
         ).toHaveClass('md:col-span-3');
         expect(
             screen.getByLabelText('First name', { selector: 'input' }).closest('div')
-        ).toHaveClass('md:col-span-2');
+        ).toHaveClass('md:col-span-3');
         const contactField = screen.getByTestId('author-0-contact-field');
         expect(contactField).toHaveClass('md:col-span-1');
         expect(contactField).toHaveClass('flex');
