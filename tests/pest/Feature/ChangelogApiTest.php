@@ -10,10 +10,10 @@ it('returns changelog data grouped by release', function () {
             'version' => '0.1.0',
         ])
         ->assertJsonFragment([
-            'title' => 'Resource Information form group',
+            'title' => 'Resources workspace',
         ])
         ->assertJsonFragment([
-            'title' => 'License and Rights form group',
+            'title' => 'Dashboard overview',
         ]);
 });
 
