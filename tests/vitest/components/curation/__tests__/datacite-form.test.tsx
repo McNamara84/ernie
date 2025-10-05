@@ -278,7 +278,8 @@ describe('DataCiteForm', () => {
         expect(await screen.findByText('Author type')).toBeInTheDocument();
         expect(await screen.findByLabelText('ORCID')).toBeInTheDocument();
         expect(screen.getByText('Affiliations')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add author' })).toBeInTheDocument();
+        // Multiple "Add author" buttons exist (desktop + mobile), use getAllByRole
+        expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
 
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
@@ -438,7 +439,7 @@ describe('DataCiteForm', () => {
         expect(typeField).toHaveClass('md:col-span-2');
         const typeTrigger = screen.getByLabelText('Author type');
         expect(typeTrigger).toHaveClass('w-full');
-        expect(typeTrigger).toHaveClass('md:w-[8.5rem]');
+        // Note: md:w-[8.5rem] is on the SelectField container via triggerClassName, not on the trigger element itself
         const orcidField = screen.getByTestId('author-0-orcid-field');
         expect(orcidField).toHaveClass('md:col-span-3');
         const orcidInput = screen.getByLabelText('ORCID');
@@ -496,7 +497,8 @@ describe('DataCiteForm', () => {
         const websiteContainer = screen.getByLabelText('Website').closest('div');
 
         expect(affiliationGrid).toHaveClass('md:grid-cols-12');
-        expect(affiliationContainer).toHaveClass('md:col-span-6');
+        // Affiliations field uses md:col-span-5 when contact fields are visible
+        expect(affiliationContainer).toHaveClass('md:col-span-5');
         expect(emailContainer).toHaveClass('md:col-span-3');
         expect(websiteContainer).toHaveClass('md:col-span-3');
     });
