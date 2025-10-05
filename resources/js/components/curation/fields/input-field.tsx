@@ -8,7 +8,7 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     label: string;
     hideLabel?: boolean;
     className?: string;
-    containerProps?: HTMLAttributes<HTMLDivElement>;
+    containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     inputClassName?: string;
 }
 

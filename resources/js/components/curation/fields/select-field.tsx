@@ -24,7 +24,7 @@ interface SelectFieldProps {
     className?: string;
     hideLabel?: boolean;
     required?: boolean;
-    containerProps?: HTMLAttributes<HTMLDivElement>;
+    containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     triggerClassName?: string;
 }
 

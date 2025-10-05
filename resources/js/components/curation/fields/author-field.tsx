@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
 
 export type AuthorType = 'person' | 'institution';
 
@@ -94,111 +93,159 @@ export function AuthorField({
                 )}
             </div>
 
-            <div
-                className="mt-6 grid gap-y-4 md:grid-cols-12 md:gap-x-3"
-                data-testid={`author-${index}-fields-grid`}
-            >
-                <SelectField
-                    id={`${author.id}-type`}
-                    label="Author type"
-                    value={author.type}
-                    onValueChange={(value) => onTypeChange(value as AuthorType)}
-                    options={[
-                        { value: 'person', label: 'Person' },
-                        { value: 'institution', label: 'Institution' },
-                    ]}
-                    containerProps={{
-                        'data-testid': `author-${index}-type-field`,
-                        className: 'md:col-span-2',
-                    }}
-                    triggerClassName="w-full md:w-[8.5rem]"
-                    required
-                />
-
-                {isPerson ? (
-                    <>
-                        <InputField
-                            id={`${author.id}-orcid`}
-                            label="ORCID"
-                            value={author.orcid}
-                            onChange={(event) =>
-                                onPersonFieldChange('orcid', event.target.value)
-                            }
-                            placeholder="0000-0000-0000-0000"
+            <div className="mt-6 grid md:grid-cols-[1fr_auto] md:gap-x-3">
+                <div className="space-y-4">
+                    <div
+                        className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
+                        data-testid={`author-${index}-fields-grid`}
+                    >
+                        <SelectField
+                            id={`${author.id}-type`}
+                            label="Author type"
+                            value={author.type}
+                            onValueChange={(value) => onTypeChange(value as AuthorType)}
+                            options={[
+                                { value: 'person', label: 'Person' },
+                                { value: 'institution', label: 'Institution' },
+                            ]}
                             containerProps={{
-                                'data-testid': `author-${index}-orcid-field`,
-                                className: 'md:col-span-3',
+                                'data-testid': `author-${index}-type-field`,
+                                className: 'md:col-span-2',
                             }}
-                            inputClassName="w-full md:max-w-[19ch]"
-                            inputMode="numeric"
-                            pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
-                        />
-                        <InputField
-                            id={`${author.id}-lastName`}
-                            label="Last name"
-                            value={author.lastName}
-                            onChange={(event) =>
-                                onPersonFieldChange('lastName', event.target.value)
-                            }
-                            className="md:col-span-3"
+                            triggerClassName="w-full"
                             required
                         />
-                        <InputField
-                            id={`${author.id}-firstName`}
-                            label="First name"
-                            value={author.firstName}
-                            onChange={(event) =>
-                                onPersonFieldChange('firstName', event.target.value)
-                            }
-                            className="md:col-span-2"
-                        />
-                        <div
-                            className="md:col-span-1 flex flex-col items-start gap-2"
-                            data-testid={`author-${index}-contact-field`}
-                        >
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Label
-                                        htmlFor={`${author.id}-contact`}
-                                        className="cursor-help font-medium inline-flex"
-                                    >
-                                        <span aria-hidden="true">CP</span>
-                                        <span id={contactLabelTextId} className="sr-only">
-                                            Contact person
-                                        </span>
-                                    </Label>
-                                </TooltipTrigger>
-                                <TooltipContent side="top">
-                                    Contact Person: Select if this author should be the primary
-                                    contact.
-                                </TooltipContent>
-                            </Tooltip>
-                            <Checkbox
-                                id={`${author.id}-contact`}
-                                checked={author.isContact}
-                                onCheckedChange={(checked) => onContactChange(checked === true)}
-                                aria-describedby={`${author.id}-contact-hint`}
-                                aria-labelledby={contactLabelTextId}
+
+                        {isPerson ? (
+                            <>
+                                <InputField
+                                    id={`${author.id}-firstName`}
+                                    label="First name"
+                                    value={author.firstName}
+                                    onChange={(event) =>
+                                        onPersonFieldChange('firstName', event.target.value)
+                                    }
+                                    containerProps={{ className: 'md:col-span-3' }}
+                                />
+                                <InputField
+                                    id={`${author.id}-lastName`}
+                                    label="Last name"
+                                    value={author.lastName}
+                                    onChange={(event) =>
+                                        onPersonFieldChange('lastName', event.target.value)
+                                    }
+                                    containerProps={{ className: 'md:col-span-3' }}
+                                    required
+                                />
+                                <InputField
+                                    id={`${author.id}-orcid`}
+                                    label="ORCID"
+                                    value={author.orcid}
+                                    onChange={(event) =>
+                                        onPersonFieldChange('orcid', event.target.value)
+                                    }
+                                    placeholder="0000-0000-0000-0000"
+                                    containerProps={{
+                                        'data-testid': `author-${index}-orcid-field`,
+                                        className: 'md:col-span-3',
+                                    }}
+                                    inputClassName="w-full"
+                                    inputMode="numeric"
+                                    pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
+                                />
+                                <div
+                                    className="flex flex-col items-start gap-2 md:col-span-1"
+                                    data-testid={`author-${index}-contact-field`}
+                                >
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Label
+                                                htmlFor={`${author.id}-contact`}
+                                                className="cursor-help font-medium inline-flex"
+                                            >
+                                                <span aria-hidden="true">CP</span>
+                                                <span id={contactLabelTextId} className="sr-only">
+                                                    Contact person
+                                                </span>
+                                            </Label>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top">
+                                            Contact Person: Select if this author should be the primary
+                                            contact.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <Checkbox
+                                        id={`${author.id}-contact`}
+                                        checked={author.isContact}
+                                        onCheckedChange={(checked) => onContactChange(checked === true)}
+                                        aria-describedby={`${author.id}-contact-hint`}
+                                        aria-labelledby={contactLabelTextId}
+                                    />
+                                    <p id={`${author.id}-contact-hint`} className="sr-only">
+                                        Contact Person: Select if this author should be the primary
+                                        contact.
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <InputField
+                                id={`${author.id}-institution`}
+                                label="Institution name"
+                                value={author.institutionName}
+                                onChange={(event) => onInstitutionNameChange(event.target.value)}
+                                containerProps={{ className: 'md:col-span-10' }}
+                                required
                             />
-                            <p id={`${author.id}-contact-hint`} className="sr-only">
-                                Contact Person: Select if this author should be the primary
-                                contact.
-                            </p>
-                        </div>
-                    </>
-                ) : (
-                    <InputField
-                        id={`${author.id}-institution`}
-                        label="Institution name"
-                        value={author.institutionName}
-                        onChange={(event) => onInstitutionNameChange(event.target.value)}
-                        className="md:col-span-9"
-                        required
-                    />
-                )}
+                        )}
+                    </div>
+
+                    <div
+                        className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
+                        data-testid={`author-${index}-affiliations-grid`}
+                    >
+                        <TagInputField
+                            id={`${author.id}-affiliations`}
+                            label="Affiliations"
+                            value={author.affiliations}
+                            onChange={(detail) => onAffiliationsChange(detail)}
+                            placeholder="Institution A, Institution B"
+                            containerProps={{
+                                className: isPerson && author.isContact ? 'md:col-span-5' : 'md:col-span-11',
+                                'data-testid': `author-${index}-affiliations-field`,
+                            }}
+                            data-testid={`author-${index}-affiliations-input`}
+                        />
+                        {isPerson && author.isContact && (
+                            <>
+                                <InputField
+                                    id={`${author.id}-email`}
+                                    type="email"
+                                    label="Email address"
+                                    value={author.email}
+                                    onChange={(event) =>
+                                        onPersonFieldChange('email', event.target.value)
+                                    }
+                                    containerProps={{ className: 'md:col-span-3' }}
+                                    required
+                                />
+                                <InputField
+                                    id={`${author.id}-website`}
+                                    type="url"
+                                    label="Website"
+                                    value={author.website}
+                                    onChange={(event) =>
+                                        onPersonFieldChange('website', event.target.value)
+                                    }
+                                    placeholder="https://example.org"
+                                    containerProps={{ className: 'md:col-span-3' }}
+                                />
+                            </>
+                        )}
+                    </div>
+                </div>
 
                 {canAddAuthor && (
-                    <div className="flex items-end md:col-span-1 md:justify-end">
+                    <div className="hidden md:flex md:items-center md:self-center">
                         <Button
                             type="button"
                             variant="outline"
@@ -212,56 +259,19 @@ export function AuthorField({
                 )}
             </div>
 
-            <div className="mt-6 space-y-3">
-                <div
-                    className="grid gap-y-3 md:grid-cols-12 md:gap-x-3"
-                    data-testid={`author-${index}-affiliations-grid`}
-                >
-                    <TagInputField
-                        id={`${author.id}-affiliations`}
-                        label="Affiliations"
-                        value={author.affiliations}
-                        onChange={(detail) => onAffiliationsChange(detail)}
-                        placeholder="Institution A, Institution B"
-                        containerProps={{
-                            className: cn(
-                                'md:col-span-12',
-                                isPerson && author.isContact
-                                    ? 'md:col-span-6'
-                                    : 'md:col-span-12',
-                            ),
-                            'data-testid': `author-${index}-affiliations-field`,
-                        }}
-                        data-testid={`author-${index}-affiliations-input`}
-                    />
-                    {isPerson && author.isContact && (
-                        <>
-                            <InputField
-                                id={`${author.id}-email`}
-                                type="email"
-                                label="Email address"
-                                value={author.email}
-                                onChange={(event) =>
-                                    onPersonFieldChange('email', event.target.value)
-                                }
-                                containerProps={{ className: 'md:col-span-3' }}
-                                required
-                            />
-                            <InputField
-                                id={`${author.id}-website`}
-                                type="url"
-                                label="Website"
-                                value={author.website}
-                                onChange={(event) =>
-                                    onPersonFieldChange('website', event.target.value)
-                                }
-                                placeholder="https://example.org"
-                                containerProps={{ className: 'md:col-span-3' }}
-                            />
-                        </>
-                    )}
+            {canAddAuthor && (
+                <div className="flex justify-end mt-4 md:hidden">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        aria-label="Add author"
+                        onClick={onAddAuthor}
+                    >
+                        <Plus className="h-4 w-4" />
+                    </Button>
                 </div>
-            </div>
+            )}
         </section>
     );
 }

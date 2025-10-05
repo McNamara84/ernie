@@ -18,7 +18,7 @@ interface TagInputFieldProps
     onChange: (detail: TagInputChangeDetail) => void;
     hideLabel?: boolean;
     className?: string;
-    containerProps?: HTMLAttributes<HTMLDivElement>;
+    containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     tagifySettings?: Partial<TagifySettings<TagData>>;
 }
 
