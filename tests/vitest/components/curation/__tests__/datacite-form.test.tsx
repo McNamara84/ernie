@@ -364,13 +364,13 @@ describe('DataCiteForm', () => {
         await user.click(typeTrigger);
         await user.click(await screen.findByRole('option', { name: 'Institution' }));
 
-        expect(screen.getByLabelText('Institution name')).toBeInTheDocument();
-        expect(screen.queryByLabelText('First name')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Institution name', { selector: 'input' })).toBeInTheDocument();
+        expect(screen.queryByLabelText('First name', { selector: 'input' })).not.toBeInTheDocument();
 
         await user.click(typeTrigger);
         await user.click(await screen.findByRole('option', { name: 'Person' }));
 
-        expect(screen.getByLabelText('First name')).toBeInTheDocument();
+        expect(screen.getByLabelText('First name', { selector: 'input' })).toBeInTheDocument();
 
         const affiliationField = screen.getByTestId('author-0-affiliations-field');
         expect(
@@ -439,21 +439,21 @@ describe('DataCiteForm', () => {
         // Add three authors
         const addButtons = () => screen.getAllByRole('button', { name: /Add author/i });
         
-        await user.type(screen.getByLabelText('Last name'), 'First Author');
+        await user.type(screen.getByLabelText('Last name', { selector: 'input' }), 'First Author');
         await user.click(addButtons()[0]);
         
         await waitFor(() => {
             expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
         });
         
-        await user.type(screen.getAllByLabelText('Last name')[1], 'Second Author');
+        await user.type(screen.getAllByLabelText('Last name', { selector: 'input' })[1], 'Second Author');
         await user.click(addButtons()[0]);
         
         await waitFor(() => {
             expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
         });
         
-        await user.type(screen.getAllByLabelText('Last name')[2], 'Third Author');
+        await user.type(screen.getAllByLabelText('Last name', { selector: 'input' })[2], 'Third Author');
 
         // Verify all three authors are present
         expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
@@ -465,24 +465,24 @@ describe('DataCiteForm', () => {
         await user.click(secondAuthorType);
         await user.click(await screen.findByRole('option', { name: 'Institution' }));
 
-        const institutionInput = screen.getByLabelText('Institution name');
+        const institutionInput = screen.getByLabelText('Institution name', { selector: 'input' });
         await user.type(institutionInput, 'Test University');
 
         // Verify first and third are still persons
-        expect(screen.getAllByLabelText('Last name')).toHaveLength(2);
-        expect(screen.getAllByLabelText('Last name')[0]).toHaveValue('First Author');
-        expect(screen.getAllByLabelText('Last name')[1]).toHaveValue('Third Author');
+        expect(screen.getAllByLabelText('Last name', { selector: 'input' })).toHaveLength(2);
+        expect(screen.getAllByLabelText('Last name', { selector: 'input' })[0]).toHaveValue('First Author');
+        expect(screen.getAllByLabelText('Last name', { selector: 'input' })[1]).toHaveValue('Third Author');
 
         // Set first author as contact person
         const firstContactCheckbox = screen.getAllByLabelText('Contact person')[0];
         await user.click(firstContactCheckbox);
 
         await waitFor(() => {
-            expect(screen.getByLabelText('Email address')).toBeInTheDocument();
+            expect(screen.getByLabelText('Email address', { selector: 'input' })).toBeInTheDocument();
         });
 
-        await user.type(screen.getByLabelText('Email address'), 'first@example.com');
-        await user.type(screen.getByLabelText('Website'), 'https://first.example.com');
+        await user.type(screen.getByLabelText('Email address', { selector: 'input' }), 'first@example.com');
+        await user.type(screen.getByLabelText('Website', { selector: 'input' }), 'https://first.example.com');
 
         // Add affiliations to third author
         const thirdAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[2] as HTMLInputElement & {
@@ -521,8 +521,8 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByLabelText('Last name')[1]).toHaveValue('Third Author');
 
         // First author contact data should be preserved
-        expect(screen.getByLabelText('Email address')).toHaveValue('first@example.com');
-        expect(screen.getByLabelText('Website')).toHaveValue('https://first.example.com');
+        expect(screen.getByLabelText('Email address', { selector: 'input' })).toHaveValue('first@example.com');
+        expect(screen.getByLabelText('Website', { selector: 'input' })).toHaveValue('https://first.example.com');
 
         // Former third author affiliations should be preserved
         const newSecondAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[1];
@@ -541,7 +541,7 @@ describe('DataCiteForm', () => {
         expect(screen.queryByRole('heading', { name: 'Author 2' })).not.toBeInTheDocument();
 
         // Remaining author should be the former third author
-        expect(screen.getByLabelText('Last name')).toHaveValue('Third Author');
+        expect(screen.getByLabelText('Last name', { selector: 'input' })).toHaveValue('Third Author');
         
         // Affiliations should be preserved
         const finalAffiliationField = screen.getByTestId('author-0-affiliations-field');
@@ -621,9 +621,9 @@ describe('DataCiteForm', () => {
         const affiliationGrid = screen.getByTestId('author-0-affiliations-grid');
         const affiliationContainer = screen.getByTestId('author-0-affiliations-field');
         const emailContainer = screen
-            .getByLabelText('Email address')
+            .getByLabelText('Email address', { selector: 'input' })
             .closest('div');
-        const websiteContainer = screen.getByLabelText('Website').closest('div');
+        const websiteContainer = screen.getByLabelText('Website', { selector: 'input' }).closest('div');
 
         expect(affiliationGrid).toHaveClass('md:grid-cols-12');
         // Affiliations field uses md:col-span-5 when contact fields are visible
@@ -716,10 +716,10 @@ describe('DataCiteForm', () => {
         const contactCheckbox = screen.getByLabelText('Contact person');
         await user.click(contactCheckbox);
 
-        const emailInput = await screen.findByLabelText('Email address');
+        const emailInput = await screen.findByLabelText('Email address', { selector: 'input' });
         expect(emailInput).toBeRequired();
-        expect(screen.getByLabelText('Website')).toBeInTheDocument();
-        expect(screen.queryByLabelText('Website (optional)')).not.toBeInTheDocument();
+        expect(screen.getByLabelText('Website', { selector: 'input' })).toBeInTheDocument();
+        expect(screen.queryByLabelText('Website (optional)', { selector: 'input' })).not.toBeInTheDocument();
         expect(saveButton).toBeDisabled();
 
         await user.type(emailInput, 'contact@example.org');
