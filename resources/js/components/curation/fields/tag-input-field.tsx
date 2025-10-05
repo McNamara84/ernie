@@ -163,6 +163,11 @@ export function TagInputField({
 
     const labelId = `${id}-label`;
 
+    // Only use aria-label when label is hidden; otherwise use aria-labelledby
+    const ariaProps = hideLabel
+        ? { 'aria-label': label }
+        : { 'aria-labelledby': labelId };
+
     return (
         <div {...containerProps} className={mergedClassName}>
             <Label
@@ -180,9 +185,8 @@ export function TagInputField({
             <input
                 ref={inputRef}
                 id={id}
-                aria-label={label}
-                aria-labelledby={labelId}
                 placeholder={placeholder}
+                {...ariaProps}
                 {...inputProps}
             />
         </div>
