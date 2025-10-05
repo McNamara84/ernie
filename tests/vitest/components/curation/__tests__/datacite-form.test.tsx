@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
@@ -447,7 +447,8 @@ describe('DataCiteForm', () => {
         // ORCID field uses full width within its 3-column container
         const authorGrid = screen.getByTestId('author-0-fields-grid');
         expect(authorGrid).toHaveClass('md:gap-x-3');
-        expect(within(authorGrid).getByRole('button', { name: 'Add author' })).toBeInTheDocument();
+        // Add author button is outside the fields grid in a separate container
+        expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
         expect(
             screen.getByLabelText('Last name', { selector: 'input' }).closest('div')
         ).toHaveClass('md:col-span-3');
