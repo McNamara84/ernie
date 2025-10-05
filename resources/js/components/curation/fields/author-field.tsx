@@ -50,6 +50,8 @@ interface AuthorFieldProps {
     onRemoveAffiliation: (affiliationId: string) => void;
     onRemoveAuthor: () => void;
     canRemove: boolean;
+    onAddAuthor: () => void;
+    canAddAuthor: boolean;
 }
 
 export function AuthorField({
@@ -64,6 +66,8 @@ export function AuthorField({
     onRemoveAffiliation,
     onRemoveAuthor,
     canRemove,
+    onAddAuthor,
+    canAddAuthor,
 }: AuthorFieldProps) {
     const isPerson = author.type === 'person';
     const contactLabelTextId = `${author.id}-contact-label-text`;
@@ -99,7 +103,10 @@ export function AuthorField({
                 )}
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-12">
+            <div
+                className="mt-6 grid gap-y-4 md:grid-cols-12 md:gap-x-3"
+                data-testid={`author-${index}-fields-grid`}
+            >
                 <SelectField
                     id={`${author.id}-type`}
                     label="Author type"
@@ -217,6 +224,20 @@ export function AuthorField({
                         className="md:col-span-9"
                         required
                     />
+                )}
+
+                {canAddAuthor && (
+                    <div className="flex items-end md:col-span-1 md:justify-end">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            aria-label="Add author"
+                            onClick={onAddAuthor}
+                        >
+                            <Plus className="h-4 w-4" />
+                        </Button>
+                    </div>
                 )}
             </div>
 

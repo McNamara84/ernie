@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
@@ -175,7 +175,7 @@ describe('DataCiteForm', () => {
         expect(await screen.findByText('Author type')).toBeInTheDocument();
         expect(await screen.findByLabelText('ORCID')).toBeInTheDocument();
         expect(screen.getByText('Affiliations')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add another author' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add author' })).toBeInTheDocument();
 
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
@@ -279,11 +279,23 @@ describe('DataCiteForm', () => {
             screen.getByRole('button', { name: 'Remove affiliation 2' }),
         ).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Add another author' }));
+        await user.click(screen.getByRole('button', { name: 'Add author' }));
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(2);
+        const authorGrids = screen.getAllByTestId(/author-\d-fields-grid/);
+        expect(
+            within(authorGrids[0]).queryByRole('button', { name: 'Add author' })
+        ).not.toBeInTheDocument();
+        expect(
+            within(authorGrids[1]).getByRole('button', { name: 'Add author' })
+        ).toBeInTheDocument();
         const removeAuthorButton = screen.getByRole('button', { name: 'Remove author 2' });
         await user.click(removeAuthorButton);
         expect(screen.getAllByRole('heading', { name: /Author \d/ })).toHaveLength(1);
+        expect(
+            within(screen.getByTestId('author-0-fields-grid')).getByRole('button', {
+                name: 'Add author',
+            })
+        ).toBeInTheDocument();
     });
 
     it('applies responsive layout for author inputs', async () => {
@@ -305,6 +317,9 @@ describe('DataCiteForm', () => {
         expect(screen.getByTestId('author-0-orcid-field')).toHaveClass(
             'md:max-w-[20ch]'
         );
+        const authorGrid = screen.getByTestId('author-0-fields-grid');
+        expect(authorGrid).toHaveClass('md:gap-x-3');
+        expect(within(authorGrid).getByRole('button', { name: 'Add author' })).toBeInTheDocument();
         expect(
             screen.getByLabelText('Last name', { selector: 'input' }).closest('div')
         ).toHaveClass('md:col-span-3');

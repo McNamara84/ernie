@@ -680,16 +680,10 @@ export default function DataCiteForm({
                                     }
                                     onRemoveAuthor={() => removeAuthor(author.id)}
                                     canRemove={authors.length > 1}
+                                    onAddAuthor={addAuthor}
+                                    canAddAuthor={index === authors.length - 1}
                                 />
                             ))}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={addAuthor}
-                                className="w-full md:w-auto"
-                            >
-                                Add another author
-                            </Button>
                         </div>
                     </AccordionContent>
                 </AccordionItem>
