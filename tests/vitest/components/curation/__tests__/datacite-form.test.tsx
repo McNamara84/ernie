@@ -572,7 +572,6 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('textbox', { name: /Website/i })).toHaveValue('https://first.example.com');
 
         // Former third author affiliations should be preserved
-        const newSecondAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[1];
         const secondAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[1] as HTMLInputElement & {
             tagify: { value: { value?: string | undefined }[] };
         };
