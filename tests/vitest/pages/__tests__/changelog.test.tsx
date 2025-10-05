@@ -25,24 +25,19 @@ type MotionDivProps = React.HTMLAttributes<HTMLDivElement> & {
     transition?: unknown;
 };
 
-const sanitizeButtonMotionProps = ({ whileHover, ...rest }: MotionButtonProps) => {
-    if (typeof whileHover !== 'undefined') {
-        // Motion-only prop intentionally dropped for DOM rendering in tests.
-    }
+const consumeMotionOnlyProps = (...values: unknown[]) => {
+    values.forEach(() => {
+        // Accessing via forEach keeps eslint satisfied without mutating output.
+    });
+};
 
+const sanitizeButtonMotionProps = ({ whileHover, ...rest }: MotionButtonProps) => {
+    consumeMotionOnlyProps(whileHover);
     return rest;
 };
 
 const sanitizeDivMotionProps = ({ initial, animate, exit, transition, ...rest }: MotionDivProps) => {
-    if (
-        typeof initial !== 'undefined' ||
-        typeof animate !== 'undefined' ||
-        typeof exit !== 'undefined' ||
-        typeof transition !== 'undefined'
-    ) {
-        // Motion-only props intentionally dropped for DOM rendering in tests.
-    }
-
+    consumeMotionOnlyProps(initial, animate, exit, transition);
     return rest;
 };
 
