@@ -621,6 +621,35 @@ export default function DataCiteForm({
                         </div>
                     </AccordionContent>
                 </AccordionItem>
+                <AccordionItem value="licenses-rights">
+                    <AccordionTrigger>Licenses and Rights</AccordionTrigger>
+                    <AccordionContent>
+                        <div className="space-y-4">
+                            {licenseEntries.map((entry, index) => (
+                                <LicenseField
+                                    key={entry.id}
+                                    id={entry.id}
+                                    license={entry.license}
+                                    options={licenses.map((l) => ({
+                                        value: l.identifier,
+                                        label: l.name,
+                                    }))}
+                                    onLicenseChange={(val) =>
+                                        handleLicenseChange(index, val)
+                                    }
+                                    onAdd={addLicense}
+                                    onRemove={() => removeLicense(index)}
+                                    isFirst={index === 0}
+                                    canAdd={canAddLicense(
+                                        licenseEntries,
+                                        MAX_LICENSES,
+                                    )}
+                                    required={index === 0}
+                                />
+                            ))}
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
                 <AccordionItem value="authors">
                     <AccordionTrigger>Authors</AccordionTrigger>
                     <AccordionContent>
@@ -661,35 +690,6 @@ export default function DataCiteForm({
                             >
                                 Add another author
                             </Button>
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="licenses-rights">
-                    <AccordionTrigger>Licenses and Rights</AccordionTrigger>
-                    <AccordionContent>
-                        <div className="space-y-4">
-                            {licenseEntries.map((entry, index) => (
-                                <LicenseField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    license={entry.license}
-                                    options={licenses.map((l) => ({
-                                        value: l.identifier,
-                                        label: l.name,
-                                    }))}
-                                    onLicenseChange={(val) =>
-                                        handleLicenseChange(index, val)
-                                    }
-                                    onAdd={addLicense}
-                                    onRemove={() => removeLicense(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddLicense(
-                                        licenseEntries,
-                                        MAX_LICENSES,
-                                    )}
-                                    required={index === 0}
-                                />
-                            ))}
                         </div>
                     </AccordionContent>
                 </AccordionItem>

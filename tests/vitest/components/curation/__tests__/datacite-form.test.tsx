@@ -311,10 +311,34 @@ describe('DataCiteForm', () => {
         expect(
             screen.getByLabelText('First name', { selector: 'input' }).closest('div')
         ).toHaveClass('md:col-span-2');
-        expect(screen.getByTestId('author-0-contact-field')).toHaveClass(
-            'md:col-span-2'
+        const contactField = screen.getByTestId('author-0-contact-field');
+        expect(contactField).toHaveClass('md:col-span-1');
+        expect(contactField).toHaveClass('flex');
+        expect(contactField).toHaveClass('flex-col');
+        expect(contactField).toHaveClass('items-start');
+        expect(contactField).not.toHaveClass('pt-6');
+        expect(
+            screen.queryByText('Use the 16-digit ORCID identifier when available.')
+        ).not.toBeInTheDocument();
+    });
+
+    it('places the Authors section after Licenses and Rights', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
         );
-        expect(screen.getByTestId('author-0-contact-field')).not.toHaveClass('pt-6');
+
+        const licensesTrigger = screen.getByRole('button', {
+            name: 'Licenses and Rights',
+        });
+        const authorsTrigger = screen.getByRole('button', { name: 'Authors' });
+
+        const position = licensesTrigger.compareDocumentPosition(authorsTrigger);
+        expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('shows contact guidance on hover while keeping the label compact', async () => {

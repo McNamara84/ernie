@@ -128,7 +128,6 @@ export function AuthorField({
                             containerProps={{ 'data-testid': `author-${index}-orcid-field` }}
                             inputMode="numeric"
                             pattern="\\d{4}-\\d{4}-\\d{4}-\\d{4}(\\d{3}[0-9X])?"
-                            aria-describedby={`${author.id}-orcid-help`}
                         />
                         <InputField
                             id={`${author.id}-lastName`}
@@ -150,47 +149,38 @@ export function AuthorField({
                             className="md:col-span-2"
                         />
                         <div
-                            className="md:col-span-2 flex items-start gap-2 md:items-center"
+                            className="md:col-span-1 flex flex-col items-start gap-2"
                             data-testid={`author-${index}-contact-field`}
                         >
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Label
+                                        htmlFor={`${author.id}-contact`}
+                                        className="cursor-help font-medium inline-flex"
+                                    >
+                                        <span aria-hidden="true">CP</span>
+                                        <span id={contactLabelTextId} className="sr-only">
+                                            Contact person
+                                        </span>
+                                    </Label>
+                                </TooltipTrigger>
+                                <TooltipContent side="top">
+                                    Contact Person: Select if this author should be the primary
+                                    contact.
+                                </TooltipContent>
+                            </Tooltip>
                             <Checkbox
                                 id={`${author.id}-contact`}
                                 checked={author.isContact}
-                                onCheckedChange={(checked) =>
-                                    onContactChange(checked === true)
-                                }
+                                onCheckedChange={(checked) => onContactChange(checked === true)}
                                 aria-describedby={`${author.id}-contact-hint`}
                                 aria-labelledby={contactLabelTextId}
                             />
-                            <div className="flex flex-col gap-1">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span className="inline-flex cursor-help">
-                                            <Label htmlFor={`${author.id}-contact`} className="font-medium">
-                                                <span aria-hidden="true">CP</span>
-                                                <span id={contactLabelTextId} className="sr-only">
-                                                    Contact person
-                                                </span>
-                                            </Label>
-                                        </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        Contact Person: Select if this author should be the primary
-                                        contact.
-                                    </TooltipContent>
-                                </Tooltip>
-                                <p id={`${author.id}-contact-hint`} className="sr-only">
-                                    Contact Person: Select if this author should be the primary
-                                    contact.
-                                </p>
-                            </div>
+                            <p id={`${author.id}-contact-hint`} className="sr-only">
+                                Contact Person: Select if this author should be the primary
+                                contact.
+                            </p>
                         </div>
-                        <p
-                            id={`${author.id}-orcid-help`}
-                            className="md:col-span-12 text-xs text-muted-foreground"
-                        >
-                            Use the 16-digit ORCID identifier when available.
-                        </p>
                         {author.isContact && (
                             <>
                                 <InputField
