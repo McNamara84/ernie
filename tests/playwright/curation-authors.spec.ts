@@ -150,7 +150,7 @@ test('user can add multiple authors and manage them independently', async ({ pag
 
 test('contact person tooltip provides guidance', async ({ page }) => {
     // Hover over CP label to show tooltip
-    const cpLabel = page.locator('label', { hasText: /^CP$/ }).first();
+    const cpLabel = page.locator('label').filter({ hasText: /^CP$/ }).first();
     await cpLabel.hover();
     
     // Wait for tooltip to appear
