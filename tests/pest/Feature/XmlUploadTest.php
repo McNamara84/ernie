@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Models\ResourceType;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
 
@@ -55,6 +56,7 @@ XML;
             ['title' => 'Example AlternativeTitle', 'titleType' => 'alternative-title'],
         ],
         'licenses' => ['CC-BY-4.0', 'MIT'],
+        'authors' => [],
     ]);
 });
 
@@ -69,7 +71,7 @@ it('returns null when doi, publication year, version, language and resource type
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => [], 'licenses' => []]);
+    $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => [], 'licenses' => [], 'authors' => []]);
 });
 
 it('handles xml with a single main title', function () {
@@ -351,6 +353,76 @@ XML;
             ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
         ],
         'licenses' => ['CC-BY-4.0'],
+    ]);
+});
+
+it('extracts authors and resolves affiliations from uploaded xml', function () {
+    $this->actingAs(User::factory()->create());
+    Storage::fake('local');
+
+    $rorData = [
+        [
+            'prefLabel' => 'GFZ Data Services',
+            'rorId' => 'https://ror.org/04wxnsj81',
+            'otherLabel' => ['GFZ'],
+        ],
+    ];
+
+    Storage::disk('local')->put(
+        'ror/ror-affiliations.json',
+        json_encode($rorData, JSON_THROW_ON_ERROR),
+    );
+
+    $xml = <<<XML
+<resource>
+    <creators>
+        <creator>
+            <creatorName nameType="Personal">ExampleFamilyName, ExampleGivenName</creatorName>
+            <givenName>ExampleGivenName</givenName>
+            <familyName>ExampleFamilyName</familyName>
+            <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
+            <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
+        </creator>
+        <creator>
+            <creatorName xml:lang="en" nameType="Organizational">ExampleOrganization</creatorName>
+            <affiliation>Independent Collaboration</affiliation>
+        </creator>
+    </creators>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk()->assertJson([
+        'authors' => [
+            [
+                'type' => 'person',
+                'firstName' => 'ExampleGivenName',
+                'lastName' => 'ExampleFamilyName',
+                'orcid' => 'https://orcid.org/0000-0001-5727-2427',
+                'affiliations' => [
+                    [
+                        'value' => 'GFZ Data Services',
+                        'rorId' => 'https://ror.org/04wxnsj81',
+                    ],
+                ],
+            ],
+            [
+                'type' => 'institution',
+                'institutionName' => 'ExampleOrganization',
+                'affiliations' => [
+                    [
+                        'value' => 'Independent Collaboration',
+                        'rorId' => null,
+                    ],
+                ],
+            ],
+        ],
     ]);
 });
 

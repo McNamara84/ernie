@@ -75,6 +75,102 @@ const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
     return type === 'person' ? createEmptyPersonAuthor() : createEmptyInstitutionAuthor();
 };
 
+type InitialAffiliationInput = {
+    value?: string | null;
+    rorId?: string | null;
+};
+
+type BaseInitialAuthor = {
+    affiliations?: (InitialAffiliationInput | null | undefined)[] | null;
+};
+
+export type InitialAuthor =
+    | (BaseInitialAuthor & {
+          type?: 'person';
+          orcid?: string | null;
+          firstName?: string | null;
+          lastName?: string | null;
+          email?: string | null;
+          website?: string | null;
+          isContact?: boolean | null;
+      })
+    | (BaseInitialAuthor & {
+          type: 'institution';
+          institutionName?: string | null;
+      });
+
+const normaliseInitialAffiliations = (
+    affiliations?: (InitialAffiliationInput | null | undefined)[] | null,
+): AffiliationTag[] => {
+    if (!affiliations || !Array.isArray(affiliations)) {
+        return [];
+    }
+
+    return affiliations
+        .map((affiliation) => {
+            if (!affiliation || typeof affiliation !== 'object') {
+                return null;
+            }
+
+            const rawValue =
+                'value' in affiliation && typeof affiliation.value === 'string'
+                    ? affiliation.value.trim()
+                    : '';
+
+            const rawRorId =
+                'rorId' in affiliation && typeof affiliation.rorId === 'string'
+                    ? affiliation.rorId.trim()
+                    : '';
+
+            if (!rawValue && !rawRorId) {
+                return null;
+            }
+
+            return {
+                value: rawValue || rawRorId,
+                rorId: rawRorId || null,
+            } satisfies AffiliationTag;
+        })
+        .filter((item): item is AffiliationTag => Boolean(item && item.value));
+};
+
+const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
+    if (!author || typeof author !== 'object') {
+        return null;
+    }
+
+    const affiliations = normaliseInitialAffiliations(author.affiliations ?? null);
+    const affiliationsInput = affiliations.map((item) => item.value).join(', ');
+
+    if (author.type === 'institution') {
+        const base = createEmptyInstitutionAuthor();
+
+        return {
+            ...base,
+            institutionName:
+                typeof author.institutionName === 'string'
+                    ? author.institutionName.trim()
+                    : '',
+            affiliations,
+            affiliationsInput,
+        } satisfies InstitutionAuthorEntry;
+    }
+
+    const base = createEmptyPersonAuthor();
+
+    return {
+        ...base,
+        orcid: typeof author.orcid === 'string' ? author.orcid.trim() : '',
+        firstName: typeof author.firstName === 'string' ? author.firstName.trim() : '',
+        lastName: typeof author.lastName === 'string' ? author.lastName.trim() : '',
+        email: typeof author.email === 'string' ? author.email.trim() : '',
+        website: typeof author.website === 'string' ? author.website.trim() : '',
+        isContact: author.isContact === true,
+        affiliations,
+        affiliationsInput,
+    } satisfies PersonAuthorEntry;
+};
+
 interface DataCiteFormProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
@@ -90,6 +186,7 @@ interface DataCiteFormProps {
     initialTitles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
     initialResourceId?: string;
+    initialAuthors?: InitialAuthor[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -126,6 +223,7 @@ export default function DataCiteForm({
     initialTitles = [],
     initialLicenses = [],
     initialResourceId,
+    initialAuthors = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -157,7 +255,19 @@ export default function DataCiteForm({
             : [{ id: crypto.randomUUID(), license: '' }],
     );
 
-    const [authors, setAuthors] = useState<AuthorEntry[]>([createEmptyAuthor()]);
+    const [authors, setAuthors] = useState<AuthorEntry[]>(() => {
+        if (initialAuthors.length > 0) {
+            const mapped = initialAuthors
+                .map((author) => mapInitialAuthorToEntry(author))
+                .filter((author): author is AuthorEntry => Boolean(author));
+
+            if (mapped.length > 0) {
+                return mapped;
+            }
+        }
+
+        return [createEmptyAuthor()];
+    });
     const { suggestions: affiliationSuggestions } = useRorAffiliations();
 
     const [isSaving, setIsSaving] = useState(false);

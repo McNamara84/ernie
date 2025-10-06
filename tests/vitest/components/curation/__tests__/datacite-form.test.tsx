@@ -828,6 +828,66 @@ describe('DataCiteForm', () => {
         expect(screen.getByLabelText('Version')).toHaveValue('1.5');
     });
 
+    it('prefills authors when initialAuthors are provided', async () => {
+        const user = userEvent.setup();
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialAuthors={[
+                    {
+                        type: 'person',
+                        firstName: 'Sofia',
+                        lastName: 'Hernandez',
+                        orcid: 'https://orcid.org/0000-0002-2771-9344',
+                        affiliations: [
+                            {
+                                value: 'GFZ Data Services',
+                                rorId: 'https://ror.org/04wxnsj81',
+                            },
+                        ],
+                    },
+                    {
+                        type: 'institution',
+                        institutionName: 'Example Organization',
+                        affiliations: [
+                            {
+                                value: 'Independent Collaboration',
+                                rorId: null,
+                            },
+                        ],
+                    },
+                ]}
+            />,
+        );
+
+        await ensureAuthorsOpen(user);
+
+        const firstNameInputs = (await screen.findAllByRole('textbox', {
+            name: /First name/i,
+        })) as HTMLInputElement[];
+        expect(firstNameInputs[0]).toHaveValue('Sofia');
+
+        const lastNameInputs = (await screen.findAllByRole('textbox', {
+            name: /Last name/i,
+        })) as HTMLInputElement[];
+        expect(lastNameInputs[0]).toHaveValue('Hernandez');
+
+        expect(screen.getByLabelText('ORCID')).toHaveValue(
+            'https://orcid.org/0000-0002-2771-9344',
+        );
+
+        expect(
+            (await screen.findByRole('textbox', { name: /Institution name/i })) as HTMLInputElement,
+        ).toHaveValue('Example Organization');
+
+        expect(screen.getAllByText('GFZ Data Services').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Independent Collaboration').length).toBeGreaterThan(0);
+    });
+
     it('disables add license when entries list is empty', () => {
         expect(canAddLicense([], 1)).toBe(false);
     });

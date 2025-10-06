@@ -190,6 +190,30 @@ describe('handleXmlFiles', () => {
                             { title: 'Example AlternativeTitle', titleType: 'alternative-title' },
                         ],
                         licenses: ['CC-BY-4.0', 'MIT'],
+                        authors: [
+                            {
+                                type: 'person',
+                                firstName: 'ExampleGivenName',
+                                lastName: 'ExampleFamilyName',
+                                orcid: 'https://orcid.org/0000-0001-5727-2427',
+                                affiliations: [
+                                    {
+                                        value: 'GFZ Data Services',
+                                        rorId: 'https://ror.org/04wxnsj81',
+                                    },
+                                ],
+                            },
+                            {
+                                type: 'institution',
+                                institutionName: 'ExampleOrganization',
+                                affiliations: [
+                                    {
+                                        value: 'Independent Collaboration',
+                                        rorId: null,
+                                    },
+                                ],
+                            },
+                        ],
                     }),
                 } as Response,
             );
@@ -200,7 +224,32 @@ describe('handleXmlFiles', () => {
         const [url, options] = fetchMock.mock.calls[0];
         expect(normalizeTestUrl(url as string)).toBe('/dashboard/upload-xml');
         expect((options as RequestInit).headers).toMatchObject({ 'X-CSRF-TOKEN': 'test-token' });
-        expect(routerMock.get).toHaveBeenCalledWith('/curation?doi=10.1234%2Fabc&year=2024&version=1.0&language=en&resourceType=1&titles%5B0%5D%5Btitle%5D=Example+Title&titles%5B0%5D%5BtitleType%5D=main-title&titles%5B1%5D%5Btitle%5D=Example+Subtitle&titles%5B1%5D%5BtitleType%5D=subtitle&titles%5B2%5D%5Btitle%5D=Example+TranslatedTitle&titles%5B2%5D%5BtitleType%5D=translated-title&titles%5B3%5D%5Btitle%5D=Example+AlternativeTitle&titles%5B3%5D%5BtitleType%5D=alternative-title&licenses%5B0%5D=CC-BY-4.0&licenses%5B1%5D=MIT');
+        expect(routerMock.get).toHaveBeenCalled();
+        const [redirectUrl] = routerMock.get.mock.calls[0];
+        expect(typeof redirectUrl).toBe('string');
+        const [path, search = ''] = (redirectUrl as string).split('?');
+        expect(path).toBe('/curation');
+        const params = new URLSearchParams(search);
+        expect(params.get('doi')).toBe('10.1234/abc');
+        expect(params.get('year')).toBe('2024');
+        expect(params.get('version')).toBe('1.0');
+        expect(params.get('language')).toBe('en');
+        expect(params.get('resourceType')).toBe('1');
+        expect(params.get('titles[0][title]')).toBe('Example Title');
+        expect(params.get('titles[0][titleType]')).toBe('main-title');
+        expect(params.get('titles[3][title]')).toBe('Example AlternativeTitle');
+        expect(params.get('licenses[0]')).toBe('CC-BY-4.0');
+        expect(params.get('licenses[1]')).toBe('MIT');
+        expect(params.get('authors[0][type]')).toBe('person');
+        expect(params.get('authors[0][firstName]')).toBe('ExampleGivenName');
+        expect(params.get('authors[0][lastName]')).toBe('ExampleFamilyName');
+        expect(params.get('authors[0][orcid]')).toBe('https://orcid.org/0000-0001-5727-2427');
+        expect(params.get('authors[0][affiliations][0][value]')).toBe('GFZ Data Services');
+        expect(params.get('authors[0][affiliations][0][rorId]')).toBe('https://ror.org/04wxnsj81');
+        expect(params.get('authors[1][type]')).toBe('institution');
+        expect(params.get('authors[1][institutionName]')).toBe('ExampleOrganization');
+        expect(params.get('authors[1][affiliations][0][value]')).toBe('Independent Collaboration');
+        expect(params.get('authors[1][affiliations][0][rorId]')).toBeNull();
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
