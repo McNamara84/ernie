@@ -6,6 +6,10 @@ use function Pest\Laravel\getJson;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    config(['services.elmo.api_key' => null]);
+});
+
 it('returns only title types enabled for ELMO', function () {
     $enabled = TitleType::create([
         'name' => 'Main',

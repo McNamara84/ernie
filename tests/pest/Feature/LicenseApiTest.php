@@ -5,6 +5,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    config(['services.elmo.api_key' => null]);
+});
+
 it('lists all licenses', function () {
     License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
 

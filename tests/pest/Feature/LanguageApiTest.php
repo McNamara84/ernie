@@ -5,6 +5,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    config(['services.elmo.api_key' => null]);
+});
+
 it('lists all languages', function () {
     Language::create(['code' => 'en', 'name' => 'English']);
 

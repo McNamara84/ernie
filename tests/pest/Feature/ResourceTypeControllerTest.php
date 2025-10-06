@@ -6,6 +6,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    config(['services.elmo.api_key' => null]);
+    
     ResourceType::create(['name' => 'Alpha', 'slug' => 'alpha', 'active' => true, 'elmo_active' => true]);
     ResourceType::create(['name' => 'Bravo', 'slug' => 'bravo', 'active' => true, 'elmo_active' => false]);
     ResourceType::create(['name' => 'Charlie', 'slug' => 'charlie', 'active' => false, 'elmo_active' => true]);

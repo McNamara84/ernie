@@ -7,6 +7,10 @@ use function Pest\Laravel\getJson;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    config(['services.elmo.api_key' => null]);
+});
+
 function createElmoResourceTypes(): ResourceType
 {
     $enabled = ResourceType::create([
