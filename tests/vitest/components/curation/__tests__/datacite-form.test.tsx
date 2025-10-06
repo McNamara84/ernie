@@ -649,6 +649,10 @@ describe('DataCiteForm', () => {
         const institutionInput = screen.getByRole('textbox', { name: /Institution name/i });
         await user.type(institutionInput, 'Test University');
 
+        const rorIdInput = screen.getByRole('textbox', { name: /ROR ID/i });
+        await user.type(rorIdInput, 'https://ror.org/01bj3aw27');
+        expect(rorIdInput).toHaveValue('https://ror.org/01bj3aw27');
+
         // Verify first and third are still persons
         expect(screen.getAllByRole('textbox', { name: /Last name/i })).toHaveLength(2);
         expect(screen.getAllByRole('textbox', { name: /Last name/i })[0]).toHaveValue('First Author');

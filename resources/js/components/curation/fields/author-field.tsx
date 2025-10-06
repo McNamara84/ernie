@@ -46,6 +46,7 @@ interface AuthorFieldProps {
         value: string,
     ) => void;
     onInstitutionNameChange: (value: string) => void;
+    onInstitutionRorIdChange: (value: string) => void;
     onContactChange: (checked: boolean) => void;
     onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
     onRemoveAuthor: () => void;
@@ -61,6 +62,7 @@ export function AuthorField({
     onTypeChange,
     onPersonFieldChange,
     onInstitutionNameChange,
+    onInstitutionRorIdChange,
     onContactChange,
     onAffiliationsChange,
     onRemoveAuthor,
@@ -231,14 +233,25 @@ export function AuthorField({
                                 </div>
                             </>
                         ) : (
-                            <InputField
-                                id={`${author.id}-institution`}
-                                label="Institution name"
-                                value={author.institutionName}
-                                onChange={(event) => onInstitutionNameChange(event.target.value)}
-                                containerProps={{ className: 'md:col-span-9' }}
-                                required
-                            />
+                            <>
+                                <InputField
+                                    id={`${author.id}-institution`}
+                                    label="Institution name"
+                                    value={author.institutionName}
+                                    onChange={(event) => onInstitutionNameChange(event.target.value)}
+                                    containerProps={{ className: 'md:col-span-7' }}
+                                    required
+                                />
+                                <InputField
+                                    id={`${author.id}-rorId`}
+                                    label="ROR ID"
+                                    value={author.rorId}
+                                    onChange={(event) => onInstitutionRorIdChange(event.target.value)}
+                                    placeholder="https://ror.org/"
+                                    inputMode="url"
+                                    containerProps={{ className: 'md:col-span-4' }}
+                                />
+                            </>
                         )}
                     </div>
 

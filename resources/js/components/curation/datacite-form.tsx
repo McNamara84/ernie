@@ -462,6 +462,18 @@ export default function DataCiteForm({
         );
     };
 
+    const handleInstitutionRorIdChange = (authorId: string, value: string) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId || author.type !== 'institution') {
+                    return author;
+                }
+
+                return { ...author, rorId: value } as InstitutionAuthorEntry;
+            }),
+        );
+    };
+
     const handleAuthorContactChange = (authorId: string, checked: boolean) => {
         setAuthors((previous) =>
             previous.map((author) => {
@@ -836,6 +848,9 @@ export default function DataCiteForm({
                                     }
                                     onInstitutionNameChange={(value) =>
                                         handleInstitutionNameChange(author.id, value)
+                                    }
+                                    onInstitutionRorIdChange={(value) =>
+                                        handleInstitutionRorIdChange(author.id, value)
                                     }
                                     onContactChange={(checked) =>
                                         handleAuthorContactChange(author.id, checked)
