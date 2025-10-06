@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import InputField from './input-field';
 import { SelectField } from './select-field';
@@ -6,12 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
+import type { TagData, TagifySettings } from '@yaireo/tagify';
 
 export type AuthorType = 'person' | 'institution';
 
 interface BaseAuthorEntry {
     id: string;
-    affiliations: string[];
+    affiliations: AffiliationTag[];
     affiliationsInput: string;
 }
 
@@ -42,11 +45,12 @@ interface AuthorFieldProps {
     ) => void;
     onInstitutionNameChange: (value: string) => void;
     onContactChange: (checked: boolean) => void;
-    onAffiliationsChange: (value: { raw: string; tags: string[] }) => void;
+    onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
     onRemoveAuthor: () => void;
     canRemove: boolean;
     onAddAuthor: () => void;
     canAddAuthor: boolean;
+    affiliationSuggestions: AffiliationSuggestion[];
 }
 
 export function AuthorField({
@@ -61,9 +65,28 @@ export function AuthorField({
     canRemove,
     onAddAuthor,
     canAddAuthor,
+    affiliationSuggestions,
 }: AuthorFieldProps) {
     const isPerson = author.type === 'person';
     const contactLabelTextId = `${author.id}-contact-label-text`;
+
+    const tagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
+        const whitelist = affiliationSuggestions.map((suggestion) => ({
+            value: suggestion.value,
+            rorId: suggestion.rorId,
+            searchTerms: suggestion.searchTerms,
+        }));
+
+        return {
+            whitelist,
+            dropdown: {
+                enabled: whitelist.length > 0 ? 1 : 0,
+                maxItems: 20,
+                closeOnSelect: true,
+                searchKeys: ['value', 'searchTerms'],
+            },
+        };
+    }, [affiliationSuggestions]);
 
     return (
         <section
@@ -207,13 +230,25 @@ export function AuthorField({
                             id={`${author.id}-affiliations`}
                             label="Affiliations"
                             value={author.affiliations}
-                            onChange={(detail) => onAffiliationsChange(detail)}
+                            onChange={(detail) =>
+                                onAffiliationsChange({
+                                    raw: detail.raw,
+                                    tags: detail.tags.map((tag) => ({
+                                        value: tag.value,
+                                        rorId:
+                                            'rorId' in tag && typeof tag.rorId === 'string'
+                                                ? tag.rorId
+                                                : null,
+                                    })),
+                                })
+                            }
                             placeholder="Institution A, Institution B"
                             containerProps={{
                                 className: isPerson && author.isContact ? 'md:col-span-5' : 'md:col-span-11',
                                 'data-testid': `author-${index}-affiliations-field`,
                             }}
                             data-testid={`author-${index}-affiliations-input`}
+                            tagifySettings={tagifySettings}
                         />
                         {isPerson && author.isContact && (
                             <>

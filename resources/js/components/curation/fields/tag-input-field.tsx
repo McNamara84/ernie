@@ -5,29 +5,28 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { HTMLAttributes, InputHTMLAttributes } from 'react';
 
+export interface TagInputItem {
+    value: string;
+    rorId?: string | null;
+    [key: string]: unknown;
+}
+
 export interface TagInputChangeDetail {
     raw: string;
-    tags: string[];
+    tags: TagInputItem[];
 }
 
 interface TagInputFieldProps
     extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
     id: string;
     label: string;
-    value: string[];
+    value: TagInputItem[];
     onChange: (detail: TagInputChangeDetail) => void;
     hideLabel?: boolean;
     className?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     tagifySettings?: Partial<TagifySettings<TagData>>;
-}
-
-function areArraysEqual(a: string[], b: string[]) {
-    if (a.length !== b.length) {
-        return false;
-    }
-
-    return a.every((value, index) => value === b[index]);
+    'data-testid'?: string;
 }
 
 export function TagInputField({
@@ -42,6 +41,7 @@ export function TagInputField({
     required,
     disabled,
     placeholder,
+    'data-testid': dataTestId,
     ...inputProps
 }: TagInputFieldProps) {
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -63,7 +63,7 @@ export function TagInputField({
             return;
         }
 
-        inputElement.value = value.join(', ');
+        inputElement.value = value.map((item) => item.value).join(', ');
 
         const settings: TagifySettings<TagData> = {
             delimiters: ',',
@@ -73,7 +73,10 @@ export function TagInputField({
             dropdown: { enabled: 0 },
             maxTags: Infinity,
             originalInputValueFormat: (values) =>
-                values.map((item) => item.value?.trim()).filter(Boolean).join(', '),
+                values
+                    .map((item) => item.value?.trim())
+                    .filter((tag): tag is string => Boolean(tag && tag.length > 0))
+                    .join(', '),
             a11y: {
                 focusableTags: true,
             },
@@ -83,8 +86,9 @@ export function TagInputField({
         const tagify = new Tagify(inputElement, settings);
         tagifyRef.current = tagify;
 
+        // Set test ID for Tagify scope (for Playwright)
         tagify.DOM.scope.dataset.testid = `${id}-tagify`;
-        tagify.DOM.input.setAttribute('data-testid', `${id}-tagify-input`);
+        // Note: data-testid for the input element is set on the original <input> element below
         (inputElement as HTMLInputElement & { tagify?: Tagify<TagData> }).tagify = tagify;
 
         if (value.length > 0) {
@@ -95,9 +99,25 @@ export function TagInputField({
         const handleChange = (event: CustomEvent) => {
             const detail = event.detail as { value?: string; tagify: Tagify<TagData> };
             const rawValue = detail.value ?? '';
-            const tags = detail.tagify.value
-                .map((item) => item.value?.trim())
-                .filter((tag): tag is string => Boolean(tag && tag.length > 0));
+            const tags: TagInputItem[] = detail.tagify.value
+                .map((item) => {
+                    const trimmedValue = typeof item.value === 'string' ? item.value.trim() : '';
+
+                    if (!trimmedValue) {
+                        return null;
+                    }
+
+                    const rawItem = item as Record<string, unknown>;
+                    const data = item.data as Record<string, unknown> | undefined;
+                    const directRorId = typeof rawItem.rorId === 'string' ? rawItem.rorId : null;
+                    const rorId = directRorId ?? (data && typeof data.rorId === 'string' ? data.rorId : null);
+
+                    return {
+                        value: trimmedValue,
+                        rorId,
+                    };
+                })
+                .filter((item): item is { value: string; rorId: string | null } => Boolean(item));
 
             changeHandlerRef.current({ raw: rawValue, tags });
         };
@@ -130,26 +150,69 @@ export function TagInputField({
         }
     }, [disabled]);
 
+    // Update whitelist when tagifySettings changes (e.g., when affiliations are loaded)
     useEffect(() => {
         const tagify = tagifyRef.current;
-        if (!tagify) {
+        if (!tagify || !tagifySettings?.whitelist) {
+            return;
+        }
+
+        tagify.whitelist = tagifySettings.whitelist;
+        
+        // Update dropdown settings if provided
+        // Defensive: settings can be undefined in test environments
+        if (tagifySettings.dropdown && tagify.settings?.dropdown) {
+            tagify.settings.dropdown = {
+                ...tagify.settings.dropdown,
+                ...tagifySettings.dropdown,
+            };
+        }
+    }, [tagifySettings]);
+
+    useEffect(() => {
+        const tagify = tagifyRef.current;
+        const inputElement = inputRef.current;
+        if (!tagify || !inputElement) {
             return;
         }
 
         const currentValues = tagify.value
-            .map((item) => item.value?.trim())
-            .filter((tag): tag is string => Boolean(tag && tag.length > 0));
+            .map((item) => ({
+                value: typeof item.value === 'string' ? item.value : '',
+                rorId:
+                    typeof (item as Record<string, unknown>).rorId === 'string'
+                        ? ((item as Record<string, unknown>).rorId as string)
+                        : null,
+            }))
+            .filter((item) => item.value);
 
-        if (areArraysEqual(currentValues, value)) {
+        const areEqual =
+            currentValues.length === value.length &&
+            currentValues.every((item, index) => {
+                const next = value[index];
+                let expectedRorId: string | null = null;
+
+                if ('rorId' in next) {
+                    if (typeof next.rorId === 'string') {
+                        expectedRorId = next.rorId;
+                    } else if (next.rorId === null) {
+                        expectedRorId = null;
+                    }
+                }
+
+                return item.value === next.value && item.rorId === expectedRorId;
+            });
+
+        if (areEqual) {
             return;
         }
 
-        if (value.length === 0) {
-            tagify.removeAllTags();
-            return;
-        }
+        tagify.removeAllTags();
+        inputElement.value = value.map((item) => item.value).join(', ');
 
-        tagify.loadOriginalValues(value.join(', '));
+        if (value.length > 0) {
+            tagify.addTags(value, true, true);
+        }
     }, [value]);
 
     useEffect(() => {
@@ -186,6 +249,7 @@ export function TagInputField({
                 ref={inputRef}
                 id={id}
                 placeholder={placeholder}
+                data-testid={dataTestId}
                 {...ariaProps}
                 {...inputProps}
             />
