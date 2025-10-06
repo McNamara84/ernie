@@ -161,8 +161,8 @@ export function TagInputField({
         tagify.whitelist = tagifySettings.whitelist;
         
         // Update dropdown settings if provided
-        if (tagifySettings.dropdown && tagify.settings.dropdown) {
-            // Merge dropdown settings
+        // Defensive: settings can be undefined in test environments
+        if (tagifySettings.dropdown && tagify.settings?.dropdown) {
             tagify.settings.dropdown = {
                 ...tagify.settings.dropdown,
                 ...tagifySettings.dropdown,
