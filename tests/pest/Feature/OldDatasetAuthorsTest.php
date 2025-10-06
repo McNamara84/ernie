@@ -31,17 +31,16 @@ function isMetaworksAvailable(): bool
 }
 
 beforeEach(function () {
-    // Skip tests if metaworks database is not available
-    if (!isMetaworksAvailable()) {
-        $this->markTestSkipped('Metaworks database is not available (required for OldDataset tests)');
-    }
-    
     // Bereinige Testdaten vor jedem Test
-    DB::connection('metaworks')->table('affiliation')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
-    DB::connection('metaworks')->table('role')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
-    DB::connection('metaworks')->table('contactinfo')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
-    DB::connection('metaworks')->table('resourceagent')->whereIn('resource_id', [999998, 999999])->delete();
-    DB::connection('metaworks')->table('resource')->whereIn('id', [999998, 999999])->delete();
+    try {
+        DB::connection('metaworks')->table('affiliation')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
+        DB::connection('metaworks')->table('role')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
+        DB::connection('metaworks')->table('contactinfo')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
+        DB::connection('metaworks')->table('resourceagent')->whereIn('resource_id', [999998, 999999])->delete();
+        DB::connection('metaworks')->table('resource')->whereIn('id', [999998, 999999])->delete();
+    } catch (\Exception $e) {
+        // If we can't connect to metaworks, skip will be handled in the test itself
+    }
     
     // Erstelle Test-Resource-Einträge
     DB::connection('metaworks')->table('resource')->insert([
@@ -72,6 +71,10 @@ afterEach(function () {
 });
 
 it('lädt Autoren mit Rollen und Affiliationen (Beispiel: Natalya Mikhailova, Resource 8)', function () {
+    if (!isMetaworksAvailable()) {
+        $this->markTestSkipped('Metaworks database is not available');
+    }
+    
     $testResourceId = 999998;
     
     // Füge echte Testdaten basierend auf Resource 8 ein
@@ -137,6 +140,10 @@ it('lädt Autoren mit Rollen und Affiliationen (Beispiel: Natalya Mikhailova, Re
 });
 
 it('lädt Autoren mit pointOfContact-Rolle und Email (Beispiel: Shahid Ullah)', function () {
+    if (!isMetaworksAvailable()) {
+        $this->markTestSkipped('Metaworks database is not available');
+    }
+    
     $testResourceId = 999999;
     
     // Füge echte Testdaten basierend auf Shahid Ullah (Resource 8, Order 10) ein
@@ -185,6 +192,10 @@ it('lädt Autoren mit pointOfContact-Rolle und Email (Beispiel: Shahid Ullah)', 
 });
 
 it('verwendet Fuzzy Matching für Kontaktinfos (Name ohne Komma)', function () {
+    if (!isMetaworksAvailable()) {
+        $this->markTestSkipped('Metaworks database is not available');
+    }
+    
     $testResourceId = 999998;
     
     // Füge Testdaten basierend auf Uhlemann, Steffi ein
