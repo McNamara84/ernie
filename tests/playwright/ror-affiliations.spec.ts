@@ -1,21 +1,38 @@
 import { test, expect } from '@playwright/test';
+import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
 test.describe('ROR Affiliations Autocomplete', () => {
     test.beforeEach(async ({ page }) => {
+        // Login first
+        await page.goto('/login');
+        await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+        await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Log in' }).click();
+        await page.waitForURL(/\/dashboard/);
+        
         // Navigate to curation page
         await page.goto('/curation');
         await page.waitForLoadState('networkidle');
+        
+        // Open Authors accordion if not already open
+        const authorsTrigger = page.getByRole('button', { name: 'Authors' });
+        const isExpanded = await authorsTrigger.getAttribute('aria-expanded');
+        if (isExpanded === 'false') {
+            await authorsTrigger.click();
+            await expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
+        }
     });
 
     test('loads ROR affiliations data on page load', async ({ page }) => {
-        // Check that the API request was made
+        // The API request should have been made during beforeEach navigation
+        // We'll reload the page and check for the request
         const responsePromise = page.waitForResponse(
             (response) =>
                 response.url().includes('/api/v1/ror-affiliations') &&
                 response.status() === 200
         );
 
-        await page.goto('/curation');
+        await page.reload();
         const response = await responsePromise;
 
         const data = await response.json();

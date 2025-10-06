@@ -63,6 +63,9 @@ jobs:
         chmod 666 database/database.sqlite
         php artisan key:generate
         php artisan migrate:fresh --seed --force
+        # Prepare ROR test data for Playwright tests
+        mkdir -p storage/app/private/ror
+        cp storage/app/private/ror/test-ror-affiliations.json storage/app/private/ror/ror-affiliations.json
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
     - name: Start Laravel server

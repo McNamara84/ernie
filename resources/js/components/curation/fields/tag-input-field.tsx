@@ -7,6 +7,7 @@ import type { HTMLAttributes, InputHTMLAttributes } from 'react';
 
 export interface TagInputItem {
     value: string;
+    rorId?: string | null;
     [key: string]: unknown;
 }
 
@@ -25,6 +26,7 @@ interface TagInputFieldProps
     className?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     tagifySettings?: Partial<TagifySettings<TagData>>;
+    'data-testid'?: string;
 }
 
 export function TagInputField({
@@ -39,6 +41,7 @@ export function TagInputField({
     required,
     disabled,
     placeholder,
+    'data-testid': dataTestId,
     ...inputProps
 }: TagInputFieldProps) {
     const inputRef = useRef<HTMLInputElement | null>(null);
@@ -83,8 +86,10 @@ export function TagInputField({
         const tagify = new Tagify(inputElement, settings);
         tagifyRef.current = tagify;
 
+        // Set test IDs for Playwright/testing
         tagify.DOM.scope.dataset.testid = `${id}-tagify`;
-        tagify.DOM.input.setAttribute('data-testid', `${id}-tagify-input`);
+        const tagifyInputTestId = dataTestId || `${id}-tagify-input`;
+        tagify.DOM.input.setAttribute('data-testid', tagifyInputTestId);
         (inputElement as HTMLInputElement & { tagify?: Tagify<TagData> }).tagify = tagify;
 
         if (value.length > 0) {
@@ -111,9 +116,9 @@ export function TagInputField({
                     return {
                         value: trimmedValue,
                         rorId,
-                    } satisfies TagInputItem;
+                    };
                 })
-                .filter((item): item is TagInputItem => Boolean(item));
+                .filter((item): item is { value: string; rorId: string | null } => Boolean(item));
 
             changeHandlerRef.current({ raw: rawValue, tags });
         };
