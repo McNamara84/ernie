@@ -93,7 +93,7 @@ const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
     email: '',
     website: '',
     isContact: false,
-    affiliations: [] as AffiliationTag[],
+    affiliations: [],
     affiliationsInput: '',
 });
 
@@ -101,7 +101,7 @@ const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'institution',
     institutionName: '',
-    affiliations: [] as AffiliationTag[],
+    affiliations: [],
     affiliationsInput: '',
 });
 
@@ -112,22 +112,22 @@ const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
 const createEmptyPersonContributor = (): PersonContributorEntry => ({
     id: crypto.randomUUID(),
     type: 'person',
-    roles: [] as ContributorRoleTag[],
+    roles: [],
     rolesInput: '',
     orcid: '',
     firstName: '',
     lastName: '',
-    affiliations: [] as AffiliationTag[],
+    affiliations: [],
     affiliationsInput: '',
 });
 
 const createEmptyInstitutionContributor = (): InstitutionContributorEntry => ({
     id: crypto.randomUUID(),
     type: 'institution',
-    roles: [] as ContributorRoleTag[],
+    roles: [],
     rolesInput: '',
     institutionName: '',
-    affiliations: [] as AffiliationTag[],
+    affiliations: [],
     affiliationsInput: '',
 });
 
