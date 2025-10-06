@@ -6,7 +6,7 @@
     "description": "API for the ERNIE. A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.",
     "termsOfService": "https://env.rz-vm182.gfz.de/ernie/legal-notice",
     "contact": {
-      "name": "ERNIE Support Team",
+      "name": "Holger Ehrmann",
       "url": "https://www.gfz.de/staff/holger.ehrmann/sec51",
       "email": "ehrmann@gfz.de"
     },
