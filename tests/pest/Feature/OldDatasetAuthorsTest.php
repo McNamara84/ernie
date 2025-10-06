@@ -12,9 +12,30 @@ use Illuminate\Support\Facades\DB;
  * - Resource 8: Natalya Mikhailova (ContactPerson + Creator) mit 5 Autoren
  * - Resource 8, Order 10: Shahid Ullah (pointOfContact) mit Email
  * - Resource 1: Uhlemann, Steffi (Fuzzy Matching Test)
+ * 
+ * Diese Tests erfordern eine Verbindung zur metaworks-Datenbank und werden
+ * übersprungen, wenn diese nicht verfügbar ist (z.B. in CI/CD-Umgebungen).
  */
 
+/**
+ * Check if metaworks database connection is available
+ */
+function isMetaworksAvailable(): bool
+{
+    try {
+        DB::connection('metaworks')->getPdo();
+        return true;
+    } catch (\Exception $e) {
+        return false;
+    }
+}
+
 beforeEach(function () {
+    // Skip tests if metaworks database is not available
+    if (!isMetaworksAvailable()) {
+        $this->markTestSkipped('Metaworks database is not available (required for OldDataset tests)');
+    }
+    
     // Bereinige Testdaten vor jedem Test
     DB::connection('metaworks')->table('affiliation')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
     DB::connection('metaworks')->table('role')->whereIn('resourceagent_resource_id', [999998, 999999])->delete();
