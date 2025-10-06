@@ -92,7 +92,6 @@ const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'institution',
     institutionName: '',
-    rorId: '',
     affiliations: [] as AffiliationTag[],
     affiliationsInput: '',
 });
@@ -214,10 +213,6 @@ const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
             institutionName:
                 typeof author.institutionName === 'string'
                     ? author.institutionName.trim()
-                    : '',
-            rorId:
-                typeof author.rorId === 'string'
-                    ? author.rorId.trim()
                     : '',
             affiliations,
             affiliationsInput,
@@ -462,18 +457,6 @@ export default function DataCiteForm({
         );
     };
 
-    const handleInstitutionRorIdChange = (authorId: string, value: string) => {
-        setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId || author.type !== 'institution') {
-                    return author;
-                }
-
-                return { ...author, rorId: value } as InstitutionAuthorEntry;
-            }),
-        );
-    };
-
     const handleAuthorContactChange = (authorId: string, checked: boolean) => {
         setAuthors((previous) =>
             previous.map((author) => {
@@ -595,12 +578,13 @@ export default function DataCiteForm({
             }
 
             const institutionName = author.institutionName.trim();
-            const rorId = author.rorId.trim();
+            // Get ROR ID from first affiliation that has one
+            const rorId = author.affiliations.find((aff) => aff.rorId)?.rorId?.trim() || null;
 
             return {
                 type: 'institution',
                 institutionName,
-                rorId: rorId || null,
+                rorId,
                 affiliations,
                 position: index,
             } satisfies SerializedAuthor;
@@ -848,9 +832,6 @@ export default function DataCiteForm({
                                     }
                                     onInstitutionNameChange={(value) =>
                                         handleInstitutionNameChange(author.id, value)
-                                    }
-                                    onInstitutionRorIdChange={(value) =>
-                                        handleInstitutionRorIdChange(author.id, value)
                                     }
                                     onContactChange={(checked) =>
                                         handleAuthorContactChange(author.id, checked)
