@@ -59,7 +59,7 @@ test.describe('Load authors from old datasets', () => {
 
         // Prüfe, dass Autorname ausgefüllt ist
         const lastNameInput = page.getByLabel('Last name').first();
-        await expect(lastNameInput).not.toBeEmpty();
+        await expect(lastNameInput).not.toHaveValue('');
     });
 
     test.skip('lädt Autoren mit ContactPerson-Rolle und Kontaktinfo korrekt', async ({ page }) => {
