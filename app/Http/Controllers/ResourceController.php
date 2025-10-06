@@ -45,6 +45,14 @@ class ResourceController extends Controller
                         ->with(['titleType:id,name,slug']);
                 },
                 'licenses:id,identifier,name',
+                'authors' => function ($query): void {
+                    $query
+                        ->with([
+                            'authorable',
+                            'roles:id,name,slug',
+                            'affiliations:id,resource_author_id,value,ror_id',
+                        ]);
+                },
             ])
             ->latest('created_at')
             ->paginate($perPage, ['*'], 'page', $page)
@@ -83,6 +91,52 @@ class ResourceController extends Controller
                                 'name' => $license->name,
                             ];
                         })
+                        ->values()
+                        ->all(),
+                    'authors' => $resource->authors
+                        ->map(static function (ResourceAuthor $resourceAuthor): ?array {
+                            $affiliations = $resourceAuthor->affiliations
+                                ->map(static fn (\App\Models\Affiliation $affiliation): array => [
+                                    'value' => $affiliation->value,
+                                    'rorId' => $affiliation->ror_id,
+                                ])
+                                ->values()
+                                ->all();
+
+                            $base = [
+                                'position' => $resourceAuthor->position,
+                                'affiliations' => $affiliations,
+                            ];
+
+                            $authorable = $resourceAuthor->authorable;
+
+                            if ($authorable instanceof Person) {
+                                $isContact = $resourceAuthor->roles->contains(
+                                    static fn (Role $role): bool => $role->slug === 'contact-person',
+                                );
+
+                                return $base + [
+                                    'type' => 'person',
+                                    'orcid' => $authorable->orcid,
+                                    'firstName' => $authorable->first_name,
+                                    'lastName' => $authorable->last_name,
+                                    'email' => $resourceAuthor->email,
+                                    'website' => $resourceAuthor->website,
+                                    'isContact' => $isContact,
+                                ];
+                            }
+
+                            if ($authorable instanceof Institution) {
+                                return $base + [
+                                    'type' => 'institution',
+                                    'institutionName' => $authorable->name,
+                                    'rorId' => $authorable->ror_id,
+                                ];
+                            }
+
+                            return null;
+                        })
+                        ->filter()
                         ->values()
                         ->all(),
                 ];

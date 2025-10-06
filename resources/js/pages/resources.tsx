@@ -27,6 +27,33 @@ interface ResourceLicense {
     name: string | null;
 }
 
+interface ResourceAuthorAffiliationSummary {
+    value: string | null;
+    rorId: string | null;
+}
+
+interface PersonResourceAuthor {
+    type: 'person';
+    position: number;
+    orcid: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    website: string | null;
+    isContact: boolean;
+    affiliations: ResourceAuthorAffiliationSummary[];
+}
+
+interface InstitutionResourceAuthor {
+    type: 'institution';
+    position: number;
+    institutionName: string | null;
+    rorId: string | null;
+    affiliations: ResourceAuthorAffiliationSummary[];
+}
+
+type ResourceAuthor = PersonResourceAuthor | InstitutionResourceAuthor;
+
 interface ResourceTypeSummary {
     name: string | null;
     slug: string | null;
@@ -48,6 +75,7 @@ interface ResourceListItem {
     language: ResourceLanguageSummary | null;
     titles: ResourceTitle[];
     licenses: ResourceLicense[];
+    authors: ResourceAuthor[];
 }
 
 interface PaginationInfo {

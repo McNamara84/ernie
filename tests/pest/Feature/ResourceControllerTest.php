@@ -14,6 +14,7 @@ use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -75,6 +76,59 @@ it('renders the resources index with paginated data', function (): void {
 
     $resource->refresh();
 
+    $person = Person::query()->create([
+        'orcid' => '0000-0001-2345-6789',
+        'first_name' => 'Avery',
+        'last_name' => 'Taylor',
+    ]);
+
+    $authorRole = Role::query()->create([
+        'name' => 'Author',
+        'slug' => 'author',
+    ]);
+
+    $contactRole = Role::query()->create([
+        'name' => 'Contact Person',
+        'slug' => 'contact-person',
+    ]);
+
+    $primaryAuthor = ResourceAuthor::query()->create([
+        'resource_id' => $resource->id,
+        'authorable_id' => $person->id,
+        'authorable_type' => Person::class,
+        'position' => 0,
+        'email' => 'avery.taylor@example.org',
+        'website' => 'https://avery.example.org',
+    ]);
+
+    $primaryAuthor->roles()->attach([$authorRole->id, $contactRole->id]);
+
+    $primaryAuthor->affiliations()->create([
+        'value' => 'Metadata Lab',
+        'ror_id' => 'https://ror.org/05d7xk087',
+    ]);
+
+    $institution = Institution::query()->create([
+        'name' => 'Example Research Institute',
+        'ror_id' => 'https://ror.org/03yrm5c26',
+    ]);
+
+    $institutionAuthor = ResourceAuthor::query()->create([
+        'resource_id' => $resource->id,
+        'authorable_id' => $institution->id,
+        'authorable_type' => Institution::class,
+        'position' => 1,
+        'email' => null,
+        'website' => null,
+    ]);
+
+    $institutionAuthor->roles()->attach($authorRole->id);
+
+    $institutionAuthor->affiliations()->create([
+        'value' => 'Consortium for Research',
+        'ror_id' => null,
+    ]);
+
     ResourceTitle::query()->create([
         'resource_id' => $resource->id,
         'title' => 'Exploring metadata interoperability',
@@ -128,6 +182,45 @@ it('renders the resources index with paginated data', function (): void {
             ->where('resources.0.language.code', 'en')
             ->where('resources.0.titles', fn ($titles) => count($titles) === 2)
             ->where('resources.0.licenses', fn ($licenses) => count($licenses) === 1)
+            ->where('resources.0.authors', function ($authors) use ($person, $institution): bool {
+                if ($authors instanceof Collection) {
+                    $authors = $authors->toArray();
+                }
+
+                expect($authors)->toBeArray()->toHaveCount(2);
+
+                expect($authors[0])->toEqual([
+                    'type' => 'person',
+                    'position' => 0,
+                    'orcid' => $person->orcid,
+                    'firstName' => $person->first_name,
+                    'lastName' => $person->last_name,
+                    'email' => 'avery.taylor@example.org',
+                    'website' => 'https://avery.example.org',
+                    'isContact' => true,
+                    'affiliations' => [
+                        [
+                            'value' => 'Metadata Lab',
+                            'rorId' => 'https://ror.org/05d7xk087',
+                        ],
+                    ],
+                ]);
+
+                expect($authors[1])->toEqual([
+                    'type' => 'institution',
+                    'position' => 1,
+                    'institutionName' => $institution->name,
+                    'rorId' => $institution->ror_id,
+                    'affiliations' => [
+                        [
+                            'value' => 'Consortium for Research',
+                            'rorId' => null,
+                        ],
+                    ],
+                ]);
+
+                return true;
+            })
             ->where('resources.0.created_at', $resource->created_at?->toIso8601String())
             ->where('resources.0.updated_at', $resource->updated_at?->toIso8601String())
             ->where('resources.1.id', $secondaryResource->id)
@@ -137,6 +230,7 @@ it('renders the resources index with paginated data', function (): void {
             ->where('resources.1.titles', fn ($titles) => count($titles) === 1)
             ->where('resources.1.licenses', fn ($licenses) => count($licenses) === 0)
             ->where('resources.1.language', null)
+            ->where('resources.1.authors', [])
             ->where('resources.1.created_at', $secondaryResource->created_at?->toIso8601String())
             ->where('resources.1.updated_at', $secondaryResource->updated_at?->toIso8601String())
             ->where('pagination', [

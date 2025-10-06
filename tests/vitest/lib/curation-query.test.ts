@@ -135,4 +135,74 @@ describe('buildCurationQueryFromResource', () => {
         });
         expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch resource types for curation.', error);
     });
+
+    it('includes authors and affiliations when provided', async () => {
+        const fetchMock = vi.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve([]),
+            } as unknown as Response),
+        );
+
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const query = await buildCurationQueryFromResource({
+            doi: null,
+            year: 2024,
+            version: null,
+            resource_type: { name: null, slug: null },
+            language: { code: null, name: null },
+            titles: [],
+            licenses: [],
+            authors: [
+                {
+                    type: 'institution',
+                    position: '3',
+                    institutionName: ' Example Institute ',
+                    rorId: ' https://ror.org/0abc12345 ',
+                    affiliations: [
+                        { value: ' Example Institute ' },
+                        { name: ' Example Institute ' },
+                    ],
+                },
+                {
+                    type: 'person',
+                    position: 1,
+                    orcid: ' 0000-0002-1825-0097 ',
+                    firstName: ' Ada ',
+                    lastName: ' Lovelace ',
+                    email: ' ada@example.org ',
+                    website: ' https://ada.example.org ',
+                    isContact: 'true',
+                    affiliations: [
+                        { value: ' Example Lab ', rorId: ' https://ror.org/05d7xk087 ' },
+                        { identifier: 'https://ror.org/05d7xk087' },
+                        { value: ' ' },
+                    ],
+                },
+            ],
+        });
+
+        expect(query).toMatchObject({
+            'authors[0][type]': 'person',
+            'authors[0][position]': '1',
+            'authors[0][orcid]': '0000-0002-1825-0097',
+            'authors[0][firstName]': 'Ada',
+            'authors[0][lastName]': 'Lovelace',
+            'authors[0][email]': 'ada@example.org',
+            'authors[0][website]': 'https://ada.example.org',
+            'authors[0][isContact]': 'true',
+            'authors[0][affiliations][0][value]': 'Example Lab',
+            'authors[0][affiliations][0][rorId]': 'https://ror.org/05d7xk087',
+            'authors[0][affiliations][1][value]': 'https://ror.org/05d7xk087',
+            'authors[1][type]': 'institution',
+            'authors[1][position]': '3',
+            'authors[1][institutionName]': 'Example Institute',
+            'authors[1][rorId]': 'https://ror.org/0abc12345',
+            'authors[1][affiliations][0][value]': 'Example Institute',
+        });
+
+        expect(query).not.toHaveProperty('authors[1][affiliations][0][rorId]');
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
 });
