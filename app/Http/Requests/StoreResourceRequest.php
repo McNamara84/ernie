@@ -210,7 +210,7 @@ class StoreResourceRequest extends FormRequest
     {
         return [
             function (Validator $validator): void {
-                /** @var array<int, array<string, mixed>|mixed> $candidateTitles */
+                /** @var mixed $candidateTitles */
                 $candidateTitles = $this->input('titles', []);
 
                 $hasMainTitle = false;
@@ -234,7 +234,7 @@ class StoreResourceRequest extends FormRequest
                 }
             },
             function (Validator $validator): void {
-                /** @var array<int, array<string, mixed>|mixed> $candidateAuthors */
+                /** @var mixed $candidateAuthors */
                 $candidateAuthors = $this->input('authors', []);
 
                 if (! is_array($candidateAuthors) || count($candidateAuthors) === 0) {

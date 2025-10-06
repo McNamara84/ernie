@@ -333,11 +333,20 @@ class ResourceController extends Controller
                 continue;
             }
 
+            $rorId = null;
+
+            if (array_key_exists('rorId', $affiliation)) {
+                $rawRorId = $affiliation['rorId'];
+
+                if ($rawRorId !== null) {
+                    $trimmedRorId = trim((string) $rawRorId);
+                    $rorId = $trimmedRorId === '' ? null : $trimmedRorId;
+                }
+            }
+
             $payload[] = [
                 'value' => $value,
-                'ror_id' => isset($affiliation['rorId']) && $affiliation['rorId'] !== null
-                    ? trim((string) $affiliation['rorId'])
-                    : null,
+                'ror_id' => $rorId,
             ];
         }
 

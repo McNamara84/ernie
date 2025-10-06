@@ -450,6 +450,69 @@ it('stores authors with roles and affiliations when creating a resource', functi
     expect(Affiliation::query()->count())->toBe(2);
 });
 
+it('normalizes blank affiliation ror ids to null when storing resource authors', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $language = Language::query()->create([
+        'code' => 'en',
+        'name' => 'English',
+        'active' => true,
+        'elmo_active' => true,
+    ]);
+
+    $titleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $license = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $payload = [
+        'doi' => '10.1234/affiliations-normalized',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'version' => '1.0.0',
+        'language' => $language->code,
+        'titles' => [
+            ['title' => 'Resource with blank ROR', 'titleType' => $titleType->slug],
+        ],
+        'licenses' => [$license->identifier],
+        'authors' => [
+            [
+                'type' => 'person',
+                'firstName' => 'Test',
+                'lastName' => 'Author',
+                'affiliations' => [
+                    ['value' => 'Example Org', 'rorId' => '   '],
+                ],
+                'position' => 0,
+            ],
+        ],
+    ];
+
+    postJson(route('curation.resources.store'), $payload)
+        ->assertStatus(201);
+
+    $resource = Resource::query()
+        ->with(['authors.affiliations'])
+        ->firstWhere('doi', '10.1234/affiliations-normalized');
+
+    expect($resource)->not->toBeNull();
+
+    $author = $resource?->authors->first();
+    expect($author)->not->toBeNull();
+
+    $affiliation = $author?->affiliations->first();
+    expect($affiliation)->not->toBeNull();
+    expect($affiliation?->ror_id)->toBeNull();
+});
+
 it('deletes a resource along with related metadata records', function (): void {
     $resourceType = ResourceType::query()->create([
         'name' => 'Dataset',
