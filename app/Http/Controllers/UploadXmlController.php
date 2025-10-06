@@ -192,6 +192,7 @@ class UploadXmlController extends Controller
     {
         $affiliationElements = $this->allElements($content, 'affiliation');
 
+        /** @var array<int, array{value: string, rorId: string|null}> $affiliations */
         $affiliations = [];
 
         foreach ($affiliationElements as $element) {
@@ -276,7 +277,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $content
+     * @return array{value: string, rorId: string}|null
      */
     private function resolveAffiliationByRor(string $identifier, ?string $scheme, ?string $fallback): ?array
     {
@@ -484,6 +485,9 @@ class UploadXmlController extends Controller
         return null;
     }
 
+    /**
+     * @return array{givenName: string|null, familyName: string|null}
+     */
     private function splitCreatorName(?string $name): array
     {
         if (! is_string($name) || $name === '') {
