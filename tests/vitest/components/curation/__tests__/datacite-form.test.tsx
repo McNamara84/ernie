@@ -1460,6 +1460,19 @@ describe('DataCiteForm', () => {
             ],
             licenses: ['MIT'],
         });
+        expect(body.authors).toEqual([
+            {
+                type: 'person',
+                orcid: null,
+                firstName: null,
+                lastName: 'Curator',
+                email: null,
+                website: null,
+                isContact: false,
+                affiliations: [],
+                position: 0,
+            },
+        ]);
 
         await screen.findByRole('dialog', { name: /successfully saved resource/i });
         expect(screen.getByText('Resource stored!')).toBeInTheDocument();
@@ -1507,9 +1520,97 @@ describe('DataCiteForm', () => {
             resourceType: 1,
             licenses: ['MIT'],
         });
+        expect(body.authors).toEqual([
+            expect.objectContaining({
+                type: 'person',
+                lastName: 'Curator',
+                position: 0,
+            }),
+        ]);
 
         await screen.findByRole('dialog', { name: /successfully saved resource/i });
         expect(screen.getByText('Resource updated!')).toBeInTheDocument();
+    });
+
+    it('serializes person and institution authors in the save payload', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const jsonMock = vi.fn().mockResolvedValue({ message: 'Stored' });
+        const response = {
+            ok: true,
+            status: 201,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Dataset Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+                initialAuthors={[
+                    {
+                        type: 'person',
+                        firstName: 'Jane',
+                        lastName: 'Doe',
+                        email: 'jane@example.org',
+                        website: 'https://jane.example',
+                        isContact: true,
+                        affiliations: [
+                            { value: 'University A', rorId: 'https://ror.org/05fjyn938' },
+                            { value: 'Consortium B', rorId: null },
+                        ],
+                    },
+                    {
+                        type: 'institution',
+                        institutionName: 'Research Lab',
+                        rorId: 'https://ror.org/03yrm5c26',
+                        affiliations: [
+                            { value: 'Parent Org', rorId: null },
+                            { value: 'Parent Org', rorId: null },
+                        ],
+                    },
+                ]}
+            />,
+        );
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await user.click(saveButton);
+
+        expect(global.fetch).toHaveBeenCalledTimes(1);
+
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        const body = JSON.parse(fetchArgs.body as string);
+
+        expect(body.authors).toEqual([
+            {
+                type: 'person',
+                orcid: null,
+                firstName: 'Jane',
+                lastName: 'Doe',
+                email: 'jane@example.org',
+                website: 'https://jane.example',
+                isContact: true,
+                affiliations: [
+                    { value: 'University A', rorId: 'https://ror.org/05fjyn938' },
+                    { value: 'Consortium B', rorId: null },
+                ],
+                position: 0,
+            },
+            {
+                type: 'institution',
+                institutionName: 'Research Lab',
+                rorId: 'https://ror.org/03yrm5c26',
+                affiliations: [{ value: 'Parent Org', rorId: null }],
+                position: 1,
+            },
+        ]);
     });
 
     it('falls back to XSRF cookie when meta token is absent', async () => {

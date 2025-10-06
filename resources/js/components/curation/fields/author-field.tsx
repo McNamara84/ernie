@@ -32,6 +32,7 @@ export interface PersonAuthorEntry extends BaseAuthorEntry {
 export interface InstitutionAuthorEntry extends BaseAuthorEntry {
     type: 'institution';
     institutionName: string;
+    rorId: string;
 }
 
 export type AuthorEntry = PersonAuthorEntry | InstitutionAuthorEntry;

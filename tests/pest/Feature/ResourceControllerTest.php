@@ -1,9 +1,14 @@
 <?php
 
+use App\Models\Affiliation;
+use App\Models\Institution;
 use App\Models\Language;
 use App\Models\License;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceAuthor;
 use App\Models\ResourceTitle;
+use App\Models\Role;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
@@ -246,6 +251,20 @@ it('updates an existing resource when the request includes a resource identifier
 
     $resource->licenses()->attach($originalLicense->id);
 
+    $existingPerson = Person::query()->create([
+        'first_name' => 'Original',
+        'last_name' => 'Author',
+    ]);
+
+    $existingAuthor = ResourceAuthor::query()->create([
+        'resource_id' => $resource->id,
+        'authorable_id' => $existingPerson->id,
+        'authorable_type' => Person::class,
+        'position' => 0,
+        'email' => null,
+        'website' => null,
+    ]);
+
     $payload = [
         'resourceId' => $resource->id,
         'doi' => '10.1234/updated',
@@ -258,6 +277,28 @@ it('updates an existing resource when the request includes a resource identifier
             ['title' => 'Updated subtitle', 'titleType' => 'subtitle'],
         ],
         'licenses' => ['cc-by-4'],
+        'authors' => [
+            [
+                'type' => 'person',
+                'orcid' => null,
+                'firstName' => 'Grace',
+                'lastName' => 'Hopper',
+                'email' => 'grace@example.org',
+                'website' => null,
+                'isContact' => true,
+                'affiliations' => [
+                    ['value' => 'US Navy', 'rorId' => null],
+                ],
+                'position' => 0,
+            ],
+            [
+                'type' => 'institution',
+                'institutionName' => 'Computing Society',
+                'rorId' => null,
+                'affiliations' => [],
+                'position' => 1,
+            ],
+        ],
     ];
 
     postJson(route('curation.resources.store'), $payload)
@@ -280,6 +321,20 @@ it('updates an existing resource when the request includes a resource identifier
 
     $resource->load(['titles.titleType', 'licenses']);
 
+    expect(ResourceAuthor::query()->whereKey($existingAuthor->id)->exists())->toBeFalse();
+    $resource->load(['authors.roles', 'authors.affiliations', 'authors.authorable']);
+    expect($resource->authors)->toHaveCount(2);
+    $updatedPersonAuthor = $resource->authors->firstWhere('authorable_type', Person::class);
+    expect($updatedPersonAuthor?->authorable)->toBeInstanceOf(Person::class);
+    expect($updatedPersonAuthor?->authorable?->first_name)->toBe('Grace');
+    expect($updatedPersonAuthor?->roles->pluck('name')->all())->toContain('Author');
+    expect($updatedPersonAuthor?->roles->pluck('name')->all())->toContain('Contact Person');
+    expect($updatedPersonAuthor?->affiliations->pluck('value')->all())->toBe(['US Navy']);
+    $updatedInstitution = $resource->authors->firstWhere('authorable_type', Institution::class);
+    expect($updatedInstitution?->authorable)->toBeInstanceOf(Institution::class);
+    expect($updatedInstitution?->authorable?->name)->toBe('Computing Society');
+    expect($updatedInstitution?->roles->pluck('name')->all())->toEqual(['Author']);
+
     expect($resource->titles)->toHaveCount(2);
     expect($resource->titles->pluck('title')->all())->toBe([
         'Updated main title',
@@ -292,6 +347,107 @@ it('updates an existing resource when the request includes a resource identifier
 
     expect($resource->licenses)->toHaveCount(1);
     expect($resource->licenses->first()?->identifier)->toBe('cc-by-4');
+});
+
+it('stores authors with roles and affiliations when creating a resource', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $language = Language::query()->create([
+        'code' => 'en',
+        'name' => 'English',
+        'active' => true,
+        'elmo_active' => true,
+    ]);
+
+    $mainTitleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $license = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $payload = [
+        'doi' => '10.1234/with-authors',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'version' => '1.0.0',
+        'language' => 'en',
+        'titles' => [
+            ['title' => 'Resource with authors', 'titleType' => 'main-title'],
+        ],
+        'licenses' => [$license->identifier],
+        'authors' => [
+            [
+                'type' => 'person',
+                'orcid' => '0000-0001-2345-6789',
+                'firstName' => 'Ada',
+                'lastName' => 'Lovelace',
+                'email' => 'ada@example.org',
+                'website' => 'https://ada.example',
+                'isContact' => true,
+                'affiliations' => [
+                    ['value' => 'Analytical Engine Society', 'rorId' => null],
+                ],
+                'position' => 0,
+            ],
+            [
+                'type' => 'institution',
+                'institutionName' => 'Royal Society',
+                'rorId' => 'https://ror.org/01bj3aw27',
+                'affiliations' => [
+                    ['value' => 'London', 'rorId' => null],
+                ],
+                'position' => 1,
+            ],
+        ],
+    ];
+
+    postJson(route('curation.resources.store'), $payload)
+        ->assertStatus(201)
+        ->assertJson([
+            'message' => 'Successfully saved resource.',
+        ]);
+
+    $resource = Resource::query()
+        ->with([
+            'authors.roles',
+            'authors.affiliations',
+            'authors.authorable',
+        ])
+        ->first();
+
+    expect($resource)->not->toBeNull();
+    expect($resource?->authors)->toHaveCount(2);
+
+    $personAuthor = $resource?->authors->firstWhere('authorable_type', Person::class);
+    expect($personAuthor)->not->toBeNull();
+    expect($personAuthor?->authorable)->toBeInstanceOf(Person::class);
+    expect($personAuthor?->authorable?->orcid)->toBe('0000-0001-2345-6789');
+    expect($personAuthor?->authorable?->first_name)->toBe('Ada');
+    expect($personAuthor?->authorable?->last_name)->toBe('Lovelace');
+    expect($personAuthor?->roles->pluck('name')->all())->toContain('Author');
+    expect($personAuthor?->roles->pluck('name')->all())->toContain('Contact Person');
+    expect($personAuthor?->affiliations)->toHaveCount(1);
+    expect($personAuthor?->affiliations->first()?->value)->toBe('Analytical Engine Society');
+
+    $institutionAuthor = $resource?->authors->firstWhere('authorable_type', Institution::class);
+    expect($institutionAuthor)->not->toBeNull();
+    expect($institutionAuthor?->authorable)->toBeInstanceOf(Institution::class);
+    expect($institutionAuthor?->authorable?->name)->toBe('Royal Society');
+    expect($institutionAuthor?->authorable?->ror_id)->toBe('https://ror.org/01bj3aw27');
+    expect($institutionAuthor?->roles->pluck('name')->all())->toEqual(['Author']);
+    expect($institutionAuthor?->affiliations)->toHaveCount(1);
+    expect($institutionAuthor?->affiliations->first()?->value)->toBe('London');
+
+    expect(Role::query()->where('name', 'Author')->exists())->toBeTrue();
+    expect(Role::query()->where('name', 'Contact Person')->exists())->toBeTrue();
+    expect(Affiliation::query()->count())->toBe(2);
 });
 
 it('deletes a resource along with related metadata records', function (): void {
