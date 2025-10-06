@@ -12,6 +12,16 @@ use Inertia\Response;
 class OldDatasetController extends Controller
 {
     private const DATASET_CONNECTION = 'metaworks';
+    private const DEFAULT_SORT_KEY = 'updated_at';
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+    /**
+     * @var list<string>
+     */
+    private const ALLOWED_SORT_KEYS = ['id', 'created_at', 'updated_at'];
+    /**
+     * @var list<string>
+     */
+    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     /**
      * Display a listing of the datasets.
@@ -29,8 +39,10 @@ class OldDatasetController extends Controller
             $page = max(1, (int) $page);
             $perPage = min(200, max(10, (int) $perPage)); // Min 10, Max 200
             
+            [$sortKey, $sortDirection] = $this->resolveSortState($request);
+
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert)
-            $paginatedDatasets = OldDataset::getPaginatedOrderedByCreatedDate($page, $perPage);
+            $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
             // Load licenses for each dataset
             $datasetsWithLicenses = $paginatedDatasets->items();
@@ -48,6 +60,10 @@ class OldDatasetController extends Controller
                     'from' => $paginatedDatasets->firstItem(),
                     'to' => $paginatedDatasets->lastItem(),
                     'has_more' => $paginatedDatasets->hasMorePages(),
+                ],
+                'sort' => [
+                    'key' => $sortKey,
+                    'direction' => $sortDirection,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -71,6 +87,10 @@ class OldDatasetController extends Controller
                 ],
                 'error' => 'SUMARIOPMD-Datenbankverbindung fehlgeschlagen: ' . $e->getMessage(),
                 'debug' => $debugInfo,
+                'sort' => [
+                    'key' => self::DEFAULT_SORT_KEY,
+                    'direction' => self::DEFAULT_SORT_DIRECTION,
+                ],
             ]);
         }
     }
@@ -90,7 +110,9 @@ class OldDatasetController extends Controller
             $page = max(1, (int) $page);
             $perPage = min(200, max(10, (int) $perPage));
             
-            $paginatedDatasets = OldDataset::getPaginatedOrderedByCreatedDate($page, $perPage);
+            [$sortKey, $sortDirection] = $this->resolveSortState($request);
+
+            $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
             // Load licenses for each dataset
             $datasetsWithLicenses = $paginatedDatasets->items();
@@ -109,6 +131,10 @@ class OldDatasetController extends Controller
                     'to' => $paginatedDatasets->lastItem(),
                     'has_more' => $paginatedDatasets->hasMorePages(),
                 ],
+                'sort' => [
+                    'key' => $sortKey,
+                    'direction' => $sortDirection,
+                ],
             ]);
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
@@ -120,8 +146,33 @@ class OldDatasetController extends Controller
             return response()->json([
                 'error' => 'Error loading datasets:ss ' . $e->getMessage(),
                 'debug' => $debugInfo,
+                'sort' => [
+                    'key' => self::DEFAULT_SORT_KEY,
+                    'direction' => self::DEFAULT_SORT_DIRECTION,
+                ],
             ], 500);
         }
+    }
+
+    /**
+     * Resolve the requested sort state, falling back to the default when invalid.
+     *
+     * @return array{string, string}
+     */
+    private function resolveSortState(Request $request): array
+    {
+        $requestedKey = strtolower((string) $request->get('sort_key', self::DEFAULT_SORT_KEY));
+        $requestedDirection = strtolower((string) $request->get('sort_direction', self::DEFAULT_SORT_DIRECTION));
+
+        $sortKey = in_array($requestedKey, self::ALLOWED_SORT_KEYS, true)
+            ? $requestedKey
+            : self::DEFAULT_SORT_KEY;
+
+        $sortDirection = in_array($requestedDirection, self::ALLOWED_SORT_DIRECTIONS, true)
+            ? $requestedDirection
+            : self::DEFAULT_SORT_DIRECTION;
+
+        return [$sortKey, $sortDirection];
     }
 
     /**

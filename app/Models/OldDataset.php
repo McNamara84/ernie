@@ -100,15 +100,29 @@ class OldDataset extends Model
     }
 
     /**
-     * Get paginated resources with their titles, ordered by created_at descending.
+     * Get paginated resources with their titles, ordered by the provided column and direction.
      *
      * @param int $page
      * @param int $perPage
+     * @param string $sortKey
+     * @param string $sortDirection
      * @return LengthAwarePaginator<int, OldDataset>
      */
-    public static function getPaginatedOrderedByCreatedDate($page = 1, $perPage = 50): LengthAwarePaginator
-    {
-        return self::select([
+    public static function getPaginatedOrdered(
+        int $page = 1,
+        int $perPage = 50,
+        string $sortKey = 'updated_at',
+        string $sortDirection = 'desc'
+    ): LengthAwarePaginator {
+        $direction = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
+
+        $sortColumn = match ($sortKey) {
+            'id' => 'resource.id',
+            'created_at' => 'resource.created_at',
+            default => 'resource.updated_at',
+        };
+
+        $query = self::select([
                 'resource.id',
                 'resource.identifier',
                 'resource.resourcetypegeneral',
@@ -123,8 +137,13 @@ class OldDataset extends Model
                 'title.title'
             ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
-            ->orderBy('resource.created_at', 'desc')
-            ->paginate($perPage, ['*'], 'page', $page);
+            ->orderBy($sortColumn, $direction);
+
+        if ($sortColumn !== 'resource.id') {
+            $query->orderBy('resource.id', 'asc');
+        }
+
+        return $query->paginate($perPage, ['*'], 'page', $page);
     }
 
     /**

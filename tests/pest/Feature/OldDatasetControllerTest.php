@@ -65,9 +65,9 @@ it('renders the old datasets page with paginated data', function (): void {
     );
 
     MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrderedByCreatedDate')
+        ->shouldReceive('getPaginatedOrdered')
         ->once()
-        ->with(1, 50)
+        ->with(1, 50, 'updated_at', 'desc')
         ->andReturn($paginator);
 
     // Expected datasets with licenses added
@@ -116,6 +116,10 @@ it('renders the old datasets page with paginated data', function (): void {
             ])
             ->missing('error')
             ->missing('debug')
+            ->where('sort', [
+                'key' => 'updated_at',
+                'direction' => 'desc',
+            ])
         );
 });
 
@@ -129,9 +133,9 @@ it('sanitises pagination parameters before fetching datasets', function (): void
     );
 
     MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrderedByCreatedDate')
+        ->shouldReceive('getPaginatedOrdered')
         ->once()
-        ->with(1, 200)
+        ->with(1, 200, 'updated_at', 'desc')
         ->andReturn($paginator);
 
     get('/old-datasets?page=0&per_page=999')
@@ -147,6 +151,62 @@ it('sanitises pagination parameters before fetching datasets', function (): void
                 'from' => null,
                 'to' => null,
                 'has_more' => false,
+            ])
+            ->where('sort', [
+                'key' => 'updated_at',
+                'direction' => 'desc',
+            ])
+        );
+});
+
+it('applies the requested sort parameters when valid values are provided', function (): void {
+    $paginator = new LengthAwarePaginator(
+        [],
+        total: 0,
+        perPage: 50,
+        currentPage: 1,
+        options: ['path' => '/old-datasets']
+    );
+
+    MockeryAlias::mock('alias:' . OldDataset::class)
+        ->shouldReceive('getPaginatedOrdered')
+        ->once()
+        ->with(1, 50, 'id', 'asc')
+        ->andReturn($paginator);
+
+    get('/old-datasets?sort_key=id&sort_direction=asc')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('old-datasets')
+            ->where('sort', [
+                'key' => 'id',
+                'direction' => 'asc',
+            ])
+        );
+});
+
+it('falls back to the default sort when invalid parameters are provided', function (): void {
+    $paginator = new LengthAwarePaginator(
+        [],
+        total: 0,
+        perPage: 50,
+        currentPage: 1,
+        options: ['path' => '/old-datasets']
+    );
+
+    MockeryAlias::mock('alias:' . OldDataset::class)
+        ->shouldReceive('getPaginatedOrdered')
+        ->once()
+        ->with(1, 50, 'updated_at', 'desc')
+        ->andReturn($paginator);
+
+    get('/old-datasets?sort_key=title&sort_direction=down')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('old-datasets')
+            ->where('sort', [
+                'key' => 'updated_at',
+                'direction' => 'desc',
             ])
         );
 });
@@ -177,9 +237,9 @@ it('returns JSON payload for the load-more endpoint', function (): void {
     );
 
     MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrderedByCreatedDate')
+        ->shouldReceive('getPaginatedOrdered')
         ->once()
-        ->with(2, 20)
+        ->with(2, 20, 'updated_at', 'desc')
         ->andReturn($paginator);
 
     // Expected datasets with licenses added
@@ -212,6 +272,10 @@ it('returns JSON payload for the load-more endpoint', function (): void {
                 'to' => 21,
                 'has_more' => false,
             ],
+            'sort' => [
+                'key' => 'updated_at',
+                'direction' => 'desc',
+            ],
         ]);
 });
 
@@ -226,7 +290,7 @@ it('exposes a helpful error state when the listing cannot be loaded', function (
     Log::spy();
 
     MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrderedByCreatedDate')
+        ->shouldReceive('getPaginatedOrdered')
         ->once()
         ->withAnyArgs()
         ->andThrow($exception);
@@ -255,6 +319,10 @@ it('exposes a helpful error state when the listing cannot be loaded', function (
                 ->where('username', 'sumario')
                 ->where('error_code', $exception->getCode())
             )
+            ->where('sort', [
+                'key' => 'updated_at',
+                'direction' => 'desc',
+            ])
         );
 
     Log::shouldHaveReceived('error')
@@ -285,7 +353,7 @@ it('returns an error response when the load-more endpoint fails', function (): v
     Log::spy();
 
     MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrderedByCreatedDate')
+        ->shouldReceive('getPaginatedOrdered')
         ->once()
         ->withAnyArgs()
         ->andThrow(new RuntimeException('timeout while contacting replica'));
@@ -302,6 +370,10 @@ it('returns an error response when the load-more endpoint fails', function (): v
                 'database' => 'sumario-pmd',
                 'username' => 'sumario',
                 'error_code' => 0,
+            ],
+            'sort' => [
+                'key' => 'updated_at',
+                'direction' => 'desc',
             ],
         ]);
 
