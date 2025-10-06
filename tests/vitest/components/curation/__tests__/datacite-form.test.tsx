@@ -341,7 +341,7 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
 
         expect(await screen.findByText('Contributor type')).toBeInTheDocument();
-        expect(screen.getByLabelText('Roles')).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Roles/)).toBeInTheDocument();
         expect(
             screen.getAllByRole('button', { name: /Add contributor/i }).length,
         ).toBeGreaterThan(0);

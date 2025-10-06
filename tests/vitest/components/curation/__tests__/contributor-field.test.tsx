@@ -197,7 +197,7 @@ describe('ContributorField', () => {
         );
 
         expect(screen.getByText('Contributor type')).toBeInTheDocument();
-        expect(screen.getByLabelText('Roles')).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Roles/)).toBeInTheDocument();
         expect(screen.queryByText('CP')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Email address')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Website')).not.toBeInTheDocument();
@@ -285,7 +285,7 @@ describe('ContributorField', () => {
             />,
         );
 
-        expect(screen.getByLabelText('Roles')).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Roles/)).toBeInTheDocument();
         expect(
             screen.getByRole('textbox', { name: /Institution name/i }),
         ).toBeInTheDocument();
