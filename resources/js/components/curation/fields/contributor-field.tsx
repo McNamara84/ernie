@@ -225,6 +225,7 @@ export default function ContributorField({
                             data-testid={`contributor-${index}-roles-input`}
                             tagifySettings={roleTagifySettings}
                             aria-describedby={rolesHintId}
+                            required
                         />
                     </div>
 
