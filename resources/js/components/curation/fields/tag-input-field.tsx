@@ -250,6 +250,7 @@ export function TagInputField({
                 ref={inputRef}
                 id={id}
                 placeholder={placeholder}
+                data-testid={dataTestId}
                 {...ariaProps}
                 {...inputProps}
             />
