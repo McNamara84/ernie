@@ -99,24 +99,16 @@ export type InitialAuthor =
           institutionName?: string | null;
       });
 
-const DEBUG_AFFILIATIONS = true;
-
 const normaliseInitialAffiliations = (
     affiliations?: (InitialAffiliationInput | null | undefined)[] | null,
 ): AffiliationTag[] => {
     if (!affiliations || !Array.isArray(affiliations)) {
-        if (DEBUG_AFFILIATIONS) {
-            console.log('normaliseInitialAffiliations: No affiliations or not an array', affiliations);
-        }
         return [];
     }
 
-    const normalized = affiliations
-        .map((affiliation, index) => {
+    return affiliations
+        .map((affiliation) => {
             if (!affiliation || typeof affiliation !== 'object') {
-                if (DEBUG_AFFILIATIONS) {
-                    console.log(`normaliseInitialAffiliations: Affiliation ${index} is not an object`, affiliation);
-                }
                 return null;
             }
 
@@ -141,18 +133,7 @@ const normaliseInitialAffiliations = (
                 ).trim();
 
             if (!rawValue && !rawRorId) {
-                if (DEBUG_AFFILIATIONS) {
-                    console.log(`normaliseInitialAffiliations: Affiliation ${index} has no value or rorId`, affiliation);
-                }
                 return null;
-            }
-
-            if (DEBUG_AFFILIATIONS) {
-                console.log(`normaliseInitialAffiliations: Affiliation ${index}`, {
-                    input: affiliation,
-                    value: rawValue || rawRorId,
-                    rorId: rawRorId || null,
-                });
             }
 
             return {
@@ -161,11 +142,6 @@ const normaliseInitialAffiliations = (
             } satisfies AffiliationTag;
         })
         .filter((item): item is AffiliationTag => Boolean(item && item.value));
-
-    if (DEBUG_AFFILIATIONS) {
-        console.log('normaliseInitialAffiliations: Final result', { input: affiliations, output: normalized });
-    }
-    return normalized;
 };
 
 const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
