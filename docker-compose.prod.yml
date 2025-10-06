@@ -48,10 +48,21 @@ services:
       - app
     labels:
       - "traefik.enable=true"
+      # API router (OHNE Forward-Auth) - höhere Priorität, damit API-Anfragen zuerst geprüft werden
+      - "traefik.http.routers.ernie-api.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie/api/v1`)"
+      - "traefik.http.routers.ernie-api.entrypoints=https"
+      - "traefik.http.routers.ernie-api.priority=100"
+      - "traefik.http.routers.ernie-api.middlewares=ernie-api-stripprefix"
+      - "traefik.http.routers.ernie-api.service=ernie-service"
+      - "traefik.http.middlewares.ernie-api-stripprefix.stripprefix.prefixes=/ernie"
+      # Web router (mit Forward-Auth) - niedrigere Priorität
       - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
+      - "traefik.http.routers.ernie-router.priority=10"
       - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
+      - "traefik.http.routers.ernie-router.service=ernie-service"
       - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
+      # Service
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
 
