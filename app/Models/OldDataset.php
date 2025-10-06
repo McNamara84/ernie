@@ -145,7 +145,8 @@ class OldDataset extends Model
 
     /**
      * Normalize a name for fuzzy matching by removing punctuation and extra whitespace.
-     * Converts "Läuchli, Charlotte" to "laeuchli charlotte" for comparison.
+     * Converts names like "Läuchli, Charlotte" to "lauchli charlotte" for comparison.
+     * Removes diacritics, punctuation (commas, periods, hyphens), and normalizes whitespace.
      *
      * @param string|null $name The name to normalize
      * @return string The normalized name
@@ -159,8 +160,11 @@ class OldDataset extends Model
         // Convert to lowercase
         $normalized = mb_strtolower($name, 'UTF-8');
         
-        // Remove common punctuation (commas, periods, hyphens in some cases)
-        $normalized = str_replace([',', '.'], '', $normalized);
+        // Transliterate to ASCII (e.g., ä -> a, ü -> u)
+        $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized) ?: $normalized;
+        
+        // Remove common punctuation (commas, periods, hyphens)
+        $normalized = str_replace([',', '.', '-'], '', $normalized);
         
         // Replace multiple whitespace with single space
         $normalized = preg_replace('/\s+/', ' ', $normalized) ?? '';
@@ -193,6 +197,33 @@ class OldDataset extends Model
             ->orderBy('resourceagent.order')
             ->get();
 
+        // Prefetch all roles for this resource to avoid N+1 queries
+        $allRoles = $db->table('role')
+            ->where('resourceagent_resource_id', $this->id)
+            ->get()
+            ->groupBy('resourceagent_order')
+            ->map(function ($roles) {
+                return $roles->pluck('role')->toArray();
+            })
+            ->toArray();
+
+        // Prefetch all affiliations for this resource to avoid N+1 queries
+        $allAffiliations = $db->table('affiliation')
+            ->where('resourceagent_resource_id', $this->id)
+            ->orderBy('resourceagent_order')
+            ->orderBy('order')
+            ->get()
+            ->groupBy('resourceagent_order')
+            ->map(function ($affiliations) {
+                return $affiliations->map(function ($affiliation) {
+                    return [
+                        'value' => $affiliation->name,
+                        'rorId' => $affiliation->identifier ?? null,
+                    ];
+                })->toArray();
+            })
+            ->toArray();
+
         // Get all contact information for this resource
         // We'll use fuzzy name matching to find the right contact info
         $allContactInfo = $db->table('contactinfo')
@@ -207,12 +238,8 @@ class OldDataset extends Model
         $authors = [];
 
         foreach ($resourceAgents as $agent) {
-            // Get roles for this resourceagent
-            $roles = $db->table('role')
-                ->where('resourceagent_resource_id', $agent->resource_id)
-                ->where('resourceagent_order', $agent->order)
-                ->pluck('role')
-                ->toArray();
+            // Get roles for this resourceagent from prefetched data
+            $roles = $allRoles[$agent->order] ?? [];
 
             // Check if this author is a contact person (ContactPerson or pointOfContact)
             $isContact = in_array('ContactPerson', $roles) || in_array('pointOfContact', $roles);
@@ -221,34 +248,37 @@ class OldDataset extends Model
             $email = null;
             $website = null;
             
-            if ($agent->name) {
-                $normalizedAgentName = $this->normalizeName($agent->name);
+            // Try to find matching contact info
+            foreach ($allContactInfo as $contactInfo) {
+                $matched = false;
                 
-                // Try to find matching contact info
-                foreach ($allContactInfo as $contactInfo) {
+                // Strategy 1: Normalized name match (if agent has a name)
+                if ($agent->name && $contactInfo->name) {
+                    $normalizedAgentName = $this->normalizeName($agent->name);
                     $normalizedContactName = $this->normalizeName($contactInfo->name);
                     
-                    // Strategy 1: Normalized name match
                     if ($normalizedAgentName === $normalizedContactName) {
-                        $email = !empty($contactInfo->email) ? $contactInfo->email : null;
-                        $website = !empty($contactInfo->website) ? $contactInfo->website : null;
-                        break;
+                        $matched = true;
                     }
+                }
+                
+                // Strategy 2: Match by firstname + lastname if available
+                // This is checked regardless of whether $agent->name is set
+                if (!$matched && $agent->firstname && $agent->lastname && $contactInfo->firstname && $contactInfo->lastname) {
+                    $agentFullName = $this->normalizeName($agent->firstname . ' ' . $agent->lastname);
+                    $contactFullName = $this->normalizeName($contactInfo->firstname . ' ' . $contactInfo->lastname);
                     
-                    // Strategy 2: Match by firstname + lastname if available
-                    if ($agent->firstname && $agent->lastname && $contactInfo->firstname && $contactInfo->lastname) {
-                        $agentFullName = $this->normalizeName($agent->firstname . ' ' . $agent->lastname);
-                        $contactFullName = $this->normalizeName($contactInfo->firstname . ' ' . $contactInfo->lastname);
-                        
-                        if ($agentFullName === $contactFullName) {
-                            $email = !empty($contactInfo->email) ? $contactInfo->email : null;
-                            $website = !empty($contactInfo->website) ? $contactInfo->website : null;
-                            break;
-                        }
+                    if ($agentFullName === $contactFullName) {
+                        $matched = true;
                     }
+                }
+                
+                // Strategy 3: Check if normalized names contain each other (partial match)
+                // This handles cases like "Läuchli, Charlotte" vs "Läuchli Charlotte"
+                if (!$matched && $agent->name && $contactInfo->name) {
+                    $normalizedAgentName = $this->normalizeName($agent->name);
+                    $normalizedContactName = $this->normalizeName($contactInfo->name);
                     
-                    // Strategy 3: Check if normalized names contain each other (partial match)
-                    // This handles cases like "Läuchli, Charlotte" vs "Läuchli Charlotte"
                     if ($normalizedAgentName && $normalizedContactName) {
                         // Split into words and sort for comparison
                         $agentWords = explode(' ', $normalizedAgentName);
@@ -257,34 +287,25 @@ class OldDataset extends Model
                         sort($contactWords);
                         
                         if ($agentWords === $contactWords) {
-                            $email = !empty($contactInfo->email) ? $contactInfo->email : null;
-                            $website = !empty($contactInfo->website) ? $contactInfo->website : null;
-                            break;
+                            $matched = true;
                         }
                     }
                 }
                 
-                // If we found contact info for this person, mark them as contact
-                if ($email || $website) {
-                    $isContact = true;
+                if ($matched) {
+                    $email = !empty($contactInfo->email) ? $contactInfo->email : null;
+                    $website = !empty($contactInfo->website) ? $contactInfo->website : null;
+                    break;
                 }
             }
-
-            // Get affiliations for this resourceagent
-            $affiliationsData = $db->table('affiliation')
-                ->where('resourceagent_resource_id', $agent->resource_id)
-                ->where('resourceagent_order', $agent->order)
-                ->orderBy('order')
-                ->get();
-
-            // Format affiliations as array of objects with value and rorId
-            $affiliations = [];
-            foreach ($affiliationsData as $affiliation) {
-                $affiliations[] = [
-                    'value' => $affiliation->name,
-                    'rorId' => $affiliation->identifier ?? null,
-                ];
+            
+            // If we found contact info for this person, mark them as contact
+            if ($email || $website) {
+                $isContact = true;
             }
+
+            // Get affiliations for this resourceagent from prefetched data
+            $affiliations = $allAffiliations[$agent->order] ?? [];
 
             $authors[] = [
                 'givenName' => $agent->firstname,

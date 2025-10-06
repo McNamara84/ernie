@@ -156,7 +156,7 @@ class OldDatasetController extends Controller
             ]);
 
             return response()->json([
-                'error' => 'Error loading authors: ' . $e->getMessage(),
+                'error' => 'Failed to load authors from legacy database. Please check the database connection.',
                 'debug' => $debugInfo,
             ], 500);
         }
