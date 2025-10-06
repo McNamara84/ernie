@@ -11,6 +11,25 @@ import { useRef, useState } from 'react';
 import { latestVersion } from '@/lib/version';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 
+type UploadedAffiliation = {
+    value?: string | null;
+    rorId?: string | null;
+};
+
+type UploadedAuthor =
+    | {
+          type?: 'person';
+          firstName?: string | null;
+          lastName?: string | null;
+          orcid?: string | null;
+          affiliations?: (UploadedAffiliation | null | undefined)[] | null;
+      }
+    | {
+          type: 'institution';
+          institutionName?: string | null;
+          affiliations?: (UploadedAffiliation | null | undefined)[] | null;
+      };
+
 export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
 
@@ -48,6 +67,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             resourceType?: string | null;
             titles?: { title: string; titleType: string }[] | null;
             licenses?: string[] | null;
+            authors?: (UploadedAuthor | null | undefined)[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -64,6 +84,70 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         if (data.licenses && data.licenses.length > 0) {
             data.licenses.forEach((l, i) => {
                 query[`licenses[${i}]`] = l;
+            });
+        }
+        if (data.authors && data.authors.length > 0) {
+            data.authors.forEach((author, authorIndex) => {
+                if (!author || typeof author !== 'object') {
+                    return;
+                }
+
+                const type = author.type === 'institution' ? 'institution' : 'person';
+                query[`authors[${authorIndex}][type]`] = type;
+
+                if (type === 'person') {
+                    const trimmedFirst =
+                        typeof author.firstName === 'string' ? author.firstName.trim() : '';
+                    const trimmedLast =
+                        typeof author.lastName === 'string' ? author.lastName.trim() : '';
+                    const trimmedOrcid =
+                        typeof author.orcid === 'string' ? author.orcid.trim() : '';
+
+                    if (trimmedFirst) {
+                        query[`authors[${authorIndex}][firstName]`] = trimmedFirst;
+                    }
+                    if (trimmedLast) {
+                        query[`authors[${authorIndex}][lastName]`] = trimmedLast;
+                    }
+                    if (trimmedOrcid) {
+                        query[`authors[${authorIndex}][orcid]`] = trimmedOrcid;
+                    }
+                } else if (
+                    typeof author.institutionName === 'string' &&
+                    author.institutionName.trim()
+                ) {
+                    query[`authors[${authorIndex}][institutionName]`] =
+                        author.institutionName.trim();
+                }
+
+                const affiliations = Array.isArray(author.affiliations)
+                    ? author.affiliations
+                    : [];
+
+                affiliations.forEach((affiliation, affiliationIndex) => {
+                    if (!affiliation || typeof affiliation !== 'object') {
+                        return;
+                    }
+
+                    const value =
+                        typeof affiliation.value === 'string' ? affiliation.value.trim() : '';
+                    const rorId =
+                        typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
+
+                    if (!value && !rorId) {
+                        return;
+                    }
+
+                    if (value) {
+                        query[`authors[${authorIndex}][affiliations][${affiliationIndex}][value]`] =
+                            value;
+                    }
+
+                    if (rorId) {
+                        query[`authors[${authorIndex}][affiliations][${affiliationIndex}][rorId]`] =
+                            rorId;
+                    }
+                });
             });
         }
         router.get(curationRoute({ query }).url);

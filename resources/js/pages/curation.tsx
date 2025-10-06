@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import DataCiteForm from '@/components/curation/datacite-form';
+import DataCiteForm, { type InitialAuthor } from '@/components/curation/datacite-form';
 import { curation } from '@/routes';
 import { withBasePath } from '@/lib/base-path';
 import { Head } from '@inertiajs/react';
@@ -23,6 +23,7 @@ interface CurationProps {
     titles?: { title: string; titleType: string }[];
     initialLicenses?: string[];
     resourceId?: string;
+    authors?: InitialAuthor[];
 }
 
 export default function Curation({
@@ -36,6 +37,7 @@ export default function Curation({
     titles = [],
     initialLicenses = [],
     resourceId,
+    authors = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -116,6 +118,7 @@ export default function Curation({
                         initialTitles={titles}
                         initialLicenses={initialLicenses}
                         initialResourceId={resourceId}
+                        initialAuthors={authors}
                     />
                 )}
             </div>

@@ -88,6 +88,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'resourceId' => $request->query('resourceId'),
             'titles' => $request->query('titles', []),
             'initialLicenses' => $request->query('licenses', []),
+            'authors' => $request->query('authors', []),
         ]);
     })->name('curation');
 
