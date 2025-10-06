@@ -167,6 +167,8 @@ describe('OldDatasets page', () => {
 
     const SORT_STORAGE_KEY = 'old-datasets.sort-preference';
 
+    const defaultSortState = { key: 'updated_at', direction: 'desc' } as const;
+
     const baseProps = {
         datasets: [
             {
@@ -214,6 +216,7 @@ describe('OldDatasets page', () => {
             has_more: true,
         },
         error: undefined,
+        sort: defaultSortState,
     } as const;
 
     it('renders the legacy dataset overview with accessible labelling', () => {
@@ -300,6 +303,80 @@ describe('OldDatasets page', () => {
     it('allows sorting by ID and toggling direction while persisting preference', async () => {
         const user = userEvent.setup();
 
+        mockedAxios.get
+            .mockResolvedValueOnce({
+                data: {
+                    datasets: [
+                        {
+                            id: 1,
+                            identifier: '10.1234/example-one',
+                            title: 'Ascending dataset first',
+                            resourcetypegeneral: 'Dataset',
+                            curator: 'Alice',
+                            created_at: '2024-01-01T10:00:00Z',
+                            updated_at: '2024-01-02T10:00:00Z',
+                            publicstatus: 'review',
+                        },
+                        {
+                            id: 2,
+                            identifier: '10.1234/example-two',
+                            title: 'Ascending dataset second',
+                            resourcetypegeneral: 'Image',
+                            curator: 'Bob',
+                            created_at: '2024-02-01T12:00:00Z',
+                            updated_at: '2024-02-02T12:00:00Z',
+                            publicstatus: 'published',
+                        },
+                    ],
+                    pagination: {
+                        current_page: 1,
+                        last_page: 3,
+                        per_page: 20,
+                        total: 60,
+                        from: 1,
+                        to: 20,
+                        has_more: true,
+                    },
+                    sort: { key: 'id', direction: 'asc' },
+                },
+            })
+            .mockResolvedValueOnce({
+                data: {
+                    datasets: [
+                        {
+                            id: 2,
+                            identifier: '10.1234/example-two',
+                            title: 'Descending dataset first',
+                            resourcetypegeneral: 'Image',
+                            curator: 'Bob',
+                            created_at: '2024-02-01T12:00:00Z',
+                            updated_at: '2024-02-02T12:00:00Z',
+                            publicstatus: 'published',
+                        },
+                        {
+                            id: 1,
+                            identifier: '10.1234/example-one',
+                            title: 'Descending dataset second',
+                            resourcetypegeneral: 'Dataset',
+                            curator: 'Alice',
+                            created_at: '2024-01-01T10:00:00Z',
+                            updated_at: '2024-01-02T10:00:00Z',
+                            publicstatus: 'review',
+                        },
+                    ],
+                    pagination: {
+                        current_page: 1,
+                        last_page: 3,
+                        per_page: 20,
+                        total: 60,
+                        from: 1,
+                        to: 20,
+                        has_more: true,
+                    },
+                    sort: { key: 'id', direction: 'desc' },
+                },
+            });
+
         render(<OldDatasets {...baseProps} />);
 
         const idSortButton = screen.getByRole('button', {
@@ -308,33 +385,94 @@ describe('OldDatasets page', () => {
 
         await user.click(idSortButton);
 
+        await waitFor(() => {
+            expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
+                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'asc' },
+            });
+        });
+
+        await screen.findByText('Ascending dataset first');
+
         expect(idSortButton).toHaveAttribute('aria-pressed', 'true');
         let storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY);
         expect(storedPreference).not.toBeNull();
         expect(JSON.parse(storedPreference ?? '{}')).toEqual({ key: 'id', direction: 'asc' });
 
         let bodyRows = screen.getAllByRole('row').slice(1);
-        expect(within(bodyRows[0]).getByText('A dataset title that is long enough to demonstrate truncation when rendered in the table body with additional descriptive context to push it well beyond the truncation threshold for the component')).toBeVisible();
-        expect(within(bodyRows[0]).getByText('Under Review')).toBeVisible();
+        expect(within(bodyRows[0]).getByText('Ascending dataset first')).toBeVisible();
+        expect(within(bodyRows[1]).getByText('Ascending dataset second')).toBeVisible();
 
         await user.click(idSortButton);
+
+        await waitFor(() => {
+            expect(mockedAxios.get).toHaveBeenLastCalledWith('/old-datasets/load-more', {
+                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'desc' },
+            });
+        });
+
+        await screen.findByText('Descending dataset first');
 
         storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY);
         expect(storedPreference).not.toBeNull();
         expect(JSON.parse(storedPreference ?? '{}')).toEqual({ key: 'id', direction: 'desc' });
 
         bodyRows = screen.getAllByRole('row').slice(1);
-        expect(within(bodyRows[0]).getByText('Concise dataset title')).toBeVisible();
-        expect(within(bodyRows[0]).getByText('Published')).toBeVisible();
+        expect(within(bodyRows[0]).getByText('Descending dataset first')).toBeVisible();
+        expect(within(bodyRows[1]).getByText('Descending dataset second')).toBeVisible();
     });
 
-    it('restores the persisted sort preference from local storage', () => {
+    it('restores the persisted sort preference from local storage', async () => {
         window.localStorage.setItem(
             SORT_STORAGE_KEY,
             JSON.stringify({ key: 'created_at', direction: 'asc' }),
         );
 
+        mockedAxios.get.mockResolvedValueOnce({
+            data: {
+                datasets: [
+                    {
+                        id: 3,
+                        identifier: '10.9999/early-dataset',
+                        title: 'Earliest dataset',
+                        resourcetypegeneral: 'Dataset',
+                        curator: 'Evelyn',
+                        created_at: '2023-01-01T00:00:00Z',
+                        updated_at: '2023-01-02T00:00:00Z',
+                        publicstatus: 'published',
+                    },
+                    {
+                        id: 4,
+                        identifier: '10.9999/later-dataset',
+                        title: 'More recent dataset',
+                        resourcetypegeneral: 'Dataset',
+                        curator: 'Frank',
+                        created_at: '2024-01-01T00:00:00Z',
+                        updated_at: '2024-01-05T00:00:00Z',
+                        publicstatus: 'review',
+                    },
+                ],
+                pagination: {
+                    current_page: 1,
+                    last_page: 3,
+                    per_page: 20,
+                    total: 60,
+                    from: 1,
+                    to: 20,
+                    has_more: true,
+                },
+                sort: { key: 'created_at', direction: 'asc' },
+            },
+        });
+
         render(<OldDatasets {...baseProps} />);
+
+        await waitFor(() => {
+            expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
+                params: { page: 1, per_page: 20, sort_key: 'created_at', sort_direction: 'asc' },
+            });
+        });
+
+        await screen.findByText('Earliest dataset');
 
         const createdSortButton = screen.getByRole('button', {
             name: /Sort by the Created date/i,
@@ -348,8 +486,87 @@ describe('OldDatasets page', () => {
         expect(updatedSortButton).toHaveAttribute('aria-pressed', 'false');
 
         const bodyRows = screen.getAllByRole('row').slice(1);
-        expect(within(bodyRows[0]).getByText('A dataset title that is long enough to demonstrate truncation when rendered in the table body with additional descriptive context to push it well beyond the truncation threshold for the component')).toBeVisible();
-        expect(within(bodyRows[0]).getByText('Under Review')).toBeVisible();
+        expect(within(bodyRows[0]).getByText('Earliest dataset')).toBeVisible();
+        expect(within(bodyRows[1]).getByText('More recent dataset')).toBeVisible();
+    });
+
+    it('surfaces a retry affordance when refreshing the datasets for a new sort fails', async () => {
+        const axiosError = Object.assign(new Error('Request failed with status code 500'), {
+            isAxiosError: true,
+            response: {
+                data: {
+                    error: 'Internal server error',
+                    debug: {
+                        connection: 'metaworks',
+                        hosts: ['sumario-db.gfz'],
+                    },
+                },
+            },
+        });
+
+        mockedAxios.get
+            .mockRejectedValueOnce(axiosError)
+            .mockResolvedValueOnce({
+                data: {
+                    datasets: [
+                        {
+                            id: 42,
+                            identifier: '10.4242/refreshed',
+                            title: 'Refreshed dataset after retry',
+                            resourcetypegeneral: 'Dataset',
+                            curator: 'Riley',
+                            created_at: '2024-03-01T00:00:00Z',
+                            updated_at: '2024-03-02T00:00:00Z',
+                            publicstatus: 'published',
+                        },
+                    ],
+                    pagination: {
+                        current_page: 1,
+                        last_page: 3,
+                        per_page: 20,
+                        total: 60,
+                        from: 1,
+                        to: 20,
+                        has_more: true,
+                    },
+                    sort: { key: 'id', direction: 'asc' },
+                },
+            });
+
+        const user = userEvent.setup();
+
+        render(<OldDatasets {...baseProps} />);
+
+        const idSortButton = screen.getByRole('button', {
+            name: /Sort by the dataset ID from the legacy database/i,
+        });
+
+        await user.click(idSortButton);
+
+        await waitFor(() => {
+            expect(mockedAxios.get).toHaveBeenNthCalledWith(1, '/old-datasets/load-more', {
+                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'asc' },
+            });
+        });
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent('Failed to refresh datasets. Please try again.');
+        expect(consoleGroupCollapsedSpy).toHaveBeenCalledWith('SUMARIOPMD diagnostics – sort change request');
+        expect(consoleInfoSpy).toHaveBeenCalledWith('Details:', expect.objectContaining({
+            connection: 'metaworks',
+        }));
+
+        const retryButton = within(alert).getByRole('button', { name: /retry/i });
+        await user.click(retryButton);
+
+        await waitFor(() => {
+            expect(mockedAxios.get).toHaveBeenNthCalledWith(2, '/old-datasets/load-more', {
+                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'asc' },
+            });
+        });
+
+        await screen.findByText('Refreshed dataset after retry');
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
     it('provides accessible actions for opening datasets in the curation form', async () => {
@@ -466,7 +683,7 @@ describe('OldDatasets page', () => {
 
         await waitFor(() => {
             expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
-                params: { page: 2, per_page: 20 },
+                params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
             });
         });
 
@@ -530,6 +747,13 @@ describe('OldDatasets page', () => {
 
         await waitFor(() => {
             expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
+
+        expect(mockedAxios.get).toHaveBeenNthCalledWith(1, '/old-datasets/load-more', {
+            params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
+        });
+        expect(mockedAxios.get).toHaveBeenNthCalledWith(2, '/old-datasets/load-more', {
+            params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
         });
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -612,6 +836,7 @@ describe('OldDatasets page', () => {
                 port: 3306,
                 database: 'sumario-pmd',
             }}
+            sort={defaultSortState}
         />);
 
         expect(consoleGroupCollapsedSpy).toHaveBeenCalledWith('SUMARIOPMD diagnostics – initial page load');
@@ -657,6 +882,9 @@ describe('OldDatasets page', () => {
             expect(consoleGroupCollapsedSpy).toHaveBeenCalledWith('SUMARIOPMD diagnostics – load more request');
         });
 
+        expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
+            params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
+        });
         expect(consoleInfoSpy).toHaveBeenCalledWith('Message:', 'Request failed with status code 500');
         expect(consoleInfoSpy).toHaveBeenCalledWith('Details:', expect.objectContaining({
             connection: 'metaworks',

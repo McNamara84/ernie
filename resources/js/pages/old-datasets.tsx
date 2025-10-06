@@ -52,6 +52,7 @@ interface DatasetsProps {
     pagination: PaginationInfo;
     error?: string;
     debug?: Record<string, unknown>;
+    sort: SortState;
 }
 
 type SortKey = 'id' | 'created_at' | 'updated_at';
@@ -807,8 +808,15 @@ const describeDate = (
     return null;
 };
 
-export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error, debug }: DatasetsProps) {
+export default function OldDatasets({
+    datasets: initialDatasets,
+    pagination: initialPagination,
+    error,
+    debug,
+    sort: initialSortState,
+}: DatasetsProps) {
     const [datasets, setDatasets] = useState<Dataset[]>(initialDatasets);
+    const initialSort = initialSortState ?? DEFAULT_SORT;
     const [sortState, setSortState] = useState<SortState>(() => {
         if (typeof window !== 'undefined') {
             try {
@@ -824,12 +832,15 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             }
         }
 
-        return DEFAULT_SORT;
+        return initialSort;
     });
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
+    const pendingRequestRef = useRef(0);
+    const lastRequestRef = useRef<{ page: number; sort: SortState; replace: boolean } | null>(null);
+    const [activeSortState, setActiveSortState] = useState<SortState>(initialSort);
 
     const handleSortChange = useCallback((key: SortKey) => {
         setSortState(previousState => ({
@@ -900,38 +911,126 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
         },
     ];
 
-    const loadMoreDatasets = useCallback(async () => {
-        if (loading || !pagination.has_more) return;
-        
-        setLoading(true);
-        setLoadingError('');
-        
-        try {
-            const response = await axios.get('/old-datasets/load-more', {
-                params: {
-                    page: pagination.current_page + 1,
-                    per_page: pagination.per_page,
-                },
-            });
+    const fetchDatasetsPage = useCallback(
+        async ({ page, sort, replace }: { page: number; sort: SortState; replace: boolean }) => {
+            const requestId = pendingRequestRef.current + 1;
+            pendingRequestRef.current = requestId;
+            lastRequestRef.current = { page, sort, replace };
 
-            if (response.data.datasets) {
-                setDatasets(prev => [...prev, ...response.data.datasets]);
-                setPagination(response.data.pagination);
+            setLoading(true);
+            setLoadingError('');
+
+            try {
+                const response = await axios.get('/old-datasets/load-more', {
+                    params: {
+                        page,
+                        per_page: pagination.per_page,
+                        sort_key: sort.key,
+                        sort_direction: sort.direction,
+                    },
+                });
+
+                if (pendingRequestRef.current !== requestId) {
+                    return;
+                }
+
+                if (response.data.datasets) {
+                    setDatasets(prev => (replace ? response.data.datasets : [...prev, ...response.data.datasets]));
+                }
+
+                if (response.data.pagination) {
+                    setPagination(response.data.pagination);
+                }
+
+                const responseSort = response.data.sort as SortState | undefined;
+                if (responseSort && isSortState(responseSort)) {
+                    setActiveSortState(responseSort);
+                } else {
+                    setActiveSortState(sort);
+                }
+
+                lastRequestRef.current = null;
+            } catch (err: unknown) {
+                if (pendingRequestRef.current !== requestId) {
+                    return;
+                }
+
+                const isRefreshing = replace;
+                const contextDescription = isRefreshing ? 'refreshing datasets' : 'loading more datasets';
+
+                console.error(`Error ${contextDescription}:`, err);
+
+                if (isAxiosError(err)) {
+                    const debugPayload = err.response?.data?.debug as Record<string, unknown> | undefined;
+                    const errorMessage = err.message || err.response?.data?.error;
+                    logDebugInformation(
+                        isRefreshing ? 'sort change request' : 'load more request',
+                        errorMessage,
+                        debugPayload,
+                    );
+                }
+
+                setLoadingError(
+                    isRefreshing
+                        ? 'Failed to refresh datasets. Please try again.'
+                        : 'Failed to load more datasets. Please try again.',
+                );
+            } finally {
+                if (pendingRequestRef.current === requestId) {
+                    setLoading(false);
+                }
             }
-        } catch (err: unknown) {
-            console.error('Error loading more datasets:', err);
+        },
+        [pagination.per_page, logDebugInformation],
+    );
 
-            if (isAxiosError(err)) {
-                const debugPayload = err.response?.data?.debug as Record<string, unknown> | undefined;
-                const errorMessage = err.message || err.response?.data?.error;
-                logDebugInformation('load more request', errorMessage, debugPayload);
-            }
-
-            setLoadingError('Failed to load more datasets. Please try again.');
-        } finally {
-            setLoading(false);
+    const loadMoreDatasets = useCallback(() => {
+        if (loading || !pagination.has_more) {
+            return;
         }
-    }, [loading, pagination.current_page, pagination.per_page, pagination.has_more, logDebugInformation]);
+
+        void fetchDatasetsPage({
+            page: pagination.current_page + 1,
+            sort: activeSortState,
+            replace: false,
+        });
+    }, [loading, pagination.has_more, pagination.current_page, fetchDatasetsPage, activeSortState]);
+
+    const handleRetry = useCallback(() => {
+        const lastRequest = lastRequestRef.current;
+
+        if (lastRequest) {
+            void fetchDatasetsPage({
+                page: lastRequest.page,
+                sort: lastRequest.sort,
+                replace: lastRequest.replace,
+            });
+            return;
+        }
+
+        if (pagination.has_more) {
+            void fetchDatasetsPage({
+                page: pagination.current_page + 1,
+                sort: activeSortState,
+                replace: false,
+            });
+        }
+    }, [fetchDatasetsPage, pagination.has_more, pagination.current_page, activeSortState]);
+
+    useEffect(() => {
+        if (
+            sortState.key === activeSortState.key &&
+            sortState.direction === activeSortState.direction
+        ) {
+            return;
+        }
+
+        void fetchDatasetsPage({
+            page: 1,
+            sort: sortState,
+            replace: true,
+        });
+    }, [sortState, activeSortState, fetchDatasetsPage]);
 
     // Reference to the last dataset element for intersection observer
     const lastDatasetElementRef = useCallback((node: HTMLElement | null) => {
@@ -1286,11 +1385,12 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                     <Alert className="mt-4" variant="destructive">
                                         <AlertDescription>
                                             {loadingError}
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
                                                 className="ml-2"
-                                                onClick={loadMoreDatasets}
+                                                onClick={handleRetry}
+                                                disabled={loading}
                                             >
                                                 Retry
                                             </Button>
