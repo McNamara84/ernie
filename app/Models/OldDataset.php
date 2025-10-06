@@ -178,7 +178,7 @@ class OldDataset extends Model
      * Returns an array of authors with their roles and affiliations.
      * Only includes resourceagents that have the "Creator" role.
      *
-     * @return array<int, array{givenName: string|null, familyName: string|null, name: string, affiliations: array<int, array{value: string, rorId: string|null}>, roles: array<string>, isContact: bool, email: string|null, website: string|null}>
+     * @return array<int, array{givenName: string|null, familyName: string|null, name: string, affiliations: array<int, array{value: string, rorId: string|null}>, roles: array<string>, isContact: bool, email: string|null, website: string|null, orcid: string|null, orcidType: string|null}>
      */
     public function getAuthors(): array
     {
@@ -316,6 +316,8 @@ class OldDataset extends Model
                 'isContact' => $isContact,
                 'email' => $email,
                 'website' => $website,
+                'orcid' => (!empty($agent->identifier) && strtoupper($agent->identifiertype ?? '') === 'ORCID') ? $agent->identifier : null,
+                'orcidType' => $agent->identifiertype ?? null,
             ];
         }
 
