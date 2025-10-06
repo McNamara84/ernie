@@ -163,7 +163,7 @@ class OldDataset extends Model
         $normalized = str_replace([',', '.'], '', $normalized);
         
         // Replace multiple whitespace with single space
-        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? '';
         
         // Trim
         return trim($normalized);
