@@ -289,16 +289,24 @@ export function AuthorField({
                                         <Badge
                                             key={`${affiliation.rorId}-${affiliation.value}`}
                                             variant="secondary"
-                                            className="gap-1 px-2 py-1 text-xs font-medium"
+                                            className="gap-1 px-2 py-1 text-xs font-medium hover:bg-secondary/80 transition-colors"
                                             role="listitem"
+                                            asChild
                                         >
-                                            <span aria-hidden="true">ROR:</span>
-                                            <span aria-hidden="true" className="font-mono">
-                                                {affiliation.rorId}
-                                            </span>
-                                            <span className="sr-only">
-                                                {`ROR identifier for ${affiliation.value}: ${affiliation.rorId}`}
-                                            </span>
+                                            <a
+                                                href={affiliation.rorId}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1"
+                                            >
+                                                <span aria-hidden="true">ROR:</span>
+                                                <span aria-hidden="true" className="font-mono">
+                                                    {affiliation.rorId}
+                                                </span>
+                                                <span className="sr-only">
+                                                    {`Open ROR identifier for ${affiliation.value}: ${affiliation.rorId} in new tab`}
+                                                </span>
+                                            </a>
                                         </Badge>
                                     ))}
                                 </div>
