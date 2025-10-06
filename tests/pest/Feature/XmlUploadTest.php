@@ -426,6 +426,58 @@ XML;
     ]);
 });
 
+it('ignores related item creators when extracting authors', function () {
+    $this->actingAs(User::factory()->create());
+    Storage::fake('local');
+
+    Storage::disk('local')->put(
+        'ror/ror-affiliations.json',
+        json_encode([
+            [
+                'prefLabel' => 'DataCite',
+                'rorId' => 'https://ror.org/04wxnsj81',
+            ],
+        ], JSON_THROW_ON_ERROR),
+    );
+
+    $xmlContents = file_get_contents(base_path('tests/pest/dataset-examples/datacite-example-full-v4.xml'));
+
+    $this->assertIsString($xmlContents);
+
+    $file = UploadedFile::fake()->createWithContent('datacite-example-full-v4.xml', $xmlContents);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk();
+
+    expect($response->json('authors'))->toHaveCount(2);
+
+    $response->assertJson([
+        'authors' => [
+            [
+                'type' => 'person',
+                'firstName' => 'ExampleGivenName',
+                'lastName' => 'ExampleFamilyName',
+                'orcid' => 'https://orcid.org/0000-0001-5727-2427',
+                'affiliations' => [
+                    [
+                        'value' => 'DataCite',
+                        'rorId' => 'https://ror.org/04wxnsj81',
+                    ],
+                ],
+            ],
+            [
+                'type' => 'institution',
+                'institutionName' => 'ExampleOrganization',
+                'affiliations' => [],
+            ],
+        ],
+    ]);
+});
+
 it('validates xml file type and size', function () {
     $this->actingAs(User::factory()->create());
 

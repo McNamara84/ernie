@@ -135,7 +135,7 @@ class UploadXmlController extends Controller
     private function extractAuthors(XmlReader $reader): array
     {
         $creatorElements = $reader
-            ->xpathElement('//*[local-name()="creators"]/*[local-name()="creator"]')
+            ->xpathElement('/*[local-name()="resource"]/*[local-name()="creators"]/*[local-name()="creator"]')
             ->get();
 
         $authors = [];
