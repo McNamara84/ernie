@@ -1,8 +1,19 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Ernie API",
-    "version": "1.0.0"
+    "title": "ERNIE API",
+    "version": "0.2.0",
+    "description": "API for the ERNIE. A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.",
+    "termsOfService": "https://env.rz-vm182.gfz.de/ernie/legal-notice",
+    "contact": {
+      "name": "ERNIE Support Team",
+      "url": "https://www.gfz.de/staff/holger.ehrmann/sec51",
+      "email": "ehrmann@gfz.de"
+    },
+    "license": {
+      "name": "GPLv3",
+      "url": "https://opensource.org/licenses/GPL-3.0"
+    }
   },
   "servers": [
     {
