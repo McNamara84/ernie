@@ -110,6 +110,10 @@ describe('OldDatasets page', () => {
         intersectionObserverHandlers.takeRecords = () => [];
         activeIntersectionCallback = () => undefined;
 
+        if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.clear();
+        }
+
         consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
@@ -160,6 +164,8 @@ describe('OldDatasets page', () => {
             }
         }
     });
+
+    const SORT_STORAGE_KEY = 'old-datasets.sort-preference';
 
     const baseProps = {
         datasets: [
@@ -223,36 +229,55 @@ describe('OldDatasets page', () => {
         expect(table).toBeVisible();
 
         const headerRow = within(table).getAllByRole('row')[0];
-        const identifierHeader = within(headerRow).getByText('ID');
-        expect(identifierHeader).toBeVisible();
-        const identifierHeaderCell = identifierHeader.closest('th');
+        const idSortButton = within(headerRow).getByRole('button', {
+            name: /Sort by the dataset ID from the legacy database/i,
+        });
+        expect(idSortButton).toHaveAttribute('aria-pressed', 'false');
+        const identifierHeaderCell = idSortButton.closest('th');
         expect(identifierHeaderCell?.textContent).toContain('Identifier (DOI)');
-        const createdHeader = within(headerRow).getByText('Created');
-        expect(createdHeader).toBeVisible();
-        expect(createdHeader.parentElement?.textContent).toContain('Updated');
-        const createdHeaderCell = createdHeader.closest('th');
-        expect(createdHeaderCell).not.toBeNull();
-        expect(createdHeaderCell).toHaveClass('min-w-[9rem]');
-        expect(within(headerRow).queryByText('Created / Updated')).not.toBeInTheDocument();
+        expect(identifierHeaderCell).toHaveAttribute('aria-sort', 'none');
+
+        const createdSortButton = within(headerRow).getByRole('button', {
+            name: /Sort by the Created date/i,
+        });
+        expect(createdSortButton).toHaveAttribute('aria-pressed', 'false');
+
+        const updatedSortButton = within(headerRow).getByRole('button', {
+            name: /Sort by the Updated date/i,
+        });
+        expect(updatedSortButton).toHaveAttribute('aria-pressed', 'true');
+        const dateHeaderCell = updatedSortButton.closest('th');
+        expect(dateHeaderCell).not.toBeNull();
+        expect(dateHeaderCell).toHaveClass('min-w-[9rem]');
+        expect(dateHeaderCell).toHaveAttribute('aria-sort', 'descending');
 
         const bodyRows = within(table).getAllByRole('row').slice(1);
         expect(bodyRows).toHaveLength(2);
 
         const [firstRow, secondRow] = bodyRows;
-        const firstRowCells = within(firstRow).getAllByRole('cell');
-        const firstIdentifierCell = firstRowCells[0];
-        const identifierGroup = firstIdentifierCell.querySelector(':scope > div');
-        expect(identifierGroup).not.toBeNull();
-        expect(identifierGroup).toHaveAttribute('aria-label', 'ID 1. DOI 10.1234/example-one');
-        expect(within(firstIdentifierCell).getByText('1')).toBeVisible();
-        expect(within(firstIdentifierCell).getByText(/10\.1234\/example-one/)).toBeVisible();
-        expect(within(firstRow).getByText('Under Review')).toBeVisible();
-        const titleCell = firstRowCells[1];
+        expect(within(firstRow).getByText('Concise dataset title')).toBeVisible();
+        expect(within(firstRow).getByText('Published')).toBeVisible();
+        const firstIdentifierCell = within(firstRow).getAllByRole('cell')[0];
+        const firstIdentifierGroup = firstIdentifierCell.querySelector(':scope > div');
+        expect(firstIdentifierGroup).not.toBeNull();
+        expect(firstIdentifierGroup).toHaveAttribute('aria-label', 'ID 2. DOI 10.1234/example-two');
+        expect(within(firstIdentifierCell).getByText('2')).toBeVisible();
+
+        const secondRowCells = within(secondRow).getAllByRole('cell');
+        const secondIdentifierCell = secondRowCells[0];
+        const secondIdentifierGroup = secondIdentifierCell.querySelector(':scope > div');
+        expect(secondIdentifierGroup).not.toBeNull();
+        expect(secondIdentifierGroup).toHaveAttribute('aria-label', 'ID 1. DOI 10.1234/example-one');
+        expect(within(secondIdentifierCell).getByText('1')).toBeVisible();
+        expect(within(secondIdentifierCell).getByText(/10\.1234\/example-one/)).toBeVisible();
+        expect(within(secondRow).getByText('Under Review')).toBeVisible();
+
+        const titleCell = secondRowCells[1];
         expect(titleCell).toHaveTextContent(baseProps.datasets[0].title);
         expect(titleCell).toHaveClass('whitespace-normal');
         expect(titleCell).toHaveClass('break-words');
 
-        const createdUpdatedCell = firstRowCells[4];
+        const createdUpdatedCell = secondRowCells[4];
         const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
         expect(createdUpdatedContainer).toHaveAttribute('aria-label', 'Created on 01/01/2024. Updated on 01/02/2024');
         expect(createdUpdatedContainer).toHaveClass('text-gray-600');
@@ -268,12 +293,63 @@ describe('OldDatasets page', () => {
         expect(timeElements[0]).toHaveAttribute('dateTime', '2024-01-01T10:00:00.000Z');
         expect(timeElements[1]).toHaveAttribute('dateTime', '2024-01-02T10:00:00.000Z');
 
-        const secondRowIdentifierCell = within(secondRow).getAllByRole('cell')[0];
-        expect(within(secondRowIdentifierCell).getByText('2')).toBeVisible();
-        expect(within(secondRow).getByText('Published')).toBeVisible();
-
         // Ensure the infinite scroll sentinel is observed for accessibility
         expect(observeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows sorting by ID and toggling direction while persisting preference', async () => {
+        const user = userEvent.setup();
+
+        render(<OldDatasets {...baseProps} />);
+
+        const idSortButton = screen.getByRole('button', {
+            name: /Sort by the dataset ID from the legacy database/i,
+        });
+
+        await user.click(idSortButton);
+
+        expect(idSortButton).toHaveAttribute('aria-pressed', 'true');
+        let storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY);
+        expect(storedPreference).not.toBeNull();
+        expect(JSON.parse(storedPreference ?? '{}')).toEqual({ key: 'id', direction: 'asc' });
+
+        let bodyRows = screen.getAllByRole('row').slice(1);
+        expect(within(bodyRows[0]).getByText('A dataset title that is long enough to demonstrate truncation when rendered in the table body with additional descriptive context to push it well beyond the truncation threshold for the component')).toBeVisible();
+        expect(within(bodyRows[0]).getByText('Under Review')).toBeVisible();
+
+        await user.click(idSortButton);
+
+        storedPreference = window.localStorage.getItem(SORT_STORAGE_KEY);
+        expect(storedPreference).not.toBeNull();
+        expect(JSON.parse(storedPreference ?? '{}')).toEqual({ key: 'id', direction: 'desc' });
+
+        bodyRows = screen.getAllByRole('row').slice(1);
+        expect(within(bodyRows[0]).getByText('Concise dataset title')).toBeVisible();
+        expect(within(bodyRows[0]).getByText('Published')).toBeVisible();
+    });
+
+    it('restores the persisted sort preference from local storage', () => {
+        window.localStorage.setItem(
+            SORT_STORAGE_KEY,
+            JSON.stringify({ key: 'created_at', direction: 'asc' }),
+        );
+
+        render(<OldDatasets {...baseProps} />);
+
+        const createdSortButton = screen.getByRole('button', {
+            name: /Sort by the Created date/i,
+        });
+        expect(createdSortButton).toHaveAttribute('aria-pressed', 'true');
+        expect(createdSortButton.closest('th')).toHaveAttribute('aria-sort', 'ascending');
+
+        const updatedSortButton = screen.getByRole('button', {
+            name: /Sort by the Updated date/i,
+        });
+        expect(updatedSortButton).toHaveAttribute('aria-pressed', 'false');
+
+        const bodyRows = screen.getAllByRole('row').slice(1);
+        expect(within(bodyRows[0]).getByText('A dataset title that is long enough to demonstrate truncation when rendered in the table body with additional descriptive context to push it well beyond the truncation threshold for the component')).toBeVisible();
+        expect(within(bodyRows[0]).getByText('Under Review')).toBeVisible();
     });
 
     it('provides accessible actions for opening datasets in the curation form', async () => {
@@ -281,11 +357,11 @@ describe('OldDatasets page', () => {
 
         render(<OldDatasets {...baseProps} />);
 
-        const buttons = screen.getAllByRole('button', { name: /open dataset/i });
-        expect(buttons).toHaveLength(2);
-        expect(buttons[0]).toHaveAccessibleName('Open dataset 10.1234/example-one in curation form');
+        const datasetOneButton = screen.getByRole('button', {
+            name: /open dataset 10\.1234\/example-one in curation form/i,
+        });
 
-        await user.click(buttons[0]);
+        await user.click(datasetOneButton);
 
         // Wait for the async mapping to complete
         await waitFor(() => {

@@ -6,9 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { curation as curationRoute } from '@/routes';
 import { Head, router } from '@inertiajs/react';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight } from 'lucide-react';
 import axios, { isAxiosError } from 'axios';
 
 interface Dataset {
@@ -54,12 +54,28 @@ interface DatasetsProps {
     debug?: Record<string, unknown>;
 }
 
+type SortKey = 'id' | 'created_at' | 'updated_at';
+type SortDirection = 'asc' | 'desc';
+
+interface SortOption {
+    key: SortKey;
+    label: string;
+    description: string;
+}
+
+interface SortState {
+    key: SortKey;
+    direction: SortDirection;
+}
+
 interface DatasetColumn {
     key: string;
     label: ReactNode;
     widthClass: string;
     cellClassName?: string;
     render?: (dataset: Dataset) => React.ReactNode;
+    sortOptions?: SortOption[];
+    sortGroupLabel?: string;
 }
 
 const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[24rem] lg:min-w-[36rem] xl:min-w-[44rem]';
@@ -78,6 +94,140 @@ const IDENTIFIER_COLUMN_HEADER_LABEL = (
     </span>
 );
 const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-24 min-w-[6rem]';
+
+const DEFAULT_SORT: SortState = { key: 'updated_at', direction: 'desc' };
+const SORT_PREFERENCE_STORAGE_KEY = 'old-datasets.sort-preference';
+const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, SortDirection> = {
+    id: 'asc',
+    created_at: 'desc',
+    updated_at: 'desc',
+};
+
+const describeDirection = (direction: SortDirection): string =>
+    direction === 'asc' ? 'ascending' : 'descending';
+
+const normaliseSortValue = (value: number | null | undefined, direction: SortDirection): number => {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+        return direction === 'asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+    }
+
+    return value;
+};
+
+const getSortValue = (dataset: Dataset, key: SortKey): number | null => {
+    if (key === 'id') {
+        if (typeof dataset.id === 'number' && Number.isFinite(dataset.id)) {
+            return dataset.id;
+        }
+
+        if (typeof dataset.id === 'string') {
+            const parsed = Number(dataset.id);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        return null;
+    }
+
+    const rawValue = key === 'created_at' ? dataset.created_at : dataset.updated_at;
+
+    if (typeof rawValue !== 'string') {
+        return null;
+    }
+
+    const timestamp = Date.parse(rawValue);
+    return Number.isNaN(timestamp) ? null : timestamp;
+};
+
+const sortDatasets = (datasets: Dataset[], sortState: SortState): Dataset[] => {
+    if (!Array.isArray(datasets) || datasets.length === 0) {
+        return datasets;
+    }
+
+    const sorted = [...datasets].sort((left, right) => {
+        const leftRaw = getSortValue(left, sortState.key);
+        const rightRaw = getSortValue(right, sortState.key);
+
+        const leftValue = normaliseSortValue(leftRaw, sortState.direction);
+        const rightValue = normaliseSortValue(rightRaw, sortState.direction);
+
+        if (leftValue === rightValue) {
+            const leftFallback = normaliseSortValue(getSortValue(left, 'id'), 'asc');
+            const rightFallback = normaliseSortValue(getSortValue(right, 'id'), 'asc');
+
+            if (leftFallback === rightFallback) {
+                return 0;
+            }
+
+            return leftFallback < rightFallback ? -1 : 1;
+        }
+
+        if (leftValue < rightValue) {
+            return sortState.direction === 'asc' ? -1 : 1;
+        }
+
+        if (leftValue > rightValue) {
+            return sortState.direction === 'asc' ? 1 : -1;
+        }
+
+        return 0;
+    });
+
+    return sorted;
+};
+
+const isSortState = (value: unknown): value is SortState => {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const maybeState = value as { key?: unknown; direction?: unknown };
+
+    return (
+        maybeState.key === 'id' ||
+        maybeState.key === 'created_at' ||
+        maybeState.key === 'updated_at'
+    ) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
+};
+
+const resolveDisplayDirection = (option: SortOption, sortState: SortState): SortDirection =>
+    sortState.key === option.key ? sortState.direction : DEFAULT_DIRECTION_BY_KEY[option.key];
+
+const determineNextDirection = (currentState: SortState, targetKey: SortKey): SortDirection => {
+    if (currentState.key !== targetKey) {
+        return DEFAULT_DIRECTION_BY_KEY[targetKey];
+    }
+
+    return currentState.direction === 'asc' ? 'desc' : 'asc';
+};
+
+const buildSortButtonLabel = (option: SortOption, sortState: SortState): string => {
+    const currentDirection = resolveDisplayDirection(option, sortState);
+    const nextDirection = determineNextDirection(sortState, option.key);
+
+    if (sortState.key === option.key) {
+        return `${option.description}. Currently sorted ${describeDirection(currentDirection)}. Activate to switch to ${describeDirection(nextDirection)} order.`;
+    }
+
+    return `${option.description}. Activate to sort ${describeDirection(currentDirection)}.`;
+};
+
+const SortDirectionIndicator = ({
+    isActive,
+    direction,
+}: {
+    isActive: boolean;
+    direction: SortDirection;
+}) => {
+    if (!isActive) {
+        return <ArrowUpDown aria-hidden="true" className="size-3.5" />;
+    }
+
+    if (direction === 'asc') {
+        return <ArrowUp aria-hidden="true" className="size-3.5" />;
+    }
+
+    return <ArrowDown aria-hidden="true" className="size-3.5" />;
+};
 
 type DateType = 'Created' | 'Updated';
 type DateDetails = { label: string; iso: string | null };
@@ -659,10 +809,36 @@ const describeDate = (
 
 export default function OldDatasets({ datasets: initialDatasets, pagination: initialPagination, error, debug }: DatasetsProps) {
     const [datasets, setDatasets] = useState<Dataset[]>(initialDatasets);
+    const [sortState, setSortState] = useState<SortState>(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const storedValue = window.localStorage.getItem(SORT_PREFERENCE_STORAGE_KEY);
+                if (storedValue) {
+                    const parsed = JSON.parse(storedValue) as unknown;
+                    if (isSortState(parsed)) {
+                        return parsed;
+                    }
+                }
+            } catch {
+                // Ignore storage parsing errors and fall back to the default sort
+            }
+        }
+
+        return DEFAULT_SORT;
+    });
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
+
+    const handleSortChange = useCallback((key: SortKey) => {
+        setSortState(previousState => ({
+            key,
+            direction: determineNextDirection(previousState, key),
+        }));
+    }, []);
+
+    const sortedDatasets = useMemo(() => sortDatasets(datasets, sortState), [datasets, sortState]);
 
     const handleOpenInCuration = useCallback(async (dataset: Dataset) => {
         const query = await buildCurationQuery(dataset);
@@ -698,6 +874,18 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             logDebugInformation('initial page load', error, debug);
         }
     }, [debug, error, logDebugInformation]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(SORT_PREFERENCE_STORAGE_KEY, JSON.stringify(sortState));
+        } catch {
+            // Ignore storage write errors so the UI continues to function without persistence
+        }
+    }, [sortState]);
 
     // Preload resource types and licenses on component mount
     useEffect(() => {
@@ -803,6 +991,14 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             label: IDENTIFIER_COLUMN_HEADER_LABEL,
             widthClass: 'min-w-[12rem]',
             cellClassName: 'align-top',
+            sortOptions: [
+                {
+                    key: 'id',
+                    label: 'ID',
+                    description: 'Sort by the dataset ID from the legacy database',
+                },
+            ],
+            sortGroupLabel: 'Sort options for the identifier column',
             render: (dataset: Dataset) => {
                 const hasId = dataset.id !== undefined && dataset.id !== null;
                 const idValue = hasId ? String(dataset.id) : 'Not available';
@@ -859,6 +1055,19 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
             label: DATE_COLUMN_HEADER_LABEL,
             widthClass: 'min-w-[9rem]',
             cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'created_at',
+                    label: 'Created',
+                    description: 'Sort by the Created date',
+                },
+                {
+                    key: 'updated_at',
+                    label: 'Updated',
+                    description: 'Sort by the Updated date',
+                },
+            ],
+            sortGroupLabel: 'Sort options for created and updated dates',
             render: (dataset: Dataset) => {
                 const createdDetails = getDateDetails(dataset.created_at ?? null);
                 const updatedDetails = getDateDetails(dataset.updated_at ?? null);
@@ -940,9 +1149,9 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                             </Alert>
                         ) : null}
 
-                        {datasets.length === 0 ? (
+                        {sortedDatasets.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground">
-                                {error ? 
+                                {error ?
                                     "No datasets available. Please check the database connection." :
                                     "No old datasets found."
                                 }
@@ -951,22 +1160,78 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                             <>
                                 <div className="mb-4 flex items-center gap-2">
                                     <Badge variant="secondary">
-                                        1-{datasets.length} of {pagination.total} datasets
+                                        1-{sortedDatasets.length} of {pagination.total} datasets
                                     </Badge>
                                 </div>
-                                
+
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-50 dark:bg-gray-800">
                                             <tr>
-                                                {datasetColumns.map((column) => (
-                                                    <th
-                                                        key={column.key}
-                                                        className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${column.widthClass}`}
-                                                    >
-                                                        {column.label}
-                                                    </th>
-                                                ))}
+                                                {datasetColumns.map((column) => {
+                                                    const isColumnSorted =
+                                                        column.sortOptions?.some(option => option.key === sortState.key) ??
+                                                        false;
+                                                    const ariaSortValue = isColumnSorted
+                                                        ? sortState.direction === 'asc'
+                                                            ? 'ascending'
+                                                            : 'descending'
+                                                        : 'none';
+
+                                                    return (
+                                                        <th
+                                                            key={column.key}
+                                                            className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${column.widthClass}`}
+                                                            aria-sort={column.sortOptions ? ariaSortValue : undefined}
+                                                            scope="col"
+                                                        >
+                                                            <div className="flex flex-col gap-1 text-left">
+                                                                <div className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
+                                                                    {column.label}
+                                                                </div>
+                                                                {column.sortOptions ? (
+                                                                    <div
+                                                                        className="flex flex-wrap gap-1"
+                                                                        role="group"
+                                                                        aria-label={column.sortGroupLabel ?? 'Sorting options'}
+                                                                    >
+                                                                        {column.sortOptions.map(option => {
+                                                                            const isActive = sortState.key === option.key;
+                                                                            const displayDirection = resolveDisplayDirection(
+                                                                                option,
+                                                                                sortState,
+                                                                            );
+                                                                            const buttonLabel = buildSortButtonLabel(
+                                                                                option,
+                                                                                sortState,
+                                                                            );
+
+                                                                            return (
+                                                                                <Button
+                                                                                    key={option.key}
+                                                                                    type="button"
+                                                                                    variant={isActive ? 'secondary' : 'ghost'}
+                                                                                    size="sm"
+                                                                                    className="h-7 px-2 text-xs font-medium"
+                                                                                    onClick={() => handleSortChange(option.key)}
+                                                                                    aria-pressed={isActive}
+                                                                                    aria-label={buttonLabel}
+                                                                                    title={buttonLabel}
+                                                                                >
+                                                                                    <span>{option.label}</span>
+                                                                                    <SortDirectionIndicator
+                                                                                        isActive={isActive}
+                                                                                        direction={displayDirection}
+                                                                                    />
+                                                                                </Button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                ) : null}
+                                                            </div>
+                                                        </th>
+                                                    );
+                                                })}
                                                 <th
                                                     className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                 >
@@ -975,8 +1240,8 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-                                            {datasets.map((dataset, index) => {
-                                                const isLast = index === datasets.length - 1;
+                                            {sortedDatasets.map((dataset, index) => {
+                                                const isLast = index === sortedDatasets.length - 1;
                                                 const datasetLabel =
                                                     dataset.identifier ??
                                                     dataset.title ??
@@ -1033,7 +1298,7 @@ export default function OldDatasets({ datasets: initialDatasets, pagination: ini
                                     </Alert>
                                 )}
 
-                                {!loading && !pagination.has_more && datasets.length > 0 && (
+                                {!loading && !pagination.has_more && sortedDatasets.length > 0 && (
                                     <div className="text-center py-4 text-muted-foreground text-sm">
                                         All datasets have been loaded ({pagination.total} total)
                                     </div>
