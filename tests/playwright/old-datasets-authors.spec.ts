@@ -146,6 +146,52 @@ test.describe('Load authors from old datasets', () => {
         }
     });
 
+    test.skip('lädt ORCID-Daten für Autoren aus alten Datensätzen', async ({ page }) => {
+        // Navigiere zu einem Datensatz mit ORCID-Daten (z.B. Resource ID 3)
+        // In einer echten Test-DB würden wir hier zu /old-datasets gehen und nach
+        // einem spezifischen Datensatz suchen
+        await page.goto('/old-datasets');
+        await expect(page).toHaveURL(/\/old-datasets$/);
+
+        // Finde einen Datensatz (idealerweise einen mit bekannter ORCID)
+        const firstDatasetRow = page.locator('tbody tr').first();
+        await firstDatasetRow.waitFor({ state: 'visible', timeout: 10_000 });
+
+        // Klick auf "Open in Curation"
+        const openButton = firstDatasetRow.getByRole('button', { name: /Open dataset/ });
+        await openButton.click();
+
+        // Warte auf Kurationsformular
+        await page.waitForURL(/\/curation/, { timeout: 15_000 });
+
+        // Öffne Authors Accordion
+        const authorsTrigger = page.getByRole('button', { name: 'Authors' });
+        const isExpanded = await authorsTrigger.getAttribute('aria-expanded');
+        if (isExpanded === 'false') {
+            await authorsTrigger.click();
+            await expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
+        }
+
+        // Prüfe, ob ORCID-Feld existiert
+        const orcidLabel = page.getByText('ORCID').first();
+        if (await orcidLabel.isVisible()) {
+            // ORCID-Feld sollte vorhanden sein
+            await expect(orcidLabel).toBeVisible();
+
+            // Prüfe, ob ORCID-Input-Feld vorhanden ist
+            const orcidInput = page.getByLabel('ORCID').first();
+            await expect(orcidInput).toBeVisible();
+
+            // Wenn ORCID-Daten vorhanden sind, sollte das Feld ausgefüllt sein
+            const orcidValue = await orcidInput.inputValue();
+            if (orcidValue.length > 0) {
+                // ORCID sollte dem Format 0000-0000-0000-0000 entsprechen
+                expect(orcidValue).toMatch(/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/);
+                console.log(`ORCID found: ${orcidValue}`);
+            }
+        }
+    });
+
     test.skip('behandelt Datensätze ohne Autoren gracefully', async ({ page }) => {
         // Gehe zur Old Datasets Seite
         await page.goto('/old-datasets');

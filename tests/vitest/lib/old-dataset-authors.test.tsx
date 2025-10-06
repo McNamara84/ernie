@@ -84,6 +84,8 @@ describe('OldDataset Authors Loading', () => {
                         isContact: true,
                         email: 'charlotte.laeuchli@example.org',
                         website: 'https://laeuchli.example.org',
+                        orcid: '0000-0002-1234-5678',
+                        orcidType: 'ORCID',
                     },
                     {
                         name: 'Mustermann, Max',
@@ -94,6 +96,8 @@ describe('OldDataset Authors Loading', () => {
                         isContact: false,
                         email: null,
                         website: null,
+                        orcid: null,
+                        orcidType: null,
                     },
                 ],
             },
@@ -152,6 +156,7 @@ describe('OldDataset Authors Loading', () => {
         expect(url).toContain('authors%5B0%5D%5BisContact%5D=true');
         expect(url).toContain('authors%5B0%5D%5Bemail%5D=charlotte.laeuchli%40example.org');
         expect(url).toContain('authors%5B0%5D%5Bwebsite%5D=https%3A%2F%2Flaeuchli.example.org');
+        expect(url).toContain('authors%5B0%5D%5Borcid%5D=0000-0002-1234-5678');
         // Leerzeichen können als + oder %20 kodiert werden
         expect(url).toMatch(/authors%5B0%5D%5Baffiliations%5D%5B0%5D%5Bvalue%5D=Universit%C3%A4t(\+|%20)Z%C3%BCrich/);
         expect(url).toContain('authors%5B0%5D%5Baffiliations%5D%5B0%5D%5BrorId%5D=https%3A%2F%2Fror.org%2F03yrm5c26');
@@ -159,6 +164,7 @@ describe('OldDataset Authors Loading', () => {
         // Prüfe Max Mustermann (Index 1, aber isContact sollte nicht gesetzt sein)
         expect(url).toContain('authors%5B1%5D%5BfirstName%5D=Max');
         expect(url).toContain('authors%5B1%5D%5BlastName%5D=Mustermann');
+        expect(url).not.toContain('authors%5B1%5D%5Borcid%5D');
     });
 
     it('behandelt Autoren ohne Kontaktinfo korrekt', async () => {
@@ -177,6 +183,8 @@ describe('OldDataset Authors Loading', () => {
                         isContact: false,
                         email: null,
                         website: null,
+                        orcid: null,
+                        orcidType: null,
                     },
                 ],
             },
@@ -224,6 +232,108 @@ describe('OldDataset Authors Loading', () => {
         expect(url).not.toContain('authors%5B0%5D%5BisContact%5D');
         expect(url).not.toContain('authors%5B0%5D%5Bemail%5D');
         expect(url).not.toContain('authors%5B0%5D%5Bwebsite%5D');
+    });
+
+    it('lädt und kodiert ORCID-Daten korrekt', async () => {
+        const user = userEvent.setup();
+
+        // Mock axios.get für Autoren mit verschiedenen Identifier-Typen
+        vi.spyOn(axios, 'get').mockResolvedValue({
+            data: {
+                authors: [
+                    {
+                        name: 'Almqvist, Bjarne',
+                        givenName: 'Bjarne',
+                        familyName: 'Almquist',
+                        affiliations: [
+                            { value: 'Uppsala University', rorId: null },
+                        ],
+                        roles: ['Creator', 'DataCollector'],
+                        isContact: false,
+                        email: null,
+                        website: null,
+                        orcid: '0000-0002-9385-7614',
+                        orcidType: 'ORCID',
+                    },
+                    {
+                        name: 'Conze, Ronald',
+                        givenName: null,
+                        familyName: null,
+                        affiliations: [
+                            { value: 'GFZ Potsdam', rorId: 'https://ror.org/04z8jg394' },
+                        ],
+                        roles: ['Creator', 'DataManager'],
+                        isContact: false,
+                        email: null,
+                        website: null,
+                        orcid: '0000-0002-8209-6290',
+                        orcidType: 'ORCID',
+                    },
+                    {
+                        name: 'Smith, Jane',
+                        givenName: 'Jane',
+                        familyName: 'Smith',
+                        affiliations: [],
+                        roles: ['Creator'],
+                        isContact: false,
+                        email: null,
+                        website: null,
+                        orcid: null,
+                        orcidType: 'ScopusID', // Hat einen anderen Identifier-Typ, aber kein ORCID
+                    },
+                ],
+            },
+        });
+
+        const dataset = {
+            id: 3,
+            identifier: '10.5880/GFZ.4.2.2014.001',
+            title: 'COSC-1 borehole magnetic data',
+            resourcetypegeneral: 'Dataset',
+            curator: 'Bjarne Almqvist',
+            created_at: '2024-01-01T10:00:00Z',
+            updated_at: '2024-01-02T10:00:00Z',
+            publicstatus: 'published',
+            publisher: 'GFZ Data Services',
+            publicationyear: 2024,
+        };
+
+        const { container } = render(
+            <OldDatasets
+                datasets={[dataset]}
+                pagination={{
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 50,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
+                }}
+            />
+        );
+
+        const button = container.querySelector('button[aria-label*="Open dataset"]');
+        await user.click(button!);
+
+        await waitFor(() => {
+            expect(routerGetMock).toHaveBeenCalled();
+        });
+
+        const url = routerGetMock.mock.calls[0][0];
+
+        // Prüfe Bjarne Almqvist mit ORCID
+        expect(url).toContain('authors%5B0%5D%5BfirstName%5D=Bjarne');
+        expect(url).toContain('authors%5B0%5D%5BlastName%5D=Almquist');
+        expect(url).toContain('authors%5B0%5D%5Borcid%5D=0000-0002-9385-7614');
+
+        // Prüfe Ronald Conze mit ORCID
+        expect(url).toContain('authors%5B1%5D%5Borcid%5D=0000-0002-8209-6290');
+
+        // Prüfe Jane Smith ohne ORCID (hat ScopusID, aber das wird nicht in orcid-Feld übernommen)
+        expect(url).toContain('authors%5B2%5D%5BfirstName%5D=Jane');
+        expect(url).toContain('authors%5B2%5D%5BlastName%5D=Smith');
+        expect(url).not.toContain('authors%5B2%5D%5Borcid%5D');
     });
 
     it('behandelt Fehler beim Laden von Autoren gracefully', async () => {

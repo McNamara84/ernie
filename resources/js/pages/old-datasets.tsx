@@ -562,6 +562,8 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 isContact: boolean;
                 email: string | null;
                 website: string | null;
+                orcid: string | null;
+                orcidType: string | null;
             }, index: number) => {
                 // Use firstName/lastName as expected by the form
                 if (author.givenName) {
@@ -573,6 +575,11 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 // If no firstName/lastName, use the full name
                 if (!author.givenName && !author.familyName && author.name) {
                     query[`authors[${index}][lastName]`] = author.name;
+                }
+                
+                // Add ORCID if present
+                if (author.orcid) {
+                    query[`authors[${index}][orcid]`] = author.orcid;
                 }
                 
                 // Pass affiliations as structured array
