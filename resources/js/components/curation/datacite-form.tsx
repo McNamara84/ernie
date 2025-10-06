@@ -9,6 +9,15 @@ import AuthorField, {
     type InstitutionAuthorEntry,
     type PersonAuthorEntry,
 } from './fields/author-field';
+import ContributorField, {
+    type ContributorEntry,
+    type ContributorRole,
+    type ContributorRoleTag,
+    type ContributorType,
+    type InstitutionContributorEntry,
+    type PersonContributorEntry,
+    CONTRIBUTOR_ROLE_OPTIONS,
+} from './fields/contributor-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 import { Button } from '@/components/ui/button';
 import {
@@ -98,6 +107,36 @@ const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
 
 const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
     return type === 'person' ? createEmptyPersonAuthor() : createEmptyInstitutionAuthor();
+};
+
+const createEmptyPersonContributor = (): PersonContributorEntry => ({
+    id: crypto.randomUUID(),
+    type: 'person',
+    roles: [] as ContributorRoleTag[],
+    rolesInput: '',
+    orcid: '',
+    firstName: '',
+    lastName: '',
+    email: '',
+    website: '',
+    affiliations: [] as AffiliationTag[],
+    affiliationsInput: '',
+});
+
+const createEmptyInstitutionContributor = (): InstitutionContributorEntry => ({
+    id: crypto.randomUUID(),
+    type: 'institution',
+    roles: [] as ContributorRoleTag[],
+    rolesInput: '',
+    institutionName: '',
+    affiliations: [] as AffiliationTag[],
+    affiliationsInput: '',
+});
+
+const createEmptyContributor = (type: ContributorType = 'person'): ContributorEntry => {
+    return type === 'person'
+        ? createEmptyPersonContributor()
+        : createEmptyInstitutionContributor();
 };
 
 const serializeAffiliations = (author: AuthorEntry): SerializedAffiliation[] => {
@@ -331,6 +370,9 @@ export default function DataCiteForm({
 
         return [createEmptyAuthor()];
     });
+    const [contributors, setContributors] = useState<ContributorEntry[]>([
+        createEmptyContributor(),
+    ]);
     const { suggestions: affiliationSuggestions } = useRorAffiliations();
 
     const [isSaving, setIsSaving] = useState(false);
@@ -499,6 +541,130 @@ export default function DataCiteForm({
         setAuthors((previous) =>
             previous.length > 1
                 ? previous.filter((author) => author.id !== authorId)
+                : previous,
+        );
+    };
+
+    const handleContributorTypeChange = (
+        contributorId: string,
+        type: ContributorType,
+    ) => {
+        setContributors((previous) =>
+            previous.map((contributor) => {
+                if (contributor.id !== contributorId) {
+                    return contributor;
+                }
+
+                if (contributor.type === type) {
+                    return contributor;
+                }
+
+                if (type === 'person') {
+                    return {
+                        ...createEmptyPersonContributor(),
+                        id: contributor.id,
+                        roles: contributor.roles,
+                        rolesInput: contributor.rolesInput,
+                        affiliations: contributor.affiliations,
+                        affiliationsInput: contributor.affiliationsInput,
+                    } satisfies PersonContributorEntry;
+                }
+
+                return {
+                    ...createEmptyInstitutionContributor(),
+                    id: contributor.id,
+                    roles: contributor.roles,
+                    rolesInput: contributor.rolesInput,
+                    affiliations: contributor.affiliations,
+                    affiliationsInput: contributor.affiliationsInput,
+                } satisfies InstitutionContributorEntry;
+            }),
+        );
+    };
+
+    const handleContributorRolesChange = (
+        contributorId: string,
+        value: { raw: string; tags: ContributorRoleTag[] },
+    ) => {
+        const isValidRole = (role: string): role is ContributorRole =>
+            (CONTRIBUTOR_ROLE_OPTIONS as readonly string[]).includes(role);
+
+        const uniqueRoles = Array.from(
+            new Set(
+                value.tags
+                    .map((tag) => tag.value)
+                    .filter((role): role is ContributorRole => isValidRole(role)),
+            ),
+        );
+
+        const normalisedRoles = uniqueRoles.map((role) => ({ value: role }));
+
+        setContributors((previous) =>
+            previous.map((contributor) =>
+                contributor.id === contributorId
+                    ? ({
+                          ...contributor,
+                          roles: normalisedRoles,
+                          rolesInput: value.raw,
+                      } satisfies ContributorEntry)
+                    : contributor,
+            ),
+        );
+    };
+
+    const handleContributorPersonChange = (
+        contributorId: string,
+        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
+        value: string,
+    ) => {
+        setContributors((previous) =>
+            previous.map((contributor) => {
+                if (contributor.id !== contributorId || contributor.type !== 'person') {
+                    return contributor;
+                }
+
+                return { ...contributor, [field]: value } satisfies PersonContributorEntry;
+            }),
+        );
+    };
+
+    const handleContributorInstitutionChange = (contributorId: string, value: string) => {
+        setContributors((previous) =>
+            previous.map((contributor) => {
+                if (contributor.id !== contributorId || contributor.type !== 'institution') {
+                    return contributor;
+                }
+
+                return { ...contributor, institutionName: value } satisfies InstitutionContributorEntry;
+            }),
+        );
+    };
+
+    const handleContributorAffiliationsChange = (
+        contributorId: string,
+        value: { raw: string; tags: AffiliationTag[] },
+    ) => {
+        setContributors((previous) =>
+            previous.map((contributor) =>
+                contributor.id === contributorId
+                    ? ({
+                          ...contributor,
+                          affiliations: value.tags,
+                          affiliationsInput: value.raw,
+                      } satisfies ContributorEntry)
+                    : contributor,
+            ),
+        );
+    };
+
+    const addContributor = () => {
+        setContributors((previous) => [...previous, createEmptyContributor()]);
+    };
+
+    const removeContributor = (contributorId: string) => {
+        setContributors((previous) =>
+            previous.length > 1
+                ? previous.filter((contributor) => contributor.id !== contributorId)
                 : previous,
         );
     };
@@ -845,6 +1011,50 @@ export default function DataCiteForm({
                                 canAddAuthor={index === authors.length - 1}
                                 affiliationSuggestions={affiliationSuggestions}
                             />
+                            ))}
+                        </div>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="contributors">
+                    <AccordionTrigger>Contributors</AccordionTrigger>
+                    <AccordionContent>
+                        <div className="space-y-6">
+                            {contributors.map((contributor, index) => (
+                                <ContributorField
+                                    key={contributor.id}
+                                    contributor={contributor}
+                                    index={index}
+                                    onTypeChange={(type) =>
+                                        handleContributorTypeChange(contributor.id, type)
+                                    }
+                                    onRolesChange={(value) =>
+                                        handleContributorRolesChange(contributor.id, value)
+                                    }
+                                    onPersonFieldChange={(field, value) =>
+                                        handleContributorPersonChange(
+                                            contributor.id,
+                                            field,
+                                            value,
+                                        )
+                                    }
+                                    onInstitutionNameChange={(value) =>
+                                        handleContributorInstitutionChange(
+                                            contributor.id,
+                                            value,
+                                        )
+                                    }
+                                    onAffiliationsChange={(value) =>
+                                        handleContributorAffiliationsChange(
+                                            contributor.id,
+                                            value,
+                                        )
+                                    }
+                                    onRemoveContributor={() => removeContributor(contributor.id)}
+                                    canRemove={contributors.length > 1}
+                                    onAddContributor={addContributor}
+                                    canAddContributor={index === contributors.length - 1}
+                                    affiliationSuggestions={affiliationSuggestions}
+                                />
                             ))}
                         </div>
                     </AccordionContent>

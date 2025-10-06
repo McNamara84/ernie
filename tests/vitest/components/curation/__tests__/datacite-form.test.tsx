@@ -165,6 +165,13 @@ describe('DataCiteForm', () => {
         }
     };
 
+    const ensureContributorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        const contributorsTrigger = screen.getByRole('button', { name: 'Contributors' });
+        if (contributorsTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(contributorsTrigger);
+        }
+    };
+
     const fillRequiredAuthor = async (
         user: ReturnType<typeof userEvent.setup>,
         lastName = 'Curator',
@@ -323,12 +330,21 @@ describe('DataCiteForm', () => {
         const titleTypeTrigger = screen.getByRole('combobox', { name: /Title Type/ });
         expect(titleTypeTrigger).toHaveTextContent('Main Title');
 
+        await ensureAuthorsOpen(user);
+        await ensureContributorsOpen(user);
+
         // author fields
         expect(await screen.findByText('Author type')).toBeInTheDocument();
-        expect(await screen.findByLabelText('ORCID')).toBeInTheDocument();
-        expect(screen.getByText('Affiliations')).toBeInTheDocument();
+        expect(await screen.findAllByLabelText('ORCID')).toHaveLength(2);
+        expect(screen.getAllByText('Affiliations', { selector: 'label' })).toHaveLength(2);
         // Multiple "Add author" buttons exist (desktop + mobile), use getAllByRole
         expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
+
+        expect(await screen.findByText('Contributor type')).toBeInTheDocument();
+        expect(screen.getByLabelText('Roles')).toBeInTheDocument();
+        expect(
+            screen.getAllByRole('button', { name: /Add contributor/i }).length,
+        ).toBeGreaterThan(0);
 
         // add and remove title rows
         const addButton = screen.getByRole('button', { name: 'Add title' });
@@ -353,6 +369,37 @@ describe('DataCiteForm', () => {
         expect(
             screen.getAllByRole('textbox', { name: /Title/ }),
         ).toHaveLength(1);
+    });
+
+    it('lets curators add and remove contributors without losing existing entries', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureContributorsOpen(user);
+
+        expect(screen.getByRole('heading', { name: 'Contributor 1' })).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Contributor 2' })).not.toBeInTheDocument();
+
+        const addContributorButtons = screen.getAllByRole('button', { name: 'Add contributor' });
+        await user.click(addContributorButtons[0]);
+
+        expect(screen.getByRole('heading', { name: 'Contributor 2' })).toBeInTheDocument();
+
+        const removeContributorButton = screen.getByRole('button', {
+            name: 'Remove contributor 2',
+        });
+        await user.click(removeContributorButton);
+
+        await waitFor(() => {
+            expect(screen.queryByRole('heading', { name: 'Contributor 2' })).not.toBeInTheDocument();
+        });
     });
 
     it('disables saving until required fields are provided', async () => {
