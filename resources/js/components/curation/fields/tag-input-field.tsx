@@ -157,8 +157,10 @@ export function TagInputField({
         
         // Update dropdown settings if provided
         if (tagifySettings.dropdown) {
+            // Defensive: settings und dropdown können in Testumgebung undefined sein
+            tagify.settings = tagify.settings || {};
             tagify.settings.dropdown = {
-                ...tagify.settings.dropdown,
+                ...(tagify.settings.dropdown ?? {}),
                 ...tagifySettings.dropdown,
             };
         }
