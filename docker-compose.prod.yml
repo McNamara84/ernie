@@ -15,6 +15,7 @@ services:
       - db
     environment:
       - APP_URL=https://env.rz-vm182.gfz.de/ernie
+      - SESSION_PATH=/ernie
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
