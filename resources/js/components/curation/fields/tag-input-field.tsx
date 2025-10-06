@@ -108,7 +108,7 @@ export function TagInputField({
         const handleChange = (event: CustomEvent) => {
             const detail = event.detail as { value?: string; tagify: Tagify<TagData> };
             const rawValue = detail.value ?? '';
-            
+
             const tags: TagInputItem[] = detail.tagify.value
                 .map((item) => {
                     const trimmedValue = typeof item.value === 'string' ? item.value.trim() : '';
@@ -168,7 +168,7 @@ export function TagInputField({
         }
 
         tagify.whitelist = tagifySettings.whitelist;
-        
+
         // Update dropdown settings if provided
         // Defensive: settings can be undefined in test environments
         if (tagifySettings.dropdown && tagify.settings?.dropdown) {
@@ -190,12 +190,12 @@ export function TagInputField({
             .map((item) => {
                 const rawItem = item as Record<string, unknown>;
                 const data = rawItem.data as Record<string, unknown> | undefined;
-                
+
                 // Try to get rorId from item directly or from item.data
                 const directRorId = typeof rawItem.rorId === 'string' ? rawItem.rorId : null;
                 const dataRorId = data && typeof data.rorId === 'string' ? data.rorId : null;
                 const rorId = directRorId ?? dataRorId;
-                
+
                 return {
                     value: typeof item.value === 'string' ? item.value : '',
                     rorId,

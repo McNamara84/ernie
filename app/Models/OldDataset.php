@@ -217,7 +217,7 @@ class OldDataset extends Model
             ->map(function ($affiliations) {
                 return $affiliations->map(function ($affiliation) {
                     $identifier = $affiliation->identifier ?? null;
-                    
+
                     // Normalize ROR identifier to full URL format
                     if ($identifier && !empty(trim($identifier))) {
                         // If it's already a full URL, keep it
@@ -228,7 +228,7 @@ class OldDataset extends Model
                     } else {
                         $identifier = null;
                     }
-                    
+
                     return [
                         'value' => $affiliation->name,
                         'rorId' => $identifier,
