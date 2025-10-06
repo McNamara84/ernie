@@ -145,7 +145,7 @@ class OldDataset extends Model
 
     /**
      * Normalize a name for fuzzy matching by removing punctuation and extra whitespace.
-     * Converts names like "Läuchli, Charlotte" to "laeuchli charlotte" for comparison.
+     * Converts names like "Läuchli, Charlotte" to "lauchli charlotte" for comparison.
      * Removes diacritics, punctuation (commas, periods, hyphens), and normalizes whitespace.
      *
      * @param string|null $name The name to normalize

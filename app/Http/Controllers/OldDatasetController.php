@@ -8,7 +8,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 class OldDatasetController extends Controller
 {
@@ -51,7 +50,7 @@ class OldDatasetController extends Controller
                     'has_more' => $paginatedDatasets->hasMorePages(),
                 ],
             ]);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
             Log::error('SUMARIOPMD connection failure when rendering old datasets', $debugInfo + [
@@ -111,7 +110,7 @@ class OldDatasetController extends Controller
                     'has_more' => $paginatedDatasets->hasMorePages(),
                 ],
             ]);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
             Log::error('SUMARIOPMD connection failure when loading more old datasets', $debugInfo + [
@@ -148,7 +147,7 @@ class OldDatasetController extends Controller
             return response()->json([
                 'authors' => $authors,
             ]);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
             Log::error('SUMARIOPMD connection failure when loading authors for dataset ' . $id, $debugInfo + [
@@ -168,7 +167,7 @@ class OldDatasetController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function buildConnectionDebugInfo(Throwable $exception): array
+    private function buildConnectionDebugInfo(\Throwable $exception): array
     {
         $connectionName = self::DATASET_CONNECTION;
         $connectionConfig = config("database.connections.{$connectionName}", []);
