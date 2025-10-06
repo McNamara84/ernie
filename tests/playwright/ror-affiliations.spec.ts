@@ -48,12 +48,12 @@ test.describe('ROR Affiliations Autocomplete', () => {
     });
 
     test('displays affiliation suggestions when typing', async ({ page }) => {
-        // Wait for the page to load
-        await page.waitForSelector('[data-testid="author-0-affiliations-tagify-input"]');
+        // Wait for the Tagify component to be ready
+        await page.waitForSelector('[data-testid="author-0-affiliations-field"] .tagify__input');
 
-        // Click on the affiliations input field
+        // Click on the Tagify input field
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
 
@@ -74,7 +74,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('selects affiliation from dropdown and closes dropdown', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
         await affiliationsInput.fill('Potsdam');
@@ -99,7 +99,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('searches in both prefLabel and otherLabel fields', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
 
@@ -119,7 +119,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('allows adding multiple affiliations', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
 
         // Add first affiliation
@@ -141,7 +141,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('shows no suggestions for non-existent organizations', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
         await affiliationsInput.fill('xyznonexistentuniversity123');
@@ -161,7 +161,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('preserves ROR ID when affiliation is selected', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
         await affiliationsInput.fill('Potsdam');
@@ -179,7 +179,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('handles special characters in organization names', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
 
@@ -202,7 +202,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('removes affiliation tag when clicking remove button', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
         await affiliationsInput.fill('Potsdam');
@@ -223,7 +223,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('reopens dropdown when typing after selection', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
 
         // First selection
@@ -245,7 +245,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('displays correct number of suggestions (max 20)', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
 
@@ -264,7 +264,7 @@ test.describe('ROR Affiliations Autocomplete', () => {
 
     test('maintains affiliation data after form submission attempt', async ({ page }) => {
         const affiliationsInput = page.locator(
-            '[data-testid="author-0-affiliations-tagify-input"]'
+            '[data-testid="author-0-affiliations-field"] .tagify__input'
         );
         await affiliationsInput.click();
         await affiliationsInput.fill('Potsdam');
@@ -283,3 +283,4 @@ test.describe('ROR Affiliations Autocomplete', () => {
         await expect(page.locator('.tagify__tag').first()).toBeVisible();
     });
 });
+
