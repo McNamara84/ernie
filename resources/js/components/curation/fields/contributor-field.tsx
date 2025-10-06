@@ -107,7 +107,7 @@ export default function ContributorField({
             enforceWhitelist: true,
             maxTags: roleWhitelist.length,
             dropdown: {
-                enabled: roleWhitelist.length > 0 ? 1 : 0,
+                enabled: 0,
                 maxItems: roleWhitelist.length,
                 searchKeys: ['value'],
             },
