@@ -19,10 +19,6 @@
     {
       "url": "https://env.rz-vm182.gfz.de/ernie",
       "description": "Production server"
-    },
-    {
-      "url": "http://localhost:8080",
-      "description": "Local development server"
     }
   ],
   "tags": [
