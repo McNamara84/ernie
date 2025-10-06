@@ -1,19 +1,83 @@
 [
   {
     "version": "0.2.0",
-    "date": "2025-10-08",
+    "date": "2025-10-06",
     "features": [
       {
-        "title": "New form group Authors",
-        "description": "Added structured authors section."
+        "title": "Authors Management in Curation Form",
+        "description": "Added comprehensive authors section with support for persons and institutions, ORCID input fields, contact person functionality, role and affiliation management using Tagify-based inputs, and extensive end-to-end tests with Playwright. Includes accessible implementation with optimized aria-label usage."
       },
       {
-        "title": "Autocomplete for Affiliations field",
-        "description": "Added autocomplete for Affiliations field with Tagify and ROR-IDs."
+        "title": "ROR Affiliation Synchronization",
+        "description": "Integrated Research Organization Registry (ROR) with automatic data synchronization, autocomplete functionality for affiliations with ROR IDs, support for ZIP archives containing ROR data, and a new data structure using prefLabel, rorId, and otherLabel fields. Includes comprehensive tests for ROR data fetching and processing."
       },
       {
-        "title": "Added statistic card on dashboard",
-        "description": "Show total datasets count on dashboard."
+        "title": "Import Authors from DataCite XML",
+        "description": "Automatically extract authors from uploaded DataCite XML files with proper handling of nested creator elements."
+      },
+      {
+        "title": "API for Old Dataset Authors",
+        "description": "New endpoint to fetch authors from legacy datasets with fuzzy matching for contact information and affiliations. Frontend integration automatically loads legacy authors into the curation form. Includes ORCID support, optimized queries to avoid N+1 problems, improved name normalization with diacritic removal, and comprehensive tests (Pest, Playwright, Vitest)."
+      },
+      {
+        "title": "ROR ID Badges for Affiliations",
+        "description": "Display ROR ID badges for matched affiliations with clickable links to ROR identifiers, improved normalization of affiliation data, and consistent formatting of ROR URLs."
+      },
+      {
+        "title": "Persistent Sorting for Old Datasets",
+        "description": "Added sorting controls for the old datasets table with lazy loading that respects server-side sorting and persistent storage of sort preferences."
+      },
+      {
+        "title": "Store Authors with Roles and Affiliations",
+        "description": "Complete persistence of author management data with form hydration using stored authors, support for ROR IDs for institutions, normalization of boolean values, and reuse of existing institutions."
+      },
+      {
+        "title": "API Key Authentication for ELMO Resource Types",
+        "description": "Protected ELMO endpoint with configurable API key using new ELMO_API_KEY environment variable. Configuration added to .env.example and stack.env with updated tests for consistent test environment."
+      },
+      {
+        "title": "Dashboard Statistics Card",
+        "description": "Show total datasets count on dashboard with new statistics card."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Test Timeout Adjustments",
+        "description": "Increased timeout for DataCiteForm author management tests to improve test reliability."
+      },
+      {
+        "title": "Layout and Accessibility Enhancements",
+        "description": "Improved layout and accessibility for author fields with optimized spacing and better screen reader support."
+      },
+      {
+        "title": "Query Optimization",
+        "description": "Optimized queries for contact information matching to reduce database load and improve performance."
+      },
+      {
+        "title": "Error Handling",
+        "description": "Enhanced error handling and messaging throughout the application for better user feedback."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "DataCite Author Extraction",
+        "description": "Fixed DataCite author extraction to correctly ignore nested creator elements."
+      },
+      {
+        "title": "PHPStan Issues",
+        "description": "Resolved PHPStan issues for ROR synchronization and author affiliations."
+      },
+      {
+        "title": "JSON File Error Handling",
+        "description": "Improved error handling for JSON file read operations."
+      },
+      {
+        "title": "TagInputField Dropdown Settings",
+        "description": "Corrected dropdown settings merge in TagInputField component."
+      },
+      {
+        "title": "MockTagify Reset",
+        "description": "Fixed MockTagify removeAllTags method to correctly clear the value array."
       }
     ]
   },
