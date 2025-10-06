@@ -548,6 +548,79 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
         query[`licenses[${index}]`] = license;
     });
 
+    // Load authors from old database
+    if (dataset.id) {
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/authors`);
+            const authors = response.data.authors || [];
+            
+            authors.forEach((author: { 
+                givenName: string | null; 
+                familyName: string | null; 
+                name: string; 
+                affiliations: Array<{ value: string; rorId: string | null }>;
+                isContact: boolean;
+                email: string | null;
+                website: string | null;
+                orcid: string | null;
+                orcidType: string | null;
+            }, index: number) => {
+                // Use firstName/lastName as expected by the form
+                if (author.givenName) {
+                    query[`authors[${index}][firstName]`] = author.givenName;
+                }
+                if (author.familyName) {
+                    query[`authors[${index}][lastName]`] = author.familyName;
+                }
+                // If no firstName/lastName, use the full name
+                if (!author.givenName && !author.familyName && author.name) {
+                    query[`authors[${index}][lastName]`] = author.name;
+                }
+                
+                // Add ORCID if present
+                if (author.orcid) {
+                    query[`authors[${index}][orcid]`] = author.orcid;
+                }
+                
+                // Pass affiliations as structured array
+                if (author.affiliations && Array.isArray(author.affiliations)) {
+                    author.affiliations.forEach((affiliation, affIndex) => {
+                        query[`authors[${index}][affiliations][${affIndex}][value]`] = affiliation.value;
+                        if (affiliation.rorId) {
+                            query[`authors[${index}][affiliations][${affIndex}][rorId]`] = affiliation.rorId;
+                        }
+                    });
+                }
+                
+                // Add contact person information
+                if (author.isContact) {
+                    query[`authors[${index}][isContact]`] = 'true';
+                    
+                    if (author.email) {
+                        query[`authors[${index}][email]`] = author.email;
+                    }
+                    
+                    if (author.website) {
+                        query[`authors[${index}][website]`] = author.website;
+                    }
+                }
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading authors for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading authors for dataset:', error);
+            }
+            // Continue without authors if loading fails
+        }
+    }
+
     return query;
 };
 

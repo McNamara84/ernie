@@ -92,7 +92,7 @@ export type InitialAuthor =
           lastName?: string | null;
           email?: string | null;
           website?: string | null;
-          isContact?: boolean | null;
+          isContact?: boolean | string | null;
       })
     | (BaseInitialAuthor & {
           type: 'institution';
@@ -165,7 +165,7 @@ const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
         lastName: typeof author.lastName === 'string' ? author.lastName.trim() : '',
         email: typeof author.email === 'string' ? author.email.trim() : '',
         website: typeof author.website === 'string' ? author.website.trim() : '',
-        isContact: author.isContact === true,
+        isContact: author.isContact === true || author.isContact === 'true',
         affiliations,
         affiliationsInput,
     } satisfies PersonAuthorEntry;

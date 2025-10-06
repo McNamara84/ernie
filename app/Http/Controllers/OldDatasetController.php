@@ -8,7 +8,6 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 class OldDatasetController extends Controller
 {
@@ -51,7 +50,7 @@ class OldDatasetController extends Controller
                     'has_more' => $paginatedDatasets->hasMorePages(),
                 ],
             ]);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
             Log::error('SUMARIOPMD connection failure when rendering old datasets', $debugInfo + [
@@ -111,7 +110,7 @@ class OldDatasetController extends Controller
                     'has_more' => $paginatedDatasets->hasMorePages(),
                 ],
             ]);
-        } catch (Throwable $e) {
+        } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
             Log::error('SUMARIOPMD connection failure when loading more old datasets', $debugInfo + [
@@ -126,11 +125,49 @@ class OldDatasetController extends Controller
     }
 
     /**
+     * API endpoint to get authors for a specific old dataset.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAuthors(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            $authors = $dataset->getAuthors();
+
+            return response()->json([
+                'authors' => $authors,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading authors for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load authors from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
      * Build sanitized debug information for the SUMARIOPMD connection failure.
      *
      * @return array<string, mixed>
      */
-    private function buildConnectionDebugInfo(Throwable $exception): array
+    private function buildConnectionDebugInfo(\Throwable $exception): array
     {
         $connectionName = self::DATASET_CONNECTION;
         $connectionConfig = config("database.connections.{$connectionName}", []);
