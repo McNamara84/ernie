@@ -3,15 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreResourceRequest;
+use App\Models\Institution;
 use App\Models\Language;
 use App\Models\License;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceAuthor;
 use App\Models\ResourceTitle;
+use App\Models\Role;
 use App\Models\TitleType;
+use App\Support\BooleanNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -40,6 +46,14 @@ class ResourceController extends Controller
                         ->with(['titleType:id,name,slug']);
                 },
                 'licenses:id,identifier,name',
+                'authors' => function ($query): void {
+                    $query
+                        ->with([
+                            'authorable',
+                            'roles:id,name,slug',
+                            'affiliations:id,resource_author_id,value,ror_id',
+                        ]);
+                },
             ])
             ->latest('created_at')
             ->paginate($perPage, ['*'], 'page', $page)
@@ -78,6 +92,52 @@ class ResourceController extends Controller
                                 'name' => $license->name,
                             ];
                         })
+                        ->values()
+                        ->all(),
+                    'authors' => $resource->authors
+                        ->map(static function (ResourceAuthor $resourceAuthor): ?array {
+                            $affiliations = $resourceAuthor->affiliations
+                                ->map(static fn (\App\Models\Affiliation $affiliation): array => [
+                                    'value' => $affiliation->value,
+                                    'rorId' => $affiliation->ror_id,
+                                ])
+                                ->values()
+                                ->all();
+
+                            $base = [
+                                'position' => $resourceAuthor->position,
+                                'affiliations' => $affiliations,
+                            ];
+
+                            $authorable = $resourceAuthor->authorable;
+
+                            if ($authorable instanceof Person) {
+                                $isContact = $resourceAuthor->roles->contains(
+                                    static fn (Role $role): bool => $role->slug === 'contact-person',
+                                );
+
+                                return $base + [
+                                    'type' => 'person',
+                                    'orcid' => $authorable->orcid,
+                                    'firstName' => $authorable->first_name,
+                                    'lastName' => $authorable->last_name,
+                                    'email' => $resourceAuthor->email,
+                                    'website' => $resourceAuthor->website,
+                                    'isContact' => $isContact,
+                                ];
+                            }
+
+                            if ($authorable instanceof Institution) {
+                                return $base + [
+                                    'type' => 'institution',
+                                    'institutionName' => $authorable->name,
+                                    'rorId' => $authorable->ror_id,
+                                ];
+                            }
+
+                            return null;
+                        })
+                        ->filter()
                         ->values()
                         ->all(),
                 ];
@@ -167,7 +227,26 @@ class ResourceController extends Controller
 
                 $resource->licenses()->sync($licenseIds);
 
-                return [$resource->load(['titles', 'licenses']), $isUpdate];
+                $resource->authors()->delete();
+
+                $authors = $validated['authors'] ?? [];
+
+                foreach ($authors as $author) {
+                    $position = isset($author['position']) && is_int($author['position'])
+                        ? $author['position']
+                        : 0;
+
+                    if (($author['type'] ?? 'person') === 'institution') {
+                        $resourceAuthor = $this->storeInstitutionAuthor($resource, $author, $position);
+                    } else {
+                        $resourceAuthor = $this->storePersonAuthor($resource, $author, $position);
+                    }
+
+                    $this->syncAuthorRoles($resourceAuthor, $author);
+                    $this->syncAuthorAffiliations($resourceAuthor, $author);
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);
@@ -195,5 +274,169 @@ class ResourceController extends Controller
         return redirect()
             ->route('resources')
             ->with('success', 'Resource deleted successfully.');
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function storePersonAuthor(Resource $resource, array $data, int $position): ResourceAuthor
+    {
+        $search = null;
+
+        if (! empty($data['orcid'])) {
+            $search = ['orcid' => $data['orcid']];
+        }
+
+        if ($search === null) {
+            $search = [
+                'first_name' => $data['firstName'] ?? null,
+                'last_name' => $data['lastName'],
+            ];
+        }
+
+        $person = Person::query()->firstOrNew($search);
+
+        $person->fill([
+            'first_name' => $data['firstName'] ?? $person->first_name,
+            'last_name' => $data['lastName'] ?? $person->last_name,
+        ]);
+
+        if (! empty($data['orcid'])) {
+            $person->orcid = $data['orcid'];
+        }
+
+        $person->save();
+
+        return ResourceAuthor::query()->create([
+            'resource_id' => $resource->id,
+            'authorable_id' => $person->id,
+            'authorable_type' => Person::class,
+            'position' => $position,
+            'email' => $data['email'] ?? null,
+            'website' => $data['website'] ?? null,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function storeInstitutionAuthor(Resource $resource, array $data, int $position): ResourceAuthor
+    {
+        $name = $data['institutionName'];
+        $rorId = $data['rorId'] ?? null;
+
+        $institution = null;
+
+        if ($rorId !== null) {
+            $institution = Institution::query()->where('ror_id', $rorId)->first();
+
+            if ($institution === null) {
+                $institution = Institution::query()
+                    ->where('name', $name)
+                    ->whereNull('ror_id')
+                    ->first();
+            }
+        }
+
+        if ($institution === null) {
+            $institution = Institution::query()
+                ->where('name', $name)
+                ->whereNull('ror_id')
+                ->first();
+        }
+
+        if ($institution === null) {
+            $institution = new Institution();
+        }
+
+        $institution->name = $name;
+
+        if ($rorId !== null && $institution->ror_id !== $rorId) {
+            $institution->ror_id = $rorId;
+        }
+
+        $institution->save();
+
+        return ResourceAuthor::query()->create([
+            'resource_id' => $resource->id,
+            'authorable_id' => $institution->id,
+            'authorable_type' => Institution::class,
+            'position' => $position,
+            'email' => null,
+            'website' => null,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function syncAuthorRoles(ResourceAuthor $resourceAuthor, array $data): void
+    {
+        $roles = ['Author'];
+
+        if (($data['type'] ?? 'person') === 'person' && BooleanNormalizer::isTrue($data['isContact'] ?? false)) {
+            $roles[] = 'Contact Person';
+        }
+
+        $roleIds = [];
+
+        foreach ($roles as $roleName) {
+            $role = Role::query()->firstOrCreate(
+                ['slug' => Str::slug($roleName)],
+                ['name' => $roleName],
+            );
+
+            $roleIds[] = $role->id;
+        }
+
+        $resourceAuthor->roles()->sync($roleIds);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function syncAuthorAffiliations(ResourceAuthor $resourceAuthor, array $data): void
+    {
+        $affiliations = $data['affiliations'] ?? [];
+
+        if (! is_array($affiliations) || $affiliations === []) {
+            return;
+        }
+
+        $payload = [];
+
+        foreach ($affiliations as $affiliation) {
+            if (! is_array($affiliation)) {
+                continue;
+            }
+
+            $value = isset($affiliation['value']) ? trim((string) $affiliation['value']) : '';
+
+            if ($value === '') {
+                continue;
+            }
+
+            $rorId = null;
+
+            if (array_key_exists('rorId', $affiliation)) {
+                $rawRorId = $affiliation['rorId'];
+
+                if ($rawRorId !== null) {
+                    $trimmedRorId = trim((string) $rawRorId);
+                    $rorId = $trimmedRorId === '' ? null : $trimmedRorId;
+                }
+            }
+
+            $payload[] = [
+                'value' => $value,
+                'ror_id' => $rorId,
+            ];
+        }
+
+        if ($payload === []) {
+            return;
+        }
+
+        $resourceAuthor->affiliations()->createMany($payload);
     }
 }

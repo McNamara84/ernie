@@ -50,6 +50,31 @@ interface LicenseEntry {
     license: string;
 }
 
+interface SerializedAffiliation {
+    value: string;
+    rorId: string | null;
+}
+
+type SerializedAuthor =
+    | {
+          type: 'person';
+          orcid: string | null;
+          firstName: string | null;
+          lastName: string;
+          email: string | null;
+          website: string | null;
+          isContact: boolean;
+          affiliations: SerializedAffiliation[];
+          position: number;
+      }
+    | {
+          type: 'institution';
+          institutionName: string;
+          rorId: string | null;
+          affiliations: SerializedAffiliation[];
+          position: number;
+      };
+
 const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'person',
@@ -67,12 +92,40 @@ const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'institution',
     institutionName: '',
+    rorId: '',
     affiliations: [] as AffiliationTag[],
     affiliationsInput: '',
 });
 
 const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
     return type === 'person' ? createEmptyPersonAuthor() : createEmptyInstitutionAuthor();
+};
+
+const serializeAffiliations = (author: AuthorEntry): SerializedAffiliation[] => {
+    const seen = new Set<string>();
+
+    return author.affiliations
+        .map((affiliation) => {
+            const rawValue = affiliation.value.trim();
+            const rawRorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
+
+            if (!rawValue && !rawRorId) {
+                return null;
+            }
+
+            const value = rawValue || rawRorId;
+            const rorId = rawRorId || null;
+            const key = `${value}|${rorId ?? ''}`;
+
+            if (seen.has(key)) {
+                return null;
+            }
+
+            seen.add(key);
+
+            return { value, rorId } satisfies SerializedAffiliation;
+        })
+        .filter((item): item is SerializedAffiliation => item !== null);
 };
 
 type InitialAffiliationInput = {
@@ -97,6 +150,7 @@ export type InitialAuthor =
     | (BaseInitialAuthor & {
           type: 'institution';
           institutionName?: string | null;
+          rorId?: string | null;
       });
 
 const normaliseInitialAffiliations = (
@@ -160,6 +214,10 @@ const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
             institutionName:
                 typeof author.institutionName === 'string'
                     ? author.institutionName.trim()
+                    : '',
+            rorId:
+                typeof author.rorId === 'string'
+                    ? author.rorId.trim()
                     : '',
             affiliations,
             affiliationsInput,
@@ -404,6 +462,18 @@ export default function DataCiteForm({
         );
     };
 
+    const handleInstitutionRorIdChange = (authorId: string, value: string) => {
+        setAuthors((previous) =>
+            previous.map((author) => {
+                if (author.id !== authorId || author.type !== 'institution') {
+                    return author;
+                }
+
+                return { ...author, rorId: value } as InstitutionAuthorEntry;
+            }),
+        );
+    };
+
     const handleAuthorContactChange = (authorId: string, checked: boolean) => {
         setAuthors((previous) =>
             previous.map((author) => {
@@ -501,6 +571,41 @@ export default function DataCiteForm({
         setErrorMessage(null);
         setValidationErrors([]);
 
+        const serializedAuthors: SerializedAuthor[] = authors.map((author, index) => {
+            const affiliations = serializeAffiliations(author);
+
+            if (author.type === 'person') {
+                const orcid = author.orcid.trim();
+                const firstName = author.firstName.trim();
+                const lastName = author.lastName.trim();
+                const email = author.email.trim();
+                const website = author.website.trim();
+
+                return {
+                    type: 'person',
+                    orcid: orcid || null,
+                    firstName: firstName || null,
+                    lastName,
+                    email: author.isContact && email ? email : null,
+                    website: author.isContact && website ? website : null,
+                    isContact: author.isContact,
+                    affiliations,
+                    position: index,
+                } satisfies SerializedAuthor;
+            }
+
+            const institutionName = author.institutionName.trim();
+            const rorId = author.rorId.trim();
+
+            return {
+                type: 'institution',
+                institutionName,
+                rorId: rorId || null,
+                affiliations,
+                position: index,
+            } satisfies SerializedAuthor;
+        });
+
         const payload: {
             doi: string | null;
             year: number | null;
@@ -509,6 +614,7 @@ export default function DataCiteForm({
             language: string;
             titles: { title: string; titleType: string }[];
             licenses: string[];
+            authors: SerializedAuthor[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -523,6 +629,7 @@ export default function DataCiteForm({
             licenses: licenseEntries
                 .map((entry) => entry.license)
                 .filter((license): license is string => Boolean(license)),
+            authors: serializedAuthors,
         };
 
         if (resolvedResourceId !== null) {
@@ -741,6 +848,9 @@ export default function DataCiteForm({
                                     }
                                     onInstitutionNameChange={(value) =>
                                         handleInstitutionNameChange(author.id, value)
+                                    }
+                                    onInstitutionRorIdChange={(value) =>
+                                        handleInstitutionRorIdChange(author.id, value)
                                     }
                                     onContactChange={(checked) =>
                                         handleAuthorContactChange(author.id, checked)

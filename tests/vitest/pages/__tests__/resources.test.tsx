@@ -92,6 +92,7 @@ describe('ResourcesPage', () => {
                     licenses: [
                         { name: 'CC-BY 4.0', identifier: 'cc-by-4.0' },
                     ],
+                    authors: [],
                 },
             ],
             pagination: {
@@ -175,6 +176,7 @@ describe('ResourcesPage', () => {
                     language: null,
                     titles: [{ title: 'Untitled', title_type: null }],
                     licenses: [],
+                    authors: [],
                 },
             ],
             pagination: {
@@ -227,6 +229,7 @@ describe('ResourcesPage', () => {
                     language: null,
                     titles: [{ title: 'Placeholder title', title_type: null }],
                     licenses: [],
+                    authors: [],
                 },
             ],
             pagination: {
@@ -267,6 +270,7 @@ describe('ResourcesPage', () => {
                 { title: 'Primary title', title_type: { name: 'Main', slug: 'main-title' } },
             ],
             licenses: [{ name: 'CC-BY 4.0', identifier: 'cc-by-4.0' }],
+            authors: [],
         } as const;
 
         buildCurationQueryFromResourceMock.mockResolvedValue({

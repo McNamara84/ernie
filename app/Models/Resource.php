@@ -60,4 +60,13 @@ class Resource extends Model
 
         return $relation;
     }
+
+    /** @return HasMany<ResourceAuthor, static> */
+    public function authors(): HasMany
+    {
+        /** @var HasMany<ResourceAuthor, static> $relation */
+        $relation = $this->hasMany(ResourceAuthor::class)->orderBy('position');
+
+        return $relation;
+    }
 }
