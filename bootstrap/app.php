@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureValidElmoApiKey;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -22,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->trustProxies(at: '*');
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
+
+        $middleware->alias([
+            'elmo.api-key' => EnsureValidElmoApiKey::class,
+        ]);
 
         // Use custom CSRF middleware for PathPrefix compatibility
         $middleware->validateCsrfTokens(except: [
