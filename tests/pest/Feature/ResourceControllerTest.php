@@ -648,3 +648,146 @@ it('deletes a resource along with related metadata records', function (): void {
     expect(DB::table('license_resource')->count())->toBe(0);
     expect(License::query()->count())->toBe(1);
 });
+
+it('reuses existing institutions when a ROR identifier is added later', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $language = Language::query()->create([
+        'code' => 'en',
+        'name' => 'English',
+        'active' => true,
+        'elmo_active' => true,
+    ]);
+
+    $mainTitleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $license = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $initialPayload = [
+        'doi' => '10.1234/institution-without-ror',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'version' => '1.0.0',
+        'language' => 'en',
+        'titles' => [
+            ['title' => 'Institution without ROR', 'titleType' => 'main-title'],
+        ],
+        'licenses' => [$license->identifier],
+        'authors' => [
+            [
+                'type' => 'institution',
+                'institutionName' => 'Example Institution',
+                'rorId' => null,
+                'affiliations' => [],
+                'position' => 0,
+            ],
+        ],
+    ];
+
+    postJson(route('curation.resources.store'), $initialPayload)->assertStatus(201);
+
+    $resource = Resource::query()->firstOrFail();
+    $institution = Institution::query()->firstOrFail();
+
+    expect($institution->ror_id)->toBeNull();
+
+    $updatePayload = [
+        'resourceId' => $resource->id,
+        'doi' => '10.1234/institution-with-ror',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'version' => '1.0.1',
+        'language' => 'en',
+        'titles' => [
+            ['title' => 'Institution with ROR', 'titleType' => 'main-title'],
+        ],
+        'licenses' => [$license->identifier],
+        'authors' => [
+            [
+                'type' => 'institution',
+                'institutionName' => 'Example Institution',
+                'rorId' => 'https://ror.org/123456789',
+                'affiliations' => [],
+                'position' => 0,
+            ],
+        ],
+    ];
+
+    postJson(route('curation.resources.store'), $updatePayload)
+        ->assertStatus(200)
+        ->assertJsonPath('resource.id', $resource->id);
+
+    expect(Institution::query()->count())->toBe(1);
+    $institution->refresh();
+    expect($institution->name)->toBe('Example Institution');
+    expect($institution->ror_id)->toBe('https://ror.org/123456789');
+});
+
+it('does not require a contact email when isContact is explicitly false', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $language = Language::query()->create([
+        'code' => 'en',
+        'name' => 'English',
+        'active' => true,
+        'elmo_active' => true,
+    ]);
+
+    $mainTitleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $license = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $payload = [
+        'doi' => '10.1234/non-contact-author',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'version' => '1.0.0',
+        'language' => 'en',
+        'titles' => [
+            ['title' => 'Dataset without contact email', 'titleType' => 'main-title'],
+        ],
+        'licenses' => [$license->identifier],
+        'authors' => [
+            [
+                'type' => 'person',
+                'orcid' => null,
+                'firstName' => 'Jordan',
+                'lastName' => 'Smith',
+                'email' => '',
+                'website' => null,
+                'isContact' => 'false',
+                'affiliations' => [],
+                'position' => 0,
+            ],
+        ],
+    ];
+
+    postJson(route('curation.resources.store'), $payload)->assertStatus(201);
+
+    $resource = Resource::query()
+        ->with(['authors.roles', 'authors.authorable'])
+        ->firstOrFail();
+
+    $author = $resource->authors->first();
+    expect($author)->not->toBeNull();
+    expect($author?->email)->toBeNull();
+    expect($author?->roles->pluck('name')->all())->toEqual(['Author']);
+});

@@ -12,6 +12,7 @@ use App\Models\ResourceAuthor;
 use App\Models\ResourceTitle;
 use App\Models\Role;
 use App\Models\TitleType;
+use App\Support\BooleanNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -321,12 +322,40 @@ class ResourceController extends Controller
      */
     private function storeInstitutionAuthor(Resource $resource, array $data, int $position): ResourceAuthor
     {
-        $institution = Institution::query()->firstOrCreate(
-            [
-                'name' => $data['institutionName'],
-                'ror_id' => $data['rorId'] ?? null,
-            ],
-        );
+        $name = $data['institutionName'];
+        $rorId = $data['rorId'] ?? null;
+
+        $institution = null;
+
+        if ($rorId !== null) {
+            $institution = Institution::query()->where('ror_id', $rorId)->first();
+
+            if ($institution === null) {
+                $institution = Institution::query()
+                    ->where('name', $name)
+                    ->whereNull('ror_id')
+                    ->first();
+            }
+        }
+
+        if ($institution === null) {
+            $institution = Institution::query()
+                ->where('name', $name)
+                ->whereNull('ror_id')
+                ->first();
+        }
+
+        if ($institution === null) {
+            $institution = new Institution();
+        }
+
+        $institution->name = $name;
+
+        if ($rorId !== null && $institution->ror_id !== $rorId) {
+            $institution->ror_id = $rorId;
+        }
+
+        $institution->save();
 
         return ResourceAuthor::query()->create([
             'resource_id' => $resource->id,
@@ -345,7 +374,7 @@ class ResourceController extends Controller
     {
         $roles = ['Author'];
 
-        if (($data['type'] ?? 'person') === 'person' && ! empty($data['isContact'])) {
+        if (($data['type'] ?? 'person') === 'person' && BooleanNormalizer::isTrue($data['isContact'] ?? false)) {
             $roles[] = 'Contact Person';
         }
 

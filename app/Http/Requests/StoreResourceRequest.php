@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -164,12 +165,7 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
-            $isContact = false;
-
-            if (array_key_exists('isContact', $author)) {
-                $rawIsContact = $author['isContact'];
-                $isContact = filter_var($rawIsContact, FILTER_VALIDATE_BOOLEAN);
-            }
+            $isContact = BooleanNormalizer::isTrue($author['isContact'] ?? false);
 
             $email = $this->normalizeString($author['email'] ?? null);
             $website = $this->normalizeString($author['website'] ?? null);
@@ -266,7 +262,10 @@ class StoreResourceRequest extends FormRequest
                             );
                         }
 
-                        if (! empty($author['isContact']) && empty($author['email'])) {
+                        $isContact = BooleanNormalizer::isTrue($author['isContact'] ?? false);
+                        $email = $author['email'] ?? null;
+
+                        if ($isContact && ($email === null || $email === '')) {
                             $validator->errors()->add(
                                 "authors.$index.email",
                                 'A contact email is required when marking an author as the contact person.',
