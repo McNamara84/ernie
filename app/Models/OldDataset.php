@@ -216,9 +216,22 @@ class OldDataset extends Model
             ->groupBy('resourceagent_order')
             ->map(function ($affiliations) {
                 return $affiliations->map(function ($affiliation) {
+                    $identifier = $affiliation->identifier ?? null;
+                    
+                    // Normalize ROR identifier to full URL format
+                    if ($identifier && !empty(trim($identifier))) {
+                        // If it's already a full URL, keep it
+                        if (!str_starts_with($identifier, 'http')) {
+                            // Convert short ROR ID to full URL
+                            $identifier = 'https://ror.org/' . ltrim($identifier, '/');
+                        }
+                    } else {
+                        $identifier = null;
+                    }
+                    
                     return [
                         'value' => $affiliation->name,
-                        'rorId' => $affiliation->identifier ?? null,
+                        'rorId' => $identifier,
                     ];
                 })->toArray();
             })

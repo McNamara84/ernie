@@ -99,31 +99,60 @@ export type InitialAuthor =
           institutionName?: string | null;
       });
 
+const DEBUG_AFFILIATIONS = true;
+
 const normaliseInitialAffiliations = (
     affiliations?: (InitialAffiliationInput | null | undefined)[] | null,
 ): AffiliationTag[] => {
     if (!affiliations || !Array.isArray(affiliations)) {
+        if (DEBUG_AFFILIATIONS) {
+            console.log('normaliseInitialAffiliations: No affiliations or not an array', affiliations);
+        }
         return [];
     }
 
-    return affiliations
-        .map((affiliation) => {
+    const normalized = affiliations
+        .map((affiliation, index) => {
             if (!affiliation || typeof affiliation !== 'object') {
+                if (DEBUG_AFFILIATIONS) {
+                    console.log(`normaliseInitialAffiliations: Affiliation ${index} is not an object`, affiliation);
+                }
                 return null;
             }
 
+            // Try multiple property names for value
             const rawValue =
-                'value' in affiliation && typeof affiliation.value === 'string'
-                    ? affiliation.value.trim()
-                    : '';
+                ('value' in affiliation && typeof affiliation.value === 'string'
+                    ? affiliation.value
+                    : 'name' in affiliation && typeof (affiliation as Record<string, unknown>).name === 'string'
+                      ? (affiliation as Record<string, unknown>).name as string
+                      : ''
+                ).trim();
 
+            // Try multiple property names for rorId
             const rawRorId =
-                'rorId' in affiliation && typeof affiliation.rorId === 'string'
-                    ? affiliation.rorId.trim()
-                    : '';
+                ('rorId' in affiliation && typeof affiliation.rorId === 'string'
+                    ? affiliation.rorId
+                    : 'rorid' in affiliation && typeof (affiliation as Record<string, unknown>).rorid === 'string'
+                      ? (affiliation as Record<string, unknown>).rorid as string
+                      : 'identifier' in affiliation && typeof (affiliation as Record<string, unknown>).identifier === 'string'
+                        ? (affiliation as Record<string, unknown>).identifier as string
+                        : ''
+                ).trim();
 
             if (!rawValue && !rawRorId) {
+                if (DEBUG_AFFILIATIONS) {
+                    console.log(`normaliseInitialAffiliations: Affiliation ${index} has no value or rorId`, affiliation);
+                }
                 return null;
+            }
+
+            if (DEBUG_AFFILIATIONS) {
+                console.log(`normaliseInitialAffiliations: Affiliation ${index}`, {
+                    input: affiliation,
+                    value: rawValue || rawRorId,
+                    rorId: rawRorId || null,
+                });
             }
 
             return {
@@ -132,6 +161,11 @@ const normaliseInitialAffiliations = (
             } satisfies AffiliationTag;
         })
         .filter((item): item is AffiliationTag => Boolean(item && item.value));
+
+    if (DEBUG_AFFILIATIONS) {
+        console.log('normaliseInitialAffiliations: Final result', { input: affiliations, output: normalized });
+    }
+    return normalized;
 };
 
 const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {

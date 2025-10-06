@@ -80,6 +80,14 @@ export function TagInputField({
             a11y: {
                 focusableTags: true,
             },
+            transformTag: (tagData) => {
+                // Preserve rorId if it exists in the tag data
+                if ('rorId' in tagData && typeof tagData.rorId === 'string') {
+                    // Keep rorId at the top level for easy access
+                    return tagData;
+                }
+                return tagData;
+            },
             ...tagifySettings,
         };
 
@@ -93,12 +101,14 @@ export function TagInputField({
 
         if (value.length > 0) {
             tagify.removeAllTags();
-            tagify.addTags(value, true, true);
+            // Pass tags directly - Tagify should preserve all properties
+            tagify.addTags(value);
         }
 
         const handleChange = (event: CustomEvent) => {
             const detail = event.detail as { value?: string; tagify: Tagify<TagData> };
             const rawValue = detail.value ?? '';
+            
             const tags: TagInputItem[] = detail.tagify.value
                 .map((item) => {
                     const trimmedValue = typeof item.value === 'string' ? item.value.trim() : '';
@@ -177,13 +187,20 @@ export function TagInputField({
         }
 
         const currentValues = tagify.value
-            .map((item) => ({
-                value: typeof item.value === 'string' ? item.value : '',
-                rorId:
-                    typeof (item as Record<string, unknown>).rorId === 'string'
-                        ? ((item as Record<string, unknown>).rorId as string)
-                        : null,
-            }))
+            .map((item) => {
+                const rawItem = item as Record<string, unknown>;
+                const data = rawItem.data as Record<string, unknown> | undefined;
+                
+                // Try to get rorId from item directly or from item.data
+                const directRorId = typeof rawItem.rorId === 'string' ? rawItem.rorId : null;
+                const dataRorId = data && typeof data.rorId === 'string' ? data.rorId : null;
+                const rorId = directRorId ?? dataRorId;
+                
+                return {
+                    value: typeof item.value === 'string' ? item.value : '',
+                    rorId,
+                };
+            })
             .filter((item) => item.value);
 
         const areEqual =
