@@ -60,11 +60,10 @@ export function resolveInitialLanguageCode(
         return englishMatch;
     }
 
-    const firstWithCode = languages.find((lang) => normalize(lang.code))?.code ?? '';
+    const firstWithCode = languages.find((lang) => lang.code?.trim())?.code ?? '';
     if (firstWithCode) {
         return firstWithCode;
     }
 
-    const lastResort = languages.find((lang) => normalize(lang.name))?.code;
-    return typeof lastResort === 'string' ? lastResort : '';
+    return languages.find((lang) => lang.name?.trim())?.code ?? '';
 }
