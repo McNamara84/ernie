@@ -14,6 +14,10 @@ return [
     |
     */
 
+    'elmo' => [
+        'api_key' => env('ELMO_API_KEY'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],

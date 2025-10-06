@@ -35,6 +35,10 @@
       "get": {
         "tags": ["Editor Configuration"],
         "summary": "List resource types enabled for ELMO",
+        "description": "Returns all resource types that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          { "ElmoApiKey": [] }
+        ],
         "responses": {
           "200": {
             "description": "List of resource types",
@@ -44,6 +48,22 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ElmoResourceType"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
                   }
                 }
               }
@@ -252,6 +272,14 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "ElmoApiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "API key required to access the ELMO resource types endpoint. The key may be sent in the `X-API-Key` header or as the `api_key` query parameter."
+      }
+    },
     "schemas": {
       "ElmoResourceType": {
         "type": "object",
