@@ -3,6 +3,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import InputField from './input-field';
 import { SelectField } from './select-field';
 import TagInputField from './tag-input-field';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -69,6 +70,24 @@ export function AuthorField({
 }: AuthorFieldProps) {
     const isPerson = author.type === 'person';
     const contactLabelTextId = `${author.id}-contact-label-text`;
+    const affiliationsWithRorId = useMemo(() => {
+        const seen = new Set<string>();
+
+        return author.affiliations.reduce<{ value: string; rorId: string }[]>((accumulator, affiliation) => {
+            const value = affiliation.value.trim();
+            const rorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
+
+            if (!value || !rorId || seen.has(rorId)) {
+                return accumulator;
+            }
+
+            seen.add(rorId);
+            accumulator.push({ value, rorId });
+            return accumulator;
+        }, []);
+    }, [author.affiliations]);
+    const affiliationsDescriptionId =
+        affiliationsWithRorId.length > 0 ? `${author.id}-affiliations-ror-description` : undefined;
 
     const tagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
         const whitelist = affiliationSuggestions.map((suggestion) => ({
@@ -249,7 +268,50 @@ export function AuthorField({
                             }}
                             data-testid={`author-${index}-affiliations-input`}
                             tagifySettings={tagifySettings}
+                            aria-describedby={affiliationsDescriptionId}
                         />
+                        {affiliationsWithRorId.length > 0 && (
+                            <div
+                                id={affiliationsDescriptionId}
+                                className="col-span-full flex flex-col gap-2 md:col-span-12"
+                                data-testid={`author-${index}-affiliations-ror-ids`}
+                                aria-live="polite"
+                            >
+                                <p className="text-sm font-medium text-muted-foreground">
+                                    Linked ROR IDs
+                                </p>
+                                <div
+                                    className="flex flex-wrap gap-2"
+                                    role="list"
+                                    aria-label="Selected ROR identifiers"
+                                >
+                                    {affiliationsWithRorId.map((affiliation) => (
+                                        <Badge
+                                            key={`${affiliation.rorId}-${affiliation.value}`}
+                                            variant="secondary"
+                                            className="gap-1 px-2 py-1 text-xs font-medium hover:bg-secondary/80 transition-colors"
+                                            role="listitem"
+                                            asChild
+                                        >
+                                            <a
+                                                href={affiliation.rorId}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center gap-1"
+                                            >
+                                                <span aria-hidden="true">ROR:</span>
+                                                <span aria-hidden="true" className="font-mono">
+                                                    {affiliation.rorId}
+                                                </span>
+                                                <span className="sr-only">
+                                                    {`Open ROR identifier for ${affiliation.value}: ${affiliation.rorId} in new tab`}
+                                                </span>
+                                            </a>
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {isPerson && author.isContact && (
                             <>
                                 <InputField

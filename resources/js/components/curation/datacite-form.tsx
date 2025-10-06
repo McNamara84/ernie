@@ -112,15 +112,25 @@ const normaliseInitialAffiliations = (
                 return null;
             }
 
+            // Try multiple property names for value
             const rawValue =
-                'value' in affiliation && typeof affiliation.value === 'string'
-                    ? affiliation.value.trim()
-                    : '';
+                ('value' in affiliation && typeof affiliation.value === 'string'
+                    ? affiliation.value
+                    : 'name' in affiliation && typeof (affiliation as Record<string, unknown>).name === 'string'
+                      ? (affiliation as Record<string, unknown>).name as string
+                      : ''
+                ).trim();
 
+            // Try multiple property names for rorId
             const rawRorId =
-                'rorId' in affiliation && typeof affiliation.rorId === 'string'
-                    ? affiliation.rorId.trim()
-                    : '';
+                ('rorId' in affiliation && typeof affiliation.rorId === 'string'
+                    ? affiliation.rorId
+                    : 'rorid' in affiliation && typeof (affiliation as Record<string, unknown>).rorid === 'string'
+                      ? (affiliation as Record<string, unknown>).rorid as string
+                      : 'identifier' in affiliation && typeof (affiliation as Record<string, unknown>).identifier === 'string'
+                        ? (affiliation as Record<string, unknown>).identifier as string
+                        : ''
+                ).trim();
 
             if (!rawValue && !rawRorId) {
                 return null;
