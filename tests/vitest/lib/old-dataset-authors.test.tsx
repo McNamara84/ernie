@@ -25,7 +25,6 @@ vi.mock('@/layouts/app-layout', () => ({
 describe('OldDataset Authors Loading', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        routerGetMock.mockReset();
 
         // Mock fetch für API-Aufrufe (Resource Types, Licenses)
         global.fetch = vi.fn((url: string) => {

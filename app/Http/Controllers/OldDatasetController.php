@@ -128,7 +128,8 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get authors for a specific old dataset.
      *
-     * @param int $id
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getAuthors(Request $request, int $id)

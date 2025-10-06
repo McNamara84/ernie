@@ -235,6 +235,33 @@ class OldDataset extends Model
             ->select('resourceagent.name', 'resourceagent.firstname', 'resourceagent.lastname', 'contactinfo.email', 'contactinfo.website')
             ->get();
 
+        // Precompute normalized values for contact info to avoid repeated normalizeName calls
+        $normalizedContactInfo = $allContactInfo->map(function ($contactInfo) {
+            /** @var array{email: string|null, website: string|null, normalizedName: string|null, normalizedFullName: string|null, normalizedWords: array<int, string>|null} $normalized */
+            $normalized = [
+                'email' => $contactInfo->email ?? null,
+                'website' => $contactInfo->website ?? null,
+                'normalizedName' => null,
+                'normalizedFullName' => null,
+                'normalizedWords' => null,
+            ];
+
+            if ($contactInfo->name) {
+                $normalized['normalizedName'] = $this->normalizeName($contactInfo->name);
+                if ($normalized['normalizedName']) {
+                    $words = explode(' ', $normalized['normalizedName']);
+                    sort($words);
+                    $normalized['normalizedWords'] = $words;
+                }
+            }
+
+            if ($contactInfo->firstname && $contactInfo->lastname) {
+                $normalized['normalizedFullName'] = $this->normalizeName($contactInfo->firstname . ' ' . $contactInfo->lastname);
+            }
+
+            return $normalized;
+        });
+
         $authors = [];
 
         foreach ($resourceAgents as $agent) {
@@ -248,53 +275,48 @@ class OldDataset extends Model
             $email = null;
             $website = null;
             
+            // Precompute agent's normalized values
+            $agentNormalizedName = $agent->name ? $this->normalizeName($agent->name) : null;
+            $agentNormalizedFullName = ($agent->firstname && $agent->lastname) 
+                ? $this->normalizeName($agent->firstname . ' ' . $agent->lastname) 
+                : null;
+            $agentNormalizedWords = null;
+            if ($agentNormalizedName) {
+                $words = explode(' ', $agentNormalizedName);
+                sort($words);
+                $agentNormalizedWords = $words;
+            }
+            
             // Try to find matching contact info
-            foreach ($allContactInfo as $contactInfo) {
+            foreach ($normalizedContactInfo as $contactInfo) {
                 $matched = false;
                 
                 // Strategy 1: Normalized name match (if agent has a name)
-                if ($agent->name && $contactInfo->name) {
-                    $normalizedAgentName = $this->normalizeName($agent->name);
-                    $normalizedContactName = $this->normalizeName($contactInfo->name);
-                    
-                    if ($normalizedAgentName === $normalizedContactName) {
+                if ($agentNormalizedName && $contactInfo['normalizedName']) {
+                    if ($agentNormalizedName === $contactInfo['normalizedName']) {
                         $matched = true;
                     }
                 }
                 
                 // Strategy 2: Match by firstname + lastname if available
                 // This is checked regardless of whether $agent->name is set
-                if (!$matched && $agent->firstname && $agent->lastname && $contactInfo->firstname && $contactInfo->lastname) {
-                    $agentFullName = $this->normalizeName($agent->firstname . ' ' . $agent->lastname);
-                    $contactFullName = $this->normalizeName($contactInfo->firstname . ' ' . $contactInfo->lastname);
-                    
-                    if ($agentFullName === $contactFullName) {
+                if (!$matched && $agentNormalizedFullName && $contactInfo['normalizedFullName']) {
+                    if ($agentNormalizedFullName === $contactInfo['normalizedFullName']) {
                         $matched = true;
                     }
                 }
                 
                 // Strategy 3: Check if normalized names contain each other (partial match)
                 // This handles cases like "Läuchli, Charlotte" vs "Läuchli Charlotte"
-                if (!$matched && $agent->name && $contactInfo->name) {
-                    $normalizedAgentName = $this->normalizeName($agent->name);
-                    $normalizedContactName = $this->normalizeName($contactInfo->name);
-                    
-                    if ($normalizedAgentName && $normalizedContactName) {
-                        // Split into words and sort for comparison
-                        $agentWords = explode(' ', $normalizedAgentName);
-                        $contactWords = explode(' ', $normalizedContactName);
-                        sort($agentWords);
-                        sort($contactWords);
-                        
-                        if ($agentWords === $contactWords) {
-                            $matched = true;
-                        }
+                if (!$matched && $agentNormalizedWords && $contactInfo['normalizedWords']) {
+                    if ($agentNormalizedWords === $contactInfo['normalizedWords']) {
+                        $matched = true;
                     }
                 }
                 
                 if ($matched) {
-                    $email = !empty($contactInfo->email) ? $contactInfo->email : null;
-                    $website = !empty($contactInfo->website) ? $contactInfo->website : null;
+                    $email = !empty($contactInfo['email']) ? $contactInfo['email'] : null;
+                    $website = !empty($contactInfo['website']) ? $contactInfo['website'] : null;
                     break;
                 }
             }

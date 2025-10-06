@@ -606,7 +606,17 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 }
             });
         } catch (error) {
-            console.error('Error loading authors for dataset:', error);
+            // Surface structured error information to aid diagnosis
+            if (axios.isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading authors for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading authors for dataset:', error);
+            }
             // Continue without authors if loading fails
         }
     }
