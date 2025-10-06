@@ -472,6 +472,137 @@ describe('DataCiteForm', () => {
         expect(screen.getAllByRole('button', { name: /Add author/i }).length).toBeGreaterThanOrEqual(1);
     });
 
+    it('renders badges for affiliations that include recognised ROR IDs', async () => {
+        const useRorAffiliationsMock = useRorAffiliations as unknown as vi.Mock;
+        useRorAffiliationsMock.mockReturnValue({
+            suggestions: [
+                {
+                    value: 'Example University',
+                    rorId: 'https://ror.org/05fjyn938',
+                    searchTerms: [],
+                },
+            ],
+            isLoading: false,
+            error: null,
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureAuthorsOpen(user);
+
+        const affiliationInput = screen.getByTestId(
+            'author-0-affiliations-input',
+        ) as HTMLInputElement & {
+            tagify?: {
+                addTags: (
+                    value: Array<string | Record<string, unknown>> | string,
+                    clearInput?: boolean,
+                    silent?: boolean,
+                ) => void;
+            };
+        };
+
+        await waitFor(() => {
+            expect(affiliationInput.tagify).toBeTruthy();
+        });
+
+        await act(async () => {
+            affiliationInput.tagify!.addTags(
+                [
+                    {
+                        value: 'Example University',
+                        rorId: 'https://ror.org/05fjyn938',
+                    },
+                ],
+                true,
+                false,
+            );
+        });
+
+        const badgesContainer = await screen.findByTestId('author-0-affiliations-ror-ids');
+        expect(badgesContainer).toHaveTextContent('Linked ROR IDs');
+        expect(badgesContainer).toHaveTextContent('https://ror.org/05fjyn938');
+        const badgeElements = badgesContainer.querySelectorAll('[data-slot="badge"]');
+        expect(badgeElements).toHaveLength(1);
+    });
+
+    it('does not display ROR badges when affiliations have no identifier', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureAuthorsOpen(user);
+
+        const affiliationInput = screen.getByTestId(
+            'author-0-affiliations-input',
+        ) as HTMLInputElement & {
+            tagify?: {
+                addTags: (
+                    value: Array<string | Record<string, unknown>> | string,
+                    clearInput?: boolean,
+                    silent?: boolean,
+                ) => void;
+            };
+        };
+
+        await waitFor(() => {
+            expect(affiliationInput.tagify).toBeTruthy();
+        });
+
+        await act(async () => {
+            affiliationInput.tagify!.addTags(['Independent Organisation'], true, false);
+        });
+
+        await waitFor(() => {
+            expect(
+                screen.queryByTestId('author-0-affiliations-ror-ids'),
+            ).not.toBeInTheDocument();
+        });
+    });
+
+    it('shows ROR badges for initial authors passed to the form', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                initialAuthors={[
+                    {
+                        type: 'person',
+                        lastName: 'Existing Author',
+                        affiliations: [
+                            {
+                                value: 'Historic Institute',
+                                rorId: 'https://ror.org/02mhbdp94',
+                            },
+                        ],
+                    },
+                ]}
+            />,
+        );
+
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        await ensureAuthorsOpen(user);
+
+        const badgesContainer = await screen.findByTestId('author-0-affiliations-ror-ids');
+        expect(badgesContainer).toHaveTextContent('https://ror.org/02mhbdp94');
+    });
+
     it('supports adding, removing and managing multiple authors independently', async () => {
         render(
             <DataCiteForm
