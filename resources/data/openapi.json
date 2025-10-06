@@ -4,6 +4,16 @@
     "title": "Ernie API",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "https://env.rz-vm182.gfz.de/ernie",
+      "description": "Production server"
+    },
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development server"
+    }
+  ],
   "tags": [
     {
       "name": "Editor Configuration"
