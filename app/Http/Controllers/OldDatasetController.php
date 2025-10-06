@@ -126,6 +126,43 @@ class OldDatasetController extends Controller
     }
 
     /**
+     * API endpoint to get authors for a specific old dataset.
+     *
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getAuthors(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            $authors = $dataset->getAuthors();
+
+            return response()->json([
+                'authors' => $authors,
+            ]);
+        } catch (Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading authors for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Error loading authors: ' . $e->getMessage(),
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
      * Build sanitized debug information for the SUMARIOPMD connection failure.
      *
      * @return array<string, mixed>
