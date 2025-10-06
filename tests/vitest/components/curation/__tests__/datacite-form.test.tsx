@@ -649,10 +649,6 @@ describe('DataCiteForm', () => {
         const institutionInput = screen.getByRole('textbox', { name: /Institution name/i });
         await user.type(institutionInput, 'Test University');
 
-        const rorIdInput = screen.getByRole('textbox', { name: /ROR ID/i });
-        await user.type(rorIdInput, 'https://ror.org/01bj3aw27');
-        expect(rorIdInput).toHaveValue('https://ror.org/01bj3aw27');
-
         // Verify first and third are still persons
         expect(screen.getAllByRole('textbox', { name: /Last name/i })).toHaveLength(2);
         expect(screen.getAllByRole('textbox', { name: /Last name/i })[0]).toHaveValue('First Author');
@@ -1574,10 +1570,9 @@ describe('DataCiteForm', () => {
                     {
                         type: 'institution',
                         institutionName: 'Research Lab',
-                        rorId: 'https://ror.org/03yrm5c26',
                         affiliations: [
-                            { value: 'Parent Org', rorId: null },
-                            { value: 'Parent Org', rorId: null },
+                            { value: 'Parent Org', rorId: 'https://ror.org/03yrm5c26' },
+                            { value: 'Another Org', rorId: null },
                         ],
                     },
                 ]}
@@ -1611,7 +1606,10 @@ describe('DataCiteForm', () => {
                 type: 'institution',
                 institutionName: 'Research Lab',
                 rorId: 'https://ror.org/03yrm5c26',
-                affiliations: [{ value: 'Parent Org', rorId: null }],
+                affiliations: [
+                    { value: 'Parent Org', rorId: 'https://ror.org/03yrm5c26' },
+                    { value: 'Another Org', rorId: null },
+                ],
                 position: 1,
             },
         ]);
