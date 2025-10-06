@@ -54,8 +54,6 @@ export interface PersonContributorEntry extends BaseContributorEntry {
     orcid: string;
     firstName: string;
     lastName: string;
-    email: string;
-    website: string;
 }
 
 export interface InstitutionContributorEntry extends BaseContributorEntry {
@@ -71,7 +69,7 @@ interface ContributorFieldProps {
     onTypeChange: (type: ContributorType) => void;
     onRolesChange: (value: { raw: string; tags: ContributorRoleTag[] }) => void;
     onPersonFieldChange: (
-        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
+        field: 'orcid' | 'firstName' | 'lastName',
         value: string,
     ) => void;
     onInstitutionNameChange: (value: string) => void;
@@ -201,7 +199,7 @@ export default function ContributorField({
                             ]}
                             containerProps={{
                                 'data-testid': `contributor-${index}-type-field`,
-                                className: 'md:col-span-12 lg:col-span-4',
+                                className: 'md:col-span-6 lg:col-span-4',
                             }}
                             triggerClassName="w-full"
                             required
@@ -221,77 +219,59 @@ export default function ContributorField({
                             }
                             placeholder="Select one or more roles"
                             containerProps={{
-                                className: 'md:col-span-12',
+                                className: 'md:col-span-6 lg:col-span-8',
                                 'data-testid': `contributor-${index}-roles-field`,
                             }}
                             data-testid={`contributor-${index}-roles-input`}
                             tagifySettings={roleTagifySettings}
                             aria-describedby={rolesHintId}
                         />
-                        <p id={rolesHintId} className="sr-only">
-                            Choose all roles that apply to this contributor.
-                        </p>
+                    </div>
 
-                        {isPerson ? (
-                            <>
-                                <InputField
-                                    id={`${contributor.id}-orcid`}
-                                    label="ORCID"
-                                    value={contributor.orcid}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('orcid', event.target.value)
-                                    }
-                                    placeholder="0000-0000-0000-0000"
-                                    containerProps={{
-                                        'data-testid': `contributor-${index}-orcid-field`,
-                                        className: 'md:col-span-12 lg:col-span-6',
-                                    }}
-                                    inputClassName="w-full"
-                                    inputMode="text"
-                                    pattern="^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$"
-                                />
-                                <InputField
-                                    id={`${contributor.id}-firstName`}
-                                    label="First name"
-                                    value={contributor.firstName}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('firstName', event.target.value)
-                                    }
-                                    containerProps={{ className: 'md:col-span-12 lg:col-span-6' }}
-                                />
-                                <InputField
-                                    id={`${contributor.id}-lastName`}
-                                    label="Last name"
-                                    value={contributor.lastName}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('lastName', event.target.value)
-                                    }
-                                    containerProps={{ className: 'md:col-span-12 lg:col-span-6' }}
-                                    required
-                                />
-                                <InputField
-                                    id={`${contributor.id}-email`}
-                                    type="email"
-                                    label="Email address"
-                                    value={contributor.email}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('email', event.target.value)
-                                    }
-                                    containerProps={{ className: 'md:col-span-12 lg:col-span-6' }}
-                                />
-                                <InputField
-                                    id={`${contributor.id}-website`}
-                                    type="url"
-                                    label="Website"
-                                    value={contributor.website}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('website', event.target.value)
-                                    }
-                                    placeholder="https://example.org"
-                                    containerProps={{ className: 'md:col-span-12 lg:col-span-6' }}
-                                />
-                            </>
-                        ) : (
+                    <p id={rolesHintId} className="sr-only">
+                        Choose all roles that apply to this contributor.
+                    </p>
+
+                    {isPerson ? (
+                        <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
+                            <InputField
+                                id={`${contributor.id}-orcid`}
+                                label="ORCID"
+                                value={contributor.orcid}
+                                onChange={(event) =>
+                                    onPersonFieldChange('orcid', event.target.value)
+                                }
+                                placeholder="0000-0000-0000-0000"
+                                containerProps={{
+                                    'data-testid': `contributor-${index}-orcid-field`,
+                                    className: 'md:col-span-12 lg:col-span-4',
+                                }}
+                                inputClassName="w-full"
+                                inputMode="text"
+                                pattern="^\\d{4}-\\d{4}-\\d{4}-\\d{3}[\\dX]$"
+                            />
+                            <InputField
+                                id={`${contributor.id}-firstName`}
+                                label="First name"
+                                value={contributor.firstName}
+                                onChange={(event) =>
+                                    onPersonFieldChange('firstName', event.target.value)
+                                }
+                                containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
+                            />
+                            <InputField
+                                id={`${contributor.id}-lastName`}
+                                label="Last name"
+                                value={contributor.lastName}
+                                onChange={(event) =>
+                                    onPersonFieldChange('lastName', event.target.value)
+                                }
+                                containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
+                                required
+                            />
+                        </div>
+                    ) : (
+                        <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
                             <InputField
                                 id={`${contributor.id}-institution`}
                                 label="Institution name"
@@ -300,8 +280,8 @@ export default function ContributorField({
                                 containerProps={{ className: 'md:col-span-12' }}
                                 required
                             />
-                        )}
-                    </div>
+                        </div>
+                    )}
 
                     <div
                         className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"

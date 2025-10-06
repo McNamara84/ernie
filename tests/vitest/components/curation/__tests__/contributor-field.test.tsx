@@ -154,8 +154,6 @@ describe('ContributorField', () => {
         orcid: '',
         firstName: '',
         lastName: 'Doe',
-        email: '',
-        website: '',
         affiliations: [],
         affiliationsInput: '',
     };
@@ -201,6 +199,17 @@ describe('ContributorField', () => {
         expect(screen.getByText('Contributor type')).toBeInTheDocument();
         expect(screen.getByLabelText('Roles')).toBeInTheDocument();
         expect(screen.queryByText('CP')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Email address')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Website')).not.toBeInTheDocument();
+
+        const typeContainer = screen.getByTestId('contributor-0-type-field');
+        const rolesContainer = screen.getByTestId('contributor-0-roles-field');
+        expect(typeContainer).toHaveClass('md:col-span-6');
+        expect(rolesContainer).toHaveClass('md:col-span-6');
+        expect(rolesContainer).toHaveClass('lg:col-span-8');
+
+        const orcidContainer = screen.getByTestId('contributor-0-orcid-field');
+        expect(orcidContainer).toHaveClass('lg:col-span-4');
 
         const roleInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement & {
             tagify: { addTags: (values: unknown) => void };

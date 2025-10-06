@@ -117,8 +117,6 @@ const createEmptyPersonContributor = (): PersonContributorEntry => ({
     orcid: '',
     firstName: '',
     lastName: '',
-    email: '',
-    website: '',
     affiliations: [] as AffiliationTag[],
     affiliationsInput: '',
 });
@@ -614,7 +612,7 @@ export default function DataCiteForm({
 
     const handleContributorPersonChange = (
         contributorId: string,
-        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
+        field: 'orcid' | 'firstName' | 'lastName',
         value: string,
     ) => {
         setContributors((previous) =>
