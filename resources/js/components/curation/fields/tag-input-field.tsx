@@ -86,10 +86,9 @@ export function TagInputField({
         const tagify = new Tagify(inputElement, settings);
         tagifyRef.current = tagify;
 
-        // Set test IDs for Playwright/testing
+        // Set test ID for Tagify scope (for Playwright)
         tagify.DOM.scope.dataset.testid = `${id}-tagify`;
-        const tagifyInputTestId = dataTestId || `${id}-tagify-input`;
-        tagify.DOM.input.setAttribute('data-testid', tagifyInputTestId);
+        // Note: data-testid for the input element is set on the original <input> element below
         (inputElement as HTMLInputElement & { tagify?: Tagify<TagData> }).tagify = tagify;
 
         if (value.length > 0) {
