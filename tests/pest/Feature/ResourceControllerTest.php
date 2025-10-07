@@ -85,11 +85,13 @@ it('renders the resources index with paginated data', function (): void {
     $authorRole = Role::query()->create([
         'name' => 'Author',
         'slug' => 'author',
+        'applies_to' => Role::APPLIES_TO_AUTHOR,
     ]);
 
     $contactRole = Role::query()->create([
         'name' => 'Contact Person',
         'slug' => 'contact-person',
+        'applies_to' => Role::APPLIES_TO_CONTRIBUTOR_PERSON,
     ]);
 
     $primaryAuthor = ResourceAuthor::query()->create([

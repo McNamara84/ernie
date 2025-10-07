@@ -50,7 +50,7 @@ class ResourceController extends Controller
                     $query
                         ->with([
                             'authorable',
-                            'roles:id,name,slug',
+                            'roles:id,name,slug,applies_to',
                             'affiliations:id,resource_author_id,value,ror_id',
                         ]);
                 },
@@ -58,7 +58,7 @@ class ResourceController extends Controller
                     $query
                         ->with([
                             'authorable',
-                            'roles:id,name,slug',
+                            'roles:id,name,slug,applies_to',
                             'affiliations:id,resource_author_id,value,ror_id',
                         ]);
                 },
@@ -103,6 +103,10 @@ class ResourceController extends Controller
                         ->values()
                         ->all(),
                     'authors' => $resource->authors
+                        ->filter(static function (ResourceAuthor $resourceAuthor): bool {
+                            // Filter: Only ResourceAuthors with "Author" role
+                            return $resourceAuthor->roles->contains(static fn (Role $role): bool => $role->applies_to === Role::APPLIES_TO_AUTHOR);
+                        })
                         ->map(static function (ResourceAuthor $resourceAuthor): ?array {
                             $affiliations = $resourceAuthor->affiliations
                                 ->map(static fn (\App\Models\Affiliation $affiliation): array => [
@@ -149,6 +153,16 @@ class ResourceController extends Controller
                         ->values()
                         ->all(),
                     'contributors' => $resource->contributors
+                        ->filter(static function (ResourceAuthor $resourceContributor): bool {
+                            // Filter: Only ResourceAuthors with Contributor roles
+                            return $resourceContributor->roles->contains(static fn (Role $role): bool => 
+                                in_array($role->applies_to, [
+                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON,
+                                    Role::APPLIES_TO_CONTRIBUTOR_INSTITUTION,
+                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
+                                ], true)
+                            );
+                        })
                         ->map(static function (ResourceAuthor $resourceContributor): ?array {
                             $affiliations = $resourceContributor->affiliations
                                 ->map(static fn (\App\Models\Affiliation $affiliation): array => [
