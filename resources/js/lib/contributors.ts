@@ -27,7 +27,7 @@ const CONTRIBUTOR_ROLE_LABELS: Record<string, string> = {
     sponsor: 'Sponsor',
     supervisor: 'Supervisor',
     translator: 'Translator',
-    workpackageleader: 'WorkPackage Leader',
+    workpackageleader: 'Work Package Leader',
     other: 'Other',
 };
 

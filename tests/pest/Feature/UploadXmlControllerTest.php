@@ -74,7 +74,7 @@ XML;
     $response->assertJsonPath('contributors.0.affiliations.0.rorId', 'https://ror.org/04wxnsj81');
 
     $response->assertJsonPath('contributors.1.type', 'person');
-    $response->assertJsonPath('contributors.1.roles', ['WorkPackage Leader']);
+    $response->assertJsonPath('contributors.1.roles', ['Work Package Leader']);
     $response->assertJsonPath('contributors.1.orcid', 'https://orcid.org/0000-0002-5727-2427');
     $response->assertJsonPath('contributors.1.firstName', 'ExampleLeaderGiven');
     $response->assertJsonPath('contributors.1.lastName', 'ExampleLeaderFamily');

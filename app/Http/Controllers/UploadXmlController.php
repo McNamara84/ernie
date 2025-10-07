@@ -37,7 +37,7 @@ class UploadXmlController extends Controller
         'sponsor' => 'Sponsor',
         'supervisor' => 'Supervisor',
         'translator' => 'Translator',
-        'workpackageleader' => 'WorkPackage Leader',
+        'workpackageleader' => 'Work Package Leader',
         'other' => 'Other',
     ];
 
