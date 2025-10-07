@@ -40,6 +40,7 @@ class UploadXmlController extends Controller
             $reader->xpathValue('//*[local-name()="language"]'),
         );
         $authors = $this->extractAuthors($reader);
+        $contributors = $this->extractContributors($reader);
 
         $rightsElements = $reader
             ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -96,6 +97,7 @@ class UploadXmlController extends Controller
             'titles' => $titles,
             'licenses' => $licenses,
             'authors' => $authors,
+            'contributors' => $contributors,
         ]);
     }
 
@@ -182,6 +184,137 @@ class UploadXmlController extends Controller
         }
 
         return $authors;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractContributors(XmlReader $reader): array
+    {
+        $contributorElements = $reader
+            ->xpathElement('/*[local-name()="resource"]/*[local-name()="contributors"]/*[local-name()="contributor"]')
+            ->get();
+
+        $contributors = [];
+
+        foreach ($contributorElements as $contributor) {
+            $content = $contributor->getContent();
+
+            if (! is_array($content)) {
+                continue;
+            }
+
+            $roles = $this->extractContributorRoles($contributor->getAttribute('contributorType'));
+
+            $nameElement = $this->firstElement($content, 'contributorName');
+            $nameType = $nameElement?->getAttribute('nameType');
+
+            $isInstitution = is_string($nameType) && Str::lower($nameType) === 'organizational';
+
+            if ($isInstitution) {
+                $institutionName = $this->stringValue($nameElement) ?? '';
+                $affiliations = $this->extractInstitutionContributorAffiliations($content, $institutionName);
+
+                $contributors[] = [
+                    'type' => 'institution',
+                    'institutionName' => $institutionName,
+                    'roles' => $roles,
+                    'affiliations' => $affiliations,
+                ];
+
+                continue;
+            }
+
+            $givenName = $this->stringValue($this->firstElement($content, 'givenName'));
+            $familyName = $this->stringValue($this->firstElement($content, 'familyName'));
+
+            if ((! $givenName || ! $familyName) && $nameElement instanceof Element) {
+                $resolved = $this->splitCreatorName($this->stringValue($nameElement));
+                $familyName ??= $resolved['familyName'];
+                $givenName ??= $resolved['givenName'];
+            }
+
+            $fallbackLastName = $familyName ?? ($this->stringValue($nameElement) ?? '');
+
+            $contributors[] = [
+                'type' => 'person',
+                'roles' => $roles,
+                'orcid' => $this->extractOrcid($content),
+                'firstName' => $givenName ?? '',
+                'lastName' => $fallbackLastName,
+                'affiliations' => $this->extractAffiliations($content),
+            ];
+        }
+
+        return $contributors;
+    }
+
+    /**
+     * @return string[]
+     */
+    private function extractContributorRoles(?string $rawRoles): array
+    {
+        if (! is_string($rawRoles)) {
+            return [];
+        }
+
+        $parts = preg_split('/[;,]/', $rawRoles) ?: [];
+
+        if ($parts === []) {
+            $parts = [$rawRoles];
+        }
+
+        $roles = [];
+
+        foreach ($parts as $part) {
+            $trimmed = trim($part);
+
+            if ($trimmed === '') {
+                continue;
+            }
+
+            if (! in_array($trimmed, $roles, true)) {
+                $roles[] = $trimmed;
+            }
+        }
+
+        return $roles;
+    }
+
+    /**
+     * @param array<string, mixed> $content
+     * @return array<int, array{value: string, rorId: string|null}>
+     */
+    private function extractInstitutionContributorAffiliations(array $content, string $fallbackLabel): array
+    {
+        $affiliations = $this->extractAffiliations($content);
+
+        if (! empty($affiliations)) {
+            return $affiliations;
+        }
+
+        $identifierElements = $this->allElements($content, 'nameIdentifier');
+
+        foreach ($identifierElements as $element) {
+            $scheme = $element->getAttribute('nameIdentifierScheme');
+            $value = $this->stringValue($element);
+
+            if (! is_string($value) || $value === '') {
+                continue;
+            }
+
+            $resolved = $this->resolveAffiliationByRor(
+                $value,
+                is_string($scheme) ? $scheme : null,
+                $fallbackLabel,
+            );
+
+            if ($resolved !== null) {
+                return [$resolved];
+            }
+        }
+
+        return [];
     }
 
     /**

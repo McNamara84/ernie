@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
@@ -1146,6 +1146,94 @@ describe('DataCiteForm', () => {
 
         expect(screen.getAllByText('GFZ Data Services').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Independent Collaboration').length).toBeGreaterThan(0);
+    });
+
+    it('prefills contributors when initialContributors are provided', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialContributors={[
+                    {
+                        type: 'person',
+                        roles: ['ContactPerson'],
+                        orcid: 'https://orcid.org/0000-0001-5727-2427',
+                        firstName: 'Ada',
+                        lastName: 'Lovelace',
+                        affiliations: [
+                            { value: 'Example Affiliation', rorId: 'https://ror.org/04wxnsj81' },
+                        ],
+                    },
+                    {
+                        type: 'institution',
+                        roles: ['Distributor'],
+                        institutionName: 'Example Org',
+                        affiliations: [
+                            { value: 'Example Org', rorId: 'https://ror.org/03yrm5c26' },
+                        ],
+                    },
+                ]}
+            />,
+        );
+
+        await ensureContributorsOpen(user);
+
+        const contributorRoleInput = screen.getByTestId(
+            'contributor-0-roles-input',
+        ) as HTMLInputElement;
+        expect(contributorRoleInput.value).toBe('ContactPerson');
+
+        const contributorSection = screen
+            .getByRole('heading', { name: 'Contributor 1' })
+            .closest('section') as HTMLElement;
+
+        const contributorOrcidField = within(
+            screen.getByTestId('contributor-0-orcid-field'),
+        ).getByRole('textbox') as HTMLInputElement;
+        expect(contributorOrcidField.value).toBe('https://orcid.org/0000-0001-5727-2427');
+
+        const contributorFirstNameField = within(contributorSection).getByLabelText('First name', {
+            selector: 'input',
+        }) as HTMLInputElement;
+        expect(contributorFirstNameField.value).toBe('Ada');
+
+        const contributorLastNameField = contributorSection.querySelector<HTMLInputElement>(
+            'input[id$="-lastName"]',
+        );
+        expect(contributorLastNameField).not.toBeNull();
+        expect(contributorLastNameField!.value).toBe('Lovelace');
+
+        const contributorAffiliationsInput = screen.getByTestId(
+            'contributor-0-affiliations-input',
+        ) as HTMLInputElement;
+        expect(contributorAffiliationsInput.value).toBe('Example Affiliation');
+        expect(screen.getByTestId('contributor-0-affiliations-ror-ids')).toBeInTheDocument();
+
+        const institutionSection = screen
+            .getByRole('heading', { name: 'Contributor 2' })
+            .closest('section') as HTMLElement;
+
+        const institutionRolesInput = screen.getByTestId('contributor-1-roles-input') as HTMLInputElement;
+        expect(institutionRolesInput.value).toBe('Distributor');
+
+        const institutionNameInput = institutionSection.querySelector<HTMLInputElement>(
+            'input[id$="-institution"]',
+        );
+        expect(institutionNameInput).not.toBeNull();
+        expect(institutionNameInput!.value).toBe('Example Org');
+
+        const institutionAffiliationsInput = institutionSection.querySelector<HTMLInputElement>(
+            'input[data-testid="contributor-1-affiliations-input"]',
+        );
+        expect(institutionAffiliationsInput.value).toBe('Example Org');
+        expect(screen.getByTestId('contributor-1-affiliations-ror-ids')).toBeInTheDocument();
     });
 
     it('disables add license when entries list is empty', () => {

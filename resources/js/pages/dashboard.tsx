@@ -30,6 +30,22 @@ type UploadedAuthor =
           affiliations?: (UploadedAffiliation | null | undefined)[] | null;
       };
 
+type UploadedContributor =
+    | {
+          type?: 'person';
+          roles?: (string | null | undefined)[] | Record<string, unknown> | string | null;
+          firstName?: string | null;
+          lastName?: string | null;
+          orcid?: string | null;
+          affiliations?: (UploadedAffiliation | null | undefined)[] | null;
+      }
+    | {
+          type: 'institution';
+          roles?: (string | null | undefined)[] | Record<string, unknown> | string | null;
+          institutionName?: string | null;
+          affiliations?: (UploadedAffiliation | null | undefined)[] | null;
+      };
+
 export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
 
@@ -68,6 +84,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             titles?: { title: string; titleType: string }[] | null;
             licenses?: string[] | null;
             authors?: (UploadedAuthor | null | undefined)[] | null;
+            contributors?: (UploadedContributor | null | undefined)[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -145,6 +162,86 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
 
                     if (rorId) {
                         query[`authors[${authorIndex}][affiliations][${affiliationIndex}][rorId]`] =
+                            rorId;
+                    }
+                });
+            });
+        }
+        if (data.contributors && data.contributors.length > 0) {
+            data.contributors.forEach((contributor, contributorIndex) => {
+                if (!contributor || typeof contributor !== 'object') {
+                    return;
+                }
+
+                const type = contributor.type === 'institution' ? 'institution' : 'person';
+                query[`contributors[${contributorIndex}][type]`] = type;
+
+                const rawRoles = Array.isArray(contributor.roles)
+                    ? contributor.roles
+                    : contributor.roles && typeof contributor.roles === 'object'
+                      ? Object.values(contributor.roles)
+                      : typeof contributor.roles === 'string'
+                        ? [contributor.roles]
+                        : [];
+                rawRoles
+                    .map((role) => (typeof role === 'string' ? role.trim() : ''))
+                    .filter((role): role is string => role.length > 0)
+                    .forEach((role, roleIndex) => {
+                        query[`contributors[${contributorIndex}][roles][${roleIndex}]`] = role;
+                    });
+
+                if (type === 'person') {
+                    const trimmedFirst =
+                        typeof contributor.firstName === 'string' ? contributor.firstName.trim() : '';
+                    const trimmedLast =
+                        typeof contributor.lastName === 'string' ? contributor.lastName.trim() : '';
+                    const trimmedOrcid =
+                        typeof contributor.orcid === 'string' ? contributor.orcid.trim() : '';
+
+                    if (trimmedFirst) {
+                        query[`contributors[${contributorIndex}][firstName]`] = trimmedFirst;
+                    }
+
+                    if (trimmedLast) {
+                        query[`contributors[${contributorIndex}][lastName]`] = trimmedLast;
+                    }
+
+                    if (trimmedOrcid) {
+                        query[`contributors[${contributorIndex}][orcid]`] = trimmedOrcid;
+                    }
+                } else if (
+                    typeof contributor.institutionName === 'string' &&
+                    contributor.institutionName.trim()
+                ) {
+                    query[`contributors[${contributorIndex}][institutionName]`] =
+                        contributor.institutionName.trim();
+                }
+
+                const affiliations = Array.isArray(contributor.affiliations)
+                    ? contributor.affiliations
+                    : [];
+
+                affiliations.forEach((affiliation, affiliationIndex) => {
+                    if (!affiliation || typeof affiliation !== 'object') {
+                        return;
+                    }
+
+                    const value =
+                        typeof affiliation.value === 'string' ? affiliation.value.trim() : '';
+                    const rorId =
+                        typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
+
+                    if (!value && !rorId) {
+                        return;
+                    }
+
+                    if (value) {
+                        query[`contributors[${contributorIndex}][affiliations][${affiliationIndex}][value]`] =
+                            value;
+                    }
+
+                    if (rorId) {
+                        query[`contributors[${contributorIndex}][affiliations][${affiliationIndex}][rorId]`] =
                             rorId;
                     }
                 });

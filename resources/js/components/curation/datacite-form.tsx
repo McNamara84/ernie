@@ -187,6 +187,23 @@ export type InitialAuthor =
           rorId?: string | null;
       });
 
+type BaseInitialContributor = {
+    affiliations?: (InitialAffiliationInput | null | undefined)[] | null;
+    roles?: (string | null | undefined)[] | Record<string, unknown> | string | null;
+};
+
+export type InitialContributor =
+    | (BaseInitialContributor & {
+          type?: 'person';
+          orcid?: string | null;
+          firstName?: string | null;
+          lastName?: string | null;
+      })
+    | (BaseInitialContributor & {
+          type: 'institution';
+          institutionName?: string | null;
+      });
+
 const normaliseInitialAffiliations = (
     affiliations?: (InitialAffiliationInput | null | undefined)[] | null,
 ): AffiliationTag[] => {
@@ -230,6 +247,78 @@ const normaliseInitialAffiliations = (
             } satisfies AffiliationTag;
         })
         .filter((item): item is AffiliationTag => Boolean(item && item.value));
+};
+
+const normaliseInitialContributorRoles = (
+    roles: BaseInitialContributor['roles'],
+): ContributorRoleTag[] => {
+    if (!roles) {
+        return [];
+    }
+
+    const rawRoles = Array.isArray(roles)
+        ? roles
+        : typeof roles === 'string'
+          ? [roles]
+          : typeof roles === 'object'
+            ? Object.values(roles)
+            : [];
+
+    const unique = new Set<string>();
+
+    return rawRoles
+        .map((role) => (typeof role === 'string' ? role.trim() : ''))
+        .filter((role) => role.length > 0)
+        .filter((role) => {
+            if (unique.has(role)) {
+                return false;
+            }
+            unique.add(role);
+            return true;
+        })
+        .map((role) => ({ value: role }));
+};
+
+const mapInitialContributorToEntry = (
+    contributor: InitialContributor,
+): ContributorEntry | null => {
+    if (!contributor || typeof contributor !== 'object') {
+        return null;
+    }
+
+    const affiliations = normaliseInitialAffiliations(contributor.affiliations ?? null);
+    const affiliationsInput = affiliations.map((item) => item.value).join(', ');
+    const roles = normaliseInitialContributorRoles(contributor.roles ?? null);
+    const rolesInput = roles.map((role) => role.value).join(', ');
+
+    if (contributor.type === 'institution') {
+        const base = createEmptyInstitutionContributor();
+
+        return {
+            ...base,
+            institutionName:
+                typeof contributor.institutionName === 'string'
+                    ? contributor.institutionName.trim()
+                    : '',
+            affiliations,
+            affiliationsInput,
+            roles,
+            rolesInput,
+        } satisfies InstitutionContributorEntry;
+    }
+
+    const base = createEmptyPersonContributor();
+
+    return {
+        ...base,
+        orcid: typeof contributor.orcid === 'string' ? contributor.orcid.trim() : '',
+        firstName: typeof contributor.firstName === 'string' ? contributor.firstName.trim() : '',
+        lastName: typeof contributor.lastName === 'string' ? contributor.lastName.trim() : '',
+        affiliations,
+        affiliationsInput,
+        roles,
+        rolesInput,
+    } satisfies PersonContributorEntry;
 };
 
 const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
@@ -288,6 +377,7 @@ interface DataCiteFormProps {
     initialLicenses?: string[];
     initialResourceId?: string;
     initialAuthors?: InitialAuthor[];
+    initialContributors?: InitialContributor[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -328,6 +418,7 @@ export default function DataCiteForm({
     initialLicenses = [],
     initialResourceId,
     initialAuthors = [],
+    initialContributors = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -372,9 +463,19 @@ export default function DataCiteForm({
 
         return [createEmptyAuthor()];
     });
-    const [contributors, setContributors] = useState<ContributorEntry[]>([
-        createEmptyContributor(),
-    ]);
+    const [contributors, setContributors] = useState<ContributorEntry[]>(() => {
+        if (initialContributors.length > 0) {
+            const mapped = initialContributors
+                .map((contributor) => mapInitialContributorToEntry(contributor))
+                .filter((contributor): contributor is ContributorEntry => Boolean(contributor));
+
+            if (mapped.length > 0) {
+                return mapped;
+            }
+        }
+
+        return [createEmptyContributor()];
+    });
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
         [contributorPersonRoles],

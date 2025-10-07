@@ -384,6 +384,71 @@ describe('handleXmlFiles', () => {
         routerMock.get.mockReset();
     });
 
+    it('includes contributors when upload returns contributor data', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+            {
+                ok: true,
+                json: async () => ({
+                    contributors: [
+                        {
+                            type: 'person',
+                            roles: ['ContactPerson'],
+                            firstName: 'Ada',
+                            lastName: 'Lovelace',
+                            orcid: 'https://orcid.org/0000-0001-5727-2427',
+                            affiliations: [
+                                {
+                                    value: 'Example Affiliation',
+                                    rorId: 'https://ror.org/04wxnsj81',
+                                },
+                            ],
+                        },
+                        {
+                            type: 'institution',
+                            institutionName: 'Example Org',
+                            roles: ['Distributor'],
+                            affiliations: [
+                                {
+                                    value: 'Example Org',
+                                    rorId: 'https://ror.org/03yrm5c26',
+                                },
+                            ],
+                        },
+                    ],
+                }),
+            } as Response,
+        );
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalled();
+        const [url] = routerMock.get.mock.calls[0];
+        const search = url.split('?')[1] ?? '';
+        const params = new URLSearchParams(search);
+
+        expect(params.get('contributors[0][type]')).toBe('person');
+        expect(params.get('contributors[0][roles][0]')).toBe('ContactPerson');
+        expect(params.get('contributors[0][firstName]')).toBe('Ada');
+        expect(params.get('contributors[0][lastName]')).toBe('Lovelace');
+        expect(params.get('contributors[0][orcid]')).toBe('https://orcid.org/0000-0001-5727-2427');
+        expect(params.get('contributors[0][affiliations][0][value]')).toBe('Example Affiliation');
+        expect(params.get('contributors[0][affiliations][0][rorId]')).toBe(
+            'https://ror.org/04wxnsj81',
+        );
+        expect(params.get('contributors[1][type]')).toBe('institution');
+        expect(params.get('contributors[1][institutionName]')).toBe('Example Org');
+        expect(params.get('contributors[1][roles][0]')).toBe('Distributor');
+        expect(params.get('contributors[1][affiliations][0][value]')).toBe('Example Org');
+        expect(params.get('contributors[1][affiliations][0][rorId]')).toBe(
+            'https://ror.org/03yrm5c26',
+        );
+
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
     it('honors a configured base path for uploads and redirects', async () => {
         basePathTesting.setMetaBasePath('/ernie');
         applyBasePathToRoutes({ uploadXml: uploadXmlRoute });
