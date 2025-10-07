@@ -7,37 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
-
-export const CONTRIBUTOR_ROLE_OPTIONS = [
-    'Contact Person',
-    'Data Collector',
-    'Data Curator',
-    'Data Manager',
-    'Distributor',
-    'Editor',
-    'Hosting Institution',
-    'Producer',
-    'Project Leader',
-    'Project Manager',
-    'Project Member',
-    'Registration Agency',
-    'Registration Authority',
-    'Related Person',
-    'Researcher',
-    'Research Group',
-    'Rights Holder',
-    'Sponsor',
-    'Supervisor',
-    'Translator',
-    'WorkPackage Leader',
-    'Other',
-] as const;
-
-export type ContributorRole = (typeof CONTRIBUTOR_ROLE_OPTIONS)[number];
 export type ContributorType = 'person' | 'institution';
 
 export interface ContributorRoleTag {
-    value: ContributorRole;
+    value: string;
 }
 
 interface BaseContributorEntry {
@@ -79,6 +52,8 @@ interface ContributorFieldProps {
     onAddContributor: () => void;
     canAddContributor: boolean;
     affiliationSuggestions: AffiliationSuggestion[];
+    personRoleOptions: readonly string[];
+    institutionRoleOptions: readonly string[];
 }
 
 export default function ContributorField({
@@ -94,25 +69,28 @@ export default function ContributorField({
     onAddContributor,
     canAddContributor,
     affiliationSuggestions,
+    personRoleOptions,
+    institutionRoleOptions,
 }: ContributorFieldProps) {
     const isPerson = contributor.type === 'person';
 
-    const roleWhitelist = useMemo(() => {
-        return CONTRIBUTOR_ROLE_OPTIONS.map((role) => ({ value: role }));
-    }, []);
+    const roleOptions = useMemo(
+        () => (isPerson ? personRoleOptions : institutionRoleOptions).map((role) => ({ value: role })),
+        [institutionRoleOptions, isPerson, personRoleOptions],
+    );
 
     const roleTagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
         return {
-            whitelist: roleWhitelist,
+            whitelist: roleOptions,
             enforceWhitelist: true,
-            maxTags: roleWhitelist.length,
+            maxTags: roleOptions.length,
             dropdown: {
-                enabled: 0,
-                maxItems: roleWhitelist.length,
+                enabled: roleOptions.length > 0 ? 0 : 1,
+                maxItems: roleOptions.length || 10,
                 searchKeys: ['value'],
             },
         };
-    }, [roleWhitelist]);
+    }, [roleOptions]);
 
     const affiliationsWithRorId = useMemo(() => {
         const seen = new Set<string>();
@@ -138,6 +116,9 @@ export default function ContributorField({
         affiliationsWithRorId.length > 0 ? `${contributor.id}-contributor-affiliations` : undefined;
 
     const rolesHintId = `${contributor.id}-roles-hint`;
+    const rolesUnavailableId = `${contributor.id}-roles-unavailable`;
+    const hasRoleOptions = roleOptions.length > 0;
+    const rolesDescriptionIds = hasRoleOptions ? rolesHintId : `${rolesHintId} ${rolesUnavailableId}`.trim();
 
     const affiliationTagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
         const whitelist = affiliationSuggestions.map((suggestion) => ({
@@ -213,25 +194,39 @@ export default function ContributorField({
                                 onRolesChange({
                                     raw: detail.raw,
                                     tags: detail.tags.map((tag) => ({
-                                        value: tag.value as ContributorRole,
+                                        value: tag.value,
                                     })),
                                 })
                             }
-                            placeholder="Select one or more roles"
+                            placeholder={
+                                hasRoleOptions
+                                    ? 'Select one or more roles'
+                                    : 'No roles available for this contributor type'
+                            }
+                            disabled={!hasRoleOptions}
                             containerProps={{
                                 className: 'md:col-span-6 lg:col-span-8',
                                 'data-testid': `contributor-${index}-roles-field`,
                             }}
                             data-testid={`contributor-${index}-roles-input`}
                             tagifySettings={roleTagifySettings}
-                            aria-describedby={rolesHintId}
-                            required
+                            aria-describedby={rolesDescriptionIds}
+                            required={hasRoleOptions}
                         />
                     </div>
 
                     <p id={rolesHintId} className="sr-only">
                         Choose all roles that apply to this contributor.
                     </p>
+                    {!hasRoleOptions && (
+                        <p
+                            id={rolesUnavailableId}
+                            className="text-sm text-muted-foreground md:col-span-6 lg:col-span-8"
+                            role="status"
+                        >
+                            No roles are available for {isPerson ? 'person' : 'institution'} contributors yet.
+                        </p>
+                    )}
 
                     {isPerson ? (
                         <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">

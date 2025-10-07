@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import ContributorField, {
     type InstitutionContributorEntry,
     type PersonContributorEntry,
-    CONTRIBUTOR_ROLE_OPTIONS,
 } from '@/components/curation/fields/contributor-field';
 import type { AffiliationSuggestion } from '@/types/affiliations';
 
@@ -177,6 +176,8 @@ describe('ContributorField', () => {
             countryCode: 'DE',
         },
     ];
+    const personRoleOptions = ['Researcher', 'Editor', 'Rights Holder'];
+    const institutionRoleOptions = ['Hosting Institution', 'Rights Holder'];
 
     it('renders contributor specific fields without contact checkbox', () => {
         render(
@@ -193,6 +194,8 @@ describe('ContributorField', () => {
                 onAddContributor={vi.fn()}
                 canAddContributor
                 affiliationSuggestions={suggestions}
+                personRoleOptions={personRoleOptions}
+                institutionRoleOptions={institutionRoleOptions}
             />,
         );
 
@@ -216,7 +219,7 @@ describe('ContributorField', () => {
         };
 
         act(() => {
-            roleInput.tagify.addTags(['Researcher']);
+            roleInput.tagify.addTags([personRoleOptions[0]]);
         });
 
         expect(roleInput.value).toContain('Researcher');
@@ -242,6 +245,8 @@ describe('ContributorField', () => {
                 onAddContributor={vi.fn()}
                 canAddContributor
                 affiliationSuggestions={suggestions}
+                personRoleOptions={personRoleOptions}
+                institutionRoleOptions={institutionRoleOptions}
             />,
         );
 
@@ -251,20 +256,47 @@ describe('ContributorField', () => {
 
         act(() => {
             roleInput.tagify.addTags([
-                { value: CONTRIBUTOR_ROLE_OPTIONS[0] },
-                { value: CONTRIBUTOR_ROLE_OPTIONS[0] },
-                { value: CONTRIBUTOR_ROLE_OPTIONS[1] },
+                { value: personRoleOptions[0] },
+                { value: personRoleOptions[0] },
+                { value: personRoleOptions[1] },
             ]);
         });
 
         expect(handleRolesChange).toHaveBeenCalledWith({
-            raw: `${CONTRIBUTOR_ROLE_OPTIONS[0]}, ${CONTRIBUTOR_ROLE_OPTIONS[0]}, ${CONTRIBUTOR_ROLE_OPTIONS[1]}`,
+            raw: `${personRoleOptions[0]}, ${personRoleOptions[0]}, ${personRoleOptions[1]}`,
             tags: [
-                { value: CONTRIBUTOR_ROLE_OPTIONS[0] },
-                { value: CONTRIBUTOR_ROLE_OPTIONS[0] },
-                { value: CONTRIBUTOR_ROLE_OPTIONS[1] },
+                { value: personRoleOptions[0] },
+                { value: personRoleOptions[0] },
+                { value: personRoleOptions[1] },
             ],
         });
+    });
+
+    it('disables role input and announces missing options when no person roles are available', () => {
+        render(
+            <ContributorField
+                contributor={basePersonContributor}
+                index={0}
+                onTypeChange={vi.fn()}
+                onRolesChange={vi.fn()}
+                onPersonFieldChange={vi.fn()}
+                onInstitutionNameChange={vi.fn()}
+                onAffiliationsChange={vi.fn()}
+                onRemoveContributor={vi.fn()}
+                canRemove
+                onAddContributor={vi.fn()}
+                canAddContributor
+                affiliationSuggestions={suggestions}
+                personRoleOptions={[]}
+                institutionRoleOptions={institutionRoleOptions}
+            />,
+        );
+
+        const roleInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement;
+        expect(roleInput).toBeDisabled();
+        expect(
+            screen.getByText('No roles are available for person contributors yet.'),
+        ).toBeInTheDocument();
     });
 
     it('renders institutions with roles input available', () => {
@@ -282,6 +314,8 @@ describe('ContributorField', () => {
                 onAddContributor={vi.fn()}
                 canAddContributor={false}
                 affiliationSuggestions={suggestions}
+                personRoleOptions={personRoleOptions}
+                institutionRoleOptions={institutionRoleOptions}
             />,
         );
 

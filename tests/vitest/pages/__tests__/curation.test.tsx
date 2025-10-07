@@ -75,7 +75,7 @@ describe('Curation page', () => {
         );
         render(<Curation maxTitles={99} maxLicenses={99} />);
         expect(screen.getByRole('status')).toHaveTextContent(
-            /loading resource and title types, licenses, and languages/i,
+            /loading resource and title types, licenses, languages, and role options/i,
         );
     });
 
@@ -88,7 +88,7 @@ describe('Curation page', () => {
         );
         render(<Curation maxTitles={99} maxLicenses={99} />);
         expect(screen.getByRole('status')).toHaveTextContent(
-            /loading resource and title types, licenses, and languages/i,
+            /loading resource and title types, licenses, languages, and role options/i,
         );
     });
 
