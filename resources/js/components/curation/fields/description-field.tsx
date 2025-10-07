@@ -27,37 +27,44 @@ const DESCRIPTION_TYPES: {
     label: string; 
     placeholder: string;
     required?: boolean;
+    helpText?: string;
 }[] = [
     {
         value: 'Abstract',
         label: 'Abstract',
         placeholder: 'Enter a brief summary of the resource...',
         required: true,
+        helpText: 'A brief description of the resource and the context in which the resource was created. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
     },
     {
         value: 'Methods',
         label: 'Methods',
         placeholder: 'Describe the methods used to create or collect this resource...',
+        helpText: 'The methodology employed for the study or research. Recommended for discovery. Full documentation about methods supports open science.',
     },
     {
         value: 'SeriesInformation',
         label: 'Series Information',
         placeholder: 'Provide information about the series this resource belongs to...',
+        helpText: 'Information about a repeating series, such as volume, issue, number. Note: This information should now be explicitly provided using the RelatedItem property with relationType "IsPublishedIn".',
     },
     {
         value: 'TableOfContents',
         label: 'Table of Contents',
         placeholder: 'Enter the table of contents...',
+        helpText: 'A listing of the Table of Contents. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
     },
     {
         value: 'TechnicalInfo',
         label: 'Technical Info',
         placeholder: 'Provide technical details about the resource...',
+        helpText: 'Detailed information that may be associated with design, implementation, operation, use, and/or maintenance of a process, system, or instrument. For software, this may include readme contents and environmental information.',
     },
     {
         value: 'Other',
         label: 'Other',
         placeholder: 'Enter other relevant description information...',
+        helpText: 'Other description information that does not fit into an existing category.',
     },
 ];
 
@@ -133,6 +140,11 @@ export default function DescriptionField({ descriptions, onChange }: Description
                                     </span>
                                 )}
                             </Label>
+                            {desc.helpText && (
+                                <p className="text-sm text-muted-foreground">
+                                    {desc.helpText}
+                                </p>
+                            )}
                             <Textarea
                                 id={`description-${desc.value}`}
                                 value={getDescriptionValue(desc.value)}
