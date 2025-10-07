@@ -556,39 +556,18 @@ class ResourceController extends Controller
     private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceAuthor
     {
         $name = $data['institutionName'];
-        $rorId = null;
 
-        $institution = null;
-
-        if ($rorId !== null) {
-            $institution = Institution::query()->where('ror_id', $rorId)->first();
-
-            if ($institution === null) {
-                $institution = Institution::query()
-                    ->where('name', $name)
-                    ->whereNull('ror_id')
-                    ->first();
-            }
-        }
-
-        if ($institution === null) {
-            $institution = Institution::query()
-                ->where('name', $name)
-                ->whereNull('ror_id')
-                ->first();
-        }
+        // Contributors don't have a direct rorId field, only in affiliations
+        $institution = Institution::query()
+            ->where('name', $name)
+            ->whereNull('ror_id')
+            ->first();
 
         if ($institution === null) {
             $institution = new Institution();
+            $institution->name = $name;
+            $institution->save();
         }
-
-        $institution->name = $name;
-
-        if ($rorId !== null && $institution->ror_id !== $rorId) {
-            $institution->ror_id = $rorId;
-        }
-
-        $institution->save();
 
         return ResourceAuthor::query()->create([
             'resource_id' => $resource->id,
