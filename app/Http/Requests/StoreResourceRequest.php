@@ -46,6 +46,18 @@ class StoreResourceRequest extends FormRequest
             'authors.*.affiliations' => ['array'],
             'authors.*.affiliations.*.value' => ['required', 'string', 'max:255'],
             'authors.*.affiliations.*.rorId' => ['nullable', 'string', 'max:255'],
+            'contributors' => ['nullable', 'array'],
+            'contributors.*.type' => ['required', Rule::in(['person', 'institution'])],
+            'contributors.*.position' => ['required', 'integer', 'min:0'],
+            'contributors.*.roles' => ['required', 'array', 'min:1'],
+            'contributors.*.roles.*' => ['required', 'string', 'max:255'],
+            'contributors.*.orcid' => ['nullable', 'string', 'max:255'],
+            'contributors.*.firstName' => ['nullable', 'string', 'max:255'],
+            'contributors.*.lastName' => ['nullable', 'string', 'max:255'],
+            'contributors.*.institutionName' => ['nullable', 'string', 'max:255'],
+            'contributors.*.affiliations' => ['array'],
+            'contributors.*.affiliations.*.value' => ['required', 'string', 'max:255'],
+            'contributors.*.affiliations.*.rorId' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -188,6 +200,113 @@ class StoreResourceRequest extends FormRequest
             ];
         }
 
+        /** @var array<int, array<string, mixed>|mixed> $rawContributors */
+        $rawContributors = $this->input('contributors', []);
+
+        $contributors = [];
+
+        foreach ($rawContributors as $index => $contributor) {
+            if (! is_array($contributor)) {
+                continue;
+            }
+
+            $typeCandidate = isset($contributor['type']) ? trim((string) $contributor['type']) : '';
+            $type = in_array($typeCandidate, ['person', 'institution'], true) ? $typeCandidate : 'person';
+
+            $affiliations = [];
+            $seenAffiliations = [];
+
+            $rawAffiliations = $contributor['affiliations'] ?? [];
+
+            if (is_array($rawAffiliations)) {
+                foreach ($rawAffiliations as $affiliation) {
+                    if (is_string($affiliation)) {
+                        $value = trim($affiliation);
+
+                        if ($value === '') {
+                            continue;
+                        }
+
+                        $key = $value . '|';
+
+                        if (isset($seenAffiliations[$key])) {
+                            continue;
+                        }
+
+                        $seenAffiliations[$key] = true;
+                        $affiliations[] = [
+                            'value' => $value,
+                            'rorId' => null,
+                        ];
+
+                        continue;
+                    }
+
+                    if (! is_array($affiliation)) {
+                        continue;
+                    }
+
+                    $value = isset($affiliation['value']) ? trim((string) $affiliation['value']) : '';
+                    $rorId = isset($affiliation['rorId']) ? trim((string) $affiliation['rorId']) : '';
+
+                    if ($value === '' && $rorId === '') {
+                        continue;
+                    }
+
+                    $normalizedValue = $value !== '' ? $value : $rorId;
+                    $normalizedRorId = $rorId !== '' ? $rorId : null;
+
+                    $key = $normalizedValue . '|' . ($normalizedRorId ?? '');
+
+                    if (isset($seenAffiliations[$key])) {
+                        continue;
+                    }
+
+                    $seenAffiliations[$key] = true;
+
+                    $affiliations[] = [
+                        'value' => $normalizedValue,
+                        'rorId' => $normalizedRorId,
+                    ];
+                }
+            }
+
+            // Normalize roles
+            $roles = [];
+            $rawRoles = $contributor['roles'] ?? [];
+
+            if (is_array($rawRoles)) {
+                foreach ($rawRoles as $role) {
+                    $normalizedRole = trim((string) $role);
+                    if ($normalizedRole !== '') {
+                        $roles[] = $normalizedRole;
+                    }
+                }
+            }
+
+            if ($type === 'institution') {
+                $contributors[] = [
+                    'type' => 'institution',
+                    'institutionName' => $this->normalizeString($contributor['institutionName'] ?? null),
+                    'roles' => $roles,
+                    'affiliations' => $affiliations,
+                    'position' => (int) $index,
+                ];
+
+                continue;
+            }
+
+            $contributors[] = [
+                'type' => 'person',
+                'orcid' => $this->normalizeString($contributor['orcid'] ?? null),
+                'firstName' => $this->normalizeString($contributor['firstName'] ?? null),
+                'lastName' => $this->normalizeString($contributor['lastName'] ?? null),
+                'roles' => $roles,
+                'affiliations' => $affiliations,
+                'position' => (int) $index,
+            ];
+        }
+
         $this->merge([
             'doi' => $this->filled('doi') ? trim((string) $this->input('doi')) : null,
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
@@ -198,6 +317,7 @@ class StoreResourceRequest extends FormRequest
             'licenses' => $licenses,
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
+            'contributors' => $contributors,
         ]);
     }
 
@@ -279,6 +399,51 @@ class StoreResourceRequest extends FormRequest
                         $validator->errors()->add(
                             "authors.$index.institutionName",
                             'An institution name is required for institution authors.',
+                        );
+                    }
+                }
+            },
+            function (Validator $validator): void {
+                /** @var mixed $candidateContributors */
+                $candidateContributors = $this->input('contributors', []);
+
+                if (! is_array($candidateContributors)) {
+                    return;
+                }
+
+                foreach ($candidateContributors as $index => $contributor) {
+                    if (! is_array($contributor)) {
+                        $validator->errors()->add(
+                            "contributors.$index",
+                            'Each contributor entry must be an object.',
+                        );
+
+                        continue;
+                    }
+
+                    $type = $contributor['type'] ?? 'person';
+
+                    if ($type === 'person') {
+                        if (empty($contributor['lastName'])) {
+                            $validator->errors()->add(
+                                "contributors.$index.lastName",
+                                'A last name is required for person contributors.',
+                            );
+                        }
+                    } else {
+                        if (empty($contributor['institutionName'])) {
+                            $validator->errors()->add(
+                                "contributors.$index.institutionName",
+                                'An institution name is required for institution contributors.',
+                            );
+                        }
+                    }
+
+                    $roles = $contributor['roles'] ?? [];
+                    if (! is_array($roles) || count($roles) === 0) {
+                        $validator->errors()->add(
+                            "contributors.$index.roles",
+                            'At least one role must be provided for each contributor.',
                         );
                     }
                 }
