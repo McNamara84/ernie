@@ -10,6 +10,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { latestVersion } from '@/lib/version';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { normaliseContributorRoleLabel } from '@/lib/contributors';
 
 type UploadedAffiliation = {
     value?: string | null;
@@ -184,7 +185,9 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                         ? [contributor.roles]
                         : [];
                 rawRoles
-                    .map((role) => (typeof role === 'string' ? role.trim() : ''))
+                    .map((role) =>
+                        typeof role === 'string' ? normaliseContributorRoleLabel(role) : '',
+                    )
                     .filter((role): role is string => role.length > 0)
                     .forEach((role, roleIndex) => {
                         query[`contributors[${contributorIndex}][roles][${roleIndex}]`] = role;

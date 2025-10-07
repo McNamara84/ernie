@@ -429,7 +429,7 @@ describe('handleXmlFiles', () => {
         const params = new URLSearchParams(search);
 
         expect(params.get('contributors[0][type]')).toBe('person');
-        expect(params.get('contributors[0][roles][0]')).toBe('ContactPerson');
+        expect(params.get('contributors[0][roles][0]')).toBe('Contact Person');
         expect(params.get('contributors[0][firstName]')).toBe('Ada');
         expect(params.get('contributors[0][lastName]')).toBe('Lovelace');
         expect(params.get('contributors[0][orcid]')).toBe('https://orcid.org/0000-0001-5727-2427');

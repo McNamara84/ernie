@@ -1188,7 +1188,7 @@ describe('DataCiteForm', () => {
         const contributorRoleInput = screen.getByTestId(
             'contributor-0-roles-input',
         ) as HTMLInputElement;
-        expect(contributorRoleInput.value).toBe('ContactPerson');
+        expect(contributorRoleInput.value).toBe('Contact Person');
 
         const contributorSection = screen
             .getByRole('heading', { name: 'Contributor 1' })

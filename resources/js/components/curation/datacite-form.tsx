@@ -37,6 +37,7 @@ import {
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { AffiliationTag } from '@/types/affiliations';
+import { normaliseContributorRoleLabel } from '@/lib/contributors';
 
 interface DataCiteFormData {
     doi: string;
@@ -267,7 +268,9 @@ const normaliseInitialContributorRoles = (
     const unique = new Set<string>();
 
     return rawRoles
-        .map((role) => (typeof role === 'string' ? role.trim() : ''))
+        .map((role) =>
+            typeof role === 'string' ? normaliseContributorRoleLabel(role) : '',
+        )
         .filter((role) => role.length > 0)
         .filter((role) => {
             if (unique.has(role)) {

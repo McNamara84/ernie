@@ -14,6 +14,34 @@ use Saloon\XmlWrangler\XmlReader;
 class UploadXmlController extends Controller
 {
     /**
+     * @var array<string, string>
+     */
+    private const CONTRIBUTOR_ROLE_LABELS = [
+        'contactperson' => 'Contact Person',
+        'datacollector' => 'Data Collector',
+        'datacurator' => 'Data Curator',
+        'datamanager' => 'Data Manager',
+        'distributor' => 'Distributor',
+        'editor' => 'Editor',
+        'hostinginstitution' => 'Hosting Institution',
+        'producer' => 'Producer',
+        'projectleader' => 'Project Leader',
+        'projectmanager' => 'Project Manager',
+        'projectmember' => 'Project Member',
+        'registrationagency' => 'Registration Agency',
+        'registrationauthority' => 'Registration Authority',
+        'relatedperson' => 'Related Person',
+        'researcher' => 'Researcher',
+        'researchgroup' => 'Research Group',
+        'rightsholder' => 'Rights Holder',
+        'sponsor' => 'Sponsor',
+        'supervisor' => 'Supervisor',
+        'translator' => 'Translator',
+        'workpackageleader' => 'WorkPackage Leader',
+        'other' => 'Other',
+    ];
+
+    /**
      * @var array<string, array{value: string, rorId: string}>
      */
     private array $affiliationMap = [];
@@ -273,12 +301,42 @@ class UploadXmlController extends Controller
                 continue;
             }
 
-            if (! in_array($trimmed, $roles, true)) {
-                $roles[] = $trimmed;
+            $resolved = $this->resolveContributorRoleName($trimmed);
+
+            if ($resolved === '') {
+                continue;
+            }
+
+            if (! in_array($resolved, $roles, true)) {
+                $roles[] = $resolved;
             }
         }
 
         return $roles;
+    }
+
+    private function resolveContributorRoleName(string $role): string
+    {
+        $normalisedKey = $this->normaliseContributorRoleKey($role);
+
+        if ($normalisedKey !== null && isset(self::CONTRIBUTOR_ROLE_LABELS[$normalisedKey])) {
+            return self::CONTRIBUTOR_ROLE_LABELS[$normalisedKey];
+        }
+
+        $headline = Str::headline($role);
+
+        return $headline !== '' ? $headline : trim($role);
+    }
+
+    private function normaliseContributorRoleKey(string $role): ?string
+    {
+        $slug = Str::slug($role);
+
+        if ($slug === '') {
+            return null;
+        }
+
+        return str_replace('-', '', $slug);
     }
 
     /**
