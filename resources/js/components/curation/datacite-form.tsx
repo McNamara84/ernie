@@ -157,8 +157,16 @@ const createEmptyContributor = (type: ContributorType = 'person'): ContributorEn
 };
 
 /**
- * Serializes affiliations from an author or contributor entry.
- * Deduplicates affiliations based on value and ROR ID combination.
+ * Serializes and normalizes affiliations from an author or contributor entry.
+ *
+ * This function processes affiliation data by:
+ * - Trimming whitespace from affiliation values and ROR IDs
+ * - Filtering out empty affiliations (those with neither a value nor a ROR ID)
+ * - Deduplicating affiliations based on the combination of value and ROR ID
+ * - Normalizing affiliations so the value field is always populated (falls back to ROR ID if value is empty)
+ *
+ * @param entry - An author or contributor entry containing affiliations to serialize
+ * @returns An array of deduplicated affiliation objects with value and rorId properties
  */
 const serializeAffiliations = (
     entry: AuthorEntry | ContributorEntry
