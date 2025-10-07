@@ -174,9 +174,6 @@ describe('DataCiteForm', () => {
 
     const getAuthorEntriesGroup = () => screen.getByTestId('author-entries-group');
 
-    const getAuthorLastNameInputs = () =>
-        within(getAuthorEntriesGroup()).getAllByRole('textbox', { name: /Last name/i });
-
     const withinAuthors = () => within(getAuthorEntriesGroup());
 
     const fillRequiredContributor = async (
