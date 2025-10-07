@@ -156,37 +156,16 @@ const createEmptyContributor = (type: ContributorType = 'person'): ContributorEn
         : createEmptyInstitutionContributor();
 };
 
-const serializeAffiliations = (author: AuthorEntry): SerializedAffiliation[] => {
+/**
+ * Serializes affiliations from an author or contributor entry.
+ * Deduplicates affiliations based on value and ROR ID combination.
+ */
+const serializeAffiliations = (
+    entry: AuthorEntry | ContributorEntry
+): SerializedAffiliation[] => {
     const seen = new Set<string>();
 
-    return author.affiliations
-        .map((affiliation) => {
-            const rawValue = affiliation.value.trim();
-            const rawRorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
-
-            if (!rawValue && !rawRorId) {
-                return null;
-            }
-
-            const value = rawValue || rawRorId;
-            const rorId = rawRorId || null;
-            const key = `${value}|${rorId ?? ''}`;
-
-            if (seen.has(key)) {
-                return null;
-            }
-
-            seen.add(key);
-
-            return { value, rorId } satisfies SerializedAffiliation;
-        })
-        .filter((item): item is SerializedAffiliation => item !== null);
-};
-
-const serializeContributorAffiliations = (contributor: ContributorEntry): SerializedAffiliation[] => {
-    const seen = new Set<string>();
-
-    return contributor.affiliations
+    return entry.affiliations
         .map((affiliation) => {
             const rawValue = affiliation.value.trim();
             const rawRorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
@@ -995,7 +974,7 @@ export default function DataCiteForm({
                 return hasInstitution || hasRoles;
             })
             .map((contributor, index) => {
-                const affiliations = serializeContributorAffiliations(contributor);
+                const affiliations = serializeAffiliations(contributor);
                 const roles = contributor.roles.map((role) => role.value);
 
                 if (contributor.type === 'person') {
