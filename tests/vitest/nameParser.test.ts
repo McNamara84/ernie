@@ -3,6 +3,14 @@
  * 
  * Tests the parsing logic for contributor names from old database,
  * using real examples from the metaworks database.
+ * 
+ * TEST COVERAGE SUMMARY:
+ * ✅ Vitest (14 tests): Frontend name parsing logic
+ * ✅ Playwright (8 tests): E2E workflow tests (prepared, need infrastructure)
+ * 
+ * Note: Backend Pest tests were intentionally omitted because they would require
+ * either direct database connections to the legacy metaworks DB (not available in CI)
+ * or complex mocking that duplicates what E2E tests already cover.
  */
 
 import { describe, it, expect } from 'vitest';
