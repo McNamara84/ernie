@@ -383,6 +383,28 @@ describe('DataCiteForm', () => {
         ).toHaveLength(1);
     });
 
+    it('announces available author roles for accessible guidance', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+            />,
+        );
+
+        const message = await screen.findByTestId('author-roles-availability');
+        expect(message).toHaveTextContent('The available author role is Author.');
+        expect(message).toHaveAttribute('id', 'author-roles-description');
+
+        const group = screen.getByTestId('author-entries-group');
+        expect(group).toHaveAttribute('role', 'group');
+        expect(group).toHaveAttribute('aria-describedby', 'author-roles-description');
+    });
+
     it('lets curators add and remove contributors without losing existing entries', async () => {
         render(
             <DataCiteForm

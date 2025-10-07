@@ -391,6 +391,32 @@ export default function DataCiteForm({
         () => new Set(contributorInstitutionRoleNames),
         [contributorInstitutionRoleNames],
     );
+    const authorRoleNames = useMemo(
+        () =>
+            authorRoles
+                .map((role) => role.name.trim())
+                .filter((name): name is string => name.length > 0),
+        [authorRoles],
+    );
+    const authorRoleSummary = useMemo(() => {
+        if (authorRoleNames.length === 0) {
+            return '';
+        }
+
+        if (authorRoleNames.length === 1) {
+            return authorRoleNames[0];
+        }
+
+        if (authorRoleNames.length === 2) {
+            return `${authorRoleNames[0]} and ${authorRoleNames[1]}`;
+        }
+
+        const allButLast = authorRoleNames.slice(0, -1).join(', ');
+        const last = authorRoleNames[authorRoleNames.length - 1];
+        return `${allButLast}, and ${last}`;
+    }, [authorRoleNames]);
+    const authorRolesDescriptionId =
+        authorRoleNames.length > 0 ? 'author-roles-description' : undefined;
     const filterRolesForType = useCallback(
         (roles: ContributorRoleTag[], type: ContributorType): ContributorRoleTag[] => {
             const allowedRoles =
@@ -1021,7 +1047,23 @@ export default function DataCiteForm({
                 <AccordionItem value="authors">
                     <AccordionTrigger>Authors</AccordionTrigger>
                     <AccordionContent>
-                        <div className="space-y-6">
+                        {authorRoleNames.length > 0 && (
+                            <p
+                                id={authorRolesDescriptionId}
+                                className="mb-4 text-sm text-muted-foreground"
+                                data-testid="author-roles-availability"
+                            >
+                                {`The available author ${
+                                    authorRoleNames.length === 1 ? 'role is' : 'roles are'
+                                } ${authorRoleSummary}.`}
+                            </p>
+                        )}
+                        <div
+                            className="space-y-6"
+                            role="group"
+                            aria-describedby={authorRolesDescriptionId}
+                            data-testid="author-entries-group"
+                        >
                             {authors.map((author, index) => (
                                 <AuthorField
                                     key={author.id}
@@ -1039,15 +1081,15 @@ export default function DataCiteForm({
                                     onContactChange={(checked) =>
                                         handleAuthorContactChange(author.id, checked)
                                     }
-                                onAffiliationsChange={(value) =>
-                                    handleAffiliationsChange(author.id, value)
-                                }
-                                onRemoveAuthor={() => removeAuthor(author.id)}
-                                canRemove={authors.length > 1}
-                                onAddAuthor={addAuthor}
-                                canAddAuthor={index === authors.length - 1}
-                                affiliationSuggestions={affiliationSuggestions}
-                            />
+                                    onAffiliationsChange={(value) =>
+                                        handleAffiliationsChange(author.id, value)
+                                    }
+                                    onRemoveAuthor={() => removeAuthor(author.id)}
+                                    canRemove={authors.length > 1}
+                                    onAddAuthor={addAuthor}
+                                    canAddAuthor={index === authors.length - 1}
+                                    affiliationSuggestions={affiliationSuggestions}
+                                />
                             ))}
                         </div>
                     </AccordionContent>
