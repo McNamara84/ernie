@@ -13,7 +13,7 @@
  * or complex mocking that duplicates what E2E tests already cover.
  */
 
-import { describe, expect,it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { parseContributorName } from '@/utils/nameParser';
 
