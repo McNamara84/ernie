@@ -374,9 +374,9 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param string[] $existing
-     * @param string[] $incoming
-     * @return string[]
+     * @param array<int, mixed> $existing
+     * @param array<int, mixed> $incoming
+     * @return array<int, string>
      */
     private function mergeContributorRoles(array $existing, array $incoming): array
     {
@@ -450,9 +450,9 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<int, array<string, mixed>> $existing
-     * @param array<int, array<string, mixed>> $incoming
-     * @return array<int, array<string, mixed>>
+     * @param array<int, mixed> $existing
+     * @param array<int, mixed> $incoming
+     * @return array<int, array{value: string, rorId: ?string}>
      */
     private function mergeAffiliations(array $existing, array $incoming): array
     {
@@ -480,7 +480,11 @@ class UploadXmlController extends Controller
                     continue;
                 }
 
-                $key = $rorId !== null ? 'ror:' . Str::lower($rorId) : 'value:' . Str::lower($value);
+                if ($rorId !== null) {
+                    $key = 'ror:' . Str::lower($rorId);
+                } else {
+                    $key = 'value:' . Str::lower($value);
+                }
 
                 if (isset($seen[$key])) {
                     $existingIndex = $seen[$key];
@@ -591,7 +595,13 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        return Str::lower(preg_replace('/\s+/u', ' ', $trimmed));
+        $normalised = preg_replace('/\s+/u', ' ', $trimmed);
+
+        if (! is_string($normalised)) {
+            $normalised = $trimmed;
+        }
+
+        return Str::lower($normalised);
     }
 
     /**

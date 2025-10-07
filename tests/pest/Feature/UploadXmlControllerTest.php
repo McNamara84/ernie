@@ -165,6 +165,62 @@ XML;
     $response->assertJsonPath('contributors.1.affiliations.1.value', 'Example Organization Headquarters');
 });
 
+test('deduplicates affiliations regardless of identifier casing', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <contributors>
+    <contributor contributorType="Distributor">
+      <contributorName nameType="Organizational">Example Organization</contributorName>
+      <affiliation affiliationIdentifier="https://ror.org/03YRM5C26" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">Example Organization</affiliation>
+    </contributor>
+    <contributor contributorType="Sponsor">
+      <contributorName nameType="Organizational">Example Organization</contributorName>
+      <affiliation affiliationIdentifier="https://ror.org/03yrm5c26" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org"></affiliation>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('case-dedup-contributors.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertJsonCount(1, 'contributors.0.affiliations');
+    $response->assertJsonPath('contributors.0.affiliations.0.value', 'Example Organization');
+    $response->assertJsonPath('contributors.0.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
+});
+
+test('deduplicates institutions by normalising whitespace in names', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <contributors>
+    <contributor contributorType="Distributor">
+      <contributorName nameType="Organizational">Example   Organization</contributorName>
+    </contributor>
+    <contributor contributorType="Sponsor">
+      <contributorName nameType="Organizational">Example Organization</contributorName>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('whitespace-dedup-contributors.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertJsonCount(1, 'contributors');
+    $response->assertJsonPath('contributors.0.type', 'institution');
+    $response->assertJsonPath('contributors.0.institutionName', 'Example   Organization');
+});
+
 test('uploading a non-xml file returns validation errors', function () {
     $this->actingAs(User::factory()->create());
 
