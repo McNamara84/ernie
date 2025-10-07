@@ -44,6 +44,58 @@ class OldDataset extends Model
     public $timestamps = true;
 
     /**
+     * Map old database role names to new database role slugs.
+     * This is needed because the old database uses different role names.
+     *
+     * @var array<string, string>
+     */
+    private const ROLE_MAPPING = [
+        // Author roles
+        'Creator' => 'author',
+        
+        // Contributor Person roles
+        'pointOfContact' => 'contact-person',
+        'ContactPerson' => 'contact-person',
+        'DataCollector' => 'data-collector',
+        'DataCurator' => 'data-curator',
+        'DataManager' => 'data-manager',
+        'Editor' => 'editor',
+        'Producer' => 'producer',
+        'ProjectLeader' => 'project-leader',
+        'ProjectManager' => 'project-manager',
+        'ProjectMember' => 'project-member',
+        'RelatedPerson' => 'related-person',
+        'Researcher' => 'researcher',
+        'RightsHolder' => 'rights-holder',
+        'Supervisor' => 'supervisor',
+        'Translator' => 'translator',
+        'WorkPackageLeader' => 'work-package-leader',
+        
+        // Contributor Institution roles
+        'Distributor' => 'distributor',
+        'HostingInstitution' => 'hosting-institution',
+        'RegistrationAgency' => 'registration-agency',
+        'RegistrationAuthority' => 'registration-authority',
+        'ResearchGroup' => 'research-group',
+        'Sponsor' => 'sponsor',
+        
+        // Common fallback
+        'Other' => 'other',
+    ];
+
+    /**
+     * Map an old role name to a new role slug.
+     * Returns 'other' if no mapping is found.
+     *
+     * @param string $oldRole
+     * @return string
+     */
+    private function mapRole(string $oldRole): string
+    {
+        return self::ROLE_MAPPING[$oldRole] ?? 'other';
+    }
+
+    /**
      * The attributes that should be cast.
      *
      * @var array<string, string>
@@ -361,12 +413,15 @@ class OldDataset extends Model
             // Get affiliations for this resourceagent from prefetched data
             $affiliations = $allAffiliations[$agent->order] ?? [];
 
+            // Map old role names to new role slugs
+            $mappedRoles = array_map(fn($role) => $this->mapRole($role), $roles);
+
             $authors[] = [
                 'givenName' => $agent->firstname,
                 'familyName' => $agent->lastname,
                 'name' => $agent->name ?? '',
                 'affiliations' => $affiliations,
-                'roles' => $roles,
+                'roles' => $mappedRoles,
                 'isContact' => $isContact,
                 'email' => $email,
                 'website' => $website,
@@ -376,5 +431,138 @@ class OldDataset extends Model
         }
 
         return $authors;
+    }
+
+    /**
+     * Get contributors for this resource from the resourceagent table.
+     * Returns an array of contributors with their roles and affiliations.
+     * Only includes resourceagents that do NOT have the "Creator" role.
+     *
+     * @return array<int, array{type: string, givenName: string|null, familyName: string|null, name: string|null, institutionName: string|null, affiliations: array<int, array{value: string, rorId: string|null}>, roles: array<string>, orcid: string|null, orcidType: string|null}>
+     */
+    public function getContributors(): array
+    {
+        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        
+        // Get all resourceagents for this resource
+        $allResourceAgents = $db->table('resourceagent')
+            ->where('resource_id', $this->id)
+            ->orderBy('order')
+            ->get();
+
+        // Prefetch all roles for this resource to avoid N+1 queries
+        $allRoles = $db->table('role')
+            ->where('resourceagent_resource_id', $this->id)
+            ->get()
+            ->groupBy('resourceagent_order')
+            ->map(function ($roles) {
+                return $roles->pluck('role')->toArray();
+            })
+            ->toArray();
+
+        // Filter out resourceagents that have the "Creator" role
+        $contributorAgents = $allResourceAgents->filter(function ($agent) use ($allRoles) {
+            $roles = $allRoles[$agent->order] ?? [];
+            return !in_array('Creator', $roles);
+        });
+
+        // Prefetch all affiliations for this resource to avoid N+1 queries
+        $allAffiliations = $db->table('affiliation')
+            ->where('resourceagent_resource_id', $this->id)
+            ->orderBy('resourceagent_order')
+            ->orderBy('order')
+            ->get()
+            ->groupBy('resourceagent_order')
+            ->map(function ($affiliations) {
+                return $affiliations->map(function ($affiliation) {
+                    $identifier = $affiliation->identifier ?? null;
+
+                    // Normalize ROR identifier to full URL format
+                    if ($identifier && !empty(trim($identifier))) {
+                        // If it's already a full URL, keep it
+                        if (!str_starts_with($identifier, 'http')) {
+                            // Convert short ROR ID to full URL
+                            $identifier = 'https://ror.org/' . ltrim($identifier, '/');
+                        }
+                    } else {
+                        $identifier = null;
+                    }
+
+                    return [
+                        'value' => $affiliation->name,
+                        'rorId' => $identifier,
+                    ];
+                })->toArray();
+            })
+            ->toArray();
+
+        $contributors = [];
+
+        foreach ($contributorAgents as $agent) {
+            // Get roles for this resourceagent from prefetched data
+            $roles = $allRoles[$agent->order] ?? [];
+
+            // Get affiliations for this resourceagent from prefetched data
+            $affiliations = $allAffiliations[$agent->order] ?? [];
+
+            // Determine if this is a person or institution
+            // Strategy: Use roles as primary indicator, then fallback to name analysis
+            
+            // 1. Roles that ONLY apply to institutions (strongest indicator)
+            $institutionOnlyRoles = ['HostingInstitution', 'Distributor', 'ResearchGroup', 'Sponsor'];
+            $hasInstitutionOnlyRole = !empty(array_intersect($roles, $institutionOnlyRoles));
+            
+            // 2. Name format indicators
+            $hasCommaSeparatedName = !empty($agent->name) && str_contains($agent->name, ',');
+            
+            // Decision logic (in priority order):
+            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor → ALWAYS Institution
+            // 2. If name contains comma → Person (format: "Lastname, Firstname")
+            // 3. If has firstname OR lastname → Person
+            // 4. Default → Institution
+            
+            if ($hasInstitutionOnlyRole) {
+                $isPerson = false;
+            } elseif ($hasCommaSeparatedName) {
+                $isPerson = true;
+            } elseif (!empty($agent->firstname) || !empty($agent->lastname)) {
+                $isPerson = true;
+            } else {
+                $isPerson = false;
+            }
+            
+            $isInstitution = !$isPerson;
+            
+            // For institutions: use the name field if available, otherwise use the first affiliation
+            $institutionName = null;
+            if ($isInstitution) {
+                if (!empty($agent->name)) {
+                    $institutionName = $agent->name;
+                } elseif (!empty($affiliations)) {
+                    // Use the first affiliation's value as institution name
+                    $firstAffiliation = reset($affiliations);
+                    if ($firstAffiliation && isset($firstAffiliation['value']) && !empty($firstAffiliation['value'])) {
+                        $institutionName = $firstAffiliation['value'];
+                    }
+                }
+            }
+            
+            // Map old role names to new role slugs
+            $mappedRoles = array_map(fn($role) => $this->mapRole($role), $roles);
+            
+            $contributors[] = [
+                'type' => $isPerson ? 'person' : 'institution',
+                'givenName' => $isPerson ? $agent->firstname : null,
+                'familyName' => $isPerson ? $agent->lastname : null,
+                'name' => $isPerson ? ($agent->name ?? '') : null,
+                'institutionName' => $institutionName,
+                'affiliations' => $affiliations,
+                'roles' => $mappedRoles,
+                'orcid' => (!empty($agent->identifier) && strtoupper($agent->identifiertype ?? '') === 'ORCID') ? $agent->identifier : null,
+                'orcidType' => $agent->identifiertype ?? null,
+            ];
+        }
+
+        return $contributors;
     }
 }

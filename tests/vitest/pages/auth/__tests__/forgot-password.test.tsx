@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import ForgotPassword from '@/pages/auth/forgot-password';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import ForgotPassword from '@/pages/auth/forgot-password';
 
 let formErrors: { email?: string };
 let formProcessing: boolean;

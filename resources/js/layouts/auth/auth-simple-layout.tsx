@@ -1,8 +1,9 @@
-import AppLogoIcon from '@/components/app-logo-icon';
-import { AppFooter } from '@/components/app-footer';
-import { home } from '@/routes';
 import { Link } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
+
+import { AppFooter } from '@/components/app-footer';
+import AppLogoIcon from '@/components/app-logo-icon';
+import { home } from '@/routes';
 
 interface AuthLayoutProps {
     name?: string;

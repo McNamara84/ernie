@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import type { ComponentProps, ReactNode } from 'react';
-import { UserInfo } from '@/components/user-info';
 import { describe, expect, it, vi } from 'vitest';
+
+import { UserInfo } from '@/components/user-info';
 
 vi.mock('@/hooks/use-initials', () => ({
     useInitials: () => () => 'JD',

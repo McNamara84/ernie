@@ -1,16 +1,17 @@
-import AppLayout from '@/layouts/app-layout';
-import { curation as curationRoute, dashboard, changelog as changelogRoute } from '@/routes';
-import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
-import { latestVersion } from '@/lib/version';
-import { buildCsrfHeaders } from '@/lib/csrf-token';
+
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AppLayout from '@/layouts/app-layout';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
+import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { latestVersion } from '@/lib/version';
+import { changelog as changelogRoute,curation as curationRoute, dashboard } from '@/routes';
+import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 type UploadedAffiliation = {
     value?: string | null;

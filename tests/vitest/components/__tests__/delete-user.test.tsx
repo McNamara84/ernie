@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
 import DeleteUser from '@/components/delete-user';
 
 const onErrorMock = vi.fn();

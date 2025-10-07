@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { useState, type ComponentProps, type ReactNode } from 'react';
-import Login from '@/pages/auth/login';
+import { type ComponentProps, type ReactNode,useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import Login from '@/pages/auth/login';
 
 interface MockFormState {
     errors: Record<string, string>;

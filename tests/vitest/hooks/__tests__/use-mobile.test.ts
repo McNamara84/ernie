@@ -1,5 +1,6 @@
-import { renderHook, act } from '@testing-library/react';
+import { act,renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { useIsMobile } from '@/hooks/use-mobile';
 
 describe('useIsMobile', () => {

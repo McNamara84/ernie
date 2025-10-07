@@ -1,5 +1,6 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { ChevronDownIcon } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 
 function Accordion(
@@ -57,4 +58,4 @@ function AccordionContent(
     );
 }
 
-export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
+export { Accordion, AccordionContent,AccordionItem, AccordionTrigger };

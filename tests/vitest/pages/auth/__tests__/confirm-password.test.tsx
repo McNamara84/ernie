@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import ConfirmPassword from '@/pages/auth/confirm-password';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import ConfirmPassword from '@/pages/auth/confirm-password';
 
 const formErrors: { password?: string } = {};
 let formProcessing = false;

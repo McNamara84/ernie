@@ -1,14 +1,16 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, expect,it } from 'vitest';
+
 import {
     Breadcrumb,
-    BreadcrumbList,
+    BreadcrumbEllipsis,
     BreadcrumbItem,
     BreadcrumbLink,
-    BreadcrumbSeparator,
+    BreadcrumbList,
     BreadcrumbPage,
-    BreadcrumbEllipsis,
+    BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 
 describe('Breadcrumb', () => {

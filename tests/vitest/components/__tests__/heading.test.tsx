@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import Heading from '@/components/heading';
 import { describe, expect, it } from 'vitest';
+
+import Heading from '@/components/heading';
 
 describe('Heading', () => {
     it('renders title and description', () => {

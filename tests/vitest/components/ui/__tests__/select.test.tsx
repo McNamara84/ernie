@@ -1,16 +1,18 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, describe, it, expect } from 'vitest';
+import { beforeAll, describe, expect,it } from 'vitest';
+
 import {
     Select,
-    SelectTrigger,
     SelectContent,
-    SelectItem,
-    SelectValue,
-    SelectLabel,
     SelectGroup,
+    SelectItem,
+    SelectLabel,
     SelectSeparator,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 
 describe('Select', () => {

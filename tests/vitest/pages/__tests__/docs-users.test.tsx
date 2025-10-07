@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import { __testing as basePathTesting } from '@/lib/base-path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { __testing as basePathTesting } from '@/lib/base-path';
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,

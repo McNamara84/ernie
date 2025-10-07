@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import Changelog from '@/pages/changelog';
 
 vi.mock('@/layouts/public-layout', () => ({

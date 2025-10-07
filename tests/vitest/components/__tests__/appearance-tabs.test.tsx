@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+
+import { fireEvent,render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+
 import AppearanceTabs from '@/components/appearance-tabs';
 
 const updateAppearance = vi.fn();

@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach,describe, expect, it } from 'vitest';
+
 import {
-  queryParams,
-  setUrlDefaults,
   addUrlDefault,
   applyUrlDefaults,
+  queryParams,
+  setUrlDefaults,
   validateParameters,
 } from '@/wayfinder/index';
 

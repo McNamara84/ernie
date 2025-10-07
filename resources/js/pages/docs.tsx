@@ -1,13 +1,14 @@
-import AppLayout from '@/layouts/app-layout';
-import { withBasePath } from '@/lib/base-path';
-import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+import { ChevronDown } from 'lucide-react';
+
 import {
     Collapsible,
     CollapsibleContent,
     CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import AppLayout from '@/layouts/app-layout';
+import { withBasePath } from '@/lib/base-path';
+import { type BreadcrumbItem } from '@/types';
 
 export default function Docs() {
     const breadcrumbs: BreadcrumbItem[] = [

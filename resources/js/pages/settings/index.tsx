@@ -1,3 +1,5 @@
+import { Head, useForm } from '@inertiajs/react';
+
 import { BentoGrid, BentoGridItem } from '@/components/ui/bento-grid';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -6,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { settings } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
 
 interface ResourceTypeRow {
     id: number;

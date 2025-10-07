@@ -1,5 +1,6 @@
-import { renderHook, act } from '@testing-library/react';
-import { describe, it, beforeEach, expect } from 'vitest';
+import { act,renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect,it } from 'vitest';
+
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 
 describe('useMobileNavigation', () => {

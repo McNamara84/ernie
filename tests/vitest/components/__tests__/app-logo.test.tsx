@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import AppLogo from '@/components/app-logo';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import AppLogo from '@/components/app-logo';
 
 afterEach(() => {
     vi.unstubAllEnvs();

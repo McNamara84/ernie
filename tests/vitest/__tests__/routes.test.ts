@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { expectUrlToBe,normalizeTestUrl } from '@tests/vitest/utils/test-utils';
+import { afterEach,describe, expect, it, vi } from 'vitest';
+
 import { __testing as basePathTesting } from '@/lib/base-path';
-import { normalizeTestUrl, expectUrlToBe } from '@tests/vitest/utils/test-utils';
 
 describe('generated routes', () => {
   afterEach(() => {

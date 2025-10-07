@@ -1,7 +1,8 @@
+import { type HTMLAttributes, type InputHTMLAttributes } from 'react';
+
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { type HTMLAttributes, type InputHTMLAttributes } from 'react';
 
 interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     id: string;

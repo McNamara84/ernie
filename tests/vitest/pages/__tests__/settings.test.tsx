@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import EditorSettings from '@/pages/settings/index';
 
 const setData = vi.fn();

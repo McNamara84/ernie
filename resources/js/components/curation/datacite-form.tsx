@@ -1,8 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import InputField from './fields/input-field';
-import { SelectField } from './fields/select-field';
-import TitleField from './fields/title-field';
-import LicenseField from './fields/license-field';
+
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from '@/components/ui/accordion';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import { withBasePath } from '@/lib/base-path';
+import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
+import { buildCsrfHeaders } from '@/lib/csrf-token';
+import type { Language, License, ResourceType, Role, TitleType } from '@/types';
+import type { AffiliationTag } from '@/types/affiliations';
+
 import AuthorField, {
     type AuthorEntry,
     type AuthorType,
@@ -16,28 +35,11 @@ import ContributorField, {
     type InstitutionContributorEntry,
     type PersonContributorEntry,
 } from './fields/contributor-field';
+import InputField from './fields/input-field';
+import LicenseField from './fields/license-field';
+import { SelectField } from './fields/select-field';
+import TitleField from './fields/title-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
-import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { withBasePath } from '@/lib/base-path';
-import { buildCsrfHeaders } from '@/lib/csrf-token';
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from '@/components/ui/accordion';
-import type { Language, License, ResourceType, Role, TitleType } from '@/types';
-import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import type { AffiliationTag } from '@/types/affiliations';
-import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 
 interface DataCiteFormData {
     doi: string;

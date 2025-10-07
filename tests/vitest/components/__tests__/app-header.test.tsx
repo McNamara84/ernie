@@ -1,10 +1,12 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen, within } from '@testing-library/react';
-import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
-import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
-import type { BreadcrumbItem } from '@/types';
-import type { ComponentProps } from 'react';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
+import type { ComponentProps } from 'react';
+import { afterEach,beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
+import type { BreadcrumbItem } from '@/types';
 
 const usePageMock = vi.fn();
 const getInitialsMock = vi.fn(() => 'JD');

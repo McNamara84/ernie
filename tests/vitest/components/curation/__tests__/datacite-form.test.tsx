@@ -1,10 +1,13 @@
 import '@testing-library/jest-dom/vitest';
+
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
-import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import type { Language, License, ResourceType, Role, TitleType } from '@/types';
+
 import {
     getTagifyInstance,
     type TagifyEnabledInput,

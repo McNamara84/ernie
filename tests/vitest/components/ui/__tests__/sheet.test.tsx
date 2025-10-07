@@ -1,14 +1,16 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+
 import {
     Sheet,
-    SheetTrigger,
     SheetContent,
+    SheetDescription,
     SheetHeader,
     SheetTitle,
-    SheetDescription,
+    SheetTrigger,
 } from '@/components/ui/sheet';
 
 describe('Sheet', () => {

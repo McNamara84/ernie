@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import TextLink from '@/components/text-link';
 import { describe, expect, it, vi } from 'vitest';
+
+import TextLink from '@/components/text-link';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ href, children, ...props }: { href: string; children?: React.ReactNode }) => (

@@ -1,15 +1,17 @@
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Head, router } from '@inertiajs/react';
+import axios, { isAxiosError } from 'axios';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AppLayout from '@/layouts/app-layout';
 import { curation as curationRoute } from '@/routes';
-import { Head, router } from '@inertiajs/react';
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight } from 'lucide-react';
-import axios, { isAxiosError } from 'axios';
+import { type BreadcrumbItem } from '@/types';
+import { parseContributorName } from '@/utils/nameParser';
 
 interface Dataset {
     id?: number;
@@ -769,6 +771,92 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 console.error('Error loading authors for dataset:', error);
             }
             // Continue without authors if loading fails
+        }
+
+        // Load contributors from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/contributors`);
+            const contributors = response.data.contributors || [];
+            
+            // Debug logging
+            console.log('Contributors from API:', contributors);
+            
+            contributors.forEach((contributor: {
+                type: string;
+                givenName: string | null;
+                familyName: string | null;
+                name: string | null;
+                institutionName: string | null;
+                affiliations: Array<{ value: string; rorId: string | null }>;
+                roles: Array<string>;
+                orcid: string | null;
+                orcidType: string | null;
+            }, index: number) => {
+                // Set contributor type
+                query[`contributors[${index}][type]`] = contributor.type;
+                
+                if (contributor.type === 'person') {
+                    // Person contributor - use parseContributorName utility
+                    const { firstName, lastName } = parseContributorName(
+                        contributor.name,
+                        contributor.givenName,
+                        contributor.familyName
+                    );
+                    
+                    if (firstName) {
+                        query[`contributors[${index}][firstName]`] = firstName;
+                    }
+                    if (lastName) {
+                        query[`contributors[${index}][lastName]`] = lastName;
+                    }
+                    
+                    // Add ORCID if present
+                    if (contributor.orcid) {
+                        query[`contributors[${index}][orcid]`] = contributor.orcid;
+                    }
+                } else {
+                    // Institution contributor
+                    // Use institutionName if available, otherwise fall back to first affiliation
+                    let institutionName = contributor.institutionName;
+                    if (!institutionName && contributor.affiliations && contributor.affiliations.length > 0) {
+                        institutionName = contributor.affiliations[0].value;
+                    }
+                    
+                    if (institutionName) {
+                        query[`contributors[${index}][institutionName]`] = institutionName;
+                    }
+                }
+                
+                // Pass roles as structured array
+                if (contributor.roles && Array.isArray(contributor.roles)) {
+                    contributor.roles.forEach((role, roleIndex) => {
+                        query[`contributors[${index}][roles][${roleIndex}]`] = role;
+                    });
+                }
+                
+                // Pass affiliations as structured array
+                if (contributor.affiliations && Array.isArray(contributor.affiliations)) {
+                    contributor.affiliations.forEach((affiliation, affIndex) => {
+                        query[`contributors[${index}][affiliations][${affIndex}][value]`] = affiliation.value;
+                        if (affiliation.rorId) {
+                            query[`contributors[${index}][affiliations][${affIndex}][rorId]`] = affiliation.rorId;
+                        }
+                    });
+                }
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading contributors for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading contributors for dataset:', error);
+            }
+            // Continue without contributors if loading fails
         }
     }
 

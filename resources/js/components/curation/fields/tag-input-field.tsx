@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef } from 'react';
-import Tagify from '@yaireo/tagify';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
+import Tagify from '@yaireo/tagify';
+import type { HTMLAttributes, InputHTMLAttributes } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import type { HTMLAttributes, InputHTMLAttributes } from 'react';
 
 export interface TagInputItem {
     value: string;

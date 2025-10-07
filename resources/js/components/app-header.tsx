@@ -1,3 +1,6 @@
+import { Link, usePage } from '@inertiajs/react';
+import { BookOpen, Database, FileText,History, LayoutGrid, Menu, Search, Settings } from 'lucide-react';
+
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Icon } from '@/components/icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,8 +15,7 @@ import { withBasePath } from '@/lib/base-path';
 import { cn } from '@/lib/utils';
 import { dashboard, settings } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, LayoutGrid, Menu, Search, Database, History, Settings, FileText } from 'lucide-react';
+
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 

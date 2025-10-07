@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import ResetPassword from '@/pages/auth/reset-password';
 import { describe, expect, it, vi } from 'vitest';
+
+import ResetPassword from '@/pages/auth/reset-password';
 
 type FormErrors = {
     email?: string;

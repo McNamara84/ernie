@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { resolveInitialLanguageCode, type LanguageOption } from '@/components/curation/utils/language-resolver';
+
+import { type LanguageOption,resolveInitialLanguageCode } from '@/components/curation/utils/language-resolver';
 
 const baseLanguages: LanguageOption[] = [
     { code: 'en', name: 'English' },

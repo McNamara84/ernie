@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 
 describe('PlaceholderPattern', () => {

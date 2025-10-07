@@ -1,8 +1,9 @@
-import { test, expect } from '@playwright/test';
-import path from 'path';
+import { expect,test } from '@playwright/test';
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import { fileURLToPath } from 'url';
+
 import {
   TEST_USER_EMAIL,
   TEST_USER_PASSWORD,

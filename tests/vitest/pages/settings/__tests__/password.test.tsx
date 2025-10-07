@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import Password from '@/pages/settings/password';
 
 let formErrors: Record<string, string> = {};

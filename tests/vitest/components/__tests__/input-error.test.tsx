@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import InputError from '@/components/input-error';
 import { describe, expect, it } from 'vitest';
+
+import InputError from '@/components/input-error';
 
 describe('InputError', () => {
     it('renders the message when provided', () => {

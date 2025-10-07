@@ -1,4 +1,5 @@
-import { expect, test, Locator, Page } from '@playwright/test';
+import { expect, Locator, Page,test } from '@playwright/test';
+
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
 /**

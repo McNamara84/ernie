@@ -1,6 +1,7 @@
+import { Head, Link } from '@inertiajs/react';
+
 import PublicLayout from '@/layouts/public-layout';
 import { withBasePath } from '@/lib/base-path';
-import { Head, Link } from '@inertiajs/react';
 
 export default function Welcome() {
     return (

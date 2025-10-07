@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildCurationQueryFromResource, __testing } from '@/lib/curation-query';
+
+import { __testing,buildCurationQueryFromResource } from '@/lib/curation-query';
 
 const originalFetch = globalThis.fetch;
 

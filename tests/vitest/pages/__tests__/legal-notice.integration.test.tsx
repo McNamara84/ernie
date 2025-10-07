@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render } from '@testing-library/react';
-import LegalNotice from '@/pages/legal-notice';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import LegalNotice from '@/pages/legal-notice';
 
 vi.mock('@/layouts/public-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,

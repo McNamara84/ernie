@@ -1,5 +1,6 @@
-import PublicLayout from '@/layouts/public-layout';
 import { Head } from '@inertiajs/react';
+
+import PublicLayout from '@/layouts/public-layout';
 
 export default function About() {
     return (

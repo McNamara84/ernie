@@ -1,8 +1,9 @@
+import { Link, usePage } from '@inertiajs/react';
+import { type PropsWithChildren } from 'react';
+
 import { AppFooter } from '@/components/app-footer';
 import { dashboard, login } from '@/routes';
 import { type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
-import { type PropsWithChildren } from 'react';
 
 export default function PublicLayout({ children }: PropsWithChildren) {
     const { auth } = usePage<SharedData>().props;

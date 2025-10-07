@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+
 import { withBasePath } from '@/lib/base-path';
 import type { AffiliationSuggestion } from '@/types/affiliations';
 

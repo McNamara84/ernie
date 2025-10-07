@@ -1,9 +1,11 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState, type ComponentProps, type ReactNode } from 'react';
-import ForgotPassword from '@/pages/auth/forgot-password';
+import { type ComponentProps, type ReactNode,useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import ForgotPassword from '@/pages/auth/forgot-password';
 
 vi.mock('@/layouts/auth-layout', () => ({
   default: ({ children }: { children?: ReactNode }) => <div>{children}</div>,

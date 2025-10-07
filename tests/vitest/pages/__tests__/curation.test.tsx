@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import Curation from '@/pages/curation';
-import type { ResourceType, TitleType, License, Language } from '@/types';
+import type { Language,License, ResourceType, TitleType } from '@/types';
 
 const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
 const titleTypes: TitleType[] = [

@@ -1,4 +1,5 @@
 import { ImgHTMLAttributes } from 'react';
+
 import { cn } from '@/lib/utils';
 
 export default function AppLogoIcon({ className, ...props }: ImgHTMLAttributes<HTMLImageElement>) {

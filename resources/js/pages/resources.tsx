@@ -1,16 +1,17 @@
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
+import { PencilLine, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
 import { buildCurationQueryFromResource } from '@/lib/curation-query';
-import { useCallback, useMemo, useState } from 'react';
-import { PencilLine, Trash2 } from 'lucide-react';
 import { curation as curationRoute } from '@/routes';
+import { type BreadcrumbItem } from '@/types';
 
 interface ResourceTitleType {
     name: string | null;
@@ -507,4 +508,4 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
 
 export default ResourcesPage;
 
-export { getPrimaryTitle, buildDoiUrl, formatDateTime };
+export { buildDoiUrl, formatDateTime,getPrimaryTitle };

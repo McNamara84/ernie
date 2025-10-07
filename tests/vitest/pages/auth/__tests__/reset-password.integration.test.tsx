@@ -1,9 +1,11 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState, type ComponentProps, type ReactNode } from 'react';
-import ResetPassword from '@/pages/auth/reset-password';
+import { type ComponentProps, type ReactNode,useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import ResetPassword from '@/pages/auth/reset-password';
 
 const originalLocation = window.location;
 

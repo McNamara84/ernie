@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import AuthSplitLayout from '@/layouts/auth/auth-split-layout';
 
 const page: { props: { name: string; quote?: { message: string; author: string } } } = {

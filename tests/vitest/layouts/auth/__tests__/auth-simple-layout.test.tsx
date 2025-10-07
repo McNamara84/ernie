@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+
 import AuthSimpleLayout from '@/layouts/auth/auth-simple-layout';
 
 function resolveHref(href: unknown): string {

@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import Welcome from '@/pages/welcome';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { __testing as basePathTesting } from '@/lib/base-path';
-import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
+import Welcome from '@/pages/welcome';
 
 // mock @inertiajs/react and routes used in the component
 const usePageMock = vi.fn();

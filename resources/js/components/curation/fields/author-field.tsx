@@ -1,15 +1,17 @@
-import { useMemo } from 'react';
+import type { TagData, TagifySettings } from '@yaireo/tagify';
 import { Plus, Trash2 } from 'lucide-react';
-import InputField from './input-field';
-import { SelectField } from './select-field';
-import TagInputField from './tag-input-field';
+import { useMemo } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
-import type { TagData, TagifySettings } from '@yaireo/tagify';
+
+import InputField from './input-field';
+import { SelectField } from './select-field';
+import TagInputField from './tag-input-field';
 
 export type AuthorType = 'person' | 'institution';
 
