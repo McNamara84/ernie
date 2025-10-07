@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseContributorName, type ParsedName } from '@/utils/nameParser';
+import { parseContributorName } from '@/utils/nameParser';
 
 describe('parseContributorName', () => {
     describe('with explicit givenName and familyName', () => {

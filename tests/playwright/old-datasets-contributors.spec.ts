@@ -158,7 +158,6 @@ test.describe('Load Contributors from Old Database', () => {
 
             // Should either show a message or have no contributors added
             // This is a graceful degradation test
-            const contributorsSection = page.locator('[data-testid="contributors-section"]');
             
             // Just verify page doesn't crash
             await expect(page).toHaveURL(/\/old-datasets$/);
