@@ -344,30 +344,9 @@
                 }
               }
             }
-          },
-          "401": {
-            "description": "Invalid or missing API key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Invalid API key."
-                    }
-                  }
-                }
-              }
-            }
           }
         },
-        "description": "Returns all author roles that are active for Ernie. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
-        "security": [
-          {
-            "ErnieApiKey": []
-          }
-        ]
+        "description": "Returns all author roles that are active for Ernie."
       }
     },
     "/api/v1/roles/authors/elmo": {
@@ -434,30 +413,9 @@
                 }
               }
             }
-          },
-          "401": {
-            "description": "Invalid or missing API key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Invalid API key."
-                    }
-                  }
-                }
-              }
-            }
           }
         },
-        "description": "Returns all contributor person roles that are active for Ernie. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
-        "security": [
-          {
-            "ErnieApiKey": []
-          }
-        ]
+        "description": "Returns all contributor person roles that are active for Ernie."
       }
     },
     "/api/v1/roles/contributor-persons/elmo": {
@@ -524,30 +482,9 @@
                 }
               }
             }
-          },
-          "401": {
-            "description": "Invalid or missing API key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Invalid API key."
-                    }
-                  }
-                }
-              }
-            }
           }
         },
-        "description": "Returns all contributor institution roles that are active for Ernie. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
-        "security": [
-          {
-            "ErnieApiKey": []
-          }
-        ]
+        "description": "Returns all contributor institution roles that are active for Ernie."
       }
     },
     "/api/v1/roles/contributor-institutions/elmo": {
@@ -603,12 +540,6 @@
         "in": "header",
         "name": "X-API-Key",
         "description": "API key required to access the ELMO-specific endpoints. The key may be sent in the `X-API-Key` header or as the `api_key` query parameter."
-      },
-      "ErnieApiKey": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "X-API-Key",
-        "description": "API key required to access the Ernie editor endpoints. The key may be sent in the `X-API-Key` header or as the `api_key` query parameter."
       }
     },
     "schemas": {
