@@ -286,6 +286,180 @@
           }
         }
       }
+    },
+    "/api/v1/roles/authors/ernie": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List author roles active for Ernie",
+        "responses": {
+          "200": {
+            "description": "List of roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Role" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/authors/elmo": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List author roles active for ELMO",
+        "description": "Returns all author roles that are active for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          { "ElmoApiKey": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Role" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/contributor-persons/ernie": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List contributor person roles active for Ernie",
+        "responses": {
+          "200": {
+            "description": "List of roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Role" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/contributor-persons/elmo": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List contributor person roles active for ELMO",
+        "description": "Returns all contributor person roles that are active for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          { "ElmoApiKey": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Role" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/contributor-institutions/ernie": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List contributor institution roles active for Ernie",
+        "responses": {
+          "200": {
+            "description": "List of roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Role" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/contributor-institutions/elmo": {
+      "get": {
+        "tags": ["Editor Configuration"],
+        "summary": "List contributor institution roles active for ELMO",
+        "description": "Returns all contributor institution roles that are active for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          { "ElmoApiKey": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Role" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -294,7 +468,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-API-Key",
-        "description": "API key required to access the ELMO resource types endpoint. The key may be sent in the `X-API-Key` header or as the `api_key` query parameter."
+        "description": "API key required to access the ELMO-specific endpoints. The key may be sent in the `X-API-Key` header or as the `api_key` query parameter."
       }
     },
     "schemas": {
@@ -303,6 +477,14 @@
         "properties": {
           "id": { "type": "integer", "readOnly": true },
           "name": { "type": "string" }
+        }
+      },
+      "Role": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "readOnly": true },
+          "name": { "type": "string" },
+          "slug": { "type": "string" }
         }
       },
       "TitleType": {
