@@ -92,6 +92,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'titles' => $request->query('titles', []),
             'initialLicenses' => $request->query('licenses', []),
             'authors' => $request->query('authors', []),
+            'contributors' => $request->query('contributors', []),
         ]);
     })->name('curation');
 

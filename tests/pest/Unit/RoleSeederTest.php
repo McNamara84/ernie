@@ -28,3 +28,13 @@ it('seeds contributor and author roles with metadata', function (): void {
         expect($role->is_active_in_elmo)->toBeTrue();
     }
 });
+
+it('makes work package leader roles available to people and institutions', function (): void {
+    $this->seed(RoleSeeder::class);
+
+    $role = Role::query()->where('slug', 'work-package-leader')->firstOrFail();
+
+    expect($role->applies_to)->toBe(Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION);
+    expect(Role::query()->contributorPersons()->pluck('slug'))->toContain('work-package-leader');
+    expect(Role::query()->contributorInstitutions()->pluck('slug'))->toContain('work-package-leader');
+});

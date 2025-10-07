@@ -95,8 +95,8 @@ class RoleSeeder extends Seeder
             'applies_to' => Role::APPLIES_TO_CONTRIBUTOR_PERSON,
         ],
         [
-            'name' => 'WorkPackage Leader',
-            'applies_to' => Role::APPLIES_TO_CONTRIBUTOR_PERSON,
+            'name' => 'Work Package Leader',
+            'applies_to' => Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
         ],
         [
             'name' => 'Other',
