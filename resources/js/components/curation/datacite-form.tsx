@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import InputField from './fields/input-field';
 import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
@@ -11,12 +11,10 @@ import AuthorField, {
 } from './fields/author-field';
 import ContributorField, {
     type ContributorEntry,
-    type ContributorRole,
     type ContributorRoleTag,
     type ContributorType,
     type InstitutionContributorEntry,
     type PersonContributorEntry,
-    CONTRIBUTOR_ROLE_OPTIONS,
 } from './fields/contributor-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 import { Button } from '@/components/ui/button';
@@ -36,7 +34,7 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from '@/components/ui/accordion';
-import type { ResourceType, TitleType, License, Language } from '@/types';
+import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { AffiliationTag } from '@/types/affiliations';
 
@@ -276,6 +274,9 @@ interface DataCiteFormProps {
     titleTypes: TitleType[];
     licenses: License[];
     languages: Language[];
+    contributorPersonRoles?: Role[];
+    contributorInstitutionRoles?: Role[];
+    authorRoles?: Role[];
     maxTitles?: number;
     maxLicenses?: number;
     initialDoi?: string;
@@ -313,6 +314,9 @@ export default function DataCiteForm({
     titleTypes,
     licenses,
     languages,
+    contributorPersonRoles = [],
+    contributorInstitutionRoles = [],
+    authorRoles = [],
     maxTitles = 99,
     maxLicenses = 99,
     initialDoi = '',
@@ -371,6 +375,60 @@ export default function DataCiteForm({
     const [contributors, setContributors] = useState<ContributorEntry[]>([
         createEmptyContributor(),
     ]);
+    const contributorPersonRoleNames = useMemo(
+        () => contributorPersonRoles.map((role) => role.name),
+        [contributorPersonRoles],
+    );
+    const contributorInstitutionRoleNames = useMemo(
+        () => contributorInstitutionRoles.map((role) => role.name),
+        [contributorInstitutionRoles],
+    );
+    const contributorPersonRoleSet = useMemo(
+        () => new Set(contributorPersonRoleNames),
+        [contributorPersonRoleNames],
+    );
+    const contributorInstitutionRoleSet = useMemo(
+        () => new Set(contributorInstitutionRoleNames),
+        [contributorInstitutionRoleNames],
+    );
+    const authorRoleNames = useMemo(
+        () =>
+            authorRoles
+                .map((role) => role.name.trim())
+                .filter((name): name is string => name.length > 0),
+        [authorRoles],
+    );
+    const authorRoleSummary = useMemo(() => {
+        if (authorRoleNames.length === 0) {
+            return '';
+        }
+
+        if (authorRoleNames.length === 1) {
+            return authorRoleNames[0];
+        }
+
+        if (authorRoleNames.length === 2) {
+            return `${authorRoleNames[0]} and ${authorRoleNames[1]}`;
+        }
+
+        const allButLast = authorRoleNames.slice(0, -1).join(', ');
+        const last = authorRoleNames[authorRoleNames.length - 1];
+        return `${allButLast}, and ${last}`;
+    }, [authorRoleNames]);
+    const authorRolesDescriptionId =
+        authorRoleNames.length > 0 ? 'author-roles-description' : undefined;
+    const filterRolesForType = useCallback(
+        (roles: ContributorRoleTag[], type: ContributorType): ContributorRoleTag[] => {
+            const allowedRoles =
+                type === 'institution' ? contributorInstitutionRoleSet : contributorPersonRoleSet;
+
+            return roles.filter((role) => allowedRoles.has(role.value));
+        },
+        [contributorInstitutionRoleSet, contributorPersonRoleSet],
+    );
+    const serialiseRoleInput = useCallback((roles: ContributorRoleTag[]): string => {
+        return roles.map((role) => role.value).join(', ');
+    }, []);
     const { suggestions: affiliationSuggestions } = useRorAffiliations();
 
     const [isSaving, setIsSaving] = useState(false);
@@ -557,12 +615,15 @@ export default function DataCiteForm({
                     return contributor;
                 }
 
+                const filteredRoles = filterRolesForType(contributor.roles, type);
+                const rolesInput = serialiseRoleInput(filteredRoles);
+
                 if (type === 'person') {
                     return {
                         ...createEmptyPersonContributor(),
                         id: contributor.id,
-                        roles: contributor.roles,
-                        rolesInput: contributor.rolesInput,
+                        roles: filteredRoles,
+                        rolesInput,
                         affiliations: contributor.affiliations,
                         affiliationsInput: contributor.affiliationsInput,
                     } satisfies PersonContributorEntry;
@@ -571,8 +632,8 @@ export default function DataCiteForm({
                 return {
                     ...createEmptyInstitutionContributor(),
                     id: contributor.id,
-                    roles: contributor.roles,
-                    rolesInput: contributor.rolesInput,
+                    roles: filteredRoles,
+                    rolesInput,
                     affiliations: contributor.affiliations,
                     affiliationsInput: contributor.affiliationsInput,
                 } satisfies InstitutionContributorEntry;
@@ -584,29 +645,33 @@ export default function DataCiteForm({
         contributorId: string,
         value: { raw: string; tags: ContributorRoleTag[] },
     ) => {
-        const isValidRole = (role: string): role is ContributorRole =>
-            (CONTRIBUTOR_ROLE_OPTIONS as readonly string[]).includes(role);
-
-        const uniqueRoles = Array.from(
-            new Set(
-                value.tags
-                    .map((tag) => tag.value)
-                    .filter((role): role is ContributorRole => isValidRole(role)),
-            ),
-        );
-
-        const normalisedRoles = uniqueRoles.map((role) => ({ value: role }));
-
         setContributors((previous) =>
-            previous.map((contributor) =>
-                contributor.id === contributorId
-                    ? ({
-                          ...contributor,
-                          roles: normalisedRoles,
-                          rolesInput: value.raw,
-                      } satisfies ContributorEntry)
-                    : contributor,
-            ),
+            previous.map((contributor) => {
+                if (contributor.id !== contributorId) {
+                    return contributor;
+                }
+
+                const allowedRoles =
+                    contributor.type === 'institution'
+                        ? contributorInstitutionRoleSet
+                        : contributorPersonRoleSet;
+
+                const uniqueRoles = Array.from(
+                    new Set(
+                        value.tags
+                            .map((tag) => (typeof tag.value === 'string' ? tag.value.trim() : ''))
+                            .filter((role) => role.length > 0 && allowedRoles.has(role)),
+                    ),
+                );
+
+                const normalisedRoles = uniqueRoles.map((role) => ({ value: role }));
+
+                return {
+                    ...contributor,
+                    roles: normalisedRoles,
+                    rolesInput: serialiseRoleInput(normalisedRoles),
+                } satisfies ContributorEntry;
+            }),
         );
     };
 
@@ -982,7 +1047,23 @@ export default function DataCiteForm({
                 <AccordionItem value="authors">
                     <AccordionTrigger>Authors</AccordionTrigger>
                     <AccordionContent>
-                        <div className="space-y-6">
+                        {authorRoleNames.length > 0 && (
+                            <p
+                                id={authorRolesDescriptionId}
+                                className="mb-4 text-sm text-muted-foreground"
+                                data-testid="author-roles-availability"
+                            >
+                                {`The available author ${
+                                    authorRoleNames.length === 1 ? 'role is' : 'roles are'
+                                } ${authorRoleSummary}.`}
+                            </p>
+                        )}
+                        <div
+                            className="space-y-6"
+                            role="group"
+                            aria-describedby={authorRolesDescriptionId}
+                            data-testid="author-entries-group"
+                        >
                             {authors.map((author, index) => (
                                 <AuthorField
                                     key={author.id}
@@ -1000,15 +1081,15 @@ export default function DataCiteForm({
                                     onContactChange={(checked) =>
                                         handleAuthorContactChange(author.id, checked)
                                     }
-                                onAffiliationsChange={(value) =>
-                                    handleAffiliationsChange(author.id, value)
-                                }
-                                onRemoveAuthor={() => removeAuthor(author.id)}
-                                canRemove={authors.length > 1}
-                                onAddAuthor={addAuthor}
-                                canAddAuthor={index === authors.length - 1}
-                                affiliationSuggestions={affiliationSuggestions}
-                            />
+                                    onAffiliationsChange={(value) =>
+                                        handleAffiliationsChange(author.id, value)
+                                    }
+                                    onRemoveAuthor={() => removeAuthor(author.id)}
+                                    canRemove={authors.length > 1}
+                                    onAddAuthor={addAuthor}
+                                    canAddAuthor={index === authors.length - 1}
+                                    affiliationSuggestions={affiliationSuggestions}
+                                />
                             ))}
                         </div>
                     </AccordionContent>
@@ -1052,6 +1133,8 @@ export default function DataCiteForm({
                                     onAddContributor={addContributor}
                                     canAddContributor={index === contributors.length - 1}
                                     affiliationSuggestions={affiliationSuggestions}
+                                    personRoleOptions={contributorPersonRoleNames}
+                                    institutionRoleOptions={contributorInstitutionRoleNames}
                                 />
                             ))}
                         </div>

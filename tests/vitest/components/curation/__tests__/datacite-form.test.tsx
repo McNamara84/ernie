@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
-import type { ResourceType, TitleType, License, Language } from '@/types';
+import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 
 vi.mock('@yaireo/tagify', () => {
@@ -232,6 +232,15 @@ describe('DataCiteForm', () => {
         { id: 2, code: 'de', name: 'German' },
         { id: 3, code: 'fr', name: 'French' },
     ];
+    const contributorPersonRoles: Role[] = [
+        { id: 1, name: 'Researcher', slug: 'researcher' },
+        { id: 2, name: 'Editor', slug: 'editor' },
+    ];
+    const contributorInstitutionRoles: Role[] = [
+        { id: 3, name: 'Hosting Institution', slug: 'hosting-institution' },
+        { id: 4, name: 'Rights Holder', slug: 'rights-holder' },
+    ];
+    const authorRoles: Role[] = [{ id: 5, name: 'Author', slug: 'author' }];
 
     it('renders fields, title options and supports adding/removing titles', async () => {
         render(
@@ -240,6 +249,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
         expect(useRorAffiliations).toHaveBeenCalled();
@@ -371,6 +383,28 @@ describe('DataCiteForm', () => {
         ).toHaveLength(1);
     });
 
+    it('announces available author roles for accessible guidance', async () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+            />,
+        );
+
+        const message = await screen.findByTestId('author-roles-availability');
+        expect(message).toHaveTextContent('The available author role is Author.');
+        expect(message).toHaveAttribute('id', 'author-roles-description');
+
+        const group = screen.getByTestId('author-entries-group');
+        expect(group).toHaveAttribute('role', 'group');
+        expect(group).toHaveAttribute('aria-describedby', 'author-roles-description');
+    });
+
     it('lets curators add and remove contributors without losing existing entries', async () => {
         render(
             <DataCiteForm
@@ -378,6 +412,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -409,6 +446,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -449,6 +489,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -539,6 +582,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -588,6 +634,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -628,6 +677,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialAuthors={[
                     {
                         type: 'person',
@@ -657,6 +709,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -794,6 +849,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -847,6 +905,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -877,6 +938,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -896,6 +960,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -925,6 +992,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
 
@@ -974,6 +1044,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialDoi="10.1234/abc"
             />,
         );
@@ -987,6 +1060,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2024"
             />,
         );
@@ -1000,6 +1076,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialVersion="1.5"
             />,
         );
@@ -1015,6 +1094,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialAuthors={[
                     {
                         type: 'person',
@@ -1116,6 +1198,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialLanguage="de"
             />,
         );
@@ -1133,6 +1218,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
         expect(
@@ -1172,6 +1260,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialLanguage="German"
             />,
         );
@@ -1189,6 +1280,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialLanguage="French"
             />,
         );
@@ -1251,6 +1345,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialResourceType="1"
             />,
         );
@@ -1266,6 +1363,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialLicenses={['MIT', 'Apache-2.0']}
             />,
         );
@@ -1281,6 +1381,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
         const yearInput = screen.getByLabelText('Year', { exact: false });
@@ -1305,6 +1408,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -1343,6 +1449,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
             />,
         );
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -1384,6 +1493,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialTitles={[
                     { title: 'Example Title', titleType: 'main-title' },
                     { title: 'Example Subtitle', titleType: 'subtitle' },
@@ -1411,6 +1523,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialTitles={[{ title: 'A mandatory Event', titleType: 'main-title' }]}
             />,
         );
@@ -1431,6 +1546,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 maxTitles={3}
             />,
             );
@@ -1469,6 +1587,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
@@ -1544,6 +1665,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2025"
                 initialResourceType="1"
                 initialTitles={[{ title: 'Existing Title', titleType: 'main-title' }]}
@@ -1597,6 +1721,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[{ title: 'Dataset Title', titleType: 'main-title' }]}
@@ -1682,6 +1809,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[{ title: 'First Title', titleType: 'main-title' }]}
@@ -1710,6 +1840,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[{ title: 'Main Title', titleType: 'main-title' }]}
@@ -1752,6 +1885,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[
@@ -1810,6 +1946,9 @@ describe('DataCiteForm', () => {
                 titleTypes={titleTypes}
                 licenses={licenses}
                 languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
                 initialYear="2024"
                 initialResourceType="1"
                 initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}

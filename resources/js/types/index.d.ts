@@ -64,3 +64,10 @@ export interface Language {
     code: string;
     name: string;
 }
+
+export interface Role {
+    id: number;
+    name: string;
+    slug: string;
+}
+

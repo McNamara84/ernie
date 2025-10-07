@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call([
+            RoleSeeder::class,
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
             LicenseSeeder::class,

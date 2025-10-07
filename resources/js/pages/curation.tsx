@@ -10,6 +10,7 @@ import {
     type TitleType,
     type License,
     type Language,
+    type Role,
 } from '@/types';
 
 interface CurationProps {
@@ -43,6 +44,9 @@ export default function Curation({
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
     const [licenses, setLicenses] = useState<License[] | null>(null);
     const [languages, setLanguages] = useState<Language[] | null>(null);
+    const [contributorPersonRoles, setContributorPersonRoles] = useState<Role[] | null>(null);
+    const [contributorInstitutionRoles, setContributorInstitutionRoles] = useState<Role[] | null>(null);
+    const [authorRoles, setAuthorRoles] = useState<Role[] | null>(null);
     const [error, setError] = useState(false);
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -58,20 +62,54 @@ export default function Curation({
             fetch(withBasePath('/api/v1/title-types/ernie')),
             fetch(withBasePath('/api/v1/licenses/ernie')),
             fetch(withBasePath('/api/v1/languages/ernie')),
+            fetch(withBasePath('/api/v1/roles/contributor-persons/ernie')),
+            fetch(withBasePath('/api/v1/roles/contributor-institutions/ernie')),
+            fetch(withBasePath('/api/v1/roles/authors/ernie')),
         ])
-            .then(async ([resTypes, titleRes, licenseRes, languageRes]) => {
-                if (!resTypes.ok || !titleRes.ok || !licenseRes.ok || !languageRes.ok)
+            .then(async ([
+                resTypes,
+                titleRes,
+                licenseRes,
+                languageRes,
+                contributorPersonRes,
+                contributorInstitutionRes,
+                authorRolesRes,
+            ]) => {
+                if (
+                    !resTypes.ok ||
+                    !titleRes.ok ||
+                    !licenseRes.ok ||
+                    !languageRes.ok ||
+                    !contributorPersonRes.ok ||
+                    !contributorInstitutionRes.ok ||
+                    !authorRolesRes.ok
+                ) {
                     throw new Error('Network error');
-                const [rData, tData, lData, langData] = await Promise.all([
+                }
+                const [
+                    rData,
+                    tData,
+                    lData,
+                    langData,
+                    contributorPersonData,
+                    contributorInstitutionData,
+                    authorRoleData,
+                ] = await Promise.all([
                     resTypes.json() as Promise<ResourceType[]>,
                     titleRes.json() as Promise<TitleType[]>,
                     licenseRes.json() as Promise<License[]>,
                     languageRes.json() as Promise<Language[]>,
+                    contributorPersonRes.json() as Promise<Role[]>,
+                    contributorInstitutionRes.json() as Promise<Role[]>,
+                    authorRolesRes.json() as Promise<Role[]>,
                 ]);
                 setResourceTypes(rData);
                 setTitleTypes(tData);
                 setLicenses(lData);
                 setLanguages(langData);
+                setContributorPersonRoles(contributorPersonData);
+                setContributorInstitutionRoles(contributorInstitutionData);
+                setAuthorRoles(authorRoleData);
             })
             .catch(() => setError(true));
     }, []);
@@ -85,42 +123,57 @@ export default function Curation({
                     resourceTypes === null ||
                     titleTypes === null ||
                     licenses === null ||
-                    languages === null
+                    languages === null ||
+                    contributorPersonRoles === null ||
+                    contributorInstitutionRoles === null ||
+                    authorRoles === null
                 }
             >
                 {error && (
                     <p role="alert" className="text-red-600">
-                        Unable to load resource or title types or licenses or languages.
+                        Unable to load resource or title types, licenses, languages, or role options.
                     </p>
                 )}
                 {(resourceTypes === null ||
                     titleTypes === null ||
                     licenses === null ||
-                    languages === null) &&
+                    languages === null ||
+                    contributorPersonRoles === null ||
+                    contributorInstitutionRoles === null ||
+                    authorRoles === null) &&
                     !error && (
                         <p role="status" aria-live="polite">
-                            Loading resource and title types, licenses, and languages...
+                            Loading resource and title types, licenses, languages, and role options...
                         </p>
                     )}
-                {resourceTypes && titleTypes && licenses && languages && (
-                    <DataCiteForm
-                        resourceTypes={resourceTypes}
-                        titleTypes={titleTypes}
-                        licenses={licenses}
-                        languages={languages}
-                        maxTitles={maxTitles}
-                        maxLicenses={maxLicenses}
-                        initialDoi={doi}
-                        initialYear={year}
-                        initialVersion={version}
-                        initialLanguage={language}
-                        initialResourceType={resourceType}
-                        initialTitles={titles}
-                        initialLicenses={initialLicenses}
-                        initialResourceId={resourceId}
-                        initialAuthors={authors}
-                    />
-                )}
+                {resourceTypes &&
+                    titleTypes &&
+                    licenses &&
+                    languages &&
+                    contributorPersonRoles &&
+                    contributorInstitutionRoles &&
+                    authorRoles && (
+                        <DataCiteForm
+                            resourceTypes={resourceTypes}
+                            titleTypes={titleTypes}
+                            licenses={licenses}
+                            languages={languages}
+                            contributorPersonRoles={contributorPersonRoles}
+                            contributorInstitutionRoles={contributorInstitutionRoles}
+                            authorRoles={authorRoles}
+                            maxTitles={maxTitles}
+                            maxLicenses={maxLicenses}
+                            initialDoi={doi}
+                            initialYear={year}
+                            initialVersion={version}
+                            initialLanguage={language}
+                            initialResourceType={resourceType}
+                            initialTitles={titles}
+                            initialLicenses={initialLicenses}
+                            initialResourceId={resourceId}
+                            initialAuthors={authors}
+                        />
+                    )}
             </div>
         </AppLayout>
     );
