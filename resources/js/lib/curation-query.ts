@@ -60,6 +60,33 @@ interface ResourceInstitutionAuthorSummary extends BaseResourceAuthorSummary {
 
 type ResourceAuthorSummary = ResourcePersonAuthorSummary | ResourceInstitutionAuthorSummary;
 
+interface ResourceContributorRoleSummary {
+    name?: string | null;
+}
+
+interface BaseResourceContributorSummary {
+    type?: 'person' | 'institution';
+    position?: number | string | null;
+    roles?: (string | ResourceContributorRoleSummary | null | undefined)[] | null;
+    affiliations?: (ResourceAuthorAffiliationSummary | null | undefined)[] | null;
+}
+
+interface ResourcePersonContributorSummary extends BaseResourceContributorSummary {
+    type?: 'person';
+    orcid?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+}
+
+interface ResourceInstitutionContributorSummary extends BaseResourceContributorSummary {
+    type: 'institution';
+    institutionName?: string | null;
+}
+
+type ResourceContributorSummary =
+    | ResourcePersonContributorSummary
+    | ResourceInstitutionContributorSummary;
+
 interface NormalisedAuthorAffiliation {
     value: string;
     rorId: string | null;
@@ -81,6 +108,20 @@ type NormalisedAuthor =
           rorId: string | null;
       } & { position: number; affiliations: NormalisedAuthorAffiliation[] });
 
+type NormalisedContributor =
+    | ({
+          type: 'person';
+          orcid: string | null;
+          firstName: string | null;
+          lastName: string | null;
+          roles: string[];
+      } & { position: number; affiliations: NormalisedAuthorAffiliation[] })
+    | ({
+          type: 'institution';
+          institutionName: string | null;
+          roles: string[];
+      } & { position: number; affiliations: NormalisedAuthorAffiliation[] });
+
 export interface ResourceForCuration {
     id?: number;
     doi: string | null;
@@ -91,6 +132,7 @@ export interface ResourceForCuration {
     titles: ResourceTitleSummary[];
     licenses: ResourceLicenseSummary[];
     authors?: (ResourceAuthorSummary | null | undefined)[] | null;
+    contributors?: (ResourceContributorSummary | null | undefined)[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -334,6 +376,93 @@ const normaliseAuthors = (
         .sort((left, right) => left.position - right.position);
 };
 
+const normaliseContributorRoles = (
+    roles?: (string | ResourceContributorRoleSummary | null | undefined)[] | null,
+): string[] => {
+    if (!Array.isArray(roles) || roles.length === 0) {
+        return [];
+    }
+
+    const result: string[] = [];
+    const seen = new Set<string>();
+
+    roles.forEach((role) => {
+        if (!role) {
+            return;
+        }
+
+        let roleName: string;
+
+        if (typeof role === 'string') {
+            roleName = role.trim();
+        } else if (typeof role === 'object' && typeof role.name === 'string') {
+            roleName = role.name.trim();
+        } else {
+            return;
+        }
+
+        if (!roleName || seen.has(roleName)) {
+            return;
+        }
+
+        seen.add(roleName);
+        result.push(roleName);
+    });
+
+    return result;
+};
+
+const normaliseContributors = (
+    contributors?: (ResourceContributorSummary | null | undefined)[] | null,
+): NormalisedContributor[] => {
+    if (!Array.isArray(contributors) || contributors.length === 0) {
+        return [];
+    }
+
+    return contributors
+        .map((contributor) => {
+            if (!contributor || typeof contributor !== 'object') {
+                return null;
+            }
+
+            const position = toNonNegativeInteger(contributor.position);
+            const affiliations = normaliseAuthorAffiliations(contributor.affiliations ?? null);
+            const roles = normaliseContributorRoles(contributor.roles ?? null);
+            const type: 'person' | 'institution' =
+                contributor.type === 'institution' ? 'institution' : 'person';
+
+            if (type === 'institution') {
+                return {
+                    type,
+                    position,
+                    institutionName: toTrimmedStringOrNull(
+                        (contributor as ResourceInstitutionContributorSummary).institutionName,
+                    ),
+                    roles,
+                    affiliations,
+                } satisfies NormalisedContributor;
+            }
+
+            return {
+                type,
+                position,
+                orcid: toTrimmedStringOrNull(
+                    (contributor as ResourcePersonContributorSummary).orcid,
+                ),
+                firstName: toTrimmedStringOrNull(
+                    (contributor as ResourcePersonContributorSummary).firstName,
+                ),
+                lastName: toTrimmedStringOrNull(
+                    (contributor as ResourcePersonContributorSummary).lastName,
+                ),
+                roles,
+                affiliations,
+            } satisfies NormalisedContributor;
+        })
+        .filter((contributor): contributor is NormalisedContributor => Boolean(contributor))
+        .sort((left, right) => left.position - right.position);
+};
+
 export const buildCurationQueryFromResource = async (
     resource: ResourceForCuration,
 ): Promise<Record<string, string>> => {
@@ -427,6 +556,48 @@ export const buildCurationQueryFromResource = async (
         }
 
         author.affiliations.forEach((affiliation, affiliationIndex) => {
+            const affiliationPrefix = `${prefix}[affiliations][${affiliationIndex}]`;
+
+            query[`${affiliationPrefix}[value]`] = affiliation.value;
+
+            if (affiliation.rorId) {
+                query[`${affiliationPrefix}[rorId]`] = affiliation.rorId;
+            }
+        });
+    });
+
+    const contributors = normaliseContributors(resource.contributors ?? null);
+    contributors.forEach((contributor, index) => {
+        const prefix = `contributors[${index}]`;
+
+        query[`${prefix}[type]`] = contributor.type;
+        query[`${prefix}[position]`] = String(contributor.position);
+
+        contributor.roles.forEach((role, roleIndex) => {
+            query[`${prefix}[roles][${roleIndex}]`] = role;
+        });
+
+        if (contributor.type === 'person') {
+            if (contributor.orcid) {
+                query[`${prefix}[orcid]`] = contributor.orcid;
+            }
+
+            if (contributor.firstName) {
+                query[`${prefix}[firstName]`] = contributor.firstName;
+            }
+
+            if (contributor.lastName) {
+                query[`${prefix}[lastName]`] = contributor.lastName;
+            }
+        }
+
+        if (contributor.type === 'institution') {
+            if (contributor.institutionName) {
+                query[`${prefix}[institutionName]`] = contributor.institutionName;
+            }
+        }
+
+        contributor.affiliations.forEach((affiliation, affiliationIndex) => {
             const affiliationPrefix = `${prefix}[affiliations][${affiliationIndex}]`;
 
             query[`${affiliationPrefix}[value]`] = affiliation.value;

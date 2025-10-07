@@ -49,7 +49,7 @@ class ResourceAuthor extends Model
     public function roles(): BelongsToMany
     {
         /** @var BelongsToMany<Role, static> $relation */
-        $relation = $this->belongsToMany(Role::class, 'author_role');
+        $relation = $this->belongsToMany(Role::class, 'resource_author_role');
 
         return $relation;
     }

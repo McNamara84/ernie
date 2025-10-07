@@ -50,7 +50,15 @@ class ResourceController extends Controller
                     $query
                         ->with([
                             'authorable',
-                            'roles:id,name,slug',
+                            'roles:id,name,slug,applies_to',
+                            'affiliations:id,resource_author_id,value,ror_id',
+                        ]);
+                },
+                'contributors' => function ($query): void {
+                    $query
+                        ->with([
+                            'authorable',
+                            'roles:id,name,slug,applies_to',
                             'affiliations:id,resource_author_id,value,ror_id',
                         ]);
                 },
@@ -95,6 +103,10 @@ class ResourceController extends Controller
                         ->values()
                         ->all(),
                     'authors' => $resource->authors
+                        ->filter(static function (ResourceAuthor $resourceAuthor): bool {
+                            // Filter: Only ResourceAuthors with "Author" role
+                            return $resourceAuthor->roles->contains(static fn (Role $role): bool => $role->applies_to === Role::APPLIES_TO_AUTHOR);
+                        })
                         ->map(static function (ResourceAuthor $resourceAuthor): ?array {
                             $affiliations = $resourceAuthor->affiliations
                                 ->map(static fn (\App\Models\Affiliation $affiliation): array => [
@@ -132,6 +144,60 @@ class ResourceController extends Controller
                                     'type' => 'institution',
                                     'institutionName' => $authorable->name,
                                     'rorId' => $authorable->ror_id,
+                                ];
+                            }
+
+                            return null;
+                        })
+                        ->filter()
+                        ->values()
+                        ->all(),
+                    'contributors' => $resource->contributors
+                        ->filter(static function (ResourceAuthor $resourceContributor): bool {
+                            // Filter: Only ResourceAuthors with Contributor roles
+                            return $resourceContributor->roles->contains(static fn (Role $role): bool => 
+                                in_array($role->applies_to, [
+                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON,
+                                    Role::APPLIES_TO_CONTRIBUTOR_INSTITUTION,
+                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
+                                ], true)
+                            );
+                        })
+                        ->map(static function (ResourceAuthor $resourceContributor): ?array {
+                            $affiliations = $resourceContributor->affiliations
+                                ->map(static fn (\App\Models\Affiliation $affiliation): array => [
+                                    'value' => $affiliation->value,
+                                    'rorId' => $affiliation->ror_id,
+                                ])
+                                ->values()
+                                ->all();
+
+                            $roles = $resourceContributor->roles
+                                ->map(static fn (Role $role): string => $role->name)
+                                ->values()
+                                ->all();
+
+                            $base = [
+                                'position' => $resourceContributor->position,
+                                'affiliations' => $affiliations,
+                                'roles' => $roles,
+                            ];
+
+                            $contributorAble = $resourceContributor->authorable;
+
+                            if ($contributorAble instanceof Person) {
+                                return $base + [
+                                    'type' => 'person',
+                                    'orcid' => $contributorAble->orcid,
+                                    'firstName' => $contributorAble->first_name,
+                                    'lastName' => $contributorAble->last_name,
+                                ];
+                            }
+
+                            if ($contributorAble instanceof Institution) {
+                                return $base + [
+                                    'type' => 'institution',
+                                    'institutionName' => $contributorAble->name,
                                 ];
                             }
 
@@ -244,6 +310,23 @@ class ResourceController extends Controller
 
                     $this->syncAuthorRoles($resourceAuthor, $author);
                     $this->syncAuthorAffiliations($resourceAuthor, $author);
+                }
+
+                $contributors = $validated['contributors'] ?? [];
+
+                foreach ($contributors as $contributor) {
+                    $position = isset($contributor['position']) && is_int($contributor['position'])
+                        ? $contributor['position']
+                        : 0;
+
+                    if (($contributor['type'] ?? 'person') === 'institution') {
+                        $resourceContributor = $this->storeInstitutionContributor($resource, $contributor, $position);
+                    } else {
+                        $resourceContributor = $this->storePersonContributor($resource, $contributor, $position);
+                    }
+
+                    $this->syncContributorRoles($resourceContributor, $contributor);
+                    $this->syncContributorAffiliations($resourceContributor, $contributor);
                 }
 
                 return [$resource->load(['titles', 'licenses', 'authors']), $isUpdate];
@@ -438,5 +521,152 @@ class ResourceController extends Controller
         }
 
         $resourceAuthor->affiliations()->createMany($payload);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function storePersonContributor(Resource $resource, array $data, int $position): ResourceAuthor
+    {
+        $search = null;
+
+        if (! empty($data['orcid'])) {
+            $search = ['orcid' => $data['orcid']];
+        }
+
+        if ($search === null) {
+            $search = [
+                'first_name' => $data['firstName'] ?? null,
+                'last_name' => $data['lastName'],
+            ];
+        }
+
+        $person = Person::query()->firstOrNew($search);
+
+        $person->fill([
+            'first_name' => $data['firstName'] ?? $person->first_name,
+            'last_name' => $data['lastName'] ?? $person->last_name,
+        ]);
+
+        if (! empty($data['orcid'])) {
+            $person->orcid = $data['orcid'];
+        }
+
+        $person->save();
+
+        return ResourceAuthor::query()->create([
+            'resource_id' => $resource->id,
+            'authorable_id' => $person->id,
+            'authorable_type' => Person::class,
+            'position' => $position,
+            'email' => null,
+            'website' => null,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceAuthor
+    {
+        $name = $data['institutionName'];
+
+        // Contributors don't have a direct rorId field, only in affiliations
+        $institution = Institution::query()
+            ->where('name', $name)
+            ->whereNull('ror_id')
+            ->first();
+
+        if ($institution === null) {
+            $institution = new Institution();
+            $institution->name = $name;
+            $institution->save();
+        }
+
+        return ResourceAuthor::query()->create([
+            'resource_id' => $resource->id,
+            'authorable_id' => $institution->id,
+            'authorable_type' => Institution::class,
+            'position' => $position,
+            'email' => null,
+            'website' => null,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function syncContributorRoles(ResourceAuthor $resourceContributor, array $data): void
+    {
+        $roles = $data['roles'] ?? [];
+
+        if (! is_array($roles) || $roles === []) {
+            return;
+        }
+
+        $roleIds = [];
+
+        foreach ($roles as $roleName) {
+            if (! is_string($roleName) || trim($roleName) === '') {
+                continue;
+            }
+
+            $role = Role::query()->firstOrCreate(
+                ['slug' => Str::slug($roleName)],
+                ['name' => $roleName],
+            );
+
+            $roleIds[] = $role->id;
+        }
+
+        $resourceContributor->roles()->sync($roleIds);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function syncContributorAffiliations(ResourceAuthor $resourceContributor, array $data): void
+    {
+        $affiliations = $data['affiliations'] ?? [];
+
+        if (! is_array($affiliations) || $affiliations === []) {
+            return;
+        }
+
+        $payload = [];
+
+        foreach ($affiliations as $affiliation) {
+            if (! is_array($affiliation)) {
+                continue;
+            }
+
+            $value = isset($affiliation['value']) ? trim((string) $affiliation['value']) : '';
+
+            if ($value === '') {
+                continue;
+            }
+
+            $rorId = null;
+
+            if (array_key_exists('rorId', $affiliation)) {
+                $rawRorId = $affiliation['rorId'];
+
+                if ($rawRorId !== null) {
+                    $trimmedRorId = trim((string) $rawRorId);
+                    $rorId = $trimmedRorId === '' ? null : $trimmedRorId;
+                }
+            }
+
+            $payload[] = [
+                'value' => $value,
+                'ror_id' => $rorId,
+            ];
+        }
+
+        if ($payload === []) {
+            return;
+        }
+
+        $resourceContributor->affiliations()->createMany($payload);
     }
 }

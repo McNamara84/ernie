@@ -85,6 +85,24 @@ type SerializedAuthor =
           position: number;
       };
 
+type SerializedContributor =
+    | {
+          type: 'person';
+          orcid: string | null;
+          firstName: string | null;
+          lastName: string;
+          roles: string[];
+          affiliations: SerializedAffiliation[];
+          position: number;
+      }
+    | {
+          type: 'institution';
+          institutionName: string;
+          roles: string[];
+          affiliations: SerializedAffiliation[];
+          position: number;
+      };
+
 const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
     id: crypto.randomUUID(),
     type: 'person',
@@ -138,10 +156,24 @@ const createEmptyContributor = (type: ContributorType = 'person'): ContributorEn
         : createEmptyInstitutionContributor();
 };
 
-const serializeAffiliations = (author: AuthorEntry): SerializedAffiliation[] => {
+/**
+ * Serializes and normalizes affiliations from an author or contributor entry.
+ *
+ * This function processes affiliation data by:
+ * - Trimming whitespace from affiliation values and ROR IDs
+ * - Filtering out empty affiliations (those with neither a value nor a ROR ID)
+ * - Deduplicating affiliations based on the combination of value and ROR ID
+ * - Normalizing affiliations so the value field is always populated (falls back to ROR ID if value is empty)
+ *
+ * @param entry - An author or contributor entry containing affiliations to serialize
+ * @returns An array of deduplicated affiliation objects with value and rorId properties
+ */
+const serializeAffiliations = (
+    entry: AuthorEntry | ContributorEntry
+): SerializedAffiliation[] => {
     const seen = new Set<string>();
 
-    return author.affiliations
+    return entry.affiliations
         .map((affiliation) => {
             const rawValue = affiliation.value.trim();
             const rawRorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
@@ -300,12 +332,16 @@ const mapInitialContributorToEntry = (
 
     if (resolvedType === 'institution') {
         const base = createEmptyInstitutionContributor();
+        const institutionContributor = contributor as BaseInitialContributor & {
+            type: 'institution';
+            institutionName?: string | null;
+        };
 
         return {
             ...base,
             institutionName:
-                typeof contributor.institutionName === 'string'
-                    ? contributor.institutionName.trim()
+                typeof institutionContributor.institutionName === 'string'
+                    ? institutionContributor.institutionName.trim()
                     : '',
             affiliations,
             affiliationsInput,
@@ -315,12 +351,18 @@ const mapInitialContributorToEntry = (
     }
 
     const base = createEmptyPersonContributor();
+    const personContributor = contributor as BaseInitialContributor & {
+        type?: 'person';
+        orcid?: string | null;
+        firstName?: string | null;
+        lastName?: string | null;
+    };
 
     return {
         ...base,
-        orcid: typeof contributor.orcid === 'string' ? contributor.orcid.trim() : '',
-        firstName: typeof contributor.firstName === 'string' ? contributor.firstName.trim() : '',
-        lastName: typeof contributor.lastName === 'string' ? contributor.lastName.trim() : '',
+        orcid: typeof personContributor.orcid === 'string' ? personContributor.orcid.trim() : '',
+        firstName: typeof personContributor.firstName === 'string' ? personContributor.firstName.trim() : '',
+        lastName: typeof personContributor.lastName === 'string' ? personContributor.lastName.trim() : '',
         affiliations,
         affiliationsInput,
         roles,
@@ -927,6 +969,49 @@ export default function DataCiteForm({
             } satisfies SerializedAuthor;
         });
 
+        const serializedContributors: SerializedContributor[] = contributors
+            .filter((contributor) => {
+                // Filter out empty contributors
+                if (contributor.type === 'person') {
+                    const hasName = contributor.lastName.trim() !== '';
+                    const hasRoles = contributor.roles.length > 0;
+                    return hasName || hasRoles;
+                }
+                const hasInstitution = contributor.institutionName.trim() !== '';
+                const hasRoles = contributor.roles.length > 0;
+                return hasInstitution || hasRoles;
+            })
+            .map((contributor, index) => {
+                const affiliations = serializeAffiliations(contributor);
+                const roles = contributor.roles.map((role) => role.value);
+
+                if (contributor.type === 'person') {
+                    const orcid = contributor.orcid.trim();
+                    const firstName = contributor.firstName.trim();
+                    const lastName = contributor.lastName.trim();
+
+                    return {
+                        type: 'person',
+                        orcid: orcid || null,
+                        firstName: firstName || null,
+                        lastName,
+                        roles,
+                        affiliations,
+                        position: index,
+                    } satisfies SerializedContributor;
+                }
+
+                const institutionName = contributor.institutionName.trim();
+
+                return {
+                    type: 'institution',
+                    institutionName,
+                    roles,
+                    affiliations,
+                    position: index,
+                } satisfies SerializedContributor;
+            });
+
         const payload: {
             doi: string | null;
             year: number | null;
@@ -936,6 +1021,7 @@ export default function DataCiteForm({
             titles: { title: string; titleType: string }[];
             licenses: string[];
             authors: SerializedAuthor[];
+            contributors: SerializedContributor[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -951,6 +1037,7 @@ export default function DataCiteForm({
                 .map((entry) => entry.license)
                 .filter((license): license is string => Boolean(license)),
             authors: serializedAuthors,
+            contributors: serializedContributors,
         };
 
         if (resolvedResourceId !== null) {
