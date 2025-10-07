@@ -42,7 +42,7 @@ return new class extends Migration
             $table->index(['resource_id', 'position']);
         });
 
-        Schema::create('author_role', function (Blueprint $table): void {
+        Schema::create('resource_author_role', function (Blueprint $table): void {
             $table->foreignId('resource_author_id')->constrained('resource_authors')->cascadeOnDelete();
             $table->foreignId('role_id')->constrained()->cascadeOnDelete();
             $table->primary(['resource_author_id', 'role_id']);
@@ -60,7 +60,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('affiliations');
-        Schema::dropIfExists('author_role');
+        Schema::dropIfExists('resource_author_role');
         Schema::dropIfExists('resource_authors');
         Schema::dropIfExists('roles');
         Schema::dropIfExists('institutions');
