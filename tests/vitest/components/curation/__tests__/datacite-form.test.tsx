@@ -151,6 +151,19 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
     }),
 }));
 
+type TagifyAddTags = (
+    value: Array<string | Record<string, unknown>> | string,
+    clearInput?: boolean,
+    silent?: boolean,
+) => void;
+
+type TagifyInstance = {
+    addTags: TagifyAddTags;
+    value: Array<{ value: string; rorId: string | null }>;
+};
+
+type TagifyEnabledInput = HTMLInputElement & { tagify?: TagifyInstance };
+
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
@@ -172,9 +185,7 @@ describe('DataCiteForm', () => {
         }
     };
 
-    const getAuthorEntriesGroup = () => screen.getByTestId('author-entries-group');
-
-    const withinAuthors = () => within(getAuthorEntriesGroup());
+    const getAuthorScope = () => within(screen.getByTestId('author-entries-group'));
 
     const fillRequiredContributor = async (
         user: ReturnType<typeof userEvent.setup>,
@@ -184,15 +195,7 @@ describe('DataCiteForm', () => {
         }: { lastName?: string; role?: string } = {},
     ) => {
         await ensureContributorsOpen(user);
-        const roleInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement & {
-            tagify?: {
-                addTags: (
-                    tags: Array<string | Record<string, unknown>> | string,
-                    clearInput?: boolean,
-                    silent?: boolean,
-                ) => void;
-            };
-        };
+        const roleInput = screen.getByTestId('contributor-0-roles-input') as TagifyEnabledInput;
 
         await waitFor(() => {
             expect(roleInput.tagify).toBeTruthy();
@@ -203,13 +206,9 @@ describe('DataCiteForm', () => {
         });
 
         const contributorSection = screen.getByRole('region', { name: 'Contributor 1' });
-        const lastNameInput =
-            (within(contributorSection).queryByLabelText('Last name', { selector: 'input' }) ||
-                contributorSection.querySelector<HTMLInputElement>('input[id$="-lastName"]')) ??
-            null;
-        if (!lastNameInput) {
-            throw new Error('Contributor last name input not found');
-        }
+        const lastNameInput = within(contributorSection).getByRole('textbox', {
+            name: /^Last name/,
+        }) as HTMLInputElement;
         if (lastNameInput.value) {
             await user.clear(lastNameInput);
         }
@@ -342,11 +341,8 @@ describe('DataCiteForm', () => {
             exact: false,
         });
         expect(languageTrigger).toHaveAttribute('aria-required', 'true');
-        const languageLabel = languageTrigger.closest('div')?.querySelector('label');
-        if (!languageLabel) {
-            throw new Error('Language label not found');
-        }
-        expect(languageLabel).toHaveTextContent('*');
+        const languageLabel = screen.getByText(/Language of Data/, { selector: 'label' });
+        expect(languageLabel).toHaveTextContent(/\*/);
         await user.click(languageTrigger);
         for (const option of languages) {
             expect(
@@ -549,7 +545,7 @@ describe('DataCiteForm', () => {
 
         await ensureAuthorsOpen(user);
 
-        const authorScope = withinAuthors();
+        const authorScope = getAuthorScope();
         const typeTrigger = authorScope.getByRole('combobox', { name: /Author type/i });
         await user.click(typeTrigger);
         await user.click(await screen.findByRole('option', { name: 'Institution' }));
@@ -570,13 +566,7 @@ describe('DataCiteForm', () => {
             screen.queryByText('Separate multiple affiliations with commas.'),
         ).not.toBeInTheDocument();
 
-        const affiliationInput = screen.getByTestId(
-            'author-0-affiliations-input',
-        ) as HTMLInputElement & {
-            tagify?: {
-                addTags: (value: string | string[], clearInput?: boolean, skipChangeEvent?: boolean) => void;
-            };
-        };
+        const affiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
 
         await waitFor(() => {
             expect(affiliationInput.tagify).toBeTruthy();
@@ -642,17 +632,7 @@ describe('DataCiteForm', () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         await ensureAuthorsOpen(user);
 
-        const affiliationInput = screen.getByTestId(
-            'author-0-affiliations-input',
-        ) as HTMLInputElement & {
-            tagify?: {
-                addTags: (
-                    value: Array<string | Record<string, unknown>> | string,
-                    clearInput?: boolean,
-                    silent?: boolean,
-                ) => void;
-            };
-        };
+        const affiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
 
         await waitFor(() => {
             expect(affiliationInput.tagify).toBeTruthy();
@@ -694,17 +674,7 @@ describe('DataCiteForm', () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         await ensureAuthorsOpen(user);
 
-        const affiliationInput = screen.getByTestId(
-            'author-0-affiliations-input',
-        ) as HTMLInputElement & {
-            tagify?: {
-                addTags: (
-                    value: Array<string | Record<string, unknown>> | string,
-                    clearInput?: boolean,
-                    silent?: boolean,
-                ) => void;
-            };
-        };
+        const affiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
 
         await waitFor(() => {
             expect(affiliationInput.tagify).toBeTruthy();
@@ -773,7 +743,7 @@ describe('DataCiteForm', () => {
         // Add three authors
         const addButtons = () => screen.getAllByRole('button', { name: /Add author/i });
         
-        const authorGroup = getAuthorEntriesGroup();
+        const authorGroup = screen.getByTestId('author-entries-group');
 
         await user.type(
             within(authorGroup).getByRole('textbox', { name: /Last name/i }),
@@ -834,11 +804,7 @@ describe('DataCiteForm', () => {
         await user.type(screen.getByRole('textbox', { name: /Website/i }), 'https://first.example.com');
 
         // Add affiliations to third author
-        const thirdAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[2] as HTMLInputElement & {
-            tagify?: {
-                addTags: (value: string | string[], clearInput?: boolean, skipChangeEvent?: boolean) => void;
-            };
-        };
+        const thirdAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[2] as TagifyEnabledInput;
 
         await waitFor(() => {
             expect(thirdAffiliationInput.tagify).toBeTruthy();
@@ -876,10 +842,8 @@ describe('DataCiteForm', () => {
         expect(screen.getByRole('textbox', { name: /Website/i })).toHaveValue('https://first.example.com');
 
         // Former third author affiliations should be preserved
-        const secondAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[1] as HTMLInputElement & {
-            tagify: { value: { value?: string | undefined }[] };
-        };
-        const updatedAffiliationValues = secondAffiliationInput.tagify.value
+        const secondAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[1] as TagifyEnabledInput;
+        const updatedAffiliationValues = secondAffiliationInput.tagify!.value
             .map((tag) => tag.value)
             .filter((value): value is string => Boolean(value));
         expect(updatedAffiliationValues).toContain('Institution X');
@@ -902,10 +866,8 @@ describe('DataCiteForm', () => {
         );
         
         // Affiliations should be preserved
-        const finalAffiliationInput = screen.getByTestId('author-0-affiliations-input') as HTMLInputElement & {
-            tagify: { value: { value?: string | undefined }[] };
-        };
-        const finalAffiliationValues = finalAffiliationInput.tagify.value
+        const finalAffiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
+        const finalAffiliationValues = finalAffiliationInput.tagify!.value
             .map((tag) => tag.value)
             .filter((value): value is string => Boolean(value));
         expect(finalAffiliationValues).toContain('Institution X');
@@ -928,7 +890,7 @@ describe('DataCiteForm', () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         await ensureAuthorsOpen(user);
 
-        const authorsScope = withinAuthors();
+        const authorsScope = getAuthorScope();
         const typeField = screen.getByTestId('author-0-type-field');
         expect(typeField).toHaveClass('md:col-span-2');
         const typeTrigger = authorsScope.getByRole('combobox', { name: /Author type/i });
@@ -944,12 +906,12 @@ describe('DataCiteForm', () => {
         // Add author button is outside the fields grid in a separate container
         expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
         expect(
-            within(getAuthorEntriesGroup())
+            getAuthorScope()
                 .getByRole('textbox', { name: /Last name/i })
                 .closest('div'),
         ).toHaveClass('md:col-span-3');
         expect(
-            within(getAuthorEntriesGroup())
+            getAuthorScope()
                 .getByRole('textbox', { name: /First name/i })
                 .closest('div'),
         ).toHaveClass('md:col-span-3');
@@ -1202,7 +1164,7 @@ describe('DataCiteForm', () => {
 
         await ensureAuthorsOpen(user);
 
-        const authorScope = withinAuthors();
+        const authorScope = getAuthorScope();
 
         const firstNameInputs = authorScope.getAllByRole('textbox', {
             name: /First name/i,
@@ -1282,11 +1244,10 @@ describe('DataCiteForm', () => {
         }) as HTMLInputElement;
         expect(contributorFirstNameField.value).toBe('Ada');
 
-        const contributorLastNameField = contributorSection.querySelector<HTMLInputElement>(
-            'input[id$="-lastName"]',
-        );
-        expect(contributorLastNameField).not.toBeNull();
-        expect(contributorLastNameField!.value).toBe('Lovelace');
+        const contributorLastNameField = within(contributorSection).getByRole('textbox', {
+            name: /^Last name/,
+        }) as HTMLInputElement;
+        expect(contributorLastNameField.value).toBe('Lovelace');
 
         const contributorAffiliationsInput = screen.getByTestId(
             'contributor-0-affiliations-input',
@@ -1301,15 +1262,14 @@ describe('DataCiteForm', () => {
         const institutionRolesInput = screen.getByTestId('contributor-1-roles-input') as HTMLInputElement;
         expect(institutionRolesInput.value).toBe('Distributor');
 
-        const institutionNameInput = institutionSection.querySelector<HTMLInputElement>(
-            'input[id$="-institution"]',
-        );
-        expect(institutionNameInput).not.toBeNull();
-        expect(institutionNameInput!.value).toBe('Example Org');
+        const institutionNameInput = within(institutionSection).getByRole('textbox', {
+            name: /Institution name/i,
+        }) as HTMLInputElement;
+        expect(institutionNameInput.value).toBe('Example Org');
 
-        const institutionAffiliationsInput = institutionSection.querySelector<HTMLInputElement>(
-            'input[data-testid="contributor-1-affiliations-input"]',
-        );
+        const institutionAffiliationsInput = screen.getByTestId(
+            'contributor-1-affiliations-input',
+        ) as HTMLInputElement;
         expect(institutionAffiliationsInput.value).toBe('Example Org');
         expect(screen.getByTestId('contributor-1-affiliations-ror-ids')).toBeInTheDocument();
     });
