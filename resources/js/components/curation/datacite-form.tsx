@@ -37,7 +37,7 @@ import {
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { AffiliationTag } from '@/types/affiliations';
-import { normaliseContributorRoleLabel } from '@/lib/contributors';
+import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 
 interface DataCiteFormData {
     doi: string;
@@ -292,9 +292,11 @@ const mapInitialContributorToEntry = (
     const affiliations = normaliseInitialAffiliations(contributor.affiliations ?? null);
     const affiliationsInput = affiliations.map((item) => item.value).join(', ');
     const roles = normaliseInitialContributorRoles(contributor.roles ?? null);
-    const rolesInput = roles.map((role) => role.value).join(', ');
+    const roleLabels = roles.map((role) => role.value);
+    const rolesInput = roleLabels.join(', ');
+    const resolvedType = inferContributorTypeFromRoles(contributor.type, roleLabels);
 
-    if (contributor.type === 'institution') {
+    if (resolvedType === 'institution') {
         const base = createEmptyInstitutionContributor();
 
         return {

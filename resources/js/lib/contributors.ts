@@ -31,6 +31,15 @@ const CONTRIBUTOR_ROLE_LABELS: Record<string, string> = {
     other: 'Other',
 };
 
+const INSTITUTION_ONLY_ROLE_KEYS = new Set([
+    'distributor',
+    'hostinginstitution',
+    'registrationagency',
+    'registrationauthority',
+    'researchgroup',
+    'sponsor',
+]);
+
 export const normaliseContributorRoleLabel = (value: string): string => {
     const trimmed = value.trim();
 
@@ -41,4 +50,36 @@ export const normaliseContributorRoleLabel = (value: string): string => {
     const key = normalizeKey(trimmed);
 
     return key && CONTRIBUTOR_ROLE_LABELS[key] ? CONTRIBUTOR_ROLE_LABELS[key] : trimmed;
+};
+
+const normaliseRoleKey = (role: string): string | null => {
+    const key = normalizeKey(role);
+    return key.length > 0 ? key : null;
+};
+
+const rolesRequireInstitution = (roles: readonly string[]): boolean => {
+    const keys = roles
+        .map((role) => (typeof role === 'string' ? normaliseRoleKey(role) : null))
+        .filter((role): role is string => Boolean(role));
+
+    if (keys.length === 0) {
+        return false;
+    }
+
+    return keys.every((key) => INSTITUTION_ONLY_ROLE_KEYS.has(key));
+};
+
+export const inferContributorTypeFromRoles = (
+    rawType: string | null | undefined,
+    roles: readonly string[],
+): 'person' | 'institution' => {
+    if (typeof rawType === 'string' && rawType.trim().toLowerCase() === 'institution') {
+        return 'institution';
+    }
+
+    if (rolesRequireInstitution(roles)) {
+        return 'institution';
+    }
+
+    return 'person';
 };

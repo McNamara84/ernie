@@ -1236,6 +1236,69 @@ describe('DataCiteForm', () => {
         expect(screen.getByTestId('contributor-1-affiliations-ror-ids')).toBeInTheDocument();
     });
 
+    it('treats research group contributors as institutions when roles require it', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialContributors={[
+                    {
+                        type: 'person',
+                        roles: ['ResearchGroup'],
+                        institutionName: 'ExampleContributorRG',
+                        affiliations: [
+                            {
+                                value: 'ExampleOrganization',
+                                rorId: 'https://ror.org/03yrm5c26',
+                            },
+                        ],
+                    },
+                ]}
+            />,
+        );
+
+        await ensureContributorsOpen(user);
+
+        const contributorSection = screen
+            .getByRole('heading', { name: 'Contributor 1' })
+            .closest('section') as HTMLElement;
+
+        const typeField = within(screen.getByTestId('contributor-0-type-field')).getByRole(
+            'combobox',
+        );
+        expect(typeField).toHaveTextContent('Institution');
+
+        const rolesInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement;
+        expect(rolesInput.value).toBe('Research Group');
+
+        const institutionNameInput = within(contributorSection).getByDisplayValue(
+            'ExampleContributorRG',
+        ) as HTMLInputElement;
+        expect(institutionNameInput).toBeInTheDocument();
+
+        expect(
+            within(contributorSection).queryByLabelText('First name', { selector: 'input' }),
+        ).not.toBeInTheDocument();
+        expect(
+            within(contributorSection).queryByLabelText('Last name', { selector: 'input' }),
+        ).not.toBeInTheDocument();
+
+        const affiliationsInput = screen.getByTestId(
+            'contributor-0-affiliations-input',
+        ) as HTMLInputElement;
+        expect(affiliationsInput.value).toBe('ExampleOrganization');
+
+        const rorList = screen.getByTestId('contributor-0-affiliations-ror-ids');
+        expect(within(rorList).getByText('https://ror.org/03yrm5c26')).toBeInTheDocument();
+    });
+
     it('disables add license when entries list is empty', () => {
         expect(canAddLicense([], 1)).toBe(false);
     });

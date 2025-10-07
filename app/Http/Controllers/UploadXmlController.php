@@ -42,6 +42,18 @@ class UploadXmlController extends Controller
     ];
 
     /**
+     * @var string[]
+     */
+    private const INSTITUTION_ONLY_CONTRIBUTOR_ROLE_KEYS = [
+        'distributor',
+        'hostinginstitution',
+        'registrationagency',
+        'registrationauthority',
+        'researchgroup',
+        'sponsor',
+    ];
+
+    /**
      * @var array<string, array{value: string, rorId: string}>
      */
     private array $affiliationMap = [];
@@ -237,7 +249,7 @@ class UploadXmlController extends Controller
             $nameElement = $this->firstElement($content, 'contributorName');
             $nameType = $nameElement?->getAttribute('nameType');
 
-            $isInstitution = is_string($nameType) && Str::lower($nameType) === 'organizational';
+            $isInstitution = $this->isInstitutionContributor($nameType, $roles);
 
             if ($isInstitution) {
                 $institutionName = $this->stringValue($nameElement) ?? '';
@@ -337,6 +349,54 @@ class UploadXmlController extends Controller
         }
 
         return str_replace('-', '', $slug);
+    }
+
+    /**
+     * @param string[] $roles
+     */
+    private function isInstitutionContributor(?string $nameType, array $roles): bool
+    {
+        if (is_string($nameType)) {
+            $normalised = Str::lower($nameType);
+
+            if ($normalised === 'organizational') {
+                return true;
+            }
+
+            if ($normalised === 'personal') {
+                return false;
+            }
+        }
+
+        return $this->contributorRolesRequireInstitution($roles);
+    }
+
+    /**
+     * @param string[] $roles
+     */
+    private function contributorRolesRequireInstitution(array $roles): bool
+    {
+        $hasRoles = false;
+
+        foreach ($roles as $role) {
+            if ($role === '') {
+                continue;
+            }
+
+            $hasRoles = true;
+
+            $key = $this->normaliseContributorRoleKey($role);
+
+            if ($key === null) {
+                return false;
+            }
+
+            if (! in_array($key, self::INSTITUTION_ONLY_CONTRIBUTOR_ROLE_KEYS, true)) {
+                return false;
+            }
+        }
+
+        return $hasRoles;
     }
 
     /**

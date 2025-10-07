@@ -449,6 +449,47 @@ describe('handleXmlFiles', () => {
         routerMock.get.mockReset();
     });
 
+    it('coerces research group contributors to institutions when backend returns person type', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+            {
+                ok: true,
+                json: async () => ({
+                    contributors: [
+                        {
+                            type: 'person',
+                            roles: ['ResearchGroup'],
+                            institutionName: 'ExampleContributorRG',
+                            affiliations: [
+                                {
+                                    value: 'ExampleOrganization',
+                                    rorId: 'https://ror.org/03yrm5c26',
+                                },
+                            ],
+                        },
+                    ],
+                }),
+            } as Response,
+        );
+
+        await handleXmlFiles([file]);
+
+        expect(fetchMock).toHaveBeenCalled();
+        expect(routerMock.get).toHaveBeenCalled();
+        const [url] = routerMock.get.mock.calls[0];
+        const search = url.split('?')[1] ?? '';
+        const params = new URLSearchParams(search);
+
+        expect(params.get('contributors[0][type]')).toBe('institution');
+        expect(params.get('contributors[0][roles][0]')).toBe('Research Group');
+        expect(params.get('contributors[0][institutionName]')).toBe('ExampleContributorRG');
+        expect(params.get('contributors[0][affiliations][0][value]')).toBe('ExampleOrganization');
+        expect(params.get('contributors[0][affiliations][0][rorId]')).toBe('https://ror.org/03yrm5c26');
+
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
     it('honors a configured base path for uploads and redirects', async () => {
         basePathTesting.setMetaBasePath('/ernie');
         applyBasePathToRoutes({ uploadXml: uploadXmlRoute });

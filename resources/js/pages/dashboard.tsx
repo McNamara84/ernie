@@ -10,7 +10,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useRef, useState } from 'react';
 import { latestVersion } from '@/lib/version';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
-import { normaliseContributorRoleLabel } from '@/lib/contributors';
+import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 
 type UploadedAffiliation = {
     value?: string | null;
@@ -174,9 +174,6 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                     return;
                 }
 
-                const type = contributor.type === 'institution' ? 'institution' : 'person';
-                query[`contributors[${contributorIndex}][type]`] = type;
-
                 const rawRoles = Array.isArray(contributor.roles)
                     ? contributor.roles
                     : contributor.roles && typeof contributor.roles === 'object'
@@ -184,14 +181,18 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                       : typeof contributor.roles === 'string'
                         ? [contributor.roles]
                         : [];
-                rawRoles
+                const normalisedRoles = rawRoles
                     .map((role) =>
                         typeof role === 'string' ? normaliseContributorRoleLabel(role) : '',
                     )
-                    .filter((role): role is string => role.length > 0)
-                    .forEach((role, roleIndex) => {
-                        query[`contributors[${contributorIndex}][roles][${roleIndex}]`] = role;
-                    });
+                    .filter((role): role is string => role.length > 0);
+
+                const type = inferContributorTypeFromRoles(contributor.type, normalisedRoles);
+                query[`contributors[${contributorIndex}][type]`] = type;
+
+                normalisedRoles.forEach((role, roleIndex) => {
+                    query[`contributors[${contributorIndex}][roles][${roleIndex}]`] = role;
+                });
 
                 if (type === 'person') {
                     const trimmedFirst =

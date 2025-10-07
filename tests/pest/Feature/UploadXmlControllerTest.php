@@ -86,6 +86,33 @@ XML;
     $response->assertJsonPath('contributors.2.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
 });
 
+test('treats research group contributors without a name type as institutions', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <contributors>
+    <contributor contributorType="ResearchGroup">
+      <contributorName>ExampleContributorRG</contributorName>
+      <affiliation affiliationIdentifier="https://ror.org/03yrm5c26" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleOrganization</affiliation>
+    </contributor>
+  </contributors>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('research-group.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertJsonPath('contributors.0.type', 'institution');
+    $response->assertJsonPath('contributors.0.roles', ['Research Group']);
+    $response->assertJsonPath('contributors.0.institutionName', 'ExampleContributorRG');
+    $response->assertJsonPath('contributors.0.affiliations.0.value', 'ExampleOrganization');
+    $response->assertJsonPath('contributors.0.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
+});
+
 test('uploading a non-xml file returns validation errors', function () {
     $this->actingAs(User::factory()->create());
 
