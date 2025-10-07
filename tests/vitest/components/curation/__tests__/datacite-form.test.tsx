@@ -1236,6 +1236,38 @@ describe('DataCiteForm', () => {
         expect(screen.getByTestId('contributor-1-affiliations-ror-ids')).toBeInTheDocument();
     });
 
+    it('prefills contributor role inputs with multiple roles', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialContributors={[
+                    {
+                        type: 'person',
+                        roles: ['Contact Person', 'Data Curator'],
+                        firstName: 'Ada',
+                        lastName: 'Lovelace',
+                    },
+                ]}
+            />,
+        );
+
+        await ensureContributorsOpen(user);
+
+        const contributorRoleInput = screen.getByTestId(
+            'contributor-0-roles-input',
+        ) as HTMLInputElement;
+
+        expect(contributorRoleInput.value).toBe('Contact Person, Data Curator');
+    });
+
     it('treats research group contributors as institutions when roles require it', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 

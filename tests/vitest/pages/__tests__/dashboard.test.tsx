@@ -449,6 +449,37 @@ describe('handleXmlFiles', () => {
         routerMock.get.mockReset();
     });
 
+    it('serialises multiple roles for a single contributor', async () => {
+        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
+            {
+                ok: true,
+                json: async () => ({
+                    contributors: [
+                        {
+                            type: 'person',
+                            roles: ['ContactPerson', 'DataCurator'],
+                            firstName: 'Ada',
+                            lastName: 'Lovelace',
+                        },
+                    ],
+                }),
+            } as Response,
+        );
+
+        await handleXmlFiles([file]);
+
+        expect(routerMock.get).toHaveBeenCalled();
+        const [url] = routerMock.get.mock.calls[0];
+        const params = new URLSearchParams(url.split('?')[1] ?? '');
+
+        expect(params.get('contributors[0][roles][0]')).toBe('Contact Person');
+        expect(params.get('contributors[0][roles][1]')).toBe('Data Curator');
+
+        fetchMock.mockRestore();
+        routerMock.get.mockReset();
+    });
+
     it('coerces research group contributors to institutions when backend returns person type', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(

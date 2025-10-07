@@ -236,6 +236,7 @@ class UploadXmlController extends Controller
             ->get();
 
         $contributors = [];
+        $contributorIndexByKey = [];
 
         foreach ($contributorElements as $contributor) {
             $content = $contributor->getContent();
@@ -255,12 +256,18 @@ class UploadXmlController extends Controller
                 $institutionName = $this->stringValue($nameElement) ?? '';
                 $affiliations = $this->extractInstitutionContributorAffiliations($content, $institutionName);
 
-                $contributors[] = [
+                $contributorData = [
                     'type' => 'institution',
                     'institutionName' => $institutionName,
                     'roles' => $roles,
                     'affiliations' => $affiliations,
                 ];
+
+                $contributors = $this->storeContributor(
+                    $contributors,
+                    $contributorIndexByKey,
+                    $contributorData,
+                );
 
                 continue;
             }
@@ -276,7 +283,7 @@ class UploadXmlController extends Controller
 
             $fallbackLastName = $familyName ?? ($this->stringValue($nameElement) ?? '');
 
-            $contributors[] = [
+            $contributorData = [
                 'type' => 'person',
                 'roles' => $roles,
                 'orcid' => $this->extractOrcid($content),
@@ -284,9 +291,307 @@ class UploadXmlController extends Controller
                 'lastName' => $fallbackLastName,
                 'affiliations' => $this->extractAffiliations($content),
             ];
+
+            $contributors = $this->storeContributor(
+                $contributors,
+                $contributorIndexByKey,
+                $contributorData,
+            );
         }
 
         return $contributors;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $contributors
+     * @param array<string, int> $indexByKey
+     * @param array<string, mixed> $contributor
+     * @return array<int, array<string, mixed>>
+     */
+    private function storeContributor(
+        array $contributors,
+        array &$indexByKey,
+        array $contributor,
+    ): array {
+        $keys = $this->buildContributorAggregationKeys($contributor);
+
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $indexByKey)) {
+                continue;
+            }
+
+            $existingIndex = $indexByKey[$key];
+            $contributors[$existingIndex] = $this->mergeContributorEntries(
+                $contributors[$existingIndex],
+                $contributor,
+            );
+
+            foreach ($keys as $aliasKey) {
+                $indexByKey[$aliasKey] = $existingIndex;
+            }
+
+            return $contributors;
+        }
+
+        $contributors[] = $contributor;
+
+        if (! empty($keys)) {
+            $index = count($contributors) - 1;
+
+            foreach ($keys as $key) {
+                $indexByKey[$key] = $index;
+            }
+        }
+
+        return $contributors;
+    }
+
+    /**
+     * @param array<string, mixed> $primary
+     * @param array<string, mixed> $incoming
+     * @return array<string, mixed>
+     */
+    private function mergeContributorEntries(array $primary, array $incoming): array
+    {
+        if (($primary['type'] ?? null) !== ($incoming['type'] ?? null)) {
+            return $primary;
+        }
+
+        $primary['roles'] = $this->mergeContributorRoles(
+            is_array($primary['roles'] ?? null) ? $primary['roles'] : [],
+            is_array($incoming['roles'] ?? null) ? $incoming['roles'] : [],
+        );
+
+        if (($primary['type'] ?? null) === 'person') {
+            return $this->mergePersonContributor($primary, $incoming);
+        }
+
+        if (($primary['type'] ?? null) === 'institution') {
+            return $this->mergeInstitutionContributor($primary, $incoming);
+        }
+
+        return $primary;
+    }
+
+    /**
+     * @param string[] $existing
+     * @param string[] $incoming
+     * @return string[]
+     */
+    private function mergeContributorRoles(array $existing, array $incoming): array
+    {
+        foreach ($incoming as $role) {
+            if (! is_string($role) || $role === '') {
+                continue;
+            }
+
+            if (! in_array($role, $existing, true)) {
+                $existing[] = $role;
+            }
+        }
+
+        return $existing;
+    }
+
+    /**
+     * @param array<string, mixed> $primary
+     * @param array<string, mixed> $incoming
+     * @return array<string, mixed>
+     */
+    private function mergePersonContributor(array $primary, array $incoming): array
+    {
+        if (($primary['orcid'] ?? '') === '' && isset($incoming['orcid']) && is_string($incoming['orcid'])) {
+            $primary['orcid'] = $incoming['orcid'];
+        }
+
+        foreach (['firstName', 'lastName'] as $field) {
+            if (
+                (! isset($primary[$field]) || ! is_string($primary[$field]) || trim($primary[$field]) === '')
+                && isset($incoming[$field])
+                && is_string($incoming[$field])
+                && trim($incoming[$field]) !== ''
+            ) {
+                $primary[$field] = $incoming[$field];
+            }
+        }
+
+        $primary['affiliations'] = $this->mergeAffiliations(
+            is_array($primary['affiliations'] ?? null) ? $primary['affiliations'] : [],
+            is_array($incoming['affiliations'] ?? null) ? $incoming['affiliations'] : [],
+        );
+
+        return $primary;
+    }
+
+    /**
+     * @param array<string, mixed> $primary
+     * @param array<string, mixed> $incoming
+     * @return array<string, mixed>
+     */
+    private function mergeInstitutionContributor(array $primary, array $incoming): array
+    {
+        if (
+            (! isset($primary['institutionName'])
+                || ! is_string($primary['institutionName'])
+                || trim($primary['institutionName']) === '')
+            && isset($incoming['institutionName'])
+            && is_string($incoming['institutionName'])
+            && trim($incoming['institutionName']) !== ''
+        ) {
+            $primary['institutionName'] = $incoming['institutionName'];
+        }
+
+        $primary['affiliations'] = $this->mergeAffiliations(
+            is_array($primary['affiliations'] ?? null) ? $primary['affiliations'] : [],
+            is_array($incoming['affiliations'] ?? null) ? $incoming['affiliations'] : [],
+        );
+
+        return $primary;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $existing
+     * @param array<int, array<string, mixed>> $incoming
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeAffiliations(array $existing, array $incoming): array
+    {
+        $merged = [];
+        $seen = [];
+
+        foreach ([$existing, $incoming] as $group) {
+            foreach ($group as $affiliation) {
+                if (! is_array($affiliation)) {
+                    continue;
+                }
+
+                $value = isset($affiliation['value']) && is_string($affiliation['value'])
+                    ? trim($affiliation['value'])
+                    : '';
+                $rorId = isset($affiliation['rorId']) && is_string($affiliation['rorId'])
+                    ? trim($affiliation['rorId'])
+                    : null;
+
+                if ($rorId === '') {
+                    $rorId = null;
+                }
+
+                if ($value === '' && $rorId === null) {
+                    continue;
+                }
+
+                $key = $rorId !== null ? 'ror:' . Str::lower($rorId) : 'value:' . Str::lower($value);
+
+                if (isset($seen[$key])) {
+                    $existingIndex = $seen[$key];
+
+                    if ($merged[$existingIndex]['value'] === '' && $value !== '') {
+                        $merged[$existingIndex]['value'] = $value;
+                    }
+
+                    if ($merged[$existingIndex]['rorId'] === null && $rorId !== null) {
+                        $merged[$existingIndex]['rorId'] = $rorId;
+                    }
+
+                    continue;
+                }
+
+                $seen[$key] = count($merged);
+
+                $merged[] = [
+                    'value' => $value,
+                    'rorId' => $rorId,
+                ];
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @param array<string, mixed> $contributor
+     * @return string[]
+     */
+    private function buildContributorAggregationKeys(array $contributor): array
+    {
+        $type = $contributor['type'] ?? null;
+
+        if (! is_string($type)) {
+            return [];
+        }
+
+        if ($type === 'person') {
+            $keys = [];
+            $orcid = $this->normaliseIdentifier($contributor['orcid'] ?? null);
+
+            if ($orcid !== null) {
+                $keys[] = 'person:orcid:' . $orcid;
+            }
+
+            $lastName = $this->normaliseKeyString($contributor['lastName'] ?? null);
+            $firstName = $this->normaliseKeyString($contributor['firstName'] ?? null);
+
+            if ($lastName !== null || $firstName !== null) {
+                $keys[] = 'person:name:' . ($lastName ?? '') . ':' . ($firstName ?? '');
+            }
+
+            return $keys;
+        }
+
+        if ($type === 'institution') {
+            $keys = [];
+            $affiliations = is_array($contributor['affiliations'] ?? null)
+                ? $contributor['affiliations']
+                : [];
+
+            foreach ($affiliations as $affiliation) {
+                if (! is_array($affiliation)) {
+                    continue;
+                }
+
+                $rorId = $this->normaliseIdentifier($affiliation['rorId'] ?? null);
+
+                if ($rorId !== null) {
+                    $keys[] = 'institution:ror:' . $rorId;
+                }
+            }
+
+            $institutionName = $this->normaliseKeyString($contributor['institutionName'] ?? null);
+
+            if ($institutionName !== null) {
+                $keys[] = 'institution:name:' . $institutionName;
+            }
+
+            return $keys;
+        }
+
+        return [];
+    }
+
+    private function normaliseIdentifier(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : Str::lower($trimmed);
+    }
+
+    private function normaliseKeyString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        if ($trimmed === '') {
+            return null;
+        }
+
+        return Str::lower(preg_replace('/\s+/u', ' ', $trimmed));
     }
 
     /**
