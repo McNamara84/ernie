@@ -506,21 +506,32 @@ class OldDataset extends Model
             $affiliations = $allAffiliations[$agent->order] ?? [];
 
             // Determine if this is a person or institution
-            // Check the roles first - certain roles indicate institutions
-            $institutionRoles = ['HostingInstitution', 'DataCurator', 'DataManager', 'Distributor', 'ResearchGroup', 'RightsHolder', 'Sponsor'];
-            $hasInstitutionRole = !empty(array_intersect($roles, $institutionRoles));
+            // Strategy: Use roles as primary indicator, then fallback to name analysis
             
-            // A resourceagent is considered an institution if:
-            // 1. It has a role that's typically for institutions (HostingInstitution, etc.), OR
-            // 2. The name doesn't contain a comma AND firstname/lastname are both empty
-            $isInstitution = $hasInstitutionRole || (
-                empty($agent->firstname) && 
-                empty($agent->lastname) && 
-                !empty($agent->name) && 
-                !str_contains($agent->name, ',')
-            );
+            // 1. Roles that ONLY apply to institutions (strongest indicator)
+            $institutionOnlyRoles = ['HostingInstitution', 'Distributor', 'ResearchGroup', 'Sponsor'];
+            $hasInstitutionOnlyRole = !empty(array_intersect($roles, $institutionOnlyRoles));
             
-            $isPerson = !$isInstitution;
+            // 2. Name format indicators
+            $hasCommaSeparatedName = !empty($agent->name) && str_contains($agent->name, ',');
+            
+            // Decision logic (in priority order):
+            // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor → ALWAYS Institution
+            // 2. If name contains comma → Person (format: "Lastname, Firstname")
+            // 3. If has firstname OR lastname → Person
+            // 4. Default → Institution
+            
+            if ($hasInstitutionOnlyRole) {
+                $isPerson = false;
+            } elseif ($hasCommaSeparatedName) {
+                $isPerson = true;
+            } elseif (!empty($agent->firstname) || !empty($agent->lastname)) {
+                $isPerson = true;
+            } else {
+                $isPerson = false;
+            }
+            
+            $isInstitution = !$isPerson;
             
             // For institutions: use the name field if available, otherwise use the first affiliation
             $institutionName = null;
