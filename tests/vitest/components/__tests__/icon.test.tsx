@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import { Icon } from '@/components/icon';
-import { describe, expect, it } from 'vitest';
 import type { LucideProps } from 'lucide-react';
+import { describe, expect, it } from 'vitest';
+
+import { Icon } from '@/components/icon';
 
 const DummyIcon = (props: LucideProps) => <svg data-testid="dummy-icon" {...props} />;
 

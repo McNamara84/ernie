@@ -1,7 +1,8 @@
-import { withBasePath } from '@/lib/base-path';
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
+
+import AppLayout from '@/layouts/app-layout';
+import { withBasePath } from '@/lib/base-path';
+import { type BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Documentation', href: withBasePath('/docs') },

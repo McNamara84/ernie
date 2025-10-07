@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+
 import { NavMain } from '@/components/nav-main';
 
 vi.mock('@/components/ui/sidebar', () => ({

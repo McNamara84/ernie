@@ -1,15 +1,17 @@
-import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Head, router } from '@inertiajs/react';
+import axios, { isAxiosError } from 'axios';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef,useState } from 'react';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AppLayout from '@/layouts/app-layout';
 import { curation as curationRoute } from '@/routes';
-import { Head, router } from '@inertiajs/react';
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import type { ReactNode } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight } from 'lucide-react';
-import axios, { isAxiosError } from 'axios';
+import { type BreadcrumbItem } from '@/types';
+import { parseContributorName } from '@/utils/nameParser';
 
 interface Dataset {
     id?: number;
@@ -794,22 +796,12 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 query[`contributors[${index}][type]`] = contributor.type;
                 
                 if (contributor.type === 'person') {
-                    // Person contributor
-                    let firstName = contributor.givenName;
-                    let lastName = contributor.familyName;
-                    
-                    // If givenName/familyName are empty but name contains a comma, parse it
-                    if (!firstName && !lastName && contributor.name) {
-                        if (contributor.name.includes(',')) {
-                            // Format: "LastName, FirstName"
-                            const parts = contributor.name.split(',').map(p => p.trim());
-                            lastName = parts[0];
-                            firstName = parts[1] || '';
-                        } else {
-                            // No comma - just use as lastName
-                            lastName = contributor.name;
-                        }
-                    }
+                    // Person contributor - use parseContributorName utility
+                    const { firstName, lastName } = parseContributorName(
+                        contributor.name,
+                        contributor.givenName,
+                        contributor.familyName
+                    );
                     
                     if (firstName) {
                         query[`contributors[${index}][firstName]`] = firstName;

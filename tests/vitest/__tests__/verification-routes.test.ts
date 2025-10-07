@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { notice, verify, send } from '@/routes/verification';
-import { normalizeTestUrl, expectUrlToBe } from '@tests/vitest/utils/test-utils';
+import { expectUrlToBe,normalizeTestUrl } from '@tests/vitest/utils/test-utils';
+import { describe, expect,it } from 'vitest';
+
+import { notice, send,verify } from '@/routes/verification';
 
 describe('verification routes', () => {
   it('generates notice route definitions', () => {

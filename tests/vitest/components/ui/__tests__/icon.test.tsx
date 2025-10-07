@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { Icon } from '@/components/ui/icon';
 import { XIcon } from 'lucide-react';
+import { describe, expect, it } from 'vitest';
+
+import { Icon } from '@/components/ui/icon';
 
 describe('UI Icon', () => {
     it('renders nothing when no iconNode is provided', () => {

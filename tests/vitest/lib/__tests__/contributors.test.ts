@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 
 describe('contributors library', () => {

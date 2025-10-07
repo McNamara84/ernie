@@ -1,10 +1,12 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach, afterEach, Mock } from 'vitest';
-import Changelog from '@/pages/changelog';
-import { __testing as basePathTesting } from '@/lib/base-path';
 import type React from 'react';
+import { afterEach, beforeEach, describe, expect, it, Mock,vi } from 'vitest';
+
+import { __testing as basePathTesting } from '@/lib/base-path';
+import Changelog from '@/pages/changelog';
 
 vi.mock('@/layouts/public-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,

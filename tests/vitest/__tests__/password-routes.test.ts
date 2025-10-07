@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { expectUrlToBe,normalizeTestUrl } from '@tests/vitest/utils/test-utils';
+import { describe, expect,it } from 'vitest';
+
 import { edit } from '@/routes/password';
-import { normalizeTestUrl, expectUrlToBe } from '@tests/vitest/utils/test-utils';
 
 describe('password routes', () => {
   it('generates edit route and head form with mergeQuery', () => {

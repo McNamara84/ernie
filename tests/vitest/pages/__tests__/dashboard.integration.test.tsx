@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render } from '@testing-library/react';
-import Dashboard from '@/pages/dashboard';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import Dashboard from '@/pages/dashboard';
 
 const usePageMock = vi.fn();
 const routerMock = vi.hoisted(() => ({ get: vi.fn() }));

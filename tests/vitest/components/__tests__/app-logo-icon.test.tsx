@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { describe, expect, it } from 'vitest';
+
+import AppLogoIcon from '@/components/app-logo-icon';
 
 describe('AppLogoIcon', () => {
     it('renders image with default attributes', () => {

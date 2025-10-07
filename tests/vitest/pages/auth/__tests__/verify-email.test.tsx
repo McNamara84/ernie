@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import VerifyEmail from '@/pages/auth/verify-email';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import VerifyEmail from '@/pages/auth/verify-email';
 
 let formProcessing: boolean;
 

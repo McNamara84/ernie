@@ -1,13 +1,14 @@
+import { type HTMLAttributes } from 'react';
+
 import { Label } from '@/components/ui/label';
 import {
     Select,
-    SelectTrigger,
     SelectContent,
     SelectItem,
+    SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { type HTMLAttributes } from 'react';
 
 interface Option {
     value: string;

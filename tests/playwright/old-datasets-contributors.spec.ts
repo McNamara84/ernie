@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { expect,test } from '@playwright/test';
+
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
 /**
@@ -110,7 +111,7 @@ test.describe.skip('Load Contributors from Old Database', () => {
         const datasetRow = page.locator('tr', { has: page.locator('td', { hasText: /^2396$/ }) });
         
         // May not be visible on first page, so try scrolling or pagination
-        let found = await datasetRow.isVisible({ timeout: 2000 }).catch(() => false);
+        const found = await datasetRow.isVisible({ timeout: 2000 }).catch(() => false);
         
         if (!found) {
             // Try searching or filtering

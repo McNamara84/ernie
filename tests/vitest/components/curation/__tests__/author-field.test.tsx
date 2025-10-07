@@ -1,10 +1,12 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import { act } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+
 import AuthorField, {
-    type PersonAuthorEntry,
     type InstitutionAuthorEntry,
+    type PersonAuthorEntry,
 } from '@/components/curation/fields/author-field';
 import type { AffiliationSuggestion } from '@/types/affiliations';
 

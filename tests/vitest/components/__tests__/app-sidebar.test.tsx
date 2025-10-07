@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
+import { afterEach,describe, expect, it, vi } from 'vitest';
+
 import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
-import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { NavItem } from '@/types';
 
 const NavMainMock = vi.hoisted(() =>

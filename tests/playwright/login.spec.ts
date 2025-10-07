@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test';
-import { TEST_USER_EMAIL, INVALID_PASSWORD } from './constants';
+import { expect,test } from '@playwright/test';
+
+import { INVALID_PASSWORD,TEST_USER_EMAIL } from './constants';
 
 test('shows an error for invalid login credentials', async ({ page }) => {
   await page.goto('/login');

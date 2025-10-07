@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
-import { about, changelog as changelogRoute, legalNotice } from '@/routes';
+
 import { latestVersion } from '@/lib/version';
+import { about, changelog as changelogRoute, legalNotice } from '@/routes';
 
 export function AppFooter() {
     return (

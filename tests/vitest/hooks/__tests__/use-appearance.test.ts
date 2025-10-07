@@ -1,6 +1,7 @@
-import { renderHook, act } from '@testing-library/react';
+import { act,renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAppearance, initializeTheme } from '@/hooks/use-appearance';
+
+import { initializeTheme,useAppearance } from '@/hooks/use-appearance';
 
 const matchMediaMock = vi.fn().mockImplementation((query) => ({
     matches: false,

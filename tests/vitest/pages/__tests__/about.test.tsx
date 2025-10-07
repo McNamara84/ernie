@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import About from '@/pages/about';
 import { describe, expect, it, vi } from 'vitest';
+
+import About from '@/pages/about';
 
 vi.mock('@/layouts/public-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,

@@ -1,8 +1,9 @@
-import { test, expect } from '@playwright/test';
+import { expect,test } from '@playwright/test';
+
 import {
   TEST_USER_EMAIL,
-  TEST_USER_PASSWORD,
   TEST_USER_GREETING,
+  TEST_USER_PASSWORD,
 } from './constants';
 
 test('redirects to dashboard after valid login', async ({ page }) => {

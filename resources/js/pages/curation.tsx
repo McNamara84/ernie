@@ -1,19 +1,20 @@
-import AppLayout from '@/layouts/app-layout';
+import { Head } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+
 import DataCiteForm, {
     type InitialAuthor,
     type InitialContributor,
 } from '@/components/curation/datacite-form';
-import { curation } from '@/routes';
+import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
-import { Head } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { curation } from '@/routes';
 import {
     type BreadcrumbItem,
-    type ResourceType,
-    type TitleType,
-    type License,
     type Language,
+    type License,
+    type ResourceType,
     type Role,
+    type TitleType,
 } from '@/types';
 
 interface CurationProps {

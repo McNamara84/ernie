@@ -1,9 +1,11 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import AppFooter from '@/components/app-footer';
-import { latestVersion } from '@/lib/version';
-import { __testing as basePathTesting } from '@/lib/base-path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import AppFooter from '@/components/app-footer';
+import { __testing as basePathTesting } from '@/lib/base-path';
+import { latestVersion } from '@/lib/version';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ href, children, ...props }: { href: unknown; children?: React.ReactNode } & React.AnchorHTMLAttributes<HTMLAnchorElement>) => {

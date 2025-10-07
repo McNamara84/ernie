@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen, within, fireEvent, act } from '@testing-library/react';
-import ResourcesPage, { buildDoiUrl, formatDateTime, getPrimaryTitle } from '@/pages/resources';
+
+import { act,fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import ResourcesPage, { buildDoiUrl, formatDateTime, getPrimaryTitle } from '@/pages/resources';
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn() }));
 const buildCurationQueryFromResourceMock = vi.hoisted(() => vi.fn());

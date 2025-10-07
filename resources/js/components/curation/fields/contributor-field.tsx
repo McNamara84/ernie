@@ -1,12 +1,14 @@
-import { useMemo } from 'react';
+import type { TagData, TagifySettings } from '@yaireo/tagify';
 import { Plus, Trash2 } from 'lucide-react';
-import InputField from './input-field';
-import { SelectField } from './select-field';
-import TagInputField from './tag-input-field';
+import { useMemo } from 'react';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
-import type { TagData, TagifySettings } from '@yaireo/tagify';
+
+import InputField from './input-field';
+import { SelectField } from './select-field';
+import TagInputField from './tag-input-field';
 export type ContributorType = 'person' | 'institution';
 
 export interface ContributorRoleTag {

@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
 import LicenseField from '@/components/curation/fields/license-field';
 
 describe('LicenseField', () => {

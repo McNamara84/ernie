@@ -1,8 +1,9 @@
-import PublicLayout from '@/layouts/public-layout';
-import { withBasePath } from '@/lib/base-path';
 import { Head } from '@inertiajs/react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+
+import PublicLayout from '@/layouts/public-layout';
+import { withBasePath } from '@/lib/base-path';
 
 type Change = {
     title: string;

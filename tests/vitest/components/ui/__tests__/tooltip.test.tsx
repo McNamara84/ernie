@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { describe, expect,it } from 'vitest';
+
+import { Tooltip, TooltipContent,TooltipTrigger } from '@/components/ui/tooltip';
 
 describe('Tooltip', () => {
     it('renders content when open', () => {

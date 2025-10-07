@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
 test('user can add and remove title rows', async ({ page }) => {

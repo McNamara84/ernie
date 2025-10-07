@@ -1,7 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import { Breadcrumbs } from '@/components/breadcrumbs';
 import { describe, expect, it, vi } from 'vitest';
+
+import { Breadcrumbs } from '@/components/breadcrumbs';
 
 vi.mock('@inertiajs/react', () => ({
     Link: ({ href, children }: { href: string; children?: React.ReactNode }) => <a href={href}>{children}</a>,

@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { useState, type ComponentProps, type ReactNode } from 'react';
-import ConfirmPassword from '@/pages/auth/confirm-password';
+import { type ComponentProps, type ReactNode,useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import ConfirmPassword from '@/pages/auth/confirm-password';
 
 const originalLocation = window.location;
 

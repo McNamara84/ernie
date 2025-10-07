@@ -1,5 +1,5 @@
-import * as generatedRoutes from '../routes/password/index';
 import { applyBasePathToRoutes } from '../lib/base-path';
+import * as generatedRoutes from '../routes/password/index';
 
 type RouteModule = Record<string, unknown>;
 

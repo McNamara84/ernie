@@ -1,7 +1,7 @@
-import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
+import React from 'react';
 import { act } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('swagger-ui-react', () => ({
   default: ({ spec }: { spec: { info: { title: string } } }) => (

@@ -1,5 +1,6 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { applyBasePathToRoutes, withBasePath, __testing as basePathTesting } from '@/lib/base-path';
+import { beforeEach,describe, expect, it } from 'vitest';
+
+import { __testing as basePathTesting,applyBasePathToRoutes, withBasePath } from '@/lib/base-path';
 
 describe('withBasePath', () => {
     beforeEach(() => {

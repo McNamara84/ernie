@@ -1,3 +1,6 @@
+import { Link } from '@inertiajs/react';
+import { BookOpen, Database, FileText, History, Layers,LayoutGrid, Settings } from 'lucide-react';
+
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -5,8 +8,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { withBasePath } from '@/lib/base-path';
 import { dashboard, settings } from '@/routes';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
-import { BookOpen, LayoutGrid, Database, History, Settings, FileText, Layers } from 'lucide-react';
+
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [

@@ -1,11 +1,13 @@
 import '@testing-library/jest-dom/vitest';
+
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import Dashboard, { handleXmlFiles } from '@/pages/dashboard';
-import { latestVersion } from '@/lib/version';
-import { applyBasePathToRoutes, __testing as basePathTesting } from '@/lib/base-path';
-import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { __testing as basePathTesting,applyBasePathToRoutes } from '@/lib/base-path';
+import { latestVersion } from '@/lib/version';
+import Dashboard, { handleXmlFiles } from '@/pages/dashboard';
+import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();

@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { NavUser } from '@/components/nav-user';
 
 type DropdownProps = { side?: string; [key: string]: unknown };

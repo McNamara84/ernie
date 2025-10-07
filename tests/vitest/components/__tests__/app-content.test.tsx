@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
 import { AppContent } from '@/components/app-content';
 
 vi.mock('@/components/ui/sidebar', () => ({

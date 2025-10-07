@@ -1,9 +1,11 @@
 import '@testing-library/jest-dom/vitest';
+
 import { render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import type { BreadcrumbItem } from '@/types';
 import { describe, expect, it, vi } from 'vitest';
+
 import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 
 const AppLayoutTemplateMock = vi.hoisted(() =>
     vi.fn(

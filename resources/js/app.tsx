@@ -1,12 +1,13 @@
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
+import axios from 'axios';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
+
 import { initializeTheme } from './hooks/use-appearance';
-import { setupUrlTransformation } from './url-fix';
-import axios from 'axios';
 import { buildCsrfHeaders } from './lib/csrf-token';
+import { setupUrlTransformation } from './url-fix';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
