@@ -395,6 +395,12 @@ it('updates an existing resource when the request includes a resource identifier
                 'position' => 1,
             ],
         ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'This is an abstract for the updated resource.',
+            ],
+        ],
     ];
 
     postJson(route('curation.resources.store'), $payload)
@@ -502,6 +508,12 @@ it('stores authors with roles and affiliations when creating a resource', functi
                 'position' => 1,
             ],
         ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'This resource demonstrates author relationships.',
+            ],
+        ],
     ];
 
     postJson(route('curation.resources.store'), $payload)
@@ -588,6 +600,12 @@ it('normalizes blank affiliation ror ids to null when storing resource authors',
                     ['value' => 'Example Org', 'rorId' => '   '],
                 ],
                 'position' => 0,
+            ],
+        ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'Testing normalization of blank ROR IDs.',
             ],
         ],
     ];
@@ -693,6 +711,12 @@ it('reuses existing institutions when a ROR identifier is added later', function
                 'position' => 0,
             ],
         ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'Testing institution ROR ID reuse.',
+            ],
+        ],
     ];
 
     postJson(route('curation.resources.store'), $initialPayload)->assertStatus(201);
@@ -720,6 +744,12 @@ it('reuses existing institutions when a ROR identifier is added later', function
                 'rorId' => 'https://ror.org/123456789',
                 'affiliations' => [],
                 'position' => 0,
+            ],
+        ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'Testing institution ROR ID reuse with updated ROR.',
             ],
         ],
     ];
@@ -778,6 +808,12 @@ it('does not require a contact email when isContact is explicitly false', functi
                 'isContact' => 'false',
                 'affiliations' => [],
                 'position' => 0,
+            ],
+        ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'Testing non-contact author without email.',
             ],
         ],
     ];
