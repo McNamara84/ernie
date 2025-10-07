@@ -1,5 +1,75 @@
 [
   {
+    "version": "0.3.0",
+    "date": "2025-10-07",
+    "features": [
+      {
+        "title": "Contributors Management in Curation Form",
+        "description": "Added comprehensive contributors section to the DataCite form with support for persons and institutions, role management using Tagify-based inputs, and affiliation handling. Contributors are distinguished from authors and support various contributor types including research groups."
+      },
+      {
+        "title": "Save Contributors with Roles and Affiliations",
+        "description": "Complete persistence of contributor data alongside authors with form hydration using stored contributors, support for multiple roles per contributor, normalization of affiliation data, and reuse of existing institutions. Includes unified serialization logic for affiliations to reduce code duplication."
+      },
+      {
+        "title": "Import Contributors from DataCite XML",
+        "description": "Automatically extract contributors from uploaded DataCite XML files with role normalization, deduplication of contributors, and proper handling of research groups as institutions. Supports Work Package Leader and other contributor-specific roles."
+      },
+      {
+        "title": "API for Old Dataset Contributors",
+        "description": "New endpoint to fetch contributors (excluding authors) from legacy datasets with intelligent role mapping from legacy role names to new slugs. Includes enhanced person/institution detection logic with name parsing utilities, support for comma-separated names, and comprehensive tests (Vitest, Playwright)."
+      },
+      {
+        "title": "Roles API Endpoint",
+        "description": "New API endpoint to fetch available roles with metadata columns and activation flags. Includes author-specific and contributor-specific role filtering, OpenAPI documentation, and service-specific API key protection. Role configuration is frozen to ensure consistency."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Contributors Section UX",
+        "description": "Contributors accordion is now expanded by default on the curation form for better visibility and easier data entry."
+      },
+      {
+        "title": "API Documentation Refinement",
+        "description": "Restricted public API documentation to secured ELMO endpoints only, improving security and clarity of the API surface."
+      },
+      {
+        "title": "Code Organization",
+        "description": "Enforced consistent import sorting via ESLint, refactored import order across multiple components for improved readability, and extracted shared Tagify helpers for DataCite tests to reduce code duplication."
+      },
+      {
+        "title": "Affiliation Data Quality",
+        "description": "Enhanced affiliation serialization to trim whitespace, filter out empty affiliations, deduplicate entries, and normalize values to ensure data quality."
+      },
+      {
+        "title": "Database Schema Clarity",
+        "description": "Renamed author_role pivot table to resource_author_role for improved clarity and consistency in Eloquent relationships."
+      },
+      {
+        "title": "Session Management in Production",
+        "description": "Introduced SESSION_PATH environment variable to docker-compose.prod.yml for improved session handling in production environments."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Author/Contributor Role Filtering",
+        "description": "Refactored role filtering logic to explicitly filter ResourceAuthors based on the 'applies_to' property at the controller level instead of in model relationships, improving accuracy and maintainability."
+      },
+      {
+        "title": "Playwright Test Selectors",
+        "description": "Scoped author Playwright selectors to authors panel and fixed author indexing to prevent test flakiness and improve test reliability."
+      },
+      {
+        "title": "Contributor Role Field",
+        "description": "Made roles input field required for contributors and disabled dropdown to enforce proper role selection through the tag input interface."
+      },
+      {
+        "title": "PHPStan Warnings",
+        "description": "Resolved PHPStan warnings in contributor deduplication logic and role scope annotations with Builder generics."
+      }
+    ]
+  },
+  {
     "version": "0.2.0",
     "date": "2025-10-06",
     "features": [
