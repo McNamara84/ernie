@@ -146,7 +146,7 @@ test('user can add multiple authors and manage them independently', async ({ pag
     await expect(getAuthorRegion(page, 0).getByLabel('Last name')).toHaveValue('Author One');
     
     // Verify third author is still person
-    await expect(getAuthorRegion(page, 1).getByLabel('Last name')).toHaveValue('Author Three');
+    await expect(getAuthorRegion(page, 2).getByLabel('Last name')).toHaveValue('Author Three');
     
     // Remove middle (institution) author
     const deleteButtons = page.getByRole('button', { name: /Remove author/ });
