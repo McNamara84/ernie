@@ -172,12 +172,60 @@ describe('DataCiteForm', () => {
         }
     };
 
+    const getAuthorEntriesGroup = () => screen.getByTestId('author-entries-group');
+
+    const getAuthorLastNameInputs = () =>
+        within(getAuthorEntriesGroup()).getAllByRole('textbox', { name: /Last name/i });
+
+    const withinAuthors = () => within(getAuthorEntriesGroup());
+
+    const fillRequiredContributor = async (
+        user: ReturnType<typeof userEvent.setup>,
+        {
+            lastName = 'Helper',
+            role = contributorPersonRoles[0]?.name ?? 'Researcher',
+        }: { lastName?: string; role?: string } = {},
+    ) => {
+        await ensureContributorsOpen(user);
+        const roleInput = screen.getByTestId('contributor-0-roles-input') as HTMLInputElement & {
+            tagify?: {
+                addTags: (
+                    tags: Array<string | Record<string, unknown>> | string,
+                    clearInput?: boolean,
+                    silent?: boolean,
+                ) => void;
+            };
+        };
+
+        await waitFor(() => {
+            expect(roleInput.tagify).toBeTruthy();
+        });
+
+        await act(async () => {
+            roleInput.tagify!.addTags([role], true, false);
+        });
+
+        const contributorSection = screen.getByRole('region', { name: 'Contributor 1' });
+        const lastNameInput =
+            (within(contributorSection).queryByLabelText('Last name', { selector: 'input' }) ||
+                contributorSection.querySelector<HTMLInputElement>('input[id$="-lastName"]')) ??
+            null;
+        if (!lastNameInput) {
+            throw new Error('Contributor last name input not found');
+        }
+        if (lastNameInput.value) {
+            await user.clear(lastNameInput);
+        }
+        await user.type(lastNameInput, lastName);
+    };
+
     const fillRequiredAuthor = async (
         user: ReturnType<typeof userEvent.setup>,
         lastName = 'Curator',
     ) => {
         await ensureAuthorsOpen(user);
-        const lastNameInput = (await screen.findByRole('textbox', { name: /Last name/ })) as HTMLInputElement;
+        const authorGroup = await screen.findByTestId('author-entries-group');
+        const lastNameInput = within(authorGroup).getByRole('textbox', { name: /Last name/ }) as HTMLInputElement;
         if (lastNameInput.value) {
             await user.clear(lastNameInput);
         }
@@ -267,9 +315,13 @@ describe('DataCiteForm', () => {
         const licensesTrigger = screen.getByRole('button', {
             name: 'Licenses and Rights',
         });
+        const contributorsTrigger = screen.getByRole('button', {
+            name: 'Contributors',
+        });
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
+        expect(contributorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(authorsTrigger).toBeInTheDocument();
         await user.click(resourceTrigger);
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'false');
@@ -475,6 +527,7 @@ describe('DataCiteForm', () => {
         await user.click(await screen.findByRole('option', { name: 'MIT License' }));
 
         await fillRequiredAuthor(user, 'Doe');
+        await fillRequiredContributor(user);
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -499,19 +552,20 @@ describe('DataCiteForm', () => {
 
         await ensureAuthorsOpen(user);
 
-        const typeTrigger = screen.getByRole('combobox', { name: /Author type/i });
+        const authorScope = withinAuthors();
+        const typeTrigger = authorScope.getByRole('combobox', { name: /Author type/i });
         await user.click(typeTrigger);
         await user.click(await screen.findByRole('option', { name: 'Institution' }));
 
-        expect(screen.getByRole('textbox', { name: /Institution name/i })).toBeInTheDocument();
-        expect(screen.queryByRole('textbox', { name: /First name/i })).not.toBeInTheDocument();
+        expect(authorScope.getByRole('textbox', { name: /Institution name/i })).toBeInTheDocument();
+        expect(authorScope.queryByRole('textbox', { name: /First name/i })).not.toBeInTheDocument();
 
         await user.click(typeTrigger);
         await user.click(await screen.findByRole('option', { name: 'Person' }));
 
-        expect(screen.getByRole('textbox', { name: /First name/i })).toBeInTheDocument();
+        expect(authorScope.getByRole('textbox', { name: /First name/i })).toBeInTheDocument();
 
-        const affiliationField = screen.getByTestId('author-0-affiliations-field');
+        const affiliationField = authorScope.getByTestId('author-0-affiliations-field');
         expect(
             screen.queryByRole('button', { name: /Add affiliation/i }),
         ).not.toBeInTheDocument();
@@ -722,21 +776,32 @@ describe('DataCiteForm', () => {
         // Add three authors
         const addButtons = () => screen.getAllByRole('button', { name: /Add author/i });
         
-        await user.type(screen.getByRole('textbox', { name: /Last name/i }), 'First Author');
+        const authorGroup = getAuthorEntriesGroup();
+
+        await user.type(
+            within(authorGroup).getByRole('textbox', { name: /Last name/i }),
+            'First Author',
+        );
         await user.click(addButtons()[0]);
         
         await waitFor(() => {
             expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
         });
         
-        await user.type(screen.getAllByRole('textbox', { name: /Last name/i })[1], 'Second Author');
+        await user.type(
+            within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1],
+            'Second Author',
+        );
         await user.click(addButtons()[0]);
         
         await waitFor(() => {
             expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
         });
         
-        await user.type(screen.getAllByRole('textbox', { name: /Last name/i })[2], 'Third Author');
+        await user.type(
+            within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[2],
+            'Third Author',
+        );
 
         // Verify all three authors are present
         expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
@@ -752,9 +817,13 @@ describe('DataCiteForm', () => {
         await user.type(institutionInput, 'Test University');
 
         // Verify first and third are still persons
-        expect(screen.getAllByRole('textbox', { name: /Last name/i })).toHaveLength(2);
-        expect(screen.getAllByRole('textbox', { name: /Last name/i })[0]).toHaveValue('First Author');
-        expect(screen.getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
+        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })).toHaveLength(2);
+        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[0]).toHaveValue(
+            'First Author',
+        );
+        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue(
+            'Third Author',
+        );
 
         // Set first author as contact person
         const firstContactCheckbox = screen.getAllByRole('checkbox', { name: /Contact person/i })[0];
@@ -801,7 +870,9 @@ describe('DataCiteForm', () => {
         expect(screen.queryByRole('heading', { name: 'Author 3' })).not.toBeInTheDocument();
 
         // Former third author should now be second author
-        expect(screen.getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue('Third Author');
+        expect(within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1]).toHaveValue(
+            'Third Author',
+        );
 
         // First author contact data should be preserved
         expect(screen.getByRole('textbox', { name: /Email address/i })).toHaveValue('first@example.com');
@@ -829,7 +900,9 @@ describe('DataCiteForm', () => {
         expect(screen.queryByRole('heading', { name: 'Author 2' })).not.toBeInTheDocument();
 
         // Remaining author should be the former third author
-        expect(screen.getByRole('textbox', { name: /Last name/i })).toHaveValue('Third Author');
+        expect(within(authorGroup).getByRole('textbox', { name: /Last name/i })).toHaveValue(
+            'Third Author',
+        );
         
         // Affiliations should be preserved
         const finalAffiliationInput = screen.getByTestId('author-0-affiliations-input') as HTMLInputElement & {
@@ -858,14 +931,15 @@ describe('DataCiteForm', () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         await ensureAuthorsOpen(user);
 
+        const authorsScope = withinAuthors();
         const typeField = screen.getByTestId('author-0-type-field');
         expect(typeField).toHaveClass('md:col-span-2');
-        const typeTrigger = screen.getByRole('combobox', { name: /Author type/i });
+        const typeTrigger = authorsScope.getByRole('combobox', { name: /Author type/i });
         expect(typeTrigger).toHaveClass('w-full');
         // Note: md:w-[8.5rem] is on the SelectField container via triggerClassName, not on the trigger element itself
         const orcidField = screen.getByTestId('author-0-orcid-field');
         expect(orcidField).toHaveClass('md:col-span-3');
-        const orcidInput = screen.getByRole('textbox', { name: /ORCID/i });
+        const orcidInput = authorsScope.getByRole('textbox', { name: /ORCID/i });
         expect(orcidInput).toHaveClass('w-full');
         // ORCID field uses full width within its 3-column container
         const authorGrid = screen.getByTestId('author-0-fields-grid');
@@ -873,10 +947,14 @@ describe('DataCiteForm', () => {
         // Add author button is outside the fields grid in a separate container
         expect(screen.getAllByRole('button', { name: 'Add author' }).length).toBeGreaterThan(0);
         expect(
-            screen.getByRole('textbox', { name: /Last name/i }).closest('div')
+            within(getAuthorEntriesGroup())
+                .getByRole('textbox', { name: /Last name/i })
+                .closest('div'),
         ).toHaveClass('md:col-span-3');
         expect(
-            screen.getByRole('textbox', { name: /First name/i }).closest('div')
+            within(getAuthorEntriesGroup())
+                .getByRole('textbox', { name: /First name/i })
+                .closest('div'),
         ).toHaveClass('md:col-span-3');
         const contactField = screen.getByTestId('author-0-contact-field');
         expect(contactField).toHaveClass('md:col-span-1');
@@ -1006,6 +1084,7 @@ describe('DataCiteForm', () => {
         await user.type(titleInput, 'Contact Title');
         await user.type(screen.getByLabelText('Year', { exact: false }), '2025');
         await fillRequiredAuthor(user, 'Meyer');
+        await fillRequiredContributor(user);
 
         await user.click(screen.getByLabelText('Resource Type', { exact: false }));
         await user.click(await screen.findByRole('option', { name: 'Dataset' }));
@@ -1126,22 +1205,24 @@ describe('DataCiteForm', () => {
 
         await ensureAuthorsOpen(user);
 
-        const firstNameInputs = (await screen.findAllByRole('textbox', {
+        const authorScope = withinAuthors();
+
+        const firstNameInputs = authorScope.getAllByRole('textbox', {
             name: /First name/i,
-        })) as HTMLInputElement[];
+        }) as HTMLInputElement[];
         expect(firstNameInputs[0]).toHaveValue('Sofia');
 
-        const lastNameInputs = (await screen.findAllByRole('textbox', {
+        const lastNameInputs = authorScope.getAllByRole('textbox', {
             name: /Last name/i,
-        })) as HTMLInputElement[];
+        }) as HTMLInputElement[];
         expect(lastNameInputs[0]).toHaveValue('Hernandez');
 
-        expect(screen.getByLabelText('ORCID')).toHaveValue(
+        expect(authorScope.getByLabelText('ORCID')).toHaveValue(
             'https://orcid.org/0000-0002-2771-9344',
         );
 
         expect(
-            (await screen.findByRole('textbox', { name: /Institution name/i })) as HTMLInputElement,
+            (authorScope.getByRole('textbox', { name: /Institution name/i })) as HTMLInputElement,
         ).toHaveValue('Example Organization');
 
         expect(screen.getAllByText('GFZ Data Services').length).toBeGreaterThan(0);
@@ -1782,6 +1863,7 @@ describe('DataCiteForm', () => {
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
@@ -1861,6 +1943,7 @@ describe('DataCiteForm', () => {
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -1937,6 +2020,7 @@ describe('DataCiteForm', () => {
         );
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await fillRequiredContributor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2004,6 +2088,7 @@ describe('DataCiteForm', () => {
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2035,6 +2120,7 @@ describe('DataCiteForm', () => {
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
         await user.click(saveButton);
 
         expect(global.fetch).not.toHaveBeenCalled();
@@ -2083,6 +2169,7 @@ describe('DataCiteForm', () => {
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
@@ -2141,7 +2228,13 @@ describe('DataCiteForm', () => {
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+        await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalled();
+        });
 
         const alert = await screen.findByRole('alert');
         expect(alert).toHaveTextContent(
