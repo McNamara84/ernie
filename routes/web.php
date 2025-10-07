@@ -56,6 +56,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/authors', [OldDatasetController::class, 'getAuthors'])
         ->name('old-datasets.authors');
 
+    Route::get('old-datasets/{id}/contributors', [OldDatasetController::class, 'getContributors'])
+        ->name('old-datasets.contributors');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 

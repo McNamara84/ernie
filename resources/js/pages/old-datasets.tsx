@@ -770,6 +770,102 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without authors if loading fails
         }
+
+        // Load contributors from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/contributors`);
+            const contributors = response.data.contributors || [];
+            
+            // Debug logging
+            console.log('Contributors from API:', contributors);
+            
+            contributors.forEach((contributor: {
+                type: string;
+                givenName: string | null;
+                familyName: string | null;
+                name: string | null;
+                institutionName: string | null;
+                affiliations: Array<{ value: string; rorId: string | null }>;
+                roles: Array<string>;
+                orcid: string | null;
+                orcidType: string | null;
+            }, index: number) => {
+                // Set contributor type
+                query[`contributors[${index}][type]`] = contributor.type;
+                
+                if (contributor.type === 'person') {
+                    // Person contributor
+                    let firstName = contributor.givenName;
+                    let lastName = contributor.familyName;
+                    
+                    // If givenName/familyName are empty but name contains a comma, parse it
+                    if (!firstName && !lastName && contributor.name) {
+                        if (contributor.name.includes(',')) {
+                            // Format: "LastName, FirstName"
+                            const parts = contributor.name.split(',').map(p => p.trim());
+                            lastName = parts[0];
+                            firstName = parts[1] || '';
+                        } else {
+                            // No comma - just use as lastName
+                            lastName = contributor.name;
+                        }
+                    }
+                    
+                    if (firstName) {
+                        query[`contributors[${index}][firstName]`] = firstName;
+                    }
+                    if (lastName) {
+                        query[`contributors[${index}][lastName]`] = lastName;
+                    }
+                    
+                    // Add ORCID if present
+                    if (contributor.orcid) {
+                        query[`contributors[${index}][orcid]`] = contributor.orcid;
+                    }
+                } else {
+                    // Institution contributor
+                    // Use institutionName if available, otherwise fall back to first affiliation
+                    let institutionName = contributor.institutionName;
+                    if (!institutionName && contributor.affiliations && contributor.affiliations.length > 0) {
+                        institutionName = contributor.affiliations[0].value;
+                    }
+                    
+                    if (institutionName) {
+                        query[`contributors[${index}][institutionName]`] = institutionName;
+                    }
+                }
+                
+                // Pass roles as structured array
+                if (contributor.roles && Array.isArray(contributor.roles)) {
+                    contributor.roles.forEach((role, roleIndex) => {
+                        query[`contributors[${index}][roles][${roleIndex}]`] = role;
+                    });
+                }
+                
+                // Pass affiliations as structured array
+                if (contributor.affiliations && Array.isArray(contributor.affiliations)) {
+                    contributor.affiliations.forEach((affiliation, affIndex) => {
+                        query[`contributors[${index}][affiliations][${affIndex}][value]`] = affiliation.value;
+                        if (affiliation.rorId) {
+                            query[`contributors[${index}][affiliations][${affIndex}][rorId]`] = affiliation.rorId;
+                        }
+                    });
+                }
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading contributors for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading contributors for dataset:', error);
+            }
+            // Continue without contributors if loading fails
+        }
     }
 
     return query;
