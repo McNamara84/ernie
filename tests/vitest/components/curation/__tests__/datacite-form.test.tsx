@@ -5,6 +5,10 @@ import { beforeAll, beforeEach, afterAll, afterEach, describe, it, expect, vi } 
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import {
+    getTagifyInstance,
+    type TagifyEnabledInput,
+} from '../../../tagify-helpers';
 
 vi.mock('@yaireo/tagify', () => {
     type ChangeHandler = (event: CustomEvent) => void;
@@ -151,19 +155,6 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
     }),
 }));
 
-type TagifyAddTags = (
-    value: Array<string | Record<string, unknown>> | string,
-    clearInput?: boolean,
-    silent?: boolean,
-) => void;
-
-type TagifyInstance = {
-    addTags: TagifyAddTags;
-    value: Array<{ value: string; rorId: string | null }>;
-};
-
-type TagifyEnabledInput = HTMLInputElement & { tagify?: TagifyInstance };
-
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
@@ -201,8 +192,10 @@ describe('DataCiteForm', () => {
             expect(roleInput.tagify).toBeTruthy();
         });
 
+        const roleTagify = getTagifyInstance(roleInput);
+
         await act(async () => {
-            roleInput.tagify!.addTags([role], true, false);
+            roleTagify.addTags([role], true, false);
         });
 
         const contributorSection = screen.getByRole('region', { name: 'Contributor 1' });
@@ -342,7 +335,7 @@ describe('DataCiteForm', () => {
         });
         expect(languageTrigger).toHaveAttribute('aria-required', 'true');
         const languageLabel = screen.getByText(/Language of Data/, { selector: 'label' });
-        expect(languageLabel).toHaveTextContent(/\*/);
+        expect(languageLabel).toHaveTextContent('*');
         await user.click(languageTrigger);
         for (const option of languages) {
             expect(
@@ -572,8 +565,10 @@ describe('DataCiteForm', () => {
             expect(affiliationInput.tagify).toBeTruthy();
         });
 
+        const affiliationTagify = getTagifyInstance(affiliationInput);
+
         await act(async () => {
-            affiliationInput.tagify!.addTags(
+            affiliationTagify.addTags(
                 ['University A', 'University B'],
                 true,
                 false,
@@ -583,7 +578,7 @@ describe('DataCiteForm', () => {
         await waitFor(() => {
             expect(affiliationField.querySelectorAll('.tagify__tag')).toHaveLength(2);
         });
-        const affiliationValues = affiliationInput.tagify!.value.map((tag) => tag.value);
+        const affiliationValues = affiliationTagify.value.map((tag) => tag.value);
         expect(affiliationValues).toContain('University A');
         expect(affiliationValues).toContain('University B');
 
@@ -638,8 +633,10 @@ describe('DataCiteForm', () => {
             expect(affiliationInput.tagify).toBeTruthy();
         });
 
+        const affiliationTagify = getTagifyInstance(affiliationInput);
+
         await act(async () => {
-            affiliationInput.tagify!.addTags(
+            affiliationTagify.addTags(
                 [
                     {
                         value: 'Example University',
@@ -680,8 +677,10 @@ describe('DataCiteForm', () => {
             expect(affiliationInput.tagify).toBeTruthy();
         });
 
+        const affiliationTagify = getTagifyInstance(affiliationInput);
+
         await act(async () => {
-            affiliationInput.tagify!.addTags(['Independent Organisation'], true, false);
+            affiliationTagify.addTags(['Independent Organisation'], true, false);
         });
 
         await waitFor(() => {
@@ -810,8 +809,10 @@ describe('DataCiteForm', () => {
             expect(thirdAffiliationInput.tagify).toBeTruthy();
         });
 
+        const thirdAffiliationTagify = getTagifyInstance(thirdAffiliationInput);
+
         await act(async () => {
-            thirdAffiliationInput.tagify!.addTags(['Institution X', 'Institution Y'], true, false);
+            thirdAffiliationTagify.addTags(['Institution X', 'Institution Y'], true, false);
         });
 
         const thirdAffiliationField = screen.getAllByTestId(/author-\d+-affiliations-field/)[2];
@@ -843,7 +844,7 @@ describe('DataCiteForm', () => {
 
         // Former third author affiliations should be preserved
         const secondAffiliationInput = screen.getAllByTestId(/author-\d+-affiliations-input/)[1] as TagifyEnabledInput;
-        const updatedAffiliationValues = secondAffiliationInput.tagify!.value
+        const updatedAffiliationValues = getTagifyInstance(secondAffiliationInput).value
             .map((tag) => tag.value)
             .filter((value): value is string => Boolean(value));
         expect(updatedAffiliationValues).toContain('Institution X');
@@ -867,7 +868,7 @@ describe('DataCiteForm', () => {
         
         // Affiliations should be preserved
         const finalAffiliationInput = screen.getByTestId('author-0-affiliations-input') as TagifyEnabledInput;
-        const finalAffiliationValues = finalAffiliationInput.tagify!.value
+        const finalAffiliationValues = getTagifyInstance(finalAffiliationInput).value
             .map((tag) => tag.value)
             .filter((value): value is string => Boolean(value));
         expect(finalAffiliationValues).toContain('Institution X');
