@@ -31,14 +31,19 @@ const CONTRIBUTOR_ROLE_LABELS: Record<string, string> = {
     other: 'Other',
 };
 
-const INSTITUTION_ONLY_ROLE_KEYS = new Set([
+// Keep in sync with UploadXmlController::INSTITUTION_ONLY_CONTRIBUTOR_ROLE_KEYS.
+const INSTITUTION_ONLY_ROLE_KEY_VALUES = Object.freeze([
     'distributor',
     'hostinginstitution',
     'registrationagency',
     'registrationauthority',
     'researchgroup',
     'sponsor',
-]);
+] as const);
+
+const INSTITUTION_ONLY_ROLE_KEYS: ReadonlySet<string> = Object.freeze(
+    new Set<string>(INSTITUTION_ONLY_ROLE_KEY_VALUES),
+);
 
 export const normaliseContributorRoleLabel = (value: string): string => {
     const trimmed = value.trim();

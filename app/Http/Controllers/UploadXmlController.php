@@ -43,6 +43,8 @@ class UploadXmlController extends Controller
 
     /**
      * @var string[]
+     *
+     * @see resources/js/lib/contributors.ts INSTITUTION_ONLY_ROLE_KEY_VALUES
      */
     private const INSTITUTION_ONLY_CONTRIBUTOR_ROLE_KEYS = [
         'distributor',
