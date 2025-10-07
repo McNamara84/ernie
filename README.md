@@ -80,14 +80,16 @@ npx playwright test
 
 ## API Endpoints
 
-The service exposes a read-only REST API for metadata types.
+The service exposes a read-only REST API for metadata types. Public clients can only access the endpoints that are enabled for ELMO; these endpoints require an API key supplied via the `X-API-Key` header or the `api_key` query parameter.
 
-- `GET /api/v1/resource-types` – list available resource types
-- `GET /api/v1/title-types` – list available title types
-- `GET /api/v1/languages` – list available languages
-- `GET /api/v1/languages/ernie` – list languages active for ERNIE
-- `GET /api/v1/languages/elmo` – list languages active for ELMO
-- `GET /api/v1/doc` – OpenAPI specification
+- `GET /api/v1/resource-types/elmo` – list resource types active for ELMO (API key required)
+- `GET /api/v1/title-types/elmo` – list title types active for ELMO (API key required)
+- `GET /api/v1/licenses/elmo` – list licenses active for ELMO (API key required)
+- `GET /api/v1/languages/elmo` – list languages active for ELMO (API key required)
+- `GET /api/v1/roles/authors/elmo` – list author roles active for ELMO (API key required)
+- `GET /api/v1/roles/contributor-persons/elmo` – list contributor person roles active for ELMO (API key required)
+- `GET /api/v1/roles/contributor-institutions/elmo` – list contributor institution roles active for ELMO (API key required)
+- `GET /api/v1/doc` – OpenAPI specification for the ELMO endpoints
 - `GET /api/changelog` – changelog information
 
 ## Sitemap

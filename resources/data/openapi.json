@@ -27,29 +27,6 @@
     }
   ],
   "paths": {
-    "/api/v1/resource-types": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List all resource types",
-        "responses": {
-          "200": {
-            "description": "List of resource types",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ElmoResourceType"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/resource-types/elmo": {
       "get": {
         "tags": [
@@ -95,52 +72,6 @@
         }
       }
     },
-    "/api/v1/resource-types/ernie": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List active resource types for Ernie",
-        "responses": {
-          "200": {
-            "description": "List of resource types",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ElmoResourceType"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/title-types": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List all title types",
-        "responses": {
-          "200": {
-            "description": "List of title types",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TitleType"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/title-types/elmo": {
       "get": {
         "tags": [
@@ -160,54 +91,30 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/title-types/ernie": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List active title types for Ernie",
-        "responses": {
-          "200": {
-            "description": "List of title types",
+          },
+          "401": {
+            "description": "Invalid or missing API key",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TitleType"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
                   }
                 }
               }
             }
           }
-        }
-      }
-    },
-    "/api/v1/licenses": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List all licenses",
-        "responses": {
-          "200": {
-            "description": "List of licenses",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/License"
-                  }
-                }
-              }
-            }
+        },
+        "description": "Returns all title types that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          {
+            "ElmoApiKey": []
           }
-        }
+        ]
       }
     },
     "/api/v1/licenses/elmo": {
@@ -229,54 +136,30 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/licenses/ernie": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List active licenses for Ernie",
-        "responses": {
-          "200": {
-            "description": "List of licenses",
+          },
+          "401": {
+            "description": "Invalid or missing API key",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/License"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
                   }
                 }
               }
             }
           }
-        }
-      }
-    },
-    "/api/v1/languages": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List all languages",
-        "responses": {
-          "200": {
-            "description": "List of languages",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Language"
-                  }
-                }
-              }
-            }
+        },
+        "description": "Returns all licenses that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          {
+            "ElmoApiKey": []
           }
-        }
+        ]
       }
     },
     "/api/v1/languages/elmo": {
@@ -298,55 +181,30 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/v1/languages/ernie": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List active languages for Ernie",
-        "responses": {
-          "200": {
-            "description": "List of languages",
+          },
+          "401": {
+            "description": "Invalid or missing API key",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Language"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/roles/authors/ernie": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List author roles active for Ernie",
-        "responses": {
-          "200": {
-            "description": "List of roles",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Role"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
                   }
                 }
               }
             }
           }
         },
-        "description": "Returns all author roles that are active for Ernie."
+        "description": "Returns all languages that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          {
+            "ElmoApiKey": []
+          }
+        ]
       }
     },
     "/api/v1/roles/authors/elmo": {
@@ -394,30 +252,6 @@
         }
       }
     },
-    "/api/v1/roles/contributor-persons/ernie": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List contributor person roles active for Ernie",
-        "responses": {
-          "200": {
-            "description": "List of roles",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Role"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "description": "Returns all contributor person roles that are active for Ernie."
-      }
-    },
     "/api/v1/roles/contributor-persons/elmo": {
       "get": {
         "tags": [
@@ -461,30 +295,6 @@
             }
           }
         }
-      }
-    },
-    "/api/v1/roles/contributor-institutions/ernie": {
-      "get": {
-        "tags": [
-          "Editor Configuration"
-        ],
-        "summary": "List contributor institution roles active for Ernie",
-        "responses": {
-          "200": {
-            "description": "List of roles",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Role"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "description": "Returns all contributor institution roles that are active for Ernie."
       }
     },
     "/api/v1/roles/contributor-institutions/elmo": {
