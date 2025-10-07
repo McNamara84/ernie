@@ -24,14 +24,20 @@ Route::get('/v1/licenses/ernie', [LicenseController::class, 'ernie']);
 Route::get('/v1/languages', [LanguageController::class, 'index']);
 Route::get('/v1/languages/elmo', [LanguageController::class, 'elmo']);
 Route::get('/v1/languages/ernie', [LanguageController::class, 'ernie']);
-Route::get('/v1/roles/authors/ernie', [RoleController::class, 'authorRolesForErnie']);
+Route::middleware('ernie.api-key')->get('/v1/roles/authors/ernie', [RoleController::class, 'authorRolesForErnie']);
 Route::middleware('elmo.api-key')->get('/v1/roles/authors/elmo', [RoleController::class, 'authorRolesForElmo']);
-Route::get('/v1/roles/contributor-persons/ernie', [RoleController::class, 'contributorPersonRolesForErnie']);
+Route::middleware('ernie.api-key')->get(
+    '/v1/roles/contributor-persons/ernie',
+    [RoleController::class, 'contributorPersonRolesForErnie'],
+);
 Route::middleware('elmo.api-key')->get(
     '/v1/roles/contributor-persons/elmo',
     [RoleController::class, 'contributorPersonRolesForElmo'],
 );
-Route::get('/v1/roles/contributor-institutions/ernie', [RoleController::class, 'contributorInstitutionRolesForErnie']);
+Route::middleware('ernie.api-key')->get(
+    '/v1/roles/contributor-institutions/ernie',
+    [RoleController::class, 'contributorInstitutionRolesForErnie'],
+);
 Route::middleware('elmo.api-key')->get(
     '/v1/roles/contributor-institutions/elmo',
     [RoleController::class, 'contributorInstitutionRolesForElmo'],

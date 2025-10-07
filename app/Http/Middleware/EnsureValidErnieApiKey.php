@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
-class EnsureValidElmoApiKey extends EnsureValidApiKey
+class EnsureValidErnieApiKey extends EnsureValidApiKey
 {
     protected function serviceName(): string
     {
-        return 'elmo';
+        return 'ernie';
     }
 }

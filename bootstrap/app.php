@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureValidElmoApiKey;
+use App\Http\Middleware\EnsureValidErnieApiKey;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'elmo.api-key' => EnsureValidElmoApiKey::class,
+            'ernie.api-key' => EnsureValidErnieApiKey::class,
         ]);
 
         // Use custom CSRF middleware for PathPrefix compatibility

@@ -8,7 +8,10 @@ use function Pest\Laravel\getJson;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    config(['services.elmo.api_key' => null]);
+    config([
+        'services.elmo.api_key' => null,
+        'services.ernie.api_key' => null,
+    ]);
 
     Role::create([
         'name' => 'Author',
@@ -59,6 +62,18 @@ beforeEach(function () {
     ]);
 });
 
+dataset('ernie-role-uris', [
+    '/api/v1/roles/authors/ernie',
+    '/api/v1/roles/contributor-persons/ernie',
+    '/api/v1/roles/contributor-institutions/ernie',
+]);
+
+dataset('ernie-role-uris-with-count', [
+    ['/api/v1/roles/authors/ernie', 1],
+    ['/api/v1/roles/contributor-persons/ernie', 2],
+    ['/api/v1/roles/contributor-institutions/ernie', 2],
+]);
+
 test('returns author roles active for Ernie', function () {
     $response = getJson('/api/v1/roles/authors/ernie')->assertOk();
 
@@ -66,6 +81,38 @@ test('returns author roles active for Ernie', function () {
         ['id' => Role::whereSlug('author')->value('id'), 'name' => 'Author', 'slug' => 'author'],
     ]);
 });
+
+it('rejects ernie role requests without an API key when one is configured', function (string $uri) {
+    config(['services.ernie.api_key' => 'ernie-secret']);
+
+    getJson($uri)
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
+})->with('ernie-role-uris');
+
+it('rejects ernie role requests with an invalid API key', function (string $uri) {
+    config(['services.ernie.api_key' => 'ernie-secret']);
+
+    getJson($uri, ['X-API-Key' => 'wrong-secret'])
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
+})->with('ernie-role-uris');
+
+it('allows ernie role requests with a valid API key header', function (string $uri, int $expectedCount) {
+    config(['services.ernie.api_key' => 'ernie-secret']);
+
+    getJson($uri, ['X-API-Key' => 'ernie-secret'])
+        ->assertOk()
+        ->assertJsonCount($expectedCount);
+})->with('ernie-role-uris-with-count');
+
+it('allows ernie role requests with a valid API key query parameter', function (string $uri, int $expectedCount) {
+    config(['services.ernie.api_key' => 'ernie-secret']);
+
+    getJson("{$uri}?api_key=ernie-secret")
+        ->assertOk()
+        ->assertJsonCount($expectedCount);
+})->with('ernie-role-uris-with-count');
 
 test('returns contributor person roles active for Ernie', function () {
     $response = getJson('/api/v1/roles/contributor-persons/ernie')->assertOk();
