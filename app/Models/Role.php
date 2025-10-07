@@ -32,6 +32,9 @@ class Role extends Model
 
     /**
      * Scope the query to roles that apply to authors.
+     *
+     * @param  Builder<Role>  $query
+     * @return Builder<Role>
      */
     public function scopeAuthors(Builder $query): Builder
     {
@@ -40,6 +43,9 @@ class Role extends Model
 
     /**
      * Scope the query to roles that apply to contributor people.
+     *
+     * @param  Builder<Role>  $query
+     * @return Builder<Role>
      */
     public function scopeContributorPersons(Builder $query): Builder
     {
@@ -51,6 +57,9 @@ class Role extends Model
 
     /**
      * Scope the query to roles that apply to contributor institutions.
+     *
+     * @param  Builder<Role>  $query
+     * @return Builder<Role>
      */
     public function scopeContributorInstitutions(Builder $query): Builder
     {
@@ -62,6 +71,9 @@ class Role extends Model
 
     /**
      * Scope the query to roles active in Ernie.
+     *
+     * @param  Builder<Role>  $query
+     * @return Builder<Role>
      */
     public function scopeActiveInErnie(Builder $query): Builder
     {
@@ -70,6 +82,9 @@ class Role extends Model
 
     /**
      * Scope the query to roles active in ELMO.
+     *
+     * @param  Builder<Role>  $query
+     * @return Builder<Role>
      */
     public function scopeActiveInElmo(Builder $query): Builder
     {
@@ -78,6 +93,9 @@ class Role extends Model
 
     /**
      * Scope the query to order roles by name.
+     *
+     * @param  Builder<Role>  $query
+     * @return Builder<Role>
      */
     public function scopeOrdered(Builder $query): Builder
     {
