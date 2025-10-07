@@ -2207,3 +2207,235 @@ describe('DataCiteForm', () => {
         );
     });
 });
+
+describe('DataCiteForm - Descriptions', () => {
+    it('renders the Descriptions accordion section', () => {
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+            />,
+        );
+
+        expect(screen.getByText('Descriptions')).toBeInTheDocument();
+    });
+
+    it('disables save button when Abstract is not filled', async () => {
+        const user = userEvent.setup();
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        // Should still be disabled because Abstract is not filled
+        expect(saveButton).toBeDisabled();
+    });
+
+    it('enables save button when Abstract is filled', async () => {
+        const user = userEvent.setup();
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill Abstract
+        const abstractTextarea = screen.getByLabelText(/Abstract/i);
+        await user.type(abstractTextarea, 'This is a test abstract');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+    });
+
+    it('includes descriptions in the payload when submitting', async () => {
+        const user = userEvent.setup();
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue({
+            ok: true,
+            json: async () => ({ message: 'Success', resource: { id: 1 } }),
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill Abstract (required)
+        const abstractTextarea = screen.getByLabelText(/Abstract/i);
+        await user.type(abstractTextarea, 'This is a test abstract');
+
+        // Fill Methods (optional)
+        const methodsTab = screen.getByRole('tab', { name: /Methods/i });
+        await user.click(methodsTab);
+        const methodsTextarea = screen.getByLabelText(/Methods/i);
+        await user.type(methodsTextarea, 'Test methodology');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalled();
+        });
+
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        const requestBody = JSON.parse(fetchCall[1].body);
+
+        expect(requestBody.descriptions).toBeDefined();
+        expect(requestBody.descriptions).toHaveLength(2);
+        expect(requestBody.descriptions).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    descriptionType: 'Abstract',
+                    description: 'This is a test abstract',
+                }),
+                expect.objectContaining({
+                    descriptionType: 'Methods',
+                    description: 'Test methodology',
+                }),
+            ]),
+        );
+    });
+
+    it('does not include empty descriptions in the payload', async () => {
+        const user = userEvent.setup();
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue({
+            ok: true,
+            json: async () => ({ message: 'Success', resource: { id: 1 } }),
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill only Abstract
+        const abstractTextarea = screen.getByLabelText(/Abstract/i);
+        await user.type(abstractTextarea, 'This is a test abstract');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalled();
+        });
+
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        const requestBody = JSON.parse(fetchCall[1].body);
+
+        expect(requestBody.descriptions).toBeDefined();
+        expect(requestBody.descriptions).toHaveLength(1);
+        expect(requestBody.descriptions[0]).toEqual({
+            descriptionType: 'Abstract',
+            description: 'This is a test abstract',
+        });
+    });
+
+    it('trims whitespace from description values', async () => {
+        const user = userEvent.setup();
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue({
+            ok: true,
+            json: async () => ({ message: 'Success', resource: { id: 1 } }),
+        });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill Abstract with whitespace
+        const abstractTextarea = screen.getByLabelText(/Abstract/i);
+        await user.type(abstractTextarea, '   Test abstract with spaces   ');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalled();
+        });
+
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        const requestBody = JSON.parse(fetchCall[1].body);
+
+        expect(requestBody.descriptions[0].description).toBe('Test abstract with spaces');
+    });
+});
