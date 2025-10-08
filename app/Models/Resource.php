@@ -78,4 +78,22 @@ class Resource extends Model
 
         return $relation;
     }
+
+    /** @return HasMany<ResourceDescription, static> */
+    public function descriptions(): HasMany
+    {
+        /** @var HasMany<ResourceDescription, static> $relation */
+        $relation = $this->hasMany(ResourceDescription::class);
+
+        return $relation;
+    }
+
+    /** @return HasMany<ResourceDate, static> */
+    public function dates(): HasMany
+    {
+        /** @var HasMany<ResourceDate, static> $relation */
+        $relation = $this->hasMany(ResourceDate::class);
+
+        return $relation;
+    }
 }
