@@ -8,13 +8,12 @@ class GcmdVocabularyParser
      * Build hierarchical structure from flat concept array
      * 
      * @param array<int, array<string, string|null>> $concepts
+     * @param string $schemeTitle The title of the vocabulary scheme (e.g., "NASA/GCMD Earth Science Keywords")
+     * @param string $schemeURI The URI of the vocabulary scheme (e.g., "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords")
      * @return array<string, mixed>
      */
-    public function buildHierarchy(array $concepts): array
+    public function buildHierarchy(array $concepts, string $schemeTitle, string $schemeURI): array
     {
-        $schemeURI = 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords';
-        $schemeTitle = 'NASA/GCMD Earth Science Keywords';
-
         $conceptsById = [];
         $childrenMap = [];
 

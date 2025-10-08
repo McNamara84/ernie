@@ -89,7 +89,11 @@ class GetGcmdScienceKeywords extends Command
             // Build hierarchical structure
             $this->info('Building hierarchical structure...');
             $parser = new GcmdVocabularyParser();
-            $hierarchicalData = $parser->buildHierarchy($allConcepts);
+            $hierarchicalData = $parser->buildHierarchy(
+                $allConcepts,
+                'NASA/GCMD Earth Science Keywords',
+                'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords'
+            );
 
             // Count total concepts
             $totalConcepts = $this->countConcepts($hierarchicalData['data']);

@@ -89,7 +89,11 @@ class GetGcmdPlatforms extends Command
             // Build hierarchical structure
             $this->info('Building hierarchical structure...');
             $parser = new GcmdVocabularyParser();
-            $hierarchicalData = $parser->buildHierarchy($allConcepts);
+            $hierarchicalData = $parser->buildHierarchy(
+                $allConcepts,
+                'NASA/GCMD Earth Platforms Keywords',
+                'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms'
+            );
 
             // Count total concepts
             $totalConcepts = $this->countConcepts($hierarchicalData['data']);
