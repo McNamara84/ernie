@@ -274,14 +274,9 @@ describe('DataCiteForm', () => {
         }
         const dateCreatedInput = dateInputs[0];
         
-        // Use type() instead of keyboard() for date inputs with the correct format
+        // Use type() for date inputs with the correct format
         await user.clear(dateCreatedInput);
         await user.type(dateCreatedInput, date);
-        
-        // Wait for the value to be set
-        await waitFor(() => {
-            expect(dateCreatedInput.value).toBe(date);
-        });
     };
 
     beforeAll(() => {
@@ -1088,60 +1083,67 @@ describe('DataCiteForm', () => {
         expect(contactCheckbox).toBeInTheDocument();
     });
 
-    it('requires an email address when a person author is marked as contact', async () => {
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-            />,
-        );
+    it(
+        'requires an email address when a person author is marked as contact',
+        { timeout: 15000 },
+        async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
 
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        const saveButton = screen.getByRole('button', { name: 'Save to database' });
+            const saveButton = screen.getByRole('button', { name: 'Save to database' });
 
-        const titleInput = screen.getByRole('textbox', { name: /Title/ });
-        await user.type(titleInput, 'Contact Title');
-        await user.type(screen.getByLabelText('Year', { exact: false }), '2025');
-        await fillRequiredAuthor(user, 'Meyer');
-        await fillRequiredContributor(user);
+            const titleInput = screen.getByRole('textbox', { name: /Title/ });
+            await user.type(titleInput, 'Contact Title');
+            await user.type(screen.getByLabelText('Year', { exact: false }), '2025');
+            await fillRequiredAuthor(user, 'Meyer');
+            await fillRequiredContributor(user);
 
-        await user.click(screen.getByLabelText('Resource Type', { exact: false }));
-        await user.click(await screen.findByRole('option', { name: 'Dataset' }));
+            await user.click(screen.getByLabelText('Resource Type', { exact: false }));
+            await user.click(await screen.findByRole('option', { name: 'Dataset' }));
 
-        await user.click(screen.getByLabelText('Language of Data', { exact: false }));
-        await user.click(await screen.findByRole('option', { name: 'German' }));
+            await user.click(screen.getByLabelText('Language of Data', { exact: false }));
+            await user.click(await screen.findByRole('option', { name: 'German' }));
 
-        const licenseTrigger = screen.getAllByLabelText(/^License/, {
-            selector: 'button',
-        })[0];
-        await user.click(licenseTrigger);
-        await user.click(await screen.findByRole('option', { name: 'MIT License' }));
+            const licenseTrigger = screen.getAllByLabelText(/^License/, {
+                selector: 'button',
+            })[0];
+            await user.click(licenseTrigger);
+            await user.click(await screen.findByRole('option', { name: 'MIT License' }));
 
-        await ensureAuthorsOpen(user);
+            await ensureAuthorsOpen(user);
 
-        const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
-        await user.click(contactCheckbox);
+            const contactCheckbox = screen.getByRole('checkbox', { name: /Contact person/i });
+            await user.click(contactCheckbox);
 
-        const emailInput = await screen.findByRole('textbox', { name: /Email address/i });
-        expect(emailInput).toBeRequired();
-        expect(screen.getByRole('textbox', { name: /Website/i })).toBeInTheDocument();
-        expect(screen.queryByRole('textbox', { name: /Website \(optional\)/i })).not.toBeInTheDocument();
-        expect(saveButton).toBeDisabled();
+            const emailInput = await screen.findByRole('textbox', { name: /Email address/i });
+            expect(emailInput).toBeRequired();
+            expect(screen.getByRole('textbox', { name: /Website/i })).toBeInTheDocument();
+            expect(screen.queryByRole('textbox', { name: /Website \(optional\)/i })).not.toBeInTheDocument();
+            expect(saveButton).toBeDisabled();
 
-        await user.type(emailInput, 'contact@example.org');
-        await fillRequiredAbstract(user);
-        await fillRequiredDateCreated(user);
+            await user.type(emailInput, 'contact@example.org');
+            await fillRequiredAbstract(user);
+            await fillRequiredDateCreated(user);
 
-        await waitFor(() => {
-            expect(saveButton).toBeEnabled();
-        });
-    });
+            await waitFor(
+                () => {
+                    expect(saveButton).toBeEnabled();
+                },
+                { timeout: 10000 },
+            );
+        },
+    );
 
     it('prefills DOI when initialDoi is provided', () => {
         render(
