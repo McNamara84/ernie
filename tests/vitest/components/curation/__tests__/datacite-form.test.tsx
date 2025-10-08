@@ -161,8 +161,25 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
+    // Constants
+    // 'created' is the required date type - it must be filled for form submission
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const REQUIRED_DATE_TYPE = 'created';
+    const REQUIRED_DATE_TYPE_LABEL = 'Created';
+
+    // Helper Functions
     const clearXsrfCookie = () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    };
+
+    /**
+     * Filters and returns all empty date input elements from the form.
+     * This is used to locate date inputs when filling out test data.
+     */
+    const getEmptyDateInputs = (): HTMLInputElement[] => {
+        return screen.getAllByDisplayValue('').filter(input => 
+            input.getAttribute('type') === 'date'
+        ) as HTMLInputElement[];
     };
 
     const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -253,13 +270,11 @@ describe('DataCiteForm', () => {
         date = '2024-01-15',
     ) => {
         await ensureDatesOpen(user);
-        const dateInputs = screen.getAllByDisplayValue('').filter(input => 
-            input.getAttribute('type') === 'date'
-        );
+        const dateInputs = getEmptyDateInputs();
         if (dateInputs.length === 0) {
             throw new Error('No date inputs found in the form');
         }
-        const dateCreatedInput = dateInputs[0] as HTMLInputElement;
+        const dateCreatedInput = dateInputs[0];
         
         // Use type() instead of keyboard() for date inputs with the correct format
         await user.clear(dateCreatedInput);
@@ -2564,9 +2579,9 @@ describe('DataCiteForm', () => {
                 el.getAttribute('id')?.includes('dateType')
             );
             expect(dateTypeTrigger).toBeDefined();
-            // Check the actual value attribute which should be 'created'
+            // Check the actual value attribute which should be the required date type
             if (dateTypeTrigger) {
-                expect(dateTypeTrigger.getAttribute('aria-activedescendant') || dateTypeTrigger.textContent).toContain('Created');
+                expect(dateTypeTrigger.getAttribute('aria-activedescendant') || dateTypeTrigger.textContent).toContain(REQUIRED_DATE_TYPE_LABEL);
             }
         });
 
@@ -2674,7 +2689,7 @@ describe('DataCiteForm', () => {
             );
             await user.click(dateTypeTriggers[1]);
 
-            const createdOption = screen.queryByRole('option', { name: 'Created' });
+            const createdOption = screen.queryByRole('option', { name: REQUIRED_DATE_TYPE_LABEL });
             expect(createdOption).not.toBeInTheDocument();
         });
 

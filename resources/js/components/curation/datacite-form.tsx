@@ -43,6 +43,9 @@ import { SelectField } from './fields/select-field';
 import TitleField from './fields/title-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
+// Constants
+const REQUIRED_DATE_TYPE = 'created' as const;
+
 interface DataCiteFormData {
     doi: string;
     year: string;
@@ -512,7 +515,7 @@ export default function DataCiteForm({
             description: 'The date or date range in which the resource content was collected. To indicate precise or particular timeframes in which research was conducted.'
         },
         { 
-            value: 'created', 
+            value: REQUIRED_DATE_TYPE, 
             label: 'Created',
             description: 'The date the resource itself was put together; this could refer to a timeframe in ancient history, a date range, or a single date for a final component. Recommended for discovery.'
         },
@@ -604,7 +607,7 @@ export default function DataCiteForm({
     });
     const [descriptions, setDescriptions] = useState<DescriptionEntry[]>([]);
     const [dates, setDates] = useState<DateEntry[]>([
-        { id: crypto.randomUUID(), date: '', dateType: 'created' },
+        { id: crypto.randomUUID(), date: '', dateType: REQUIRED_DATE_TYPE },
     ]);
     
     const contributorPersonRoleNames = useMemo(
@@ -691,7 +694,7 @@ export default function DataCiteForm({
             (desc) => desc.type === 'Abstract' && desc.value.trim() !== '',
         );
         const dateCreatedFilled = dates.some(
-            (date) => date.dateType === 'created' && date.date.trim() !== '',
+            (date) => date.dateType === REQUIRED_DATE_TYPE && date.date.trim() !== '',
         );
 
         return (
