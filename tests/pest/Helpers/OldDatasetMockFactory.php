@@ -58,7 +58,7 @@ class OldDatasetMockFactory
                 return $this->licenses ?? [];
             }
 
-            public function jsonSerialize(): array
+            public function toArray(): array
             {
                 return [
                     'id' => $this->id,
@@ -73,6 +73,11 @@ class OldDatasetMockFactory
                     'publicationyear' => $this->publicationyear,
                     'licenses' => $this->licenses ?? [],
                 ];
+            }
+
+            public function jsonSerialize(): array
+            {
+                return $this->toArray();
             }
         };
     }

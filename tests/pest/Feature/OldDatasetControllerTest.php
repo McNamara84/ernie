@@ -14,15 +14,24 @@ use function Pest\Laravel\actingAs;
 
 uses(RefreshDatabase::class);
 
-afterEach(function (): void {
-    MockeryAlias::close();
-});
-
 beforeEach(function (): void {
     $this->withoutVite();
     actingAs(User::factory()->create([
         'email_verified_at' => now(),
     ]));
+});
+
+afterEach(function (): void {
+    // Ensure Mockery container is fully reset after each test
+    MockeryAlias::close();
+    
+    // Clear any class alias registrations
+    if (class_exists(\Mockery\Container::class, false)) {
+        $container = MockeryAlias::getContainer();
+        if (method_exists($container, 'mockery_close')) {
+            $container->mockery_close();
+        }
+    }
 });
 
 it('renders the old datasets page with paginated data', function (): void {
@@ -64,8 +73,8 @@ it('renders the old datasets page with paginated data', function (): void {
         options: ['path' => '/old-datasets']
     );
 
-    MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrdered')
+    $mock = MockeryAlias::mock('overload:' . OldDataset::class);
+    $mock->shouldReceive('getPaginatedOrdered')
         ->once()
         ->with(1, 50, 'updated_at', 'desc')
         ->andReturn($paginator);
@@ -132,8 +141,8 @@ it('sanitises pagination parameters before fetching datasets', function (): void
         options: ['path' => '/old-datasets']
     );
 
-    MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrdered')
+    $mock = MockeryAlias::mock('overload:' . OldDataset::class);
+    $mock->shouldReceive('getPaginatedOrdered')
         ->once()
         ->with(1, 200, 'updated_at', 'desc')
         ->andReturn($paginator);
@@ -168,8 +177,8 @@ it('applies the requested sort parameters when valid values are provided', funct
         options: ['path' => '/old-datasets']
     );
 
-    MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrdered')
+    $mock = MockeryAlias::mock('overload:' . OldDataset::class);
+    $mock->shouldReceive('getPaginatedOrdered')
         ->once()
         ->with(1, 50, 'id', 'asc')
         ->andReturn($paginator);
@@ -194,8 +203,8 @@ it('falls back to the default sort when invalid parameters are provided', functi
         options: ['path' => '/old-datasets']
     );
 
-    MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrdered')
+    $mock = MockeryAlias::mock('overload:' . OldDataset::class);
+    $mock->shouldReceive('getPaginatedOrdered')
         ->once()
         ->with(1, 50, 'updated_at', 'desc')
         ->andReturn($paginator);
@@ -236,8 +245,8 @@ it('returns JSON payload for the load-more endpoint', function (): void {
         options: ['path' => '/old-datasets/load-more']
     );
 
-    MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrdered')
+    $mock = MockeryAlias::mock('overload:' . OldDataset::class);
+    $mock->shouldReceive('getPaginatedOrdered')
         ->once()
         ->with(2, 20, 'updated_at', 'desc')
         ->andReturn($paginator);
@@ -289,8 +298,8 @@ it('exposes a helpful error state when the listing cannot be loaded', function (
 
     Log::spy();
 
-    MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrdered')
+    $mock = MockeryAlias::mock('overload:' . OldDataset::class);
+    $mock->shouldReceive('getPaginatedOrdered')
         ->once()
         ->withAnyArgs()
         ->andThrow($exception);
@@ -352,8 +361,8 @@ it('returns an error response when the load-more endpoint fails', function (): v
 
     Log::spy();
 
-    MockeryAlias::mock('alias:' . OldDataset::class)
-        ->shouldReceive('getPaginatedOrdered')
+    $mock = MockeryAlias::mock('overload:' . OldDataset::class);
+    $mock->shouldReceive('getPaginatedOrdered')
         ->once()
         ->withAnyArgs()
         ->andThrow(new RuntimeException('timeout while contacting replica'));
