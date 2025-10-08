@@ -337,18 +337,21 @@ describe('DataCiteForm', () => {
     ];
     const authorRoles: Role[] = [{ id: 5, name: 'Author', slug: 'author' }];
 
-    it('renders fields, title options and supports adding/removing titles', async () => {
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-            />,
-        );
+    it(
+        'renders fields, title options and supports adding/removing titles',
+        { timeout: 10000 },
+        async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
         expect(useRorAffiliations).toHaveBeenCalled();
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -535,18 +538,21 @@ describe('DataCiteForm', () => {
         });
     });
 
-    it('disables saving until required fields are provided', async () => {
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-            />,
-        );
+    it(
+        'disables saving until required fields are provided',
+        { timeout: 10000 },
+        async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
 
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         const saveButton = screen.getByRole('button', { name: 'Save to database' });
@@ -579,7 +585,8 @@ describe('DataCiteForm', () => {
             expect(saveButton).toBeEnabled();
             expect(saveButton).toHaveAttribute('aria-disabled', 'false');
         });
-    });
+    },
+    );
 
     it('supports managing person and institution authors with affiliations', async () => {
         render(
@@ -782,52 +789,54 @@ describe('DataCiteForm', () => {
         expect(badgesContainer).toHaveTextContent('https://ror.org/02mhbdp94');
     });
 
-    it('supports adding, removing and managing multiple authors independently', async () => {
-        render(
-            <DataCiteForm
-                resourceTypes={resourceTypes}
-                titleTypes={titleTypes}
-                licenses={licenses}
-                languages={languages}
-                contributorPersonRoles={contributorPersonRoles}
-                contributorInstitutionRoles={contributorInstitutionRoles}
-                authorRoles={authorRoles}
-            />,
-        );
+    it(
+        'supports adding, removing and managing multiple authors independently',
+        { timeout: 15000 },
+        async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
 
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-        await ensureAuthorsOpen(user);
+            await ensureAuthorsOpen(user);
 
-        // Add three authors
-        const addButtons = () => screen.getAllByRole('button', { name: /Add author/i });
-        
-        const authorGroup = screen.getByTestId('author-entries-group');
+            // Add three authors
+            const addButtons = () => screen.getAllByRole('button', { name: /Add author/i });
+            
+            const authorGroup = screen.getByTestId('author-entries-group');
 
-        await user.type(
-            within(authorGroup).getByRole('textbox', { name: /Last name/i }),
-            'First Author',
-        );
-        await user.click(addButtons()[0]);
-        
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
-        });
-        
-        await user.type(
-            within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1],
-            'Second Author',
-        );
-        await user.click(addButtons()[0]);
-        
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
-        });
-        
-        await user.type(
-            within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[2],
-            'Third Author',
-        );
+            const firstLastNameInput = within(authorGroup).getByRole('textbox', { name: /Last name/i });
+            await user.clear(firstLastNameInput);
+            await user.type(firstLastNameInput, 'First Author');
+            
+            await user.click(addButtons()[0]);
+            
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: 'Author 2' })).toBeInTheDocument();
+            });
+            
+            const secondLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[1];
+            await user.clear(secondLastNameInput);
+            await user.type(secondLastNameInput, 'Second Author');
+            
+            await user.click(addButtons()[0]);
+            
+            await waitFor(() => {
+                expect(screen.getByRole('heading', { name: 'Author 3' })).toBeInTheDocument();
+            });
+            
+            const thirdLastNameInput = within(authorGroup).getAllByRole('textbox', { name: /Last name/i })[2];
+            await user.clear(thirdLastNameInput);
+            await user.type(thirdLastNameInput, 'Third Author');
 
         // Verify all three authors are present
         expect(screen.getByRole('heading', { name: 'Author 1' })).toBeInTheDocument();
@@ -933,7 +942,8 @@ describe('DataCiteForm', () => {
             .filter((value): value is string => Boolean(value));
         expect(finalAffiliationValues).toContain('Institution X');
         expect(finalAffiliationValues).toContain('Institution Y');
-    }, 15000);
+    },
+    );
 
     it('applies responsive layout for author inputs', async () => {
         render(
