@@ -35,6 +35,7 @@ import ContributorField, {
     type InstitutionContributorEntry,
     type PersonContributorEntry,
 } from './fields/contributor-field';
+import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
@@ -59,6 +60,12 @@ interface TitleEntry {
 interface LicenseEntry {
     id: string;
     license: string;
+}
+
+interface DateEntry {
+    id: string;
+    date: string;
+    dateType: string;
 }
 
 interface SerializedAffiliation {
@@ -449,6 +456,14 @@ export function canAddLicense(
     );
 }
 
+export function canAddDate(dates: DateEntry[], maxDates: number) {
+    return (
+        dates.length < maxDates &&
+        dates.length > 0 &&
+        !!dates[dates.length - 1].date
+    );
+}
+
 export default function DataCiteForm({
     resourceTypes,
     titleTypes,
@@ -472,6 +487,24 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
+    const MAX_DATES = 12;
+    
+    // Available date types according to DataCite schema
+    const dateTypes = [
+        { value: 'accepted', label: 'Accepted' },
+        { value: 'available', label: 'Available' },
+        { value: 'copyrighted', label: 'Copyrighted' },
+        { value: 'collected', label: 'Collected' },
+        { value: 'coverage', label: 'Coverage' },
+        { value: 'created', label: 'Created' },
+        { value: 'issued', label: 'Issued' },
+        { value: 'submitted', label: 'Submitted' },
+        { value: 'updated', label: 'Updated' },
+        { value: 'valid', label: 'Valid' },
+        { value: 'withdrawn', label: 'Withdrawn' },
+        { value: 'other', label: 'Other' },
+    ];
+    
     const errorRef = useRef<HTMLDivElement | null>(null);
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
@@ -527,6 +560,10 @@ export default function DataCiteForm({
         return [createEmptyContributor()];
     });
     const [descriptions, setDescriptions] = useState<DescriptionEntry[]>([]);
+    const [dates, setDates] = useState<DateEntry[]>([
+        { id: crypto.randomUUID(), date: '', dateType: 'created' },
+    ]);
+    
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
         [contributorPersonRoles],
@@ -610,6 +647,9 @@ export default function DataCiteForm({
         const abstractFilled = descriptions.some(
             (desc) => desc.type === 'Abstract' && desc.value.trim() !== '',
         );
+        const dateCreatedFilled = dates.some(
+            (date) => date.dateType === 'created' && date.date.trim() !== '',
+        );
 
         return (
             mainTitleFilled &&
@@ -618,9 +658,10 @@ export default function DataCiteForm({
             languageSelected &&
             primaryLicenseFilled &&
             authorsValid &&
-            abstractFilled
+            abstractFilled &&
+            dateCreatedFilled
         );
-    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
+    }, [authors, descriptions, dates, form.language, form.resourceType, form.year, licenseEntries, titles]);
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -908,6 +949,33 @@ export default function DataCiteForm({
         setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
     };
 
+    const handleDateChange = (
+        index: number,
+        field: keyof Omit<DateEntry, 'id'>,
+        value: string,
+    ) => {
+        setDates((prev) => {
+            const next = [...prev];
+            next[index] = { ...next[index], [field]: value };
+            return next;
+        });
+    };
+
+    const addDate = () => {
+        if (dates.length >= MAX_DATES) return;
+        // Find the first unused date type or default to 'other'
+        const usedTypes = new Set(dates.map((d) => d.dateType));
+        const availableType = dateTypes.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
+        setDates((prev) => [
+            ...prev,
+            { id: crypto.randomUUID(), date: '', dateType: availableType },
+        ]);
+    };
+
+    const removeDate = (index: number) => {
+        setDates((prev) => prev.filter((_, i) => i !== index));
+    };
+
     useEffect(() => {
         if (errorMessage && errorRef.current) {
             errorRef.current.focus();
@@ -1029,6 +1097,7 @@ export default function DataCiteForm({
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
             descriptions: { descriptionType: string; description: string }[];
+            dates: { date: string; dateType: string }[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1050,6 +1119,12 @@ export default function DataCiteForm({
                 .map((desc) => ({
                     descriptionType: desc.type,
                     description: desc.value.trim(),
+                })),
+            dates: dates
+                .filter((date) => date.date.trim() !== '')
+                .map((date) => ({
+                    date: date.date.trim(),
+                    dateType: date.dateType,
                 })),
         };
 
@@ -1135,7 +1210,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'dates']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1355,6 +1430,36 @@ export default function DataCiteForm({
                             descriptions={descriptions}
                             onChange={setDescriptions}
                         />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="dates">
+                    <AccordionTrigger>Dates</AccordionTrigger>
+                    <AccordionContent>
+                        <div className="space-y-4">
+                            {dates.map((entry, index) => (
+                                <DateField
+                                    key={entry.id}
+                                    id={entry.id}
+                                    date={entry.date}
+                                    dateType={entry.dateType}
+                                    options={dateTypes.filter(
+                                        (dt) =>
+                                            dt.value === entry.dateType ||
+                                            !dates.some((d) => d.dateType === dt.value),
+                                    )}
+                                    onDateChange={(val) =>
+                                        handleDateChange(index, 'date', val)
+                                    }
+                                    onTypeChange={(val) =>
+                                        handleDateChange(index, 'dateType', val)
+                                    }
+                                    onAdd={addDate}
+                                    onRemove={() => removeDate(index)}
+                                    isFirst={index === 0}
+                                    canAdd={canAddDate(dates, MAX_DATES)}
+                                />
+                            ))}
+                        </div>
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
