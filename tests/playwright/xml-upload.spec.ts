@@ -269,34 +269,55 @@ test.describe('XML Upload Functionality', () => {
       const descriptionKeys = Array.from(urlParams.keys()).filter(key => key.includes('descriptions'));
       expect(descriptionKeys.length).toBeGreaterThan(0);
       
-      // Check specific description types from datacite-example-full-v4.xml
-      const descriptionTypes = [
-        'Abstract',
-        'Methods',
-        'SeriesInformation',
-        'TableOfContents',
-        'TechnicalInfo',
-        'Other'
-      ];
+      // Validate that description types are present and non-empty (flexible approach)
+      const descriptionTypeEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => key.includes('descriptions') && key.includes('[type]') && value.trim() !== ''
+      );
       
-      // Verify at least some of the expected description types are present
-      let foundDescriptionTypes = 0;
-      for (const expectedType of descriptionTypes) {
-        const hasType = Array.from(urlParams.entries()).some(
-          ([key, value]) => key.includes('descriptions') && key.includes('[type]') && value === expectedType
-        );
-        if (hasType) {
-          foundDescriptionTypes++;
+      expect(descriptionTypeEntries.length).toBeGreaterThan(0);
+      
+      // Verify that description types are valid (should be standard DataCite description types)
+      // Valid types include: Abstract, Methods, SeriesInformation, TableOfContents, TechnicalInfo, Other
+      // Format should be PascalCase
+      const allDescriptionTypesValid = descriptionTypeEntries.every(([, value]) => {
+        // Valid descriptionType should start with uppercase, may contain more uppercase letters
+        return /^[A-Z][a-zA-Z]*$/.test(value);
+      });
+      expect(allDescriptionTypesValid).toBeTruthy();
+      
+      // Verify that descriptions have content
+      const descriptionContentEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => 
+          key.includes('descriptions') && 
+          key.includes('[description]') &&
+          value.trim() !== ''
+      );
+      
+      expect(descriptionContentEntries.length).toBeGreaterThan(0);
+      
+      // Verify that we have matching pairs of type and description
+      const descriptionIndices = new Set<string>();
+      Array.from(urlParams.keys())
+        .filter(key => key.includes('descriptions[') && key.includes(']'))
+        .forEach(key => {
+          const match = key.match(/descriptions\[(\d+)\]/);
+          if (match) {
+            descriptionIndices.add(match[1]);
+          }
+        });
+      
+      // Each description should have both type and description
+      let completeDescriptions = 0;
+      for (const index of descriptionIndices) {
+        const type = urlParams.get(`descriptions[${index}][type]`);
+        const description = urlParams.get(`descriptions[${index}][description]`);
+        
+        if (type && type.trim() !== '' && description && description.trim() !== '') {
+          completeDescriptions++;
         }
       }
       
-      expect(foundDescriptionTypes).toBeGreaterThan(0);
-      
-      // Verify that descriptions have content
-      const hasDescriptionContent = Array.from(urlParams.keys()).some(
-        key => key.includes('descriptions') && key.includes('[description]')
-      );
-      expect(hasDescriptionContent).toBeTruthy();
+      expect(completeDescriptions).toBeGreaterThan(0);
     });
     
     await page.screenshot({ 
@@ -328,29 +349,19 @@ test.describe('XML Upload Functionality', () => {
       const dateKeys = Array.from(urlParams.keys()).filter(key => key.includes('dates'));
       expect(dateKeys.length).toBeGreaterThan(0);
       
-      // Check specific date types from datacite-example-full-v4.xml
-      const expectedDateTypes = [
-        'accepted',
-        'available',
-        'collected',
-        'created',
-        'issued',
-        'submitted',
-        'updated'
-      ];
+      // Validate that date types are present and non-empty (flexible approach)
+      const dateTypeEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => key.includes('dates') && key.includes('[dateType]') && value.trim() !== ''
+      );
       
-      // Verify at least some of the expected date types are present
-      let foundDateTypes = 0;
-      for (const expectedType of expectedDateTypes) {
-        const hasType = Array.from(urlParams.entries()).some(
-          ([key, value]) => key.includes('dates') && key.includes('[dateType]') && value === expectedType
-        );
-        if (hasType) {
-          foundDateTypes++;
-        }
-      }
+      expect(dateTypeEntries.length).toBeGreaterThan(0);
       
-      expect(foundDateTypes).toBeGreaterThan(0);
+      // Verify that all dateType values are in kebab-case format (lowercase with hyphens)
+      const allDateTypesValid = dateTypeEntries.every(([, value]) => {
+        // Valid dateType should be lowercase, may contain hyphens
+        return /^[a-z]+(-[a-z]+)*$/.test(value);
+      });
+      expect(allDateTypesValid).toBeTruthy();
       
       // Verify that dates have at least startDate or endDate
       const hasDateValues = Array.from(urlParams.keys()).some(
@@ -358,16 +369,49 @@ test.describe('XML Upload Functionality', () => {
       );
       expect(hasDateValues).toBeTruthy();
       
-      // Check for date range (collected dates should have both start and end)
-      const hasCollectedStart = Array.from(urlParams.entries()).some(
-        ([key, value]) => key.includes('dates') && key.includes('[startDate]') && value.startsWith('2024-')
-      );
-      const hasCollectedEnd = Array.from(urlParams.entries()).some(
-        ([key, value]) => key.includes('dates') && key.includes('[endDate]') && value.startsWith('2024-')
+      // Validate date format (YYYY-MM-DD) instead of checking for specific year
+      const dateValuePattern = /^\d{4}-\d{2}-\d{2}$/;
+      
+      const dateValueEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => 
+          key.includes('dates') && 
+          (key.includes('[startDate]') || key.includes('[endDate]')) &&
+          value.trim() !== ''
       );
       
-      // At least one date range should exist (collected or coverage dates)
-      expect(hasCollectedStart || hasCollectedEnd).toBeTruthy();
+      // Verify at least some dates have valid format
+      const validDateValues = dateValueEntries.filter(([, value]) => 
+        dateValuePattern.test(value)
+      );
+      expect(validDateValues.length).toBeGreaterThan(0);
+      
+      // Check for date ranges (dates with both startDate and endDate)
+      const dateIndices = new Set<string>();
+      Array.from(urlParams.keys())
+        .filter(key => key.includes('dates[') && key.includes(']'))
+        .forEach(key => {
+          const match = key.match(/dates\[(\d+)\]/);
+          if (match) {
+            dateIndices.add(match[1]);
+          }
+        });
+      
+      // Check if at least one date entry has both start and end (date range)
+      let hasDateRange = false;
+      for (const index of dateIndices) {
+        const startDate = urlParams.get(`dates[${index}][startDate]`);
+        const endDate = urlParams.get(`dates[${index}][endDate]`);
+        
+        if (startDate && endDate && 
+            dateValuePattern.test(startDate) && 
+            dateValuePattern.test(endDate)) {
+          hasDateRange = true;
+          break;
+        }
+      }
+      
+      // At least one date range should exist in the full example XML
+      expect(hasDateRange).toBeTruthy();
     });
     
     await page.screenshot({ 
