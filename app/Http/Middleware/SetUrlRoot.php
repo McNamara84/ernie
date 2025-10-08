@@ -22,8 +22,11 @@ class SetUrlRoot
             if ($appUrl) {
                 URL::forceRootUrl($appUrl);
                 
+                // Force HTTPS scheme if the app URL uses HTTPS
                 if (str_starts_with($appUrl, 'https://')) {
                     URL::forceScheme('https');
+                    // Also mark the request as secure
+                    $request->server->set('HTTPS', 'on');
                 }
             }
         }
