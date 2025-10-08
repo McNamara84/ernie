@@ -15,7 +15,7 @@ services:
       - db
     environment:
       - APP_URL=https://env.rz-vm182.gfz.de/ernie
-      - SESSION_PATH=/ernie
+      - SESSION_PATH=/
       - SESSION_DOMAIN=env.rz-vm182.gfz.de
       - SESSION_SECURE_COOKIE=true
       - SESSION_SAME_SITE=lax
