@@ -19,6 +19,7 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { hasValidDateValue, serializeDateEntry } from '@/lib/date-utils';
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 
@@ -717,8 +718,7 @@ export default function DataCiteForm({
             (desc) => desc.type === 'Abstract' && desc.value.trim() !== '',
         );
         const dateCreatedFilled = dates.some(
-            (date) => date.dateType === REQUIRED_DATE_TYPE && 
-                      (date.startDate.trim() !== '' || date.endDate.trim() !== ''),
+            (date) => date.dateType === REQUIRED_DATE_TYPE && hasValidDateValue(date),
         );
 
         return (
@@ -1191,28 +1191,11 @@ export default function DataCiteForm({
                     description: desc.value.trim(),
                 })),
             dates: dates
-                .filter((date) => date.startDate.trim() !== '' || date.endDate.trim() !== '')
-                .map((date) => {
-                    const hasStart = date.startDate.trim() !== '';
-                    const hasEnd = date.endDate.trim() !== '';
-                    let dateString = '';
-                    
-                    if (hasStart && hasEnd) {
-                        // Range: "start/end"
-                        dateString = `${date.startDate.trim()}/${date.endDate.trim()}`;
-                    } else if (hasStart) {
-                        // Only start: "start"
-                        dateString = date.startDate.trim();
-                    } else if (hasEnd) {
-                        // Only end: "/end"
-                        dateString = `/${date.endDate.trim()}`;
-                    }
-                    
-                    return {
-                        date: dateString,
-                        dateType: date.dateType,
-                    };
-                }),
+                .filter(hasValidDateValue)
+                .map((date) => ({
+                    date: serializeDateEntry(date),
+                    dateType: date.dateType,
+                })),
         };
 
         if (resolvedResourceId !== null) {
