@@ -565,4 +565,32 @@ class OldDataset extends Model
 
         return $contributors;
     }
+
+    /**
+     * Get descriptions for this resource from the description table.
+     * Returns an array of descriptions with their types.
+     *
+     * @return array<int, array{type: string, description: string}>
+     */
+    public function getDescriptions(): array
+    {
+        if (!$this->exists) {
+            return [];
+        }
+
+        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        
+        // Get all descriptions for this resource
+        $descriptions = $db->table('description')
+            ->where('resource_id', $this->id)
+            ->select('descriptiontype', 'description')
+            ->get();
+
+        return $descriptions->map(function ($desc) {
+            return [
+                'type' => $desc->descriptiontype,
+                'description' => $desc->description,
+            ];
+        })->toArray();
+    }
 }

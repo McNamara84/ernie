@@ -438,6 +438,7 @@ interface DataCiteFormProps {
     initialResourceId?: string;
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];
+    initialDescriptions?: { type: string; description: string }[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -487,6 +488,7 @@ export default function DataCiteForm({
     initialResourceId,
     initialAuthors = [],
     initialContributors = [],
+    initialDescriptions = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -605,7 +607,15 @@ export default function DataCiteForm({
 
         return [createEmptyContributor()];
     });
-    const [descriptions, setDescriptions] = useState<DescriptionEntry[]>([]);
+    const [descriptions, setDescriptions] = useState<DescriptionEntry[]>(() => {
+        if (initialDescriptions && initialDescriptions.length > 0) {
+            return initialDescriptions.map((desc) => ({
+                type: desc.type as DescriptionEntry['type'],
+                value: desc.description,
+            }));
+        }
+        return [];
+    });
     const [dates, setDates] = useState<DateEntry[]>([
         { id: crypto.randomUUID(), date: '', dateType: REQUIRED_DATE_TYPE },
     ]);

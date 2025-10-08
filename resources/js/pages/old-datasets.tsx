@@ -858,6 +858,33 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without contributors if loading fails
         }
+
+        // Load descriptions from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/descriptions`);
+            const descriptions = response.data.descriptions || [];
+            
+            descriptions.forEach((description: {
+                type: string;
+                description: string;
+            }, index: number) => {
+                query[`descriptions[${index}][type]`] = description.type;
+                query[`descriptions[${index}][description]`] = description.description;
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading descriptions for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading descriptions for dataset:', error);
+            }
+            // Continue without descriptions if loading fails
+        }
     }
 
     return query;

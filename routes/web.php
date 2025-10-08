@@ -59,6 +59,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/contributors', [OldDatasetController::class, 'getContributors'])
         ->name('old-datasets.contributors');
 
+    Route::get('old-datasets/{id}/descriptions', [OldDatasetController::class, 'getDescriptions'])
+        ->name('old-datasets.descriptions');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
@@ -96,6 +99,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'initialLicenses' => $request->query('licenses', []),
             'authors' => $request->query('authors', []),
             'contributors' => $request->query('contributors', []),
+            'descriptions' => $request->query('descriptions', []),
         ]);
     })->name('curation');
 
