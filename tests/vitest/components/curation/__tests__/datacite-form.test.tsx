@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom/vitest';
+﻿import '@testing-library/jest-dom/vitest';
 
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -161,8 +161,23 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
+    // Constants
+    // The label for the required date type (Date Created must be filled for form submission)
+    const REQUIRED_DATE_TYPE_LABEL = 'Created';
+
+    // Helper Functions
     const clearXsrfCookie = () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    };
+
+    /**
+     * Filters and returns all empty date input elements from the form.
+     * This is used to locate date inputs when filling out test data.
+     */
+    const getEmptyDateInputs = (): HTMLInputElement[] => {
+        return screen.getAllByDisplayValue('').filter(input => 
+            input.getAttribute('type') === 'date'
+        ) as HTMLInputElement[];
     };
 
     const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
@@ -239,6 +254,34 @@ describe('DataCiteForm', () => {
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.click(abstractTextarea);
         await user.keyboard(abstract);
+    };
+
+    const ensureDatesOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        const datesTrigger = screen.getByRole('button', { name: 'Dates' });
+        if (datesTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(datesTrigger);
+        }
+    };
+
+    const fillRequiredDateCreated = async (
+        user: ReturnType<typeof userEvent.setup>,
+        date = '2024-01-15',
+    ) => {
+        await ensureDatesOpen(user);
+        const dateInputs = getEmptyDateInputs();
+        if (dateInputs.length === 0) {
+            throw new Error('No date inputs found in the form');
+        }
+        const dateCreatedInput = dateInputs[0];
+        
+        // Use type() instead of keyboard() for date inputs with the correct format
+        await user.clear(dateCreatedInput);
+        await user.type(dateCreatedInput, date);
+        
+        // Wait for the value to be set
+        await waitFor(() => {
+            expect(dateCreatedInput.value).toBe(date);
+        });
     };
 
     beforeAll(() => {
@@ -535,6 +578,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user, 'Doe');
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -1092,6 +1136,7 @@ describe('DataCiteForm', () => {
 
         await user.type(emailInput, 'contact@example.org');
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -1845,6 +1890,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
@@ -1926,6 +1972,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2004,6 +2051,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2073,6 +2121,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2106,6 +2155,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).not.toHaveBeenCalled();
@@ -2156,6 +2206,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
@@ -2216,6 +2267,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
@@ -2296,6 +2348,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredDateCreated(user);
 
         // Fill Abstract
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2336,6 +2389,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredDateCreated(user);
 
         // Fill Abstract (required)
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2405,6 +2459,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredDateCreated(user);
 
         // Fill only Abstract
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2460,6 +2515,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredDateCreated(user);
 
         // Fill Abstract with whitespace
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2479,4 +2535,178 @@ describe('DataCiteForm', () => {
         expect(requestBody.descriptions[0].description).toBe('Test abstract with spaces');
     });
     });
+
+    describe('Dates Form Group', () => {
+        it('renders the Dates accordion section', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+
+            const datesTrigger = screen.getByRole('button', { name: 'Dates' });
+            expect(datesTrigger).toBeInTheDocument();
+            expect(datesTrigger).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('renders a single Date Created field by default', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+
+            const dateInputs = screen.getAllByDisplayValue('');
+            const dateFields = dateInputs.filter(input => input.getAttribute('type') === 'date');
+            expect(dateFields).toHaveLength(1);
+            expect(dateFields[0]).toHaveAttribute('type', 'date');
+            
+            const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
+                el.getAttribute('id')?.includes('dateType')
+            );
+            expect(dateTypeTrigger).toBeDefined();
+            // Check the actual value attribute which should be the required date type
+            if (dateTypeTrigger) {
+                expect(dateTypeTrigger.getAttribute('aria-activedescendant') || dateTypeTrigger.textContent).toContain(REQUIRED_DATE_TYPE_LABEL);
+            }
+        });
+
+        it('marks Date Created as required', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+
+            const dateInputs = screen.getAllByDisplayValue('');
+            const dateFields = dateInputs.filter(input => input.getAttribute('type') === 'date');
+            expect(dateFields[0]).toHaveAttribute('required');
+        });
+
+        it('supports adding additional date types', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const firstDateInput = screen.getAllByDisplayValue('').find(input => 
+                input.getAttribute('type') === 'date'
+            ) as HTMLInputElement;
+            await user.type(firstDateInput, '2024-01-15');
+
+            const addButton = screen.getByRole('button', { name: 'Add date' });
+            await user.click(addButton);
+
+            const dateInputs = screen.getAllByDisplayValue('').filter(input => 
+                input.getAttribute('type') === 'date'
+            );
+            expect(dateInputs).toHaveLength(1); // One filled, one empty
+            const allDateInputs = document.querySelectorAll('input[type="date"]');
+            expect(allDateInputs).toHaveLength(2);
+        });
+
+        it('supports removing non-required date fields', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const firstDateInput = screen.getAllByDisplayValue('').find(input => 
+                input.getAttribute('type') === 'date'
+            ) as HTMLInputElement;
+            await user.type(firstDateInput, '2024-01-15');
+
+            const addButton = screen.getByRole('button', { name: 'Add date' });
+            await user.click(addButton);
+
+            const removeButton = screen.getByRole('button', { name: 'Remove date' });
+            await user.click(removeButton);
+
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(1);
+        });
+
+        it('filters out already used date types from options', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const firstDateInput = screen.getAllByDisplayValue('').find(input => 
+                input.getAttribute('type') === 'date'
+            ) as HTMLInputElement;
+            await user.type(firstDateInput, '2024-01-15');
+
+            const addButton = screen.getByRole('button', { name: 'Add date' });
+            await user.click(addButton);
+
+            const dateTypeTriggers = screen.getAllByRole('combobox').filter(el => 
+                el.getAttribute('id')?.includes('dateType')
+            );
+            await user.click(dateTypeTriggers[1]);
+
+            const createdOption = screen.queryByRole('option', { name: REQUIRED_DATE_TYPE_LABEL });
+            expect(createdOption).not.toBeInTheDocument();
+        });
+
+        it('displays description for selected date type', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+
+            const description = screen.getByText(/The date the resource itself was put together/);
+            expect(description).toBeInTheDocument();
+        });
+    });
 });
+
