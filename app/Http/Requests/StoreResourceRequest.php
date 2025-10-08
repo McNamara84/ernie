@@ -62,7 +62,7 @@ class StoreResourceRequest extends FormRequest
             'descriptions.*.descriptionType' => [
                 'required',
                 'string',
-                Rule::in(['Abstract', 'Methods', 'SeriesInformation', 'TableOfContents', 'TechnicalInfo', 'Other']),
+                Rule::in(['abstract', 'methods', 'series-information', 'table-of-contents', 'technical-info', 'other']),
             ],
             'descriptions.*.description' => ['required', 'string'],
             'dates' => ['nullable', 'array'],
@@ -545,7 +545,7 @@ class StoreResourceRequest extends FormRequest
                     foreach ($descriptions as $description) {
                         if (is_array($description) && 
                             isset($description['descriptionType']) && 
-                            $description['descriptionType'] === 'Abstract' &&
+                            $description['descriptionType'] === 'abstract' &&
                             isset($description['description']) &&
                             is_string($description['description']) &&
                             trim($description['description']) !== '') {
