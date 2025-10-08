@@ -9,7 +9,7 @@ beforeEach(function () {
     Storage::fake();
 });
 
-function createTestInstrumentsFile(): void
+function createTestInstrumentsVocabularyFile(): void
 {
     $testData = [
         'lastUpdated' => '2025-10-08 12:22:38',
@@ -40,7 +40,7 @@ function createTestInstrumentsFile(): void
 }
 
 it('returns GCMD Instruments vocabulary', function () {
-    createTestInstrumentsFile();
+    createTestInstrumentsVocabularyFile();
 
     $response = getJson('/api/v1/vocabularies/gcmd-instruments')
         ->assertOk()
@@ -73,7 +73,7 @@ it('returns 404 when instruments file does not exist', function () {
 });
 
 it('rejects instruments requests without an API key when one is configured', function () {
-    createTestInstrumentsFile();
+    createTestInstrumentsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -83,7 +83,7 @@ it('rejects instruments requests without an API key when one is configured', fun
 });
 
 it('rejects instruments requests with an invalid API key', function () {
-    createTestInstrumentsFile();
+    createTestInstrumentsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -93,7 +93,7 @@ it('rejects instruments requests with an invalid API key', function () {
 });
 
 it('allows instruments requests with a valid API key header', function () {
-    createTestInstrumentsFile();
+    createTestInstrumentsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -104,7 +104,7 @@ it('allows instruments requests with a valid API key header', function () {
 });
 
 it('allows instruments requests with a valid API key query parameter', function () {
-    createTestInstrumentsFile();
+    createTestInstrumentsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 

@@ -9,7 +9,7 @@ beforeEach(function () {
     Storage::fake();
 });
 
-function createTestPlatformsFile(): void
+function createTestPlatformsVocabularyFile(): void
 {
     $testData = [
         'lastUpdated' => '2025-10-08 12:13:45',
@@ -40,7 +40,7 @@ function createTestPlatformsFile(): void
 }
 
 it('returns GCMD Platforms vocabulary', function () {
-    createTestPlatformsFile();
+    createTestPlatformsVocabularyFile();
 
     $response = getJson('/api/v1/vocabularies/gcmd-platforms')
         ->assertOk()
@@ -73,7 +73,7 @@ it('returns 404 when platforms file does not exist', function () {
 });
 
 it('rejects platforms requests without an API key when one is configured', function () {
-    createTestPlatformsFile();
+    createTestPlatformsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -83,7 +83,7 @@ it('rejects platforms requests without an API key when one is configured', funct
 });
 
 it('rejects platforms requests with an invalid API key', function () {
-    createTestPlatformsFile();
+    createTestPlatformsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -93,7 +93,7 @@ it('rejects platforms requests with an invalid API key', function () {
 });
 
 it('allows platforms requests with a valid API key header', function () {
-    createTestPlatformsFile();
+    createTestPlatformsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -104,7 +104,7 @@ it('allows platforms requests with a valid API key header', function () {
 });
 
 it('allows platforms requests with a valid API key query parameter', function () {
-    createTestPlatformsFile();
+    createTestPlatformsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 

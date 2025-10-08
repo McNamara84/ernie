@@ -9,7 +9,7 @@ beforeEach(function () {
     Storage::fake();
 });
 
-function createTestVocabularyFile(): void
+function createTestScienceKeywordsVocabularyFile(): void
 {
     $testData = [
         'lastUpdated' => '2025-10-08 12:00:00',
@@ -40,7 +40,7 @@ function createTestVocabularyFile(): void
 }
 
 it('returns GCMD Science Keywords vocabulary', function () {
-    createTestVocabularyFile();
+    createTestScienceKeywordsVocabularyFile();
 
     $response = getJson('/api/v1/vocabularies/gcmd-science-keywords')
         ->assertOk()
@@ -73,7 +73,7 @@ it('returns 404 when vocabulary file does not exist', function () {
 });
 
 it('rejects requests without an API key when one is configured', function () {
-    createTestVocabularyFile();
+    createTestScienceKeywordsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -83,7 +83,7 @@ it('rejects requests without an API key when one is configured', function () {
 });
 
 it('rejects requests with an invalid API key', function () {
-    createTestVocabularyFile();
+    createTestScienceKeywordsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -93,7 +93,7 @@ it('rejects requests with an invalid API key', function () {
 });
 
 it('allows requests with a valid API key header', function () {
-    createTestVocabularyFile();
+    createTestScienceKeywordsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -104,7 +104,7 @@ it('allows requests with a valid API key header', function () {
 });
 
 it('allows requests with a valid API key query parameter', function () {
-    createTestVocabularyFile();
+    createTestScienceKeywordsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
