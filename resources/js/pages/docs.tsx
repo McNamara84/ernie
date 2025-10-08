@@ -64,6 +64,23 @@ export default function Docs() {
                             <code>php artisan spdx:sync-licenses</code>
                         </pre>
                         <p>This fetches the latest license identifiers and names from SPDX.</p>
+                        <p>
+                            To update the GCMD vocabularies from NASA's Knowledge Management System, run:
+                        </p>
+                        <pre>
+                            <code>php artisan get-gcmd-science-keywords</code>
+                        </pre>
+                        <pre>
+                            <code>php artisan get-gcmd-platforms</code>
+                        </pre>
+                        <pre>
+                            <code>php artisan get-gcmd-instruments</code>
+                        </pre>
+                        <p>
+                            These commands fetch the latest GCMD Science Keywords, Platforms, and Instruments
+                            vocabularies from the NASA KMS API and store them as hierarchical JSON files.
+                            It is recommended to run these commands monthly to keep the vocabularies up to date.
+                        </p>
                     </CollapsibleContent>
                 </Collapsible>
                 <Collapsible className="w-full rounded-lg border">
