@@ -224,6 +224,23 @@ describe('DataCiteForm', () => {
         await user.type(lastNameInput, lastName);
     };
 
+    const ensureDescriptionsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        const descriptionsTrigger = screen.getByRole('button', { name: 'Descriptions' });
+        if (descriptionsTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(descriptionsTrigger);
+        }
+    };
+
+    const fillRequiredAbstract = async (
+        user: ReturnType<typeof userEvent.setup>,
+        abstract = 'This is a test abstract for the dataset.',
+    ) => {
+        await ensureDescriptionsOpen(user);
+        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+        await user.click(abstractTextarea);
+        await user.keyboard(abstract);
+    };
+
     beforeAll(() => {
         // Polyfill methods required by Radix UI Select
         Element.prototype.hasPointerCapture = () => false;
@@ -517,6 +534,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user, 'Doe');
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -1073,6 +1091,7 @@ describe('DataCiteForm', () => {
         expect(saveButton).toBeDisabled();
 
         await user.type(emailInput, 'contact@example.org');
+        await fillRequiredAbstract(user);
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -1825,6 +1844,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
@@ -1905,6 +1925,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -1982,6 +2003,7 @@ describe('DataCiteForm', () => {
 
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2050,6 +2072,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2082,6 +2105,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
         await user.click(saveButton);
 
         expect(global.fetch).not.toHaveBeenCalled();
@@ -2131,6 +2155,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
@@ -2190,6 +2215,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredAbstract(user);
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
@@ -2205,5 +2231,252 @@ describe('DataCiteForm', () => {
             'Failed to save resource',
             expect.any(Error),
         );
+    });
+
+    describe('Descriptions', () => {
+        it('renders the Descriptions accordion section', () => {
+            render(
+                <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+            />,
+        );
+
+        expect(screen.getByText('Descriptions')).toBeInTheDocument();
+    });
+
+    it('disables save button when Abstract is not filled', async () => {
+        const user = userEvent.setup();
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        // Should still be disabled because Abstract is not filled
+        expect(saveButton).toBeDisabled();
+    });
+
+    it('enables save button when Abstract is filled', async () => {
+        const user = userEvent.setup();
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill Abstract
+        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+        await user.type(abstractTextarea, 'This is a test abstract');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+    });
+
+    it('includes descriptions in the payload when submitting', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const responseData = { message: 'Success', resource: { id: 1 } };
+        const jsonMock = vi.fn().mockResolvedValue(responseData);
+        const response = {
+            ok: true,
+            status: 201,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill Abstract (required)
+        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+        await user.type(abstractTextarea, 'This is a test abstract');
+
+        // Fill Methods (optional)
+        const methodsTab = screen.getByRole('tab', { name: /Methods/i });
+        await user.click(methodsTab);
+        const methodsTextarea = screen.getByRole('textbox', { name: /Methods/i });
+        await user.type(methodsTextarea, 'Test methodology');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalled();
+        });
+
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        const requestBody = JSON.parse(fetchCall[1].body);
+
+        expect(requestBody.descriptions).toBeDefined();
+        expect(requestBody.descriptions).toHaveLength(2);
+        expect(requestBody.descriptions).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    descriptionType: 'Abstract',
+                    description: 'This is a test abstract',
+                }),
+                expect.objectContaining({
+                    descriptionType: 'Methods',
+                    description: 'Test methodology',
+                }),
+            ]),
+        );
+    });
+
+    it('does not include empty descriptions in the payload', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const responseData = { message: 'Success', resource: { id: 1 } };
+        const jsonMock = vi.fn().mockResolvedValue(responseData);
+        const response = {
+            ok: true,
+            status: 201,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill only Abstract
+        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+        await user.type(abstractTextarea, 'This is a test abstract');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalled();
+        });
+
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        const requestBody = JSON.parse(fetchCall[1].body);
+
+        expect(requestBody.descriptions).toBeDefined();
+        expect(requestBody.descriptions).toHaveLength(1);
+        expect(requestBody.descriptions[0]).toEqual({
+            descriptionType: 'Abstract',
+            description: 'This is a test abstract',
+        });
+    });
+
+    it('trims whitespace from description values', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        const responseData = { message: 'Success', resource: { id: 1 } };
+        const jsonMock = vi.fn().mockResolvedValue(responseData);
+        const response = {
+            ok: true,
+            status: 201,
+            clone: () => ({ json: jsonMock }),
+        } as unknown as Response;
+
+        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialYear="2024"
+                initialResourceType="1"
+                initialTitles={[{ title: 'Primary Title', titleType: 'main-title' }]}
+                initialLicenses={['MIT']}
+            />,
+        );
+
+        await fillRequiredAuthor(user);
+        await fillRequiredContributor(user);
+
+        // Fill Abstract with whitespace
+        const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
+        await user.type(abstractTextarea, '   Test abstract with spaces   ');
+
+        const saveButton = screen.getByRole('button', { name: /save to database/i });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        await user.click(saveButton);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalled();
+        });
+
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        const requestBody = JSON.parse(fetchCall[1].body);
+
+        expect(requestBody.descriptions[0].description).toBe('Test abstract with spaces');
+    });
     });
 });

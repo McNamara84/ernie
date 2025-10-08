@@ -58,6 +58,13 @@ class StoreResourceRequest extends FormRequest
             'contributors.*.affiliations' => ['array'],
             'contributors.*.affiliations.*.value' => ['required', 'string', 'max:255'],
             'contributors.*.affiliations.*.rorId' => ['nullable', 'string', 'max:255'],
+            'descriptions' => ['nullable', 'array'],
+            'descriptions.*.descriptionType' => [
+                'required',
+                'string',
+                Rule::in(['Abstract', 'Methods', 'SeriesInformation', 'TableOfContents', 'TechnicalInfo', 'Other']),
+            ],
+            'descriptions.*.description' => ['required', 'string'],
         ];
     }
 
@@ -446,6 +453,32 @@ class StoreResourceRequest extends FormRequest
                             'At least one role must be provided for each contributor.',
                         );
                     }
+                }
+            },
+            function (Validator $validator): void {
+                // Validate that at least one Abstract description exists
+                $descriptions = $this->input('descriptions', []);
+                $hasAbstract = false;
+
+                if (is_array($descriptions)) {
+                    foreach ($descriptions as $description) {
+                        if (is_array($description) && 
+                            isset($description['descriptionType']) && 
+                            $description['descriptionType'] === 'Abstract' &&
+                            isset($description['description']) &&
+                            is_string($description['description']) &&
+                            trim($description['description']) !== '') {
+                            $hasAbstract = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (! $hasAbstract) {
+                    $validator->errors()->add(
+                        'descriptions',
+                        'An Abstract description is required.',
+                    );
                 }
             },
         ];

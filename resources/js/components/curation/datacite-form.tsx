@@ -35,6 +35,7 @@ import ContributorField, {
     type InstitutionContributorEntry,
     type PersonContributorEntry,
 } from './fields/contributor-field';
+import DescriptionField, { type DescriptionEntry } from './fields/description-field';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import { SelectField } from './fields/select-field';
@@ -525,6 +526,7 @@ export default function DataCiteForm({
 
         return [createEmptyContributor()];
     });
+    const [descriptions, setDescriptions] = useState<DescriptionEntry[]>([]);
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
         [contributorPersonRoles],
@@ -605,6 +607,9 @@ export default function DataCiteForm({
 
                 return Boolean(author.institutionName.trim());
             });
+        const abstractFilled = descriptions.some(
+            (desc) => desc.type === 'Abstract' && desc.value.trim() !== '',
+        );
 
         return (
             mainTitleFilled &&
@@ -612,9 +617,10 @@ export default function DataCiteForm({
             resourceTypeSelected &&
             languageSelected &&
             primaryLicenseFilled &&
-            authorsValid
+            authorsValid &&
+            abstractFilled
         );
-    }, [authors, form.language, form.resourceType, form.year, licenseEntries, titles]);
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -1022,6 +1028,7 @@ export default function DataCiteForm({
             licenses: string[];
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
+            descriptions: { descriptionType: string; description: string }[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1038,6 +1045,12 @@ export default function DataCiteForm({
                 .filter((license): license is string => Boolean(license)),
             authors: serializedAuthors,
             contributors: serializedContributors,
+            descriptions: descriptions
+                .filter((desc) => desc.value.trim() !== '')
+                .map((desc) => ({
+                    descriptionType: desc.type,
+                    description: desc.value.trim(),
+                })),
         };
 
         if (resolvedResourceId !== null) {
@@ -1122,7 +1135,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1333,6 +1346,15 @@ export default function DataCiteForm({
                                 />
                             ))}
                         </div>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="descriptions">
+                    <AccordionTrigger>Descriptions</AccordionTrigger>
+                    <AccordionContent>
+                        <DescriptionField
+                            descriptions={descriptions}
+                            onChange={setDescriptions}
+                        />
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
