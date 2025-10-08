@@ -276,12 +276,19 @@ test.describe('XML Upload Functionality', () => {
       
       expect(descriptionTypeEntries.length).toBeGreaterThan(0);
       
-      // Verify that description types are valid (should be standard DataCite description types)
-      // Valid types include: Abstract, Methods, SeriesInformation, TableOfContents, TechnicalInfo, Other
-      // Format should be PascalCase
+      // Verify that description types are valid DataCite description types
+      // DataCite schema defines these specific description types
+      const validDescriptionTypes = [
+        'Abstract',
+        'Methods', 
+        'SeriesInformation',
+        'TableOfContents',
+        'TechnicalInfo',
+        'Other'
+      ];
+      
       const allDescriptionTypesValid = descriptionTypeEntries.every(([, value]) => {
-        // Valid descriptionType should start with uppercase letter followed by any combination of uppercase and lowercase letters (PascalCase)
-        return /^[A-Z][a-zA-Z]*$/.test(value);
+        return validDescriptionTypes.includes(value);
       });
       expect(allDescriptionTypesValid).toBeTruthy();
       
@@ -356,10 +363,25 @@ test.describe('XML Upload Functionality', () => {
       
       expect(dateTypeEntries.length).toBeGreaterThan(0);
       
-      // Verify that all dateType values are in kebab-case format (lowercase with hyphens)
+      // Verify that all dateType values are valid DataCite date types
+      // DataCite schema defines these specific date types (in kebab-case after transformation)
+      const validDateTypes = [
+        'accepted',
+        'available',
+        'collected',
+        'copyrighted',
+        'coverage',
+        'created',
+        'issued',
+        'submitted',
+        'updated',
+        'valid',
+        'withdrawn',
+        'other'
+      ];
+      
       const allDateTypesValid = dateTypeEntries.every(([, value]) => {
-        // Valid dateType: at least one lowercase letter, followed by zero or more groups of hyphen + lowercase letters (kebab-case)
-        return /^[a-z]+(-[a-z]+)*$/.test(value);
+        return validDateTypes.includes(value);
       });
       expect(allDateTypesValid).toBeTruthy();
       
