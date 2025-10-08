@@ -23,7 +23,7 @@ test.describe('Load descriptions from old datasets', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
     });
 
-    test.skip('lädt Abstract aus alten Datensätzen in Kurationsformular', async ({ page }) => {
+    test.skip('loads Abstract from old datasets into curation form', async ({ page }) => {
         // Gehe zur Old Datasets Seite
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
@@ -68,7 +68,7 @@ test.describe('Load descriptions from old datasets', () => {
         expect(abstractValue.length).toBeGreaterThan(0);
     });
 
-    test.skip('lädt alle Description-Typen aus alten Datensätzen korrekt', async ({ page }) => {
+    test.skip('loads all description types from old datasets correctly', async ({ page }) => {
         // Gehe zur Old Datasets Seite
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
@@ -118,7 +118,7 @@ test.describe('Load descriptions from old datasets', () => {
         }
     });
 
-    test.skip('zeigt Character Count für geladene Descriptions an', async ({ page }) => {
+    test.skip('shows character count for loaded descriptions', async ({ page }) => {
         // Gehe zur Old Datasets Seite
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
@@ -157,7 +157,7 @@ test.describe('Load descriptions from old datasets', () => {
         }
     });
 
-    test.skip('behält Description-Daten beim Wechseln zwischen Tabs bei', async ({ page }) => {
+    test.skip('retains description data when switching between tabs', async ({ page }) => {
         // Gehe zur Old Datasets Seite
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
@@ -201,9 +201,9 @@ test.describe('Load descriptions from old datasets', () => {
         expect(currentAbstractValue).toBe(originalAbstractValue);
     });
 
-    test.skip('lädt Datensätze ohne Descriptions gracefully', async ({ page }) => {
-        // Dieser Test prüft, dass das Formular auch funktioniert, 
-        // wenn ein alter Datensatz keine Descriptions hat
+    test.skip('loads datasets without descriptions gracefully', async ({ page }) => {
+        // This test verifies that the form still works correctly
+        // when an old dataset has no descriptions
 
         // Gehe zur Old Datasets Seite
         await page.goto('/old-datasets');
@@ -228,11 +228,11 @@ test.describe('Load descriptions from old datasets', () => {
             await expect(descriptionsTrigger).toHaveAttribute('aria-expanded', 'true');
         }
 
-        // Prüfe, dass alle Tabs vorhanden sind (auch wenn leer)
+        // Verify that all tabs are present (even if empty)
         const abstractTab = page.getByRole('tab', { name: /Abstract/i });
         await expect(abstractTab).toBeVisible();
 
-        // Das Formular sollte verwendbar sein, auch wenn keine Descriptions geladen wurden
+        // The form should be usable even if no descriptions were loaded
         await abstractTab.click();
         const abstractTextarea = page.getByRole('textbox', { name: /Abstract/i });
         await expect(abstractTextarea).toBeVisible();
