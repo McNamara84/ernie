@@ -84,6 +84,7 @@ class UploadXmlController extends Controller
         $authors = $this->extractAuthors($reader);
         $contributors = $this->extractContributors($reader);
         $descriptions = $this->extractDescriptions($reader);
+        $dates = $this->extractDates($reader);
 
         $rightsElements = $reader
             ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -142,6 +143,7 @@ class UploadXmlController extends Controller
             'authors' => $authors,
             'contributors' => $contributors,
             'descriptions' => $descriptions,
+            'dates' => $dates,
         ]);
     }
 
@@ -332,6 +334,51 @@ class UploadXmlController extends Controller
         }
 
         return $descriptions;
+    }
+
+    /**
+     * @return array<int, array<string, string>>
+     */
+    private function extractDates(XmlReader $reader): array
+    {
+        $dateElements = $reader
+            ->xpathElement('/*[local-name()="resource"]/*[local-name()="dates"]/*[local-name()="date"]')
+            ->get();
+
+        $dates = [];
+
+        foreach ($dateElements as $element) {
+            $dateType = $element->getAttribute('dateType');
+            $dateValue = $element->getContent();
+
+            if (! is_string($dateValue) || trim($dateValue) === '') {
+                continue;
+            }
+
+            $dateValue = trim($dateValue);
+
+            // Parse date value - can be single date or range (start/end)
+            $startDate = '';
+            $endDate = '';
+
+            if (str_contains($dateValue, '/')) {
+                // Date range format: "2024-01-01/2024-12-31" or open range "/2024-12-31"
+                [$start, $end] = explode('/', $dateValue, 2);
+                $startDate = trim($start);
+                $endDate = trim($end);
+            } else {
+                // Single date format: "2024-01-01"
+                $startDate = $dateValue;
+            }
+
+            $dates[] = [
+                'dateType' => Str::kebab($dateType ?? 'other'),
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+            ];
+        }
+
+        return $dates;
     }
 
     /**

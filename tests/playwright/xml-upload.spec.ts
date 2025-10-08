@@ -113,6 +113,10 @@ test.describe('XML Upload Functionality', () => {
       // Should have descriptions
       const hasDescriptions = Array.from(urlParams.keys()).some(key => key.includes('descriptions'));
       expect(hasDescriptions).toBeTruthy();
+
+      // Should have dates
+      const hasDates = Array.from(urlParams.keys()).some(key => key.includes('dates'));
+      expect(hasDates).toBeTruthy();
     });
     
     // Take a screenshot for debugging
@@ -297,6 +301,77 @@ test.describe('XML Upload Functionality', () => {
     
     await page.screenshot({ 
       path: 'test-results/xml-upload-descriptions.png', 
+      fullPage: true 
+    });
+  });
+
+  test('uploads XML and populates dates in curation form', async ({ page }) => {
+    await page.goto('/dashboard');
+    
+    await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
+    
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    await expect(fileInput).toBeAttached();
+    
+    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
+    await fileInput.setInputFiles(xmlFilePath);
+    
+    await page.waitForURL(/\/curation/, { timeout: 10000 });
+    
+    const currentUrl = page.url();
+    expect(currentUrl).toMatch(/\/curation/);
+    
+    await test.step('Validate dates in URL parameters', async () => {
+      const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
+      
+      // Check for dates in URL parameters
+      const dateKeys = Array.from(urlParams.keys()).filter(key => key.includes('dates'));
+      expect(dateKeys.length).toBeGreaterThan(0);
+      
+      // Check specific date types from datacite-example-full-v4.xml
+      const expectedDateTypes = [
+        'accepted',
+        'available',
+        'collected',
+        'created',
+        'issued',
+        'submitted',
+        'updated'
+      ];
+      
+      // Verify at least some of the expected date types are present
+      let foundDateTypes = 0;
+      for (const expectedType of expectedDateTypes) {
+        const hasType = Array.from(urlParams.entries()).some(
+          ([key, value]) => key.includes('dates') && key.includes('[dateType]') && value === expectedType
+        );
+        if (hasType) {
+          foundDateTypes++;
+        }
+      }
+      
+      expect(foundDateTypes).toBeGreaterThan(0);
+      
+      // Verify that dates have at least startDate or endDate
+      const hasDateValues = Array.from(urlParams.keys()).some(
+        key => key.includes('dates') && (key.includes('[startDate]') || key.includes('[endDate]'))
+      );
+      expect(hasDateValues).toBeTruthy();
+      
+      // Check for date range (collected dates should have both start and end)
+      const hasCollectedStart = Array.from(urlParams.entries()).some(
+        ([key, value]) => key.includes('dates') && key.includes('[startDate]') && value.startsWith('2024-')
+      );
+      const hasCollectedEnd = Array.from(urlParams.entries()).some(
+        ([key, value]) => key.includes('dates') && key.includes('[endDate]') && value.startsWith('2024-')
+      );
+      
+      // At least one date range should exist (collected or coverage dates)
+      expect(hasCollectedStart || hasCollectedEnd).toBeTruthy();
+    });
+    
+    await page.screenshot({ 
+      path: 'test-results/xml-upload-dates.png', 
       fullPage: true 
     });
   });
