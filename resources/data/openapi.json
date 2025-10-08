@@ -402,6 +402,122 @@
           }
         }
       }
+    },
+    "/api/v1/vocabularies/gcmd-platforms": {
+      "get": {
+        "tags": [
+          "Vocabularies"
+        ],
+        "summary": "Get GCMD Platforms vocabulary",
+        "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          {
+            "ElmoApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GCMD Platforms vocabulary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GcmdPlatforms"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vocabulary file not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Vocabulary file not found. Please run: php artisan get-gcmd-platforms"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vocabularies/gcmd-instruments": {
+      "get": {
+        "tags": [
+          "Vocabularies"
+        ],
+        "summary": "Get GCMD Instruments vocabulary",
+        "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          {
+            "ElmoApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "GCMD Instruments vocabulary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GcmdInstruments"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vocabulary file not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Vocabulary file not found. Please run: php artisan get-gcmd-instruments"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -488,6 +604,7 @@
       },
       "GcmdScienceKeywords": {
         "type": "object",
+        "description": "GCMD Science Keywords from NASA Knowledge Management System",
         "properties": {
           "lastUpdated": {
             "type": "string",
@@ -498,6 +615,44 @@
           "data": {
             "type": "array",
             "description": "Hierarchical array of GCMD Science Keywords",
+            "items": {
+              "$ref": "#/components/schemas/GcmdKeywordConcept"
+            }
+          }
+        }
+      },
+      "GcmdPlatforms": {
+        "type": "object",
+        "description": "GCMD Platforms from NASA Knowledge Management System",
+        "properties": {
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the vocabulary was last updated",
+            "example": "2025-10-08 12:13:45"
+          },
+          "data": {
+            "type": "array",
+            "description": "Hierarchical array of GCMD Platforms",
+            "items": {
+              "$ref": "#/components/schemas/GcmdKeywordConcept"
+            }
+          }
+        }
+      },
+      "GcmdInstruments": {
+        "type": "object",
+        "description": "GCMD Instruments from NASA Knowledge Management System",
+        "properties": {
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the vocabulary was last updated",
+            "example": "2025-10-08 12:22:38"
+          },
+          "data": {
+            "type": "array",
+            "description": "Hierarchical array of GCMD Instruments",
             "items": {
               "$ref": "#/components/schemas/GcmdKeywordConcept"
             }

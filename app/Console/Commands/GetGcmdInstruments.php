@@ -7,42 +7,42 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
-class GetGcmdScienceKeywords extends Command
+class GetGcmdInstruments extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'get-gcmd-science-keywords';
+    protected $signature = 'get-gcmd-instruments';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Fetch GCMD Science Keywords from NASA KMS API and save as hierarchical JSON';
+    protected $description = 'Fetch GCMD Instruments from NASA KMS API and save as hierarchical JSON';
 
     /**
-     * The NASA KMS API endpoint for GCMD Science Keywords
+     * The NASA KMS API endpoint for GCMD Instruments
      *
      * @var string
      */
-    protected const NASA_KMS_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords?format=rdf';
+    protected const NASA_KMS_URL = 'https://cmr.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments?format=rdf';
 
     /**
      * The output file path (relative to storage/app)
      *
      * @var string
      */
-    protected const OUTPUT_FILE = 'gcmd-science-keywords.json';
+    protected const OUTPUT_FILE = 'gcmd-instruments.json';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $this->info('Fetching GCMD Science Keywords from NASA KMS API...');
+        $this->info('Fetching GCMD Instruments from NASA KMS API...');
         $this->line('URL: ' . self::NASA_KMS_URL);
 
         try {
@@ -106,7 +106,7 @@ class GetGcmdScienceKeywords extends Command
             
             $this->newLine();
             $this->components->twoColumnDetail(
-                '<fg=green>✓</fg=green> Successfully saved GCMD Science Keywords',
+                '<fg=green>✓</fg=green> Successfully saved GCMD Instruments',
                 ''
             );
             $this->components->twoColumnDetail('File', $filePath);

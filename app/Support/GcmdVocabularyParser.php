@@ -2,7 +2,7 @@
 
 namespace App\Support;
 
-class GcmdScienceKeywordsParser
+class GcmdVocabularyParser
 {
     /**
      * Build hierarchical structure from flat concept array
