@@ -574,6 +574,10 @@ class OldDataset extends Model
      */
     public function getDescriptions(): array
     {
+        if ($this->id === null) {
+            return [];
+        }
+
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
         
         // Get all descriptions for this resource
