@@ -62,6 +62,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/descriptions', [OldDatasetController::class, 'getDescriptions'])
         ->name('old-datasets.descriptions');
 
+    Route::get('old-datasets/{id}/dates', [OldDatasetController::class, 'getDates'])
+        ->name('old-datasets.dates');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
@@ -100,6 +103,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'authors' => $request->query('authors', []),
             'contributors' => $request->query('contributors', []),
             'descriptions' => $request->query('descriptions', []),
+            'dates' => $request->query('dates', []),
         ]);
     })->name('curation');
 

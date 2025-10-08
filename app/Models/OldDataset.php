@@ -107,6 +107,13 @@ class OldDataset extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -590,6 +597,39 @@ class OldDataset extends Model
             return [
                 'type' => $desc->descriptiontype,
                 'description' => $desc->description,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Get dates for this resource from the date table.
+     * Returns an array of dates with separate startDate and endDate fields.
+     *
+     * Note: This method is NOT named getDates() to avoid conflicts with Laravel's
+     * internal getDates() method which is used for date attribute handling.
+     *
+     * @return array<int, array{dateType: string, startDate: string, endDate: string}>
+     */
+    public function getResourceDates(): array
+    {
+        if (!$this->exists) {
+            return [];
+        }
+
+        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        
+        // Get all dates for this resource
+        $dates = $db->table('date')
+            ->where('resource_id', $this->id)
+            ->select('datetype', 'start', 'end')
+            ->get();
+
+        return $dates->map(function ($date) {
+            return [
+                // Convert dateType to lowercase to match ERNIE's format (e.g., "Available" -> "available")
+                'dateType' => strtolower($date->datetype),
+                'startDate' => $date->start ?? '',
+                'endDate' => $date->end ?? '',
             ];
         })->toArray();
     }

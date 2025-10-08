@@ -14,11 +14,13 @@ interface Option {
 
 interface DateFieldProps {
     id: string;
-    date: string;
+    startDate: string;
+    endDate: string;
     dateType: string;
     options: Option[];
     dateTypeDescription?: string;
-    onDateChange: (value: string) => void;
+    onStartDateChange: (value: string) => void;
+    onEndDateChange: (value: string) => void;
     onTypeChange: (value: string) => void;
     onAdd: () => void;
     onRemove: () => void;
@@ -29,11 +31,13 @@ interface DateFieldProps {
 
 export function DateField({
     id,
-    date,
+    startDate,
+    endDate,
     dateType,
     options,
     dateTypeDescription,
-    onDateChange,
+    onStartDateChange,
+    onEndDateChange,
     onTypeChange,
     onAdd,
     onRemove,
@@ -44,14 +48,23 @@ export function DateField({
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
             <InputField
-                id={`${id}-date`}
-                label="Date"
+                id={`${id}-startDate`}
+                label="Start Date"
                 type="date"
-                value={date}
-                onChange={(e) => onDateChange(e.target.value)}
+                value={startDate}
+                onChange={(e) => onStartDateChange(e.target.value)}
                 hideLabel={!isFirst}
-                className="md:col-span-8"
+                className="md:col-span-4"
                 required={dateType === 'created'}
+            />
+            <InputField
+                id={`${id}-endDate`}
+                label="End Date"
+                type="date"
+                value={endDate}
+                onChange={(e) => onEndDateChange(e.target.value)}
+                hideLabel={!isFirst}
+                className="md:col-span-4"
             />
             <div className="md:col-span-3">
                 <SelectField

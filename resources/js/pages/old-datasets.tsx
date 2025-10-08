@@ -885,6 +885,35 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without descriptions if loading fails
         }
+
+        // Load dates from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/dates`);
+            const dates = response.data.dates || [];
+            
+            dates.forEach((date: {
+                dateType: string;
+                startDate: string;
+                endDate: string;
+            }, index: number) => {
+                query[`dates[${index}][dateType]`] = date.dateType;
+                query[`dates[${index}][startDate]`] = date.startDate;
+                query[`dates[${index}][endDate]`] = date.endDate;
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading dates for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading dates for dataset:', error);
+            }
+            // Continue without dates if loading fails
+        }
     }
 
     return query;
