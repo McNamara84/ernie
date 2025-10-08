@@ -83,6 +83,7 @@ class UploadXmlController extends Controller
         );
         $authors = $this->extractAuthors($reader);
         $contributors = $this->extractContributors($reader);
+        $descriptions = $this->extractDescriptions($reader);
 
         $rightsElements = $reader
             ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -140,6 +141,7 @@ class UploadXmlController extends Controller
             'licenses' => $licenses,
             'authors' => $authors,
             'contributors' => $contributors,
+            'descriptions' => $descriptions,
         ]);
     }
 
@@ -302,6 +304,34 @@ class UploadXmlController extends Controller
         }
 
         return $contributors;
+    }
+
+    /**
+     * @return array<int, array<string, string>>
+     */
+    private function extractDescriptions(XmlReader $reader): array
+    {
+        $descriptionElements = $reader
+            ->xpathElement('/*[local-name()="resource"]/*[local-name()="descriptions"]/*[local-name()="description"]')
+            ->get();
+
+        $descriptions = [];
+
+        foreach ($descriptionElements as $element) {
+            $descriptionType = $element->getAttribute('descriptionType');
+            $description = $element->getContent();
+
+            if (! is_string($description) || trim($description) === '') {
+                continue;
+            }
+
+            $descriptions[] = [
+                'type' => $descriptionType ?? 'Other',
+                'description' => $description,
+            ];
+        }
+
+        return $descriptions;
     }
 
     /**

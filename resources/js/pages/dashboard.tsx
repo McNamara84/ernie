@@ -87,6 +87,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             licenses?: string[] | null;
             authors?: (UploadedAuthor | null | undefined)[] | null;
             contributors?: (UploadedContributor | null | undefined)[] | null;
+            descriptions?: { type: string; description: string }[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -250,6 +251,24 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                             rorId;
                     }
                 });
+            });
+        }
+        if (data.descriptions && data.descriptions.length > 0) {
+            data.descriptions.forEach((desc, i) => {
+                if (!desc || typeof desc !== 'object') {
+                    return;
+                }
+
+                const type = typeof desc.type === 'string' ? desc.type.trim() : '';
+                const description =
+                    typeof desc.description === 'string' ? desc.description.trim() : '';
+
+                if (!type || !description) {
+                    return;
+                }
+
+                query[`descriptions[${i}][type]`] = type;
+                query[`descriptions[${i}][description]`] = description;
             });
         }
         router.get(curationRoute({ query }).url);

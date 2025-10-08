@@ -109,6 +109,10 @@ test.describe('XML Upload Functionality', () => {
       // Should have licenses
       const hasLicense = Array.from(urlParams.keys()).some(key => key.includes('licenses'));
       expect(hasLicense).toBeTruthy();
+
+      // Should have descriptions
+      const hasDescriptions = Array.from(urlParams.keys()).some(key => key.includes('descriptions'));
+      expect(hasDescriptions).toBeTruthy();
     });
     
     // Take a screenshot for debugging
@@ -236,5 +240,64 @@ test.describe('XML Upload Functionality', () => {
     const hasAnyFeedback = hasLoadingFeedback || hasRedirected || hasSuccessMessage || finalUrl !== '/dashboard';
     
     expect(hasAnyFeedback).toBeTruthy();
+  });
+
+  test('uploads XML and populates descriptions in curation form', async ({ page }) => {
+    await page.goto('/dashboard');
+    
+    await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
+    
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    await expect(fileInput).toBeAttached();
+    
+    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
+    await fileInput.setInputFiles(xmlFilePath);
+    
+    await page.waitForURL(/\/curation/, { timeout: 10000 });
+    
+    const currentUrl = page.url();
+    expect(currentUrl).toMatch(/\/curation/);
+    
+    await test.step('Validate descriptions in URL parameters', async () => {
+      const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
+      
+      // Check for descriptions in URL parameters
+      const descriptionKeys = Array.from(urlParams.keys()).filter(key => key.includes('descriptions'));
+      expect(descriptionKeys.length).toBeGreaterThan(0);
+      
+      // Check specific description types from datacite-example-full-v4.xml
+      const descriptionTypes = [
+        'Abstract',
+        'Methods',
+        'SeriesInformation',
+        'TableOfContents',
+        'TechnicalInfo',
+        'Other'
+      ];
+      
+      // Verify at least some of the expected description types are present
+      let foundDescriptionTypes = 0;
+      for (const expectedType of descriptionTypes) {
+        const hasType = Array.from(urlParams.entries()).some(
+          ([key, value]) => key.includes('descriptions') && key.includes('[type]') && value === expectedType
+        );
+        if (hasType) {
+          foundDescriptionTypes++;
+        }
+      }
+      
+      expect(foundDescriptionTypes).toBeGreaterThan(0);
+      
+      // Verify that descriptions have content
+      const hasDescriptionContent = Array.from(urlParams.keys()).some(
+        key => key.includes('descriptions') && key.includes('[description]')
+      );
+      expect(hasDescriptionContent).toBeTruthy();
+    });
+    
+    await page.screenshot({ 
+      path: 'test-results/xml-upload-descriptions.png', 
+      fullPage: true 
+    });
   });
 });
