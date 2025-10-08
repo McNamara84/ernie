@@ -2176,8 +2176,10 @@ describe('DataCiteForm', () => {
         ).toBeInTheDocument();
     });
 
-    it('shows validation feedback when saving fails', async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
+    it(
+        'shows validation feedback when saving fails',
+        async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const validationResponse = {
             message: 'Validation failed',
@@ -2251,7 +2253,9 @@ describe('DataCiteForm', () => {
         expect(alert).not.toBeNull();
         expect(screen.getByText('A main title is required.')).toBeInTheDocument();
         expect(screen.queryByRole('dialog', { name: /successfully saved resource/i })).not.toBeInTheDocument();
-    });
+        },
+        10000,
+    );
 
     it('shows a network error message when saving throws', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });

@@ -109,6 +109,14 @@ test.describe('XML Upload Functionality', () => {
       // Should have licenses
       const hasLicense = Array.from(urlParams.keys()).some(key => key.includes('licenses'));
       expect(hasLicense).toBeTruthy();
+
+      // Should have descriptions
+      const hasDescriptions = Array.from(urlParams.keys()).some(key => key.includes('descriptions'));
+      expect(hasDescriptions).toBeTruthy();
+
+      // Should have dates
+      const hasDates = Array.from(urlParams.keys()).some(key => key.includes('dates'));
+      expect(hasDates).toBeTruthy();
     });
     
     // Take a screenshot for debugging
@@ -236,5 +244,200 @@ test.describe('XML Upload Functionality', () => {
     const hasAnyFeedback = hasLoadingFeedback || hasRedirected || hasSuccessMessage || finalUrl !== '/dashboard';
     
     expect(hasAnyFeedback).toBeTruthy();
+  });
+
+  test('uploads XML and populates descriptions in curation form', async ({ page }) => {
+    await page.goto('/dashboard');
+    
+    await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
+    
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    await expect(fileInput).toBeAttached();
+    
+    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
+    await fileInput.setInputFiles(xmlFilePath);
+    
+    await page.waitForURL(/\/curation/, { timeout: 10000 });
+    
+    const currentUrl = page.url();
+    expect(currentUrl).toMatch(/\/curation/);
+    
+    await test.step('Validate descriptions in URL parameters', async () => {
+      const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
+      
+      // Check for descriptions in URL parameters
+      const descriptionKeys = Array.from(urlParams.keys()).filter(key => key.includes('descriptions'));
+      expect(descriptionKeys.length).toBeGreaterThan(0);
+      
+      // Validate that description types are present and non-empty (flexible approach)
+      const descriptionTypeEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => key.includes('descriptions') && key.includes('[type]') && value.trim() !== ''
+      );
+      
+      expect(descriptionTypeEntries.length).toBeGreaterThan(0);
+      
+      // Verify that description types are valid DataCite description types
+      // DataCite schema defines these specific description types
+      const validDescriptionTypes = [
+        'Abstract',
+        'Methods', 
+        'SeriesInformation',
+        'TableOfContents',
+        'TechnicalInfo',
+        'Other'
+      ];
+      
+      const allDescriptionTypesValid = descriptionTypeEntries.every(([, value]) => {
+        return validDescriptionTypes.includes(value);
+      });
+      expect(allDescriptionTypesValid).toBeTruthy();
+      
+      // Verify that descriptions have content
+      const descriptionContentEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => 
+          key.includes('descriptions') && 
+          key.includes('[description]') &&
+          value.trim() !== ''
+      );
+      
+      expect(descriptionContentEntries.length).toBeGreaterThan(0);
+      
+      // Verify that we have matching pairs of type and description
+      const descriptionIndices = new Set<string>();
+      Array.from(urlParams.keys())
+        .filter(key => key.includes('descriptions[') && key.includes(']'))
+        .forEach(key => {
+          const match = key.match(/descriptions\[(\d+)\]/);
+          if (match) {
+            descriptionIndices.add(match[1]);
+          }
+        });
+      
+      // Each description should have both type and description
+      let completeDescriptions = 0;
+      for (const index of descriptionIndices) {
+        const type = urlParams.get(`descriptions[${index}][type]`);
+        const description = urlParams.get(`descriptions[${index}][description]`);
+        
+        if (type && type.trim() !== '' && description && description.trim() !== '') {
+          completeDescriptions++;
+        }
+      }
+      
+      expect(completeDescriptions).toBeGreaterThan(0);
+    });
+    
+    await page.screenshot({ 
+      path: 'test-results/xml-upload-descriptions.png', 
+      fullPage: true 
+    });
+  });
+
+  test('uploads XML and populates dates in curation form', async ({ page }) => {
+    await page.goto('/dashboard');
+    
+    await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
+    
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    await expect(fileInput).toBeAttached();
+    
+    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
+    await fileInput.setInputFiles(xmlFilePath);
+    
+    await page.waitForURL(/\/curation/, { timeout: 10000 });
+    
+    const currentUrl = page.url();
+    expect(currentUrl).toMatch(/\/curation/);
+    
+    await test.step('Validate dates in URL parameters', async () => {
+      const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
+      
+      // Check for dates in URL parameters
+      const dateKeys = Array.from(urlParams.keys()).filter(key => key.includes('dates'));
+      expect(dateKeys.length).toBeGreaterThan(0);
+      
+      // Validate that date types are present and non-empty (flexible approach)
+      const dateTypeEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => key.includes('dates') && key.includes('[dateType]') && value.trim() !== ''
+      );
+      
+      expect(dateTypeEntries.length).toBeGreaterThan(0);
+      
+      // Verify that all dateType values are valid DataCite date types
+      // DataCite schema defines these specific date types (in kebab-case after transformation)
+      const validDateTypes = [
+        'accepted',
+        'available',
+        'collected',
+        'copyrighted',
+        'created',
+        'issued',
+        'submitted',
+        'updated',
+        'valid',
+        'withdrawn',
+        'other'
+      ];
+      
+      const allDateTypesValid = dateTypeEntries.every(([, value]) => {
+        return validDateTypes.includes(value);
+      });
+      expect(allDateTypesValid).toBeTruthy();
+      
+      // Verify that dates have at least startDate or endDate
+      const hasDateValues = Array.from(urlParams.keys()).some(
+        key => key.includes('dates') && (key.includes('[startDate]') || key.includes('[endDate]'))
+      );
+      expect(hasDateValues).toBeTruthy();
+      
+      // Validate date format (YYYY-MM-DD) instead of checking for specific year
+      const dateValuePattern = /^\d{4}-\d{2}-\d{2}$/;
+      
+      const dateValueEntries = Array.from(urlParams.entries()).filter(
+        ([key, value]) => 
+          key.includes('dates') && 
+          (key.includes('[startDate]') || key.includes('[endDate]')) &&
+          value.trim() !== ''
+      );
+      
+      // Verify at least some dates have valid format
+      const validDateValues = dateValueEntries.filter(([, value]) => 
+        dateValuePattern.test(value)
+      );
+      expect(validDateValues.length).toBeGreaterThan(0);
+      
+      // Check for date ranges (dates with both startDate and endDate)
+      const dateIndices = new Set<string>();
+      Array.from(urlParams.keys())
+        .filter(key => key.includes('dates[') && key.includes(']'))
+        .forEach(key => {
+          const match = key.match(/dates\[(\d+)\]/);
+          if (match) {
+            dateIndices.add(match[1]);
+          }
+        });
+      
+      // Check if at least one date entry has both start and end (date range)
+      let hasDateRange = false;
+      for (const index of dateIndices) {
+        const startDate = urlParams.get(`dates[${index}][startDate]`);
+        const endDate = urlParams.get(`dates[${index}][endDate]`);
+        
+        if (startDate && endDate && 
+            dateValuePattern.test(startDate) && 
+            dateValuePattern.test(endDate)) {
+          hasDateRange = true;
+          break;
+        }
+      }
+      
+      // At least one date range should exist in the full example XML
+      expect(hasDateRange).toBeTruthy();
+    });
+    
+    await page.screenshot({ 
+      path: 'test-results/xml-upload-dates.png', 
+      fullPage: true 
+    });
   });
 });

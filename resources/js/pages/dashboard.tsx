@@ -87,6 +87,8 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             licenses?: string[] | null;
             authors?: (UploadedAuthor | null | undefined)[] | null;
             contributors?: (UploadedContributor | null | undefined)[] | null;
+            descriptions?: { type: string; description: string }[] | null;
+            dates?: { dateType: string; startDate: string; endDate: string }[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -250,6 +252,47 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                             rorId;
                     }
                 });
+            });
+        }
+        if (data.descriptions && data.descriptions.length > 0) {
+            data.descriptions.forEach((desc, i) => {
+                if (!desc || typeof desc !== 'object') {
+                    return;
+                }
+
+                const type = typeof desc.type === 'string' ? desc.type.trim() : '';
+                const description =
+                    typeof desc.description === 'string' ? desc.description.trim() : '';
+
+                if (!type || !description) {
+                    return;
+                }
+
+                query[`descriptions[${i}][type]`] = type;
+                query[`descriptions[${i}][description]`] = description;
+            });
+        }
+        if (data.dates && data.dates.length > 0) {
+            data.dates.forEach((date, i) => {
+                if (!date || typeof date !== 'object') {
+                    return;
+                }
+
+                const dateType = typeof date.dateType === 'string' ? date.dateType.trim() : '';
+                const startDate = typeof date.startDate === 'string' ? date.startDate.trim() : '';
+                const endDate = typeof date.endDate === 'string' ? date.endDate.trim() : '';
+
+                if (!dateType || (!startDate && !endDate)) {
+                    return;
+                }
+
+                query[`dates[${i}][dateType]`] = dateType;
+                if (startDate) {
+                    query[`dates[${i}][startDate]`] = startDate;
+                }
+                if (endDate) {
+                    query[`dates[${i}][endDate]`] = endDate;
+                }
             });
         }
         router.get(curationRoute({ query }).url);

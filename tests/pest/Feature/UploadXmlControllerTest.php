@@ -230,3 +230,209 @@ test('uploading a non-xml file returns validation errors', function () {
         ->assertStatus(422)
         ->assertInvalid('file');
 });
+
+test('extracts descriptions from uploaded XML', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <descriptions>
+    <description xml:lang="en" descriptionType="Abstract">This is an example abstract describing the dataset.</description>
+    <description xml:lang="en" descriptionType="Methods">These are the methods used to collect the data.</description>
+    <description xml:lang="en" descriptionType="TechnicalInfo">Technical information about the dataset.</description>
+    <description xml:lang="en" descriptionType="TableOfContents">Table of contents for the dataset.</description>
+    <description xml:lang="en" descriptionType="SeriesInformation">Series information.</description>
+    <description xml:lang="en" descriptionType="Other">Other relevant information.</description>
+  </descriptions>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('descriptions.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertJsonPath('descriptions.0.type', 'Abstract');
+    $response->assertJsonPath('descriptions.0.description', 'This is an example abstract describing the dataset.');
+
+    $response->assertJsonPath('descriptions.1.type', 'Methods');
+    $response->assertJsonPath('descriptions.1.description', 'These are the methods used to collect the data.');
+
+    $response->assertJsonPath('descriptions.2.type', 'TechnicalInfo');
+    $response->assertJsonPath('descriptions.2.description', 'Technical information about the dataset.');
+
+    $response->assertJsonPath('descriptions.3.type', 'TableOfContents');
+    $response->assertJsonPath('descriptions.3.description', 'Table of contents for the dataset.');
+
+    $response->assertJsonPath('descriptions.4.type', 'SeriesInformation');
+    $response->assertJsonPath('descriptions.4.description', 'Series information.');
+
+    $response->assertJsonPath('descriptions.5.type', 'Other');
+    $response->assertJsonPath('descriptions.5.description', 'Other relevant information.');
+});
+
+test('handles XML without descriptions gracefully', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <titles>
+    <title>Example Title</title>
+  </titles>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('no-descriptions.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertJsonPath('descriptions', []);
+});
+
+test('filters out empty descriptions from XML', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <descriptions>
+    <description xml:lang="en" descriptionType="Abstract">Valid abstract</description>
+    <description xml:lang="en" descriptionType="Methods"></description>
+    <description xml:lang="en" descriptionType="TechnicalInfo">   </description>
+    <description xml:lang="en" descriptionType="Other">Another valid description</description>
+  </descriptions>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('empty-descriptions.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $data = $response->json();
+    expect($data['descriptions'])->toHaveCount(2);
+    expect($data['descriptions'][0]['type'])->toBe('Abstract');
+    expect($data['descriptions'][0]['description'])->toBe('Valid abstract');
+    expect($data['descriptions'][1]['type'])->toBe('Other');
+    expect($data['descriptions'][1]['description'])->toBe('Another valid description');
+});
+
+test('extracts dates from uploaded XML', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <dates>
+    <date dateType="Accepted">2024-01-15</date>
+    <date dateType="Collected">2024-01-01/2024-12-31</date>
+    <date dateType="Available">/2025-01-01</date>
+    <date dateType="Created">2023-05-20</date>
+    <date dateType="Other">2024-06-15</date>
+  </dates>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('dates.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Test single date
+    $response->assertJsonPath('dates.0.dateType', 'accepted');
+    $response->assertJsonPath('dates.0.startDate', '2024-01-15');
+    $response->assertJsonPath('dates.0.endDate', '');
+
+    // Test date range
+    $response->assertJsonPath('dates.1.dateType', 'collected');
+    $response->assertJsonPath('dates.1.startDate', '2024-01-01');
+    $response->assertJsonPath('dates.1.endDate', '2024-12-31');
+
+    // Test open range (only endDate)
+    $response->assertJsonPath('dates.2.dateType', 'available');
+    $response->assertJsonPath('dates.2.startDate', '');
+    $response->assertJsonPath('dates.2.endDate', '2025-01-01');
+
+    // Test additional dates
+    $response->assertJsonPath('dates.3.dateType', 'created');
+    $response->assertJsonPath('dates.3.startDate', '2023-05-20');
+
+    $response->assertJsonPath('dates.4.dateType', 'other');
+    $response->assertJsonPath('dates.4.startDate', '2024-06-15');
+});
+
+test('handles XML without dates gracefully', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <titles>
+    <title>Example Title</title>
+  </titles>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('no-dates.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertJsonPath('dates', []);
+});
+
+test('filters out empty dates from XML', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <dates>
+    <date dateType="Accepted">2024-01-15</date>
+    <date dateType="Created"></date>
+    <date dateType="Issued">   </date>
+    <date dateType="Collected">2024-06-01/2024-06-30</date>
+  </dates>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('empty-dates.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $data = $response->json();
+    expect($data['dates'])->toHaveCount(2);
+    expect($data['dates'][0]['dateType'])->toBe('accepted');
+    expect($data['dates'][0]['startDate'])->toBe('2024-01-15');
+    expect($data['dates'][1]['dateType'])->toBe('collected');
+    expect($data['dates'][1]['startDate'])->toBe('2024-06-01');
+    expect($data['dates'][1]['endDate'])->toBe('2024-06-30');
+});
+
+test('converts date types to kebab-case', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <dates>
+    <date dateType="Accepted">2024-01-15</date>
+    <date dateType="Available">2024-02-01</date>
+    <date dateType="Copyrighted">2024-03-01</date>
+  </dates>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('date-types.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertJsonPath('dates.0.dateType', 'accepted');
+    $response->assertJsonPath('dates.1.dateType', 'available');
+    $response->assertJsonPath('dates.2.dateType', 'copyrighted');
+});
