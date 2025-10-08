@@ -55,18 +55,21 @@ export function hasValidDateValue(date: Pick<DateEntry, 'startDate' | 'endDate'>
  * // Returns: "/2024-12-31"
  */
 export function serializeDateEntry(date: Pick<DateEntry, 'startDate' | 'endDate'>): string {
-    const hasStart = date.startDate.trim() !== '';
-    const hasEnd = date.endDate.trim() !== '';
+    const startDate = date.startDate ?? '';
+    const endDate = date.endDate ?? '';
+    
+    const hasStart = startDate.trim() !== '';
+    const hasEnd = endDate.trim() !== '';
 
     if (hasStart && hasEnd) {
         // Range: "start/end"
-        return `${date.startDate.trim()}/${date.endDate.trim()}`;
+        return `${startDate.trim()}/${endDate.trim()}`;
     } else if (hasStart) {
         // Only start: "start"
-        return date.startDate.trim();
+        return startDate.trim();
     } else if (hasEnd) {
         // Only end: "/end"
-        return `/${date.endDate.trim()}`;
+        return `/${endDate.trim()}`;
     }
 
     // Should never happen if hasValidDateValue was checked first
