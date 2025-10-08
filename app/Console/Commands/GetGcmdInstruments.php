@@ -99,6 +99,11 @@ class GetGcmdInstruments extends Command
             $this->info('Saving to ' . self::OUTPUT_FILE . '...');
             $json = json_encode($hierarchicalData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             
+            if ($json === false) {
+                $this->error('Failed to encode data as JSON');
+                return Command::FAILURE;
+            }
+            
             Storage::put(self::OUTPUT_FILE, $json);
             
             $filePath = Storage::path(self::OUTPUT_FILE);
@@ -138,6 +143,8 @@ class GetGcmdInstruments extends Command
 
     /**
      * Extract concepts from RDF content
+     * 
+     * @return array<int, array<string, string|null>>
      */
     private function extractConcepts(string $rdfContent): array
     {
@@ -147,6 +154,11 @@ class GetGcmdInstruments extends Command
         $xml->registerXPathNamespace('dcterms', 'http://purl.org/dc/terms/');
 
         $conceptElements = $xml->xpath('//skos:Concept');
+        
+        if ($conceptElements === false || $conceptElements === null) {
+            return [];
+        }
+        
         $concepts = [];
 
         foreach ($conceptElements as $concept) {
@@ -197,6 +209,8 @@ class GetGcmdInstruments extends Command
 
     /**
      * Recursively count all concepts in the hierarchy
+     * 
+     * @param array<int, array<string, mixed>> $data
      */
     private function countConcepts(array $data): int
     {

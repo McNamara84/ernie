@@ -6,6 +6,9 @@ class GcmdVocabularyParser
 {
     /**
      * Build hierarchical structure from flat concept array
+     * 
+     * @param array<int, array<string, string|null>> $concepts
+     * @return array<string, mixed>
      */
     public function buildHierarchy(array $concepts): array
     {
@@ -44,6 +47,7 @@ class GcmdVocabularyParser
             if (isset($conceptsById[$parentId])) {
                 foreach ($childIds as $childId) {
                     if (isset($conceptsById[$childId])) {
+                        // @phpstan-ignore-next-line - Dynamic nested array structure
                         $conceptsById[$parentId]['children'][] = $conceptsById[$childId];
                     }
                 }

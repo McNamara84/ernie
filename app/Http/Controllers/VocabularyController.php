@@ -52,6 +52,13 @@ class VocabularyController extends Controller
         }
 
         $content = Storage::get($filename);
+        
+        if ($content === null) {
+            return response()->json([
+                'error' => 'Failed to read vocabulary file',
+            ], 500);
+        }
+        
         $data = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
