@@ -29,7 +29,9 @@ export interface DateEntry {
  * hasValidDateValue({ dateType: 'Created', startDate: '', endDate: '' }) // false
  */
 export function hasValidDateValue(date: Pick<DateEntry, 'startDate' | 'endDate'>): boolean {
-    return date.startDate.trim() !== '' || date.endDate.trim() !== '';
+    const startDate = date.startDate ?? '';
+    const endDate = date.endDate ?? '';
+    return startDate.trim() !== '' || endDate.trim() !== '';
 }
 
 /**

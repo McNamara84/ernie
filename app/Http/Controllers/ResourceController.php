@@ -46,6 +46,8 @@ class ResourceController extends Controller
                         ->with(['titleType:id,name,slug']);
                 },
                 'licenses:id,identifier,name',
+                'descriptions',
+                'dates',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -221,8 +223,8 @@ class ResourceController extends Controller
                         ->map(static function (\App\Models\ResourceDate $date): array {
                             return [
                                 'dateType' => $date->date_type,
-                                'startDate' => $date->start_date?->toDateString(),
-                                'endDate' => $date->end_date?->toDateString(),
+                                'startDate' => $date->start_date?->toDateString() ?? '',
+                                'endDate' => $date->end_date?->toDateString() ?? '',
                                 'dateInformation' => $date->date_information,
                             ];
                         })
