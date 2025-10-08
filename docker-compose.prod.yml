@@ -16,8 +16,8 @@ services:
     environment:
       - APP_URL=https://env.rz-vm182.gfz.de/ernie
       - SESSION_PATH=/
-      - SESSION_DOMAIN=env.rz-vm182.gfz.de
-      - SESSION_SECURE_COOKIE=true
+      - SESSION_DOMAIN=
+      - SESSION_SECURE_COOKIE=false
       - SESSION_SAME_SITE=lax
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
@@ -27,7 +27,7 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_DRIVER=file
       - QUEUE_CONNECTION=database
-      - SESSION_DRIVER=redis
+      - SESSION_DRIVER=file
       - SANCTUM_STATEFUL_DOMAINS=env.rz-vm182.gfz.de
       - DB_SUMARIOPMD_HOST=${DB_SUMARIOPMD_HOST}
       - DB_SUMARIOPMD_PORT=${DB_SUMARIOPMD_PORT:-3306}
