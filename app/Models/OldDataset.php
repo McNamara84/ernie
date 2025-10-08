@@ -574,7 +574,7 @@ class OldDataset extends Model
      */
     public function getDescriptions(): array
     {
-        if ($this->id === null) {
+        if (!$this->exists) {
             return [];
         }
 
