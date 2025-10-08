@@ -2478,5 +2478,40 @@ describe('DataCiteForm', () => {
 
         expect(requestBody.descriptions[0].description).toBe('Test abstract with spaces');
     });
-    });
-});
+
+    describe('Dates Form Group', () => {
+        it('renders the Dates accordion section', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+
+            const datesTrigger = screen.getByRole('button', { name: 'Dates' });
+            expect(datesTrigger).toBeInTheDocument();
+            expect(datesTrigger).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('renders a single Date Created field by default', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                />,
+            );
+
+            const dateInputs = screen.getAllByLabelText(/^Date$/);
+            expect(dateInputs).toHaveLength(1);
+            expect(dateInputs[0]).toHaveAttribute('type', 'date');
+            
