@@ -370,7 +370,6 @@ test.describe('XML Upload Functionality', () => {
         'available',
         'collected',
         'copyrighted',
-        'coverage',
         'created',
         'issued',
         'submitted',
