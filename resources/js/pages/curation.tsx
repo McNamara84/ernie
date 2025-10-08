@@ -30,6 +30,7 @@ interface CurationProps {
     resourceId?: string;
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
+    descriptions?: { type: string; description: string }[];
 }
 
 export default function Curation({
@@ -45,6 +46,7 @@ export default function Curation({
     resourceId,
     authors = [],
     contributors = [],
+    descriptions = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -179,6 +181,7 @@ export default function Curation({
                             initialResourceId={resourceId}
                             initialAuthors={authors}
                             initialContributors={contributors}
+                            initialDescriptions={descriptions}
                         />
                     )}
             </div>
