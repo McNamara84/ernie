@@ -2582,8 +2582,10 @@ describe('DataCiteForm', () => {
 
             const dateInputs = screen.getAllByDisplayValue('');
             const dateFields = dateInputs.filter(input => input.getAttribute('type') === 'date');
-            expect(dateFields).toHaveLength(1);
+            // Now we have 2 date fields: startDate and endDate
+            expect(dateFields).toHaveLength(2);
             expect(dateFields[0]).toHaveAttribute('type', 'date');
+            expect(dateFields[1]).toHaveAttribute('type', 'date');
             
             const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
                 el.getAttribute('id')?.includes('dateType')
@@ -2638,9 +2640,11 @@ describe('DataCiteForm', () => {
             const dateInputs = screen.getAllByDisplayValue('').filter(input => 
                 input.getAttribute('type') === 'date'
             );
-            expect(dateInputs).toHaveLength(1); // One filled, one empty
+            // After adding a new date: First row has 1 filled + 1 empty (endDate), second row has 2 empty = 3 empty total
+            expect(dateInputs).toHaveLength(3);
             const allDateInputs = document.querySelectorAll('input[type="date"]');
-            expect(allDateInputs).toHaveLength(2);
+            // Total: 2 date fields per row × 2 rows = 4 date inputs
+            expect(allDateInputs).toHaveLength(4);
         });
 
         it('supports removing non-required date fields', async () => {
@@ -2669,7 +2673,8 @@ describe('DataCiteForm', () => {
             await user.click(removeButton);
 
             const dateInputs = document.querySelectorAll('input[type="date"]');
-            expect(dateInputs).toHaveLength(1);
+            // After removing: back to 1 row with 2 date fields (startDate + endDate)
+            expect(dateInputs).toHaveLength(2);
         });
 
         it('filters out already used date types from options', async () => {

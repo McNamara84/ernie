@@ -44,11 +44,12 @@ class OldDatasetController extends Controller
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert)
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Load licenses for each dataset
-            $datasetsWithLicenses = $paginatedDatasets->items();
-            foreach ($datasetsWithLicenses as $dataset) {
-                $dataset->licenses = $dataset->getLicenses();
-            }
+            // Convert datasets to arrays and add licenses
+            $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
+                $data = $dataset->toArray();
+                $data['licenses'] = $dataset->getLicenses();
+                return $data;
+            })->all();
 
             return Inertia::render('old-datasets', [
                 'datasets' => $datasetsWithLicenses,
@@ -114,11 +115,12 @@ class OldDatasetController extends Controller
 
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Load licenses for each dataset
-            $datasetsWithLicenses = $paginatedDatasets->items();
-            foreach ($datasetsWithLicenses as $dataset) {
-                $dataset->licenses = $dataset->getLicenses();
-            }
+            // Convert datasets to arrays and add licenses
+            $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
+                $data = $dataset->toArray();
+                $data['licenses'] = $dataset->getLicenses();
+                return $data;
+            })->all();
 
             return response()->json([
                 'datasets' => $datasetsWithLicenses,
@@ -284,6 +286,44 @@ class OldDatasetController extends Controller
 
             return response()->json([
                 'error' => 'Failed to load descriptions from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
+     * API endpoint to get dates for a specific old dataset.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getDates(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            $dates = $dataset->getResourceDates();
+
+            return response()->json([
+                'dates' => $dates,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading dates for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load dates from legacy database. Please check the database connection.',
                 'debug' => $debugInfo,
             ], 500);
         }

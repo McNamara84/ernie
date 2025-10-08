@@ -19,6 +19,7 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
+import { hasValidDateValue, serializeDateEntry } from '@/lib/date-utils';
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 
@@ -67,7 +68,8 @@ interface LicenseEntry {
 
 interface DateEntry {
     id: string;
-    date: string;
+    startDate: string;
+    endDate: string;
     dateType: string;
 }
 
@@ -439,6 +441,7 @@ interface DataCiteFormProps {
     initialAuthors?: InitialAuthor[];
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string }[];
+    initialDates?: { dateType: string; startDate: string; endDate: string }[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -464,7 +467,7 @@ export function canAddDate(dates: DateEntry[], maxDates: number) {
     return (
         dates.length < maxDates &&
         dates.length > 0 &&
-        !!dates[dates.length - 1].date
+        (!!dates[dates.length - 1].startDate || !!dates[dates.length - 1].endDate)
     );
 }
 
@@ -489,6 +492,7 @@ export default function DataCiteForm({
     initialAuthors = [],
     initialContributors = [],
     initialDescriptions = [],
+    initialDates = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -616,9 +620,19 @@ export default function DataCiteForm({
         }
         return [];
     });
-    const [dates, setDates] = useState<DateEntry[]>([
-        { id: crypto.randomUUID(), date: '', dateType: REQUIRED_DATE_TYPE },
-    ]);
+    const [dates, setDates] = useState<DateEntry[]>(() => {
+        if (initialDates && initialDates.length > 0) {
+            return initialDates.map((date) => ({
+                id: crypto.randomUUID(),
+                dateType: date.dateType,
+                startDate: date.startDate,
+                endDate: date.endDate,
+            }));
+        }
+        return [
+            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: REQUIRED_DATE_TYPE },
+        ];
+    });
     
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
@@ -704,7 +718,7 @@ export default function DataCiteForm({
             (desc) => desc.type === 'Abstract' && desc.value.trim() !== '',
         );
         const dateCreatedFilled = dates.some(
-            (date) => date.dateType === REQUIRED_DATE_TYPE && date.date.trim() !== '',
+            (date) => date.dateType === REQUIRED_DATE_TYPE && hasValidDateValue(date),
         );
 
         return (
@@ -1024,7 +1038,7 @@ export default function DataCiteForm({
         const availableType = dateTypes.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
         setDates((prev) => [
             ...prev,
-            { id: crypto.randomUUID(), date: '', dateType: availableType },
+            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType },
         ]);
     };
 
@@ -1177,9 +1191,9 @@ export default function DataCiteForm({
                     description: desc.value.trim(),
                 })),
             dates: dates
-                .filter((date) => date.date.trim() !== '')
+                .filter(hasValidDateValue)
                 .map((date) => ({
-                    date: date.date.trim(),
+                    date: serializeDateEntry(date),
                     dateType: date.dateType,
                 })),
         };
@@ -1498,7 +1512,8 @@ export default function DataCiteForm({
                                     <DateField
                                         key={entry.id}
                                         id={entry.id}
-                                        date={entry.date}
+                                        startDate={entry.startDate}
+                                        endDate={entry.endDate}
                                         dateType={entry.dateType}
                                         dateTypeDescription={selectedDateType?.description}
                                         options={dateTypes.filter(
@@ -1506,8 +1521,11 @@ export default function DataCiteForm({
                                                 dt.value === entry.dateType ||
                                                 !dates.some((d) => d.dateType === dt.value),
                                         )}
-                                        onDateChange={(val) =>
-                                            handleDateChange(index, 'date', val)
+                                        onStartDateChange={(val) =>
+                                            handleDateChange(index, 'startDate', val)
+                                        }
+                                        onEndDateChange={(val) =>
+                                            handleDateChange(index, 'endDate', val)
                                         }
                                         onTypeChange={(val) =>
                                             handleDateChange(index, 'dateType', val)

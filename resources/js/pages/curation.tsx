@@ -31,6 +31,7 @@ interface CurationProps {
     authors?: InitialAuthor[];
     contributors?: InitialContributor[];
     descriptions?: { type: string; description: string }[];
+    dates?: { dateType: string; startDate: string; endDate: string }[];
 }
 
 export default function Curation({
@@ -47,6 +48,7 @@ export default function Curation({
     authors = [],
     contributors = [],
     descriptions = [],
+    dates = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -182,6 +184,7 @@ export default function Curation({
                             initialAuthors={authors}
                             initialContributors={contributors}
                             initialDescriptions={descriptions}
+                            initialDates={dates}
                         />
                     )}
             </div>
