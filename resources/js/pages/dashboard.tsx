@@ -48,7 +48,7 @@ type UploadedContributor =
           affiliations?: (UploadedAffiliation | null | undefined)[] | null;
       };
 
-export const handleXmlFiles = async (files: File[], retryCount = 0): Promise<void> => {
+export const handleXmlFiles = async (files: File[]): Promise<void> => {
     if (!files.length) return;
 
     const csrfHeaders = buildCsrfHeaders();
@@ -68,15 +68,6 @@ export const handleXmlFiles = async (files: File[], retryCount = 0): Promise<voi
             headers: csrfHeaders,
             credentials: 'same-origin',
         });
-        
-        // Handle 419 CSRF token mismatch with retry
-        if (response.status === 419 && retryCount < 1) {
-            console.warn('CSRF token mismatch, retrying upload...');
-            // Wait a moment for cookies to settle
-            await new Promise(resolve => setTimeout(resolve, 100));
-            // Retry the upload once
-            return handleXmlFiles(files, retryCount + 1);
-        }
         
         if (!response.ok) {
             let message = 'Upload failed';
