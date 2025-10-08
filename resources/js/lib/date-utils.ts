@@ -13,8 +13,8 @@
  */
 export interface DateEntry {
     dateType: string;
-    startDate: string;
-    endDate: string;
+    startDate: string | null;
+    endDate: string | null;
 }
 
 /**

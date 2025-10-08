@@ -14,8 +14,8 @@ interface Option {
 
 interface DateFieldProps {
     id: string;
-    startDate: string;
-    endDate: string;
+    startDate: string | null;
+    endDate: string | null;
     dateType: string;
     options: Option[];
     dateTypeDescription?: string;
@@ -51,7 +51,7 @@ export function DateField({
                 id={`${id}-startDate`}
                 label="Start Date"
                 type="date"
-                value={startDate}
+                value={startDate ?? ''}
                 onChange={(e) => onStartDateChange(e.target.value)}
                 hideLabel={!isFirst}
                 className="md:col-span-4"
@@ -61,7 +61,7 @@ export function DateField({
                 id={`${id}-endDate`}
                 label="End Date"
                 type="date"
-                value={endDate}
+                value={endDate ?? ''}
                 onChange={(e) => onEndDateChange(e.target.value)}
                 hideLabel={!isFirst}
                 className="md:col-span-4"
