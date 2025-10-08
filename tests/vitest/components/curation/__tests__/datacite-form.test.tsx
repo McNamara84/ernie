@@ -162,9 +162,7 @@ describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
     // Constants
-    // 'created' is the required date type - it must be filled for form submission
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const REQUIRED_DATE_TYPE = 'created';
+    // The label for the required date type (Date Created must be filled for form submission)
     const REQUIRED_DATE_TYPE_LABEL = 'Created';
 
     // Helper Functions
