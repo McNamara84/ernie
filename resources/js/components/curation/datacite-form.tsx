@@ -487,22 +487,65 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
-    const MAX_DATES = 12;
+    const MAX_DATES = 11;
     
-    // Available date types according to DataCite schema
+    // Available date types according to DataCite schema with descriptions
     const dateTypes = [
-        { value: 'accepted', label: 'Accepted' },
-        { value: 'available', label: 'Available' },
-        { value: 'copyrighted', label: 'Copyrighted' },
-        { value: 'collected', label: 'Collected' },
-        { value: 'coverage', label: 'Coverage' },
-        { value: 'created', label: 'Created' },
-        { value: 'issued', label: 'Issued' },
-        { value: 'submitted', label: 'Submitted' },
-        { value: 'updated', label: 'Updated' },
-        { value: 'valid', label: 'Valid' },
-        { value: 'withdrawn', label: 'Withdrawn' },
-        { value: 'other', label: 'Other' },
+        { 
+            value: 'accepted', 
+            label: 'Accepted',
+            description: 'The date that the publisher accepted the resource into their system. To indicate the start of an embargo period, use Accepted or Submitted.'
+        },
+        { 
+            value: 'available', 
+            label: 'Available',
+            description: 'The date the resource is made publicly available. May be a range. To indicate the end of an embargo period, use Available.'
+        },
+        { 
+            value: 'copyrighted', 
+            label: 'Copyrighted',
+            description: 'The specific, documented date at which the resource receives a copyrighted status, if applicable.'
+        },
+        { 
+            value: 'collected', 
+            label: 'Collected',
+            description: 'The date or date range in which the resource content was collected. To indicate precise or particular timeframes in which research was conducted.'
+        },
+        { 
+            value: 'created', 
+            label: 'Created',
+            description: 'The date the resource itself was put together; this could refer to a timeframe in ancient history, a date range, or a single date for a final component. Recommended for discovery.'
+        },
+        { 
+            value: 'issued', 
+            label: 'Issued',
+            description: 'The date that the resource is published or distributed, e.g., to a data centre.'
+        },
+        { 
+            value: 'submitted', 
+            label: 'Submitted',
+            description: 'The date the creator submits the resource to the publisher. This could be different from Accepted if the publisher then applies a selection process. Recommended for discovery. To indicate the start of an embargo period, use Submitted or Accepted.'
+        },
+        { 
+            value: 'updated', 
+            label: 'Updated',
+            description: 'The date of the last update to the resource, when the resource is being added to. May be a range.'
+        },
+        { 
+            value: 'valid', 
+            label: 'Valid',
+            description: 'The date or date range during which the dataset or resource is accurate.'
+        },
+        { 
+            value: 'withdrawn', 
+            label: 'Withdrawn',
+            description: 'The date the resource is removed. It is good practice to include a Description that indicates the reason for the retraction or withdrawal.'
+        },
+        { 
+            value: 'other', 
+            label: 'Other',
+            description: 'Other date that does not fit into an existing category.'
+        },
     ];
     
     const errorRef = useRef<HTMLDivElement | null>(null);
@@ -1436,29 +1479,33 @@ export default function DataCiteForm({
                     <AccordionTrigger>Dates</AccordionTrigger>
                     <AccordionContent>
                         <div className="space-y-4">
-                            {dates.map((entry, index) => (
-                                <DateField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    date={entry.date}
-                                    dateType={entry.dateType}
-                                    options={dateTypes.filter(
-                                        (dt) =>
-                                            dt.value === entry.dateType ||
-                                            !dates.some((d) => d.dateType === dt.value),
-                                    )}
-                                    onDateChange={(val) =>
-                                        handleDateChange(index, 'date', val)
-                                    }
-                                    onTypeChange={(val) =>
-                                        handleDateChange(index, 'dateType', val)
-                                    }
-                                    onAdd={addDate}
-                                    onRemove={() => removeDate(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddDate(dates, MAX_DATES)}
-                                />
-                            ))}
+                            {dates.map((entry, index) => {
+                                const selectedDateType = dateTypes.find(dt => dt.value === entry.dateType);
+                                return (
+                                    <DateField
+                                        key={entry.id}
+                                        id={entry.id}
+                                        date={entry.date}
+                                        dateType={entry.dateType}
+                                        dateTypeDescription={selectedDateType?.description}
+                                        options={dateTypes.filter(
+                                            (dt) =>
+                                                dt.value === entry.dateType ||
+                                                !dates.some((d) => d.dateType === dt.value),
+                                        )}
+                                        onDateChange={(val) =>
+                                            handleDateChange(index, 'date', val)
+                                        }
+                                        onTypeChange={(val) =>
+                                            handleDateChange(index, 'dateType', val)
+                                        }
+                                        onAdd={addDate}
+                                        onRemove={() => removeDate(index)}
+                                        isFirst={index === 0}
+                                        canAdd={canAddDate(dates, MAX_DATES)}
+                                    />
+                                );
+                            })}
                         </div>
                     </AccordionContent>
                 </AccordionItem>

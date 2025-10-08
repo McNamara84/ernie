@@ -9,6 +9,7 @@ import { SelectField } from './select-field';
 interface Option {
     value: string;
     label: string;
+    description?: string;
 }
 
 interface DateFieldProps {
@@ -16,6 +17,7 @@ interface DateFieldProps {
     date: string;
     dateType: string;
     options: Option[];
+    dateTypeDescription?: string;
     onDateChange: (value: string) => void;
     onTypeChange: (value: string) => void;
     onAdd: () => void;
@@ -30,6 +32,7 @@ export function DateField({
     date,
     dateType,
     options,
+    dateTypeDescription,
     onDateChange,
     onTypeChange,
     onAdd,
@@ -50,16 +53,22 @@ export function DateField({
                 className="md:col-span-8"
                 required={dateType === 'created'}
             />
-            <SelectField
-                id={`${id}-dateType`}
-                label="Date Type"
-                value={dateType}
-                onValueChange={onTypeChange}
-                options={options}
-                hideLabel={!isFirst}
-                className="md:col-span-3"
-                required
-            />
+            <div className="md:col-span-3">
+                <SelectField
+                    id={`${id}-dateType`}
+                    label="Date Type"
+                    value={dateType}
+                    onValueChange={onTypeChange}
+                    options={options}
+                    hideLabel={!isFirst}
+                    required
+                />
+                {dateTypeDescription && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {dateTypeDescription}
+                    </p>
+                )}
+            </div>
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
                     <Button
