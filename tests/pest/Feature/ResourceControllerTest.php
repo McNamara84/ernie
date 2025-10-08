@@ -829,3 +829,229 @@ it('does not require a contact email when isContact is explicitly false', functi
     expect($author?->email)->toBeNull();
     expect($author?->roles->pluck('name')->all())->toEqual(['Author']);
 });
+
+it('stores descriptions and dates with a resource', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $titleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $license = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $payload = [
+        'doi' => '10.1234/descriptions-dates',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'version' => null,
+        'language' => null,
+        'titles' => [
+            ['title' => 'Test Descriptions and Dates', 'titleType' => 'main-title'],
+        ],
+        'licenses' => ['cc-by-4'],
+        'authors' => [
+            [
+                'type' => 'person',
+                'orcid' => null,
+                'firstName' => 'Test',
+                'lastName' => 'Author',
+                'email' => null,
+                'website' => null,
+                'isContact' => false,
+                'affiliations' => [],
+                'position' => 0,
+            ],
+        ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'This is an abstract description.',
+            ],
+            [
+                'descriptionType' => 'Methods',
+                'description' => 'This describes the methods used.',
+            ],
+        ],
+        'dates' => [
+            [
+                'dateType' => 'created',
+                'startDate' => '2024-01-15',
+                'endDate' => null,
+                'dateInformation' => null,
+            ],
+            [
+                'dateType' => 'collected',
+                'startDate' => '2024-02-01',
+                'endDate' => '2024-03-31',
+                'dateInformation' => null,
+            ],
+        ],
+    ];
+
+    postJson(route('curation.resources.store'), $payload)
+        ->assertStatus(201)
+        ->assertJson([
+            'message' => 'Successfully saved resource.',
+        ]);
+
+    $resource = Resource::query()
+        ->with(['descriptions', 'dates'])
+        ->firstWhere('doi', '10.1234/descriptions-dates');
+
+    expect($resource)->not->toBeNull();
+    expect($resource->descriptions)->toHaveCount(2);
+    expect($resource->dates)->toHaveCount(2);
+
+    // Check descriptions (stored in kebab-case)
+    $abstract = $resource->descriptions->firstWhere('description_type', 'abstract');
+    expect($abstract)->not->toBeNull();
+    expect($abstract?->description)->toBe('This is an abstract description.');
+
+    $methods = $resource->descriptions->firstWhere('description_type', 'methods');
+    expect($methods)->not->toBeNull();
+    expect($methods?->description)->toBe('This describes the methods used.');
+
+    // Check dates
+    $created = $resource->dates->firstWhere('date_type', 'created');
+    expect($created)->not->toBeNull();
+    expect($created?->start_date?->toDateString())->toBe('2024-01-15');
+    expect($created?->end_date)->toBeNull();
+
+    $collected = $resource->dates->firstWhere('date_type', 'collected');
+    expect($collected)->not->toBeNull();
+    expect($collected?->start_date?->toDateString())->toBe('2024-02-01');
+    expect($collected?->end_date?->toDateString())->toBe('2024-03-31');
+});
+
+it('updates descriptions and dates when updating a resource', function (): void {
+    $resourceType = ResourceType::query()->create([
+        'name' => 'Dataset',
+        'slug' => 'dataset',
+    ]);
+
+    $titleType = TitleType::query()->create([
+        'name' => 'Main Title',
+        'slug' => 'main-title',
+    ]);
+
+    $license = License::query()->create([
+        'identifier' => 'cc-by-4',
+        'name' => 'Creative Commons Attribution 4.0',
+    ]);
+
+    $resource = Resource::query()->create([
+        'doi' => '10.1234/update-desc-dates',
+        'year' => 2024,
+        'resource_type_id' => $resourceType->id,
+    ]);
+
+    $resource->titles()->create([
+        'title' => 'Original Title',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    $resource->licenses()->attach($license->id);
+
+    $person = Person::query()->create([
+        'first_name' => 'Original',
+        'last_name' => 'Author',
+    ]);
+
+    $resourceAuthor = $resource->authors()->create([
+        'authorable_type' => Person::class,
+        'authorable_id' => $person->id,
+        'position' => 0,
+    ]);
+
+    $authorRole = Role::query()->create([
+        'name' => 'Author',
+        'slug' => 'author',
+        'applies_to' => Role::APPLIES_TO_AUTHOR,
+    ]);
+
+    $resourceAuthor->roles()->attach($authorRole->id);
+
+    // Original descriptions and dates
+    $resource->descriptions()->create([
+        'description_type' => 'abstract',
+        'description' => 'Original abstract.',
+    ]);
+
+    $resource->dates()->create([
+        'date_type' => 'created',
+        'start_date' => '2024-01-01',
+    ]);
+
+    $payload = [
+        'resourceId' => $resource->id,
+        'doi' => '10.1234/update-desc-dates',
+        'year' => 2024,
+        'resourceType' => $resourceType->id,
+        'titles' => [
+            ['title' => 'Updated Title', 'titleType' => 'main-title'],
+        ],
+        'licenses' => ['cc-by-4'],
+        'authors' => [
+            [
+                'type' => 'person',
+                'orcid' => null,
+                'firstName' => 'Original',
+                'lastName' => 'Author',
+                'email' => null,
+                'website' => null,
+                'isContact' => false,
+                'affiliations' => [],
+                'position' => 0,
+            ],
+        ],
+        'descriptions' => [
+            [
+                'descriptionType' => 'Abstract',
+                'description' => 'Updated abstract description.',
+            ],
+            [
+                'descriptionType' => 'Methods',
+                'description' => 'New methods description.',
+            ],
+        ],
+        'dates' => [
+            [
+                'dateType' => 'created',
+                'startDate' => '2024-02-15',
+                'endDate' => null,
+                'dateInformation' => null,
+            ],
+        ],
+    ];
+
+    postJson(route('curation.resources.store'), $payload)
+        ->assertStatus(200)
+        ->assertJson([
+            'message' => 'Successfully updated resource.',
+        ]);
+
+    $resource->refresh();
+    $resource->load(['descriptions', 'dates']);
+
+    // Verify old descriptions and dates were deleted
+    expect($resource->descriptions)->toHaveCount(2);
+    expect($resource->dates)->toHaveCount(1);
+
+    // Verify new descriptions
+    $abstract = $resource->descriptions->firstWhere('description_type', 'abstract');
+    expect($abstract?->description)->toBe('Updated abstract description.');
+
+    $methods = $resource->descriptions->firstWhere('description_type', 'methods');
+    expect($methods?->description)->toBe('New methods description.');
+
+    // Verify new dates
+    $created = $resource->dates->firstWhere('date_type', 'created');
+    expect($created?->start_date?->toDateString())->toBe('2024-02-15');
+});

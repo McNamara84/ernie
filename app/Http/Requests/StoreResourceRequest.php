@@ -62,9 +62,18 @@ class StoreResourceRequest extends FormRequest
             'descriptions.*.descriptionType' => [
                 'required',
                 'string',
-                Rule::in(['Abstract', 'Methods', 'SeriesInformation', 'TableOfContents', 'TechnicalInfo', 'Other']),
+                Rule::in(['abstract', 'methods', 'series-information', 'table-of-contents', 'technical-info', 'other']),
             ],
             'descriptions.*.description' => ['required', 'string'],
+            'dates' => ['nullable', 'array'],
+            'dates.*.dateType' => [
+                'required',
+                'string',
+                Rule::in(['accepted', 'available', 'collected', 'copyrighted', 'created', 'issued', 'submitted', 'updated', 'valid', 'withdrawn', 'other']),
+            ],
+            'dates.*.startDate' => ['nullable', 'date'],
+            'dates.*.endDate' => ['nullable', 'date'],
+            'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -314,6 +323,76 @@ class StoreResourceRequest extends FormRequest
             ];
         }
 
+        // Normalize descriptions
+        /** @var array<int, array<string, mixed>|mixed> $rawDescriptions */
+        $rawDescriptions = $this->input('descriptions', []);
+
+        $descriptions = [];
+
+        foreach ($rawDescriptions as $description) {
+            if (! is_array($description)) {
+                continue;
+            }
+
+            $descriptionType = isset($description['descriptionType']) 
+                ? trim((string) $description['descriptionType']) 
+                : '';
+            $descriptionText = isset($description['description']) 
+                ? trim((string) $description['description']) 
+                : '';
+
+            if ($descriptionType === '' || $descriptionText === '') {
+                continue;
+            }
+
+            // Convert to kebab-case for database storage
+            $normalizedType = \Illuminate\Support\Str::kebab($descriptionType);
+
+            $descriptions[] = [
+                'descriptionType' => $normalizedType,
+                'description' => $descriptionText,
+            ];
+        }
+
+        // Normalize dates
+        /** @var array<int, array<string, mixed>|mixed> $rawDates */
+        $rawDates = $this->input('dates', []);
+
+        $dates = [];
+
+        foreach ($rawDates as $date) {
+            if (! is_array($date)) {
+                continue;
+            }
+
+            $dateType = isset($date['dateType']) 
+                ? trim((string) $date['dateType']) 
+                : '';
+            $startDate = isset($date['startDate']) 
+                ? trim((string) $date['startDate']) 
+                : null;
+            $endDate = isset($date['endDate']) 
+                ? trim((string) $date['endDate']) 
+                : null;
+            $dateInformation = isset($date['dateInformation']) 
+                ? trim((string) $date['dateInformation']) 
+                : null;
+
+            if ($dateType === '') {
+                continue;
+            }
+
+            // Convert to kebab-case for database storage (if needed)
+            $normalizedType = \Illuminate\Support\Str::kebab($dateType);
+
+            $dates[] = [
+                'dateType' => $normalizedType,
+                'startDate' => $startDate !== '' ? $startDate : null,
+                'endDate' => $endDate !== '' ? $endDate : null,
+                'dateInformation' => $dateInformation !== '' ? $dateInformation : null,
+            ];
+        }
+
         $this->merge([
             'doi' => $this->filled('doi') ? trim((string) $this->input('doi')) : null,
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
@@ -325,6 +404,8 @@ class StoreResourceRequest extends FormRequest
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
             'contributors' => $contributors,
+            'descriptions' => $descriptions,
+            'dates' => $dates,
         ]);
     }
 
@@ -464,7 +545,7 @@ class StoreResourceRequest extends FormRequest
                     foreach ($descriptions as $description) {
                         if (is_array($description) && 
                             isset($description['descriptionType']) && 
-                            $description['descriptionType'] === 'Abstract' &&
+                            $description['descriptionType'] === 'abstract' &&
                             isset($description['description']) &&
                             is_string($description['description']) &&
                             trim($description['description']) !== '') {

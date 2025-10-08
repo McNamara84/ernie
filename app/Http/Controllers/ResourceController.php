@@ -46,6 +46,8 @@ class ResourceController extends Controller
                         ->with(['titleType:id,name,slug']);
                 },
                 'licenses:id,identifier,name',
+                'descriptions:id,resource_id,description_type,description',
+                'dates:id,resource_id,date_type,start_date,end_date,date_information',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -206,6 +208,26 @@ class ResourceController extends Controller
                         ->filter()
                         ->values()
                         ->all(),
+                    'descriptions' => $resource->descriptions
+                        ->map(static function (\App\Models\ResourceDescription $description): array {
+                            return [
+                                'descriptionType' => $description->description_type,
+                                'description' => $description->description,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                    'dates' => $resource->dates
+                        ->map(static function (\App\Models\ResourceDate $date): array {
+                            return [
+                                'dateType' => $date->date_type,
+                                'startDate' => $date->start_date?->toDateString(),
+                                'endDate' => $date->end_date?->toDateString(),
+                                'dateInformation' => $date->date_information,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
                 ];
             });
 
@@ -329,7 +351,37 @@ class ResourceController extends Controller
                     $this->syncContributorAffiliations($resourceContributor, $contributor);
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors']), $isUpdate];
+                // Save descriptions
+                if ($isUpdate) {
+                    $resource->descriptions()->delete();
+                }
+
+                $descriptions = $validated['descriptions'] ?? [];
+
+                foreach ($descriptions as $description) {
+                    $resource->descriptions()->create([
+                        'description_type' => $description['descriptionType'],
+                        'description' => $description['description'],
+                    ]);
+                }
+
+                // Save dates
+                if ($isUpdate) {
+                    $resource->dates()->delete();
+                }
+
+                $dates = $validated['dates'] ?? [];
+
+                foreach ($dates as $date) {
+                    $resource->dates()->create([
+                        'date_type' => $date['dateType'],
+                        'start_date' => $date['startDate'] ?? null,
+                        'end_date' => $date['endDate'] ?? null,
+                        'date_information' => $date['dateInformation'] ?? null,
+                    ]);
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);

@@ -122,6 +122,18 @@ type NormalisedContributor =
           roles: string[];
       } & { position: number; affiliations: NormalisedAuthorAffiliation[] });
 
+interface ResourceDescriptionSummary {
+    descriptionType?: string | null;
+    description?: string | null;
+}
+
+interface ResourceDateSummary {
+    dateType?: string | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    dateInformation?: string | null;
+}
+
 export interface ResourceForCuration {
     id?: number;
     doi: string | null;
@@ -133,6 +145,8 @@ export interface ResourceForCuration {
     licenses: ResourceLicenseSummary[];
     authors?: (ResourceAuthorSummary | null | undefined)[] | null;
     contributors?: (ResourceContributorSummary | null | undefined)[] | null;
+    descriptions?: (ResourceDescriptionSummary | null | undefined)[] | null;
+    dates?: (ResourceDateSummary | null | undefined)[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -607,6 +621,55 @@ export const buildCurationQueryFromResource = async (
             }
         });
     });
+
+    // Add descriptions to query (convert back to PascalCase)
+    const descriptions = resource.descriptions ?? [];
+    descriptions
+        .filter(
+            (desc): desc is ResourceDescriptionSummary =>
+                desc !== null &&
+                desc !== undefined &&
+                Boolean(desc.descriptionType) &&
+                Boolean(desc.description),
+        )
+        .forEach((description, index) => {
+            const prefix = `descriptions[${index}]`;
+
+            // Convert kebab-case back to PascalCase for frontend
+            const descriptionType = description.descriptionType!.trim();
+            const pascalCaseType = descriptionType
+                .split('-')
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join('');
+
+            query[`${prefix}[type]`] = pascalCaseType;
+            query[`${prefix}[description]`] = description.description!.trim();
+        });
+
+    // Add dates to query (already in kebab-case)
+    const dates = resource.dates ?? [];
+    dates
+        .filter(
+            (date): date is ResourceDateSummary =>
+                date !== null && date !== undefined && Boolean(date.dateType),
+        )
+        .forEach((date, index) => {
+            const prefix = `dates[${index}]`;
+
+            query[`${prefix}[dateType]`] = date.dateType!.trim();
+
+            if (date.startDate) {
+                query[`${prefix}[startDate]`] = date.startDate.trim();
+            }
+
+            if (date.endDate) {
+                query[`${prefix}[endDate]`] = date.endDate.trim();
+            }
+
+            if (date.dateInformation) {
+                query[`${prefix}[dateInformation]`] = date.dateInformation.trim();
+            }
+        });
 
     return query;
 };

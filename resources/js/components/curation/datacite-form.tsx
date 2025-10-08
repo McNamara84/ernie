@@ -68,8 +68,8 @@ interface LicenseEntry {
 
 interface DateEntry {
     id: string;
-    startDate: string;
-    endDate: string;
+    startDate: string | null;
+    endDate: string | null;
     dateType: string;
 }
 
