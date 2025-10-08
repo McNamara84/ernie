@@ -3,15 +3,15 @@ import { expect, test } from '@playwright/test';
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
 /**
- * E2E Tests für das Laden von Descriptions aus alten Datensätzen.
+ * E2E Tests for loading descriptions from old datasets.
  * 
- * WICHTIG: Diese Tests benötigen:
- * - Einen laufenden Laravel-Server (php artisan serve)
- * - Eine funktionierende Legacy-Datenbank mit Testdaten
- * - Einen verifizierten Test-User
+ * IMPORTANT: These tests require:
+ * - A running Laravel server (php artisan serve)
+ * - A working legacy database with test data
+ * - A verified test user
  * 
- * Die Tests sind mit .skip markiert, da sie eine vollständige Infrastruktur benötigen.
- * Entferne .skip, um die Tests in einer Testumgebung auszuführen.
+ * The tests are marked with .skip as they require complete infrastructure.
+ * Remove .skip to run the tests in a test environment.
  */
 
 test.describe('Load descriptions from old datasets', () => {
@@ -24,27 +24,27 @@ test.describe('Load descriptions from old datasets', () => {
     });
 
     test.skip('loads Abstract from old datasets into curation form', async ({ page }) => {
-        // Gehe zur Old Datasets Seite
+        // Navigate to Old Datasets page
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
         await expect(page.getByRole('heading', { name: 'Old Datasets' })).toBeVisible();
 
-        // Finde den ersten Datensatz mit "Open in Curation" Button
+        // Find the first dataset with "Open in Curation" button
         const firstDatasetRow = page.locator('tbody tr').first();
         await firstDatasetRow.waitFor({ state: 'visible', timeout: 10_000 });
 
-        // Klick auf "Open in Curation"
+        // Click on "Open in Curation"
         const openButton = firstDatasetRow.getByRole('button', { name: /Open dataset/ });
         await openButton.click();
 
-        // Warte auf Weiterleitung zum Kurationsformular
+        // Wait for redirect to curation form
         await page.waitForURL(/\/curation/, { timeout: 15_000 });
         await expect(page).toHaveURL(/\/curation/);
 
-        // Prüfe, dass das Formular geladen wurde
+        // Verify that the form has loaded
         await expect(page.getByRole('heading', { name: 'Create Resource' })).toBeVisible();
 
-        // Öffne Descriptions Accordion falls nicht offen
+        // Open Descriptions Accordion if not already open
         const descriptionsTrigger = page.getByRole('button', { name: 'Descriptions' });
         const isExpanded = await descriptionsTrigger.getAttribute('aria-expanded');
         if (isExpanded === 'false') {
@@ -52,39 +52,39 @@ test.describe('Load descriptions from old datasets', () => {
             await expect(descriptionsTrigger).toHaveAttribute('aria-expanded', 'true');
         }
 
-        // Prüfe, dass der Abstract Tab vorhanden ist
+        // Verify that the Abstract tab is present
         const abstractTab = page.getByRole('tab', { name: /Abstract/i });
         await expect(abstractTab).toBeVisible();
 
-        // Klick auf Abstract Tab (falls nicht aktiv)
+        // Click on Abstract tab (if not already active)
         await abstractTab.click();
 
-        // Prüfe, dass das Abstract Textarea geladen wurde und Inhalt hat
+        // Verify that the Abstract textarea has loaded and has content
         const abstractTextarea = page.getByRole('textbox', { name: /Abstract/i });
         await expect(abstractTextarea).toBeVisible();
         
-        // Prüfe, dass der Abstract nicht leer ist (da alte Datensätze meist Abstracts haben)
+        // Verify that the Abstract is not empty (as old datasets usually have abstracts)
         const abstractValue = await abstractTextarea.inputValue();
         expect(abstractValue.length).toBeGreaterThan(0);
     });
 
     test.skip('loads all description types from old datasets correctly', async ({ page }) => {
-        // Gehe zur Old Datasets Seite
+        // Navigate to Old Datasets page
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
 
-        // Finde den ersten Datensatz
+        // Find the first dataset
         const firstDatasetRow = page.locator('tbody tr').first();
         await firstDatasetRow.waitFor({ state: 'visible', timeout: 10_000 });
 
-        // Klick auf "Open in Curation"
+        // Click on "Open in Curation"
         const openButton = firstDatasetRow.getByRole('button', { name: /Open dataset/ });
         await openButton.click();
 
-        // Warte auf Kurationsformular
+        // Wait for curation form
         await page.waitForURL(/\/curation/, { timeout: 15_000 });
 
-        // Öffne Descriptions Accordion
+        // Open Descriptions Accordion
         const descriptionsTrigger = page.getByRole('button', { name: 'Descriptions' });
         const isExpanded = await descriptionsTrigger.getAttribute('aria-expanded');
         if (isExpanded === 'false') {
@@ -92,22 +92,22 @@ test.describe('Load descriptions from old datasets', () => {
             await expect(descriptionsTrigger).toHaveAttribute('aria-expanded', 'true');
         }
 
-        // Liste der Description-Typen aus der alten DB
+        // List of description types from the old DB
         const descriptionTypes = ['Abstract', 'Methods', 'TechnicalInfo', 'TableOfContents', 'Other'];
 
-        // Prüfe jeden Tab
+        // Check each tab
         for (const descType of descriptionTypes) {
             const tab = page.getByRole('tab', { name: new RegExp(descType, 'i') });
             
             if (await tab.isVisible()) {
-                // Klick auf den Tab
+                // Click on the tab
                 await tab.click();
 
-                // Prüfe, ob der Tab einen Badge hat (zeigt an, dass Inhalt vorhanden ist)
+                // Check if the tab has a badge (indicates content is present)
                 const hasBadge = await tab.locator('.badge, [class*="badge"]').count() > 0;
 
                 if (hasBadge) {
-                    // Wenn Badge vorhanden, sollte das Textarea Inhalt haben
+                    // If badge is present, the textarea should have content
                     const textarea = page.getByRole('textbox', { name: new RegExp(descType, 'i') });
                     await expect(textarea).toBeVisible();
                     
@@ -119,22 +119,22 @@ test.describe('Load descriptions from old datasets', () => {
     });
 
     test.skip('shows character count for loaded descriptions', async ({ page }) => {
-        // Gehe zur Old Datasets Seite
+        // Navigate to Old Datasets page
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
 
-        // Finde den ersten Datensatz
+        // Find the first dataset
         const firstDatasetRow = page.locator('tbody tr').first();
         await firstDatasetRow.waitFor({ state: 'visible', timeout: 10_000 });
 
-        // Klick auf "Open in Curation"
+        // Click on "Open in Curation"
         const openButton = firstDatasetRow.getByRole('button', { name: /Open dataset/ });
         await openButton.click();
 
-        // Warte auf Kurationsformular
+        // Wait for curation form
         await page.waitForURL(/\/curation/, { timeout: 15_000 });
 
-        // Öffne Descriptions Accordion
+        // Open Descriptions Accordion
         const descriptionsTrigger = page.getByRole('button', { name: 'Descriptions' });
         const isExpanded = await descriptionsTrigger.getAttribute('aria-expanded');
         if (isExpanded === 'false') {
@@ -142,38 +142,38 @@ test.describe('Load descriptions from old datasets', () => {
             await expect(descriptionsTrigger).toHaveAttribute('aria-expanded', 'true');
         }
 
-        // Klick auf Abstract Tab
+        // Click on Abstract tab
         const abstractTab = page.getByRole('tab', { name: /Abstract/i });
         await abstractTab.click();
 
-        // Prüfe, dass Character Count angezeigt wird
+        // Verify that character count is displayed
         const abstractTextarea = page.getByRole('textbox', { name: /Abstract/i });
         const abstractValue = await abstractTextarea.inputValue();
 
         if (abstractValue.length > 0) {
-            // Character Count sollte sichtbar sein und die korrekte Anzahl zeigen
+            // Character count should be visible and show the correct number
             const characterCountText = page.getByText(new RegExp(`${abstractValue.length} characters`));
             await expect(characterCountText).toBeVisible();
         }
     });
 
     test.skip('retains description data when switching between tabs', async ({ page }) => {
-        // Gehe zur Old Datasets Seite
+        // Navigate to Old Datasets page
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
 
-        // Finde den ersten Datensatz
+        // Find the first dataset
         const firstDatasetRow = page.locator('tbody tr').first();
         await firstDatasetRow.waitFor({ state: 'visible', timeout: 10_000 });
 
-        // Klick auf "Open in Curation"
+        // Click on "Open in Curation"
         const openButton = firstDatasetRow.getByRole('button', { name: /Open dataset/ });
         await openButton.click();
 
-        // Warte auf Kurationsformular
+        // Wait for curation form
         await page.waitForURL(/\/curation/, { timeout: 15_000 });
 
-        // Öffne Descriptions Accordion
+        // Open Descriptions Accordion
         const descriptionsTrigger = page.getByRole('button', { name: 'Descriptions' });
         const isExpanded = await descriptionsTrigger.getAttribute('aria-expanded');
         if (isExpanded === 'false') {
@@ -181,22 +181,22 @@ test.describe('Load descriptions from old datasets', () => {
             await expect(descriptionsTrigger).toHaveAttribute('aria-expanded', 'true');
         }
 
-        // Speichere Abstract-Wert
+        // Save Abstract value
         const abstractTab = page.getByRole('tab', { name: /Abstract/i });
         await abstractTab.click();
         const abstractTextarea = page.getByRole('textbox', { name: /Abstract/i });
         const originalAbstractValue = await abstractTextarea.inputValue();
 
-        // Wechsle zu einem anderen Tab
+        // Switch to another tab
         const methodsTab = page.getByRole('tab', { name: /Methods/i });
         if (await methodsTab.isVisible()) {
             await methodsTab.click();
         }
 
-        // Wechsle zurück zu Abstract
+        // Switch back to Abstract
         await abstractTab.click();
 
-        // Prüfe, dass der ursprüngliche Wert noch vorhanden ist
+        // Verify that the original value is still present
         const currentAbstractValue = await abstractTextarea.inputValue();
         expect(currentAbstractValue).toBe(originalAbstractValue);
     });
@@ -205,22 +205,22 @@ test.describe('Load descriptions from old datasets', () => {
         // This test verifies that the form still works correctly
         // when an old dataset has no descriptions
 
-        // Gehe zur Old Datasets Seite
+        // Navigate to Old Datasets page
         await page.goto('/old-datasets');
         await expect(page).toHaveURL(/\/old-datasets$/);
 
-        // Finde einen Datensatz (könnte ohne Descriptions sein)
+        // Find a dataset (could be without descriptions)
         const firstDatasetRow = page.locator('tbody tr').first();
         await firstDatasetRow.waitFor({ state: 'visible', timeout: 10_000 });
 
-        // Klick auf "Open in Curation"
+        // Click on "Open in Curation"
         const openButton = firstDatasetRow.getByRole('button', { name: /Open dataset/ });
         await openButton.click();
 
-        // Warte auf Kurationsformular
+        // Wait for curation form
         await page.waitForURL(/\/curation/, { timeout: 15_000 });
 
-        // Öffne Descriptions Accordion
+        // Open Descriptions Accordion
         const descriptionsTrigger = page.getByRole('button', { name: 'Descriptions' });
         const isExpanded = await descriptionsTrigger.getAttribute('aria-expanded');
         if (isExpanded === 'false') {
