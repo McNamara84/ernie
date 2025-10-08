@@ -280,7 +280,7 @@ test.describe('XML Upload Functionality', () => {
       // Valid types include: Abstract, Methods, SeriesInformation, TableOfContents, TechnicalInfo, Other
       // Format should be PascalCase
       const allDescriptionTypesValid = descriptionTypeEntries.every(([, value]) => {
-        // Valid descriptionType should start with uppercase, may contain more uppercase letters
+        // Valid descriptionType should start with uppercase letter followed by any combination of uppercase and lowercase letters (PascalCase)
         return /^[A-Z][a-zA-Z]*$/.test(value);
       });
       expect(allDescriptionTypesValid).toBeTruthy();
@@ -358,7 +358,7 @@ test.describe('XML Upload Functionality', () => {
       
       // Verify that all dateType values are in kebab-case format (lowercase with hyphens)
       const allDateTypesValid = dateTypeEntries.every(([, value]) => {
-        // Valid dateType should be lowercase, may contain hyphens
+        // Valid dateType: at least one lowercase letter, followed by zero or more groups of hyphen + lowercase letters (kebab-case)
         return /^[a-z]+(-[a-z]+)*$/.test(value);
       });
       expect(allDateTypesValid).toBeTruthy();
