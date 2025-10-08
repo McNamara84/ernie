@@ -250,15 +250,25 @@ describe('DataCiteForm', () => {
 
     const fillRequiredDateCreated = async (
         user: ReturnType<typeof userEvent.setup>,
-        date = '20240115',
+        date = '2024-01-15',
     ) => {
         await ensureDatesOpen(user);
         const dateInputs = screen.getAllByDisplayValue('').filter(input => 
             input.getAttribute('type') === 'date'
         );
+        if (dateInputs.length === 0) {
+            throw new Error('No date inputs found in the form');
+        }
         const dateCreatedInput = dateInputs[0] as HTMLInputElement;
-        await user.click(dateCreatedInput);
-        await user.keyboard(date);
+        
+        // Use type() instead of keyboard() for date inputs with the correct format
+        await user.clear(dateCreatedInput);
+        await user.type(dateCreatedInput, date);
+        
+        // Wait for the value to be set
+        await waitFor(() => {
+            expect(dateCreatedInput.value).toBe(date);
+        });
     };
 
     beforeAll(() => {
@@ -555,6 +565,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user, 'Doe');
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -1112,6 +1123,7 @@ describe('DataCiteForm', () => {
 
         await user.type(emailInput, 'contact@example.org');
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -1865,6 +1877,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
@@ -1946,6 +1959,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2024,6 +2038,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2093,6 +2108,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -2126,6 +2142,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).not.toHaveBeenCalled();
@@ -2176,6 +2193,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
@@ -2236,6 +2254,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
+        await fillRequiredDateCreated(user);
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
@@ -2316,6 +2335,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
+        await fillRequiredDateCreated(user);
 
         // Fill Abstract
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
