@@ -5,6 +5,85 @@ namespace App\Support;
 class GcmdVocabularyParser
 {
     /**
+     * Extract total hits from RDF content
+     */
+    public function extractTotalHits(string $rdfContent): int
+    {
+        $xml = new \SimpleXMLElement($rdfContent);
+        $xml->registerXPathNamespace('gcmd', 'https://gcmd.earthdata.nasa.gov/kms#');
+        
+        $hits = $xml->xpath('//gcmd:gcmd/gcmd:hits');
+        
+        return $hits ? (int) $hits[0] : 0;
+    }
+
+    /**
+     * Extract concepts from RDF content
+     * 
+     * @return array<int, array<string, string|null>>
+     */
+    public function extractConcepts(string $rdfContent): array
+    {
+        $xml = new \SimpleXMLElement($rdfContent);
+        $xml->registerXPathNamespace('rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+        $xml->registerXPathNamespace('skos', 'http://www.w3.org/2004/02/skos/core#');
+        $xml->registerXPathNamespace('dcterms', 'http://purl.org/dc/terms/');
+
+        $conceptElements = $xml->xpath('//skos:Concept');
+        
+        if ($conceptElements === false || $conceptElements === null) {
+            return [];
+        }
+        
+        $concepts = [];
+
+        foreach ($conceptElements as $concept) {
+            $rdfNs = $concept->attributes('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+            $id = (string) ($rdfNs['about'] ?? '');
+            
+            // Convert UUID to full URL if necessary
+            if ($id && !str_starts_with($id, 'http')) {
+                $id = 'https://gcmd.earthdata.nasa.gov/kms/concept/' . $id;
+            }
+            
+            $skosNs = $concept->children('http://www.w3.org/2004/02/skos/core#');
+            $prefLabel = (string) ($skosNs->prefLabel ?? '');
+            $definition = (string) ($skosNs->definition ?? '');
+            
+            // Get language (default to 'en')
+            $language = 'en';
+            if ($skosNs->prefLabel) {
+                $langAttr = $skosNs->prefLabel->attributes('http://www.w3.org/XML/1998/namespace');
+                if ($langAttr && isset($langAttr['lang'])) {
+                    $language = (string) $langAttr['lang'];
+                }
+            }
+
+            // Get broader relationship
+            $broaderId = null;
+            if ($skosNs->broader) {
+                $broaderAttr = $skosNs->broader->attributes('http://www.w3.org/1999/02/22-rdf-syntax-ns#');
+                $broaderId = (string) ($broaderAttr['resource'] ?? '');
+                
+                // Convert UUID to full URL if necessary
+                if ($broaderId && !str_starts_with($broaderId, 'http')) {
+                    $broaderId = 'https://gcmd.earthdata.nasa.gov/kms/concept/' . $broaderId;
+                }
+            }
+
+            $concepts[] = [
+                'id' => $id,
+                'text' => $prefLabel,
+                'language' => $language,
+                'description' => $definition,
+                'broaderId' => $broaderId,
+            ];
+        }
+
+        return $concepts;
+    }
+
+    /**
      * Build hierarchical structure from flat concept array
      * 
      * @param array<int, array<string, string|null>> $concepts
