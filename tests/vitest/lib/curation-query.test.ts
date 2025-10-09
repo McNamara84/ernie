@@ -206,4 +206,107 @@ describe('buildCurationQueryFromResource', () => {
         expect(query).not.toHaveProperty('authors[1][affiliations][0][rorId]');
         expect(fetchMock).not.toHaveBeenCalled();
     });
+
+    it('includes free keywords when provided', async () => {
+        const fetchMock = vi.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve([{ id: 5, name: 'Dataset' }]),
+            } as unknown as Response),
+        );
+
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const query = await buildCurationQueryFromResource({
+            doi: '10.1234/test',
+            year: 2025,
+            version: '1.0',
+            resource_type: { name: 'Dataset', slug: 'dataset' },
+            language: { code: 'en', name: 'English' },
+            titles: [{ title: 'Test', title_type: { slug: 'main-title' } }],
+            licenses: [],
+            freeKeywords: ['climate change', 'temperature', 'precipitation'],
+        });
+
+        expect(query).toMatchObject({
+            'freeKeywords[0]': 'climate change',
+            'freeKeywords[1]': 'temperature',
+            'freeKeywords[2]': 'precipitation',
+        });
+    });
+
+    it('handles empty free keywords array', async () => {
+        const fetchMock = vi.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve([{ id: 5, name: 'Dataset' }]),
+            } as unknown as Response),
+        );
+
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const query = await buildCurationQueryFromResource({
+            doi: '10.1234/test',
+            year: 2025,
+            version: '1.0',
+            resource_type: { name: 'Dataset', slug: 'dataset' },
+            language: { code: 'en', name: 'English' },
+            titles: [{ title: 'Test', title_type: { slug: 'main-title' } }],
+            licenses: [],
+            freeKeywords: [],
+        });
+
+        expect(query).not.toHaveProperty('freeKeywords[0]');
+    });
+
+    it('handles missing free keywords property', async () => {
+        const fetchMock = vi.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve([{ id: 5, name: 'Dataset' }]),
+            } as unknown as Response),
+        );
+
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const query = await buildCurationQueryFromResource({
+            doi: '10.1234/test',
+            year: 2025,
+            version: '1.0',
+            resource_type: { name: 'Dataset', slug: 'dataset' },
+            language: { code: 'en', name: 'English' },
+            titles: [{ title: 'Test', title_type: { slug: 'main-title' } }],
+            licenses: [],
+            // freeKeywords not provided
+        });
+
+        expect(query).not.toHaveProperty('freeKeywords[0]');
+    });
+
+    it('preserves keyword order and content', async () => {
+        const fetchMock = vi.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve([{ id: 5, name: 'Dataset' }]),
+            } as unknown as Response),
+        );
+
+        globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+        const query = await buildCurationQueryFromResource({
+            doi: '10.1234/test',
+            year: 2025,
+            version: '1.0',
+            resource_type: { name: 'Dataset', slug: 'dataset' },
+            language: { code: 'en', name: 'English' },
+            titles: [{ title: 'Test', title_type: { slug: 'main-title' } }],
+            licenses: [],
+            freeKeywords: ['InSAR', 'GNSS', 'CO2 storage', 'pH Level'],
+        });
+
+        expect(query['freeKeywords[0]']).toBe('InSAR');
+        expect(query['freeKeywords[1]']).toBe('GNSS');
+        expect(query['freeKeywords[2]']).toBe('CO2 storage');
+        expect(query['freeKeywords[3]']).toBe('pH Level');
+    });
 });
