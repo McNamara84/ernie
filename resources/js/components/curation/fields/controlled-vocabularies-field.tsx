@@ -1,5 +1,5 @@
 import { Search, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -114,11 +114,6 @@ export default function ControlledVocabulariesField({
         },
         [selectedKeywords, onChange],
     );
-
-    // Clear search when switching tabs
-    useEffect(() => {
-        setSearchQuery('');
-    }, [activeTab]);
 
     // Group selected keywords by vocabulary type
     const keywordsByVocabulary = useMemo(() => {
