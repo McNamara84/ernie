@@ -94,9 +94,9 @@ class GcmdVocabularyParser
     public function buildHierarchy(array $concepts, string $schemeTitle, string $schemeURI): array
     {
         $conceptsById = [];
-        $childrenMap = [];
+        $childrenByParentId = [];
 
-        // First pass: index all concepts
+        // First pass: index all concepts and group children by parent ID
         foreach ($concepts as $concept) {
             $id = $concept['id'];
             
@@ -110,40 +110,57 @@ class GcmdVocabularyParser
                 'children' => [],
             ];
 
-            // Build parent-child mapping
+            // Group children by parent ID
             if ($concept['broaderId']) {
                 $broaderId = $concept['broaderId'];
-                if (!isset($childrenMap[$broaderId])) {
-                    $childrenMap[$broaderId] = [];
+                if (!isset($childrenByParentId[$broaderId])) {
+                    $childrenByParentId[$broaderId] = [];
                 }
-                $childrenMap[$broaderId][] = $id;
+                $childrenByParentId[$broaderId][] = $id;
             }
         }
 
-        // Second pass: build hierarchy
-        foreach ($childrenMap as $parentId => $childIds) {
-            if (isset($conceptsById[$parentId])) {
-                foreach ($childIds as $childId) {
-                    if (isset($conceptsById[$childId])) {
-                        // @phpstan-ignore-next-line - Dynamic nested array structure
-                        $conceptsById[$parentId]['children'][] = $conceptsById[$childId];
-                    }
+        // Second pass: recursively build tree starting from root nodes
+        $buildTree = function (string $nodeId) use (&$conceptsById, &$childrenByParentId, &$buildTree) {
+            if (!isset($conceptsById[$nodeId])) {
+                return null;
+            }
+
+            $node = $conceptsById[$nodeId];
+            $childIds = $childrenByParentId[$nodeId] ?? [];
+            
+            // Recursively build children
+            $node['children'] = [];
+            foreach ($childIds as $childId) {
+                $childNode = $buildTree($childId);
+                if ($childNode !== null) {
+                    $node['children'][] = $childNode;
                 }
             }
-        }
+            
+            return $node;
+        };
 
-        // Find root concepts (concepts with no parent)
-        $rootConcepts = [];
+        // Find root concept IDs (concepts with no parent or parent doesn't exist)
+        $allChildIds = [];
+        foreach ($childrenByParentId as $childIds) {
+            $allChildIds = array_merge($allChildIds, $childIds);
+        }
+        $allChildIds = array_unique($allChildIds);
+        
+        $rootIds = [];
         foreach ($conceptsById as $id => $concept) {
-            $hasParent = false;
-            foreach ($childrenMap as $parentId => $childIds) {
-                if (in_array($id, $childIds)) {
-                    $hasParent = true;
-                    break;
-                }
+            if (!in_array($id, $allChildIds)) {
+                $rootIds[] = $id;
             }
-            if (!$hasParent) {
-                $rootConcepts[] = $concept;
+        }
+
+        // Build tree only from root concepts (top-down approach)
+        $rootConcepts = [];
+        foreach ($rootIds as $rootId) {
+            $rootNode = $buildTree($rootId);
+            if ($rootNode !== null) {
+                $rootConcepts[] = $rootNode;
             }
         }
 
