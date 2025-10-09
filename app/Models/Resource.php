@@ -96,4 +96,13 @@ class Resource extends Model
 
         return $relation;
     }
+
+    /** @return HasMany<ResourceKeyword, static> */
+    public function keywords(): HasMany
+    {
+        /** @var HasMany<ResourceKeyword, static> $relation */
+        $relation = $this->hasMany(ResourceKeyword::class);
+
+        return $relation;
+    }
 }

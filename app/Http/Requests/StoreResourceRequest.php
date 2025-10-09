@@ -74,6 +74,8 @@ class StoreResourceRequest extends FormRequest
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
+            'freeKeywords' => ['nullable', 'array'],
+            'freeKeywords.*' => ['string', 'max:255'],
         ];
     }
 

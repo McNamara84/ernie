@@ -48,6 +48,7 @@ class ResourceController extends Controller
                 'licenses:id,identifier,name',
                 'descriptions:id,resource_id,description_type,description',
                 'dates:id,resource_id,date_type,start_date,end_date,date_information',
+                'keywords:id,resource_id,keyword',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -228,6 +229,12 @@ class ResourceController extends Controller
                         })
                         ->values()
                         ->all(),
+                    'freeKeywords' => $resource->keywords
+                        ->map(static function (\App\Models\ResourceKeyword $keyword): string {
+                            return $keyword->keyword;
+                        })
+                        ->values()
+                        ->all(),
                 ];
             });
 
@@ -381,7 +388,23 @@ class ResourceController extends Controller
                     ]);
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates']), $isUpdate];
+                // Save free keywords
+                if ($isUpdate) {
+                    $resource->keywords()->delete();
+                }
+
+                $freeKeywords = $validated['freeKeywords'] ?? [];
+
+                foreach ($freeKeywords as $keyword) {
+                    // Only save non-empty keywords
+                    if (!empty(trim($keyword))) {
+                        $resource->keywords()->create([
+                            'keyword' => trim($keyword),
+                        ]);
+                    }
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);

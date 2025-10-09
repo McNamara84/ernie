@@ -147,6 +147,7 @@ export interface ResourceForCuration {
     contributors?: (ResourceContributorSummary | null | undefined)[] | null;
     descriptions?: (ResourceDescriptionSummary | null | undefined)[] | null;
     dates?: (ResourceDateSummary | null | undefined)[] | null;
+    freeKeywords?: string[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -670,6 +671,12 @@ export const buildCurationQueryFromResource = async (
                 query[`${prefix}[dateInformation]`] = date.dateInformation.trim();
             }
         });
+
+    // Add free keywords to query
+    const freeKeywords = resource.freeKeywords ?? [];
+    freeKeywords.forEach((keyword, index) => {
+        query[`freeKeywords[${index}]`] = keyword;
+    });
 
     return query;
 };
