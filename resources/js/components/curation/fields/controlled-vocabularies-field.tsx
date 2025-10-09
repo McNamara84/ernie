@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useDebounce } from '@/hooks/use-debounce';
+import { cn } from '@/lib/utils';
 import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
 
 import { GCMDTree } from './gcmd-tree';
@@ -20,26 +22,30 @@ interface ControlledVocabulariesFieldProps {
 
 /**
  * Recursively searches for keywords matching a search query
+ * Optimized with early exit and pre-lowercased query
  */
 function searchKeywords(keywords: GCMDKeyword[], query: string): GCMDKeyword[] {
+    if (!query) return keywords;
+    
     const results: GCMDKeyword[] = [];
     const lowerQuery = query.toLowerCase();
 
-    for (const keyword of keywords) {
-        const matches =
-            keyword.text.toLowerCase().includes(lowerQuery) ||
-            (keyword.description && keyword.description.toLowerCase().includes(lowerQuery));
+    function searchNode(keyword: GCMDKeyword): void {
+        const textMatch = keyword.text.toLowerCase().includes(lowerQuery);
+        const descMatch = keyword.description?.toLowerCase().includes(lowerQuery) ?? false;
 
-        if (matches) {
+        if (textMatch || descMatch) {
             results.push(keyword);
         }
 
+        // Continue searching in children even if parent matches
+        // This ensures all matching descendants are found
         if (keyword.children && keyword.children.length > 0) {
-            const childResults = searchKeywords(keyword.children, query);
-            results.push(...childResults);
+            keyword.children.forEach(searchNode);
         }
     }
 
+    keywords.forEach(searchNode);
     return results;
 }
 
@@ -55,6 +61,20 @@ export default function ControlledVocabulariesField({
 }: ControlledVocabulariesFieldProps) {
     const [activeTab, setActiveTab] = useState<GCMDVocabularyType>('science');
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // Debounce search query to avoid excessive re-renders
+    // Only trigger search after user stops typing for 300ms
+    const debouncedSearchQuery = useDebounce(searchQuery, 300);
+    
+    // Minimum search length to avoid searching on 1-2 characters
+    const MIN_SEARCH_LENGTH = 3;
+    const effectiveSearchQuery = debouncedSearchQuery.trim().length >= MIN_SEARCH_LENGTH 
+        ? debouncedSearchQuery.trim() 
+        : '';
+    
+    // Show loading state while debouncing
+    const isSearching = searchQuery.trim().length >= MIN_SEARCH_LENGTH && 
+                       searchQuery !== debouncedSearchQuery;
 
     // Get the appropriate keyword tree based on active tab
     const currentKeywords = useMemo(() => {
@@ -71,12 +91,13 @@ export default function ControlledVocabulariesField({
     }, [activeTab, scienceKeywords, platforms, instruments]);
 
     // Filter keywords based on search query
+    // Only search if query is at least MIN_SEARCH_LENGTH characters
     const filteredKeywords = useMemo(() => {
-        if (!searchQuery.trim()) {
+        if (!effectiveSearchQuery) {
             return currentKeywords;
         }
-        return searchKeywords(currentKeywords, searchQuery);
-    }, [currentKeywords, searchQuery]);
+        return searchKeywords(currentKeywords, effectiveSearchQuery);
+    }, [currentKeywords, effectiveSearchQuery]);
 
     // Get selected keyword IDs for current vocabulary
     const selectedIdsForCurrentVocabulary = useMemo(() => {
@@ -200,10 +221,13 @@ export default function ControlledVocabulariesField({
                 <TabsContent value={activeTab} className="space-y-4 mt-4">
                     {/* Search Input */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Search className={cn(
+                            "absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4",
+                            isSearching ? "text-primary animate-pulse" : "text-muted-foreground"
+                        )} />
                         <Input
                             type="text"
-                            placeholder="Search keywords..."
+                            placeholder={`Search keywords (min. ${MIN_SEARCH_LENGTH} characters)...`}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="pl-9"
@@ -223,17 +247,24 @@ export default function ControlledVocabulariesField({
                     </div>
 
                     {/* Tree View */}
-                    {searchQuery ? (
+                    {effectiveSearchQuery ? (
                         <div>
                             <p className="text-xs text-muted-foreground mb-2">
-                                {filteredKeywords.length} result
-                                {filteredKeywords.length !== 1 ? 's' : ''} found
+                                {isSearching ? (
+                                    <span className="italic">Searching...</span>
+                                ) : (
+                                    <>
+                                        {filteredKeywords.length} result
+                                        {filteredKeywords.length !== 1 ? 's' : ''} found
+                                    </>
+                                )}
                             </p>
                             <GCMDTree
                                 keywords={filteredKeywords}
                                 selectedIds={selectedIdsForCurrentVocabulary}
                                 onToggle={handleToggle}
                                 emptyMessage="No keywords match your search"
+                                searchQuery={effectiveSearchQuery}
                             />
                         </div>
                     ) : (
