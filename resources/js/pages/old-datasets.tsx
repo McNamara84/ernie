@@ -920,8 +920,9 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             const response = await axios.get(`/old-datasets/${dataset.id}/controlled-keywords`);
             const keywords = response.data.keywords || [];
             
-            // Transform keywords to query parameter format
-            // The backend already provides the correct format: { id, text, vocabulary, path, uuid, description }
+            // Transform keywords to query parameter format expected by curation page
+            // Expected format: { id, path, text, vocabularyType }
+            // vocabularyType must be: 'science' | 'platforms' | 'instruments'
             keywords.forEach((keyword: {
                 id: string;
                 text: string;
@@ -930,9 +931,17 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 uuid: string;
                 description?: string;
             }, index: number) => {
-                query[`controlledKeywords[${index}][id]`] = keyword.id;
-                query[`controlledKeywords[${index}][text]`] = keyword.text;
-                query[`controlledKeywords[${index}][vocabulary]`] = keyword.vocabulary;
+                // Map vocabulary types to expected format
+                const vocabularyTypeMap: Record<string, string> = {
+                    'gcmd-science-keywords': 'science',
+                    'gcmd-platforms': 'platforms',
+                    'gcmd-instruments': 'instruments',
+                };
+                
+                query[`gcmdKeywords[${index}][id]`] = keyword.id;
+                query[`gcmdKeywords[${index}][text]`] = keyword.text;
+                query[`gcmdKeywords[${index}][path]`] = keyword.path;
+                query[`gcmdKeywords[${index}][vocabularyType]`] = vocabularyTypeMap[keyword.vocabulary] || keyword.vocabulary;
             });
         } catch (error) {
             // Surface structured error information to aid diagnosis

@@ -187,8 +187,8 @@ export default function ControlledVocabulariesField({
                                                 variant="secondary"
                                                 className="gap-1.5 pr-1.5"
                                             >
-                                                <span className="max-w-xs truncate" title={keyword.path}>
-                                                    {keyword.text}
+                                                <span className="max-w-md truncate" title={keyword.path}>
+                                                    {keyword.path}
                                                 </span>
                                                 <Button
                                                     type="button"
@@ -196,7 +196,7 @@ export default function ControlledVocabulariesField({
                                                     size="sm"
                                                     className="h-4 w-4 p-0 hover:bg-transparent"
                                                     onClick={() => handleRemove(keyword.id)}
-                                                    aria-label={`Remove ${keyword.text}`}
+                                                    aria-label={`Remove ${keyword.path}`}
                                                 >
                                                     <X className="h-3 w-3" />
                                                 </Button>
