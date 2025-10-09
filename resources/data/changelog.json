@@ -1,5 +1,71 @@
 [
   {
+    "version": "0.4.0",
+    "date": "2025-10-09",
+    "features": [
+      {
+        "title": "Descriptions Management",
+        "description": "Added comprehensive support for resource descriptions with API endpoint to load descriptions from old datasets, automatic extraction from uploaded DataCite XML files, and complete persistence in the database. Supports multiple description types per resource with proper validation and form hydration."
+      },
+      {
+        "title": "Date Range Management",
+        "description": "Introduced date range functionality for resources with support for loading dates from old datasets, extraction from XML uploads including single dates and ranges, and storage with proper DataCite date type handling. Includes utilities for date serialization and validation with support for start/end date pairs."
+      },
+      {
+        "title": "GCMD Vocabulary Integration",
+        "description": "Integrated NASA's Global Change Master Directory (GCMD) Keywords Management System with new API endpoints for Science Keywords, Platforms, and Instruments vocabularies. Includes console commands to fetch and parse hierarchical RDF data from NASA KMS API with automatic JSON storage. Vocabularies are protected by API key authentication."
+      },
+      {
+        "title": "Import Metadata from XML Uploads",
+        "description": "Enhanced XML upload functionality to automatically extract and populate descriptions and dates from DataCite XML files. Includes proper handling of description types (PascalCase to kebab-case conversion) and date formats with comprehensive validation."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Production Session Security",
+        "description": "Improved session handling in production environment with secure cookies, proper HTTPS enforcement, Redis session driver support, and configurable session domain and path settings. Added SANCTUM_STATEFUL_DOMAINS configuration for better authentication."
+      },
+      {
+        "title": "Date Handling Utilities",
+        "description": "Extracted date serialization logic into reusable utility functions (hasValidDateValue, serializeDateEntry) for improved code clarity and maintainability across components."
+      },
+      {
+        "title": "GCMD Command Architecture",
+        "description": "Refactored GCMD vocabulary fetching commands to use a shared BaseGcmdCommand class, reducing code duplication and improving maintainability. Moved concept extraction and parsing logic to GcmdVocabularyParser for better separation of concerns."
+      },
+      {
+        "title": "Error Handling",
+        "description": "Enhanced error handling for GCMD vocabulary operations with checks for JSON encoding failures and null content. Improved type safety with better PHPDoc annotations."
+      },
+      {
+        "title": "Test Coverage",
+        "description": "Added comprehensive tests for descriptions and dates functionality including feature tests, unit tests, E2E Playwright tests, and Vitest serialization tests. Improved test reliability and validation strictness for XML uploads."
+      },
+      {
+        "title": "Documentation",
+        "description": "Added instructions for updating GCMD vocabularies from NASA's KMS API with recommended monthly update schedule to keep vocabularies current."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Null Value Handling",
+        "description": "Fixed handling of null and undefined values in date fields throughout the application. Updated TypeScript interfaces to properly support nullable date fields and improved serialization to prevent runtime errors."
+      },
+      {
+        "title": "Description Type Normalization",
+        "description": "Normalized descriptionType values to lowercase kebab-case format for consistency and to prevent validation mismatches."
+      },
+      {
+        "title": "Session Configuration",
+        "description": "Resolved session handling issues in production environment through iterative improvements to SESSION_PATH, SESSION_DOMAIN, and SESSION_SECURE_COOKIE settings."
+      },
+      {
+        "title": "Test Reliability",
+        "description": "Improved test reliability by increasing timeouts for slower test environments, refactoring authentication requirements, and better test isolation. Skipped problematic CI tests while maintaining coverage through alternative test strategies."
+      }
+    ]
+  },
+  {
     "version": "0.3.0",
     "date": "2025-10-07",
     "features": [
