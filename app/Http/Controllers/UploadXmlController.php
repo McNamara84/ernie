@@ -86,6 +86,7 @@ class UploadXmlController extends Controller
         $descriptions = $this->extractDescriptions($reader);
         $dates = $this->extractDates($reader);
         $gcmdKeywords = $this->extractGcmdKeywords($reader);
+        $freeKeywords = $this->extractFreeKeywords($reader);
 
         $rightsElements = $reader
             ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -146,6 +147,7 @@ class UploadXmlController extends Controller
             'descriptions' => $descriptions,
             'dates' => $dates,
             'gcmdKeywords' => $gcmdKeywords,
+            'freeKeywords' => $freeKeywords,
         ]);
     }
 
@@ -1226,5 +1228,41 @@ class UploadXmlController extends Controller
         }
 
         return $keywords;
+    }
+
+    /**
+     * Extract free keywords from the XML.
+     * Free keywords are subject elements WITHOUT subjectScheme, schemeURI, or valueURI attributes.
+     *
+     * @return array<int, string>
+     */
+    private function extractFreeKeywords(XmlReader $reader): array
+    {
+        $subjectElements = $reader
+            ->xpathElement('//*[local-name()="subjects"]/*[local-name()="subject"]')
+            ->get();
+
+        $freeKeywords = [];
+
+        foreach ($subjectElements as $element) {
+            $scheme = $element->getAttribute('subjectScheme');
+            $schemeUri = $element->getAttribute('schemeURI');
+            $valueUri = $element->getAttribute('valueURI');
+            $content = $this->stringValue($element);
+
+            // Only extract subjects that have NO schema attributes (indicating free keywords)
+            if ($scheme || $schemeUri || $valueUri) {
+                continue;
+            }
+
+            // Skip empty content
+            if (! $content || trim($content) === '') {
+                continue;
+            }
+
+            $freeKeywords[] = trim($content);
+        }
+
+        return $freeKeywords;
     }
 }

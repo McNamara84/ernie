@@ -92,6 +92,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             descriptions?: { type: string; description: string }[] | null;
             dates?: { dateType: string; startDate: string; endDate: string }[] | null;
             gcmdKeywords?: { uuid: string; id: string; path: string[]; type: string }[] | null;
+            freeKeywords?: string[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -316,6 +317,13 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 query[`gcmdKeywords[${i}][vocabularyType]`] = type;
                 query[`gcmdKeywords[${i}][path]`] = path.join(' > ');
                 query[`gcmdKeywords[${i}][text]`] = path[path.length - 1] || '';
+            });
+        }
+        if (data.freeKeywords && data.freeKeywords.length > 0) {
+            data.freeKeywords.forEach((keyword, i) => {
+                if (typeof keyword === 'string' && keyword.trim()) {
+                    query[`freeKeywords[${i}]`] = keyword.trim();
+                }
             });
         }
         router.get(curationRoute({ query }).url);

@@ -40,9 +40,11 @@ import ContributorField, {
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
+import FreeKeywordsField from './fields/free-keywords-field';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import { SelectField } from './fields/select-field';
+import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
@@ -445,6 +447,7 @@ interface DataCiteFormProps {
     initialDescriptions?: { type: string; description: string }[];
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
     initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
+    initialFreeKeywords?: string[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -497,6 +500,7 @@ export default function DataCiteForm({
     initialDescriptions = [],
     initialDates = [],
     initialGcmdKeywords = [],
+    initialFreeKeywords = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -645,6 +649,14 @@ export default function DataCiteForm({
                 text: kw.text,
                 path: kw.path,
                 vocabularyType: kw.vocabularyType as 'science' | 'platforms' | 'instruments',
+            }));
+        }
+        return [];
+    });
+    const [freeKeywords, setFreeKeywords] = useState<TagInputItem[]>(() => {
+        if (initialFreeKeywords && initialFreeKeywords.length > 0) {
+            return initialFreeKeywords.map((keyword) => ({
+                value: keyword,
             }));
         }
         return [];
@@ -1240,6 +1252,7 @@ export default function DataCiteForm({
             contributors: SerializedContributor[];
             descriptions: { descriptionType: string; description: string }[];
             dates: { date: string; dateType: string }[];
+            freeKeywords: string[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1268,6 +1281,9 @@ export default function DataCiteForm({
                     date: serializeDateEntry(date),
                     dateType: date.dateType,
                 })),
+            freeKeywords: freeKeywords
+                .map((kw) => kw.value.trim())
+                .filter((kw) => kw.length > 0),
         };
 
         if (resolvedResourceId !== null) {
@@ -1352,7 +1368,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'dates']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'dates']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1590,6 +1606,15 @@ export default function DataCiteForm({
                                 onChange={setGcmdKeywords}
                             />
                         )}
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="free-keywords">
+                    <AccordionTrigger>Free Keywords</AccordionTrigger>
+                    <AccordionContent>
+                        <FreeKeywordsField
+                            keywords={freeKeywords}
+                            onChange={setFreeKeywords}
+                        />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="dates">

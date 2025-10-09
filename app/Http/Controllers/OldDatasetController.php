@@ -386,6 +386,60 @@ class OldDatasetController extends Controller
     }
 
     /**
+     * API endpoint to get free keywords for a specific old dataset.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getFreeKeywords(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            // Get keywords from the keywords column
+            $keywordsString = $dataset->keywords;
+
+            // Parse comma-separated keywords
+            $keywords = [];
+            if (!empty($keywordsString)) {
+                $keywords = array_map(
+                    fn($keyword) => trim($keyword),
+                    explode(',', $keywordsString)
+                );
+                
+                // Remove empty strings
+                $keywords = array_filter($keywords, fn($keyword) => $keyword !== '');
+                
+                // Re-index array to ensure sequential numeric keys
+                $keywords = array_values($keywords);
+            }
+
+            return response()->json([
+                'keywords' => $keywords,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading free keywords for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load free keywords from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
      * Build sanitized debug information for the SUMARIOPMD connection failure.
      *
      * @return array<string, mixed>

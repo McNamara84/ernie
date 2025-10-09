@@ -948,6 +948,30 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without keywords if loading fails
         }
+
+        // Load free keywords from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/free-keywords`);
+            const keywords = response.data.keywords || [];
+            
+            // Add free keywords to query parameters
+            keywords.forEach((keyword: string, index: number) => {
+                query[`freeKeywords[${index}]`] = keyword;
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading free keywords for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading free keywords for dataset:', error);
+            }
+            // Continue without free keywords if loading fails
+        }
     }
 
     return query;

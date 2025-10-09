@@ -69,6 +69,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/controlled-keywords', [OldDatasetController::class, 'getControlledKeywords'])
         ->name('old-datasets.controlled-keywords');
 
+    Route::get('old-datasets/{id}/free-keywords', [OldDatasetController::class, 'getFreeKeywords'])
+        ->name('old-datasets.free-keywords');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
@@ -109,6 +112,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'descriptions' => $request->query('descriptions', []),
             'dates' => $request->query('dates', []),
             'gcmdKeywords' => $request->query('gcmdKeywords', []),
+            'freeKeywords' => $request->query('freeKeywords', []),
         ]);
     })->name('curation');
 
