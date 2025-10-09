@@ -32,6 +32,7 @@ interface CurationProps {
     contributors?: InitialContributor[];
     descriptions?: { type: string; description: string }[];
     dates?: { dateType: string; startDate: string; endDate: string }[];
+    gcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
 }
 
 export default function Curation({
@@ -49,6 +50,7 @@ export default function Curation({
     contributors = [],
     descriptions = [],
     dates = [],
+    gcmdKeywords = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -185,6 +187,7 @@ export default function Curation({
                             initialContributors={contributors}
                             initialDescriptions={descriptions}
                             initialDates={dates}
+                            initialGcmdKeywords={gcmdKeywords}
                         />
                     )}
             </div>

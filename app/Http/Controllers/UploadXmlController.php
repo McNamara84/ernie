@@ -85,6 +85,7 @@ class UploadXmlController extends Controller
         $contributors = $this->extractContributors($reader);
         $descriptions = $this->extractDescriptions($reader);
         $dates = $this->extractDates($reader);
+        $gcmdKeywords = $this->extractGcmdKeywords($reader);
 
         $rightsElements = $reader
             ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -144,6 +145,7 @@ class UploadXmlController extends Controller
             'contributors' => $contributors,
             'descriptions' => $descriptions,
             'dates' => $dates,
+            'gcmdKeywords' => $gcmdKeywords,
         ]);
     }
 
@@ -1152,5 +1154,77 @@ class UploadXmlController extends Controller
             'familyName' => $name,
             'givenName' => null,
         ];
+    }
+
+    /**
+     * Extract GCMD keywords from the XML.
+     *
+     * @return array<int, array{uuid: string, id: string, path: string[], type: string}>
+     */
+    private function extractGcmdKeywords(XmlReader $reader): array
+    {
+        $subjectElements = $reader
+            ->xpathElement('//*[local-name()="subjects"]/*[local-name()="subject"]')
+            ->get();
+
+        $keywords = [];
+
+        foreach ($subjectElements as $element) {
+            $scheme = $element->getAttribute('subjectScheme');
+            $valueUri = $element->getAttribute('valueURI');
+            $content = $this->stringValue($element);
+
+            if (! $scheme || ! $valueUri || ! $content) {
+                continue;
+            }
+
+            // Determine keyword type based on scheme
+            $type = null;
+            if (stripos($scheme, 'Science Keywords') !== false) {
+                $type = 'science';
+            } elseif (stripos($scheme, 'Platforms') !== false) {
+                $type = 'platforms';
+            } elseif (stripos($scheme, 'Instruments') !== false) {
+                $type = 'instruments';
+            }
+
+            if (! $type) {
+                continue;
+            }
+
+            // Extract UUID from valueURI (last segment after /)
+            $uuidMatch = [];
+            if (preg_match('/([a-f0-9\-]{36})$/i', $valueUri, $uuidMatch)) {
+                $uuid = $uuidMatch[1];
+            } else {
+                continue;
+            }
+
+            // Build full ID URL to match JSON vocabulary structure
+            $id = 'https://gcmd.earthdata.nasa.gov/kms/concept/' . $uuid;
+
+            // Parse the path from content (e.g., "Science Keywords > EARTH SCIENCE > ...")
+            // Remove the prefix (e.g., "Science Keywords > ", "Platforms > ", "Instruments > ")
+            $pathString = $content;
+            if (stripos($pathString, 'Science Keywords >') === 0) {
+                $pathString = substr($pathString, strlen('Science Keywords > '));
+            } elseif (stripos($pathString, 'Platforms >') === 0) {
+                $pathString = substr($pathString, strlen('Platforms > '));
+            } elseif (stripos($pathString, 'Instruments >') === 0) {
+                $pathString = substr($pathString, strlen('Instruments > '));
+            }
+
+            // Split by " > " to get the path array
+            $path = array_map('trim', explode(' > ', $pathString));
+
+            $keywords[] = [
+                'uuid' => $uuid,
+                'id' => $id,
+                'path' => $path,
+                'type' => $type,
+            ];
+        }
+
+        return $keywords;
     }
 }

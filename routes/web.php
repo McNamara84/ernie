@@ -105,6 +105,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'contributors' => $request->query('contributors', []),
             'descriptions' => $request->query('descriptions', []),
             'dates' => $request->query('dates', []),
+            'gcmdKeywords' => $request->query('gcmdKeywords', []),
         ]);
     })->name('curation');
 

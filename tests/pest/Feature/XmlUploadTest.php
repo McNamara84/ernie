@@ -490,3 +490,56 @@ it('validates xml file type and size', function () {
 
     $response->assertStatus(422)->assertJsonValidationErrors('file');
 });
+
+it('extracts GCMD keywords from uploaded xml', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<resource>
+    <subjects>
+        <subject subjectScheme="NASA/GCMD Earth Science Keywords" 
+                 schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords" 
+                 valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36" 
+                 xml:lang="en">Science Keywords &gt; EARTH SCIENCE &gt; CRYOSPHERE &gt; FROZEN GROUND &gt; ROCK GLACIERS</subject>
+        <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" 
+                 schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms" 
+                 valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/6438d343-2e1f-4a89-97a9-b032e651163f" 
+                 xml:lang="en">Platforms &gt; Living Organism-based Platforms &gt; Living Organism</subject>
+        <subject subjectScheme="NASA/GCMD Instruments" 
+                 schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments" 
+                 valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/aac79253-3894-408b-a20b-51e7101c36e3" 
+                 xml:lang="en">Instruments &gt; Solar/Space Observing Instruments &gt; Radio Wave Detectors &gt; RIOMETER</subject>
+    </subjects>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk()->assertJson([
+        'gcmdKeywords' => [
+            [
+                'uuid' => 'b1ce822a-139b-4e11-8bbe-453f19501c36',
+                'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36',
+                'type' => 'science',
+                'path' => ['EARTH SCIENCE', 'CRYOSPHERE', 'FROZEN GROUND', 'ROCK GLACIERS'],
+            ],
+            [
+                'uuid' => '6438d343-2e1f-4a89-97a9-b032e651163f',
+                'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/6438d343-2e1f-4a89-97a9-b032e651163f',
+                'type' => 'platforms',
+                'path' => ['Living Organism-based Platforms', 'Living Organism'],
+            ],
+            [
+                'uuid' => 'aac79253-3894-408b-a20b-51e7101c36e3',
+                'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/aac79253-3894-408b-a20b-51e7101c36e3',
+                'type' => 'instruments',
+                'path' => ['Solar/Space Observing Instruments', 'Radio Wave Detectors', 'RIOMETER'],
+            ],
+        ],
+    ]);
+});

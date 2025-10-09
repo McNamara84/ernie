@@ -444,6 +444,7 @@ interface DataCiteFormProps {
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string }[];
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
+    initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -495,6 +496,7 @@ export default function DataCiteForm({
     initialContributors = [],
     initialDescriptions = [],
     initialDates = [],
+    initialGcmdKeywords = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -636,7 +638,17 @@ export default function DataCiteForm({
         ];
     });
 
-    const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>([]);
+    const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
+        if (initialGcmdKeywords && initialGcmdKeywords.length > 0) {
+            return initialGcmdKeywords.map((kw) => ({
+                id: kw.id,
+                text: kw.text,
+                path: kw.path,
+                vocabularyType: kw.vocabularyType as 'science' | 'platforms' | 'instruments',
+            }));
+        }
+        return [];
+    });
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
