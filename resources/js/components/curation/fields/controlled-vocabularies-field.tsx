@@ -202,6 +202,33 @@ export default function ControlledVocabulariesField({
                 </div>
             )}
 
+            {/* Search Input - searches across all vocabulary types */}
+            <div className="relative">
+                <Search className={cn(
+                    "absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4",
+                    isSearching ? "text-primary animate-pulse" : "text-muted-foreground"
+                )} />
+                <Input
+                    type="text"
+                    placeholder={`Search all vocabularies (min. ${MIN_SEARCH_LENGTH} characters)...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                />
+                {searchQuery && (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+                        onClick={() => setSearchQuery('')}
+                        aria-label="Clear search"
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
+            </div>
+
             {/* Tabs for vocabulary types */}
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
                 <TabsList className="grid w-full grid-cols-3">
@@ -211,33 +238,6 @@ export default function ControlledVocabulariesField({
                 </TabsList>
 
                 <TabsContent value={activeTab} className="space-y-4 mt-4">
-                    {/* Search Input */}
-                    <div className="relative">
-                        <Search className={cn(
-                            "absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4",
-                            isSearching ? "text-primary animate-pulse" : "text-muted-foreground"
-                        )} />
-                        <Input
-                            type="text"
-                            placeholder={`Search keywords (min. ${MIN_SEARCH_LENGTH} characters)...`}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-9"
-                        />
-                        {searchQuery && (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
-                                onClick={() => setSearchQuery('')}
-                                aria-label="Clear search"
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        )}
-                    </div>
-
                     {/* Tree View */}
                     {effectiveSearchQuery ? (
                         <div>
