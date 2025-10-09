@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ResourceKeyword extends Model
 {
+    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
 
     /**
@@ -20,7 +21,7 @@ class ResourceKeyword extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'resource_id',
@@ -29,6 +30,8 @@ class ResourceKeyword extends Model
 
     /**
      * Get the resource that owns this keyword.
+     *
+     * @return BelongsTo<Resource, $this>
      */
     public function resource(): BelongsTo
     {

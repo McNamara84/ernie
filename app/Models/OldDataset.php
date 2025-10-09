@@ -9,6 +9,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * @property array<string>|null $licenses
+ * @property string|null $keywords
  */
 class OldDataset extends Model
 {

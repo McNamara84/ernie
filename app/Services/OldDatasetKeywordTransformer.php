@@ -70,7 +70,7 @@ class OldDatasetKeywordTransformer
      * Transform a keyword from old database format to new format.
      *
      * @param object $oldKeyword Object with properties: keyword, thesaurus, uri, description
-     * @return array|null Array with keys: id, text, vocabulary, path, uuid, description
+     * @return array<string, string|null>|null Array with keys: id, text, vocabulary, path, uuid, description
      */
     public static function transform(object $oldKeyword): ?array
     {
@@ -104,8 +104,8 @@ class OldDatasetKeywordTransformer
     /**
      * Transform an array of keywords from old database format to new format.
      *
-     * @param array $oldKeywords Array of objects from old database
-     * @return array Array of transformed keywords
+     * @param array<int, object> $oldKeywords Array of objects from old database
+     * @return array<int, array<string, string|null>> Array of transformed keywords
      */
     public static function transformMany(array $oldKeywords): array
     {
@@ -125,7 +125,7 @@ class OldDatasetKeywordTransformer
     /**
      * Get list of supported GCMD thesaurus names from old database.
      *
-     * @return array
+     * @return array<int, string>
      */
     public static function getSupportedThesauri(): array
     {

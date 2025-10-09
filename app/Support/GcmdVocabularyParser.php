@@ -121,8 +121,8 @@ class GcmdVocabularyParser
         }
 
         // Second pass: recursively build tree starting from root nodes
-        $buildTree = function (string $nodeId) use (&$conceptsById, &$childrenByParentId, &$buildTree) {
-            if (!isset($conceptsById[$nodeId])) {
+        $buildTree = function (?string $nodeId) use (&$conceptsById, &$childrenByParentId, &$buildTree) {
+            if ($nodeId === null || !isset($conceptsById[$nodeId])) {
                 return null;
             }
 
