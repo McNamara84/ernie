@@ -66,6 +66,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/dates', [OldDatasetController::class, 'getDates'])
         ->name('old-datasets.dates');
 
+    Route::get('old-datasets/{id}/controlled-keywords', [OldDatasetController::class, 'getControlledKeywords'])
+        ->name('old-datasets.controlled-keywords');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 

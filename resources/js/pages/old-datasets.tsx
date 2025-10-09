@@ -914,6 +914,40 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without dates if loading fails
         }
+
+        // Load controlled keywords (GCMD) from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/controlled-keywords`);
+            const keywords = response.data.keywords || [];
+            
+            // Transform keywords to query parameter format
+            // The backend already provides the correct format: { id, text, vocabulary, path, uuid, description }
+            keywords.forEach((keyword: {
+                id: string;
+                text: string;
+                vocabulary: string;
+                path: string;
+                uuid: string;
+                description?: string;
+            }, index: number) => {
+                query[`controlledKeywords[${index}][id]`] = keyword.id;
+                query[`controlledKeywords[${index}][text]`] = keyword.text;
+                query[`controlledKeywords[${index}][vocabulary]`] = keyword.vocabulary;
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading controlled keywords for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading controlled keywords for dataset:', error);
+            }
+            // Continue without keywords if loading fails
+        }
     }
 
     return query;
