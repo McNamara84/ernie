@@ -46,9 +46,19 @@ const GCMDTreeNodeComponent = ({
     pathPrefix = [],
     searchQuery,
 }: GCMDTreeNodeProps) => {
-    // Only auto-expand root level (level 0) for better performance
-    // Users can manually expand deeper levels as needed
-    const [isExpanded, setIsExpanded] = useState(level === 0);
+    // Check if this node or any of its descendants are selected
+    const hasSelectedDescendant = (keyword: GCMDKeyword): boolean => {
+        if (selectedIds.has(keyword.id)) return true;
+        if (!keyword.children || keyword.children.length === 0) return false;
+        return keyword.children.some(hasSelectedDescendant);
+    };
+
+    // Auto-expand if:
+    // 1. Root level (level 0) for initial visibility
+    // 2. Node or any descendant is selected (to show selected keywords)
+    const shouldAutoExpand = level === 0 || hasSelectedDescendant(node);
+    const [isExpanded, setIsExpanded] = useState(shouldAutoExpand);
+    
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = selectedIds.has(node.id);
     const currentPath = [...pathPrefix, node.text];
