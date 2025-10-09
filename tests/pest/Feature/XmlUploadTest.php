@@ -543,3 +543,110 @@ XML;
         ],
     ]);
 });
+
+it('extracts free keywords from uploaded xml', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<resource>
+    <subjects>
+        <subject>climate change</subject>
+        <subject>temperature</subject>
+        <subject>precipitation</subject>
+        <subject subjectScheme="NASA/GCMD Earth Science Keywords" 
+                 schemeURI="https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords" 
+                 valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36" 
+                 xml:lang="en">Science Keywords &gt; EARTH SCIENCE &gt; CRYOSPHERE &gt; FROZEN GROUND &gt; ROCK GLACIERS</subject>
+    </subjects>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk()->assertJson([
+        'freeKeywords' => [
+            'climate change',
+            'temperature',
+            'precipitation',
+        ],
+        'gcmdKeywords' => [
+            [
+                'uuid' => 'b1ce822a-139b-4e11-8bbe-453f19501c36',
+                'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36',
+                'type' => 'science',
+                'path' => ['EARTH SCIENCE', 'CRYOSPHERE', 'FROZEN GROUND', 'ROCK GLACIERS'],
+            ],
+        ],
+    ]);
+});
+
+it('only extracts subjects without schema attributes as free keywords', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<resource>
+    <subjects>
+        <subject>free keyword 1</subject>
+        <subject schemeURI="http://some-scheme.org">controlled keyword</subject>
+        <subject>free keyword 2</subject>
+        <subject valueURI="http://some-uri.org/value">another controlled keyword</subject>
+        <subject>freekeyword3</subject>
+    </subjects>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk()->assertJson([
+        'freeKeywords' => [
+            'free keyword 1',
+            'free keyword 2',
+            'freekeyword3',
+        ],
+    ]);
+
+    // Verify that keywords with schema attributes are NOT in freeKeywords
+    $data = $response->json();
+    expect($data['freeKeywords'])->not->toContain('controlled keyword');
+    expect($data['freeKeywords'])->not->toContain('another controlled keyword');
+});
+
+it('handles empty and whitespace-only free keywords', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<resource>
+    <subjects>
+        <subject>valid keyword</subject>
+        <subject>   </subject>
+        <subject></subject>
+        <subject>another valid keyword</subject>
+    </subjects>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('test.xml', $xml);
+
+    $response = $this->post(route('dashboard.upload-xml'), [
+        'file' => $file,
+        '_token' => csrf_token(),
+    ]);
+
+    $response->assertOk()->assertJson([
+        'freeKeywords' => [
+            'valid keyword',
+            'another valid keyword',
+        ],
+    ]);
+});
+
