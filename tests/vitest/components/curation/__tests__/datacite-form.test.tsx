@@ -295,6 +295,20 @@ describe('DataCiteForm', () => {
             error: null,
         });
         global.fetch = vi.fn();
+        
+        // Mock the vocabulary fetches that DataCiteForm makes on mount
+        // for Free Keywords (GCMD vocabularies)
+        const emptyVocabularyResponse = {
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve([]),
+        } as Response;
+        
+        (global.fetch as unknown as vi.Mock)
+            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-science-keywords
+            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-platforms
+            .mockResolvedValueOnce(emptyVocabularyResponse); // gcmd-instruments
+        
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
     });
@@ -1910,7 +1924,8 @@ describe('DataCiteForm', () => {
             credentials: 'same-origin',
         }));
 
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[3][1];
         expect(fetchArgs).toBeDefined();
         const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
         expect(headers).toMatchObject({
@@ -1987,9 +2002,10 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
 
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[3][1] as RequestInit;
         const body = JSON.parse(fetchArgs.body as string);
 
         expect(body).toMatchObject({
@@ -2066,9 +2082,10 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
 
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[3][1] as RequestInit;
         const body = JSON.parse(fetchArgs.body as string);
 
         expect(body.authors).toEqual([
@@ -2136,8 +2153,10 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(1);
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
+        
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[3][1] as RequestInit;
         const headers = fetchArgs.headers as Record<string, string>;
         expect(headers['X-CSRF-TOKEN']).toBe('cookie-token');
         expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
@@ -2170,7 +2189,8 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).not.toHaveBeenCalled();
+        // Only vocabulary fetches should have been called (3 times), but no save fetch
+        expect(global.fetch).toHaveBeenCalledTimes(3);
         expect(
             await screen.findByText('Missing security token. Please refresh the page and try again.'),
         ).toBeInTheDocument();
@@ -2224,7 +2244,9 @@ describe('DataCiteForm', () => {
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
+        
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[3][1];
         expect(fetchArgs).toBeDefined();
         const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
         expect(headers).toMatchObject({
@@ -2425,7 +2447,8 @@ describe('DataCiteForm', () => {
             expect(global.fetch).toHaveBeenCalled();
         });
 
-        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[3];
         const requestBody = JSON.parse(fetchCall[1].body);
 
         expect(requestBody.descriptions).toBeDefined();
@@ -2489,7 +2512,8 @@ describe('DataCiteForm', () => {
             expect(global.fetch).toHaveBeenCalled();
         });
 
-        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[3];
         const requestBody = JSON.parse(fetchCall[1].body);
 
         expect(requestBody.descriptions).toBeDefined();
@@ -2545,7 +2569,8 @@ describe('DataCiteForm', () => {
             expect(global.fetch).toHaveBeenCalled();
         });
 
-        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
+        // The 4th call is the save operation (after 3 vocabulary fetches)
+        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[3];
         const requestBody = JSON.parse(fetchCall[1].body);
 
         expect(requestBody.descriptions[0].description).toBe('Test abstract with spaces');
