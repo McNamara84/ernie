@@ -153,14 +153,6 @@ export default function ControlledVocabulariesField({
 
     return (
         <div className="space-y-4">
-            <div>
-                <Label className="text-base font-semibold">Controlled Vocabularies (GCMD)</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                    Select keywords from NASA's Global Change Master Directory to categorize your
-                    dataset.
-                </p>
-            </div>
-
             {/* Selected Keywords Display */}
             {selectedKeywords.length > 0 && (
                 <div className="space-y-3">
