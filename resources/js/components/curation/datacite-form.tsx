@@ -22,6 +22,7 @@ import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { hasValidDateValue, serializeDateEntry } from '@/lib/date-utils';
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
+import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
@@ -36,6 +37,7 @@ import ContributorField, {
     type InstitutionContributorEntry,
     type PersonContributorEntry,
 } from './fields/contributor-field';
+import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
 import InputField from './fields/input-field';
@@ -633,6 +635,64 @@ export default function DataCiteForm({
             { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: REQUIRED_DATE_TYPE },
         ];
     });
+
+    const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>([]);
+    const [gcmdVocabularies, setGcmdVocabularies] = useState<{
+        science: GCMDKeyword[];
+        platforms: GCMDKeyword[];
+        instruments: GCMDKeyword[];
+    }>({
+        science: [],
+        platforms: [],
+        instruments: [],
+    });
+    const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
+
+    // Load GCMD vocabularies from web routes on mount
+    useEffect(() => {
+        const loadVocabularies = async () => {
+            try {
+                const [scienceRes, platformsRes, instrumentsRes] = await Promise.all([
+                    fetch(withBasePath('/vocabularies/gcmd-science-keywords')),
+                    fetch(withBasePath('/vocabularies/gcmd-platforms')),
+                    fetch(withBasePath('/vocabularies/gcmd-instruments')),
+                ]);
+
+                if (!scienceRes.ok || !platformsRes.ok || !instrumentsRes.ok) {
+                    console.error('Failed to load GCMD vocabularies', {
+                        science: scienceRes.status,
+                        platforms: platformsRes.status,
+                        instruments: instrumentsRes.status,
+                    });
+                    return;
+                }
+
+                const [scienceData, platformsData, instrumentsData] = await Promise.all([
+                    scienceRes.json(),
+                    platformsRes.json(),
+                    instrumentsRes.json(),
+                ]);
+
+                console.log('Loaded GCMD vocabularies:', {
+                    science: scienceData.data?.length || 0,
+                    platforms: platformsData.data?.length || 0,
+                    instruments: instrumentsData.data?.length || 0,
+                });
+
+                setGcmdVocabularies({
+                    science: scienceData.data || [],
+                    platforms: platformsData.data || [],
+                    instruments: instrumentsData.data || [],
+                });
+            } catch (error) {
+                console.error('Error loading GCMD vocabularies:', error);
+            } finally {
+                setIsLoadingVocabularies(false);
+            }
+        };
+
+        void loadVocabularies();
+    }, []);
     
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
@@ -1280,7 +1340,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'dates']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'dates']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1500,6 +1560,24 @@ export default function DataCiteForm({
                             descriptions={descriptions}
                             onChange={setDescriptions}
                         />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="controlled-vocabularies">
+                    <AccordionTrigger>Controlled Vocabularies</AccordionTrigger>
+                    <AccordionContent>
+                        {isLoadingVocabularies ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                Loading vocabularies...
+                            </div>
+                        ) : (
+                            <ControlledVocabulariesField
+                                scienceKeywords={gcmdVocabularies.science}
+                                platforms={gcmdVocabularies.platforms}
+                                instruments={gcmdVocabularies.instruments}
+                                selectedKeywords={gcmdKeywords}
+                                onChange={setGcmdKeywords}
+                            />
+                        )}
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="dates">
