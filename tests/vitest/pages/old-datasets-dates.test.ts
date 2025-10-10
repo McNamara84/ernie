@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { serializeDateEntry, type DateEntry } from '@/lib/date-utils';
+import { type DateEntry, serializeDateEntry } from '@/lib/date-utils';
 
 describe('DataCite Form - Date Serialization', () => {
     it('should serialize single date correctly', () => {
