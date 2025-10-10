@@ -793,4 +793,36 @@ class OldDataset extends Model
 
         return $result;
     }
+
+    /**
+     * Get related identifiers for this dataset from the old database.
+     * 
+     * Fetches data from the resource_rel_id table which stores relationships
+     * to other resources using DataCite relation types.
+     *
+     * @return array<int, array{identifier: string, identifierType: string, relationType: string, position: int}>
+     */
+    public function getRelatedIdentifiers(): array
+    {
+        if (!$this->exists) {
+            return [];
+        }
+
+        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        
+        // Get all related identifiers for this resource, ordered by position
+        $relatedIds = $db->table('resource_rel_id')
+            ->where('resource_id', $this->id)
+            ->orderBy('position')
+            ->get();
+
+        return $relatedIds->map(function ($relatedId) {
+            return [
+                'identifier' => $relatedId->identifier ?? '',
+                'identifierType' => $relatedId->identifier_type ?? 'DOI',
+                'relationType' => $relatedId->relation_type ?? 'Cites',
+                'position' => (int) ($relatedId->position ?? 0),
+            ];
+        })->toArray();
+    }
 }

@@ -95,6 +95,28 @@ class StoreResourceRequest extends FormRequest
             'spatialTemporalCoverages.*.endTime' => ['nullable', 'date_format:H:i:s,H:i'],
             'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100'],
             'spatialTemporalCoverages.*.description' => ['nullable', 'string'],
+            'relatedIdentifiers' => ['nullable', 'array'],
+            'relatedIdentifiers.*.identifier' => ['required', 'string', 'max:2183'],
+            'relatedIdentifiers.*.identifierType' => [
+                'required',
+                'string',
+                Rule::in(['DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN', 'PURL', 'ARK', 'arXiv', 'bibcode', 'EAN13', 'EISSN', 'ISTC', 'LISSN', 'LSID', 'PMID', 'UPC', 'w3id']),
+            ],
+            'relatedIdentifiers.*.relationType' => [
+                'required',
+                'string',
+                Rule::in([
+                    'Cites', 'IsCitedBy', 'References', 'IsReferencedBy',
+                    'IsSupplementTo', 'IsSupplementedBy', 'IsContinuedBy', 'Continues',
+                    'Describes', 'IsDescribedBy', 'HasMetadata', 'IsMetadataFor',
+                    'HasVersion', 'IsVersionOf', 'IsNewVersionOf', 'IsPreviousVersionOf',
+                    'IsPartOf', 'HasPart', 'IsPublishedIn', 'IsReferencedBy', 'References',
+                    'IsDocumentedBy', 'Documents', 'IsCompiledBy', 'Compiles',
+                    'IsVariantFormOf', 'IsOriginalFormOf', 'IsIdenticalTo',
+                    'IsReviewedBy', 'Reviews', 'IsDerivedFrom', 'IsSourceOf',
+                    'IsRequiredBy', 'Requires',
+                ]),
+            ],
         ];
     }
 
