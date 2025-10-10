@@ -448,7 +448,35 @@ class ResourceController extends Controller
                     $resource->controlledKeywords()->createMany($controlledKeywordsData);
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords']), $isUpdate];
+                // Save spatial and temporal coverages
+                if ($isUpdate) {
+                    $resource->coverages()->delete();
+                }
+
+                $coverages = $validated['spatialTemporalCoverages'] ?? [];
+
+                foreach ($coverages as $coverage) {
+                    // Only save coverage if it has at least one meaningful field
+                    $hasData = !empty($coverage['latMin']) || !empty($coverage['lonMin']) ||
+                               !empty($coverage['startDate']) || !empty($coverage['description']);
+
+                    if ($hasData) {
+                        $resource->coverages()->create([
+                            'lat_min' => $coverage['latMin'] ?? null,
+                            'lat_max' => $coverage['latMax'] ?? null,
+                            'lon_min' => $coverage['lonMin'] ?? null,
+                            'lon_max' => $coverage['lonMax'] ?? null,
+                            'start_date' => $coverage['startDate'] ?? null,
+                            'end_date' => $coverage['endDate'] ?? null,
+                            'start_time' => $coverage['startTime'] ?? null,
+                            'end_time' => $coverage['endTime'] ?? null,
+                            'timezone' => $coverage['timezone'] ?? 'UTC',
+                            'description' => $coverage['description'] ?? null,
+                        ]);
+                    }
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);
