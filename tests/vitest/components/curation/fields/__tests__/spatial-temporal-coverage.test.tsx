@@ -55,7 +55,7 @@ describe('SpatialTemporalCoverageField', () => {
     test('renders empty state with add button', () => {
         render(<SpatialTemporalCoverageField {...defaultProps} />);
 
-        expect(screen.getByText(/no coverage entries yet/i)).toBeInTheDocument();
+        expect(screen.getByText(/no spatial and temporal coverage entries yet/i)).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /add.*coverage entry/i }),
         ).toBeInTheDocument();
@@ -174,11 +174,12 @@ describe('SpatialTemporalCoverageField', () => {
             />,
         );
 
-        const addButton = screen.getByRole('button', {
+        // When entry is incomplete, there's no add button, only a help message
+        expect(screen.queryByRole('button', {
             name: /add.*coverage entry/i,
-        });
-
-        expect(addButton).toBeDisabled();
+        })).not.toBeInTheDocument();
+        
+        expect(screen.getByText(/complete the required fields/i)).toBeInTheDocument();
     });
 
     test('removes a coverage entry when remove is called', async () => {
