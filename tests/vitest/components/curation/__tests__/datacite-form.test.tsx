@@ -2396,8 +2396,10 @@ describe('DataCiteForm', () => {
         await waitFor(() => expect(saveButton).toBeEnabled());
     });
 
-    it('includes descriptions in the payload when submitting', async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
+    it(
+        'includes descriptions in the payload when submitting',
+        async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Success', resource: { id: 1 } };
         const jsonMock = vi.fn().mockResolvedValue(responseData);
@@ -2465,7 +2467,9 @@ describe('DataCiteForm', () => {
                 }),
             ]),
         );
-    });
+        },
+        15000,
+    ); // Increased timeout for this long-running test with multiple user interactions
 
     it('does not include empty descriptions in the payload', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });

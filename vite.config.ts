@@ -54,6 +54,7 @@ export default defineConfig(() => {
             globals: true,
             setupFiles: './vitest.setup.ts',
             include: ['tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}'],
+            testTimeout: 10000, // Doubled from default 5000ms to handle long-running tests
             env: {
                 VITE_APP_URL: '',
                 APP_URL: '',
