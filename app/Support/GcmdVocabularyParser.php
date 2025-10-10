@@ -94,11 +94,17 @@ class GcmdVocabularyParser
     public function buildHierarchy(array $concepts, string $schemeTitle, string $schemeURI): array
     {
         $conceptsById = [];
+        /** @var array<string, array<int, string>> */
         $childrenByParentId = [];
 
         // First pass: index all concepts and group children by parent ID
         foreach ($concepts as $concept) {
             $id = $concept['id'];
+            
+            // Skip concepts without valid IDs
+            if ($id === null || $id === '') {
+                continue;
+            }
             
             $conceptsById[$id] = [
                 'id' => $id,
@@ -110,8 +116,8 @@ class GcmdVocabularyParser
                 'children' => [],
             ];
 
-            // Group children by parent ID
-            if ($concept['broaderId']) {
+            // Group children by parent ID (only if broaderId is not null)
+            if ($concept['broaderId'] !== null) {
                 $broaderId = $concept['broaderId'];
                 if (!isset($childrenByParentId[$broaderId])) {
                     $childrenByParentId[$broaderId] = [];
