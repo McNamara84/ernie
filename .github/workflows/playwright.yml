@@ -90,6 +90,79 @@ jobs:
           {"prefLabel":"Kyoto University","rorId":"https://ror.org/02kpeqv85","otherLabel":["京都大学","Kyodai"]}
         ]
         EOF
+        # Prepare GCMD vocabularies test data for Playwright tests
+        mkdir -p storage/app/vocabularies
+        # Create minimal GCMD Science Keywords test data
+        cat > storage/app/vocabularies/gcmd-science-keywords.json << 'EOF'
+        {
+          "lastUpdated": "2024-01-01",
+          "data": [
+            {
+              "id": "https://gcmd.earthdata.nasa.gov/kms/concept/1",
+              "text": "EARTH SCIENCE",
+              "language": "en",
+              "scheme": "NASA/GCMD Earth Science Keywords",
+              "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
+              "description": "Earth Science",
+              "children": [
+                {
+                  "id": "https://gcmd.earthdata.nasa.gov/kms/concept/2",
+                  "text": "AGRICULTURE",
+                  "language": "en",
+                  "scheme": "NASA/GCMD Earth Science Keywords",
+                  "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
+                  "description": "Agriculture",
+                  "children": [
+                    {
+                      "id": "https://gcmd.earthdata.nasa.gov/kms/concept/3",
+                      "text": "SOILS",
+                      "language": "en",
+                      "scheme": "NASA/GCMD Earth Science Keywords",
+                      "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
+                      "description": "Soils",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+        # Create minimal GCMD Platforms test data
+        cat > storage/app/vocabularies/gcmd-platforms.json << 'EOF'
+        {
+          "lastUpdated": "2024-01-01",
+          "data": [
+            {
+              "id": "https://gcmd.earthdata.nasa.gov/kms/concept/platform-1",
+              "text": "SATELLITES",
+              "language": "en",
+              "scheme": "NASA/GCMD Platforms",
+              "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms",
+              "description": "Satellites",
+              "children": []
+            }
+          ]
+        }
+        EOF
+        # Create minimal GCMD Instruments test data
+        cat > storage/app/vocabularies/gcmd-instruments.json << 'EOF'
+        {
+          "lastUpdated": "2024-01-01",
+          "data": [
+            {
+              "id": "https://gcmd.earthdata.nasa.gov/kms/concept/instrument-1",
+              "text": "SPECTROMETERS",
+              "language": "en",
+              "scheme": "NASA/GCMD Instruments",
+              "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments",
+              "description": "Spectrometers",
+              "children": []
+            }
+          ]
+        }
+        EOF
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
     - name: Start Laravel server

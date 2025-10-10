@@ -130,17 +130,21 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
         // Wait for initial data to load
         await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
 
-        // Search for a common keyword that might appear in multiple vocabularies
-        await searchInput.fill('EARTH');
+        // Get initial count before search
+        const initialCount = await page.locator('[role="treeitem"]').count();
+        expect(initialCount).toBeGreaterThan(0); // Ensure we have data
+
+        // Search for a keyword that exists in the test data
+        await searchInput.fill('AGRI'); // Will match AGRICULTURE in test fixtures
 
         // Wait for search to filter results
         await page.waitForTimeout(500);
 
         // Verify that search affects the visible tree items
-        // (The exact assertions depend on your test data)
         const treeItems = page.locator('[role="treeitem"]');
         const visibleCount = await treeItems.count();
 
+        // After filtering, we should have results (may be fewer than initial)
         expect(visibleCount).toBeGreaterThan(0);
     });
 
@@ -149,20 +153,24 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
 
         // Wait for initial data to load
         await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+        
+        // Get initial count
+        const initialCount = await page.locator('[role="treeitem"]').count();
+        expect(initialCount).toBeGreaterThan(0);
 
         // Search for something
-        await searchInput.fill('EARTH');
+        await searchInput.fill('AGRI');
         await page.waitForTimeout(500);
 
         // Clear search
         await searchInput.clear();
         await page.waitForTimeout(500);
 
-        // Verify tree is restored (should show more items)
+        // Verify tree is restored (should show same or more items)
         const treeItems = page.locator('[role="treeitem"]');
         const count = await treeItems.count();
 
-        expect(count).toBeGreaterThan(0);
+        expect(count).toBeGreaterThanOrEqual(initialCount);
     });
 
     test('search is case-insensitive', async ({ page }) => {
@@ -172,18 +180,20 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
         await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
 
         // Search with lowercase
-        await searchInput.fill('earth');
+        await searchInput.fill('agri'); // lowercase
         await page.waitForTimeout(500);
         const lowercaseCount = await page.locator('[role="treeitem"]').count();
 
         // Clear and search with uppercase
         await searchInput.clear();
-        await searchInput.fill('EARTH');
+        await page.waitForTimeout(300);
+        await searchInput.fill('AGRI'); // uppercase
         await page.waitForTimeout(500);
         const uppercaseCount = await page.locator('[role="treeitem"]').count();
 
         // Should return same results
         expect(lowercaseCount).toBe(uppercaseCount);
+        expect(lowercaseCount).toBeGreaterThan(0);
     });
 });
 
