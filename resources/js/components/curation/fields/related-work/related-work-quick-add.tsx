@@ -227,7 +227,7 @@ export default function RelatedWorkQuickAdd({
                         onClick={onToggleAdvanced}
                         className="text-xs"
                     >
-                        {showAdvancedMode ? '← Simple Mode' : 'Show all relation types →'}
+                        {showAdvancedMode ? '← Simple mode' : 'Show all relation types →'}
                     </Button>
                 </div>
             )}

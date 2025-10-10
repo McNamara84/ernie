@@ -74,7 +74,7 @@ export default function RelatedWorkField({
             {showAdvanced && (
                 <div className="rounded-lg border border-dashed border-muted-foreground/25 p-8 text-center">
                     <p className="text-sm text-muted-foreground">
-                        Advanced Mode (all 33 relation types) - Coming soon
+                        Advanced mode (all 33 relation types) - Coming soon
                     </p>
                 </div>
             )}
