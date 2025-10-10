@@ -370,6 +370,7 @@ test.describe('XML Upload Functionality', () => {
         'available',
         'collected',
         'copyrighted',
+        'coverage',  // Added for spatial/temporal coverage dates
         'created',
         'issued',
         'submitted',
