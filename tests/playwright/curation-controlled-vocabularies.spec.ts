@@ -124,15 +124,14 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
         await ensureAccordionOpen(page);
     });
 
+    // These tests require GCMD vocabulary data to be available
     test('searches across all vocabulary types', async ({ page }) => {
         const searchInput = page.getByPlaceholder(/Search all vocabularies/i);
 
-        // Wait for initial data to load
+        // Check if data is available
         await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
-
-        // Get initial count before search
         const initialCount = await page.locator('[role="treeitem"]').count();
-        expect(initialCount).toBeGreaterThan(0); // Ensure we have data
+        expect(initialCount).toBeGreaterThan(0);
 
         // Search for a keyword that exists in the test data
         await searchInput.fill('AGRI'); // Will match AGRICULTURE in test fixtures
@@ -141,8 +140,7 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
         await page.waitForTimeout(500);
 
         // Verify that search affects the visible tree items
-        const treeItems = page.locator('[role="treeitem"]');
-        const visibleCount = await treeItems.count();
+        const visibleCount = await page.locator('[role="treeitem"]').count();
 
         // After filtering, we should have results (may be fewer than initial)
         expect(visibleCount).toBeGreaterThan(0);

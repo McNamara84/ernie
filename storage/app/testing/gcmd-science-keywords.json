@@ -1,0 +1,34 @@
+{
+  "lastUpdated": "2024-01-01",
+  "data": [
+    {
+      "id": "https://gcmd.earthdata.nasa.gov/kms/concept/1",
+      "text": "EARTH SCIENCE",
+      "language": "en",
+      "scheme": "NASA/GCMD Earth Science Keywords",
+      "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
+      "description": "Earth Science",
+      "children": [
+        {
+          "id": "https://gcmd.earthdata.nasa.gov/kms/concept/2",
+          "text": "AGRICULTURE",
+          "language": "en",
+          "scheme": "NASA/GCMD Earth Science Keywords",
+          "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
+          "description": "Agriculture",
+          "children": [
+            {
+              "id": "https://gcmd.earthdata.nasa.gov/kms/concept/3",
+              "text": "SOILS",
+              "language": "en",
+              "scheme": "NASA/GCMD Earth Science Keywords",
+              "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
+              "description": "Soils",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

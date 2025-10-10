@@ -91,78 +91,12 @@ jobs:
         ]
         EOF
         # Prepare GCMD vocabularies test data for Playwright tests
-        # Files go directly in storage/app/ (Laravel's default Storage disk)
-        # Create minimal GCMD Science Keywords test data
-        cat > storage/app/gcmd-science-keywords.json << 'EOF'
-        {
-          "lastUpdated": "2024-01-01",
-          "data": [
-            {
-              "id": "https://gcmd.earthdata.nasa.gov/kms/concept/1",
-              "text": "EARTH SCIENCE",
-              "language": "en",
-              "scheme": "NASA/GCMD Earth Science Keywords",
-              "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
-              "description": "Earth Science",
-              "children": [
-                {
-                  "id": "https://gcmd.earthdata.nasa.gov/kms/concept/2",
-                  "text": "AGRICULTURE",
-                  "language": "en",
-                  "scheme": "NASA/GCMD Earth Science Keywords",
-                  "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
-                  "description": "Agriculture",
-                  "children": [
-                    {
-                      "id": "https://gcmd.earthdata.nasa.gov/kms/concept/3",
-                      "text": "SOILS",
-                      "language": "en",
-                      "scheme": "NASA/GCMD Earth Science Keywords",
-                      "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords",
-                      "description": "Soils",
-                      "children": []
-                    }
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-        EOF
-        # Create minimal GCMD Platforms test data
-        cat > storage/app/gcmd-platforms.json << 'EOF'
-        {
-          "lastUpdated": "2024-01-01",
-          "data": [
-            {
-              "id": "https://gcmd.earthdata.nasa.gov/kms/concept/platform-1",
-              "text": "SATELLITES",
-              "language": "en",
-              "scheme": "NASA/GCMD Platforms",
-              "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms",
-              "description": "Satellites",
-              "children": []
-            }
-          ]
-        }
-        EOF
-        # Create minimal GCMD Instruments test data
-        cat > storage/app/gcmd-instruments.json << 'EOF'
-        {
-          "lastUpdated": "2024-01-01",
-          "data": [
-            {
-              "id": "https://gcmd.earthdata.nasa.gov/kms/concept/instrument-1",
-              "text": "SPECTROMETERS",
-              "language": "en",
-              "scheme": "NASA/GCMD Instruments",
-              "schemeURI": "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments",
-              "description": "Spectrometers",
-              "children": []
-            }
-          ]
-        }
-        EOF
+        # Copy committed test fixtures from storage/app/testing/ to storage/app/
+        # This ensures the files exist and are accessible to Laravel Storage
+        cp storage/app/testing/gcmd-science-keywords.json storage/app/gcmd-science-keywords.json
+        cp storage/app/testing/gcmd-platforms.json storage/app/gcmd-platforms.json
+        cp storage/app/testing/gcmd-instruments.json storage/app/gcmd-instruments.json
+        echo "GCMD test fixtures copied to storage/app/"
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
     - name: Start Laravel server
