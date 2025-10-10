@@ -715,7 +715,7 @@ export const buildCurationQueryFromResource = async (
     // Add spatial temporal coverages to query
     const coverages = resource.spatialTemporalCoverages ?? [];
     coverages.forEach((coverage, index) => {
-        const prefix = `spatialTemporalCoverages[${index}]`;
+        const prefix = `coverages[${index}]`;
         if (coverage.latMin) query[`${prefix}[latMin]`] = coverage.latMin;
         if (coverage.latMax) query[`${prefix}[latMax]`] = coverage.latMax;
         if (coverage.lonMin) query[`${prefix}[lonMin]`] = coverage.lonMin;
