@@ -508,7 +508,9 @@ class UploadXmlController extends Controller
                 $coverages[] = $coverage;
                 $index++;
             }
-        }        return $coverages;
+        }
+        
+        return $coverages;
     }
 
     /**
