@@ -456,7 +456,8 @@ class UploadXmlController extends Controller
             ];
             
             // Build XPath base for this specific geoLocation element
-            $geoLocationPath = '/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"][' . ($geoLocationIndex + 1) . ']';
+            // Cast to int to ensure type safety for PHPStan
+            $geoLocationPath = '/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"][' . ((int) $geoLocationIndex + 1) . ']';
             
             // Extract geoLocationPlace (description)
             $place = $this->extractFirstStringFromQuery(

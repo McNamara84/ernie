@@ -747,8 +747,8 @@ class OldDataset extends Model
                 $date = $matches[1]; // YYYY-MM-DD
                 $time = $matches[2]; // HH:MM:SS
                 
-                // Extract timezone if present
-                if (isset($matches[3]) && !empty($matches[3])) {
+                // Extract timezone if present (group 3 is optional in regex, but if matched it's always non-empty)
+                if (isset($matches[3])) {
                     if ($matches[3] === 'Z') {
                         $result['timezone'] = 'UTC';
                     } elseif ($matches[3] === '+00:00') {
