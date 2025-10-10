@@ -115,11 +115,14 @@ export default function ControlledVocabulariesField({
                 // Remove keyword
                 onChange(selectedKeywords.filter((k) => k.id !== keyword.id));
             } else {
-                // Add keyword
+                // Add keyword with all GCMD metadata
                 const newKeyword: SelectedKeyword = {
                     id: keyword.id,
                     text: keyword.text,
                     path: path.join(' > '),
+                    language: keyword.language,
+                    scheme: keyword.scheme,
+                    schemeURI: keyword.schemeURI,
                     vocabularyType: activeTab,
                 };
                 onChange([...selectedKeywords, newKeyword]);
@@ -150,6 +153,14 @@ export default function ControlledVocabulariesField({
 
         return grouped;
     }, [selectedKeywords]);
+
+    // Check if a vocabulary type has selected keywords
+    const hasKeywords = useCallback(
+        (type: GCMDVocabularyType): boolean => {
+            return keywordsByVocabulary[type].length > 0;
+        },
+        [keywordsByVocabulary],
+    );
 
     return (
         <div className="space-y-4">
@@ -232,9 +243,36 @@ export default function ControlledVocabulariesField({
             {/* Tabs for vocabulary types */}
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
                 <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="science">Science Keywords</TabsTrigger>
-                    <TabsTrigger value="platforms">Platforms</TabsTrigger>
-                    <TabsTrigger value="instruments">Instruments</TabsTrigger>
+                    <TabsTrigger value="science" className="relative">
+                        Science Keywords
+                        {hasKeywords('science') && (
+                            <span
+                                className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                aria-label="Has keywords"
+                                title="This vocabulary has selected keywords"
+                            />
+                        )}
+                    </TabsTrigger>
+                    <TabsTrigger value="platforms" className="relative">
+                        Platforms
+                        {hasKeywords('platforms') && (
+                            <span
+                                className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                aria-label="Has keywords"
+                                title="This vocabulary has selected keywords"
+                            />
+                        )}
+                    </TabsTrigger>
+                    <TabsTrigger value="instruments" className="relative">
+                        Instruments
+                        {hasKeywords('instruments') && (
+                            <span
+                                className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                aria-label="Has keywords"
+                                title="This vocabulary has selected keywords"
+                            />
+                        )}
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value={activeTab} className="space-y-4 mt-4">

@@ -921,7 +921,7 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             const keywords = response.data.keywords || [];
             
             // Transform keywords to query parameter format expected by curation page
-            // Expected format: { id, path, text, vocabularyType }
+            // Expected format: { id, path, text, language, scheme, schemeURI, vocabularyType }
             // vocabularyType must be: 'science' | 'platforms' | 'instruments'
             keywords.forEach((keyword: {
                 id: string;
@@ -941,6 +941,9 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 query[`gcmdKeywords[${index}][id]`] = keyword.id;
                 query[`gcmdKeywords[${index}][text]`] = keyword.text;
                 query[`gcmdKeywords[${index}][path]`] = keyword.path;
+                query[`gcmdKeywords[${index}][language]`] = 'en'; // Default language for old database keywords
+                query[`gcmdKeywords[${index}][scheme]`] = keyword.vocabulary; // Use vocabulary name as scheme
+                query[`gcmdKeywords[${index}][schemeURI]`] = keyword.id.replace(/\/concept\/[^/]+$/, '/concepts/concept_scheme'); // Derive scheme URI from keyword ID
                 query[`gcmdKeywords[${index}][vocabularyType]`] = vocabularyTypeMap[keyword.vocabulary] || keyword.vocabulary;
             });
         } catch (error) {

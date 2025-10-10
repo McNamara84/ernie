@@ -76,6 +76,14 @@ class StoreResourceRequest extends FormRequest
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
+            'gcmdKeywords' => ['nullable', 'array'],
+            'gcmdKeywords.*.id' => ['required', 'string', 'max:512'],
+            'gcmdKeywords.*.text' => ['required', 'string', 'max:255'],
+            'gcmdKeywords.*.path' => ['required', 'string'],
+            'gcmdKeywords.*.language' => ['nullable', 'string', 'max:10'],
+            'gcmdKeywords.*.scheme' => ['nullable', 'string', 'max:255'],
+            'gcmdKeywords.*.schemeURI' => ['nullable', 'string', 'max:512'],
+            'gcmdKeywords.*.vocabularyType' => ['required', 'string', Rule::in(['science', 'platforms', 'instruments'])],
         ];
     }
 

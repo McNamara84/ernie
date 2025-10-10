@@ -148,6 +148,15 @@ export interface ResourceForCuration {
     descriptions?: (ResourceDescriptionSummary | null | undefined)[] | null;
     dates?: (ResourceDateSummary | null | undefined)[] | null;
     freeKeywords?: string[] | null;
+    controlledKeywords?: {
+        id: string;
+        text: string;
+        path: string;
+        language: string;
+        scheme: string;
+        schemeURI: string;
+        vocabularyType: string;
+    }[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -676,6 +685,19 @@ export const buildCurationQueryFromResource = async (
     const freeKeywords = resource.freeKeywords ?? [];
     freeKeywords.forEach((keyword, index) => {
         query[`freeKeywords[${index}]`] = keyword;
+    });
+
+    // Add controlled keywords (GCMD vocabularies) to query
+    const controlledKeywords = resource.controlledKeywords ?? [];
+    controlledKeywords.forEach((keyword, index) => {
+        const prefix = `gcmdKeywords[${index}]`;
+        query[`${prefix}[id]`] = keyword.id;
+        query[`${prefix}[text]`] = keyword.text;
+        query[`${prefix}[path]`] = keyword.path;
+        query[`${prefix}[language]`] = keyword.language;
+        query[`${prefix}[scheme]`] = keyword.scheme;
+        query[`${prefix}[schemeURI]`] = keyword.schemeURI;
+        query[`${prefix}[vocabularyType]`] = keyword.vocabularyType;
     });
 
     return query;

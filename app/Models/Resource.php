@@ -105,4 +105,13 @@ class Resource extends Model
 
         return $relation;
     }
+
+    /** @return HasMany<ResourceControlledKeyword, static> */
+    public function controlledKeywords(): HasMany
+    {
+        /** @var HasMany<ResourceControlledKeyword, static> $relation */
+        $relation = $this->hasMany(ResourceControlledKeyword::class);
+
+        return $relation;
+    }
 }

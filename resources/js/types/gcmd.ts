@@ -23,6 +23,9 @@ export interface SelectedKeyword {
     id: string;
     text: string;
     path: string; // Breadcrumb path, e.g., "EARTH SCIENCE > DATA MANAGEMENT > DATA MINING"
+    language: string;
+    scheme: string;
+    schemeURI: string;
     vocabularyType: GCMDVocabularyType;
 }
 

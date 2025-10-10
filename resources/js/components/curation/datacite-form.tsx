@@ -1253,6 +1253,15 @@ export default function DataCiteForm({
             descriptions: { descriptionType: string; description: string }[];
             dates: { date: string; dateType: string }[];
             freeKeywords: string[];
+            gcmdKeywords: {
+                id: string;
+                text: string;
+                path: string;
+                language: string;
+                scheme: string;
+                schemeURI: string;
+                vocabularyType: string;
+            }[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1284,6 +1293,15 @@ export default function DataCiteForm({
             freeKeywords: freeKeywords
                 .map((kw) => kw.value.trim())
                 .filter((kw) => kw.length > 0),
+            gcmdKeywords: gcmdKeywords.map((kw) => ({
+                id: kw.id,
+                text: kw.text,
+                path: kw.path,
+                language: kw.language,
+                scheme: kw.scheme,
+                schemeURI: kw.schemeURI,
+                vocabularyType: kw.vocabularyType,
+            })),
         };
 
         if (resolvedResourceId !== null) {

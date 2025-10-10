@@ -49,6 +49,7 @@ class ResourceController extends Controller
                 'descriptions:id,resource_id,description_type,description',
                 'dates:id,resource_id,date_type,start_date,end_date,date_information',
                 'keywords:id,resource_id,keyword',
+                'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -235,6 +236,20 @@ class ResourceController extends Controller
                         })
                         ->values()
                         ->all(),
+                    'controlledKeywords' => $resource->controlledKeywords
+                        ->map(static function (\App\Models\ResourceControlledKeyword $keyword): array {
+                            return [
+                                'id' => $keyword->keyword_id,
+                                'text' => $keyword->text,
+                                'path' => $keyword->path,
+                                'language' => $keyword->language,
+                                'scheme' => $keyword->scheme,
+                                'schemeURI' => $keyword->scheme_uri,
+                                'vocabularyType' => $keyword->vocabulary_type,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
                 ];
             });
 
@@ -404,7 +419,29 @@ class ResourceController extends Controller
                     }
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords']), $isUpdate];
+                // Save controlled keywords (GCMD vocabularies)
+                if ($isUpdate) {
+                    $resource->controlledKeywords()->delete();
+                }
+
+                $controlledKeywords = $validated['gcmdKeywords'] ?? [];
+
+                foreach ($controlledKeywords as $keyword) {
+                    // Validate required fields
+                    if (!empty($keyword['id']) && !empty($keyword['text']) && !empty($keyword['vocabularyType'])) {
+                        $resource->controlledKeywords()->create([
+                            'keyword_id' => $keyword['id'],
+                            'text' => $keyword['text'],
+                            'path' => $keyword['path'] ?? $keyword['text'],
+                            'language' => $keyword['language'] ?? 'en',
+                            'scheme' => $keyword['scheme'] ?? '',
+                            'scheme_uri' => $keyword['schemeURI'] ?? '',
+                            'vocabulary_type' => $keyword['vocabularyType'],
+                        ]);
+                    }
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);
