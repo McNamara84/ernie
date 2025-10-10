@@ -114,4 +114,13 @@ class Resource extends Model
 
         return $relation;
     }
+
+    /** @return HasMany<ResourceCoverage, static> */
+    public function coverages(): HasMany
+    {
+        /** @var HasMany<ResourceCoverage, static> $relation */
+        $relation = $this->hasMany(ResourceCoverage::class);
+
+        return $relation;
+    }
 }

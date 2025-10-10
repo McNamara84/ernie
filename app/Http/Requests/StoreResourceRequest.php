@@ -84,6 +84,17 @@ class StoreResourceRequest extends FormRequest
             'gcmdKeywords.*.scheme' => ['nullable', 'string', 'max:255'],
             'gcmdKeywords.*.schemeURI' => ['nullable', 'string', 'max:512'],
             'gcmdKeywords.*.vocabularyType' => ['required', 'string', Rule::in(['science', 'platforms', 'instruments'])],
+            'spatialTemporalCoverages' => ['nullable', 'array'],
+            'spatialTemporalCoverages.*.latMin' => ['nullable', 'numeric', 'between:-90,90'],
+            'spatialTemporalCoverages.*.latMax' => ['nullable', 'numeric', 'between:-90,90'],
+            'spatialTemporalCoverages.*.lonMin' => ['nullable', 'numeric', 'between:-180,180'],
+            'spatialTemporalCoverages.*.lonMax' => ['nullable', 'numeric', 'between:-180,180'],
+            'spatialTemporalCoverages.*.startDate' => ['nullable', 'date'],
+            'spatialTemporalCoverages.*.endDate' => ['nullable', 'date'],
+            'spatialTemporalCoverages.*.startTime' => ['nullable', 'date_format:H:i:s,H:i'],
+            'spatialTemporalCoverages.*.endTime' => ['nullable', 'date_format:H:i:s,H:i'],
+            'spatialTemporalCoverages.*.timezone' => ['nullable', 'string', 'max:100'],
+            'spatialTemporalCoverages.*.description' => ['nullable', 'string'],
         ];
     }
 

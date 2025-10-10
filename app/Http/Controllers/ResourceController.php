@@ -50,6 +50,7 @@ class ResourceController extends Controller
                 'dates:id,resource_id,date_type,start_date,end_date,date_information',
                 'keywords:id,resource_id,keyword',
                 'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
+                'coverages',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -246,6 +247,23 @@ class ResourceController extends Controller
                                 'scheme' => $keyword->scheme,
                                 'schemeURI' => $keyword->scheme_uri,
                                 'vocabularyType' => $keyword->vocabulary_type,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                    'spatialTemporalCoverages' => $resource->coverages
+                        ->map(static function (\App\Models\ResourceCoverage $coverage): array {
+                            return [
+                                'latMin' => $coverage->lat_min !== null ? (string) $coverage->lat_min : '',
+                                'latMax' => $coverage->lat_max !== null ? (string) $coverage->lat_max : '',
+                                'lonMin' => $coverage->lon_min !== null ? (string) $coverage->lon_min : '',
+                                'lonMax' => $coverage->lon_max !== null ? (string) $coverage->lon_max : '',
+                                'startDate' => $coverage->start_date?->toDateString() ?? '',
+                                'endDate' => $coverage->end_date?->toDateString() ?? '',
+                                'startTime' => $coverage->start_time ?? '',
+                                'endTime' => $coverage->end_time ?? '',
+                                'timezone' => $coverage->timezone ?? 'UTC',
+                                'description' => $coverage->description ?? '',
                             ];
                         })
                         ->values()
@@ -448,7 +466,35 @@ class ResourceController extends Controller
                     $resource->controlledKeywords()->createMany($controlledKeywordsData);
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords']), $isUpdate];
+                // Save spatial and temporal coverages
+                if ($isUpdate) {
+                    $resource->coverages()->delete();
+                }
+
+                $coverages = $validated['spatialTemporalCoverages'] ?? [];
+
+                foreach ($coverages as $coverage) {
+                    // Only save coverage if it has at least one meaningful field
+                    $hasData = !empty($coverage['latMin']) || !empty($coverage['lonMin']) ||
+                               !empty($coverage['startDate']) || !empty($coverage['description']);
+
+                    if ($hasData) {
+                        $resource->coverages()->create([
+                            'lat_min' => $coverage['latMin'] ?? null,
+                            'lat_max' => $coverage['latMax'] ?? null,
+                            'lon_min' => $coverage['lonMin'] ?? null,
+                            'lon_max' => $coverage['lonMax'] ?? null,
+                            'start_date' => $coverage['startDate'] ?? null,
+                            'end_date' => $coverage['endDate'] ?? null,
+                            'start_time' => $coverage['startTime'] ?? null,
+                            'end_time' => $coverage['endTime'] ?? null,
+                            'timezone' => $coverage['timezone'] ?? 'UTC',
+                            'description' => $coverage['description'] ?? null,
+                        ]);
+                    }
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);

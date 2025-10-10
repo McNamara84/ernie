@@ -1276,6 +1276,18 @@ export default function DataCiteForm({
                 schemeURI: string;
                 vocabularyType: string;
             }[];
+            spatialTemporalCoverages: {
+                latMin: string;
+                latMax: string;
+                lonMin: string;
+                lonMax: string;
+                startDate: string;
+                endDate: string;
+                startTime: string;
+                endTime: string;
+                timezone: string;
+                description: string;
+            }[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1315,6 +1327,18 @@ export default function DataCiteForm({
                 scheme: kw.scheme,
                 schemeURI: kw.schemeURI,
                 vocabularyType: kw.vocabularyType,
+            })),
+            spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
+                latMin: coverage.latMin,
+                latMax: coverage.latMax,
+                lonMin: coverage.lonMin,
+                lonMax: coverage.lonMax,
+                startDate: coverage.startDate,
+                endDate: coverage.endDate,
+                startTime: coverage.startTime,
+                endTime: coverage.endTime,
+                timezone: coverage.timezone,
+                description: coverage.description,
             })),
         };
 

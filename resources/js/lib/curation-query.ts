@@ -157,6 +157,18 @@ export interface ResourceForCuration {
         schemeURI: string;
         vocabularyType: string;
     }[] | null;
+    spatialTemporalCoverages?: {
+        latMin: string;
+        latMax: string;
+        lonMin: string;
+        lonMax: string;
+        startDate: string;
+        endDate: string;
+        startTime: string;
+        endTime: string;
+        timezone: string;
+        description: string;
+    }[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -698,6 +710,22 @@ export const buildCurationQueryFromResource = async (
         query[`${prefix}[scheme]`] = keyword.scheme;
         query[`${prefix}[schemeURI]`] = keyword.schemeURI;
         query[`${prefix}[vocabularyType]`] = keyword.vocabularyType;
+    });
+
+    // Add spatial temporal coverages to query
+    const coverages = resource.spatialTemporalCoverages ?? [];
+    coverages.forEach((coverage, index) => {
+        const prefix = `coverages[${index}]`;
+        if (coverage.latMin) query[`${prefix}[latMin]`] = coverage.latMin;
+        if (coverage.latMax) query[`${prefix}[latMax]`] = coverage.latMax;
+        if (coverage.lonMin) query[`${prefix}[lonMin]`] = coverage.lonMin;
+        if (coverage.lonMax) query[`${prefix}[lonMax]`] = coverage.lonMax;
+        if (coverage.startDate) query[`${prefix}[startDate]`] = coverage.startDate;
+        if (coverage.endDate) query[`${prefix}[endDate]`] = coverage.endDate;
+        if (coverage.startTime) query[`${prefix}[startTime]`] = coverage.startTime;
+        if (coverage.endTime) query[`${prefix}[endTime]`] = coverage.endTime;
+        if (coverage.timezone) query[`${prefix}[timezone]`] = coverage.timezone;
+        if (coverage.description) query[`${prefix}[description]`] = coverage.description;
     });
 
     return query;
