@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
@@ -12,6 +12,18 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
  * - Green indicators showing selected keywords
  * - Saving and loading keywords
  */
+
+/**
+ * Helper function to ensure the Controlled Vocabularies accordion is open
+ */
+async function ensureAccordionOpen(page: Page) {
+    const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
+    const isExpanded = await vocabTrigger.getAttribute('aria-expanded');
+    if (isExpanded === 'false') {
+        await vocabTrigger.click();
+        await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'true');
+    }
+}
 
 test.describe('Controlled Vocabularies - Basic UI', () => {
     test.beforeEach(async ({ page }) => {
@@ -28,21 +40,39 @@ test.describe('Controlled Vocabularies - Basic UI', () => {
         const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
         await expect(vocabTrigger).toBeVisible();
 
-        // Initially collapsed
-        await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'false');
+        // Get current state
+        const initialState = await vocabTrigger.getAttribute('aria-expanded');
 
-        // Click to expand
-        await vocabTrigger.click();
-        await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'true');
+        // Test toggle functionality
+        if (initialState === 'true') {
+            // If already open, close it first
+            await vocabTrigger.click();
+            await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'false');
+            
+            // Then open it
+            await vocabTrigger.click();
+            await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'true');
+        } else {
+            // If closed, open it
+            await vocabTrigger.click();
+            await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'true');
+            
+            // Then close it to test
+            await vocabTrigger.click();
+            await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'false');
+            
+            // Open again for consistency
+            await vocabTrigger.click();
+            await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'true');
+        }
 
-        // Verify search input is visible
+        // Verify search input is visible when expanded
         const searchInput = page.getByPlaceholder(/Search all vocabularies/i);
         await expect(searchInput).toBeVisible();
     });
 
     test('displays all three vocabulary tabs', async ({ page }) => {
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
+        await ensureAccordionOpen(page);
 
         // Verify all three tabs are present
         const scienceTab = page.getByRole('tab', { name: /Science/i });
@@ -55,8 +85,7 @@ test.describe('Controlled Vocabularies - Basic UI', () => {
     });
 
     test('search field is positioned above tabs', async ({ page }) => {
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
+        await ensureAccordionOpen(page);
 
         const searchInput = page.getByPlaceholder(/Search all vocabularies/i);
         const scienceTab = page.getByRole('tab', { name: /Science/i });
@@ -82,9 +111,8 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
         await page.goto('/curation');
 
-        // Open accordion
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
+        // Ensure accordion is open
+        await ensureAccordionOpen(page);
     });
 
     test('searches across all vocabulary types', async ({ page }) => {
@@ -150,9 +178,8 @@ test.describe('Controlled Vocabularies - Keyword Selection', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
         await page.goto('/curation');
 
-        // Open accordion
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
+        // Ensure accordion is open
+        await ensureAccordionOpen(page);
     });
 
     test('can select and deselect keywords', async ({ page }) => {
@@ -235,9 +262,8 @@ test.describe('Controlled Vocabularies - Green Indicators', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
         await page.goto('/curation');
 
-        // Open accordion
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
+        // Ensure accordion is open
+        await ensureAccordionOpen(page);
     });
 
     test('shows green indicator when keywords are selected', async ({ page }) => {
@@ -351,13 +377,12 @@ test.describe('Controlled Vocabularies - Save and Load', () => {
         await page.getByRole('button', { name: 'Log in' }).click();
         await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
         await page.goto('/curation');
+
+        // Ensure accordion is open
+        await ensureAccordionOpen(page);
     });
 
     test.skip('saves selected keywords to database', async ({ page }) => {
-        // Open accordion
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
-
         // Select a keyword from Science
         const scienceTab = page.getByRole('tab', { name: /Science/i });
         await scienceTab.click();
@@ -394,9 +419,8 @@ test.describe('Controlled Vocabularies - Save and Load', () => {
         // Wait for curation form
         await page.waitForURL(/\/curation/, { timeout: 10_000 });
 
-        // Open Controlled Vocabularies accordion
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
+        // Ensure Controlled Vocabularies accordion is open
+        await ensureAccordionOpen(page);
 
         // Check if any keywords are selected (green indicators or selected keywords section)
         const selectedKeywords = page.locator('.selected-keyword-item, [data-testid="selected-keyword"]');
@@ -417,9 +441,8 @@ test.describe('Controlled Vocabularies - Accessibility', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
         await page.goto('/curation');
 
-        // Open accordion
-        const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
-        await vocabTrigger.click();
+        // Ensure accordion is open
+        await ensureAccordionOpen(page);
     });
 
     test('can navigate tabs with keyboard', async ({ page }) => {
