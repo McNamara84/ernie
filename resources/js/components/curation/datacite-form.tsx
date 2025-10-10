@@ -20,7 +20,7 @@ import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { hasValidDateValue, serializeDateEntry } from '@/lib/date-utils';
-import type { Language, License, ResourceType, Role, TitleType } from '@/types';
+import type { Language, License, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 
@@ -43,6 +43,7 @@ import DescriptionField, { type DescriptionEntry } from './fields/description-fi
 import FreeKeywordsField from './fields/free-keywords-field';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
+import { RelatedWorkField } from './fields/related-work';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
@@ -452,6 +453,7 @@ interface DataCiteFormProps {
     initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
     initialFreeKeywords?: string[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
+    initialRelatedWorks?: RelatedIdentifier[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -507,6 +509,7 @@ export default function DataCiteForm({
     initialGcmdKeywords = [],
     initialFreeKeywords = [],
     initialSpatialTemporalCoverages = [],
+    initialRelatedWorks = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -672,6 +675,12 @@ export default function DataCiteForm({
     >(() => {
         if (initialSpatialTemporalCoverages && initialSpatialTemporalCoverages.length > 0) {
             return initialSpatialTemporalCoverages;
+        }
+        return [];
+    });
+    const [relatedWorks, setRelatedWorks] = useState<RelatedIdentifier[]>(() => {
+        if (initialRelatedWorks && initialRelatedWorks.length > 0) {
+            return initialRelatedWorks;
         }
         return [];
     });
@@ -1424,7 +1433,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates', 'related-work']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1719,6 +1728,15 @@ export default function DataCiteForm({
                                 );
                             })}
                         </div>
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="related-work">
+                    <AccordionTrigger>Related Work</AccordionTrigger>
+                    <AccordionContent>
+                        <RelatedWorkField
+                            relatedWorks={relatedWorks}
+                            onChange={setRelatedWorks}
+                        />
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
