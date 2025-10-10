@@ -1,4 +1,5 @@
 export { default as RelatedWorkAdvancedAdd } from './related-work-advanced-add';
+export { default as RelatedWorkCsvImport } from './related-work-csv-import';
 export { default as RelatedWorkField } from './related-work-field';
 export { default as RelatedWorkItem } from './related-work-item';
 export { default as RelatedWorkList } from './related-work-list';

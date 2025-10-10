@@ -1,8 +1,11 @@
+import { FileUp } from 'lucide-react';
 import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import type { RelatedIdentifier, RelatedIdentifierFormData } from '@/types';
 
 import RelatedWorkAdvancedAdd from './related-work-advanced-add';
+import RelatedWorkCsvImport from './related-work-csv-import';
 import RelatedWorkList from './related-work-list';
 import RelatedWorkQuickAdd from './related-work-quick-add';
 
@@ -18,14 +21,15 @@ interface RelatedWorkFieldProps {
  * Manages state and coordinates between:
  * - Quick Add form (Top 5 most used)
  * - Advanced Add form (All 33 relation types)
+ * - CSV Bulk Import
  * - List of added items
- * - Validation (future)
  */
 export default function RelatedWorkField({
     relatedWorks,
     onChange,
 }: RelatedWorkFieldProps) {
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [showCsvImport, setShowCsvImport] = useState(false);
 
     const handleAdd = (data: RelatedIdentifierFormData) => {
         const newItem: RelatedIdentifier = {
@@ -36,6 +40,18 @@ export default function RelatedWorkField({
         };
 
         onChange([...relatedWorks, newItem]);
+    };
+
+    const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
+        const newItems: RelatedIdentifier[] = data.map((item, index) => ({
+            identifier: item.identifier,
+            identifier_type: item.identifierType,
+            relation_type: item.relationType,
+            position: relatedWorks.length + index,
+        }));
+
+        onChange([...relatedWorks, ...newItems]);
+        setShowCsvImport(false);
     };
 
     const handleRemove = (index: number) => {
@@ -56,24 +72,49 @@ export default function RelatedWorkField({
 
     return (
         <div className="space-y-6">
-            {/* Quick or Advanced Mode */}
-            {!showAdvanced ? (
-                <RelatedWorkQuickAdd
-                    onAdd={handleAdd}
-                    showAdvancedMode={showAdvanced}
-                    onToggleAdvanced={handleToggleAdvanced}
-                />
+            {/* CSV Import Modal */}
+            {showCsvImport ? (
+                <div className="rounded-lg border bg-card p-6">
+                    <RelatedWorkCsvImport
+                        onImport={handleBulkImport}
+                        onClose={() => setShowCsvImport(false)}
+                    />
+                </div>
             ) : (
                 <>
-                    <RelatedWorkAdvancedAdd onAdd={handleAdd} />
-                    <div className="pt-2">
-                        <button
+                    {/* Quick or Advanced Mode */}
+                    {!showAdvanced ? (
+                        <RelatedWorkQuickAdd
+                            onAdd={handleAdd}
+                            showAdvancedMode={showAdvanced}
+                            onToggleAdvanced={handleToggleAdvanced}
+                        />
+                    ) : (
+                        <>
+                            <RelatedWorkAdvancedAdd onAdd={handleAdd} />
+                            <div className="pt-2">
+                                <button
+                                    type="button"
+                                    onClick={handleToggleAdvanced}
+                                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                                >
+                                    ← Switch to simple mode
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {/* CSV Import Button */}
+                    <div className="flex justify-end">
+                        <Button
                             type="button"
-                            onClick={handleToggleAdvanced}
-                            className="text-xs text-muted-foreground hover:text-foreground underline"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowCsvImport(true)}
                         >
-                            ← Switch to simple mode
-                        </button>
+                            <FileUp className="mr-2 h-4 w-4" />
+                            Import from CSV
+                        </Button>
                     </div>
                 </>
             )}
