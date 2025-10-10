@@ -76,6 +76,15 @@ export default function SpatialTemporalCoverageField({
         onChange(updated);
     };
 
+    const handleEntryBatchChange = (
+        index: number,
+        updates: Partial<SpatialTemporalCoverageEntry>,
+    ) => {
+        const updated = [...coverages];
+        updated[index] = { ...updated[index], ...updates };
+        onChange(updated);
+    };
+
     const handleAddCoverage = () => {
         if (canAddCoverage(coverages, maxCoverages)) {
             onChange([...coverages, createEmptyCoverage()]);
@@ -99,6 +108,7 @@ export default function SpatialTemporalCoverageField({
                         apiKey={apiKey}
                         isFirst={index === 0}
                         onChange={(field, value) => handleEntryChange(index, field, value)}
+                        onBatchChange={(updates) => handleEntryBatchChange(index, updates)}
                         onRemove={() => handleRemoveCoverage(index)}
                     />
                 ))

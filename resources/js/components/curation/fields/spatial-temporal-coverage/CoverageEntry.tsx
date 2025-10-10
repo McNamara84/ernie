@@ -17,6 +17,7 @@ interface CoverageEntryProps {
     apiKey: string;
     isFirst: boolean;
     onChange: (field: keyof SpatialTemporalCoverageEntry, value: string) => void;
+    onBatchChange: (updates: Partial<SpatialTemporalCoverageEntry>) => void;
     onRemove: () => void;
 }
 
@@ -66,22 +67,46 @@ export default function CoverageEntry({
     apiKey,
     isFirst,
     onChange,
+    onBatchChange,
     onRemove,
 }: CoverageEntryProps) {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const handlePointSelected = (lat: number, lng: number) => {
-        onChange('latMin', lat.toFixed(6));
-        onChange('lonMin', lng.toFixed(6));
-        onChange('latMax', '');
-        onChange('lonMax', '');
+        // Update all fields in one batch
+        const latMinStr = lat.toFixed(6);
+        const lonMinStr = lng.toFixed(6);
+        
+        console.log('Point selected:', { lat: latMinStr, lng: lonMinStr });
+        
+        onBatchChange({
+            latMin: latMinStr,
+            lonMin: lonMinStr,
+            latMax: '',
+            lonMax: '',
+        });
     };
 
     const handleRectangleSelected = (bounds: CoordinateBounds) => {
-        onChange('latMin', bounds.south.toFixed(6));
-        onChange('latMax', bounds.north.toFixed(6));
-        onChange('lonMin', bounds.west.toFixed(6));
-        onChange('lonMax', bounds.east.toFixed(6));
+        // Update all fields in one batch
+        const latMinStr = bounds.south.toFixed(6);
+        const latMaxStr = bounds.north.toFixed(6);
+        const lonMinStr = bounds.west.toFixed(6);
+        const lonMaxStr = bounds.east.toFixed(6);
+        
+        console.log('Rectangle selected:', { 
+            latMin: latMinStr, 
+            latMax: latMaxStr, 
+            lonMin: lonMinStr, 
+            lonMax: lonMaxStr 
+        });
+        
+        onBatchChange({
+            latMin: latMinStr,
+            latMax: latMaxStr,
+            lonMin: lonMinStr,
+            lonMax: lonMaxStr,
+        });
     };
 
     const handleCoordinateChange = (
