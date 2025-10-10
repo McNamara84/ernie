@@ -91,6 +91,8 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             contributors?: (UploadedContributor | null | undefined)[] | null;
             descriptions?: { type: string; description: string }[] | null;
             dates?: { dateType: string; startDate: string; endDate: string }[] | null;
+            gcmdKeywords?: { uuid: string; id: string; path: string[]; type: string }[] | null;
+            freeKeywords?: string[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -294,6 +296,33 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 }
                 if (endDate) {
                     query[`dates[${i}][endDate]`] = endDate;
+                }
+            });
+        }
+        if (data.gcmdKeywords && data.gcmdKeywords.length > 0) {
+            data.gcmdKeywords.forEach((keyword, i) => {
+                if (!keyword || typeof keyword !== 'object') {
+                    return;
+                }
+
+                const id = typeof keyword.id === 'string' ? keyword.id.trim() : '';
+                const type = typeof keyword.type === 'string' ? keyword.type.trim() : '';
+                const path = Array.isArray(keyword.path) ? keyword.path : [];
+
+                if (!id || !type || path.length === 0) {
+                    return;
+                }
+
+                query[`gcmdKeywords[${i}][id]`] = id;
+                query[`gcmdKeywords[${i}][vocabularyType]`] = type;
+                query[`gcmdKeywords[${i}][path]`] = path.join(' > ');
+                query[`gcmdKeywords[${i}][text]`] = path[path.length - 1] || '';
+            });
+        }
+        if (data.freeKeywords && data.freeKeywords.length > 0) {
+            data.freeKeywords.forEach((keyword, i) => {
+                if (typeof keyword === 'string' && keyword.trim()) {
+                    query[`freeKeywords[${i}]`] = keyword.trim();
                 }
             });
         }

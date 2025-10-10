@@ -3,6 +3,7 @@
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\UploadXmlController;
+use App\Http\Controllers\VocabularyController;
 use App\Models\License;
 use App\Models\Resource;
 use App\Models\Setting;
@@ -65,6 +66,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/dates', [OldDatasetController::class, 'getDates'])
         ->name('old-datasets.dates');
 
+    Route::get('old-datasets/{id}/controlled-keywords', [OldDatasetController::class, 'getControlledKeywords'])
+        ->name('old-datasets.controlled-keywords');
+
+    Route::get('old-datasets/{id}/free-keywords', [OldDatasetController::class, 'getFreeKeywords'])
+        ->name('old-datasets.free-keywords');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
@@ -104,11 +111,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'contributors' => $request->query('contributors', []),
             'descriptions' => $request->query('descriptions', []),
             'dates' => $request->query('dates', []),
+            'gcmdKeywords' => $request->query('gcmdKeywords', []),
+            'freeKeywords' => $request->query('freeKeywords', []),
         ]);
     })->name('curation');
 
     Route::post('curation/resources', [ResourceController::class, 'store'])
         ->name('curation.resources.store');
+
+    // GCMD Vocabulary routes for frontend (without API key requirement)
+    Route::get('vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords'])
+        ->name('vocabularies.gcmd-science-keywords');
+    Route::get('vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms'])
+        ->name('vocabularies.gcmd-platforms');
+    Route::get('vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])
+        ->name('vocabularies.gcmd-instruments');
 });
 
 require __DIR__.'/settings.php';

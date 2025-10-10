@@ -94,11 +94,17 @@ class GcmdVocabularyParser
     public function buildHierarchy(array $concepts, string $schemeTitle, string $schemeURI): array
     {
         $conceptsById = [];
-        $childrenMap = [];
+        /** @var array<string, array<int, string>> */
+        $childrenByParentId = [];
 
-        // First pass: index all concepts
+        // First pass: index all concepts and group children by parent ID
         foreach ($concepts as $concept) {
             $id = $concept['id'];
+            
+            // Skip concepts without valid IDs
+            if ($id === null || $id === '') {
+                continue;
+            }
             
             $conceptsById[$id] = [
                 'id' => $id,
@@ -110,40 +116,36 @@ class GcmdVocabularyParser
                 'children' => [],
             ];
 
-            // Build parent-child mapping
-            if ($concept['broaderId']) {
+            // Group children by parent ID (only if broaderId is not null)
+            if ($concept['broaderId'] !== null) {
                 $broaderId = $concept['broaderId'];
-                if (!isset($childrenMap[$broaderId])) {
-                    $childrenMap[$broaderId] = [];
+                if (!isset($childrenByParentId[$broaderId])) {
+                    $childrenByParentId[$broaderId] = [];
                 }
-                $childrenMap[$broaderId][] = $id;
+                $childrenByParentId[$broaderId][] = $id;
             }
         }
 
-        // Second pass: build hierarchy
-        foreach ($childrenMap as $parentId => $childIds) {
-            if (isset($conceptsById[$parentId])) {
-                foreach ($childIds as $childId) {
-                    if (isset($conceptsById[$childId])) {
-                        // @phpstan-ignore-next-line - Dynamic nested array structure
-                        $conceptsById[$parentId]['children'][] = $conceptsById[$childId];
-                    }
-                }
-            }
+        // Find root concept IDs (concepts with no parent or parent doesn't exist)
+        $allChildIds = [];
+        foreach ($childrenByParentId as $childIds) {
+            $allChildIds = array_merge($allChildIds, $childIds);
         }
-
-        // Find root concepts (concepts with no parent)
-        $rootConcepts = [];
+        $allChildIds = array_unique($allChildIds);
+        
+        $rootIds = [];
         foreach ($conceptsById as $id => $concept) {
-            $hasParent = false;
-            foreach ($childrenMap as $parentId => $childIds) {
-                if (in_array($id, $childIds)) {
-                    $hasParent = true;
-                    break;
-                }
+            if (!in_array($id, $allChildIds)) {
+                $rootIds[] = $id;
             }
-            if (!$hasParent) {
-                $rootConcepts[] = $concept;
+        }
+
+        // Build tree only from root concepts (top-down approach)
+        $rootConcepts = [];
+        foreach ($rootIds as $rootId) {
+            $rootNode = $this->buildTreeNode($rootId, $conceptsById, $childrenByParentId);
+            if ($rootNode !== null) {
+                $rootConcepts[] = $rootNode;
             }
         }
 
@@ -151,5 +153,34 @@ class GcmdVocabularyParser
             'lastUpdated' => now()->format('Y-m-d H:i:s'),
             'data' => $rootConcepts,
         ];
+    }
+
+    /**
+     * Recursively build a tree node and all its descendants
+     *
+     * @param string|null $nodeId The ID of the current node
+     * @param array<string, array<string, mixed>> $conceptsById Indexed concepts
+     * @param array<string, array<int, string>> $childrenByParentId Map of parent IDs to child IDs
+     * @return array<string, mixed>|null The built tree node or null if node doesn't exist
+     */
+    private function buildTreeNode(?string $nodeId, array &$conceptsById, array &$childrenByParentId): ?array
+    {
+        if ($nodeId === null || !isset($conceptsById[$nodeId])) {
+            return null;
+        }
+
+        $node = $conceptsById[$nodeId];
+        $childIds = $childrenByParentId[$nodeId] ?? [];
+        
+        // Recursively build children
+        $node['children'] = [];
+        foreach ($childIds as $childId) {
+            $childNode = $this->buildTreeNode($childId, $conceptsById, $childrenByParentId);
+            if ($childNode !== null) {
+                $node['children'][] = $childNode;
+            }
+        }
+        
+        return $node;
     }
 }

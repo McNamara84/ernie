@@ -90,6 +90,8 @@ jobs:
           {"prefLabel":"Kyoto University","rorId":"https://ror.org/02kpeqv85","otherLabel":["京都大学","Kyodai"]}
         ]
         EOF
+        # GCMD vocabulary tests are skipped in CI (run locally with real data)
+        # See: docs/PLAYWRIGHT_GCMD_FIXTURES.md
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
     - name: Start Laravel server

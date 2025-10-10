@@ -22,6 +22,7 @@ import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { hasValidDateValue, serializeDateEntry } from '@/lib/date-utils';
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
+import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
@@ -36,11 +37,14 @@ import ContributorField, {
     type InstitutionContributorEntry,
     type PersonContributorEntry,
 } from './fields/contributor-field';
+import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
+import FreeKeywordsField from './fields/free-keywords-field';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import { SelectField } from './fields/select-field';
+import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
@@ -442,6 +446,8 @@ interface DataCiteFormProps {
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string }[];
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
+    initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
+    initialFreeKeywords?: string[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -493,6 +499,8 @@ export default function DataCiteForm({
     initialContributors = [],
     initialDescriptions = [],
     initialDates = [],
+    initialGcmdKeywords = [],
+    initialFreeKeywords = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -633,6 +641,82 @@ export default function DataCiteForm({
             { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: REQUIRED_DATE_TYPE },
         ];
     });
+
+    const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
+        if (initialGcmdKeywords && initialGcmdKeywords.length > 0) {
+            return initialGcmdKeywords.map((kw) => ({
+                id: kw.id,
+                text: kw.text,
+                path: kw.path,
+                vocabularyType: kw.vocabularyType as 'science' | 'platforms' | 'instruments',
+            }));
+        }
+        return [];
+    });
+    const [freeKeywords, setFreeKeywords] = useState<TagInputItem[]>(() => {
+        if (initialFreeKeywords && initialFreeKeywords.length > 0) {
+            return initialFreeKeywords.map((keyword) => ({
+                value: keyword,
+            }));
+        }
+        return [];
+    });
+    const [gcmdVocabularies, setGcmdVocabularies] = useState<{
+        science: GCMDKeyword[];
+        platforms: GCMDKeyword[];
+        instruments: GCMDKeyword[];
+    }>({
+        science: [],
+        platforms: [],
+        instruments: [],
+    });
+    const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
+
+    // Load GCMD vocabularies from web routes on mount
+    useEffect(() => {
+        const loadVocabularies = async () => {
+            try {
+                const [scienceRes, platformsRes, instrumentsRes] = await Promise.all([
+                    fetch(withBasePath('/vocabularies/gcmd-science-keywords')),
+                    fetch(withBasePath('/vocabularies/gcmd-platforms')),
+                    fetch(withBasePath('/vocabularies/gcmd-instruments')),
+                ]);
+
+                if (!scienceRes.ok || !platformsRes.ok || !instrumentsRes.ok) {
+                    console.error('Failed to load GCMD vocabularies', {
+                        science: scienceRes.status,
+                        platforms: platformsRes.status,
+                        instruments: instrumentsRes.status,
+                    });
+                    return;
+                }
+
+                const [scienceData, platformsData, instrumentsData] = await Promise.all([
+                    scienceRes.json(),
+                    platformsRes.json(),
+                    instrumentsRes.json(),
+                ]);
+
+                console.log('Loaded GCMD vocabularies:', {
+                    science: scienceData.data?.length || 0,
+                    platforms: platformsData.data?.length || 0,
+                    instruments: instrumentsData.data?.length || 0,
+                });
+
+                setGcmdVocabularies({
+                    science: scienceData.data || [],
+                    platforms: platformsData.data || [],
+                    instruments: instrumentsData.data || [],
+                });
+            } catch (error) {
+                console.error('Error loading GCMD vocabularies:', error);
+            } finally {
+                setIsLoadingVocabularies(false);
+            }
+        };
+
+        void loadVocabularies();
+    }, []);
     
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
@@ -1168,6 +1252,16 @@ export default function DataCiteForm({
             contributors: SerializedContributor[];
             descriptions: { descriptionType: string; description: string }[];
             dates: { date: string; dateType: string }[];
+            freeKeywords: string[];
+            gcmdKeywords: {
+                id: string;
+                text: string;
+                path: string;
+                language: string;
+                scheme: string;
+                schemeURI: string;
+                vocabularyType: string;
+            }[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1196,6 +1290,18 @@ export default function DataCiteForm({
                     date: serializeDateEntry(date),
                     dateType: date.dateType,
                 })),
+            freeKeywords: freeKeywords
+                .map((kw) => kw.value.trim())
+                .filter((kw) => kw.length > 0),
+            gcmdKeywords: gcmdKeywords.map((kw) => ({
+                id: kw.id,
+                text: kw.text,
+                path: kw.path,
+                language: kw.language,
+                scheme: kw.scheme,
+                schemeURI: kw.schemeURI,
+                vocabularyType: kw.vocabularyType,
+            })),
         };
 
         if (resolvedResourceId !== null) {
@@ -1280,7 +1386,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'dates']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'dates']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1499,6 +1605,33 @@ export default function DataCiteForm({
                         <DescriptionField
                             descriptions={descriptions}
                             onChange={setDescriptions}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="controlled-vocabularies">
+                    <AccordionTrigger>Controlled Vocabularies</AccordionTrigger>
+                    <AccordionContent>
+                        {isLoadingVocabularies ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                Loading vocabularies...
+                            </div>
+                        ) : (
+                            <ControlledVocabulariesField
+                                scienceKeywords={gcmdVocabularies.science}
+                                platforms={gcmdVocabularies.platforms}
+                                instruments={gcmdVocabularies.instruments}
+                                selectedKeywords={gcmdKeywords}
+                                onChange={setGcmdKeywords}
+                            />
+                        )}
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="free-keywords">
+                    <AccordionTrigger>Free Keywords</AccordionTrigger>
+                    <AccordionContent>
+                        <FreeKeywordsField
+                            keywords={freeKeywords}
+                            onChange={setFreeKeywords}
                         />
                     </AccordionContent>
                 </AccordionItem>

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
+use App\Support\GcmdUriHelper;
+use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -85,6 +87,11 @@ class UploadXmlController extends Controller
         $contributors = $this->extractContributors($reader);
         $descriptions = $this->extractDescriptions($reader);
         $dates = $this->extractDates($reader);
+        $gcmdKeywords = $this->extractGcmdKeywords($reader);
+        
+        // Use dedicated service for keyword extraction
+        $keywordExtractor = new XmlKeywordExtractor();
+        $freeKeywords = $keywordExtractor->extractFreeKeywords($reader);
 
         $rightsElements = $reader
             ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -144,6 +151,8 @@ class UploadXmlController extends Controller
             'contributors' => $contributors,
             'descriptions' => $descriptions,
             'dates' => $dates,
+            'gcmdKeywords' => $gcmdKeywords,
+            'freeKeywords' => $freeKeywords,
         ]);
     }
 
@@ -1152,5 +1161,66 @@ class UploadXmlController extends Controller
             'familyName' => $name,
             'givenName' => null,
         ];
+    }
+
+    /**
+     * Extract GCMD keywords from the XML.
+     *
+     * @return array<int, array{uuid: string, id: string, path: string[], type: string}>
+     */
+    private function extractGcmdKeywords(XmlReader $reader): array
+    {
+        $subjectElements = $reader
+            ->xpathElement('//*[local-name()="subjects"]/*[local-name()="subject"]')
+            ->get();
+
+        $keywords = [];
+
+        foreach ($subjectElements as $element) {
+            $scheme = $element->getAttribute('subjectScheme');
+            $valueUri = $element->getAttribute('valueURI');
+            $content = $this->stringValue($element);
+
+            if (! $scheme || ! $valueUri || ! $content) {
+                continue;
+            }
+
+            // Determine keyword type based on scheme
+            $type = null;
+            if (stripos($scheme, 'Science Keywords') !== false) {
+                $type = 'science';
+            } elseif (stripos($scheme, 'Platforms') !== false) {
+                $type = 'platforms';
+            } elseif (stripos($scheme, 'Instruments') !== false) {
+                $type = 'instruments';
+            }
+
+            if (! $type) {
+                continue;
+            }
+
+            // Extract UUID from valueURI using shared utility
+            $uuid = GcmdUriHelper::extractUuid($valueUri);
+            
+            if (!$uuid) {
+                continue;
+            }
+
+            // Build full ID URL using shared utility
+            $id = GcmdUriHelper::buildConceptUri($uuid);
+
+            // Parse the hierarchical path using shared utility
+            // Example: "Science Keywords > EARTH SCIENCE > ATMOSPHERE" -> ["EARTH SCIENCE", "ATMOSPHERE"]
+            $path = XmlKeywordExtractor::parseGcmdPath($content);
+
+            $keywords[] = [
+                'uuid' => $uuid,
+                'id' => $id,
+                'path' => $path,
+                'type' => $type,
+            ];
+        }
+
+        return $keywords;
     }
 }

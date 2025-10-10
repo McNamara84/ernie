@@ -48,6 +48,8 @@ class ResourceController extends Controller
                 'licenses:id,identifier,name',
                 'descriptions:id,resource_id,description_type,description',
                 'dates:id,resource_id,date_type,start_date,end_date,date_information',
+                'keywords:id,resource_id,keyword',
+                'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -228,6 +230,26 @@ class ResourceController extends Controller
                         })
                         ->values()
                         ->all(),
+                    'freeKeywords' => $resource->keywords
+                        ->map(static function (\App\Models\ResourceKeyword $keyword): string {
+                            return $keyword->keyword;
+                        })
+                        ->values()
+                        ->all(),
+                    'controlledKeywords' => $resource->controlledKeywords
+                        ->map(static function (\App\Models\ResourceControlledKeyword $keyword): array {
+                            return [
+                                'id' => $keyword->keyword_id,
+                                'text' => $keyword->text,
+                                'path' => $keyword->path,
+                                'language' => $keyword->language,
+                                'scheme' => $keyword->scheme,
+                                'schemeURI' => $keyword->scheme_uri,
+                                'vocabularyType' => $keyword->vocabulary_type,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
                 ];
             });
 
@@ -381,7 +403,52 @@ class ResourceController extends Controller
                     ]);
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates']), $isUpdate];
+                // Save free keywords
+                if ($isUpdate) {
+                    $resource->keywords()->delete();
+                }
+
+                $freeKeywords = $validated['freeKeywords'] ?? [];
+
+                foreach ($freeKeywords as $keyword) {
+                    // Only save non-empty keywords
+                    if (!empty(trim($keyword))) {
+                        $resource->keywords()->create([
+                            'keyword' => trim($keyword),
+                        ]);
+                    }
+                }
+
+                // Save controlled keywords (GCMD vocabularies)
+                if ($isUpdate) {
+                    $resource->controlledKeywords()->delete();
+                }
+
+                $controlledKeywords = $validated['gcmdKeywords'] ?? [];
+
+                // Prepare controlled keywords for bulk creation
+                $controlledKeywordsData = [];
+                foreach ($controlledKeywords as $keyword) {
+                    // Validate required fields
+                    if (!empty($keyword['id']) && !empty($keyword['text']) && !empty($keyword['vocabularyType'])) {
+                        $controlledKeywordsData[] = [
+                            'keyword_id' => $keyword['id'],
+                            'text' => $keyword['text'],
+                            'path' => $keyword['path'] ?? $keyword['text'],
+                            'language' => $keyword['language'] ?? 'en',
+                            'scheme' => $keyword['scheme'] ?? '',
+                            'scheme_uri' => $keyword['schemeURI'] ?? '',
+                            'vocabulary_type' => $keyword['vocabularyType'],
+                        ];
+                    }
+                }
+
+                // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
+                if (!empty($controlledKeywordsData)) {
+                    $resource->controlledKeywords()->createMany($controlledKeywordsData);
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);

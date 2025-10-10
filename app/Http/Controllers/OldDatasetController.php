@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\OldDataset;
+use App\Services\OldDatasetKeywordTransformer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -324,6 +326,114 @@ class OldDatasetController extends Controller
 
             return response()->json([
                 'error' => 'Failed to load dates from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
+     * API endpoint to get controlled keywords (GCMD) for a specific old dataset.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getControlledKeywords(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            // Get supported GCMD thesauri
+            $supportedThesauri = OldDatasetKeywordTransformer::getSupportedThesauri();
+
+            // Load keywords from old database with JOIN
+            $oldKeywords = DB::connection(self::DATASET_CONNECTION)
+                ->table('thesauruskeyword as tk')
+                ->join('thesaurusvalue as tv', function ($join) {
+                    $join->on('tk.keyword', '=', 'tv.keyword')
+                         ->on('tk.thesaurus', '=', 'tv.thesaurus');
+                })
+                ->where('tk.resource_id', $id)
+                ->whereIn('tk.thesaurus', $supportedThesauri)
+                ->select('tv.keyword', 'tv.thesaurus', 'tv.uri', 'tv.description')
+                ->get();
+
+            // Transform to new format
+            $transformedKeywords = OldDatasetKeywordTransformer::transformMany($oldKeywords->all());
+
+            return response()->json([
+                'keywords' => $transformedKeywords,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading controlled keywords for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load controlled keywords from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
+     * API endpoint to get free keywords for a specific old dataset.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getFreeKeywords(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            // Get keywords from the keywords column
+            $keywordsString = $dataset->keywords;
+
+            // Parse comma-separated keywords
+            $keywords = [];
+            if (!empty($keywordsString)) {
+                $keywords = array_map(
+                    fn($keyword) => trim($keyword),
+                    explode(',', $keywordsString)
+                );
+                
+                // Remove empty strings
+                $keywords = array_filter($keywords, fn($keyword) => $keyword !== '');
+                
+                // Re-index array to ensure sequential numeric keys
+                $keywords = array_values($keywords);
+            }
+
+            return response()->json([
+                'keywords' => $keywords,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading free keywords for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load free keywords from legacy database. Please check the database connection.',
                 'debug' => $debugInfo,
             ], 500);
         }

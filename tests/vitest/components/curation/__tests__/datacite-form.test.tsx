@@ -295,6 +295,20 @@ describe('DataCiteForm', () => {
             error: null,
         });
         global.fetch = vi.fn();
+        
+        // Mock the controlled vocabulary fetches that DataCiteForm makes on mount
+        // (GCMD Science Keywords, Platforms, and Instruments)
+        const emptyVocabularyResponse = {
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve([]),
+        } as Response;
+        
+        (global.fetch as unknown as vi.Mock)
+            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-science-keywords
+            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-platforms
+            .mockResolvedValueOnce(emptyVocabularyResponse); // gcmd-instruments
+        
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
     });
@@ -795,10 +809,10 @@ describe('DataCiteForm', () => {
         async () => {
             render(
                 <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    licenses={licenses}
-                    languages={languages}
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
@@ -1869,6 +1883,39 @@ describe('DataCiteForm', () => {
         10000,
     );
 
+    /**
+     * Helper function to get the save operation fetch call from the mock.
+     * The save operation is a POST request to /curation/resources.
+     * 
+     * @returns The most recent save call, or null if no save call was found
+     * @throws Error if multiple save calls are found (unexpected test scenario)
+     */
+    const getSaveFetchCall = () => {
+        const fetchMock = global.fetch as unknown as vi.Mock;
+        
+        // Find all POST calls to /curation/resources
+        const saveCalls = fetchMock.mock.calls
+            .map((call, index) => ({ call, index }))
+            .filter(
+                ({ call }) => call[0] === '/curation/resources' && call[1]?.method === 'POST'
+            );
+        
+        // Validate: exactly zero or one save call expected in most tests
+        if (saveCalls.length === 0) {
+            return null;
+        }
+        
+        if (saveCalls.length > 1) {
+            throw new Error(
+                `Expected at most one save call, but found ${saveCalls.length}. ` +
+                `This might indicate a test issue or unintended form submissions.`
+            );
+        }
+        
+        // Return the single save call found
+        return fetchMock.mock.calls[saveCalls[0].index];
+    };
+
     it('submits data and shows success modal when saving succeeds', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
 
@@ -1910,7 +1957,10 @@ describe('DataCiteForm', () => {
             credentials: 'same-origin',
         }));
 
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
+        // Get the save operation fetch call
+        const saveCall = getSaveFetchCall();
+        expect(saveCall).toBeDefined();
+        const fetchArgs = saveCall![1];
         expect(fetchArgs).toBeDefined();
         const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
         expect(headers).toMatchObject({
@@ -1987,9 +2037,12 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
 
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        // Get the save operation fetch call
+        const saveCall = getSaveFetchCall();
+        expect(saveCall).toBeDefined();
+        const fetchArgs = saveCall![1] as RequestInit;
         const body = JSON.parse(fetchArgs.body as string);
 
         expect(body).toMatchObject({
@@ -2066,9 +2119,12 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(1);
+        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
 
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        // Get the save operation fetch call
+        const saveCall = getSaveFetchCall();
+        expect(saveCall).toBeDefined();
+        const fetchArgs = saveCall![1] as RequestInit;
         const body = JSON.parse(fetchArgs.body as string);
 
         expect(body.authors).toEqual([
@@ -2136,8 +2192,12 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(1);
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1] as RequestInit;
+        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
+        
+        // Get the save operation fetch call
+        const saveCall = getSaveFetchCall();
+        expect(saveCall).toBeDefined();
+        const fetchArgs = saveCall![1] as RequestInit;
         const headers = fetchArgs.headers as Record<string, string>;
         expect(headers['X-CSRF-TOKEN']).toBe('cookie-token');
         expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
@@ -2170,7 +2230,8 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).not.toHaveBeenCalled();
+        // Only vocabulary fetches should have been called (3 times), but no save fetch
+        expect(global.fetch).toHaveBeenCalledTimes(3);
         expect(
             await screen.findByText('Missing security token. Please refresh the page and try again.'),
         ).toBeInTheDocument();
@@ -2224,7 +2285,11 @@ describe('DataCiteForm', () => {
         await user.click(saveButton);
 
         expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
-        const fetchArgs = (global.fetch as unknown as vi.Mock).mock.calls[0][1];
+        
+        // Get the save operation fetch call
+        const saveCall = getSaveFetchCall();
+        expect(saveCall).toBeDefined();
+        const fetchArgs = saveCall![1];
         expect(fetchArgs).toBeDefined();
         const headers = (fetchArgs as RequestInit).headers as Record<string, string>;
         expect(headers).toMatchObject({
@@ -2374,8 +2439,10 @@ describe('DataCiteForm', () => {
         await waitFor(() => expect(saveButton).toBeEnabled());
     });
 
-    it('includes descriptions in the payload when submitting', async () => {
-        const user = userEvent.setup({ pointerEventsCheck: 0 });
+    it(
+        'includes descriptions in the payload when submitting',
+        async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
 
         const responseData = { message: 'Success', resource: { id: 1 } };
         const jsonMock = vi.fn().mockResolvedValue(responseData);
@@ -2425,8 +2492,10 @@ describe('DataCiteForm', () => {
             expect(global.fetch).toHaveBeenCalled();
         });
 
-        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
-        const requestBody = JSON.parse(fetchCall[1].body);
+        // Get the save operation fetch call
+        const fetchCall = getSaveFetchCall();
+        expect(fetchCall).toBeDefined();
+        const requestBody = JSON.parse(fetchCall![1].body);
 
         expect(requestBody.descriptions).toBeDefined();
         expect(requestBody.descriptions).toHaveLength(2);
@@ -2442,7 +2511,9 @@ describe('DataCiteForm', () => {
                 }),
             ]),
         );
-    });
+        },
+        15000,
+    ); // Increased timeout for this long-running test with multiple user interactions
 
     it('does not include empty descriptions in the payload', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
@@ -2489,8 +2560,10 @@ describe('DataCiteForm', () => {
             expect(global.fetch).toHaveBeenCalled();
         });
 
-        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
-        const requestBody = JSON.parse(fetchCall[1].body);
+        // Get the save operation fetch call
+        const fetchCall = getSaveFetchCall();
+        expect(fetchCall).toBeDefined();
+        const requestBody = JSON.parse(fetchCall![1].body);
 
         expect(requestBody.descriptions).toBeDefined();
         expect(requestBody.descriptions).toHaveLength(1);
@@ -2545,8 +2618,10 @@ describe('DataCiteForm', () => {
             expect(global.fetch).toHaveBeenCalled();
         });
 
-        const fetchCall = (global.fetch as unknown as vi.Mock).mock.calls[0];
-        const requestBody = JSON.parse(fetchCall[1].body);
+        // Get the save operation fetch call
+        const fetchCall = getSaveFetchCall();
+        expect(fetchCall).toBeDefined();
+        const requestBody = JSON.parse(fetchCall![1].body);
 
         expect(requestBody.descriptions[0].description).toBe('Test abstract with spaces');
     });
