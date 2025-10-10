@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import type { RelatedIdentifier, RelatedIdentifierFormData } from '@/types';
 
+import RelatedWorkAdvancedAdd from './related-work-advanced-add';
 import RelatedWorkList from './related-work-list';
 import RelatedWorkQuickAdd from './related-work-quick-add';
 
@@ -15,10 +16,10 @@ interface RelatedWorkFieldProps {
  * 
  * Main container for the Related Work functionality.
  * Manages state and coordinates between:
- * - Quick Add form
+ * - Quick Add form (Top 5 most used)
+ * - Advanced Add form (All 33 relation types)
  * - List of added items
  * - Validation (future)
- * - Advanced mode (future)
  */
 export default function RelatedWorkField({
     relatedWorks,
@@ -55,12 +56,27 @@ export default function RelatedWorkField({
 
     return (
         <div className="space-y-6">
-            {/* Quick Add Component */}
-            <RelatedWorkQuickAdd
-                onAdd={handleAdd}
-                showAdvancedMode={showAdvanced}
-                onToggleAdvanced={handleToggleAdvanced}
-            />
+            {/* Quick or Advanced Mode */}
+            {!showAdvanced ? (
+                <RelatedWorkQuickAdd
+                    onAdd={handleAdd}
+                    showAdvancedMode={showAdvanced}
+                    onToggleAdvanced={handleToggleAdvanced}
+                />
+            ) : (
+                <>
+                    <RelatedWorkAdvancedAdd onAdd={handleAdd} />
+                    <div className="pt-2">
+                        <button
+                            type="button"
+                            onClick={handleToggleAdvanced}
+                            className="text-xs text-muted-foreground hover:text-foreground underline"
+                        >
+                            ← Switch to simple mode
+                        </button>
+                    </div>
+                </>
+            )}
 
             {/* List of Added Items */}
             {relatedWorks.length > 0 && (
@@ -68,15 +84,6 @@ export default function RelatedWorkField({
                     items={relatedWorks}
                     onRemove={handleRemove}
                 />
-            )}
-
-            {/* Placeholder for Advanced Mode */}
-            {showAdvanced && (
-                <div className="rounded-lg border border-dashed border-muted-foreground/25 p-8 text-center">
-                    <p className="text-sm text-muted-foreground">
-                        Advanced mode (all 33 relation types) - Coming soon
-                    </p>
-                </div>
             )}
         </div>
     );

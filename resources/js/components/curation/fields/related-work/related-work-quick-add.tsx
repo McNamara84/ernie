@@ -12,6 +12,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
 import {
     getOppositeRelationType,
     MOST_USED_RELATION_TYPES,
@@ -32,6 +33,7 @@ interface RelatedWorkQuickAddProps {
  * - Auto-detection of identifier type (DOI, URL)
  * - Top 5 most used relation types for quick access
  * - Bidirectional relation suggestions
+ * - Real-time DOI validation with DataCite API
  * - Clean, focused UX
  */
 export default function RelatedWorkQuickAdd({
@@ -70,8 +72,18 @@ export default function RelatedWorkQuickAdd({
         return 'URL';
     };
 
+    const detectedType = detectIdentifierType(identifier);
+
+    // Validate identifier with API
+    const validation = useIdentifierValidation({
+        identifier,
+        identifierType: detectedType,
+        enabled: identifier.trim().length > 0,
+        debounceMs: 800,
+    });
+
     const handleAdd = () => {
-        if (!identifier.trim()) {
+        if (!identifier.trim() || validation.status === 'invalid') {
             return;
         }
 
@@ -135,18 +147,54 @@ export default function RelatedWorkQuickAdd({
                     <Label htmlFor="related-identifier" className="sr-only">
                         Identifier (DOI, URL, etc.)
                     </Label>
-                    <Input
-                        id="related-identifier"
-                        type="text"
-                        value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="e.g., 10.5194/nhess-15-1463-2015 or https://..."
-                        className="font-mono text-sm"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Type will be auto-detected (DOI, URL, Handle)
-                    </p>
+                    <div className="relative">
+                        <Input
+                            id="related-identifier"
+                            type="text"
+                            value={identifier}
+                            onChange={(e) => {
+                                setIdentifier(e.target.value);
+                                setShowSuggestion(false);
+                            }}
+                            onKeyPress={handleKeyPress}
+                            placeholder="e.g., 10.5194/nhess-15-1463-2015 or https://..."
+                            className={`font-mono text-sm ${
+                                validation.status === 'invalid'
+                                    ? 'border-red-500 focus-visible:ring-red-500'
+                                    : validation.status === 'valid'
+                                      ? 'border-green-500 focus-visible:ring-green-500'
+                                      : validation.status === 'warning'
+                                        ? 'border-yellow-500 focus-visible:ring-yellow-500'
+                                        : ''
+                            }`}
+                        />
+                        {validation.status === 'validating' && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                            </div>
+                        )}
+                    </div>
+                    {validation.status === 'invalid' && (
+                        <p className="mt-1 text-xs text-red-600">
+                            Invalid {detectedType} format
+                        </p>
+                    )}
+                    {validation.status === 'warning' && (
+                        <p className="mt-1 text-xs text-yellow-600">
+                            <Info className="mr-1 inline h-3 w-3" />
+                            Could not verify via API, but format is valid
+                        </p>
+                    )}
+                    {validation.status === 'valid' && validation.metadata?.title && (
+                        <p className="mt-1 text-xs text-green-600">
+                            ✓ {validation.metadata.title}
+                        </p>
+                    )}
+                    {validation.status === 'idle' && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Type will be auto-detected (DOI, URL, Handle)
+                        </p>
+                    )}
                 </div>
 
                 {/* Relation Type Select */}
@@ -184,7 +232,7 @@ export default function RelatedWorkQuickAdd({
                     <Button
                         type="button"
                         onClick={handleAdd}
-                        disabled={!identifier.trim()}
+                        disabled={!identifier.trim() || validation.status === 'invalid' || validation.status === 'validating'}
                         size="icon"
                         aria-label="Add related work"
                     >
