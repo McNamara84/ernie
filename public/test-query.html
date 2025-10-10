@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Query Parameter Test</title>
+</head>
+<body>
+    <h1>Test Coverage Query Parameters</h1>
+    <script>
+        // Simulate what dashboard.tsx does
+        const coverage = {
+            id: 'coverage-1',
+            latMin: '49.195000',
+            latMax: '49.315000',
+            lonMin: '-123.270000',
+            lonMax: '-123.020000',
+            startDate: '2024-01-01',
+            endDate: '2024-12-31',
+            startTime: '',
+            endTime: '',
+            timezone: 'UTC',
+            description: 'Vancouver, British Columbia, Canada'
+        };
+
+        const query = {};
+        const i = 0;
+        
+        const fields = ['latMin', 'latMax', 'lonMin', 'lonMax', 'startDate', 'endDate', 'startTime', 'endTime', 'timezone', 'description'];
+        
+        fields.forEach((field) => {
+            const value = coverage[field];
+            console.log(`Field: ${field}, Value: "${value}", Type: ${typeof value}, Trimmed: "${value.trim()}"`);
+            if (typeof value === 'string' && value.trim()) {
+                query[`coverages[${i}][${field}]`] = value.trim();
+            }
+        });
+
+        console.log('Final query:', query);
+        
+        // Build URL
+        const params = new URLSearchParams(query);
+        const url = `/curation?${params.toString()}`;
+        console.log('URL:', url);
+        
+        document.body.innerHTML += '<pre>' + JSON.stringify(query, null, 2) + '</pre>';
+        document.body.innerHTML += '<hr><a href="' + url + '">Test Link</a>';
+    </script>
+</body>
+</html>

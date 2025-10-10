@@ -87,6 +87,7 @@ class UploadXmlController extends Controller
         $contributors = $this->extractContributors($reader);
         $descriptions = $this->extractDescriptions($reader);
         $dates = $this->extractDates($reader);
+        $coverages = $this->extractCoverages($reader, $dates);
         $gcmdKeywords = $this->extractGcmdKeywords($reader);
         
         // Use dedicated service for keyword extraction
@@ -151,6 +152,7 @@ class UploadXmlController extends Controller
             'contributors' => $contributors,
             'descriptions' => $descriptions,
             'dates' => $dates,
+            'coverages' => $coverages,
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
         ]);
@@ -388,6 +390,138 @@ class UploadXmlController extends Controller
         }
 
         return $dates;
+    }
+
+    /**
+     * Extract spatial and temporal coverages from DataCite XML.
+     * 
+     * DataCite stores:
+     * - Spatial coverage in <geoLocations> (with geoLocationPoint and geoLocationBox)
+     * - Temporal coverage as <date dateType="Coverage">
+     * 
+     * @param array<int, array<string, string>> $dates Already extracted dates (to find Coverage date)
+     * @return array<int, array<string, string>>
+     */
+    private function extractCoverages(XmlReader $reader, array $dates): array
+    {
+        $coverages = [];
+        
+        // Extract temporal coverage from dates with type "coverage"
+        $temporalCoverage = null;
+        foreach ($dates as $date) {
+            if (($date['dateType'] ?? '') === 'coverage') {
+                $temporalCoverage = $date;
+                break;
+            }
+        }
+        
+        // Extract geoLocations
+        $geoLocationElements = $reader
+            ->xpathElement('/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
+            ->get();
+        
+        if (count($geoLocationElements) === 0 && $temporalCoverage !== null) {
+            // Only temporal coverage, no spatial data
+            $coverages[] = [
+                'id' => 'coverage-1',
+                'latMin' => '',
+                'latMax' => '',
+                'lonMin' => '',
+                'lonMax' => '',
+                'startDate' => $temporalCoverage['startDate'] ?? '',
+                'endDate' => $temporalCoverage['endDate'] ?? '',
+                'startTime' => '',
+                'endTime' => '',
+                'timezone' => 'UTC',
+                'description' => '',
+            ];
+            
+            return $coverages;
+        }
+        
+        $index = 1;
+        foreach ($geoLocationElements as $geoLocationIndex => $geoLocation) {
+            $coverage = [
+                'id' => 'coverage-' . $index,
+                'latMin' => '',
+                'latMax' => '',
+                'lonMin' => '',
+                'lonMax' => '',
+                'startDate' => $temporalCoverage['startDate'] ?? '',
+                'endDate' => $temporalCoverage['endDate'] ?? '',
+                'startTime' => '',
+                'endTime' => '',
+                'timezone' => 'UTC',
+                'description' => '',
+            ];
+            
+            // Build XPath base for this specific geoLocation element
+            $geoLocationPath = '/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"][' . ($geoLocationIndex + 1) . ']';
+            
+            // Extract geoLocationPlace (description)
+            $place = $this->extractFirstStringFromQuery(
+                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationPlace"]')
+            );
+            if ($place !== null) {
+                $coverage['description'] = trim($place);
+            }
+            
+            // Extract geoLocationPoint
+            $latText = $this->extractFirstStringFromQuery(
+                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationPoint"]/*[local-name()="pointLatitude"]')
+            );
+            $lonText = $this->extractFirstStringFromQuery(
+                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationPoint"]/*[local-name()="pointLongitude"]')
+            );
+            
+            if ($latText !== null && $lonText !== null) {
+                $coverage['latMin'] = $this->formatCoordinate($latText);
+                $coverage['lonMin'] = $this->formatCoordinate($lonText);
+                // For points, leave latMax and lonMax empty (ERNIE convention)
+            }
+            
+            // Extract geoLocationBox (takes precedence if both exist)
+            $west = $this->extractFirstStringFromQuery(
+                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="westBoundLongitude"]')
+            );
+            $east = $this->extractFirstStringFromQuery(
+                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="eastBoundLongitude"]')
+            );
+            $south = $this->extractFirstStringFromQuery(
+                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="southBoundLatitude"]')
+            );
+            $north = $this->extractFirstStringFromQuery(
+                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="northBoundLatitude"]')
+            );
+            
+            if ($west !== null && $east !== null && $south !== null && $north !== null) {
+                $coverage['lonMin'] = $this->formatCoordinate($west);
+                $coverage['lonMax'] = $this->formatCoordinate($east);
+                $coverage['latMin'] = $this->formatCoordinate($south);
+                $coverage['latMax'] = $this->formatCoordinate($north);
+            }
+            
+            // Only add coverage if it has at least coordinates or description
+            if ($coverage['latMin'] !== '' || $coverage['lonMin'] !== '' || 
+                $coverage['description'] !== '' || $coverage['startDate'] !== '') {
+                $coverages[] = $coverage;
+                $index++;
+            }
+        }        return $coverages;
+    }
+
+    /**
+     * Format coordinate value to max 6 decimal places.
+     */
+    private function formatCoordinate(string $value): string
+    {
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return '';
+        }
+        
+        $float = (float) $trimmed;
+        return number_format($float, 6, '.', '');
     }
 
     /**

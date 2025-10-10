@@ -91,6 +91,19 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             contributors?: (UploadedContributor | null | undefined)[] | null;
             descriptions?: { type: string; description: string }[] | null;
             dates?: { dateType: string; startDate: string; endDate: string }[] | null;
+            coverages?: {
+                id?: string;
+                latMin?: string;
+                latMax?: string;
+                lonMin?: string;
+                lonMax?: string;
+                startDate?: string;
+                endDate?: string;
+                startTime?: string;
+                endTime?: string;
+                timezone?: string;
+                description?: string;
+            }[] | null;
             gcmdKeywords?: { uuid: string; id: string; path: string[]; type: string }[] | null;
             freeKeywords?: string[] | null;
         } = await response.json();
@@ -324,6 +337,23 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 if (typeof keyword === 'string' && keyword.trim()) {
                     query[`freeKeywords[${i}]`] = keyword.trim();
                 }
+            });
+        }
+        if (data.coverages && data.coverages.length > 0) {
+            data.coverages.forEach((coverage, i) => {
+                if (!coverage || typeof coverage !== 'object') {
+                    return;
+                }
+
+                // Optional fields - only add if present
+                const fields = ['id', 'latMin', 'latMax', 'lonMin', 'lonMax', 'startDate', 'endDate', 'startTime', 'endTime', 'timezone', 'description'] as const;
+                
+                fields.forEach((field) => {
+                    const value = coverage[field];
+                    if (typeof value === 'string' && value.trim()) {
+                        query[`coverages[${i}][${field}]`] = value.trim();
+                    }
+                });
             });
         }
         router.get(curationRoute({ query }).url);

@@ -59,6 +59,14 @@ export default function Curation({
     freeKeywords = [],
     coverages = [],
 }: CurationProps) {
+    // Debug: Log coverages on mount with force to window
+    useEffect(() => {
+        console.log('Curation page received coverages:', coverages);
+        console.warn('DEBUG COVERAGES:', JSON.stringify(coverages, null, 2));
+        // @ts-ignore - Debug only
+        window.DEBUG_COVERAGES = coverages;
+    }, [coverages]);
+    
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
     const [licenses, setLicenses] = useState<License[] | null>(null);

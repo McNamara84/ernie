@@ -65,9 +65,11 @@ export default function TemporalInputs({
     onChange,
     showLabels = true,
 }: TemporalInputsProps) {
+    // Debug: Log the received date values
+    console.warn('TemporalInputs received:', { startDate, endDate, startTime, endTime, timezone });
+    
     return (
-        <div className="space-y-4">
-            {showLabels && (
+        <div className="space-y-4">{showLabels && (
                 <Label className="text-sm font-medium">Temporal Information</Label>
             )}
 
