@@ -91,9 +91,9 @@ jobs:
         ]
         EOF
         # Prepare GCMD vocabularies test data for Playwright tests
-        mkdir -p storage/app/vocabularies
+        # Files go directly in storage/app/ (Laravel's default Storage disk)
         # Create minimal GCMD Science Keywords test data
-        cat > storage/app/vocabularies/gcmd-science-keywords.json << 'EOF'
+        cat > storage/app/gcmd-science-keywords.json << 'EOF'
         {
           "lastUpdated": "2024-01-01",
           "data": [
@@ -130,7 +130,7 @@ jobs:
         }
         EOF
         # Create minimal GCMD Platforms test data
-        cat > storage/app/vocabularies/gcmd-platforms.json << 'EOF'
+        cat > storage/app/gcmd-platforms.json << 'EOF'
         {
           "lastUpdated": "2024-01-01",
           "data": [
@@ -147,7 +147,7 @@ jobs:
         }
         EOF
         # Create minimal GCMD Instruments test data
-        cat > storage/app/vocabularies/gcmd-instruments.json << 'EOF'
+        cat > storage/app/gcmd-instruments.json << 'EOF'
         {
           "lastUpdated": "2024-01-01",
           "data": [
