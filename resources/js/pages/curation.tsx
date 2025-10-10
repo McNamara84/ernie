@@ -5,6 +5,7 @@ import DataCiteForm, {
     type InitialAuthor,
     type InitialContributor,
 } from '@/components/curation/datacite-form';
+import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
 import { curation } from '@/routes';
@@ -35,6 +36,7 @@ interface CurationProps {
     dates?: { dateType: string; startDate: string; endDate: string }[];
     gcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
     freeKeywords?: string[];
+    coverages?: SpatialTemporalCoverageEntry[];
 }
 
 export default function Curation({
@@ -55,6 +57,7 @@ export default function Curation({
     dates = [],
     gcmdKeywords = [],
     freeKeywords = [],
+    coverages = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -194,6 +197,7 @@ export default function Curation({
                             initialDates={dates}
                             initialGcmdKeywords={gcmdKeywords}
                             initialFreeKeywords={freeKeywords}
+                            initialSpatialTemporalCoverages={coverages}
                         />
                     )}
             </div>

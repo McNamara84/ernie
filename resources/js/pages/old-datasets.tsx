@@ -984,6 +984,52 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without free keywords if loading fails
         }
+
+        // Load spatial and temporal coverages from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/coverages`);
+            const coverages = response.data.coverages || [];
+            
+            // Add coverages to query parameters
+            coverages.forEach((coverage: {
+                id: string;
+                latMin: string;
+                latMax: string;
+                lonMin: string;
+                lonMax: string;
+                startDate: string;
+                endDate: string;
+                startTime: string;
+                endTime: string;
+                timezone: string;
+                description: string;
+            }, index: number) => {
+                query[`coverages[${index}][id]`] = coverage.id;
+                query[`coverages[${index}][latMin]`] = coverage.latMin;
+                query[`coverages[${index}][lonMin]`] = coverage.lonMin;
+                query[`coverages[${index}][latMax]`] = coverage.latMax;
+                query[`coverages[${index}][lonMax]`] = coverage.lonMax;
+                query[`coverages[${index}][startDate]`] = coverage.startDate;
+                query[`coverages[${index}][endDate]`] = coverage.endDate;
+                query[`coverages[${index}][startTime]`] = coverage.startTime;
+                query[`coverages[${index}][endTime]`] = coverage.endTime;
+                query[`coverages[${index}][timezone]`] = coverage.timezone;
+                query[`coverages[${index}][description]`] = coverage.description;
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading coverages for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading coverages for dataset:', error);
+            }
+            // Continue without coverages if loading fails
+        }
     }
 
     return query;

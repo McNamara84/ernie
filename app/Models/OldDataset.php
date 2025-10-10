@@ -634,4 +634,163 @@ class OldDataset extends Model
             ];
         })->toArray();
     }
+
+    /**
+     * Get spatial and temporal coverage entries for this resource from the coverage table.
+     * Returns an array of coverage entries with coordinates, dates/times, and descriptions.
+     *
+     * The old database stores:
+     * - Spatial data: minlat, maxlat, minlon, maxlon (as floats)
+     * - Temporal data: start, end (as strings), dateformat (format pattern), startutc, endutc (as datetime)
+     * - Description: text field
+     *
+     * This method converts to the new ERNIE format with separate date/time fields and timezone.
+     *
+     * @return array<int, array{id: string, latMin: string, latMax: string, lonMin: string, lonMax: string, startDate: string, endDate: string, startTime: string, endTime: string, timezone: string, description: string}>
+     */
+    public function getCoverages(): array
+    {
+        if (!$this->exists) {
+            return [];
+        }
+
+        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        
+        // Get all coverage entries for this resource
+        $coverages = $db->table('coverage')
+            ->where('resource_id', $this->id)
+            ->get();
+
+        return $coverages->map(function ($coverage, $index) {
+            // Convert coordinates to strings with max 6 decimal places
+            $latMin = $coverage->minlat !== null ? number_format((float)$coverage->minlat, 6, '.', '') : '';
+            $lonMin = $coverage->minlon !== null ? number_format((float)$coverage->minlon, 6, '.', '') : '';
+            
+            // Check if this is a point (min = max for both coordinates) or a rectangle
+            // In the old database, points were stored with identical min and max values
+            // In ERNIE, we represent points by leaving max coordinates empty for better UX and DataCite compliance
+            $isPoint = ($coverage->minlat === $coverage->maxlat && $coverage->minlon === $coverage->maxlon);
+            
+            if ($isPoint) {
+                // Point: Leave max coordinates empty
+                $latMax = '';
+                $lonMax = '';
+            } else {
+                // Rectangle: Use max coordinates
+                $latMax = $coverage->maxlat !== null ? number_format((float)$coverage->maxlat, 6, '.', '') : '';
+                $lonMax = $coverage->maxlon !== null ? number_format((float)$coverage->maxlon, 6, '.', '') : '';
+            }
+
+            // Parse temporal data from the old format
+            $temporal = $this->parseTemporalCoverage(
+                $coverage->start,
+                $coverage->end,
+                $coverage->dateformat
+            );
+
+            return [
+                // Generate unique ID for frontend (use index since old DB doesn't have unique IDs per entry)
+                'id' => 'coverage-' . ($index + 1),
+                
+                // Spatial coverage (coordinates)
+                'latMin' => $latMin,
+                'latMax' => $latMax,
+                'lonMin' => $lonMin,
+                'lonMax' => $lonMax,
+                
+                // Temporal coverage (dates and times)
+                'startDate' => $temporal['startDate'],
+                'endDate' => $temporal['endDate'],
+                'startTime' => $temporal['startTime'],
+                'endTime' => $temporal['endTime'],
+                'timezone' => $temporal['timezone'],
+                
+                // Description
+                'description' => $coverage->description ?? '',
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Parse temporal coverage data from old database format.
+     * 
+     * The old database stores dates/times as strings with various formats:
+     * - Simple date: "2013-09-05" (format: "Y-m-d")
+     * - Date with time: "2009-12-31T23:16:00+00:00" (format: "Y-m-d\TH:i:sT")
+     * - Empty: null or empty string
+     *
+     * This method extracts separate date, time, and timezone components.
+     *
+     * @param string|null $start Start date/time string
+     * @param string|null $end End date/time string
+     * @param string|null $dateformat Format pattern (e.g., "Y-m-d", "Y-m-d\TH:i:sT")
+     * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string}
+     */
+    private function parseTemporalCoverage(?string $start, ?string $end, ?string $dateformat): array
+    {
+        $result = [
+            'startDate' => '',
+            'endDate' => '',
+            'startTime' => '',
+            'endTime' => '',
+            'timezone' => 'UTC', // Default timezone
+        ];
+
+        // Helper function to parse a single date/time string
+        $parseDateTimeString = function (?string $dateTimeStr) use (&$result): array {
+            if (empty($dateTimeStr)) {
+                return ['date' => '', 'time' => ''];
+            }
+
+            // Try to parse ISO 8601 format with timezone (e.g., "2009-12-31T23:16:00+00:00")
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})([+-]\d{2}:\d{2}|Z)?/', $dateTimeStr, $matches)) {
+                $date = $matches[1]; // YYYY-MM-DD
+                $time = $matches[2]; // HH:MM:SS
+                
+                // Extract timezone if present
+                if (isset($matches[3]) && !empty($matches[3])) {
+                    if ($matches[3] === 'Z') {
+                        $result['timezone'] = 'UTC';
+                    } elseif ($matches[3] === '+00:00') {
+                        $result['timezone'] = 'UTC';
+                    } else {
+                        // For other timezones, try to map offset to timezone name
+                        // For simplicity, we'll use UTC for now
+                        $result['timezone'] = 'UTC';
+                    }
+                }
+                
+                return ['date' => $date, 'time' => $time];
+            }
+
+            // Try simple date format (e.g., "2013-09-05")
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})$/', $dateTimeStr, $matches)) {
+                return ['date' => $matches[1], 'time' => ''];
+            }
+
+            // Try date with time but no timezone (e.g., "2013-09-05 14:30:00")
+            if (preg_match('/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})/', $dateTimeStr, $matches)) {
+                return ['date' => $matches[1], 'time' => $matches[2]];
+            }
+
+            // If we can't parse it, return as-is for date (might be partial data)
+            return ['date' => $dateTimeStr, 'time' => ''];
+        };
+
+        // Parse start date/time
+        if (!empty($start)) {
+            $startParsed = $parseDateTimeString($start);
+            $result['startDate'] = $startParsed['date'];
+            $result['startTime'] = $startParsed['time'];
+        }
+
+        // Parse end date/time
+        if (!empty($end)) {
+            $endParsed = $parseDateTimeString($end);
+            $result['endDate'] = $endParsed['date'];
+            $result['endTime'] = $endParsed['time'];
+        }
+
+        return $result;
+    }
 }
