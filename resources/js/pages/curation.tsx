@@ -20,6 +20,7 @@ import {
 interface CurationProps {
     maxTitles: number;
     maxLicenses: number;
+    googleMapsApiKey: string;
     doi?: string;
     year?: string;
     version?: string;
@@ -39,6 +40,7 @@ interface CurationProps {
 export default function Curation({
     maxTitles,
     maxLicenses,
+    googleMapsApiKey,
     doi = '',
     year = '',
     version = '',
@@ -177,6 +179,7 @@ export default function Curation({
                             authorRoles={authorRoles}
                             maxTitles={maxTitles}
                             maxLicenses={maxLicenses}
+                            googleMapsApiKey={googleMapsApiKey}
                             initialDoi={doi}
                             initialYear={year}
                             initialVersion={version}

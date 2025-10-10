@@ -44,6 +44,8 @@ import FreeKeywordsField from './fields/free-keywords-field';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import { SelectField } from './fields/select-field';
+import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
+import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
 import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
@@ -434,6 +436,7 @@ interface DataCiteFormProps {
     authorRoles?: Role[];
     maxTitles?: number;
     maxLicenses?: number;
+    googleMapsApiKey: string;
     initialDoi?: string;
     initialYear?: string;
     initialVersion?: string;
@@ -487,6 +490,7 @@ export default function DataCiteForm({
     authorRoles = [],
     maxTitles = 99,
     maxLicenses = 99,
+    googleMapsApiKey,
     initialDoi = '',
     initialYear = '',
     initialVersion = '',
@@ -661,6 +665,9 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<
+        SpatialTemporalCoverageEntry[]
+    >([]);
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
@@ -1632,6 +1639,16 @@ export default function DataCiteForm({
                         <FreeKeywordsField
                             keywords={freeKeywords}
                             onChange={setFreeKeywords}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="spatial-temporal-coverage">
+                    <AccordionTrigger>Spatial and Temporal Coverage</AccordionTrigger>
+                    <AccordionContent>
+                        <SpatialTemporalCoverageField
+                            coverages={spatialTemporalCoverages}
+                            apiKey={googleMapsApiKey}
+                            onChange={setSpatialTemporalCoverages}
                         />
                     </AccordionContent>
                 </AccordionItem>
