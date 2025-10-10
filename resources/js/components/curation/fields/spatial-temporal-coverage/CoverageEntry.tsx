@@ -185,14 +185,10 @@ export default function CoverageEntry({
 
             {isExpanded && (
                 <CardContent className="space-y-6">
-                    {/* Spatial and Temporal in Grid Layout */}
+                    {/* Map and Inputs in Grid Layout */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Spatial Column */}
+                        {/* Left Column: Map */}
                         <div className="space-y-4">
-                            <Label className="text-base font-semibold">
-                                Spatial Information
-                            </Label>
-
                             <MapPicker
                                 apiKey={apiKey}
                                 latMin={entry.latMin}
@@ -202,22 +198,18 @@ export default function CoverageEntry({
                                 onPointSelected={handlePointSelected}
                                 onRectangleSelected={handleRectangleSelected}
                             />
+                        </div>
 
+                        {/* Right Column: Coordinates and Temporal */}
+                        <div className="space-y-4">
                             <CoordinateInputs
                                 latMin={entry.latMin}
                                 lonMin={entry.lonMin}
                                 latMax={entry.latMax}
                                 lonMax={entry.lonMax}
                                 onChange={handleCoordinateChange}
-                                showLabels={false}
+                                showLabels={true}
                             />
-                        </div>
-
-                        {/* Temporal Column */}
-                        <div className="space-y-4">
-                            <Label className="text-base font-semibold">
-                                Temporal Information
-                            </Label>
 
                             <TemporalInputs
                                 startDate={entry.startDate}
@@ -226,7 +218,7 @@ export default function CoverageEntry({
                                 endTime={entry.endTime}
                                 timezone={entry.timezone}
                                 onChange={handleTemporalChange}
-                                showLabels={false}
+                                showLabels={true}
                             />
                         </div>
                     </div>
