@@ -12,6 +12,17 @@ import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/g
 
 import { GCMDTree } from './gcmd-tree';
 
+/**
+ * Minimum number of characters required before triggering vocabulary search.
+ * 
+ * Rationale: Short search queries (1-2 characters) produce too many results in hierarchical
+ * GCMD vocabularies, degrading user experience. Three characters provides a good balance:
+ * - Reduces result set to manageable size
+ * - Allows meaningful abbreviations (e.g., "CO2", "GPS", "SAR")
+ * - Prevents UI lag from rendering thousands of tree nodes
+ */
+const MIN_SEARCH_LENGTH = 3;
+
 interface ControlledVocabulariesFieldProps {
     scienceKeywords: GCMDKeyword[];
     platforms: GCMDKeyword[];
@@ -66,8 +77,7 @@ export default function ControlledVocabulariesField({
     // Only trigger search after user stops typing for 300ms
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
     
-    // Minimum search length to avoid searching on 1-2 characters
-    const MIN_SEARCH_LENGTH = 3;
+    // Apply minimum search length threshold (defined at module level)
     const effectiveSearchQuery = debouncedSearchQuery.trim().length >= MIN_SEARCH_LENGTH 
         ? debouncedSearchQuery.trim() 
         : '';

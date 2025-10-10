@@ -228,3 +228,54 @@ XML;
         ]);
     });
 });
+
+describe('XmlKeywordExtractor - GCMD Path Parsing', function () {
+    it('parses path with Science Keywords prefix', function () {
+        $input = 'Science Keywords > EARTH SCIENCE > ATMOSPHERE > CLOUDS';
+        $result = \App\Support\XmlKeywordExtractor::parseGcmdPath($input);
+        
+        expect($result)->toBe(['EARTH SCIENCE', 'ATMOSPHERE', 'CLOUDS']);
+    });
+
+    it('parses path with Platforms prefix', function () {
+        $input = 'Platforms > EARTH OBSERVATION SATELLITES > ENVISAT';
+        $result = \App\Support\XmlKeywordExtractor::parseGcmdPath($input);
+        
+        expect($result)->toBe(['EARTH OBSERVATION SATELLITES', 'ENVISAT']);
+    });
+
+    it('parses path with Instruments prefix', function () {
+        $input = 'Instruments > ACTIVE REMOTE SENSING > ALTIMETERS > LIDAR';
+        $result = \App\Support\XmlKeywordExtractor::parseGcmdPath($input);
+        
+        expect($result)->toBe(['ACTIVE REMOTE SENSING', 'ALTIMETERS', 'LIDAR']);
+    });
+
+    it('parses path without GCMD prefix', function () {
+        $input = 'EARTH SCIENCE > ATMOSPHERE > TEMPERATURE';
+        $result = \App\Support\XmlKeywordExtractor::parseGcmdPath($input);
+        
+        expect($result)->toBe(['EARTH SCIENCE', 'ATMOSPHERE', 'TEMPERATURE']);
+    });
+
+    it('handles single-level path', function () {
+        $input = 'EARTH SCIENCE';
+        $result = \App\Support\XmlKeywordExtractor::parseGcmdPath($input);
+        
+        expect($result)->toBe(['EARTH SCIENCE']);
+    });
+
+    it('trims whitespace from path segments', function () {
+        $input = 'Science Keywords >  EARTH SCIENCE  >  ATMOSPHERE  >  CLOUDS  ';
+        $result = \App\Support\XmlKeywordExtractor::parseGcmdPath($input);
+        
+        expect($result)->toBe(['EARTH SCIENCE', 'ATMOSPHERE', 'CLOUDS']);
+    });
+
+    it('is case-insensitive for prefix matching', function () {
+        $input = 'science keywords > EARTH SCIENCE > ATMOSPHERE';
+        $result = \App\Support\XmlKeywordExtractor::parseGcmdPath($input);
+        
+        expect($result)->toBe(['EARTH SCIENCE', 'ATMOSPHERE']);
+    });
+});

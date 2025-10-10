@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\GcmdUriHelper;
+
 class OldDatasetKeywordTransformer
 {
     /**
@@ -14,45 +16,27 @@ class OldDatasetKeywordTransformer
     ];
 
     /**
-     * Pattern for extracting UUID from old URI format.
-     * Old format: http://gcmdservices.gsfc.nasa.gov/kms/concepts/concept_scheme/sciencekeywords/{uuid}
-     */
-    private const UUID_PATTERN = '/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i';
-
-    /**
-     * New URI template for GCMD concepts.
-     * New format: https://gcmd.earthdata.nasa.gov/kms/concept/{uuid}
-     */
-    private const NEW_URI_TEMPLATE = 'https://gcmd.earthdata.nasa.gov/kms/concept/%s';
-
-    /**
      * Extract UUID from old GCMD URI format.
      *
+     * @deprecated Use GcmdUriHelper::extractUuid() instead
      * @param string|null $oldUri
      * @return string|null
      */
     public static function extractUuidFromOldUri(?string $oldUri): ?string
     {
-        if (!$oldUri) {
-            return null;
-        }
-
-        if (preg_match(self::UUID_PATTERN, $oldUri, $matches)) {
-            return $matches[1];
-        }
-
-        return null;
+        return GcmdUriHelper::extractUuid($oldUri);
     }
 
     /**
      * Construct new GCMD URI from UUID.
      *
+     * @deprecated Use GcmdUriHelper::buildConceptUri() instead
      * @param string $uuid
      * @return string
      */
     public static function constructNewUri(string $uuid): string
     {
-        return sprintf(self::NEW_URI_TEMPLATE, $uuid);
+        return GcmdUriHelper::buildConceptUri($uuid);
     }
 
     /**

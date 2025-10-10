@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
+use App\Support\GcmdUriHelper;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -1198,30 +1199,19 @@ class UploadXmlController extends Controller
                 continue;
             }
 
-            // Extract UUID from valueURI (last segment after /)
-            $uuidMatch = [];
-            if (preg_match('/([a-f0-9\-]{36})$/i', $valueUri, $uuidMatch)) {
-                $uuid = $uuidMatch[1];
-            } else {
+            // Extract UUID from valueURI using shared utility
+            $uuid = GcmdUriHelper::extractUuid($valueUri);
+            
+            if (!$uuid) {
                 continue;
             }
 
-            // Build full ID URL to match JSON vocabulary structure
-            $id = 'https://gcmd.earthdata.nasa.gov/kms/concept/' . $uuid;
+            // Build full ID URL using shared utility
+            $id = GcmdUriHelper::buildConceptUri($uuid);
 
-            // Parse the path from content (e.g., "Science Keywords > EARTH SCIENCE > ...")
-            // Remove the prefix (e.g., "Science Keywords > ", "Platforms > ", "Instruments > ")
-            $pathString = $content;
-            if (stripos($pathString, 'Science Keywords >') === 0) {
-                $pathString = substr($pathString, strlen('Science Keywords > '));
-            } elseif (stripos($pathString, 'Platforms >') === 0) {
-                $pathString = substr($pathString, strlen('Platforms > '));
-            } elseif (stripos($pathString, 'Instruments >') === 0) {
-                $pathString = substr($pathString, strlen('Instruments > '));
-            }
-
-            // Split by " > " to get the path array
-            $path = array_map('trim', explode(' > ', $pathString));
+            // Parse the hierarchical path using shared utility
+            // Example: "Science Keywords > EARTH SCIENCE > ATMOSPHERE" -> ["EARTH SCIENCE", "ATMOSPHERE"]
+            $path = XmlKeywordExtractor::parseGcmdPath($content);
 
             $keywords[] = [
                 'uuid' => $uuid,

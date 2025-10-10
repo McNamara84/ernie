@@ -1885,16 +1885,35 @@ describe('DataCiteForm', () => {
 
     /**
      * Helper function to get the save operation fetch call from the mock.
-     * The save operation is typically the 4th call (index 3),
-     * after 3 vocabulary fetches (science keywords, platforms, instruments).
+     * The save operation is a POST request to /curation/resources.
+     * 
+     * @returns The most recent save call, or null if no save call was found
+     * @throws Error if multiple save calls are found (unexpected test scenario)
      */
     const getSaveFetchCall = () => {
         const fetchMock = global.fetch as unknown as vi.Mock;
-        // Find the POST call to /curation/resources (the save operation)
-        const saveCallIndex = fetchMock.mock.calls.findIndex(
-            (call) => call[0] === '/curation/resources' && call[1]?.method === 'POST'
-        );
-        return saveCallIndex >= 0 ? fetchMock.mock.calls[saveCallIndex] : null;
+        
+        // Find all POST calls to /curation/resources
+        const saveCalls = fetchMock.mock.calls
+            .map((call, index) => ({ call, index }))
+            .filter(
+                ({ call }) => call[0] === '/curation/resources' && call[1]?.method === 'POST'
+            );
+        
+        // Validate: exactly zero or one save call expected in most tests
+        if (saveCalls.length === 0) {
+            return null;
+        }
+        
+        if (saveCalls.length > 1) {
+            throw new Error(
+                `Expected at most one save call, but found ${saveCalls.length}. ` +
+                `This might indicate a test issue or unintended form submissions.`
+            );
+        }
+        
+        // Return the single save call found
+        return fetchMock.mock.calls[saveCalls[0].index];
     };
 
     it('submits data and shows success modal when saving succeeds', async () => {
