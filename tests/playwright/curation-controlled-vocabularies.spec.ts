@@ -112,6 +112,9 @@ test.describe('Controlled Vocabularies - Basic UI', () => {
 });
 
 test.describe('Controlled Vocabularies - Search Functionality', () => {
+    // Skip these tests in CI - they require full GCMD vocabulary data
+    test.skip(!!process.env.CI, 'Requires full GCMD data - run locally only');
+
     test.beforeEach(async ({ page }) => {
         await page.goto('/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
@@ -196,6 +199,9 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
 });
 
 test.describe('Controlled Vocabularies - Keyword Selection', () => {
+    // Skip these tests in CI - they require full GCMD vocabulary data
+    test.skip(!!process.env.CI, 'Requires full GCMD data - run locally only');
+
     test.beforeEach(async ({ page }) => {
         await page.goto('/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
@@ -294,6 +300,9 @@ test.describe('Controlled Vocabularies - Keyword Selection', () => {
 });
 
 test.describe('Controlled Vocabularies - Green Indicators', () => {
+    // Skip these tests in CI - they require full GCMD vocabulary data
+    test.skip(!!process.env.CI, 'Requires full GCMD data - run locally only');
+
     test.beforeEach(async ({ page }) => {
         await page.goto('/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);

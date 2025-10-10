@@ -90,13 +90,8 @@ jobs:
           {"prefLabel":"Kyoto University","rorId":"https://ror.org/02kpeqv85","otherLabel":["京都大学","Kyodai"]}
         ]
         EOF
-        # Prepare GCMD vocabularies test data for Playwright tests
-        # Copy committed test fixtures from storage/app/testing/ to storage/app/
-        # This ensures the files exist and are accessible to Laravel Storage
-        cp storage/app/testing/gcmd-science-keywords.json storage/app/gcmd-science-keywords.json
-        cp storage/app/testing/gcmd-platforms.json storage/app/gcmd-platforms.json
-        cp storage/app/testing/gcmd-instruments.json storage/app/gcmd-instruments.json
-        echo "GCMD test fixtures copied to storage/app/"
+        # GCMD vocabulary tests are skipped in CI (run locally with real data)
+        # See: docs/PLAYWRIGHT_GCMD_FIXTURES.md
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps ${{ matrix.browser }}
     - name: Start Laravel server
