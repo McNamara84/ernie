@@ -99,7 +99,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
-            'googleMapsApiKey' => env('GM_API_KEY', ''),
+            'googleMapsApiKey' => config('services.google_maps.api_key'),
             'doi' => $request->query('doi'),
             'year' => $request->query('year'),
             'version' => $request->query('version'),
