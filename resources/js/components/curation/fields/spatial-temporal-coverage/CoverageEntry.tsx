@@ -212,11 +212,11 @@ export default function CoverageEntry({
                             />
 
                             <TemporalInputs
-                                startDate={entry.startDate}
-                                endDate={entry.endDate}
-                                startTime={entry.startTime}
-                                endTime={entry.endTime}
-                                timezone={entry.timezone}
+                                startDate={entry.startDate || ''}
+                                endDate={entry.endDate || ''}
+                                startTime={entry.startTime || ''}
+                                endTime={entry.endTime || ''}
+                                timezone={entry.timezone || 'UTC'}
                                 onChange={handleTemporalChange}
                                 showLabels={true}
                             />

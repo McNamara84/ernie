@@ -46,15 +46,21 @@ function MapPickerContent({
     const [drawingMode, setDrawingMode] = useState<'point' | 'rectangle' | null>(null);
     const [marker, setMarker] = useState<Coordinates | null>(null);
     const [rectangle, setRectangle] = useState<google.maps.Rectangle | null>(null);
+    const rectangleRef = useRef<google.maps.Rectangle | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const isDrawingRectangle = useRef(false);
     const rectangleStart = useRef<Coordinates | null>(null);
 
+    // Sync rectangle state with ref
+    useEffect(() => {
+        rectangleRef.current = rectangle;
+    }, [rectangle]);
+
     const drawRectangleOnMap = useCallback(
         (bounds: CoordinateBounds, mapInstance: google.maps.Map) => {
-            // Remove existing rectangle
-            if (rectangle) {
-                rectangle.setMap(null);
+            // Remove existing rectangle using ref to avoid dependency cycle
+            if (rectangleRef.current) {
+                rectangleRef.current.setMap(null);
             }
 
             const newRectangle = new google.maps.Rectangle({
@@ -79,7 +85,7 @@ function MapPickerContent({
             // Fit bounds to rectangle
             mapInstance.fitBounds(newRectangle.getBounds()!);
         },
-        [rectangle],
+        [], // No dependencies - use rectangleRef instead to avoid infinite loop
     );
 
     // Initialize marker/rectangle from props

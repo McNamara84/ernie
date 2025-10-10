@@ -451,6 +451,7 @@ interface DataCiteFormProps {
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
     initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
     initialFreeKeywords?: string[];
+    initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -505,6 +506,7 @@ export default function DataCiteForm({
     initialDates = [],
     initialGcmdKeywords = [],
     initialFreeKeywords = [],
+    initialSpatialTemporalCoverages = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -667,7 +669,12 @@ export default function DataCiteForm({
     });
     const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<
         SpatialTemporalCoverageEntry[]
-    >([]);
+    >(() => {
+        if (initialSpatialTemporalCoverages && initialSpatialTemporalCoverages.length > 0) {
+            return initialSpatialTemporalCoverages;
+        }
+        return [];
+    });
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
