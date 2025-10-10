@@ -296,8 +296,8 @@ describe('DataCiteForm', () => {
         });
         global.fetch = vi.fn();
         
-        // Mock the vocabulary fetches that DataCiteForm makes on mount
-        // for Free Keywords (GCMD vocabularies)
+        // Mock the controlled vocabulary fetches that DataCiteForm makes on mount
+        // (GCMD Science Keywords, Platforms, and Instruments)
         const emptyVocabularyResponse = {
             ok: true,
             status: 200,
@@ -803,16 +803,15 @@ describe('DataCiteForm', () => {
         expect(badgesContainer).toHaveTextContent('https://ror.org/02mhbdp94');
     });
 
-    it(
-        'supports adding, removing and managing multiple authors independently',
-        { timeout: 15000 },
-        async () => {
-            render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    licenses={licenses}
-                    languages={languages}
+    it('supports adding, removing and managing multiple authors independently', async () => {
+        vi.setConfig({ testTimeout: 15000 });
+        
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
@@ -1107,12 +1106,11 @@ describe('DataCiteForm', () => {
         expect(contactCheckbox).toBeInTheDocument();
     });
 
-    it(
-        'requires an email address when a person author is marked as contact',
-        { timeout: 15000 },
-        async () => {
-            render(
-                <DataCiteForm
+    it('requires an email address when a person author is marked as contact', async () => {
+        vi.setConfig({ testTimeout: 15000 });
+        
+        render(
+            <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
                     licenses={licenses}
