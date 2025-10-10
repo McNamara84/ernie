@@ -1,0 +1,11 @@
+identifier,identifier_type,relation_type
+10.5194/nhess-15-1463-2015,DOI,Cites
+10.1109/LGRS.2013.2251858,DOI,References
+10.5880/GFZ.1.2.2020.001,DOI,IsDerivedFrom
+https://example.org/data/seismic-2020,URL,IsDocumentedBy
+10.5194/sd-19-1-2015,DOI,IsSupplementTo
+10273/ICDP5054EHW1001,Handle,Compiles
+10.2312/ICDP.2015.001,DOI,HasPart
+10.5880/ICDP.5054.001,DOI,IsPartOf
+https://data.gfz-potsdam.de/publications/2020,URL,IsCitedBy
+10.5334/dsj-2017-002,DOI,IsVariantFormOf
