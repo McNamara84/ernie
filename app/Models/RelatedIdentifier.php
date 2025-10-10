@@ -17,7 +17,7 @@ class RelatedIdentifier extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'resource_id',
@@ -219,11 +219,11 @@ class RelatedIdentifier extends Model
     /**
      * Get the resource that owns this related identifier.
      *
-     * @return BelongsTo<Resource, self>
+     * @return BelongsTo<Resource, static>
+     * @phpstan-return BelongsTo<Resource, $this>
      */
     public function resource(): BelongsTo
     {
         return $this->belongsTo(Resource::class);
     }
 }
-
