@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\UploadXmlController;
+use App\Support\XmlKeywordExtractor;
 use Saloon\XmlWrangler\XmlReader;
 
-describe('UploadXmlController - Free Keywords Extraction', function () {
+describe('XmlKeywordExtractor - Free Keywords Extraction', function () {
     it('extracts free keywords from subjects without schema attributes', function () {
         $xml = <<<XML
 <?xml version="1.0" encoding="UTF-8"?>
@@ -17,14 +17,9 @@ describe('UploadXmlController - Free Keywords Extraction', function () {
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        // Use reflection to access private method
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe([
             'climate change',
@@ -46,13 +41,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe([
             'free keyword',
@@ -72,13 +63,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe(['free keyword']);
     });
@@ -95,13 +82,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe(['free keyword']);
     });
@@ -120,13 +103,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toHaveCount(2);
         expect($result[0])->toBe('keyword with spaces');
@@ -147,13 +126,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe([
             'valid keyword',
@@ -175,13 +150,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe([
             'InSAR',
@@ -201,13 +172,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe([]);
     });
@@ -225,13 +192,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe([]);
     });
@@ -254,13 +217,9 @@ XML;
 XML;
 
         $reader = XmlReader::fromString($xml);
-        $controller = new UploadXmlController();
+        $extractor = new XmlKeywordExtractor();
         
-        $reflectionClass = new ReflectionClass($controller);
-        $method = $reflectionClass->getMethod('extractFreeKeywords');
-        $method->setAccessible(true);
-        
-        $result = $method->invoke($controller, $reader);
+        $result = $extractor->extractFreeKeywords($reader);
         
         expect($result)->toBe([
             'climate change',

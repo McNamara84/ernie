@@ -54,7 +54,7 @@ export default defineConfig(() => {
             globals: true,
             setupFiles: './vitest.setup.ts',
             include: ['tests/vitest/**/*.{test,spec}.{js,ts,jsx,tsx}'],
-            testTimeout: 10000, // Increased from default 5000ms for DataCiteForm tests with multiple authors and ROR affiliation lookups
+            testTimeout: 10000, // Increased from default 5000ms for controlled vocabulary (GCMD) loading in DataCiteForm initialization
             env: {
                 VITE_APP_URL: '',
                 APP_URL: '',

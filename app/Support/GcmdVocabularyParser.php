@@ -120,27 +120,6 @@ class GcmdVocabularyParser
             }
         }
 
-        // Second pass: recursively build tree starting from root nodes
-        $buildTree = function (?string $nodeId) use (&$conceptsById, &$childrenByParentId, &$buildTree) {
-            if ($nodeId === null || !isset($conceptsById[$nodeId])) {
-                return null;
-            }
-
-            $node = $conceptsById[$nodeId];
-            $childIds = $childrenByParentId[$nodeId] ?? [];
-            
-            // Recursively build children
-            $node['children'] = [];
-            foreach ($childIds as $childId) {
-                $childNode = $buildTree($childId);
-                if ($childNode !== null) {
-                    $node['children'][] = $childNode;
-                }
-            }
-            
-            return $node;
-        };
-
         // Find root concept IDs (concepts with no parent or parent doesn't exist)
         $allChildIds = [];
         foreach ($childrenByParentId as $childIds) {
@@ -158,7 +137,7 @@ class GcmdVocabularyParser
         // Build tree only from root concepts (top-down approach)
         $rootConcepts = [];
         foreach ($rootIds as $rootId) {
-            $rootNode = $buildTree($rootId);
+            $rootNode = $this->buildTreeNode($rootId, $conceptsById, $childrenByParentId);
             if ($rootNode !== null) {
                 $rootConcepts[] = $rootNode;
             }
@@ -168,5 +147,34 @@ class GcmdVocabularyParser
             'lastUpdated' => now()->format('Y-m-d H:i:s'),
             'data' => $rootConcepts,
         ];
+    }
+
+    /**
+     * Recursively build a tree node and all its descendants
+     *
+     * @param string|null $nodeId The ID of the current node
+     * @param array<string, array<string, mixed>> $conceptsById Indexed concepts
+     * @param array<string, array<int, string>> $childrenByParentId Map of parent IDs to child IDs
+     * @return array<string, mixed>|null The built tree node or null if node doesn't exist
+     */
+    private function buildTreeNode(?string $nodeId, array &$conceptsById, array &$childrenByParentId): ?array
+    {
+        if ($nodeId === null || !isset($conceptsById[$nodeId])) {
+            return null;
+        }
+
+        $node = $conceptsById[$nodeId];
+        $childIds = $childrenByParentId[$nodeId] ?? [];
+        
+        // Recursively build children
+        $node['children'] = [];
+        foreach ($childIds as $childId) {
+            $childNode = $this->buildTreeNode($childId, $conceptsById, $childrenByParentId);
+            if ($childNode !== null) {
+                $node['children'][] = $childNode;
+            }
+        }
+        
+        return $node;
     }
 }

@@ -426,7 +426,7 @@ class ResourceController extends Controller
 
                 $controlledKeywords = $validated['gcmdKeywords'] ?? [];
 
-                // Prepare controlled keywords for bulk insert
+                // Prepare controlled keywords for bulk creation
                 $controlledKeywordsData = [];
                 foreach ($controlledKeywords as $keyword) {
                     // Validate required fields
@@ -439,15 +439,13 @@ class ResourceController extends Controller
                             'scheme' => $keyword['scheme'] ?? '',
                             'scheme_uri' => $keyword['schemeURI'] ?? '',
                             'vocabulary_type' => $keyword['vocabularyType'],
-                            'created_at' => now(),
-                            'updated_at' => now(),
                         ];
                     }
                 }
 
-                // Bulk insert controlled keywords if any
+                // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
                 if (!empty($controlledKeywordsData)) {
-                    $resource->controlledKeywords()->insert($controlledKeywordsData);
+                    $resource->controlledKeywords()->createMany($controlledKeywordsData);
                 }
 
                 return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords']), $isUpdate];
