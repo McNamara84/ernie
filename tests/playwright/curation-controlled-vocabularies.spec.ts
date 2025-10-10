@@ -15,6 +15,7 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
 
 /**
  * Helper function to ensure the Controlled Vocabularies accordion is open
+ * and data is loaded
  */
 async function ensureAccordionOpen(page: Page) {
     const vocabTrigger = page.getByRole('button', { name: /Controlled Vocabularies/i });
@@ -23,6 +24,14 @@ async function ensureAccordionOpen(page: Page) {
         await vocabTrigger.click();
         await expect(vocabTrigger).toHaveAttribute('aria-expanded', 'true');
     }
+    
+    // Wait for vocabulary data to load - wait for tabs to be visible
+    const scienceTab = page.getByRole('tab', { name: /Science/i });
+    await scienceTab.waitFor({ state: 'visible', timeout: 10_000 });
+    
+    // Wait for tree items to be loaded (data fetched from API)
+    // Give it time for the async data loading
+    await page.waitForTimeout(1000);
 }
 
 test.describe('Controlled Vocabularies - Basic UI', () => {
@@ -118,6 +127,9 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
     test('searches across all vocabulary types', async ({ page }) => {
         const searchInput = page.getByPlaceholder(/Search all vocabularies/i);
 
+        // Wait for initial data to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+
         // Search for a common keyword that might appear in multiple vocabularies
         await searchInput.fill('EARTH');
 
@@ -134,6 +146,9 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
 
     test('clears search when input is cleared', async ({ page }) => {
         const searchInput = page.getByPlaceholder(/Search all vocabularies/i);
+
+        // Wait for initial data to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
 
         // Search for something
         await searchInput.fill('EARTH');
@@ -152,6 +167,9 @@ test.describe('Controlled Vocabularies - Search Functionality', () => {
 
     test('search is case-insensitive', async ({ page }) => {
         const searchInput = page.getByPlaceholder(/Search all vocabularies/i);
+
+        // Wait for initial data to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
 
         // Search with lowercase
         await searchInput.fill('earth');
@@ -187,9 +205,12 @@ test.describe('Controlled Vocabularies - Keyword Selection', () => {
         const scienceTab = page.getByRole('tab', { name: /Science/i });
         await scienceTab.click();
 
+        // Wait for tree items to be available
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+
         // Find a checkbox in the tree (first available)
         const firstCheckbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await firstCheckbox.waitFor({ state: 'visible', timeout: 5_000 });
+        await firstCheckbox.waitFor({ state: 'visible', timeout: 10_000 });
 
         // Check if initially unchecked
         const isChecked = await firstCheckbox.isChecked();
@@ -212,16 +233,24 @@ test.describe('Controlled Vocabularies - Keyword Selection', () => {
         // Select from Science
         const scienceTab = page.getByRole('tab', { name: /Science/i });
         await scienceTab.click();
+        
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+        
         const scienceCheckbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await scienceCheckbox.waitFor({ state: 'visible' });
+        await scienceCheckbox.waitFor({ state: 'visible', timeout: 10_000 });
         await scienceCheckbox.click();
 
         // Switch to Platforms tab
         const platformsTab = page.getByRole('tab', { name: /Platforms/i });
         await platformsTab.click();
         await page.waitForTimeout(500);
+        
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+        
         const platformCheckbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await platformCheckbox.waitFor({ state: 'visible' });
+        await platformCheckbox.waitFor({ state: 'visible', timeout: 10_000 });
         await platformCheckbox.click();
 
         // Both should remain selected
@@ -236,9 +265,12 @@ test.describe('Controlled Vocabularies - Keyword Selection', () => {
         const scienceTab = page.getByRole('tab', { name: /Science/i });
         await scienceTab.click();
 
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+
         // Select a keyword
         const checkbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await checkbox.waitFor({ state: 'visible' });
+        await checkbox.waitFor({ state: 'visible', timeout: 10_000 });
         await checkbox.click();
         await page.waitForTimeout(300);
 
@@ -271,13 +303,16 @@ test.describe('Controlled Vocabularies - Green Indicators', () => {
         const scienceTab = page.getByRole('tab', { name: /Science/i });
         await scienceTab.click();
 
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+
         // Check if indicator exists (green dot)
         let indicator = scienceTab.locator('.bg-green-500, [data-indicator="true"]').first();
         const hasIndicatorBefore = await indicator.count() > 0;
 
         // Select a keyword
         const checkbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await checkbox.waitFor({ state: 'visible' });
+        await checkbox.waitFor({ state: 'visible', timeout: 10_000 });
         await checkbox.click();
         await page.waitForTimeout(500);
 
@@ -302,9 +337,12 @@ test.describe('Controlled Vocabularies - Green Indicators', () => {
         const scienceTab = page.getByRole('tab', { name: /Science/i });
         await scienceTab.click();
 
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+
         // Select a keyword
         const checkbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await checkbox.waitFor({ state: 'visible' });
+        await checkbox.waitFor({ state: 'visible', timeout: 10_000 });
         await checkbox.click();
         await page.waitForTimeout(300);
 
@@ -331,26 +369,38 @@ test.describe('Controlled Vocabularies - Green Indicators', () => {
         // Select from Science
         const scienceTab = page.getByRole('tab', { name: /Science/i });
         await scienceTab.click();
+        
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+        
         const scienceCheckbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await scienceCheckbox.waitFor({ state: 'visible' });
+        await scienceCheckbox.waitFor({ state: 'visible', timeout: 10_000 });
         await scienceCheckbox.click();
         await page.waitForTimeout(300);
 
         // Select from Platforms
         const platformsTab = page.getByRole('tab', { name: /Platforms/i });
         await platformsTab.click();
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(500);
+        
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+        
         const platformCheckbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await platformCheckbox.waitFor({ state: 'visible' });
+        await platformCheckbox.waitFor({ state: 'visible', timeout: 10_000 });
         await platformCheckbox.click();
         await page.waitForTimeout(300);
 
         // Select from Instruments
         const instrumentsTab = page.getByRole('tab', { name: /Instruments/i });
         await instrumentsTab.click();
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(500);
+        
+        // Wait for tree items to load
+        await page.waitForSelector('[role="treeitem"]', { timeout: 10_000 });
+        
         const instrumentCheckbox = page.locator('[role="treeitem"] input[type="checkbox"]').first();
-        await instrumentCheckbox.waitFor({ state: 'visible' });
+        await instrumentCheckbox.waitFor({ state: 'visible', timeout: 10_000 });
         await instrumentCheckbox.click();
         await page.waitForTimeout(300);
 
