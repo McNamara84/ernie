@@ -47,11 +47,12 @@ const TIMEZONE_OPTIONS = [
 ];
 
 /**
- * Validates time format (HH:MM)
+ * Validates time format (HH:MM or HH:MM:SS)
  */
 const isValidTime = (value: string): boolean => {
     if (!value) return true; // Empty is valid (optional field)
-    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+    // Accept both HH:MM and HH:MM:SS formats
+    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/;
     return timeRegex.test(value);
 };
 
@@ -91,7 +92,7 @@ export default function TemporalInputs({
                             type="time"
                             value={startTime}
                             onChange={(e) => onChange('startTime', e.target.value)}
-                            placeholder="HH:MM"
+                            placeholder="HH:MM or HH:MM:SS"
                             className={
                                 startTime && !isValidTime(startTime)
                                     ? 'border-destructive'
@@ -100,7 +101,7 @@ export default function TemporalInputs({
                         />
                         {startTime && !isValidTime(startTime) && (
                             <p className="text-xs text-destructive">
-                                Time must be in HH:MM format
+                                Time must be in HH:MM or HH:MM:SS format
                             </p>
                         )}
                     </div>
@@ -126,14 +127,14 @@ export default function TemporalInputs({
                             type="time"
                             value={endTime}
                             onChange={(e) => onChange('endTime', e.target.value)}
-                            placeholder="HH:MM"
+                            placeholder="HH:MM or HH:MM:SS"
                             className={
                                 endTime && !isValidTime(endTime) ? 'border-destructive' : ''
                             }
                         />
                         {endTime && !isValidTime(endTime) && (
                             <p className="text-xs text-destructive">
-                                Time must be in HH:MM format
+                                Time must be in HH:MM or HH:MM:SS format
                             </p>
                         )}
                     </div>
