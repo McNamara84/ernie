@@ -1,5 +1,91 @@
 [
   {
+    "version": "0.5.0",
+    "date": "2025-10-10",
+    "features": [
+      {
+        "title": "Keywords Management System",
+        "description": "Comprehensive keywords management featuring both controlled vocabularies (GCMD) and free-form keywords. Includes NASA's Global Change Master Directory (GCMD) Keywords with hierarchical tree view for Science Keywords, Platforms, and Instruments. Features debounced search, auto-expansion of selected nodes, and intuitive UI with three vocabulary tabs."
+      },
+      {
+        "title": "Free Keywords Support",
+        "description": "Added support for free-form keywords with comma-separated input, automatic trimming and filtering, and proper preservation of keyword order. Includes dedicated FreeKeywordsField component integrated into the curation form."
+      },
+      {
+        "title": "GCMD Keywords from XML Uploads",
+        "description": "Automatic extraction of GCMD controlled vocabulary keywords from uploaded DataCite XML files. Keywords are parsed with full hierarchical paths and properly categorized by vocabulary type (science, platforms, instruments)."
+      },
+      {
+        "title": "Free Keywords from XML Uploads",
+        "description": "Extract free-form keywords from DataCite XML subject elements, with proper handling of whitespace, empty values, and special characters. Maintains keyword order and supports both single keywords and comma-separated lists."
+      },
+      {
+        "title": "Legacy Dataset Keywords API",
+        "description": "New endpoints to fetch both controlled and free keywords from old datasets. Includes intelligent keyword transformation with vocabulary type mapping for GCMD keywords and proper parsing of comma-separated free keywords from legacy formats."
+      },
+      {
+        "title": "Keywords Persistence",
+        "description": "Introduced ResourceKeyword and ResourceControlledKeyword models with proper database migrations. Keywords are saved with resources and support full CRUD operations. Controlled keywords include metadata like path, vocabulary type, and GCMD URI for comprehensive tracking."
+      },
+      {
+        "title": "Keywords Display in Dashboard",
+        "description": "Updated dashboard and old datasets views to display both free and controlled keywords with proper formatting and visual indicators. Keywords are displayed with their full hierarchical paths for controlled vocabularies."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "GCMD Vocabulary Tree Building",
+        "description": "Refactored concept hierarchy building logic with recursive tree-building function. Improved parent-child mapping and added validation to skip concepts without valid IDs. Enhanced handling of null values in hierarchy construction."
+      },
+      {
+        "title": "Search Functionality",
+        "description": "Added debounced search using custom useDebounce hook to optimize search input performance. Implemented minimum search length enforcement and search result highlighting in tree view. Memoized tree nodes for better performance."
+      },
+      {
+        "title": "GCMD URI Handling",
+        "description": "Introduced GcmdUriHelper utility for extracting and building GCMD concept URIs consistently across the application. Added parseGcmdPath function for hierarchical path parsing. Centralized URI handling logic for better maintainability."
+      },
+      {
+        "title": "Code Organization",
+        "description": "Extracted keyword extraction logic into dedicated XmlKeywordExtractor service for better separation of concerns and testability. Created OldDatasetKeywordTransformer service to handle legacy keyword format transformation. Improved code reusability across controllers."
+      },
+      {
+        "title": "Bulk Operations",
+        "description": "Optimized controlled keywords persistence using Eloquent's createMany for bulk insert operations, improving performance. Proper timestamp handling for bulk created keywords."
+      },
+      {
+        "title": "Type Safety",
+        "description": "Enhanced type annotations across keyword-related models and services. Added missing @property annotations and improved TypeScript types for GCMD vocabularies. Better handling of nullable values throughout the keyword system."
+      },
+      {
+        "title": "UI/UX Enhancements",
+        "description": "Relocated search input above vocabulary tabs for unified search experience across all vocabularies. Auto-expand tree nodes with selected descendants for better visibility. Streamlined controlled vocabularies field by removing redundant label and description."
+      },
+      {
+        "title": "Test Coverage",
+        "description": "Added comprehensive test suite covering backend (Pest) and frontend (Vitest, Playwright) for both free and controlled keywords. Tests cover XML extraction, old dataset parsing, query building, validation, UI interactions, and accessibility. Includes dedicated test documentation in FREE_KEYWORDS_TESTS.md."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "GCMD Vocabulary Hierarchy",
+        "description": "Fixed handling of concepts without valid IDs in hierarchy building. Improved grouping of children by parent ID to only include non-null broaderId values, preventing invalid concepts from entering the hierarchy."
+      },
+      {
+        "title": "Test Data Management",
+        "description": "Added committed GCMD test fixtures under storage/app/testing/ for reliable CI usage. Updated .gitignore to allow committed test data while excluding generated vocabularies."
+      },
+      {
+        "title": "Test Reliability",
+        "description": "Improved Playwright test reliability with explicit waits for tree items and tabs. Increased timeouts for long-running tests with multiple user interactions. Added helper functions for consistent accordion state handling across tests."
+      },
+      {
+        "title": "CI Test Skipping",
+        "description": "Configured GCMD vocabulary tests to skip in CI environment where full vocabulary data is not available. Feature tests requiring unavailable databases are properly skipped with clear documentation for local testing."
+      }
+    ]
+  },
+  {
     "version": "0.4.0",
     "date": "2025-10-09",
     "features": [
