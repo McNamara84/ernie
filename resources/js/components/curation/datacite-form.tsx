@@ -670,10 +670,6 @@ export default function DataCiteForm({
     const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<
         SpatialTemporalCoverageEntry[]
     >(() => {
-        console.log('DataCiteForm received initialSpatialTemporalCoverages:', initialSpatialTemporalCoverages);
-        console.warn('DEBUG DATACITE FORM:', JSON.stringify(initialSpatialTemporalCoverages, null, 2));
-        // @ts-ignore - Debug only
-        window.DEBUG_INITIAL_COVERAGES = initialSpatialTemporalCoverages;
         if (initialSpatialTemporalCoverages && initialSpatialTemporalCoverages.length > 0) {
             return initialSpatialTemporalCoverages;
         }
