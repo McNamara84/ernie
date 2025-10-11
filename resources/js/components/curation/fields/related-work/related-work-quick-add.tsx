@@ -142,18 +142,13 @@ export default function RelatedWorkQuickAdd({
 
     return (
         <div className="space-y-4">
-            {/* Header */}
-            <div className="space-y-2">
-                <Label className="text-base font-semibold">
-                    Related Work
-                </Label>
-                <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                    <p>
-                        Add relationships to other datasets, publications, or resources.
-                        Enter a DOI, URL, or other identifier and select the relationship type.
-                    </p>
-                </div>
+            {/* Info text */}
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                <p>
+                    Add relationships to other datasets, publications, or resources.
+                    Enter a DOI, URL, or other identifier and select the relationship type.
+                </p>
             </div>
 
             {/* Quick Add Form */}
