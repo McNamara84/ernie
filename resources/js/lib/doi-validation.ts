@@ -25,14 +25,19 @@ export interface DOIResolutionResult {
 /**
  * Validate DOI format according to DOI syntax
  * DOIs start with "10." followed by a registrant code and a suffix
+ * Also accepts DOI URLs (https://doi.org/... or http://dx.doi.org/...)
  */
 export function validateDOIFormat(doi: string): ValidationResult {
     const trimmed = doi.trim();
     
+    // Check if it's a DOI URL and extract the DOI part
+    const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+    const doiToValidate = doiUrlMatch ? doiUrlMatch[1] : trimmed;
+    
     // Basic DOI pattern: 10.xxxx/yyyy
     const doiPattern = /^10\.\d{4,}(?:\.\d+)*\/\S+$/;
     
-    if (!doiPattern.test(trimmed)) {
+    if (!doiPattern.test(doiToValidate)) {
         return {
             isValid: false,
             format: 'invalid',

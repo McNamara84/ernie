@@ -102,6 +102,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('docs.users');
 
     Route::get('curation', function (\Illuminate\Http\Request $request) {
+        // Decode relatedWorks from JSON if it's a string (to handle large datasets)
+        $relatedWorks = $request->query('relatedWorks', []);
+        if (is_string($relatedWorks)) {
+            $decoded = json_decode($relatedWorks, true);
+            $relatedWorks = is_array($decoded) ? $decoded : [];
+        }
+
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
@@ -121,7 +128,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'gcmdKeywords' => $request->query('gcmdKeywords', []),
             'freeKeywords' => $request->query('freeKeywords', []),
             'coverages' => $request->query('coverages', []),
-            'relatedWorks' => $request->query('relatedWorks', []),
+            'relatedWorks' => $relatedWorks,
         ]);
     })->name('curation');
 

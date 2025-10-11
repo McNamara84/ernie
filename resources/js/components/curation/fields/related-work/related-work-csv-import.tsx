@@ -271,11 +271,11 @@ export default function RelatedWorkCsvImport({
     };
 
     const downloadExample = () => {
-        const exampleCSV = `identifier,identifier_type,relation_type
-10.5194/nhess-15-1463-2015,DOI,Cites
-10.1007/s11069-014-1480-x,DOI,References
-https://example.org/dataset/123,URL,IsSupplementTo
-10.5281/zenodo.1234567,DOI,IsDerivedFrom`;
+        const exampleCSV = `identifier,relation_type
+10.5194/nhess-15-1463-2015,Cites
+10.1007/s11069-014-1480-x,References
+https://example.org/dataset/123,IsSupplementTo
+10.5281/zenodo.1234567,IsDerivedFrom`;
 
         const blob = new Blob([exampleCSV], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
@@ -356,7 +356,7 @@ https://example.org/dataset/123,URL,IsSupplementTo
                                 Drop your CSV file here or click to browse
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                Accepts .csv files with columns: identifier, identifier_type, relation_type
+                                Required columns: identifier, relation_type (identifier_type is optional and will be auto-detected)
                             </p>
                         </div>
                     </label>

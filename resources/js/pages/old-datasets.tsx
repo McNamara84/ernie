@@ -1036,16 +1036,11 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             const response = await axios.get(`/old-datasets/${dataset.id}/related-identifiers`);
             const relatedIdentifiers = response.data.relatedIdentifiers || [];
             
-            // Add related identifiers to query parameters
-            relatedIdentifiers.forEach((item: {
-                identifier: string;
-                identifierType: string;
-                relationType: string;
-            }, index: number) => {
-                query[`relatedWorks[${index}][identifier]`] = item.identifier;
-                query[`relatedWorks[${index}][identifierType]`] = item.identifierType;
-                query[`relatedWorks[${index}][relationType]`] = item.relationType;
-            });
+            // Encode related identifiers as JSON to avoid max_input_vars limit
+            // (403 items × 3 params = 1209 vars, which exceeds PHP default of 1000)
+            if (relatedIdentifiers.length > 0) {
+                query.relatedWorks = JSON.stringify(relatedIdentifiers);
+            }
         } catch (error) {
             // Surface structured error information to aid diagnosis
             if (isAxiosError(error) && error.response?.data) {

@@ -734,14 +734,12 @@ export const buildCurationQueryFromResource = async (
         if (coverage.description) query[`${prefix}[description]`] = coverage.description;
     });
 
-    // Add related identifiers to query
+    // Add related identifiers to query as JSON string
+    // (to avoid max_input_vars limit for large datasets)
     const relatedIdentifiers = resource.relatedIdentifiers ?? [];
-    relatedIdentifiers.forEach((relatedIdentifier, index) => {
-        const prefix = `relatedWorks[${index}]`;
-        query[`${prefix}[identifier]`] = relatedIdentifier.identifier;
-        query[`${prefix}[identifierType]`] = relatedIdentifier.identifierType;
-        query[`${prefix}[relationType]`] = relatedIdentifier.relationType;
-    });
+    if (relatedIdentifiers.length > 0) {
+        query.relatedWorks = JSON.stringify(relatedIdentifiers);
+    }
 
     return query;
 };
