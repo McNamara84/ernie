@@ -1,13 +1,15 @@
 import { expect, test } from '@playwright/test';
 
+import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from './constants';
+
 test.describe('Curation - Dates Saving and Loading', () => {
   test.beforeEach(async ({ page }) => {
     // Login
     await page.goto('/login');
-    await page.fill('input[name="email"]', 'tester@ernie-test.de');
-    await page.fill('input[name="password"]', 'password');
-    await page.click('button[type="submit"]');
-    await page.waitForURL('/dashboard');
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.waitForURL(/\/dashboard/);
   });
 
   test('saves and loads dates correctly', async ({ page }) => {
