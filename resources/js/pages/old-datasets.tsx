@@ -3,6 +3,7 @@ import axios, { isAxiosError } from 'axios';
 import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -1162,6 +1163,7 @@ export default function OldDatasets({
     });
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
+    const [isSorting, setIsSorting] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
     const pendingRequestRef = useRef(0);
@@ -1169,17 +1171,28 @@ export default function OldDatasets({
     const [activeSortState, setActiveSortState] = useState<SortState>(initialSort);
 
     const handleSortChange = useCallback((key: SortKey) => {
+        const nextDirection = determineNextDirection(sortState, key);
+        
+        // Set sorting state immediately for skeleton display
+        setIsSorting(true);
+        setLoading(true);
+        
+        // Clear datasets immediately to avoid showing wrongly sorted data
+        setDatasets([]);
+        
         // Smooth scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
         
         // Update sort state which will trigger the useEffect to reload data
         setSortState(previousState => ({
             key,
-            direction: determineNextDirection(previousState, key),
+            direction: nextDirection,
         }));
-    }, []);
+    }, [sortState]);
 
-    const sortedDatasets = useMemo(() => sortDatasets(datasets, sortState), [datasets, sortState]);
+    // No client-side sorting - data comes pre-sorted from server
+    // We keep the variable name for consistency, but it's just the datasets array
+    const sortedDatasets = datasets;
 
     const handleOpenInCuration = useCallback(async (dataset: Dataset) => {
         const query = await buildCurationQuery(dataset);
@@ -1279,6 +1292,16 @@ export default function OldDatasets({
                     setActiveSortState(sort);
                 }
 
+                // Show toast notification after successful sort/reload
+                if (replace) {
+                    const label = getSortLabel(sort.key);
+                    const directionIcon = sort.direction === 'asc' ? '↑' : '↓';
+                    toast.success(`Sorted by: ${label} ${directionIcon}`, {
+                        duration: 2000,
+                    });
+                    setIsSorting(false);
+                }
+
                 lastRequestRef.current = null;
             } catch (err: unknown) {
                 if (pendingRequestRef.current !== requestId) {
@@ -1305,6 +1328,10 @@ export default function OldDatasets({
                         ? 'Failed to refresh datasets. Please try again.'
                         : 'Failed to load more datasets. Please try again.',
                 );
+                
+                if (isRefreshing) {
+                    setIsSorting(false);
+                }
             } finally {
                 if (pendingRequestRef.current === requestId) {
                     setLoading(false);
@@ -1683,7 +1710,7 @@ export default function OldDatasets({
                             </Alert>
                         ) : null}
 
-                        {sortedDatasets.length === 0 ? (
+                        {sortedDatasets.length === 0 && !isSorting && !loading ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
                                     "No datasets available. Please check the database connection." :
@@ -1776,6 +1803,7 @@ export default function OldDatasets({
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                                            {(isSorting || (loading && sortedDatasets.length === 0)) && <LoadingSkeleton />}
                                             {sortedDatasets.map((dataset, index) => {
                                                 const isLast = index === sortedDatasets.length - 1;
                                                 const datasetLabel =
@@ -1826,7 +1854,7 @@ export default function OldDatasets({
                                                     </tr>
                                                 );
                                             })}
-                                            {loading && <LoadingSkeleton />}
+                                            {loading && sortedDatasets.length > 0 && <LoadingSkeleton />}
                                         </tbody>
                                     </table>
                                 </div>

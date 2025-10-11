@@ -46,14 +46,19 @@ class OldDatasetController extends Controller
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert)
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Convert datasets to arrays and add licenses and first author
+            // Convert datasets to arrays and add licenses + first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
                 
-                // Get first author
-                $authors = $dataset->getAuthors();
-                $data['first_author'] = !empty($authors) ? $authors[0] : null;
+                // Build first_author from the joined data (no additional query needed)
+                if ($dataset->first_author_lastname || $dataset->first_author_firstname || $dataset->first_author_name) {
+                    $data['first_author'] = [
+                        'familyName' => $dataset->first_author_lastname,
+                        'givenName' => $dataset->first_author_firstname,
+                        'name' => $dataset->first_author_name,
+                    ];
+                }
                 
                 return $data;
             })->all();
@@ -122,14 +127,19 @@ class OldDatasetController extends Controller
 
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Convert datasets to arrays and add licenses and first author
+            // Convert datasets to arrays and add licenses + first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
                 
-                // Get first author
-                $authors = $dataset->getAuthors();
-                $data['first_author'] = !empty($authors) ? $authors[0] : null;
+                // Build first_author from the joined data (no additional query needed)
+                if ($dataset->first_author_lastname || $dataset->first_author_firstname || $dataset->first_author_name) {
+                    $data['first_author'] = [
+                        'familyName' => $dataset->first_author_lastname,
+                        'givenName' => $dataset->first_author_firstname,
+                        'name' => $dataset->first_author_name,
+                    ];
+                }
                 
                 return $data;
             })->all();
