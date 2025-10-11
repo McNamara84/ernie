@@ -109,6 +109,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $relatedWorks = is_array($decoded) ? $decoded : [];
         }
 
+        // Transform relatedWorks from camelCase to snake_case if needed
+        // (legacy import uses camelCase, but frontend expects snake_case)
+        $relatedWorks = array_map(function ($item) {
+            if (isset($item['identifierType'])) {
+                $item['identifier_type'] = $item['identifierType'];
+                unset($item['identifierType']);
+            }
+            if (isset($item['relationType'])) {
+                $item['relation_type'] = $item['relationType'];
+                unset($item['relationType']);
+            }
+            return $item;
+        }, $relatedWorks);
+
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),

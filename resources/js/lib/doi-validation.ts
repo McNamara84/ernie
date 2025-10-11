@@ -117,13 +117,20 @@ export function validateIdentifierFormat(identifier: string, type: string): Vali
  * Resolve DOI metadata from DataCite API
  * Returns metadata if successful, or error information
  * 
+ * If DOI is not found in DataCite, falls back to checking if it resolves via doi.org
+ * (DOI might be registered with another provider like Crossref)
+ * 
  * Note: This is a non-blocking validation - failures should only show warnings
  */
 export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<DOIResolutionResult> {
     const trimmed = doi.trim();
     
+    // Extract bare DOI if URL format
+    const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+    const bareDOI = doiUrlMatch ? doiUrlMatch[1] : trimmed;
+    
     // First validate format
-    const formatValidation = validateDOIFormat(trimmed);
+    const formatValidation = validateDOIFormat(bareDOI);
     if (!formatValidation.isValid) {
         return {
             success: false,
@@ -137,7 +144,7 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
         const timeoutId = setTimeout(() => controller.abort(), timeout);
         
         // Query DataCite API
-        const response = await fetch(`https://api.datacite.org/dois/${encodeURIComponent(trimmed)}`, {
+        const response = await fetch(`https://api.datacite.org/dois/${encodeURIComponent(bareDOI)}`, {
             signal: controller.signal,
             headers: {
                 'Accept': 'application/vnd.api+json',
@@ -148,6 +155,33 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
         
         if (!response.ok) {
             if (response.status === 404) {
+                // DOI not in DataCite - try to check if it resolves via doi.org
+                // This catches DOIs registered with other providers (Crossref, etc.)
+                try {
+                    const doiOrgController = new AbortController();
+                    const doiOrgTimeoutId = setTimeout(() => doiOrgController.abort(), timeout);
+                    
+                    const doiOrgResponse = await fetch(`https://doi.org/${encodeURIComponent(bareDOI)}`, {
+                        method: 'HEAD', // Just check if it exists, don't download content
+                        signal: doiOrgController.signal,
+                        redirect: 'manual', // Don't follow redirects, just check if DOI resolves
+                    });
+                    
+                    clearTimeout(doiOrgTimeoutId);
+                    
+                    // If doi.org returns 302 (redirect), the DOI exists and resolves
+                    if (doiOrgResponse.status === 302 || doiOrgResponse.status === 301) {
+                        return {
+                            success: true,
+                            metadata: {
+                                title: `DOI registered (not in DataCite)`,
+                            },
+                        };
+                    }
+                } catch {
+                    // If doi.org check fails, fall through to original error
+                }
+                
                 return {
                     success: false,
                     error: 'DOI not found in DataCite registry',
