@@ -1,6 +1,7 @@
 import { FileUp } from 'lucide-react';
 import { useState } from 'react';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import type { RelatedIdentifier, RelatedIdentifierFormData } from '@/types';
 
@@ -24,14 +25,60 @@ interface RelatedWorkFieldProps {
  * - CSV Bulk Import
  * - List of added items
  */
+
+/**
+ * Normalize identifier to detect duplicates
+ * Removes URL prefixes from DOIs to compare bare identifiers
+ */
+function normalizeIdentifier(identifier: string, identifierType: string): string {
+    if (identifierType === 'DOI') {
+        // Remove URL prefix from DOI
+        const doiUrlMatch = identifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+        return doiUrlMatch ? doiUrlMatch[1] : identifier;
+    }
+    return identifier;
+}
+
+/**
+ * Check if an identifier already exists (considering normalized form)
+ */
+function isDuplicate(
+    identifier: string,
+    identifierType: string,
+    existingItems: RelatedIdentifier[]
+): boolean {
+    const normalized = normalizeIdentifier(identifier, identifierType);
+    
+    return existingItems.some(item => {
+        if (item.identifier_type !== identifierType) {
+            return false;
+        }
+        const existingNormalized = normalizeIdentifier(item.identifier, item.identifier_type);
+        return existingNormalized.toLowerCase() === normalized.toLowerCase();
+    });
+}
+
 export default function RelatedWorkField({
     relatedWorks,
     onChange,
 }: RelatedWorkFieldProps) {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showCsvImport, setShowCsvImport] = useState(false);
+    const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
     const handleAdd = (data: RelatedIdentifierFormData) => {
+        // Check for duplicates
+        if (isDuplicate(data.identifier, data.identifierType, relatedWorks)) {
+            setDuplicateError(`This identifier already exists in the list (possibly with different formatting, e.g., with/without https://doi.org/ prefix)`);
+            
+            // Clear error after 5 seconds
+            setTimeout(() => setDuplicateError(null), 5000);
+            return;
+        }
+
+        // Clear any previous error
+        setDuplicateError(null);
+
         const newItem: RelatedIdentifier = {
             identifier: data.identifier,
             identifier_type: data.identifierType,
@@ -43,15 +90,33 @@ export default function RelatedWorkField({
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
-        const newItems: RelatedIdentifier[] = data.map((item, index) => ({
-            identifier: item.identifier,
-            identifier_type: item.identifierType,
-            relation_type: item.relationType,
-            position: relatedWorks.length + index,
-        }));
+        // Filter out duplicates from CSV import
+        const combinedList = [...relatedWorks];
+        const skippedDuplicates: string[] = [];
 
-        onChange([...relatedWorks, ...newItems]);
+        data.forEach((item) => {
+            if (isDuplicate(item.identifier, item.identifierType, combinedList)) {
+                skippedDuplicates.push(item.identifier);
+            } else {
+                combinedList.push({
+                    identifier: item.identifier,
+                    identifier_type: item.identifierType,
+                    relation_type: item.relationType,
+                    position: combinedList.length,
+                });
+            }
+        });
+
+        onChange(combinedList);
         setShowCsvImport(false);
+
+        // Show warning if duplicates were skipped
+        if (skippedDuplicates.length > 0) {
+            setDuplicateError(
+                `Skipped ${skippedDuplicates.length} duplicate(s) from CSV import: ${skippedDuplicates.slice(0, 3).join(', ')}${skippedDuplicates.length > 3 ? '...' : ''}`
+            );
+            setTimeout(() => setDuplicateError(null), 8000);
+        }
     };
 
     const handleRemove = (index: number) => {
@@ -72,6 +137,13 @@ export default function RelatedWorkField({
 
     return (
         <div className="space-y-6">
+            {/* Duplicate Error Alert */}
+            {duplicateError && (
+                <Alert variant="destructive">
+                    <AlertDescription>{duplicateError}</AlertDescription>
+                </Alert>
+            )}
+
             {/* CSV Import Modal */}
             {showCsvImport ? (
                 <div className="rounded-lg border bg-card p-6">

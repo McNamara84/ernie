@@ -72,7 +72,7 @@ export function useIdentifierValidation({
                         metadata: result.metadata,
                     });
                 } else {
-                    // API error = warning, not blocking
+                    // Show the specific error message from the backend
                     setValidationState({
                         status: 'warning',
                         message: result.error || 'Could not verify DOI, but format is valid',
