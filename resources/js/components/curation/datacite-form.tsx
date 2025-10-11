@@ -1297,6 +1297,11 @@ export default function DataCiteForm({
                 timezone: string;
                 description: string;
             }[];
+            relatedIdentifiers: {
+                identifier: string;
+                identifierType: string;
+                relationType: string;
+            }[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1348,6 +1353,11 @@ export default function DataCiteForm({
                 endTime: coverage.endTime,
                 timezone: coverage.timezone,
                 description: coverage.description,
+            })),
+            relatedIdentifiers: relatedWorks.map((rw) => ({
+                identifier: rw.identifier,
+                identifierType: rw.identifier_type,
+                relationType: rw.relation_type,
             })),
         };
 
