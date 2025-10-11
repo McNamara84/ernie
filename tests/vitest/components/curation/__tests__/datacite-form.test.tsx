@@ -1271,7 +1271,7 @@ describe('DataCiteForm', () => {
         expect(lastNameInputs[0]).toHaveValue('Hernandez');
 
         expect(authorScope.getByLabelText('ORCID')).toHaveValue(
-            'https://orcid.org/0000-0002-2771-9344',
+            '0000-0002-2771-9344',
         );
 
         expect(
@@ -1331,7 +1331,7 @@ describe('DataCiteForm', () => {
         const contributorOrcidField = within(
             screen.getByTestId('contributor-0-orcid-field'),
         ).getByRole('textbox') as HTMLInputElement;
-        expect(contributorOrcidField.value).toBe('https://orcid.org/0000-0001-5727-2427');
+        expect(contributorOrcidField.value).toBe('0000-0001-5727-2427');
 
         const contributorFirstNameField = within(contributorSection).getByLabelText('First name', {
             selector: 'input',
