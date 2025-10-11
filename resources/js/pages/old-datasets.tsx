@@ -1429,10 +1429,26 @@ export default function OldDatasets({
             cellClassName: 'whitespace-nowrap',
         },
         {
-            key: 'curator',
-            label: 'Curator',
-            widthClass: 'min-w-[7rem]',
-            cellClassName: 'whitespace-nowrap',
+            key: 'curator_status',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Curator</span>
+                    <span>Status</span>
+                </span>
+            ),
+            widthClass: 'min-w-[10rem]',
+            cellClassName: 'whitespace-normal align-top',
+            render: (dataset: Dataset) => {
+                const curator = dataset.curator ?? '-';
+                const status = dataset.publicstatus ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                        <span className="text-sm">{curator}</span>
+                        <span className="text-sm">{status}</span>
+                    </div>
+                );
+            },
         },
         {
             key: 'created_updated',
@@ -1473,12 +1489,6 @@ export default function OldDatasets({
                     </div>
                 );
             },
-        },
-        {
-            key: 'publicstatus',
-            label: 'Publication Status',
-            widthClass: 'min-w-[10rem]',
-            cellClassName: 'whitespace-nowrap',
         },
     ];
 
