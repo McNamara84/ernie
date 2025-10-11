@@ -794,10 +794,10 @@ class OldDataset extends Model
         return $result;
     }
 
-    /**
+        /**
      * Get related identifiers for this dataset from the old database.
      * 
-     * Fetches data from the resource_rel_id table which stores relationships
+     * Fetches data from the relatedidentifier table which stores relationships
      * to other resources using DataCite relation types.
      *
      * @return array<int, array{identifier: string, identifierType: string, relationType: string, position: int}>
@@ -810,19 +810,20 @@ class OldDataset extends Model
 
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
         
-        // Get all related identifiers for this resource, ordered by position
-        $relatedIds = $db->table('resource_rel_id')
+        // Get all related identifiers for this resource
+        // Note: old database doesn't have position field, so we use id for ordering
+        $relatedIds = $db->table('relatedidentifier')
             ->where('resource_id', $this->id)
-            ->orderBy('position')
+            ->orderBy('id')
             ->get();
 
-        return $relatedIds->map(function ($relatedId) {
+        return $relatedIds->map(function ($relatedId, $index) {
             return [
                 'identifier' => $relatedId->identifier ?? '',
-                'identifierType' => $relatedId->identifier_type ?? 'DOI',
-                'relationType' => $relatedId->relation_type ?? 'Cites',
-                'position' => (int) ($relatedId->position ?? 0),
+                'identifierType' => $relatedId->identifiertype ?? 'DOI',
+                'relationType' => $relatedId->relationtype ?? 'Cites',
+                'position' => $index,
             ];
         })->toArray();
     }
-}
+ }

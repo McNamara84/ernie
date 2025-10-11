@@ -169,6 +169,12 @@ export interface ResourceForCuration {
         timezone: string;
         description: string;
     }[] | null;
+    relatedIdentifiers?: {
+        identifier: string;
+        identifierType: string;
+        relationType: string;
+        position: number;
+    }[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -726,6 +732,15 @@ export const buildCurationQueryFromResource = async (
         if (coverage.endTime) query[`${prefix}[endTime]`] = coverage.endTime;
         if (coverage.timezone) query[`${prefix}[timezone]`] = coverage.timezone;
         if (coverage.description) query[`${prefix}[description]`] = coverage.description;
+    });
+
+    // Add related identifiers to query
+    const relatedIdentifiers = resource.relatedIdentifiers ?? [];
+    relatedIdentifiers.forEach((relatedIdentifier, index) => {
+        const prefix = `relatedWorks[${index}]`;
+        query[`${prefix}[identifier]`] = relatedIdentifier.identifier;
+        query[`${prefix}[identifierType]`] = relatedIdentifier.identifierType;
+        query[`${prefix}[relationType]`] = relatedIdentifier.relationType;
     });
 
     return query;

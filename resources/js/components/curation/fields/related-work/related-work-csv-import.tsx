@@ -7,6 +7,35 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
+/**
+ * Detect identifier type from identifier value
+ */
+function detectIdentifierType(identifier: string): IdentifierType {
+    // Check for DOI URL first (before generic URL pattern)
+    const doiUrlMatch = identifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+    if (doiUrlMatch) {
+        return 'DOI';
+    }
+    
+    // Check for bare DOI pattern (e.g., 10.1234/example)
+    if (identifier.match(/^10\.\d{4,}\/\S+/)) {
+        return 'DOI';
+    }
+    
+    // Check for URL pattern
+    if (identifier.match(/^https?:\/\//i)) {
+        return 'URL';
+    }
+    
+    // Check for Handle pattern (e.g., 1234/5678)
+    if (identifier.match(/^\d+\/\d+/)) {
+        return 'Handle';
+    }
+    
+    // Default to URL for safety
+    return 'URL';
+}
+
 interface RelatedWorkCsvImportProps {
     onImport: (data: RelatedIdentifierFormData[]) => void;
     onClose: () => void;
@@ -86,7 +115,10 @@ export default function RelatedWorkCsvImport({
 
             // Parse header
             const header = lines[0].split(',').map(h => h.trim().toLowerCase());
-            const requiredColumns = ['identifier', 'identifier_type', 'relation_type'];
+            
+            // Required: identifier and relation_type
+            // Optional: identifier_type (will be auto-detected if missing)
+            const requiredColumns = ['identifier', 'relation_type'];
             const missingColumns = requiredColumns.filter(col => !header.includes(col));
 
             if (missingColumns.length > 0) {
@@ -94,11 +126,14 @@ export default function RelatedWorkCsvImport({
                     row: 0,
                     field: 'header',
                     value: header.join(', '),
-                    message: `Missing required columns: ${missingColumns.join(', ')}`,
+                    message: `Missing required columns: ${missingColumns.join(', ')}. Optional: identifier_type (auto-detected if not provided)`,
                 }]);
                 setIsProcessing(false);
                 return;
             }
+
+            const hasIdentifierType = header.includes('identifier_type');
+            const identifierTypeIndex = header.indexOf('identifier_type');
 
             // Parse data rows
             const validationErrors: ValidationError[] = [];
@@ -108,7 +143,8 @@ export default function RelatedWorkCsvImport({
                 const line = lines[i];
                 const values = line.split(',').map(v => v.trim());
                 
-                if (values.length < 3) {
+                const minColumns = hasIdentifierType ? 3 : 2;
+                if (values.length < minColumns) {
                     validationErrors.push({
                         row: i + 1,
                         field: 'row',
@@ -118,10 +154,26 @@ export default function RelatedWorkCsvImport({
                     continue;
                 }
 
+                const identifier = values[header.indexOf('identifier')];
+                const providedType = hasIdentifierType ? values[identifierTypeIndex] : null;
+                const relationType = values[header.indexOf('relation_type')];
+
+                // Auto-detect identifier type if not provided
+                const identifierType = providedType || detectIdentifierType(identifier);
+
+                // Normalize DOI if it has URL prefix
+                let normalizedIdentifier = identifier;
+                if (identifierType === 'DOI') {
+                    const doiUrlMatch = identifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+                    if (doiUrlMatch) {
+                        normalizedIdentifier = doiUrlMatch[1];
+                    }
+                }
+
                 const row: CsvRow = {
-                    identifier: values[header.indexOf('identifier')],
-                    identifier_type: values[header.indexOf('identifier_type')],
-                    relation_type: values[header.indexOf('relation_type')],
+                    identifier: normalizedIdentifier,
+                    identifier_type: identifierType,
+                    relation_type: relationType,
                 };
 
                 // Validate identifier
@@ -134,13 +186,15 @@ export default function RelatedWorkCsvImport({
                     });
                 }
 
-                // Validate identifier_type
+                // Validate identifier_type (whether auto-detected or provided)
                 if (!validIdentifierTypes.includes(row.identifier_type)) {
                     validationErrors.push({
                         row: i + 1,
                         field: 'identifier_type',
                         value: row.identifier_type,
-                        message: `Invalid identifier type. Must be one of: ${validIdentifierTypes.join(', ')}`,
+                        message: hasIdentifierType 
+                            ? `Invalid identifier type. Must be one of: ${validIdentifierTypes.join(', ')}`
+                            : `Could not auto-detect identifier type. Please provide identifier_type column.`,
                     });
                 }
 

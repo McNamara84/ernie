@@ -49,7 +49,14 @@ export default function RelatedWorkQuickAdd({
     const detectIdentifierType = (value: string): IdentifierType => {
         const trimmed = value.trim();
         
-        // DOI patterns
+        // DOI with URL prefix (extract DOI part)
+        // Matches: https://doi.org/10.xxxx/xxx or http://dx.doi.org/10.xxxx/xxx
+        const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+        if (doiUrlMatch) {
+            return 'DOI';
+        }
+        
+        // DOI patterns (without URL prefix)
         if (trimmed.match(/^10\.\d{4,}/)) {
             return 'DOI';
         }
@@ -88,9 +95,18 @@ export default function RelatedWorkQuickAdd({
         }
 
         const identifierType = detectIdentifierType(identifier);
+        let normalizedIdentifier = identifier.trim();
+
+        // If DOI was entered with URL prefix, extract just the DOI part
+        if (identifierType === 'DOI') {
+            const doiUrlMatch = normalizedIdentifier.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+            if (doiUrlMatch) {
+                normalizedIdentifier = doiUrlMatch[1];
+            }
+        }
 
         onAdd({
-            identifier: identifier.trim(),
+            identifier: normalizedIdentifier,
             identifierType,
             relationType,
         });
