@@ -205,11 +205,15 @@ const isSortState = (value: unknown): value is SortState => {
     }
 
     const maybeState = value as { key?: unknown; direction?: unknown };
+    
+    const validKeys: SortKey[] = [
+        'id', 'identifier', 'title', 'resourcetypegeneral', 
+        'first_author', 'publicationyear', 'curator', 
+        'publicstatus', 'created_at', 'updated_at'
+    ];
 
     return (
-        maybeState.key === 'id' ||
-        maybeState.key === 'created_at' ||
-        maybeState.key === 'updated_at'
+        validKeys.includes(maybeState.key as SortKey)
     ) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
 };
 
@@ -233,6 +237,22 @@ const buildSortButtonLabel = (option: SortOption, sortState: SortState): string 
     }
 
     return `${option.description}. Activate to sort ${describeDirection(currentDirection)}.`;
+};
+
+const getSortLabel = (key: SortKey): string => {
+    const labels: Record<SortKey, string> = {
+        id: 'ID',
+        identifier: 'Identifier',
+        title: 'Title',
+        resourcetypegeneral: 'Resource Type',
+        first_author: 'Author',
+        publicationyear: 'Year',
+        curator: 'Curator',
+        publicstatus: 'Status',
+        created_at: 'Created Date',
+        updated_at: 'Updated Date',
+    };
+    return labels[key];
 };
 
 const SortDirectionIndicator = ({
@@ -1149,6 +1169,10 @@ export default function OldDatasets({
     const [activeSortState, setActiveSortState] = useState<SortState>(initialSort);
 
     const handleSortChange = useCallback((key: SortKey) => {
+        // Smooth scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Update sort state which will trigger the useEffect to reload data
         setSortState(previousState => ({
             key,
             direction: determineNextDirection(previousState, key),
@@ -1668,9 +1692,12 @@ export default function OldDatasets({
                             </div>
                         ) : (
                             <>
-                                <div className="mb-4 flex items-center gap-2">
+                                <div className="mb-4 flex items-center gap-2 flex-wrap">
                                     <Badge variant="secondary">
-                                        1-{sortedDatasets.length} of {pagination.total} datasets
+                                        {sortedDatasets.length} of {pagination.total} datasets
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs">
+                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
                                     </Badge>
                                 </div>
 
