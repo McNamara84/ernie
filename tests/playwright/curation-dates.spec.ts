@@ -10,14 +10,13 @@ test.describe('Curation - Dates Saving and Loading', () => {
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
     await page.waitForURL(/\/dashboard/);
+    
+    // Navigate to curation page
+    await page.goto('/curation');
+    await page.waitForLoadState('networkidle');
   });
 
   test('saves and loads dates correctly', async ({ page }) => {
-    await test.step('Navigate to curation page', async () => {
-      await page.goto('/curation');
-      await page.waitForLoadState('networkidle');
-    });
-
     await test.step('Fill required fields', async () => {
       // Fill Main Title
       await page.fill('input[id="title-0"]', 'Test Resource with Dates');
