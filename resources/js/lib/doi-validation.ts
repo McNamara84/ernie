@@ -114,11 +114,10 @@ export function validateIdentifierFormat(identifier: string, type: string): Vali
 }
 
 /**
- * Resolve DOI metadata from DataCite API
- * Returns metadata if successful, or error information
+ * Resolve DOI metadata via backend proxy
  * 
- * If DOI is not found in DataCite, falls back to checking if it resolves via doi.org
- * (DOI might be registered with another provider like Crossref)
+ * Backend handles both DataCite API and doi.org resolution
+ * This avoids CORS issues with direct doi.org requests from browser
  * 
  * Note: This is a non-blocking validation - failures should only show warnings
  */
@@ -129,7 +128,7 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
     const bareDOI = doiUrlMatch ? doiUrlMatch[1] : trimmed;
     
-    // First validate format
+    // First validate format locally
     const formatValidation = validateDOIFormat(bareDOI);
     if (!formatValidation.isValid) {
         return {
@@ -139,86 +138,43 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
     }
     
     try {
-        // Create abort controller for timeout
+        // Use backend proxy to validate DOI
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
         
-        // Query DataCite API
-        const response = await fetch(`https://api.datacite.org/dois/${encodeURIComponent(bareDOI)}`, {
-            signal: controller.signal,
+        const response = await fetch('/api/validate-doi', {
+            method: 'POST',
             headers: {
-                'Accept': 'application/vnd.api+json',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
+            body: JSON.stringify({ doi: bareDOI }),
+            signal: controller.signal,
         });
         
         clearTimeout(timeoutId);
         
         if (!response.ok) {
-            if (response.status === 404) {
-                // DOI not in DataCite - try to check if it resolves via doi.org
-                // This catches DOIs registered with other providers (Crossref, etc.)
-                try {
-                    const doiOrgController = new AbortController();
-                    const doiOrgTimeoutId = setTimeout(() => doiOrgController.abort(), timeout);
-                    
-                    const doiOrgResponse = await fetch(`https://doi.org/${encodeURIComponent(bareDOI)}`, {
-                        method: 'HEAD', // Just check if it exists, don't download content
-                        signal: doiOrgController.signal,
-                        redirect: 'manual', // Don't follow redirects, just check if DOI resolves
-                    });
-                    
-                    clearTimeout(doiOrgTimeoutId);
-                    
-                    // If doi.org returns 302 (redirect), the DOI exists and resolves
-                    if (doiOrgResponse.status === 302 || doiOrgResponse.status === 301) {
-                        return {
-                            success: true,
-                            metadata: {
-                                title: `DOI registered (not in DataCite)`,
-                            },
-                        };
-                    }
-                } catch {
-                    // If doi.org check fails, fall through to original error
-                }
-                
-                return {
-                    success: false,
-                    error: 'DOI not found in DataCite registry',
-                };
-            }
+            const errorData = await response.json().catch(() => ({}));
             return {
                 success: false,
-                error: `DataCite API error: ${response.status}`,
+                error: errorData.error || `Validation error: ${response.status}`,
             };
         }
         
         const data = await response.json();
-        const attributes = data.data?.attributes;
         
-        if (!attributes) {
+        if (data.success && data.metadata) {
             return {
-                success: false,
-                error: 'No metadata found',
+                success: true,
+                metadata: data.metadata,
             };
         }
         
-        // Extract metadata
-        const metadata: DataCiteMetadata = {
-            title: attributes.titles?.[0]?.title,
-            creators: attributes.creators?.map((c: { name?: string; givenName?: string; familyName?: string }) => {
-                if (c.name) return c.name;
-                if (c.familyName && c.givenName) return `${c.givenName} ${c.familyName}`;
-                return c.familyName || c.givenName || 'Unknown';
-            }),
-            publicationYear: attributes.publicationYear,
-            publisher: attributes.publisher,
-            resourceType: attributes.types?.resourceType,
-        };
-        
         return {
-            success: true,
-            metadata,
+            success: false,
+            error: data.error || 'Could not verify DOI',
         };
     } catch (error) {
         if (error instanceof Error) {
@@ -246,3 +202,4 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
 export function supportsMetadataResolution(identifierType: string): boolean {
     return identifierType === 'DOI';
 }
+
