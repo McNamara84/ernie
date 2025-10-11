@@ -51,6 +51,7 @@ class ResourceController extends Controller
                 'keywords:id,resource_id,keyword',
                 'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
                 'coverages',
+                'relatedIdentifiers:id,resource_id,identifier,identifier_type,relation_type,position',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -264,6 +265,18 @@ class ResourceController extends Controller
                                 'endTime' => $coverage->end_time ?? '',
                                 'timezone' => $coverage->timezone ?? 'UTC',
                                 'description' => $coverage->description ?? '',
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                    'relatedIdentifiers' => $resource->relatedIdentifiers
+                        ->sortBy('position')
+                        ->map(static function (\App\Models\RelatedIdentifier $relatedIdentifier): array {
+                            return [
+                                'identifier' => $relatedIdentifier->identifier,
+                                'identifierType' => $relatedIdentifier->identifier_type,
+                                'relationType' => $relatedIdentifier->relation_type,
+                                'position' => $relatedIdentifier->position,
                             ];
                         })
                         ->values()
@@ -494,7 +507,26 @@ class ResourceController extends Controller
                     }
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages']), $isUpdate];
+                // Save related identifiers
+                if ($isUpdate) {
+                    $resource->relatedIdentifiers()->delete();
+                }
+
+                $relatedIdentifiers = $validated['relatedIdentifiers'] ?? [];
+
+                foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
+                    // Only save if identifier is not empty
+                    if (!empty(trim($relatedIdentifier['identifier']))) {
+                        $resource->relatedIdentifiers()->create([
+                            'identifier' => trim($relatedIdentifier['identifier']),
+                            'identifier_type' => $relatedIdentifier['identifierType'],
+                            'relation_type' => $relatedIdentifier['relationType'],
+                            'position' => $index,
+                        ]);
+                    }
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages', 'relatedIdentifiers']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);

@@ -478,6 +478,44 @@ class OldDatasetController extends Controller
     }
 
     /**
+     * Get related identifiers for a specific old dataset.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id The dataset ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getRelatedIdentifiers(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            $relatedIdentifiers = $dataset->getRelatedIdentifiers();
+
+            return response()->json([
+                'relatedIdentifiers' => $relatedIdentifiers,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading related identifiers for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load related identifiers from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
      * Build sanitized debug information for the SUMARIOPMD connection failure.
      *
      * @return array<string, mixed>

@@ -123,4 +123,13 @@ class Resource extends Model
 
         return $relation;
     }
+
+    /** @return HasMany<RelatedIdentifier, static> */
+    public function relatedIdentifiers(): HasMany
+    {
+        /** @var HasMany<RelatedIdentifier, static> $relation */
+        $relation = $this->hasMany(RelatedIdentifier::class)->orderBy('position');
+
+        return $relation;
+    }
 }

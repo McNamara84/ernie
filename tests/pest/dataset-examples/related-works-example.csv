@@ -1,0 +1,17 @@
+identifier,identifier_type,relation_type
+10.5194/nhess-15-1463-2015,DOI,Cites
+10.1109/LGRS.2013.2251858,DOI,References
+10.5880/GFZ.1.2.2020.001,DOI,IsDerivedFrom
+https://example.org/data/seismic-2020,URL,IsDocumentedBy
+10.5194/sd-19-1-2015,DOI,IsSupplementTo
+10273/ICDP5054EHW1001,Handle,Compiles
+10.2312/ICDP.2015.001,DOI,HasPart
+10.5880/ICDP.5054.001,DOI,IsPartOf
+https://data.gfz-potsdam.de/publications/2020,URL,IsCitedBy
+10.1038/s41597-021-00912-z,DOI,Cites
+10.1029/2020GL089123,DOI,IsReferencedBy
+https://github.com/example/seismic-analysis,URL,IsSourceOf
+10.5281/zenodo.4567890,DOI,IsVersionOf
+10.1002/2021JB022345,DOI,IsContinuedBy
+urn:nbn:de:kobv:b4-opus4-29876,URN,IsSupplementedBy
+10.5334/dsj-2017-002,DOI,IsVariantFormOf

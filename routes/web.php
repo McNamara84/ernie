@@ -75,6 +75,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/coverages', [OldDatasetController::class, 'getCoverages'])
         ->name('old-datasets.coverages');
 
+    Route::get('old-datasets/{id}/related-identifiers', [OldDatasetController::class, 'getRelatedIdentifiers'])
+        ->name('old-datasets.related-identifiers');
+
+    // DOI validation endpoint (proxy to avoid CORS issues)
+    Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
+        ->name('api.validate-doi');
+
     Route::get('resources', [ResourceController::class, 'index'])
         ->name('resources');
 
@@ -99,6 +106,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('docs.users');
 
     Route::get('curation', function (\Illuminate\Http\Request $request) {
+        // Decode relatedWorks from JSON if it's a string (to handle large datasets)
+        $relatedWorks = $request->query('relatedWorks', []);
+        if (is_string($relatedWorks)) {
+            $decoded = json_decode($relatedWorks, true);
+            $relatedWorks = is_array($decoded) ? $decoded : [];
+        }
+
+        // Transform relatedWorks from camelCase to snake_case if needed
+        // (legacy import uses camelCase, but frontend expects snake_case)
+        $relatedWorks = array_map(function ($item) {
+            if (isset($item['identifierType'])) {
+                $item['identifier_type'] = $item['identifierType'];
+                unset($item['identifierType']);
+            }
+            if (isset($item['relationType'])) {
+                $item['relation_type'] = $item['relationType'];
+                unset($item['relationType']);
+            }
+            return $item;
+        }, $relatedWorks);
+
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
@@ -118,6 +146,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'gcmdKeywords' => $request->query('gcmdKeywords', []),
             'freeKeywords' => $request->query('freeKeywords', []),
             'coverages' => $request->query('coverages', []),
+            'relatedWorks' => $relatedWorks,
         ]);
     })->name('curation');
 

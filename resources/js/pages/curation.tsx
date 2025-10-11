@@ -13,6 +13,7 @@ import {
     type BreadcrumbItem,
     type Language,
     type License,
+    type RelatedIdentifier,
     type ResourceType,
     type Role,
     type TitleType,
@@ -37,6 +38,7 @@ interface CurationProps {
     gcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
     freeKeywords?: string[];
     coverages?: SpatialTemporalCoverageEntry[];
+    relatedWorks?: RelatedIdentifier[];
 }
 
 export default function Curation({
@@ -58,6 +60,7 @@ export default function Curation({
     gcmdKeywords = [],
     freeKeywords = [],
     coverages = [],
+    relatedWorks = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -198,6 +201,7 @@ export default function Curation({
                             initialGcmdKeywords={gcmdKeywords}
                             initialFreeKeywords={freeKeywords}
                             initialSpatialTemporalCoverages={coverages}
+                            initialRelatedWorks={relatedWorks}
                         />
                     )}
             </div>

@@ -1030,6 +1030,31 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without coverages if loading fails
         }
+
+        // Load related identifiers from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/related-identifiers`);
+            const relatedIdentifiers = response.data.relatedIdentifiers || [];
+            
+            // Encode related identifiers as JSON to avoid max_input_vars limit
+            // (403 items × 3 params = 1209 vars, which exceeds PHP default of 1000)
+            if (relatedIdentifiers.length > 0) {
+                query.relatedWorks = JSON.stringify(relatedIdentifiers);
+            }
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading related identifiers for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading related identifiers for dataset:', error);
+            }
+            // Continue without related identifiers if loading fails
+        }
     }
 
     return query;

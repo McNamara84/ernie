@@ -71,3 +71,87 @@ export interface Role {
     slug: string;
 }
 
+export interface RelatedIdentifier {
+    id?: number;
+    identifier: string;
+    identifier_type: string;
+    relation_type: string;
+    position?: number;
+    related_title?: string | null;
+    related_metadata?: Record<string, unknown> | null;
+}
+
+export interface RelatedIdentifierFormData {
+    identifier: string;
+    identifierType: string;
+    relationType: string;
+}
+
+export type IdentifierType = 
+    | 'DOI'
+    | 'URL'
+    | 'Handle'
+    | 'IGSN'
+    | 'URN'
+    | 'ISBN'
+    | 'ISSN'
+    | 'PURL'
+    | 'ARK'
+    | 'arXiv'
+    | 'bibcode'
+    | 'EAN13'
+    | 'EISSN'
+    | 'ISTC'
+    | 'LISSN'
+    | 'LSID'
+    | 'PMID'
+    | 'UPC'
+    | 'w3id';
+
+export type RelationType =
+    // Citation
+    | 'Cites'
+    | 'IsCitedBy'
+    | 'References'
+    | 'IsReferencedBy'
+    // Documentation
+    | 'Documents'
+    | 'IsDocumentedBy'
+    | 'Describes'
+    | 'IsDescribedBy'
+    // Versions
+    | 'IsNewVersionOf'
+    | 'IsPreviousVersionOf'
+    | 'HasVersion'
+    | 'IsVersionOf'
+    | 'Continues'
+    | 'IsContinuedBy'
+    | 'Obsoletes'
+    | 'IsObsoletedBy'
+    | 'IsVariantFormOf'
+    | 'IsOriginalFormOf'
+    | 'IsIdenticalTo'
+    // Compilation
+    | 'HasPart'
+    | 'IsPartOf'
+    | 'Compiles'
+    | 'IsCompiledBy'
+    // Derivation
+    | 'IsSourceOf'
+    | 'IsDerivedFrom'
+    // Supplement
+    | 'IsSupplementTo'
+    | 'IsSupplementedBy'
+    // Software
+    | 'Requires'
+    | 'IsRequiredBy'
+    // Metadata
+    | 'HasMetadata'
+    | 'IsMetadataFor'
+    // Reviews
+    | 'Reviews'
+    | 'IsReviewedBy'
+    // Other
+    | 'IsPublishedIn'
+    | 'Collects'
+    | 'IsCollectedBy';
