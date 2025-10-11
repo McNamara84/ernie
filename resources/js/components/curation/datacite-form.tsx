@@ -19,7 +19,7 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
-import { hasValidDateValue, serializeDateEntry } from '@/lib/date-utils';
+import { hasValidDateValue } from '@/lib/date-utils';
 import type { Language, License, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
@@ -1274,7 +1274,7 @@ export default function DataCiteForm({
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
             descriptions: { descriptionType: string; description: string }[];
-            dates: { date: string; dateType: string }[];
+            dates: { dateType: string; startDate: string | null; endDate: string | null }[];
             freeKeywords: string[];
             gcmdKeywords: {
                 id: string;
@@ -1327,8 +1327,9 @@ export default function DataCiteForm({
             dates: dates
                 .filter(hasValidDateValue)
                 .map((date) => ({
-                    date: serializeDateEntry(date),
                     dateType: date.dateType,
+                    startDate: date.startDate || null,
+                    endDate: date.endDate || null,
                 })),
             freeKeywords: freeKeywords
                 .map((kw) => kw.value.trim())
