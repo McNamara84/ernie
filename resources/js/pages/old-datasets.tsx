@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -110,7 +110,7 @@ const IDENTIFIER_COLUMN_HEADER_LABEL = (
         <span>Identifier (DOI)</span>
     </span>
 );
-const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-24 min-w-[6rem]';
+const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-32 min-w-[8rem]';
 
 const DEFAULT_SORT: SortState = { key: 'updated_at', direction: 'desc' };
 const SORT_PREFERENCE_STORAGE_KEY = 'old-datasets.sort-preference';
@@ -1627,7 +1627,10 @@ export default function OldDatasets({
                         </td>
                     ))}
                     <td className={`px-6 py-4 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                        <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        <div className="flex items-center gap-1">
+                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        </div>
                     </td>
                 </tr>
             ))}
@@ -1769,16 +1772,29 @@ export default function OldDatasets({
                                                             </td>
                                                         ))}
                                                         <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleOpenInCuration(dataset)}
-                                                                aria-label={`Open dataset ${datasetLabel} in curation form`}
-                                                                title={`Open dataset ${datasetLabel} in curation form`}
-                                                            >
-                                                                <ArrowUpRight aria-hidden="true" className="size-4" />
-                                                            </Button>
+                                                            <div className="flex items-center gap-1">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleOpenInCuration(dataset)}
+                                                                    aria-label={`Open dataset ${datasetLabel} in curation form`}
+                                                                    title={`Open dataset ${datasetLabel} in curation form`}
+                                                                >
+                                                                    <ArrowUpRight aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    disabled
+                                                                    aria-label={`Delete dataset ${datasetLabel} (not yet implemented)`}
+                                                                    title="Delete dataset (not yet implemented)"
+                                                                    className="opacity-40 cursor-not-allowed"
+                                                                >
+                                                                    <Trash2 aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
