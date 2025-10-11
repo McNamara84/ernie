@@ -41,16 +41,20 @@ function normalizeIdentifier(identifier: string, identifierType: string): string
 
 /**
  * Check if an identifier already exists (considering normalized form)
+ * A duplicate is only when BOTH identifier AND relation type are the same
+ * (same identifier with different relation types is valid)
  */
 function isDuplicate(
     identifier: string,
     identifierType: string,
+    relationType: string,
     existingItems: RelatedIdentifier[]
 ): boolean {
     const normalized = normalizeIdentifier(identifier, identifierType);
     
     return existingItems.some(item => {
-        if (item.identifier_type !== identifierType) {
+        // Must match both identifier type AND relation type
+        if (item.identifier_type !== identifierType || item.relation_type !== relationType) {
             return false;
         }
         const existingNormalized = normalizeIdentifier(item.identifier, item.identifier_type);
@@ -67,9 +71,9 @@ export default function RelatedWorkField({
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
     const handleAdd = (data: RelatedIdentifierFormData) => {
-        // Check for duplicates
-        if (isDuplicate(data.identifier, data.identifierType, relatedWorks)) {
-            setDuplicateError(`This identifier already exists in the list (possibly with different formatting, e.g., with/without https://doi.org/ prefix)`);
+        // Check for duplicates (same identifier AND same relation type)
+        if (isDuplicate(data.identifier, data.identifierType, data.relationType, relatedWorks)) {
+            setDuplicateError(`This exact relation already exists in the list (same identifier and relation type). Note: You can add the same identifier with a different relation type.`);
             
             // Clear error after 5 seconds
             setTimeout(() => setDuplicateError(null), 5000);
@@ -95,8 +99,8 @@ export default function RelatedWorkField({
         const skippedDuplicates: string[] = [];
 
         data.forEach((item) => {
-            if (isDuplicate(item.identifier, item.identifierType, combinedList)) {
-                skippedDuplicates.push(item.identifier);
+            if (isDuplicate(item.identifier, item.identifierType, item.relationType, combinedList)) {
+                skippedDuplicates.push(`${item.identifier} (${item.relationType})`);
             } else {
                 combinedList.push({
                     identifier: item.identifier,
