@@ -344,7 +344,8 @@ const mapInitialContributorToEntry = (
     }
 
     const affiliations = normaliseInitialAffiliations(contributor.affiliations ?? null);
-    const affiliationsInput = affiliations.map((item) => item.value).join(', ');
+    // Keep affiliations as separate tags, not joined into one string
+    const affiliationsInput = affiliations.map((item) => item.value).join(',');
     const roles = normaliseInitialContributorRoles(contributor.roles ?? null);
     const roleLabels = roles.map((role) => role.value);
     const rolesInput = roleLabels.join(', ');
@@ -396,7 +397,8 @@ const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
     }
 
     const affiliations = normaliseInitialAffiliations(author.affiliations ?? null);
-    const affiliationsInput = affiliations.map((item) => item.value).join(', ');
+    // Keep affiliations as separate tags, not joined into one string
+    const affiliationsInput = affiliations.map((item) => item.value).join(',');
 
     if (author.type === 'institution') {
         const base = createEmptyInstitutionAuthor();
