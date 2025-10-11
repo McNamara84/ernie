@@ -176,7 +176,7 @@ export function AuthorField({
                                     }}
                                     inputClassName="w-full"
                                     inputMode="text"
-                                    pattern="^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$"
+                                    pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
                                 />
                                 <InputField
                                     id={`${author.id}-firstName`}

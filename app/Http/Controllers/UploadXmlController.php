@@ -1064,7 +1064,9 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        return 'https://orcid.org/' . strtoupper($identifier);
+        // Return only the ORCID identifier (e.g., "0000-0001-5727-2427")
+        // without the URL prefix, as the frontend expects this format
+        return $identifier;
     }
 
     /**

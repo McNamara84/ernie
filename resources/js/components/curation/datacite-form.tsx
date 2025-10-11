@@ -51,6 +51,40 @@ import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
+// Helper functions for normalizing ORCID and website URLs from old datasets
+const normalizeOrcid = (orcid: string | null | undefined): string => {
+    if (!orcid || typeof orcid !== 'string') {
+        return '';
+    }
+    
+    const trimmed = orcid.trim();
+    
+    // Remove https://orcid.org/ prefix if present
+    const orcidPattern = /^(?:https?:\/\/)?(?:www\.)?orcid\.org\/(.+)$/i;
+    const match = trimmed.match(orcidPattern);
+    
+    if (match && match[1]) {
+        return match[1];
+    }
+    
+    return trimmed;
+};
+
+const normalizeWebsiteUrl = (url: string | null | undefined): string => {
+    if (!url || typeof url !== 'string') {
+        return '';
+    }
+    
+    const trimmed = url.trim();
+    
+    // If URL doesn't start with http:// or https://, add https://
+    if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+        return `https://${trimmed}`;
+    }
+    
+    return trimmed;
+};
+
 // Constants
 const REQUIRED_DATE_TYPE = 'created' as const;
 
@@ -381,7 +415,7 @@ const mapInitialContributorToEntry = (
 
     return {
         ...base,
-        orcid: typeof personContributor.orcid === 'string' ? personContributor.orcid.trim() : '',
+        orcid: normalizeOrcid(personContributor.orcid),
         firstName: typeof personContributor.firstName === 'string' ? personContributor.firstName.trim() : '',
         lastName: typeof personContributor.lastName === 'string' ? personContributor.lastName.trim() : '',
         affiliations,
@@ -418,11 +452,11 @@ const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
 
     return {
         ...base,
-        orcid: typeof author.orcid === 'string' ? author.orcid.trim() : '',
+        orcid: normalizeOrcid(author.orcid),
         firstName: typeof author.firstName === 'string' ? author.firstName.trim() : '',
         lastName: typeof author.lastName === 'string' ? author.lastName.trim() : '',
         email: typeof author.email === 'string' ? author.email.trim() : '',
-        website: typeof author.website === 'string' ? author.website.trim() : '',
+        website: normalizeWebsiteUrl(author.website),
         isContact: author.isContact === true || author.isContact === 'true',
         affiliations,
         affiliationsInput,

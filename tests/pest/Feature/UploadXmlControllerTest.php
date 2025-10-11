@@ -67,7 +67,7 @@ XML;
 
     $response->assertJsonPath('contributors.0.type', 'person');
     $response->assertJsonPath('contributors.0.roles', ['Contact Person']);
-    $response->assertJsonPath('contributors.0.orcid', 'https://orcid.org/0000-0001-5727-2427');
+    $response->assertJsonPath('contributors.0.orcid', '0000-0001-5727-2427');
     $response->assertJsonPath('contributors.0.firstName', 'ExampleGivenName');
     $response->assertJsonPath('contributors.0.lastName', 'ExampleFamilyName');
     $response->assertJsonPath('contributors.0.affiliations.0.value', 'ExampleAffiliation');
@@ -75,7 +75,7 @@ XML;
 
     $response->assertJsonPath('contributors.1.type', 'person');
     $response->assertJsonPath('contributors.1.roles', ['Work Package Leader']);
-    $response->assertJsonPath('contributors.1.orcid', 'https://orcid.org/0000-0002-5727-2427');
+    $response->assertJsonPath('contributors.1.orcid', '0000-0002-5727-2427');
     $response->assertJsonPath('contributors.1.firstName', 'ExampleLeaderGiven');
     $response->assertJsonPath('contributors.1.lastName', 'ExampleLeaderFamily');
 
@@ -154,7 +154,7 @@ XML;
 
     $response->assertJsonPath('contributors.0.type', 'person');
     $response->assertJsonPath('contributors.0.roles', ['Contact Person', 'Data Curator']);
-    $response->assertJsonPath('contributors.0.orcid', 'https://orcid.org/0000-0001-5727-2427');
+    $response->assertJsonPath('contributors.0.orcid', '0000-0001-5727-2427');
     $response->assertJsonPath('contributors.0.affiliations.0.value', 'ExampleAffiliation');
     $response->assertJsonPath('contributors.0.affiliations.1.value', 'Additional Affiliation');
 
