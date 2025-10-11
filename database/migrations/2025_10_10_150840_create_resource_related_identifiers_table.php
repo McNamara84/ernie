@@ -28,10 +28,6 @@ return new class extends Migration
             // Position for ordering (by add order)
             $table->unsignedInteger('position')->default(0);
             
-            // Optional: Cached metadata from DataCite API
-            $table->string('related_title', 500)->nullable();
-            $table->json('related_metadata')->nullable(); // Store additional metadata
-            
             $table->timestamps();
             
             // Indexes for performance
