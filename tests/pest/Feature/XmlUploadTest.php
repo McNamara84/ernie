@@ -404,7 +404,7 @@ XML;
                 'type' => 'person',
                 'firstName' => 'ExampleGivenName',
                 'lastName' => 'ExampleFamilyName',
-                'orcid' => 'https://orcid.org/0000-0001-5727-2427',
+                'orcid' => '0000-0001-5727-2427',
                 'affiliations' => [
                     [
                         'value' => 'GFZ Data Services',
@@ -461,7 +461,7 @@ it('ignores related item creators when extracting authors', function () {
                 'type' => 'person',
                 'firstName' => 'ExampleGivenName',
                 'lastName' => 'ExampleFamilyName',
-                'orcid' => 'https://orcid.org/0000-0001-5727-2427',
+                'orcid' => '0000-0001-5727-2427',
                 'affiliations' => [
                     [
                         'value' => 'DataCite',
