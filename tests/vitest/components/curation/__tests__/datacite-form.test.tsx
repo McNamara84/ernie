@@ -1463,6 +1463,103 @@ describe('DataCiteForm', () => {
         expect(within(rorList).getByText('https://ror.org/03yrm5c26')).toBeInTheDocument();
     });
 
+    it('loads multiple affiliations for authors from old datasets correctly', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialAuthors={[
+                    {
+                        type: 'person',
+                        firstName: 'Stefano',
+                        lastName: 'Parolai',
+                        orcid: 'https://orcid.org/0000-0002-9084-7488',
+                        affiliations: [
+                            {
+                                value: 'GFZ German Research Centre for Geosciences, Potsdam, Germany',
+                                rorId: 'https://ror.org/04z8jg394',
+                            },
+                            {
+                                value: 'Seismological Research Centre of the OGS',
+                                rorId: null,
+                            },
+                        ],
+                    },
+                ]}
+            />,
+        );
+
+        await ensureAuthorsOpen(user);
+
+        const affiliationsInput = screen.getByTestId(
+            'author-0-affiliations-input',
+        ) as HTMLInputElement;
+
+        // Multiple affiliations should be joined with comma (no space after comma)
+        // This allows Tagify to parse them as separate tags
+        expect(affiliationsInput.value).toBe(
+            'GFZ German Research Centre for Geosciences, Potsdam, Germany,Seismological Research Centre of the OGS',
+        );
+
+        // Verify ROR IDs are displayed
+        const rorIds = screen.getByTestId('author-0-affiliations-ror-ids');
+        expect(rorIds).toBeInTheDocument();
+        expect(within(rorIds).getByText('https://ror.org/04z8jg394')).toBeInTheDocument();
+    });
+
+    it('loads multiple affiliations for contributors from old datasets correctly', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+        render(
+            <DataCiteForm
+                resourceTypes={resourceTypes}
+                titleTypes={titleTypes}
+                licenses={licenses}
+                languages={languages}
+                contributorPersonRoles={contributorPersonRoles}
+                contributorInstitutionRoles={contributorInstitutionRoles}
+                authorRoles={authorRoles}
+                initialContributors={[
+                    {
+                        type: 'person',
+                        firstName: 'Jean François',
+                        lastName: 'Iffly',
+                        roles: ['Data Collector', 'Data Curator'],
+                        affiliations: [
+                            {
+                                value: 'Luxembourg Institute of Science and Technology',
+                                rorId: null,
+                            },
+                            {
+                                value: 'Catchment and Eco-Hydrology Group',
+                                rorId: null,
+                            },
+                        ],
+                    },
+                ]}
+            />,
+        );
+
+        await ensureContributorsOpen(user);
+
+        const affiliationsInput = screen.getByTestId(
+            'contributor-0-affiliations-input',
+        ) as HTMLInputElement;
+
+        // Multiple affiliations should be joined with comma (no space after comma)
+        // This allows Tagify to parse them as separate tags
+        expect(affiliationsInput.value).toBe(
+            'Luxembourg Institute of Science and Technology,Catchment and Eco-Hydrology Group',
+        );
+    });
+
     it('disables add license when entries list is empty', () => {
         expect(canAddLicense([], 1)).toBe(false);
     });
