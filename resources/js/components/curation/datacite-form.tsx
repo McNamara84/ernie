@@ -67,7 +67,7 @@ const normalizeOrcid = (orcid: string | null | undefined): string => {
         return match[1];
     }
     
-    return trimmed;:
+    return trimmed;
 };
 
 const normalizeWebsiteUrl = (url: string | null | undefined): string => {
