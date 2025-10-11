@@ -1,8 +1,9 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,19 @@ import AppLayout from '@/layouts/app-layout';
 import { curation as curationRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { parseContributorName } from '@/utils/nameParser';
+
+interface Author {
+    givenName?: string | null;
+    familyName?: string | null;
+    name?: string;
+    affiliations?: Array<{ value: string; rorId?: string | null }>;
+    roles?: string[];
+    isContact?: boolean;
+    email?: string | null;
+    website?: string | null;
+    orcid?: string | null;
+    orcidType?: string | null;
+}
 
 interface Dataset {
     id?: number;
@@ -35,6 +49,7 @@ interface Dataset {
     publicstatus?: string;
     publisher?: string;
     publicationyear?: number;
+    first_author?: Author | null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
 }
@@ -57,7 +72,7 @@ interface DatasetsProps {
     sort: SortState;
 }
 
-type SortKey = 'id' | 'created_at' | 'updated_at';
+type SortKey = 'id' | 'identifier' | 'title' | 'resourcetypegeneral' | 'first_author' | 'publicationyear' | 'curator' | 'publicstatus' | 'created_at' | 'updated_at';
 type SortDirection = 'asc' | 'desc';
 
 interface SortOption {
@@ -96,12 +111,19 @@ const IDENTIFIER_COLUMN_HEADER_LABEL = (
         <span>Identifier (DOI)</span>
     </span>
 );
-const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-24 min-w-[6rem]';
+const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-32 min-w-[8rem]';
 
 const DEFAULT_SORT: SortState = { key: 'updated_at', direction: 'desc' };
 const SORT_PREFERENCE_STORAGE_KEY = 'old-datasets.sort-preference';
 const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, SortDirection> = {
     id: 'asc',
+    identifier: 'asc',
+    title: 'asc',
+    resourcetypegeneral: 'asc',
+    first_author: 'asc',
+    publicationyear: 'desc',
+    curator: 'asc',
+    publicstatus: 'asc',
     created_at: 'desc',
     updated_at: 'desc',
 };
@@ -184,11 +206,15 @@ const isSortState = (value: unknown): value is SortState => {
     }
 
     const maybeState = value as { key?: unknown; direction?: unknown };
+    
+    const validKeys: SortKey[] = [
+        'id', 'identifier', 'title', 'resourcetypegeneral', 
+        'first_author', 'publicationyear', 'curator', 
+        'publicstatus', 'created_at', 'updated_at'
+    ];
 
     return (
-        maybeState.key === 'id' ||
-        maybeState.key === 'created_at' ||
-        maybeState.key === 'updated_at'
+        validKeys.includes(maybeState.key as SortKey)
     ) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
 };
 
@@ -212,6 +238,22 @@ const buildSortButtonLabel = (option: SortOption, sortState: SortState): string 
     }
 
     return `${option.description}. Activate to sort ${describeDirection(currentDirection)}.`;
+};
+
+const getSortLabel = (key: SortKey): string => {
+    const labels: Record<SortKey, string> = {
+        id: 'ID',
+        identifier: 'Identifier',
+        title: 'Title',
+        resourcetypegeneral: 'Resource Type',
+        first_author: 'Author',
+        publicationyear: 'Year',
+        curator: 'Curator',
+        publicstatus: 'Status',
+        created_at: 'Created Date',
+        updated_at: 'Updated Date',
+    };
+    return labels[key];
 };
 
 const SortDirectionIndicator = ({
@@ -1121,6 +1163,7 @@ export default function OldDatasets({
     });
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
+    const [isSorting, setIsSorting] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
     const observer = useRef<IntersectionObserver | null>(null);
     const pendingRequestRef = useRef(0);
@@ -1128,13 +1171,28 @@ export default function OldDatasets({
     const [activeSortState, setActiveSortState] = useState<SortState>(initialSort);
 
     const handleSortChange = useCallback((key: SortKey) => {
+        const nextDirection = determineNextDirection(sortState, key);
+        
+        // Set sorting state immediately for skeleton display
+        setIsSorting(true);
+        setLoading(true);
+        
+        // Clear datasets immediately to avoid showing wrongly sorted data
+        setDatasets([]);
+        
+        // Smooth scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Update sort state which will trigger the useEffect to reload data
         setSortState(previousState => ({
             key,
-            direction: determineNextDirection(previousState, key),
+            direction: nextDirection,
         }));
-    }, []);
+    }, [sortState]);
 
-    const sortedDatasets = useMemo(() => sortDatasets(datasets, sortState), [datasets, sortState]);
+    // No client-side sorting - data comes pre-sorted from server
+    // We keep the variable name for consistency, but it's just the datasets array
+    const sortedDatasets = datasets;
 
     const handleOpenInCuration = useCallback(async (dataset: Dataset) => {
         const query = await buildCurationQuery(dataset);
@@ -1234,6 +1292,16 @@ export default function OldDatasets({
                     setActiveSortState(sort);
                 }
 
+                // Show toast notification after successful sort/reload
+                if (replace) {
+                    const label = getSortLabel(sort.key);
+                    const directionIcon = sort.direction === 'asc' ? '↑' : '↓';
+                    toast.success(`Sorted by: ${label} ${directionIcon}`, {
+                        duration: 2000,
+                    });
+                    setIsSorting(false);
+                }
+
                 lastRequestRef.current = null;
             } catch (err: unknown) {
                 if (pendingRequestRef.current !== requestId) {
@@ -1260,6 +1328,10 @@ export default function OldDatasets({
                         ? 'Failed to refresh datasets. Please try again.'
                         : 'Failed to load more datasets. Please try again.',
                 );
+                
+                if (isRefreshing) {
+                    setIsSorting(false);
+                }
             } finally {
                 if (pendingRequestRef.current === requestId) {
                     setLoading(false);
@@ -1381,6 +1453,11 @@ export default function OldDatasets({
                     label: 'ID',
                     description: 'Sort by the dataset ID from the legacy database',
                 },
+                {
+                    key: 'identifier',
+                    label: 'Identifier',
+                    description: 'Sort by the DOI identifier',
+                },
             ],
             sortGroupLabel: 'Sort options for the identifier column',
             render: (dataset: Dataset) => {
@@ -1417,22 +1494,125 @@ export default function OldDatasets({
             },
         },
         {
-            key: 'title',
-            label: 'Title',
+            key: 'title_resourcetype',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Title</span>
+                    <span>Resource Type</span>
+                </span>
+            ),
             widthClass: TITLE_COLUMN_WIDTH_CLASSES,
-            cellClassName: TITLE_COLUMN_CELL_CLASSES,
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'title',
+                    label: 'Title',
+                    description: 'Sort by the dataset title',
+                },
+                {
+                    key: 'resourcetypegeneral',
+                    label: 'Type',
+                    description: 'Sort by the resource type',
+                },
+            ],
+            sortGroupLabel: 'Sort options for title and resource type',
+            render: (dataset: Dataset) => {
+                const title = dataset.title ?? '-';
+                const resourceType = dataset.resourcetypegeneral ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
+                            {title}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {resourceType}
+                        </span>
+                    </div>
+                );
+            },
         },
         {
-            key: 'resourcetypegeneral',
-            label: 'Resource Type',
+            key: 'author_year',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Author</span>
+                    <span>Year</span>
+                </span>
+            ),
+            widthClass: 'min-w-[12rem]',
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'first_author',
+                    label: 'Author',
+                    description: 'Sort by the first author\'s last name',
+                },
+                {
+                    key: 'publicationyear',
+                    label: 'Year',
+                    description: 'Sort by the publication year',
+                },
+            ],
+            sortGroupLabel: 'Sort options for author and publication year',
+            render: (dataset: Dataset) => {
+                // Format first author name
+                let authorName = '-';
+                if (dataset.first_author) {
+                    const author = dataset.first_author;
+                    if (author.familyName && author.givenName) {
+                        authorName = `${author.familyName}, ${author.givenName}`;
+                    } else if (author.familyName) {
+                        authorName = author.familyName;
+                    } else if (author.name) {
+                        authorName = author.name;
+                    }
+                }
+
+                const year = dataset.publicationyear?.toString() ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                        <span className="text-sm">{authorName}</span>
+                        <span className="text-sm">{year}</span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'curator_status',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Curator</span>
+                    <span>Status</span>
+                </span>
+            ),
             widthClass: 'min-w-[10rem]',
-            cellClassName: 'whitespace-nowrap',
-        },
-        {
-            key: 'curator',
-            label: 'Curator',
-            widthClass: 'min-w-[7rem]',
-            cellClassName: 'whitespace-nowrap',
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'curator',
+                    label: 'Curator',
+                    description: 'Sort by the curator name',
+                },
+                {
+                    key: 'publicstatus',
+                    label: 'Status',
+                    description: 'Sort by the publication status',
+                },
+            ],
+            sortGroupLabel: 'Sort options for curator and status',
+            render: (dataset: Dataset) => {
+                const curator = dataset.curator ?? '-';
+                const status = dataset.publicstatus ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                        <span className="text-sm">{curator}</span>
+                        <span className="text-sm">{status}</span>
+                    </div>
+                );
+            },
         },
         {
             key: 'created_updated',
@@ -1474,12 +1654,6 @@ export default function OldDatasets({
                 );
             },
         },
-        {
-            key: 'publicstatus',
-            label: 'Publication Status',
-            widthClass: 'min-w-[10rem]',
-            cellClassName: 'whitespace-nowrap',
-        },
     ];
 
     const LoadingSkeleton = () => (
@@ -1504,7 +1678,10 @@ export default function OldDatasets({
                         </td>
                     ))}
                     <td className={`px-6 py-4 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                        <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        <div className="flex items-center gap-1">
+                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        </div>
                     </td>
                 </tr>
             ))}
@@ -1533,7 +1710,7 @@ export default function OldDatasets({
                             </Alert>
                         ) : null}
 
-                        {sortedDatasets.length === 0 ? (
+                        {sortedDatasets.length === 0 && !isSorting && !loading ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
                                     "No datasets available. Please check the database connection." :
@@ -1542,9 +1719,12 @@ export default function OldDatasets({
                             </div>
                         ) : (
                             <>
-                                <div className="mb-4 flex items-center gap-2">
+                                <div className="mb-4 flex items-center gap-2 flex-wrap">
                                     <Badge variant="secondary">
-                                        1-{sortedDatasets.length} of {pagination.total} datasets
+                                        {sortedDatasets.length} of {pagination.total} datasets
+                                    </Badge>
+                                    <Badge variant="outline" className="text-xs">
+                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
                                     </Badge>
                                 </div>
 
@@ -1569,50 +1749,49 @@ export default function OldDatasets({
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
                                                             scope="col"
                                                         >
-                                                            <div className="flex flex-col gap-1 text-left">
+                                                            {column.sortOptions ? (
+                                                                <div
+                                                                    className="flex flex-col gap-1"
+                                                                    role="group"
+                                                                    aria-label={column.sortGroupLabel ?? 'Sorting options'}
+                                                                >
+                                                                    {column.sortOptions.map(option => {
+                                                                        const isActive = sortState.key === option.key;
+                                                                        const displayDirection = resolveDisplayDirection(
+                                                                            option,
+                                                                            sortState,
+                                                                        );
+                                                                        const buttonLabel = buildSortButtonLabel(
+                                                                            option,
+                                                                            sortState,
+                                                                        );
+
+                                                                        return (
+                                                                            <Button
+                                                                                key={option.key}
+                                                                                type="button"
+                                                                                variant={isActive ? 'secondary' : 'ghost'}
+                                                                                size="sm"
+                                                                                className="h-7 px-2 text-xs font-medium justify-start"
+                                                                                onClick={() => handleSortChange(option.key)}
+                                                                                aria-pressed={isActive}
+                                                                                aria-label={buttonLabel}
+                                                                                title={buttonLabel}
+                                                                            >
+                                                                                <span>{option.label}</span>
+                                                                                <SortDirectionIndicator
+                                                                                    isActive={isActive}
+                                                                                    direction={displayDirection}
+                                                                                />
+                                                                            </Button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ) : (
                                                                 <div className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
                                                                     {column.label}
                                                                 </div>
-                                                                {column.sortOptions ? (
-                                                                    <div
-                                                                        className="flex flex-wrap gap-1"
-                                                                        role="group"
-                                                                        aria-label={column.sortGroupLabel ?? 'Sorting options'}
-                                                                    >
-                                                                        {column.sortOptions.map(option => {
-                                                                            const isActive = sortState.key === option.key;
-                                                                            const displayDirection = resolveDisplayDirection(
-                                                                                option,
-                                                                                sortState,
-                                                                            );
-                                                                            const buttonLabel = buildSortButtonLabel(
-                                                                                option,
-                                                                                sortState,
-                                                                            );
-
-                                                                            return (
-                                                                                <Button
-                                                                                    key={option.key}
-                                                                                    type="button"
-                                                                                    variant={isActive ? 'secondary' : 'ghost'}
-                                                                                    size="sm"
-                                                                                    className="h-7 px-2 text-xs font-medium"
-                                                                                    onClick={() => handleSortChange(option.key)}
-                                                                                    aria-pressed={isActive}
-                                                                                    aria-label={buttonLabel}
-                                                                                    title={buttonLabel}
-                                                                                >
-                                                                                    <span>{option.label}</span>
-                                                                                    <SortDirectionIndicator
-                                                                                        isActive={isActive}
-                                                                                        direction={displayDirection}
-                                                                                    />
-                                                                                </Button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                ) : null}
-                                                            </div>
+                                                            )}
                                                         </th>
                                                     );
                                                 })}
@@ -1624,6 +1803,7 @@ export default function OldDatasets({
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                                            {(isSorting || (loading && sortedDatasets.length === 0)) && <LoadingSkeleton />}
                                             {sortedDatasets.map((dataset, index) => {
                                                 const isLast = index === sortedDatasets.length - 1;
                                                 const datasetLabel =
@@ -1647,21 +1827,34 @@ export default function OldDatasets({
                                                             </td>
                                                         ))}
                                                         <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleOpenInCuration(dataset)}
-                                                                aria-label={`Open dataset ${datasetLabel} in curation form`}
-                                                                title={`Open dataset ${datasetLabel} in curation form`}
-                                                            >
-                                                                <ArrowUpRight aria-hidden="true" className="size-4" />
-                                                            </Button>
+                                                            <div className="flex items-center gap-1">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleOpenInCuration(dataset)}
+                                                                    aria-label={`Open dataset ${datasetLabel} in curation form`}
+                                                                    title={`Open dataset ${datasetLabel} in curation form`}
+                                                                >
+                                                                    <ArrowUpRight aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    disabled
+                                                                    aria-label={`Delete dataset ${datasetLabel} (not yet implemented)`}
+                                                                    title="Delete dataset (not yet implemented)"
+                                                                    className="opacity-40 cursor-not-allowed"
+                                                                >
+                                                                    <Trash2 aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 );
                                             })}
-                                            {loading && <LoadingSkeleton />}
+                                            {loading && sortedDatasets.length > 0 && <LoadingSkeleton />}
                                         </tbody>
                                     </table>
                                 </div>

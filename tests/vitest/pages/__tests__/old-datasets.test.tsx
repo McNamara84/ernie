@@ -813,9 +813,10 @@ describe('OldDatasets page', () => {
 
         const table = screen.getByRole('table');
         const bodyRow = within(table).getAllByRole('row')[1];
-        const curatorCell = within(bodyRow).getAllByRole('cell')[3];
+        const curatorStatusCell = within(bodyRow).getAllByRole('cell')[3];
 
-        expect(curatorCell).toHaveTextContent('N/A');
+        expect(curatorStatusCell).toHaveTextContent('-');
+        expect(curatorStatusCell).toHaveTextContent('draft');
     });
 
     it('logs the server-provided diagnostics when the initial page load fails', () => {
