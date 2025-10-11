@@ -19,7 +19,7 @@ class OldDatasetController extends Controller
     /**
      * @var list<string>
      */
-    private const ALLOWED_SORT_KEYS = ['id', 'created_at', 'updated_at'];
+    private const ALLOWED_SORT_KEYS = ['id', 'identifier', 'title', 'resourcetypegeneral', 'first_author', 'publicationyear', 'curator', 'publicstatus', 'created_at', 'updated_at'];
     /**
      * @var list<string>
      */

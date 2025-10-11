@@ -178,6 +178,13 @@ class OldDataset extends Model
 
         $sortColumn = match ($sortKey) {
             'id' => 'resource.id',
+            'identifier' => 'resource.identifier',
+            'title' => 'title.title',
+            'resourcetypegeneral' => 'resource.resourcetypegeneral',
+            'first_author' => 'first_author_lastname',
+            'publicationyear' => 'resource.publicationyear',
+            'curator' => 'resource.curator',
+            'publicstatus' => 'resource.publicstatus',
             'created_at' => 'resource.created_at',
             default => 'resource.updated_at',
         };
@@ -196,8 +203,37 @@ class OldDataset extends Model
                 'resource.language',
                 'title.title'
             ])
-            ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
-            ->orderBy($sortColumn, $direction);
+            ->leftJoin('title', 'resource.id', '=', 'title.resource_id');
+
+        // Add join for author sorting if needed
+        if ($sortKey === 'first_author') {
+            $query->leftJoin(
+                \Illuminate\Support\Facades\DB::raw('(
+                    SELECT 
+                        ra.resource_id,
+                        ra.lastname as first_author_lastname,
+                        ra.firstname as first_author_firstname,
+                        ra.name as first_author_name
+                    FROM resourceagent ra
+                    INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                        AND ra.order = r.resourceagent_order
+                    WHERE r.role = "Creator"
+                    AND ra.order = (
+                        SELECT MIN(ra2.order)
+                        FROM resourceagent ra2
+                        INNER JOIN role r2 ON ra2.resource_id = r2.resourceagent_resource_id 
+                            AND ra2.order = r2.resourceagent_order
+                        WHERE r2.role = "Creator"
+                        AND ra2.resource_id = ra.resource_id
+                    )
+                ) as first_author'),
+                'resource.id',
+                '=',
+                'first_author.resource_id'
+            );
+        }
+
+        $query->orderBy($sortColumn, $direction);
 
         if ($sortColumn !== 'resource.id') {
             $query->orderBy('resource.id', 'asc');

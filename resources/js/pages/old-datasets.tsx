@@ -71,7 +71,7 @@ interface DatasetsProps {
     sort: SortState;
 }
 
-type SortKey = 'id' | 'created_at' | 'updated_at';
+type SortKey = 'id' | 'identifier' | 'title' | 'resourcetypegeneral' | 'first_author' | 'publicationyear' | 'curator' | 'publicstatus' | 'created_at' | 'updated_at';
 type SortDirection = 'asc' | 'desc';
 
 interface SortOption {
@@ -116,6 +116,13 @@ const DEFAULT_SORT: SortState = { key: 'updated_at', direction: 'desc' };
 const SORT_PREFERENCE_STORAGE_KEY = 'old-datasets.sort-preference';
 const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, SortDirection> = {
     id: 'asc',
+    identifier: 'asc',
+    title: 'asc',
+    resourcetypegeneral: 'asc',
+    first_author: 'asc',
+    publicationyear: 'desc',
+    curator: 'asc',
+    publicstatus: 'asc',
     created_at: 'desc',
     updated_at: 'desc',
 };
@@ -1395,6 +1402,11 @@ export default function OldDatasets({
                     label: 'ID',
                     description: 'Sort by the dataset ID from the legacy database',
                 },
+                {
+                    key: 'identifier',
+                    label: 'Identifier',
+                    description: 'Sort by the DOI identifier',
+                },
             ],
             sortGroupLabel: 'Sort options for the identifier column',
             render: (dataset: Dataset) => {
@@ -1440,6 +1452,19 @@ export default function OldDatasets({
             ),
             widthClass: TITLE_COLUMN_WIDTH_CLASSES,
             cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'title',
+                    label: 'Title',
+                    description: 'Sort by the dataset title',
+                },
+                {
+                    key: 'resourcetypegeneral',
+                    label: 'Type',
+                    description: 'Sort by the resource type',
+                },
+            ],
+            sortGroupLabel: 'Sort options for title and resource type',
             render: (dataset: Dataset) => {
                 const title = dataset.title ?? '-';
                 const resourceType = dataset.resourcetypegeneral ?? '-';
@@ -1466,6 +1491,19 @@ export default function OldDatasets({
             ),
             widthClass: 'min-w-[12rem]',
             cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'first_author',
+                    label: 'Author',
+                    description: 'Sort by the first author\'s last name',
+                },
+                {
+                    key: 'publicationyear',
+                    label: 'Year',
+                    description: 'Sort by the publication year',
+                },
+            ],
+            sortGroupLabel: 'Sort options for author and publication year',
             render: (dataset: Dataset) => {
                 // Format first author name
                 let authorName = '-';
@@ -1500,6 +1538,19 @@ export default function OldDatasets({
             ),
             widthClass: 'min-w-[10rem]',
             cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'curator',
+                    label: 'Curator',
+                    description: 'Sort by the curator name',
+                },
+                {
+                    key: 'publicstatus',
+                    label: 'Status',
+                    description: 'Sort by the publication status',
+                },
+            ],
+            sortGroupLabel: 'Sort options for curator and status',
             render: (dataset: Dataset) => {
                 const curator = dataset.curator ?? '-';
                 const status = dataset.publicstatus ?? '-';
@@ -1641,50 +1692,49 @@ export default function OldDatasets({
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
                                                             scope="col"
                                                         >
-                                                            <div className="flex flex-col gap-1 text-left">
+                                                            {column.sortOptions ? (
+                                                                <div
+                                                                    className="flex flex-col gap-1"
+                                                                    role="group"
+                                                                    aria-label={column.sortGroupLabel ?? 'Sorting options'}
+                                                                >
+                                                                    {column.sortOptions.map(option => {
+                                                                        const isActive = sortState.key === option.key;
+                                                                        const displayDirection = resolveDisplayDirection(
+                                                                            option,
+                                                                            sortState,
+                                                                        );
+                                                                        const buttonLabel = buildSortButtonLabel(
+                                                                            option,
+                                                                            sortState,
+                                                                        );
+
+                                                                        return (
+                                                                            <Button
+                                                                                key={option.key}
+                                                                                type="button"
+                                                                                variant={isActive ? 'secondary' : 'ghost'}
+                                                                                size="sm"
+                                                                                className="h-7 px-2 text-xs font-medium justify-start"
+                                                                                onClick={() => handleSortChange(option.key)}
+                                                                                aria-pressed={isActive}
+                                                                                aria-label={buttonLabel}
+                                                                                title={buttonLabel}
+                                                                            >
+                                                                                <span>{option.label}</span>
+                                                                                <SortDirectionIndicator
+                                                                                    isActive={isActive}
+                                                                                    direction={displayDirection}
+                                                                                />
+                                                                            </Button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ) : (
                                                                 <div className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
                                                                     {column.label}
                                                                 </div>
-                                                                {column.sortOptions ? (
-                                                                    <div
-                                                                        className="flex flex-wrap gap-1"
-                                                                        role="group"
-                                                                        aria-label={column.sortGroupLabel ?? 'Sorting options'}
-                                                                    >
-                                                                        {column.sortOptions.map(option => {
-                                                                            const isActive = sortState.key === option.key;
-                                                                            const displayDirection = resolveDisplayDirection(
-                                                                                option,
-                                                                                sortState,
-                                                                            );
-                                                                            const buttonLabel = buildSortButtonLabel(
-                                                                                option,
-                                                                                sortState,
-                                                                            );
-
-                                                                            return (
-                                                                                <Button
-                                                                                    key={option.key}
-                                                                                    type="button"
-                                                                                    variant={isActive ? 'secondary' : 'ghost'}
-                                                                                    size="sm"
-                                                                                    className="h-7 px-2 text-xs font-medium"
-                                                                                    onClick={() => handleSortChange(option.key)}
-                                                                                    aria-pressed={isActive}
-                                                                                    aria-label={buttonLabel}
-                                                                                    title={buttonLabel}
-                                                                                >
-                                                                                    <span>{option.label}</span>
-                                                                                    <SortDirectionIndicator
-                                                                                        isActive={isActive}
-                                                                                        direction={displayDirection}
-                                                                                    />
-                                                                                </Button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                ) : null}
-                                                            </div>
+                                                            )}
                                                         </th>
                                                     );
                                                 })}
