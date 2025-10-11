@@ -46,10 +46,15 @@ class OldDatasetController extends Controller
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert)
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Convert datasets to arrays and add licenses
+            // Convert datasets to arrays and add licenses and first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
+                
+                // Get first author
+                $authors = $dataset->getAuthors();
+                $data['first_author'] = !empty($authors) ? $authors[0] : null;
+                
                 return $data;
             })->all();
 
@@ -117,10 +122,15 @@ class OldDatasetController extends Controller
 
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Convert datasets to arrays and add licenses
+            // Convert datasets to arrays and add licenses and first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
+                
+                // Get first author
+                $authors = $dataset->getAuthors();
+                $data['first_author'] = !empty($authors) ? $authors[0] : null;
+                
                 return $data;
             })->all();
 

@@ -13,6 +13,19 @@ import { curation as curationRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { parseContributorName } from '@/utils/nameParser';
 
+interface Author {
+    givenName?: string | null;
+    familyName?: string | null;
+    name?: string;
+    affiliations?: Array<{ value: string; rorId?: string | null }>;
+    roles?: string[];
+    isContact?: boolean;
+    email?: string | null;
+    website?: string | null;
+    orcid?: string | null;
+    orcidType?: string | null;
+}
+
 interface Dataset {
     id?: number;
     identifier?: string;
@@ -35,6 +48,7 @@ interface Dataset {
     publicstatus?: string;
     publisher?: string;
     publicationyear?: number;
+    first_author?: Author | null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
 }
@@ -1417,16 +1431,64 @@ export default function OldDatasets({
             },
         },
         {
-            key: 'title',
-            label: 'Title',
+            key: 'title_resourcetype',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Title</span>
+                    <span>Resource Type</span>
+                </span>
+            ),
             widthClass: TITLE_COLUMN_WIDTH_CLASSES,
-            cellClassName: TITLE_COLUMN_CELL_CLASSES,
+            cellClassName: 'whitespace-normal align-top',
+            render: (dataset: Dataset) => {
+                const title = dataset.title ?? '-';
+                const resourceType = dataset.resourcetypegeneral ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
+                            {title}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {resourceType}
+                        </span>
+                    </div>
+                );
+            },
         },
         {
-            key: 'resourcetypegeneral',
-            label: 'Resource Type',
-            widthClass: 'min-w-[10rem]',
-            cellClassName: 'whitespace-nowrap',
+            key: 'author_year',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Author</span>
+                    <span>Year</span>
+                </span>
+            ),
+            widthClass: 'min-w-[12rem]',
+            cellClassName: 'whitespace-normal align-top',
+            render: (dataset: Dataset) => {
+                // Format first author name
+                let authorName = '-';
+                if (dataset.first_author) {
+                    const author = dataset.first_author;
+                    if (author.familyName && author.givenName) {
+                        authorName = `${author.familyName}, ${author.givenName}`;
+                    } else if (author.familyName) {
+                        authorName = author.familyName;
+                    } else if (author.name) {
+                        authorName = author.name;
+                    }
+                }
+
+                const year = dataset.publicationyear?.toString() ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                        <span className="text-sm">{authorName}</span>
+                        <span className="text-sm">{year}</span>
+                    </div>
+                );
+            },
         },
         {
             key: 'curator_status',
