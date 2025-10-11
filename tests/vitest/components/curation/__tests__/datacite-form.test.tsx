@@ -1498,15 +1498,17 @@ describe('DataCiteForm', () => {
 
         await ensureAuthorsOpen(user);
 
-        const affiliationsInput = screen.getByTestId(
-            'author-0-affiliations-input',
-        ) as HTMLInputElement;
-
-        // Multiple affiliations should be joined with comma (no space after comma)
-        // This allows Tagify to parse them as separate tags
-        expect(affiliationsInput.value).toBe(
-            'GFZ German Research Centre for Geosciences, Potsdam, Germany,Seismological Research Centre of the OGS',
-        );
+        // Verify that multiple tags were created (not just one tag with all affiliations)
+        const affiliationField = screen.getByTestId('author-0-affiliations-field');
+        const tags = within(affiliationField).getAllByRole('generic', { hidden: true })
+            .filter(el => el.classList.contains('tagify__tag'));
+        
+        // Should have exactly 2 separate tags
+        expect(tags.length).toBe(2);
+        
+        // Verify the tag contents
+        expect(tags[0]).toHaveTextContent('GFZ German Research Centre for Geosciences, Potsdam, Germany');
+        expect(tags[1]).toHaveTextContent('Seismological Research Centre of the OGS');
 
         // Verify ROR IDs are displayed
         const rorIds = screen.getByTestId('author-0-affiliations-ror-ids');
@@ -1549,15 +1551,17 @@ describe('DataCiteForm', () => {
 
         await ensureContributorsOpen(user);
 
-        const affiliationsInput = screen.getByTestId(
-            'contributor-0-affiliations-input',
-        ) as HTMLInputElement;
-
-        // Multiple affiliations should be joined with comma (no space after comma)
-        // This allows Tagify to parse them as separate tags
-        expect(affiliationsInput.value).toBe(
-            'Luxembourg Institute of Science and Technology,Catchment and Eco-Hydrology Group',
-        );
+        // Verify that multiple tags were created (not just one tag with all affiliations)
+        const affiliationField = screen.getByTestId('contributor-0-affiliations-field');
+        const tags = within(affiliationField).getAllByRole('generic', { hidden: true })
+            .filter(el => el.classList.contains('tagify__tag'));
+        
+        // Should have exactly 2 separate tags
+        expect(tags.length).toBe(2);
+        
+        // Verify the tag contents
+        expect(tags[0]).toHaveTextContent('Luxembourg Institute of Science and Technology');
+        expect(tags[1]).toHaveTextContent('Catchment and Eco-Hydrology Group');
     });
 
     it('disables add license when entries list is empty', () => {
