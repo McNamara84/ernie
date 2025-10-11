@@ -130,7 +130,7 @@ class DoiValidationController extends Controller
      */
     private function extractCreators(array $creators): array
     {
-        return array_map(function ($creator) {
+        return array_values(array_map(function ($creator) {
             if (isset($creator['name'])) {
                 return $creator['name'];
             }
@@ -138,6 +138,6 @@ class DoiValidationController extends Controller
                 return "{$creator['givenName']} {$creator['familyName']}";
             }
             return $creator['familyName'] ?? $creator['givenName'] ?? 'Unknown';
-        }, $creators);
+        }, $creators));
     }
 }
