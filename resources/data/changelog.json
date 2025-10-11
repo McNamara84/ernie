@@ -1,5 +1,71 @@
 [
   {
+    "version": "0.6.0",
+    "date": "2025-10-11",
+    "features": [
+      {
+        "title": "Spatial and Temporal Coverage Management",
+        "description": "Comprehensive support for managing spatial and temporal coverage data for resources. Includes interactive map interface with Google Maps integration for selecting points or rectangular regions, coordinate input fields with validation (latitude: -90 to +90, longitude: -180 to +180), and support for unlimited coverage entries per resource."
+      },
+      {
+        "title": "Interactive Map Picker",
+        "description": "Integrated Google Maps to allow users to visually select coverage areas. Supports both single point selection and rectangular region drawing. Coordinates are automatically formatted to 6 decimal places for precision. Map displays current coverage area with visual markers and rectangles."
+      },
+      {
+        "title": "Temporal Coverage with Timezone Support",
+        "description": "Added support for temporal coverage including start/end dates (required), start/end times (optional), and timezone selection with common IANA timezone options (UTC, Europe/Berlin, America/New_York, etc.). Default timezone is automatically detected from user's system settings."
+      },
+      {
+        "title": "Import Spatial/Temporal Coverage from XML Uploads",
+        "description": "Automatically extract spatial and temporal coverage from uploaded DataCite XML files. Supports geoLocationPoint (single coordinates), geoLocationBox (rectangular regions), and geoLocationPlace (location descriptions). Temporal data is extracted from dates with type 'Collected'. Handles mixed coverage data with proper validation."
+      },
+      {
+        "title": "Load Coverage from Old Datasets",
+        "description": "New API endpoint to load spatial and temporal coverage data from legacy datasets into the curation form. Intelligent detection of point vs. rectangle coverage (empty max coordinates for points). Proper parsing and transformation of legacy date/time formats with timezone support."
+      },
+      {
+        "title": "Coverage Persistence",
+        "description": "Introduced ResourceCoverage model with database migration to store coverage data. Supports multiple coverage entries per resource with spatial coordinates, temporal information, timezone, and optional description. Includes cascading deletes and proper relationship management with resources."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Coverage Entry UI/UX",
+        "description": "Collapsible coverage cards with expandable sections to manage multiple entries efficiently. Visual preview of coordinates and dates in card headers for quick overview. Add/remove coverage entries with proper validation to ensure data quality. Responsive grid layout with map on left and input fields on right."
+      },
+      {
+        "title": "Coordinate Validation",
+        "description": "Real-time validation of latitude and longitude values with clear error messages. Automatic formatting to 6 decimal places for precision. Visual indicators for invalid coordinates (red border). Ensures coordinates are within valid ranges before submission."
+      },
+      {
+        "title": "Date and Time Handling",
+        "description": "Date inputs with HTML5 date picker support. Time inputs with HH:MM format validation. Proper handling of timezone-aware datetime values. Database stores dates as Carbon instances for consistent handling across the application."
+      },
+      {
+        "title": "Test Coverage",
+        "description": "Comprehensive test suite covering backend (Pest) and frontend (Vitest, Playwright) for spatial and temporal coverage. Tests include XML extraction, coordinate validation, map interactions, database persistence, cascading deletes, and form hydration. End-to-end tests verify complete workflows from XML upload to database storage."
+      },
+      {
+        "title": "Type Safety",
+        "description": "Enhanced TypeScript types for coverage entries including SpatialTemporalCoverageEntry interface with proper field definitions. Type-safe coordinate bounds and drawing modes for map interactions. Improved PHPDoc annotations for coverage models and controllers."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Coverage Query Parameter Naming",
+        "description": "Standardized coverage query key prefix from 'spatialTemporalCoverages' to 'coverages' in curation query builder for consistency across API endpoints."
+      },
+      {
+        "title": "Point vs Rectangle Detection",
+        "description": "Fixed detection of point vs rectangle coverage in old datasets by comparing min/max coordinates. Points now correctly have empty max coordinates, rectangles have all four coordinates populated."
+      },
+      {
+        "title": "Temporal Coverage Parsing",
+        "description": "Improved parsing of legacy date/time formats from old database including support for ISO 8601 formats and various custom date formats. Proper handling of empty or null temporal values."
+      }
+    ]
+  },
+  {
     "version": "0.5.0",
     "date": "2025-10-10",
     "features": [
