@@ -1632,7 +1632,24 @@ export default function OldDatasets({
                             </Alert>
                         ) : null}
 
-                        {sortedDatasets.length === 0 && !isSorting && !loading ? (
+                        {loadingError && (
+                            <Alert className="mb-4" variant="destructive">
+                                <AlertDescription>
+                                    {loadingError}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="ml-2"
+                                        onClick={handleRetry}
+                                        disabled={loading}
+                                    >
+                                        Retry
+                                    </Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        {sortedDatasets.length === 0 && !isSorting && !loading && !loadingError ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
                                     "No datasets available. Please check the database connection." :
@@ -1780,23 +1797,6 @@ export default function OldDatasets({
                                         </tbody>
                                     </table>
                                 </div>
-
-                                {loadingError && (
-                                    <Alert className="mt-4" variant="destructive">
-                                        <AlertDescription>
-                                            {loadingError}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="ml-2"
-                                                onClick={handleRetry}
-                                                disabled={loading}
-                                            >
-                                                Retry
-                                            </Button>
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
 
                                 {!loading && !pagination.has_more && sortedDatasets.length > 0 && (
                                     <div className="text-center py-4 text-muted-foreground text-sm">

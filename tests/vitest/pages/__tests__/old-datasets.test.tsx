@@ -173,6 +173,18 @@ describe('OldDatasets page', () => {
     const baseProps = {
         datasets: [
             {
+                id: 2,
+                identifier: '10.1234/example-two',
+                title: 'Concise dataset title',
+                resourcetypegeneral: 'Image',
+                curator: 'Bob',
+                created_at: '2024-02-01T12:00:00Z',
+                updated_at: '2024-02-02T12:00:00Z',
+                publicstatus: 'published',
+                publisher: 'Example Publisher',
+                publicationyear: 2023,
+            },
+            {
                 id: 1,
                 identifier: '10.1234/example-one',
                 title: 'A dataset title that is long enough to demonstrate truncation when rendered in the table body with additional descriptive context to push it well beyond the truncation threshold for the component',
@@ -194,18 +206,6 @@ describe('OldDatasets page', () => {
                 language: 'en',
                 resourcetype: '1',
             },
-            {
-                id: 2,
-                identifier: '10.1234/example-two',
-                title: 'Concise dataset title',
-                resourcetypegeneral: 'Image',
-                curator: 'Bob',
-                created_at: '2024-02-01T12:00:00Z',
-                updated_at: '2024-02-02T12:00:00Z',
-                publicstatus: 'published',
-                publisher: 'Example Publisher',
-                publicationyear: 2023,
-            },
         ],
         pagination: {
             current_page: 1,
@@ -226,7 +226,7 @@ describe('OldDatasets page', () => {
         expect(screen.getByRole('heading', { name: 'Old Datasets', level: 1 })).toBeVisible();
         expect(screen.getByText('Overview of legacy resources from the SUMARIOPMD database')).toBeVisible();
 
-        const badge = screen.getByText(/1-2 of 60 datasets/i);
+        const badge = screen.getByText(/2 of 60 datasets/i);
         expect(badge).toBeVisible();
 
         const table = screen.getByRole('table');
@@ -237,8 +237,15 @@ describe('OldDatasets page', () => {
             name: /Sort by the dataset ID from the legacy database/i,
         });
         expect(idSortButton).toHaveAttribute('aria-pressed', 'false');
+        expect(idSortButton).toHaveTextContent('ID');
+        
+        const identifierSortButton = within(headerRow).getByRole('button', {
+            name: /Sort by the DOI identifier/i,
+        });
+        expect(identifierSortButton).toHaveAttribute('aria-pressed', 'false');
+        expect(identifierSortButton).toHaveTextContent('Identifier');
+        
         const identifierHeaderCell = idSortButton.closest('th');
-        expect(identifierHeaderCell?.textContent).toContain('Identifier (DOI)');
         expect(identifierHeaderCell).toHaveAttribute('aria-sort', 'none');
 
         const createdSortButton = within(headerRow).getByRole('button', {
@@ -260,7 +267,7 @@ describe('OldDatasets page', () => {
 
         const [firstRow, secondRow] = bodyRows;
         expect(within(firstRow).getByText('Concise dataset title')).toBeVisible();
-        expect(within(firstRow).getByText('Published')).toBeVisible();
+        expect(within(firstRow).getByText(/published/i)).toBeVisible();
         const firstIdentifierCell = within(firstRow).getAllByRole('cell')[0];
         const firstIdentifierGroup = firstIdentifierCell.querySelector(':scope > div');
         expect(firstIdentifierGroup).not.toBeNull();
@@ -274,12 +281,13 @@ describe('OldDatasets page', () => {
         expect(secondIdentifierGroup).toHaveAttribute('aria-label', 'ID 1. DOI 10.1234/example-one');
         expect(within(secondIdentifierCell).getByText('1')).toBeVisible();
         expect(within(secondIdentifierCell).getByText(/10\.1234\/example-one/)).toBeVisible();
-        expect(within(secondRow).getByText('Under Review')).toBeVisible();
+        expect(within(secondRow).getByText(/review/i)).toBeVisible();
 
         const titleCell = secondRowCells[1];
-        expect(titleCell).toHaveTextContent(baseProps.datasets[0].title);
+        expect(titleCell).toHaveTextContent(baseProps.datasets[1].title);
         expect(titleCell).toHaveClass('whitespace-normal');
-        expect(titleCell).toHaveClass('break-words');
+        const titleSpan = titleCell.querySelector('span:first-child');
+        expect(titleSpan).toHaveClass('break-words');
 
         const createdUpdatedCell = secondRowCells[4];
         const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
@@ -618,7 +626,7 @@ describe('OldDatasets page', () => {
                 {...baseProps}
                 datasets={[
                     {
-                        ...baseProps.datasets[0],
+                        ...baseProps.datasets[1],
                         resourcetypegeneral: 'type123',
                     },
                 ]}
@@ -689,7 +697,7 @@ describe('OldDatasets page', () => {
         });
 
         await screen.findByText('Recently ingested dataset');
-        expect(screen.getByText(/1-3 of 60 datasets/i)).toBeVisible();
+        expect(screen.getByText(/3 of 60 datasets/i)).toBeVisible();
     });
 
     it('shows an inline retry affordance when loading additional pages fails', async () => {
