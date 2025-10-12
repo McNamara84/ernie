@@ -222,13 +222,13 @@ class OldDataset extends Model
                 FROM resourceagent ra
                 INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
                     AND ra.order = r.resourceagent_order
-                WHERE r.role = "Creator"
+                WHERE r.role = \'Creator\'
                 AND ra.order = (
                     SELECT MIN(ra2.order)
                     FROM resourceagent ra2
                     INNER JOIN role r2 ON ra2.resource_id = r2.resourceagent_resource_id 
                         AND ra2.order = r2.resourceagent_order
-                    WHERE r2.role = "Creator"
+                    WHERE r2.role = \'Creator\'
                     AND ra2.resource_id = ra.resource_id
                 )
             ) as first_author'),

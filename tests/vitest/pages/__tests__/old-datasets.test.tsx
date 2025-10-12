@@ -245,7 +245,7 @@ describe('OldDatasets page', () => {
         expect(identifierSortButton).toHaveAttribute('aria-pressed', 'false');
         expect(identifierSortButton).toHaveTextContent('Identifier');
         
-        const identifierHeaderCell = idSortButton.closest('th');
+        const identifierHeaderCell = identifierSortButton.closest('th');
         expect(identifierHeaderCell).toHaveAttribute('aria-sort', 'none');
 
         const createdSortButton = within(headerRow).getByRole('button', {
@@ -283,6 +283,10 @@ describe('OldDatasets page', () => {
         expect(within(secondIdentifierCell).getByText(/10\.1234\/example-one/)).toBeVisible();
         expect(within(secondRow).getByText(/review/i)).toBeVisible();
 
+        // Verify title content matches the dataset in the second row
+        // baseProps.datasets is sorted by updated_at DESC, so:
+        // - datasets[0] = ID 2 (updated_at: 2024-02-02) -> first row
+        // - datasets[1] = ID 1 (updated_at: 2024-01-02) -> second row
         const titleCell = secondRowCells[1];
         expect(titleCell).toHaveTextContent(baseProps.datasets[1].title);
         expect(titleCell).toHaveClass('whitespace-normal');
