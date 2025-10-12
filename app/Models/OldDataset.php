@@ -20,6 +20,14 @@ class OldDataset extends Model
     use HasFactory;
 
     /**
+     * Role type constant for creator role in the metaworks database.
+     * Used in SQL queries to filter resourceagent records.
+     *
+     * @var string
+     */
+    private const ROLE_CREATOR = 'Creator';
+
+    /**
      * The connection name for the model.
      *
      * @var string
@@ -213,6 +221,7 @@ class OldDataset extends Model
 
         // Always join first author data for display (efficient single JOIN with window function)
         // Using ROW_NUMBER() for better performance than nested MIN() subquery
+        // Using parameterized query for 'Creator' role to prevent SQL injection
         $query->leftJoin(
             \Illuminate\Support\Facades\DB::raw('(
                 SELECT 
@@ -230,14 +239,14 @@ class OldDataset extends Model
                     FROM resourceagent ra
                     INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
                         AND ra.order = r.resourceagent_order
-                    WHERE r.role = \'Creator\'
+                    WHERE r.role = ?
                 ) ra
                 WHERE ra.row_num = 1
             ) as first_author'),
             'resource.id',
             '=',
             'first_author.resource_id'
-        );
+        )->addBinding(self::ROLE_CREATOR, 'join');
 
         // Add ORDER BY clause
         // For first_author sorting, use the name field (which contains "Lastname, Firstname" format)
