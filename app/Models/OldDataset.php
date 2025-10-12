@@ -219,8 +219,8 @@ class OldDataset extends Model
             ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id');
 
-        // Always join first author data for display (efficient single JOIN with window function)
-        // Using ROW_NUMBER() for better performance than nested MIN() subquery
+        // Always join first author data for display
+        // MySQL 5.7 compatible version using MIN(order) instead of ROW_NUMBER()
         // Using parameterized query for 'Creator' role to prevent SQL injection
         $query->leftJoin(
             \Illuminate\Support\Facades\DB::raw('(
@@ -229,24 +229,25 @@ class OldDataset extends Model
                     ra.lastname as first_author_lastname,
                     ra.firstname as first_author_firstname,
                     ra.name as first_author_name
-                FROM (
-                    SELECT 
-                        ra.resource_id,
-                        ra.lastname,
-                        ra.firstname,
-                        ra.name,
-                        ROW_NUMBER() OVER (PARTITION BY ra.resource_id ORDER BY ra.order) as row_num
-                    FROM resourceagent ra
-                    INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
-                        AND ra.order = r.resourceagent_order
-                    WHERE r.role = ?
-                ) ra
-                WHERE ra.row_num = 1
+                FROM resourceagent ra
+                INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                    AND ra.order = r.resourceagent_order
+                INNER JOIN (
+                    SELECT ra2.resource_id, MIN(ra2.order) as min_order
+                    FROM resourceagent ra2
+                    INNER JOIN role r2 ON ra2.resource_id = r2.resourceagent_resource_id 
+                        AND ra2.order = r2.resourceagent_order
+                    WHERE r2.role = ?
+                    GROUP BY ra2.resource_id
+                ) first_order ON ra.resource_id = first_order.resource_id 
+                    AND ra.order = first_order.min_order
+                WHERE r.role = ?
             ) as first_author'),
             'resource.id',
             '=',
             'first_author.resource_id'
-        )->addBinding(self::ROLE_CREATOR, 'join');
+        )->addBinding(self::ROLE_CREATOR, 'join')
+         ->addBinding(self::ROLE_CREATOR, 'join');
 
         // Add ORDER BY clause
         // For first_author sorting, use the name field (which contains "Lastname, Firstname" format)
