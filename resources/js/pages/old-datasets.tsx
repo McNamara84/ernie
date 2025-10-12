@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import AppLayout from '@/layouts/app-layout';
 import { curation as curationRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
+import { type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
 import { parseContributorName } from '@/utils/nameParser';
 
 interface Author {
@@ -72,18 +73,10 @@ interface DatasetsProps {
     sort: SortState;
 }
 
-type SortKey = 'id' | 'identifier' | 'title' | 'resourcetypegeneral' | 'first_author' | 'publicationyear' | 'curator' | 'publicstatus' | 'created_at' | 'updated_at';
-type SortDirection = 'asc' | 'desc';
-
 interface SortOption {
     key: SortKey;
     label: string;
     description: string;
-}
-
-interface SortState {
-    key: SortKey;
-    direction: SortDirection;
 }
 
 interface DatasetColumn {

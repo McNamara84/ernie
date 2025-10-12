@@ -241,7 +241,12 @@ class OldDataset extends Model
         // For first_author sorting, use the name field (which contains "Lastname, Firstname" format)
         // Use COALESCE and TRIM to handle NULL values, leading spaces, and ensure consistent sorting
         if ($sortKey === 'first_author') {
-            $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) {$direction}");
+            // Use validated direction (already sanitized to 'asc' or 'desc' above)
+            // Build the ORDER BY clause safely using Laravel's query builder
+            $query->orderByRaw(
+                "TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) " . 
+                ($direction === 'asc' ? 'ASC' : 'DESC')
+            );
             $query->orderBy('resource.id', 'asc');
         } else {
             $query->orderBy($sortColumn, $direction);

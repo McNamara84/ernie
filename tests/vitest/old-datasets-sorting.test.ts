@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
+
 /**
  * Tests for old-datasets sorting logic
  * 
@@ -45,11 +47,6 @@ describe('OldDataset Sort State', () => {
     });
 
     describe('Sort State Toggle Logic', () => {
-        type SortKey = 'id' | 'identifier' | 'title' | 'resourcetypegeneral' | 'first_author' | 
-                       'publicationyear' | 'curator' | 'publicstatus' | 'created_at' | 'updated_at';
-        type SortDirection = 'asc' | 'desc';
-        type SortState = { key: SortKey; direction: SortDirection };
-
         const determineNextDirection = (
             currentState: SortState,
             newKey: SortKey
@@ -103,9 +100,6 @@ describe('OldDataset Sort State', () => {
     });
 
     describe('Sort Label Mapping', () => {
-        type SortKey = 'id' | 'identifier' | 'title' | 'resourcetypegeneral' | 'first_author' | 
-                       'publicationyear' | 'curator' | 'publicstatus' | 'created_at' | 'updated_at';
-
         const getSortLabel = (key: SortKey): string => {
             const labels: Record<SortKey, string> = {
                 'id': 'ID',
