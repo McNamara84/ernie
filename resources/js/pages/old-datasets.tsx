@@ -2,7 +2,7 @@ import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -97,7 +97,6 @@ interface DatasetColumn {
 }
 
 const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[24rem] lg:min-w-[36rem] xl:min-w-[44rem]';
-const TITLE_COLUMN_CELL_CLASSES = 'whitespace-normal break-words text-gray-900 dark:text-gray-100 leading-relaxed align-top';
 const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
 const DATE_COLUMN_HEADER_LABEL = (
     <span className="flex flex-col leading-tight normal-case">
@@ -130,75 +129,6 @@ const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, SortDirection> = {
 
 const describeDirection = (direction: SortDirection): string =>
     direction === 'asc' ? 'ascending' : 'descending';
-
-const normaliseSortValue = (value: number | null | undefined, direction: SortDirection): number => {
-    if (value === null || value === undefined || Number.isNaN(value)) {
-        return direction === 'asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
-    }
-
-    return value;
-};
-
-const getSortValue = (dataset: Dataset, key: SortKey): number | null => {
-    if (key === 'id') {
-        if (typeof dataset.id === 'number' && Number.isFinite(dataset.id)) {
-            return dataset.id;
-        }
-
-        if (typeof dataset.id === 'string') {
-            const parsed = Number(dataset.id);
-            return Number.isFinite(parsed) ? parsed : null;
-        }
-
-        return null;
-    }
-
-    const rawValue = key === 'created_at' ? dataset.created_at : dataset.updated_at;
-
-    if (typeof rawValue !== 'string') {
-        return null;
-    }
-
-    const timestamp = Date.parse(rawValue);
-    return Number.isNaN(timestamp) ? null : timestamp;
-};
-
-const sortDatasets = (datasets: Dataset[], sortState: SortState): Dataset[] => {
-    if (!Array.isArray(datasets) || datasets.length === 0) {
-        return datasets;
-    }
-
-    const sorted = [...datasets].sort((left, right) => {
-        const leftRaw = getSortValue(left, sortState.key);
-        const rightRaw = getSortValue(right, sortState.key);
-
-        const leftValue = normaliseSortValue(leftRaw, sortState.direction);
-        const rightValue = normaliseSortValue(rightRaw, sortState.direction);
-
-        if (leftValue === rightValue) {
-            const leftFallback = normaliseSortValue(getSortValue(left, 'id'), 'asc');
-            const rightFallback = normaliseSortValue(getSortValue(right, 'id'), 'asc');
-
-            if (leftFallback === rightFallback) {
-                return 0;
-            }
-
-            return leftFallback < rightFallback ? -1 : 1;
-        }
-
-        if (leftValue < rightValue) {
-            return sortState.direction === 'asc' ? -1 : 1;
-        }
-
-        if (leftValue > rightValue) {
-            return sortState.direction === 'asc' ? 1 : -1;
-        }
-
-        return 0;
-    });
-
-    return sorted;
-};
 
 const isSortState = (value: unknown): value is SortState => {
     if (!value || typeof value !== 'object') {
@@ -432,15 +362,7 @@ const normaliseTitles = (dataset: Dataset): NormalisedTitle[] => {
 
     if (Array.isArray(dataset.titles)) {
         dataset.titles.forEach((raw) => {
-            if (typeof raw === 'string') {
-                const text = raw.trim();
-                if (text) {
-                    titles.push({ title: text, titleType: NORMALISED_MAIN_TITLE });
-                }
-                return;
-            }
-
-            if (!raw) return;
+            if (!raw || typeof raw !== 'object') return;
 
             const value = raw.title ?? null;
             const titleText = typeof value === 'string' ? value.trim() : '';
@@ -1184,10 +1106,10 @@ export default function OldDatasets({
         window.scrollTo({ top: 0, behavior: 'smooth' });
         
         // Update sort state which will trigger the useEffect to reload data
-        setSortState(previousState => ({
+        setSortState({
             key,
             direction: nextDirection,
-        }));
+        });
     }, [sortState]);
 
     // No client-side sorting - data comes pre-sorted from server
