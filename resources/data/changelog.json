@@ -1,5 +1,95 @@
 [
   {
+    "version": "0.7.0",
+    "date": "2025-10-12",
+    "features": [
+      {
+        "title": "Related Work Management",
+        "description": "Comprehensive system for managing related identifiers (DOI, URL, etc.) with support for all 33 DataCite relation types. Includes quick-add interface for common relations, advanced form with grouped relation types, and CSV bulk import with drag & drop. Features real-time DOI validation via DataCite API with fallback to doi.org, automatic identifier type detection, and duplicate prevention based on identifier and relation type combination."
+      },
+      {
+        "title": "Old Datasets Table Enhancements",
+        "description": "Major improvements to the old datasets listing including new 'First Author' column displaying author name and publication year, advanced sorting options (identifier, title, resource type, first author, publication year, curator, status), combined 'Curator Status' column for better space utilization, and smooth scroll-to-top on sort changes with toast notifications for user feedback."
+      },
+      {
+        "title": "Related Work CSV Bulk Import",
+        "description": "Import multiple related works via CSV file with drag & drop interface, real-time validation, error reporting, and preview before import. Includes automatic duplicate detection, identifier normalization, and comprehensive documentation with example files."
+      },
+      {
+        "title": "DOI Validation Proxy",
+        "description": "Backend proxy endpoint for DOI validation to avoid CORS issues. Validates DOIs via DataCite API with automatic fallback to doi.org for DOIs registered with other providers. Provides metadata resolution including titles for better user feedback."
+      },
+      {
+        "title": "Related Identifiers from Old Datasets",
+        "description": "Load related identifiers from legacy datasets into the curation form with automatic normalization of identifier types and relation types. Supports migration of historical data with proper position ordering and relationship mapping."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Enhanced Sorting Performance",
+        "description": "Optimized old dataset queries using window functions (ROW_NUMBER) instead of nested subqueries for first author selection. Server-side sorting with SQL-level optimization eliminates client-side sorting overhead. Parameterized queries prevent SQL injection and improve security."
+      },
+      {
+        "title": "Related Work UI/UX",
+        "description": "Streamlined interface with quick-add for common relation types, expandable advanced form for all 33 relation types grouped by category, visual list display with relation type badges, and one-click removal. CSV import includes progress indicators and detailed error reporting with line numbers."
+      },
+      {
+        "title": "Identifier Normalization",
+        "description": "Automatic detection and normalization of identifier types, especially for DOIs with URL prefixes (https://doi.org/). Consistent formatting across all entry methods (quick-add, advanced form, CSV import). Duplicate prevention using normalized identifiers."
+      },
+      {
+        "title": "Old Datasets Table Layout",
+        "description": "Redesigned table layout combining related columns (Curator + Status), adding first author information, and optimizing column widths. Added placeholder delete button for future functionality. Improved skeleton loading states during sorting operations."
+      },
+      {
+        "title": "Type Safety Enhancements",
+        "description": "Introduced comprehensive TypeScript types for related identifiers including RelatedIdentifierEntry, IdentifierType, and RelationType interfaces. Shared type definitions for sorting (SortKey, SortDirection, SortState) across components. Enhanced PHPDoc annotations in RelatedIdentifier model."
+      },
+      {
+        "title": "Test Coverage",
+        "description": "Comprehensive test suite for related works including Pest tests for model relationships, validation, and persistence. ResourceFactory for generating test data. Vitest tests for sorting logic and data structures. Multiple affiliations loading verification tests added."
+      },
+      {
+        "title": "Query Optimization",
+        "description": "Introduced ROLE_CREATOR constant for consistent role filtering. Optimized first author joins with better SQL handling of NULL values and whitespace trimming. Reduced N+1 query problems with eager loading of related identifiers."
+      },
+      {
+        "title": "User Feedback",
+        "description": "Added sonner (v2.0.7) for toast notifications. Sort changes now display confirmation toasts with current sort key and direction. Human-readable sort labels improve clarity. Better loading states and progress indicators across the application."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "ORCID Persistence",
+        "description": "Fixed issue where ORCID identifiers were not being saved correctly. Implemented normalization to remove URL prefixes from ORCID values, ensuring only the identifier is stored. Updated backend to return plain identifiers and frontend to handle both formats. Added comprehensive tests to verify normalization and persistence."
+      },
+      {
+        "title": "Multiple Affiliations Loading",
+        "description": "Fixed bug where multiple affiliations from old datasets appeared as a single tag. Changed affiliation joining from comma-space to comma-only to ensure proper tag separation in Tagify. Added tests to verify multiple affiliations render as separate tags."
+      },
+      {
+        "title": "Date Serialization",
+        "description": "Refactored date serialization in DataCiteForm to use explicit startDate and endDate fields instead of serializeDateEntry helper. Improved clarity and flexibility for date handling across save and load operations."
+      },
+      {
+        "title": "SQL Query Syntax",
+        "description": "Fixed SQL string literals to use single quotes for correct syntax. Improved first_author sorting with TRIM and COALESCE for consistent ordering and proper NULL value handling."
+      },
+      {
+        "title": "Duplicate Identifier Prevention",
+        "description": "Implemented normalization-based duplicate detection for related work identifiers. Allows same identifier with different relation types while preventing true duplicates. CSV import skips duplicates and displays warnings."
+      },
+      {
+        "title": "Input Validation Patterns",
+        "description": "Updated regex patterns for ID fields in AuthorField and ContributorField to use [0-9] instead of \\d for better compatibility. Removed anchors to improve validation consistency."
+      },
+      {
+        "title": "Related Work Query Parameters",
+        "description": "Encoded relatedWorks as JSON to prevent exceeding PHP's max_input_vars limit for large datasets. Normalized relatedWorks keys from camelCase to snake_case for frontend compatibility with legacy imports."
+      }
+    ]
+  },
+  {
     "version": "0.6.0",
     "date": "2025-10-11",
     "features": [
