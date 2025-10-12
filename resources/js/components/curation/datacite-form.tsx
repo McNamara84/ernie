@@ -1489,7 +1489,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates', 'related-work']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates', 'related-work', 'funding-references']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
