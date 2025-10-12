@@ -1,10 +1,11 @@
-import { ChevronDown, ChevronRight, GripVertical, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, GripVertical, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useFundingReferenceValidation } from '@/hooks/use-funding-reference-validation';
 
 import InputField from '../input-field';
 import { searchRorFunders } from './ror-search';
@@ -43,6 +44,9 @@ export function FundingReferenceItem({
     const [filteredSuggestions, setFilteredSuggestions] = useState<RorFunder[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
     const suggestionsRef = useRef<HTMLDivElement>(null);
+
+    // Validation
+    const validation = useFundingReferenceValidation(funding);
 
     // Debounced search
     useEffect(() => {
@@ -175,9 +179,19 @@ export function FundingReferenceItem({
                         }}
                         placeholder="e.g., Deutsche Forschungsgemeinschaft (DFG)"
                         required
-                        className="mt-2"
+                        className={`mt-2 ${validation.errors.funderName ? 'border-destructive focus-visible:ring-destructive' : ''}`}
                         autoComplete="off"
+                        aria-invalid={!!validation.errors.funderName}
+                        aria-describedby={validation.errors.funderName ? `${funding.id}-funder-name-error` : undefined}
                     />
+
+                    {/* Validation Error */}
+                    {validation.errors.funderName && (
+                        <p id={`${funding.id}-funder-name-error`} className="mt-1 flex items-center gap-1 text-xs text-destructive">
+                            <AlertCircle className="h-3 w-3" />
+                            {validation.errors.funderName}
+                        </p>
+                    )}
 
                     {/* Autocomplete Dropdown */}
                     {showSuggestions && filteredSuggestions.length > 0 && (
@@ -277,14 +291,27 @@ export function FundingReferenceItem({
                             placeholder="e.g., ERC-2021-STG-101234567"
                         />
 
-                        <InputField
-                            id={`${funding.id}-award-uri`}
-                            label="Award URI"
-                            value={funding.awardUri}
-                            onChange={(e) => onAwardUriChange(e.target.value)}
-                            placeholder="e.g., https://cordis.europa.eu/project/id/101234567"
-                            type="url"
-                        />
+                        <div className="space-y-2">
+                            <Label htmlFor={`${funding.id}-award-uri`}>
+                                Award URI
+                            </Label>
+                            <Input
+                                id={`${funding.id}-award-uri`}
+                                type="url"
+                                value={funding.awardUri}
+                                onChange={(e) => onAwardUriChange(e.target.value)}
+                                placeholder="e.g., https://cordis.europa.eu/project/id/101234567"
+                                className={validation.errors.awardUri ? 'border-destructive focus-visible:ring-destructive' : ''}
+                                aria-invalid={!!validation.errors.awardUri}
+                                aria-describedby={validation.errors.awardUri ? `${funding.id}-award-uri-error` : undefined}
+                            />
+                            {validation.errors.awardUri && (
+                                <p id={`${funding.id}-award-uri-error`} className="flex items-center gap-1 text-xs text-destructive">
+                                    <AlertCircle className="h-3 w-3" />
+                                    {validation.errors.awardUri}
+                                </p>
+                            )}
+                        </div>
 
                         <InputField
                             id={`${funding.id}-award-title`}
