@@ -181,7 +181,7 @@ class OldDataset extends Model
             'identifier' => 'resource.identifier',
             'title' => 'title.title',
             'resourcetypegeneral' => 'resource.resourcetypegeneral',
-            'first_author' => 'first_author_lastname',
+            'first_author' => 'first_author.first_author_lastname',
             'publicationyear' => 'resource.publicationyear',
             'curator' => 'resource.curator',
             'publicstatus' => 'resource.publicstatus',
@@ -234,10 +234,17 @@ class OldDataset extends Model
             'first_author.resource_id'
         );
 
-        $query->orderBy($sortColumn, $direction);
-
-        if ($sortColumn !== 'resource.id') {
+        // Add ORDER BY clause
+        // For first_author sorting, use the name field (which contains "Lastname, Firstname" format)
+        // Use COALESCE and TRIM to handle NULL values, leading spaces, and ensure consistent sorting
+        if ($sortKey === 'first_author') {
+            $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) {$direction}");
             $query->orderBy('resource.id', 'asc');
+        } else {
+            $query->orderBy($sortColumn, $direction);
+            if ($sortColumn !== 'resource.id') {
+                $query->orderBy('resource.id', 'asc');
+            }
         }
 
         return $query->paginate($perPage, ['*'], 'page', $page);
