@@ -106,6 +106,14 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             }[] | null;
             gcmdKeywords?: { uuid: string; id: string; path: string[]; type: string }[] | null;
             freeKeywords?: string[] | null;
+            fundingReferences?: {
+                funderName: string;
+                funderIdentifier: string | null;
+                funderIdentifierType: string | null;
+                awardNumber: string | null;
+                awardUri: string | null;
+                awardTitle: string | null;
+            }[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -356,6 +364,12 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 });
             });
         }
+        
+        // Add funding references as JSON string (like relatedWorks)
+        if (data.fundingReferences && data.fundingReferences.length > 0) {
+            query.fundingReferences = JSON.stringify(data.fundingReferences);
+        }
+        
         router.get(curationRoute({ query }).url);
     } catch (error) {
         console.error('XML upload failed', error);

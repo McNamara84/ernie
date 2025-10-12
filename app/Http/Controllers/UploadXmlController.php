@@ -140,6 +140,8 @@ class UploadXmlController extends Controller
             $resourceType = $resourceTypeModel?->id;
         }
 
+        $fundingReferences = $this->extractFundingReferences($reader);
+
         return response()->json([
             'doi' => $doi,
             'year' => $year,
@@ -155,6 +157,7 @@ class UploadXmlController extends Controller
             'coverages' => $coverages,
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
+            'fundingReferences' => $fundingReferences,
         ]);
     }
 
@@ -1361,5 +1364,61 @@ class UploadXmlController extends Controller
         }
 
         return $keywords;
+    }
+
+    /**
+     * Extract funding references from DataCite XML.
+     *
+     * @return array<int, array{funderName: string, funderIdentifier: string|null, funderIdentifierType: string|null, awardNumber: string|null, awardUri: string|null, awardTitle: string|null}>
+     */
+    private function extractFundingReferences(XmlReader $reader): array
+    {
+        $fundingElements = $reader
+            ->xpathElement('//*[local-name()="fundingReferences"]/*[local-name()="fundingReference"]')
+            ->get();
+
+        $fundingReferences = [];
+
+        foreach ($fundingElements as $fundingElement) {
+            $content = $fundingElement->getContent();
+
+            if (! is_array($content)) {
+                continue;
+            }
+
+            // Extract funderName (required in DataCite schema)
+            $funderNameElement = $this->firstElement($content, 'funderName');
+            $funderName = $this->stringValue($funderNameElement);
+
+            if (! $funderName) {
+                // Skip if funderName is missing (required field)
+                continue;
+            }
+
+            // Extract funderIdentifier and its type
+            $funderIdentifierElement = $this->firstElement($content, 'funderIdentifier');
+            $funderIdentifier = $this->stringValue($funderIdentifierElement);
+            $funderIdentifierType = $funderIdentifierElement?->getAttribute('funderIdentifierType');
+
+            // Extract awardNumber and awardURI
+            $awardNumberElement = $this->firstElement($content, 'awardNumber');
+            $awardNumber = $this->stringValue($awardNumberElement);
+            $awardUri = $awardNumberElement?->getAttribute('awardURI');
+
+            // Extract awardTitle
+            $awardTitleElement = $this->firstElement($content, 'awardTitle');
+            $awardTitle = $this->stringValue($awardTitleElement);
+
+            $fundingReferences[] = [
+                'funderName' => $funderName,
+                'funderIdentifier' => $funderIdentifier,
+                'funderIdentifierType' => $funderIdentifierType,
+                'awardNumber' => $awardNumber,
+                'awardUri' => $awardUri,
+                'awardTitle' => $awardTitle,
+            ];
+        }
+
+        return $fundingReferences;
     }
 }
