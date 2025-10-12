@@ -211,7 +211,8 @@ class OldDataset extends Model
             ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id');
 
-        // Always join first author data for display (efficient single JOIN)
+        // Always join first author data for display (efficient single JOIN with window function)
+        // Using ROW_NUMBER() for better performance than nested MIN() subquery
         $query->leftJoin(
             \Illuminate\Support\Facades\DB::raw('(
                 SELECT 
@@ -219,18 +220,19 @@ class OldDataset extends Model
                     ra.lastname as first_author_lastname,
                     ra.firstname as first_author_firstname,
                     ra.name as first_author_name
-                FROM resourceagent ra
-                INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
-                    AND ra.order = r.resourceagent_order
-                WHERE r.role = \'Creator\'
-                AND ra.order = (
-                    SELECT MIN(ra2.order)
-                    FROM resourceagent ra2
-                    INNER JOIN role r2 ON ra2.resource_id = r2.resourceagent_resource_id 
-                        AND ra2.order = r2.resourceagent_order
-                    WHERE r2.role = \'Creator\'
-                    AND ra2.resource_id = ra.resource_id
-                )
+                FROM (
+                    SELECT 
+                        ra.resource_id,
+                        ra.lastname,
+                        ra.firstname,
+                        ra.name,
+                        ROW_NUMBER() OVER (PARTITION BY ra.resource_id ORDER BY ra.order) as row_num
+                    FROM resourceagent ra
+                    INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                        AND ra.order = r.resourceagent_order
+                    WHERE r.role = \'Creator\'
+                ) ra
+                WHERE ra.row_num = 1
             ) as first_author'),
             'resource.id',
             '=',
@@ -241,14 +243,16 @@ class OldDataset extends Model
         // For first_author sorting, use the name field (which contains "Lastname, Firstname" format)
         // Use COALESCE and TRIM to handle NULL values, leading spaces, and ensure consistent sorting
         if ($sortKey === 'first_author') {
-            // Use validated direction (already sanitized to 'asc' or 'desc' above)
-            // Build the ORDER BY clause safely using Laravel's query builder
-            $query->orderByRaw(
-                "TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) " . 
-                ($direction === 'asc' ? 'ASC' : 'DESC')
-            );
+            // Use separate orderByRaw calls to avoid any string concatenation with $direction
+            // Direction is already validated above, but this approach is safest
+            if ($direction === 'asc') {
+                $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) ASC");
+            } else {
+                $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) DESC");
+            }
             $query->orderBy('resource.id', 'asc');
         } else {
+            // Use Laravel's orderBy method which automatically handles SQL injection
             $query->orderBy($sortColumn, $direction);
             if ($sortColumn !== 'resource.id') {
                 $query->orderBy('resource.id', 'asc');
