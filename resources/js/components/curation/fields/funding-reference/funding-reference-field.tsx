@@ -67,6 +67,13 @@ export function FundingReferenceField({
         onChange(updated);
     };
 
+    const handleFieldsChange = (index: number, fields: Partial<FundingReferenceEntry>) => {
+        const updated = value.map((funding, i) =>
+            i === index ? { ...funding, ...fields } : funding
+        );
+        onChange(updated);
+    };
+
     const handleToggleExpanded = (index: number) => {
         handleFieldChange(index, 'isExpanded', !value[index].isExpanded);
     };
@@ -112,6 +119,7 @@ export function FundingReferenceField({
                             onFunderIdentifierChange={(val) =>
                                 handleFieldChange(index, 'funderIdentifier', val)
                             }
+                            onFieldsChange={(fields) => handleFieldsChange(index, fields)}
                             onAwardNumberChange={(val) =>
                                 handleFieldChange(index, 'awardNumber', val)
                             }

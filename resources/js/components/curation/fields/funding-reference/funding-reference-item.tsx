@@ -15,6 +15,7 @@ interface FundingReferenceItemProps {
     index: number;
     onFunderNameChange: (value: string) => void;
     onFunderIdentifierChange: (value: string) => void;
+    onFieldsChange: (fields: Partial<FundingReferenceEntry>) => void;
     onAwardNumberChange: (value: string) => void;
     onAwardUriChange: (value: string) => void;
     onAwardTitleChange: (value: string) => void;
@@ -28,7 +29,8 @@ export function FundingReferenceItem({
     funding,
     index,
     onFunderNameChange,
-    onFunderIdentifierChange,
+    onFunderIdentifierChange, // eslint-disable-line @typescript-eslint/no-unused-vars
+    onFieldsChange,
     onAwardNumberChange,
     onAwardUriChange,
     onAwardTitleChange,
@@ -44,6 +46,13 @@ export function FundingReferenceItem({
 
     // Debounced search
     useEffect(() => {
+        // Don't show suggestions if a ROR ID is already selected
+        if (funding.funderIdentifier) {
+            setFilteredSuggestions([]);
+            setShowSuggestions(false);
+            return;
+        }
+
         if (!funding.funderName || funding.funderName.length < 2) {
             setFilteredSuggestions([]);
             return;
@@ -56,7 +65,7 @@ export function FundingReferenceItem({
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [funding.funderName, rorFunders]);
+    }, [funding.funderName, funding.funderIdentifier, rorFunders]);
 
     // Click outside handler
     useEffect(() => {
@@ -77,8 +86,11 @@ export function FundingReferenceItem({
 
     const handleSelectSuggestion = useCallback(
         (suggestion: RorFunder) => {
-            onFunderNameChange(suggestion.prefLabel);
-            onFunderIdentifierChange(suggestion.rorId);
+            // Atomic update of both fields to prevent race condition
+            onFieldsChange({
+                funderName: suggestion.prefLabel,
+                funderIdentifier: suggestion.rorId,
+            });
             setShowSuggestions(false);
             setFilteredSuggestions([]);
             // Blur the input to ensure the value is updated
@@ -86,7 +98,22 @@ export function FundingReferenceItem({
                 inputRef.current.blur();
             }
         },
-        [onFunderNameChange, onFunderIdentifierChange]
+        [onFieldsChange]
+    );
+
+    const handleFunderNameChange = useCallback(
+        (value: string) => {
+            // Clear ROR ID when user manually edits the funder name
+            if (funding.funderIdentifier) {
+                onFieldsChange({
+                    funderName: value,
+                    funderIdentifier: '',
+                });
+            } else {
+                onFunderNameChange(value);
+            }
+        },
+        [funding.funderIdentifier, onFieldsChange, onFunderNameChange]
     );
 
     return (
@@ -138,7 +165,7 @@ export function FundingReferenceItem({
                         ref={inputRef}
                         id={`${funding.id}-funder-name`}
                         value={funding.funderName}
-                        onChange={(e) => onFunderNameChange(e.target.value)}
+                        onChange={(e) => handleFunderNameChange(e.target.value)}
                         onFocus={() => {
                             if (filteredSuggestions.length > 0) {
                                 setShowSuggestions(true);
