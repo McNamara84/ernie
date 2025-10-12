@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 import { SortableFundingReferenceItem } from './sortable-funding-reference-item';
-import { loadRorFunders } from './ror-search';
+import { loadRorFunders, getFunderByRorId } from './ror-search';
 import type { FundingReferenceEntry, RorFunder } from './types';
 import { MAX_FUNDING_REFERENCES } from './types';
 
@@ -45,6 +45,30 @@ export function FundingReferenceField({
         };
         loadData();
     }, []);
+
+    // Auto-fill funder names from ROR IDs when ROR data is loaded
+    useEffect(() => {
+        if (!isLoadingRor && rorFunders.length > 0) {
+            const updated = value.map((funding) => {
+                // If funder name is empty but ROR ID exists, fill it from ROR data
+                if (!funding.funderName && funding.funderIdentifier) {
+                    const rorFunder = getFunderByRorId(rorFunders, funding.funderIdentifier);
+                    if (rorFunder) {
+                        return {
+                            ...funding,
+                            funderName: rorFunder.prefLabel,
+                        };
+                    }
+                }
+                return funding;
+            });
+
+            // Only update if something changed
+            if (JSON.stringify(updated) !== JSON.stringify(value)) {
+                onChange(updated);
+            }
+        }
+    }, [isLoadingRor, rorFunders, value, onChange]);
 
     const handleAdd = () => {
         if (value.length >= MAX_FUNDING_REFERENCES) return;

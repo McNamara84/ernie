@@ -908,23 +908,34 @@ class OldDataset extends Model
             ->get();
 
         return $fundings->map(function ($funding, $index) {
-            // Map funderidentifiertype to URI format (ROR uses URL format)
+            // Only map ROR identifiers, ignore Crossref Funder IDs and other types
             $funderIdentifier = null;
+            
             if ($funding->funderidentifier) {
-                // Check if it's already a URL
-                if (str_starts_with($funding->funderidentifier, 'http')) {
-                    $funderIdentifier = $funding->funderidentifier;
-                } elseif ($funding->funderidentifiertype === 'ROR') {
-                    // Convert ROR ID to URL format
-                    $funderIdentifier = 'https://ror.org/' . ltrim($funding->funderidentifier, '/');
-                } else {
-                    // For other identifier types, just use the identifier as is
+                // Check if it's a ROR URL (new format from metaworks)
+                if (str_starts_with($funding->funderidentifier, 'https://ror.org/')) {
                     $funderIdentifier = $funding->funderidentifier;
                 }
+                // Check if it's a ROR ID without URL (old format)
+                elseif ($funding->funderidentifiertype === 'ROR') {
+                    // Convert ROR ID to URL format
+                    $funderIdentifier = 'https://ror.org/' . ltrim($funding->funderidentifier, '/');
+                }
+                // Ignore Crossref Funder IDs and other identifier types
+                // We only support ROR in the new system
+            }
+            
+            // Handle edge case: If fundername is a ROR URL, extract actual name
+            $funderName = $funding->fundername;
+            if (str_starts_with($funderName, 'https://ror.org/')) {
+                // If fundername is a ROR URL, use it as identifier instead
+                $funderIdentifier = $funderName;
+                // Leave funderName empty so it can be filled via ROR autocomplete
+                $funderName = '';
             }
 
             return [
-                'funderName' => $funding->fundername,
+                'funderName' => $funderName,
                 'funderIdentifier' => $funderIdentifier,
                 'awardNumber' => $funding->awardnumber,
                 'awardUri' => null, // Not stored in old database
