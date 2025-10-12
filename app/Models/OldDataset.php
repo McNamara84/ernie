@@ -892,4 +892,45 @@ class OldDataset extends Model
             ];
         })->toArray();
     }
+
+    /**
+     * Get funding references for this resource from the funding table.
+     * Returns an array of funding references with funder information and award details.
+     *
+     * @return array<int, array{funderName: string, funderIdentifier: string|null, awardNumber: string|null, awardUri: string|null, awardTitle: string|null, position: int}>
+     */
+    public function getFundingReferences(): array
+    {
+        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+
+        $fundings = $db->table('funding')
+            ->where('resource_id', $this->id)
+            ->get();
+
+        return $fundings->map(function ($funding, $index) {
+            // Map funderidentifiertype to URI format (ROR uses URL format)
+            $funderIdentifier = null;
+            if ($funding->funderidentifier) {
+                // Check if it's already a URL
+                if (str_starts_with($funding->funderidentifier, 'http')) {
+                    $funderIdentifier = $funding->funderidentifier;
+                } elseif ($funding->funderidentifiertype === 'ROR') {
+                    // Convert ROR ID to URL format
+                    $funderIdentifier = 'https://ror.org/' . ltrim($funding->funderidentifier, '/');
+                } else {
+                    // For other identifier types, just use the identifier as is
+                    $funderIdentifier = $funding->funderidentifier;
+                }
+            }
+
+            return [
+                'funderName' => $funding->fundername,
+                'funderIdentifier' => $funderIdentifier,
+                'awardNumber' => $funding->awardnumber,
+                'awardUri' => null, // Not stored in old database
+                'awardTitle' => $funding->awardtitle,
+                'position' => $index,
+            ];
+        })->toArray();
+    }
  }

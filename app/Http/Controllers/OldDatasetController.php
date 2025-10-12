@@ -314,6 +314,44 @@ class OldDatasetController extends Controller
     }
 
     /**
+     * API endpoint to get funding references for a specific old dataset.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getFundingReferences(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            $fundingReferences = $dataset->getFundingReferences();
+
+            return response()->json([
+                'fundingReferences' => $fundingReferences,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading funding references for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load funding references from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
      * API endpoint to get dates for a specific old dataset.
      *
      * @param  \Illuminate\Http\Request  $request

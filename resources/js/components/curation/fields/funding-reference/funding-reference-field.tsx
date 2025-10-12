@@ -1,9 +1,12 @@
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-import { FundingReferenceItem } from './funding-reference-item';
+import { SortableFundingReferenceItem } from './sortable-funding-reference-item';
 import { loadRorFunders } from './ror-search';
 import type { FundingReferenceEntry, RorFunder } from './types';
 import { MAX_FUNDING_REFERENCES } from './types';
@@ -19,6 +22,14 @@ export function FundingReferenceField({
 }: FundingReferenceFieldProps) {
     const [rorFunders, setRorFunders] = useState<RorFunder[]>([]);
     const [isLoadingRor, setIsLoadingRor] = useState(true);
+
+    // Sensors for drag and drop
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     // Load ROR data on mount
     useEffect(() => {
@@ -78,6 +89,23 @@ export function FundingReferenceField({
         handleFieldChange(index, 'isExpanded', !value[index].isExpanded);
     };
 
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = value.findIndex((item) => item.id === active.id);
+            const newIndex = value.findIndex((item) => item.id === over.id);
+
+            const reordered = arrayMove(value, oldIndex, newIndex);
+            // Update position property to reflect new order
+            const withUpdatedPositions = reordered.map((item, idx) => ({
+                ...item,
+                position: idx,
+            }));
+            onChange(withUpdatedPositions);
+        }
+    };
+
     const canAdd = value.length < MAX_FUNDING_REFERENCES;
     const canRemove = value.length > 0;
 
@@ -107,35 +135,48 @@ export function FundingReferenceField({
                     </p>
                 </div>
             ) : (
-                <div className="space-y-4">
-                    {value.map((funding, index) => (
-                        <FundingReferenceItem
-                            key={funding.id}
-                            funding={funding}
-                            index={index}
-                            onFunderNameChange={(val) =>
-                                handleFieldChange(index, 'funderName', val)
-                            }
-                            onFunderIdentifierChange={(val) =>
-                                handleFieldChange(index, 'funderIdentifier', val)
-                            }
-                            onFieldsChange={(fields) => handleFieldsChange(index, fields)}
-                            onAwardNumberChange={(val) =>
-                                handleFieldChange(index, 'awardNumber', val)
-                            }
-                            onAwardUriChange={(val) =>
-                                handleFieldChange(index, 'awardUri', val)
-                            }
-                            onAwardTitleChange={(val) =>
-                                handleFieldChange(index, 'awardTitle', val)
-                            }
-                            onToggleExpanded={() => handleToggleExpanded(index)}
-                            onRemove={() => handleRemove(index)}
-                            canRemove={canRemove}
-                            rorFunders={rorFunders}
-                        />
-                    ))}
-                </div>
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={value.map((f) => f.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="space-y-4">
+                            {value.map((funding, index) => (
+                                <SortableFundingReferenceItem
+                                    key={funding.id}
+                                    funding={funding}
+                                    index={index}
+                                    onFunderNameChange={(val: string) =>
+                                        handleFieldChange(index, 'funderName', val)
+                                    }
+                                    onFunderIdentifierChange={(val: string) =>
+                                        handleFieldChange(index, 'funderIdentifier', val)
+                                    }
+                                    onFieldsChange={(fields: Partial<FundingReferenceEntry>) =>
+                                        handleFieldsChange(index, fields)
+                                    }
+                                    onAwardNumberChange={(val: string) =>
+                                        handleFieldChange(index, 'awardNumber', val)
+                                    }
+                                    onAwardUriChange={(val: string) =>
+                                        handleFieldChange(index, 'awardUri', val)
+                                    }
+                                    onAwardTitleChange={(val: string) =>
+                                        handleFieldChange(index, 'awardTitle', val)
+                                    }
+                                    onToggleExpanded={() => handleToggleExpanded(index)}
+                                    onRemove={() => handleRemove(index)}
+                                    canRemove={canRemove}
+                                    rorFunders={rorFunders}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
+                </DndContext>
             )}
 
             {/* Add Button */}

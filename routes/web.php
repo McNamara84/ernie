@@ -60,6 +60,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/contributors', [OldDatasetController::class, 'getContributors'])
         ->name('old-datasets.contributors');
 
+    Route::get('old-datasets/{id}/funding-references', [OldDatasetController::class, 'getFundingReferences'])
+        ->name('old-datasets.funding-references');
+
     Route::get('old-datasets/{id}/descriptions', [OldDatasetController::class, 'getDescriptions'])
         ->name('old-datasets.descriptions');
 
