@@ -64,18 +64,20 @@ export function getFunderByRorId(funders: RorFunder[], rorId: string): RorFunder
 }
 
 /**
- * Load ROR funders from the JSON file
- * This is done via fetch since the file is outside the bundled resources
+ * Load ROR funders from the API endpoint
+ * Uses the existing /api/v1/ror-affiliations endpoint
  * 
  * @returns Promise resolving to array of ROR funders
  */
 export async function loadRorFunders(): Promise<RorFunder[]> {
     try {
-        const response = await fetch('/storage/app/ror/ror-affiliations.json');
+        const response = await fetch('/api/v1/ror-affiliations');
         if (!response.ok) {
             throw new Error(`Failed to load ROR data: ${response.statusText}`);
         }
-        return await response.json() as RorFunder[];
+        const data = await response.json() as RorFunder[];
+        console.log('Loaded ROR funders:', data.length);
+        return data;
     } catch (error) {
         console.error('Error loading ROR funders:', error);
         return [];
