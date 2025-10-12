@@ -51,7 +51,7 @@ export function FundingReferenceField({
         if (!isLoadingRor && rorFunders.length > 0) {
             const updated = value.map((funding) => {
                 // If funder name is empty but ROR ID exists, fill it from ROR data
-                if (!funding.funderName && funding.funderIdentifier) {
+                if (!funding.funderName && funding.funderIdentifier && funding.funderIdentifierType === 'ROR') {
                     const rorFunder = getFunderByRorId(rorFunders, funding.funderIdentifier);
                     if (rorFunder) {
                         return {
@@ -77,6 +77,7 @@ export function FundingReferenceField({
             id: `funding-${Date.now()}`,
             funderName: '',
             funderIdentifier: '',
+            funderIdentifierType: null,
             awardNumber: '',
             awardUri: '',
             awardTitle: '',

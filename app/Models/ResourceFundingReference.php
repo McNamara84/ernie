@@ -20,6 +20,7 @@ class ResourceFundingReference extends Model
         'resource_id',
         'funder_name',
         'funder_identifier',
+        'funder_identifier_type',
         'award_number',
         'award_uri',
         'award_title',

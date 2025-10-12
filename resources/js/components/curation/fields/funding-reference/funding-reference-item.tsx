@@ -90,6 +90,7 @@ export function FundingReferenceItem({
             onFieldsChange({
                 funderName: suggestion.prefLabel,
                 funderIdentifier: suggestion.rorId,
+                funderIdentifierType: 'ROR',
             });
             setShowSuggestions(false);
             setFilteredSuggestions([]);
@@ -103,11 +104,12 @@ export function FundingReferenceItem({
 
     const handleFunderNameChange = useCallback(
         (value: string) => {
-            // Clear ROR ID when user manually edits the funder name
+            // Clear ROR ID and type when user manually edits the funder name
             if (funding.funderIdentifier) {
                 onFieldsChange({
                     funderName: value,
                     funderIdentifier: '',
+                    funderIdentifierType: null,
                 });
             } else {
                 onFunderNameChange(value);
@@ -219,8 +221,8 @@ export function FundingReferenceItem({
                     )}
                 </div>
 
-                {/* ROR ID Badge (if available) */}
-                {funding.funderIdentifier && (
+                {/* Funder Identifier Badge (ROR, Crossref Funder ID, etc.) */}
+                {funding.funderIdentifier && funding.funderIdentifierType && (
                     <div className="flex items-center gap-2">
                         <a
                             href={funding.funderIdentifier}
@@ -232,7 +234,12 @@ export function FundingReferenceItem({
                                 variant="outline" 
                                 className="cursor-pointer text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
                             >
-                                🏛️ ROR: {funding.funderIdentifier}
+                                {funding.funderIdentifierType === 'ROR' && '🏛️ '}
+                                {funding.funderIdentifierType === 'Crossref Funder ID' && '🔗 '}
+                                {funding.funderIdentifierType === 'ISNI' && '📇 '}
+                                {funding.funderIdentifierType === 'GRID' && '🌐 '}
+                                {funding.funderIdentifierType === 'Other' && '🏷️ '}
+                                {funding.funderIdentifierType}: {funding.funderIdentifier}
                             </Badge>
                         </a>
                     </div>

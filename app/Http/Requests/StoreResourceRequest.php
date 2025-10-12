@@ -121,6 +121,7 @@ class StoreResourceRequest extends FormRequest
             'fundingReferences' => ['nullable', 'array', 'max:99'],
             'fundingReferences.*.funderName' => ['required', 'string', 'max:500'],
             'fundingReferences.*.funderIdentifier' => ['nullable', 'string', 'max:500'],
+            'fundingReferences.*.funderIdentifierType' => ['nullable', 'string', 'in:ROR,Crossref Funder ID,ISNI,GRID,Other'],
             'fundingReferences.*.awardNumber' => ['nullable', 'string', 'max:255'],
             'fundingReferences.*.awardUri' => ['nullable', 'url', 'max:2048'],
             'fundingReferences.*.awardTitle' => ['nullable', 'string', 'max:500'],

@@ -897,7 +897,7 @@ class OldDataset extends Model
      * Get funding references for this resource from the funding table.
      * Returns an array of funding references with funder information and award details.
      *
-     * @return array<int, array{funderName: string, funderIdentifier: string|null, awardNumber: string|null, awardUri: string|null, awardTitle: string|null, position: int}>
+     * @return array<int, array{funderName: string, funderIdentifier: string|null, funderIdentifierType: string|null, awardNumber: string|null, awardUri: string|null, awardTitle: string|null, position: int}>
      */
     public function getFundingReferences(): array
     {
@@ -908,28 +908,40 @@ class OldDataset extends Model
             ->get();
 
         return $fundings->map(function ($funding, $index) {
-            // Only map ROR identifiers, ignore Crossref Funder IDs and other types
             $funderIdentifier = null;
+            $funderIdentifierType = null;
+            $funderName = $funding->fundername;
             
             if ($funding->funderidentifier) {
                 // Check if it's a ROR URL (new format from metaworks)
                 if (str_starts_with($funding->funderidentifier, 'https://ror.org/')) {
                     $funderIdentifier = $funding->funderidentifier;
+                    $funderIdentifierType = 'ROR';
                 }
                 // Check if it's a ROR ID without URL (old format)
                 elseif ($funding->funderidentifiertype === 'ROR') {
-                    // Convert ROR ID to URL format
                     $funderIdentifier = 'https://ror.org/' . ltrim($funding->funderidentifier, '/');
+                    $funderIdentifierType = 'ROR';
                 }
-                // Ignore Crossref Funder IDs and other identifier types
-                // We only support ROR in the new system
+                // Check if it's a Crossref Funder ID
+                elseif ($funding->funderidentifiertype === 'Crossref Funder ID' || 
+                        str_contains($funding->funderidentifier, 'doi.org/10.13039/') ||
+                        str_contains($funding->funderidentifier, 'crossref.org/fundingdata/')) {
+                    $funderIdentifier = $funding->funderidentifier;
+                    $funderIdentifierType = 'Crossref Funder ID';
+                }
+                // Other identifier types (ISNI, GRID, etc.)
+                elseif ($funding->funderidentifiertype) {
+                    $funderIdentifier = $funding->funderidentifier;
+                    $funderIdentifierType = $funding->funderidentifiertype;
+                }
             }
             
             // Handle edge case: If fundername is a ROR URL, extract actual name
-            $funderName = $funding->fundername;
             if (str_starts_with($funderName, 'https://ror.org/')) {
                 // If fundername is a ROR URL, use it as identifier instead
                 $funderIdentifier = $funderName;
+                $funderIdentifierType = 'ROR';
                 // Leave funderName empty so it can be filled via ROR autocomplete
                 $funderName = '';
             }
@@ -937,6 +949,7 @@ class OldDataset extends Model
             return [
                 'funderName' => $funderName,
                 'funderIdentifier' => $funderIdentifier,
+                'funderIdentifierType' => $funderIdentifierType,
                 'awardNumber' => $funding->awardnumber,
                 'awardUri' => null, // Not stored in old database
                 'awardTitle' => $funding->awardtitle,

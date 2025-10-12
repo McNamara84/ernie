@@ -851,6 +851,7 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             fundingReferences.forEach((funding: {
                 funderName: string;
                 funderIdentifier: string | null;
+                funderIdentifierType: string | null;
                 awardNumber: string | null;
                 awardUri: string | null;
                 awardTitle: string | null;
@@ -858,6 +859,9 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 query[`fundingReferences[${index}][funderName]`] = funding.funderName;
                 if (funding.funderIdentifier) {
                     query[`fundingReferences[${index}][funderIdentifier]`] = funding.funderIdentifier;
+                }
+                if (funding.funderIdentifierType) {
+                    query[`fundingReferences[${index}][funderIdentifierType]`] = funding.funderIdentifierType;
                 }
                 if (funding.awardNumber) {
                     query[`fundingReferences[${index}][awardNumber]`] = funding.awardNumber;

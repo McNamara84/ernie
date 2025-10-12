@@ -52,7 +52,7 @@ class ResourceController extends Controller
                 'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
                 'coverages',
                 'relatedIdentifiers:id,resource_id,identifier,identifier_type,relation_type,position',
-                'fundingReferences:id,resource_id,funder_name,funder_identifier,award_number,award_uri,award_title,position',
+                'fundingReferences:id,resource_id,funder_name,funder_identifier,funder_identifier_type,award_number,award_uri,award_title,position',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -540,6 +540,7 @@ class ResourceController extends Controller
                         $resource->fundingReferences()->create([
                             'funder_name' => trim($fundingReference['funderName']),
                             'funder_identifier' => !empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
+                            'funder_identifier_type' => !empty($fundingReference['funderIdentifierType']) ? trim($fundingReference['funderIdentifierType']) : null,
                             'award_number' => !empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
                             'award_uri' => !empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
                             'award_title' => !empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
