@@ -282,6 +282,21 @@ class ResourceController extends Controller
                         })
                         ->values()
                         ->all(),
+                    'fundingReferences' => $resource->fundingReferences
+                        ->sortBy('position')
+                        ->map(static function (\App\Models\ResourceFundingReference $fundingReference): array {
+                            return [
+                                'funderName' => $fundingReference->funder_name,
+                                'funderIdentifier' => $fundingReference->funder_identifier,
+                                'funderIdentifierType' => $fundingReference->funder_identifier_type,
+                                'awardNumber' => $fundingReference->award_number,
+                                'awardUri' => $fundingReference->award_uri,
+                                'awardTitle' => $fundingReference->award_title,
+                                'position' => $fundingReference->position,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
                 ];
             });
 

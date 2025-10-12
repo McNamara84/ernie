@@ -175,6 +175,15 @@ export interface ResourceForCuration {
         relationType: string;
         position: number;
     }[] | null;
+    fundingReferences?: {
+        funderName: string;
+        funderIdentifier: string | null;
+        funderIdentifierType: string | null;
+        awardNumber: string | null;
+        awardUri: string | null;
+        awardTitle: string | null;
+        position: number;
+    }[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -739,6 +748,13 @@ export const buildCurationQueryFromResource = async (
     const relatedIdentifiers = resource.relatedIdentifiers ?? [];
     if (relatedIdentifiers.length > 0) {
         query.relatedWorks = JSON.stringify(relatedIdentifiers);
+    }
+
+    // Add funding references to query as JSON string
+    // (to avoid max_input_vars limit for large datasets)
+    const fundingReferences = resource.fundingReferences ?? [];
+    if (fundingReferences.length > 0) {
+        query.fundingReferences = JSON.stringify(fundingReferences);
     }
 
     return query;
