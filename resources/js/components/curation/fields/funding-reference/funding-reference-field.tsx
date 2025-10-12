@@ -24,12 +24,7 @@ export function FundingReferenceField({
     useEffect(() => {
         const loadData = async () => {
             try {
-                console.log('Starting to load ROR funders...');
                 const funders = await loadRorFunders();
-                console.log('ROR funders loaded:', funders.length, 'entries');
-                if (funders.length > 0) {
-                    console.log('Sample ROR funder:', funders[0]);
-                }
                 setRorFunders(funders);
             } catch (error) {
                 console.error('Failed to load ROR funders:', error);

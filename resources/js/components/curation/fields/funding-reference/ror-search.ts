@@ -22,24 +22,59 @@ export function searchRorFunders(
     }
 
     const searchTerm = query.toLowerCase().trim();
+    
+    // Split search term into words for multi-word matching
+    const searchWords = searchTerm.split(/\s+/);
 
-    return funders
-        .filter(funder => {
-            // Search in prefLabel
-            if (funder.prefLabel.toLowerCase().includes(searchTerm)) {
-                return true;
+    const matches = funders
+        .map(funder => {
+            let score = 0;
+            const prefLabelLower = funder.prefLabel.toLowerCase();
+            
+            // Exact match in prefLabel gets highest score
+            if (prefLabelLower === searchTerm) {
+                score = 1000;
+            }
+            // Starts with search term gets high score
+            else if (prefLabelLower.startsWith(searchTerm)) {
+                score = 500;
+            }
+            // Contains all search words (for multi-word searches)
+            else if (searchWords.every(word => prefLabelLower.includes(word))) {
+                score = 300;
+            }
+            // Contains search term anywhere
+            else if (prefLabelLower.includes(searchTerm)) {
+                score = 200;
+            }
+            // Check in otherLabel array
+            else if (funder.otherLabel && Array.isArray(funder.otherLabel)) {
+                for (const label of funder.otherLabel) {
+                    const labelLower = label.toLowerCase();
+                    if (labelLower === searchTerm) {
+                        score = 800; // High score for exact match in alternate name
+                        break;
+                    } else if (labelLower.startsWith(searchTerm)) {
+                        score = 400;
+                        break;
+                    } else if (searchWords.every(word => labelLower.includes(word))) {
+                        score = 250;
+                        break;
+                    } else if (labelLower.includes(searchTerm)) {
+                        score = 150;
+                        break;
+                    }
+                }
             }
 
-            // Search in otherLabel
-            if (funder.otherLabel && Array.isArray(funder.otherLabel)) {
-                return funder.otherLabel.some(label => 
-                    label.toLowerCase().includes(searchTerm)
-                );
-            }
-
-            return false;
+            return { funder, score };
         })
-        .slice(0, limit);
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score) // Sort by score descending
+        .slice(0, limit)
+        .map(item => item.funder);
+
+    return matches;
 }
 
 /**
@@ -75,9 +110,7 @@ export async function loadRorFunders(): Promise<RorFunder[]> {
         if (!response.ok) {
             throw new Error(`Failed to load ROR data: ${response.statusText}`);
         }
-        const data = await response.json() as RorFunder[];
-        console.log('Loaded ROR funders:', data.length);
-        return data;
+        return await response.json() as RorFunder[];
     } catch (error) {
         console.error('Error loading ROR funders:', error);
         return [];

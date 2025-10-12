@@ -50,13 +50,7 @@ export function FundingReferenceItem({
         }
 
         const timeoutId = setTimeout(() => {
-            console.log('Searching ROR funders for:', funding.funderName);
-            console.log('Total ROR funders available:', rorFunders.length);
-            const results = searchRorFunders(rorFunders, funding.funderName, 10);
-            console.log('Search results:', results.length, 'matches');
-            if (results.length > 0) {
-                console.log('First result:', results[0]);
-            }
+            const results = searchRorFunders(rorFunders, funding.funderName, 20);
             setFilteredSuggestions(results);
             setShowSuggestions(results.length > 0);
         }, 300);
