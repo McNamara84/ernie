@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+    type DataCiteMetadata,
     resolveDOIMetadata,
     supportsMetadataResolution,
     validateIdentifierFormat,
-    type DataCiteMetadata,
 } from '@/lib/doi-validation';
 
 export interface ValidationState {

@@ -41,6 +41,7 @@ import ControlledVocabulariesField from './fields/controlled-vocabularies-field'
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
 import FreeKeywordsField from './fields/free-keywords-field';
+import { type FundingReferenceEntry,FundingReferenceField } from './fields/funding-reference';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import { RelatedWorkField } from './fields/related-work';
@@ -490,6 +491,7 @@ interface DataCiteFormProps {
     initialFreeKeywords?: string[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
+    initialFundingReferences?: FundingReferenceEntry[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -546,6 +548,7 @@ export default function DataCiteForm({
     initialFreeKeywords = [],
     initialSpatialTemporalCoverages = [],
     initialRelatedWorks = [],
+    initialFundingReferences = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -717,6 +720,12 @@ export default function DataCiteForm({
     const [relatedWorks, setRelatedWorks] = useState<RelatedIdentifier[]>(() => {
         if (initialRelatedWorks && initialRelatedWorks.length > 0) {
             return initialRelatedWorks;
+        }
+        return [];
+    });
+    const [fundingReferences, setFundingReferences] = useState<FundingReferenceEntry[]>(() => {
+        if (initialFundingReferences && initialFundingReferences.length > 0) {
+            return initialFundingReferences;
         }
         return [];
     });
@@ -1783,6 +1792,15 @@ export default function DataCiteForm({
                         <RelatedWorkField
                             relatedWorks={relatedWorks}
                             onChange={setRelatedWorks}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="funding-references">
+                    <AccordionTrigger>Funding References</AccordionTrigger>
+                    <AccordionContent>
+                        <FundingReferenceField
+                            value={fundingReferences}
+                            onChange={setFundingReferences}
                         />
                     </AccordionContent>
                 </AccordionItem>

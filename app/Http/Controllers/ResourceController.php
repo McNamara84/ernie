@@ -52,6 +52,7 @@ class ResourceController extends Controller
                 'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
                 'coverages',
                 'relatedIdentifiers:id,resource_id,identifier,identifier_type,relation_type,position',
+                'fundingReferences:id,resource_id,funder_name,funder_identifier,award_number,award_uri,award_title,position',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -526,7 +527,28 @@ class ResourceController extends Controller
                     }
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages', 'relatedIdentifiers']), $isUpdate];
+                // Save funding references
+                if ($isUpdate) {
+                    $resource->fundingReferences()->delete();
+                }
+
+                $fundingReferences = $validated['fundingReferences'] ?? [];
+
+                foreach ($fundingReferences as $index => $fundingReference) {
+                    // Only save if funder name is not empty (required field)
+                    if (!empty(trim($fundingReference['funderName']))) {
+                        $resource->fundingReferences()->create([
+                            'funder_name' => trim($fundingReference['funderName']),
+                            'funder_identifier' => !empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
+                            'award_number' => !empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
+                            'award_uri' => !empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
+                            'award_title' => !empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
+                            'position' => $index,
+                        ]);
+                    }
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages', 'relatedIdentifiers', 'fundingReferences']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);

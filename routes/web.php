@@ -127,6 +127,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return $item;
         }, $relatedWorks);
 
+        // Get funding references from query parameters
+        $fundingReferences = $request->query('fundingReferences', []);
+        if (is_string($fundingReferences)) {
+            $decoded = json_decode($fundingReferences, true);
+            $fundingReferences = is_array($decoded) ? $decoded : [];
+        }
+
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
@@ -147,6 +154,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'freeKeywords' => $request->query('freeKeywords', []),
             'coverages' => $request->query('coverages', []),
             'relatedWorks' => $relatedWorks,
+            'fundingReferences' => $fundingReferences,
         ]);
     })->name('curation');
 

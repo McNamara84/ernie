@@ -5,6 +5,7 @@ import DataCiteForm, {
     type InitialAuthor,
     type InitialContributor,
 } from '@/components/curation/datacite-form';
+import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
@@ -39,6 +40,7 @@ interface CurationProps {
     freeKeywords?: string[];
     coverages?: SpatialTemporalCoverageEntry[];
     relatedWorks?: RelatedIdentifier[];
+    fundingReferences?: FundingReferenceEntry[];
 }
 
 export default function Curation({
@@ -61,6 +63,7 @@ export default function Curation({
     freeKeywords = [],
     coverages = [],
     relatedWorks = [],
+    fundingReferences = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -202,6 +205,7 @@ export default function Curation({
                             initialFreeKeywords={freeKeywords}
                             initialSpatialTemporalCoverages={coverages}
                             initialRelatedWorks={relatedWorks}
+                            initialFundingReferences={fundingReferences}
                         />
                     )}
             </div>

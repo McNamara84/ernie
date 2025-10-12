@@ -132,4 +132,13 @@ class Resource extends Model
 
         return $relation;
     }
+
+    /** @return HasMany<ResourceFundingReference, static> */
+    public function fundingReferences(): HasMany
+    {
+        /** @var HasMany<ResourceFundingReference, static> $relation */
+        $relation = $this->hasMany(ResourceFundingReference::class)->orderBy('position');
+
+        return $relation;
+    }
 }
