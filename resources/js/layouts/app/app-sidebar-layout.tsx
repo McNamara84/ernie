@@ -1,4 +1,5 @@
 import { type PropsWithChildren } from 'react';
+import { Toaster } from 'sonner';
 
 import { AppContent } from '@/components/app-content';
 import { AppFooter } from '@/components/app-footer';
@@ -16,6 +17,7 @@ export default function AppSidebarLayout({ children, breadcrumbs = [] }: PropsWi
                 {children}
                 <AppFooter />
             </AppContent>
+            <Toaster position="bottom-right" richColors />
         </AppShell>
     );
 }

@@ -19,7 +19,7 @@ class OldDatasetController extends Controller
     /**
      * @var list<string>
      */
-    private const ALLOWED_SORT_KEYS = ['id', 'created_at', 'updated_at'];
+    private const ALLOWED_SORT_KEYS = ['id', 'identifier', 'title', 'resourcetypegeneral', 'first_author', 'publicationyear', 'curator', 'publicstatus', 'created_at', 'updated_at'];
     /**
      * @var list<string>
      */
@@ -46,10 +46,20 @@ class OldDatasetController extends Controller
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert)
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Convert datasets to arrays and add licenses
+            // Convert datasets to arrays and add licenses + first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
+                
+                // Build first_author from the joined data (no additional query needed)
+                if ($dataset->first_author_lastname || $dataset->first_author_firstname || $dataset->first_author_name) {
+                    $data['first_author'] = [
+                        'familyName' => $dataset->first_author_lastname,
+                        'givenName' => $dataset->first_author_firstname,
+                        'name' => $dataset->first_author_name,
+                    ];
+                }
+                
                 return $data;
             })->all();
 
@@ -117,10 +127,20 @@ class OldDatasetController extends Controller
 
             $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
 
-            // Convert datasets to arrays and add licenses
+            // Convert datasets to arrays and add licenses + first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
+                
+                // Build first_author from the joined data (no additional query needed)
+                if ($dataset->first_author_lastname || $dataset->first_author_firstname || $dataset->first_author_name) {
+                    $data['first_author'] = [
+                        'familyName' => $dataset->first_author_lastname,
+                        'givenName' => $dataset->first_author_firstname,
+                        'name' => $dataset->first_author_name,
+                    ];
+                }
+                
                 return $data;
             })->all();
 

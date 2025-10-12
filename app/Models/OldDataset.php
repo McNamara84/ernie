@@ -10,11 +10,22 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 /**
  * @property array<string>|null $licenses
  * @property string|null $keywords
+ * @property string|null $first_author_lastname First author's last name (joined from resourceagent table)
+ * @property string|null $first_author_firstname First author's first name (joined from resourceagent table)
+ * @property string|null $first_author_name First author's full name (joined from resourceagent table)
  */
 class OldDataset extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
+
+    /**
+     * Role type constant for creator role in the metaworks database.
+     * Used in SQL queries to filter resourceagent records.
+     *
+     * @var string
+     */
+    private const ROLE_CREATOR = 'Creator';
 
     /**
      * The connection name for the model.
@@ -178,6 +189,13 @@ class OldDataset extends Model
 
         $sortColumn = match ($sortKey) {
             'id' => 'resource.id',
+            'identifier' => 'resource.identifier',
+            'title' => 'title.title',
+            'resourcetypegeneral' => 'resource.resourcetypegeneral',
+            'first_author' => 'first_author.first_author_lastname',
+            'publicationyear' => 'resource.publicationyear',
+            'curator' => 'resource.curator',
+            'publicstatus' => 'resource.publicstatus',
             'created_at' => 'resource.created_at',
             default => 'resource.updated_at',
         };
@@ -194,13 +212,60 @@ class OldDataset extends Model
                 'resource.publicationyear',
                 'resource.version',
                 'resource.language',
-                'title.title'
+                'title.title',
+                'first_author.first_author_lastname',
+                'first_author.first_author_firstname',
+                'first_author.first_author_name'
             ])
-            ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
-            ->orderBy($sortColumn, $direction);
+            ->leftJoin('title', 'resource.id', '=', 'title.resource_id');
 
-        if ($sortColumn !== 'resource.id') {
+        // Always join first author data for display (efficient single JOIN with window function)
+        // Using ROW_NUMBER() for better performance than nested MIN() subquery
+        // Using parameterized query for 'Creator' role to prevent SQL injection
+        $query->leftJoin(
+            \Illuminate\Support\Facades\DB::raw('(
+                SELECT 
+                    ra.resource_id,
+                    ra.lastname as first_author_lastname,
+                    ra.firstname as first_author_firstname,
+                    ra.name as first_author_name
+                FROM (
+                    SELECT 
+                        ra.resource_id,
+                        ra.lastname,
+                        ra.firstname,
+                        ra.name,
+                        ROW_NUMBER() OVER (PARTITION BY ra.resource_id ORDER BY ra.order) as row_num
+                    FROM resourceagent ra
+                    INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                        AND ra.order = r.resourceagent_order
+                    WHERE r.role = ?
+                ) ra
+                WHERE ra.row_num = 1
+            ) as first_author'),
+            'resource.id',
+            '=',
+            'first_author.resource_id'
+        )->addBinding(self::ROLE_CREATOR, 'join');
+
+        // Add ORDER BY clause
+        // For first_author sorting, use the name field (which contains "Lastname, Firstname" format)
+        // Use COALESCE and TRIM to handle NULL values, leading spaces, and ensure consistent sorting
+        if ($sortKey === 'first_author') {
+            // Use separate orderByRaw calls to avoid any string concatenation with $direction
+            // Direction is already validated above, but this approach is safest
+            if ($direction === 'asc') {
+                $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) ASC");
+            } else {
+                $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) DESC");
+            }
             $query->orderBy('resource.id', 'asc');
+        } else {
+            // Use Laravel's orderBy method which automatically handles SQL injection
+            $query->orderBy($sortColumn, $direction);
+            if ($sortColumn !== 'resource.id') {
+                $query->orderBy('resource.id', 'asc');
+            }
         }
 
         return $query->paginate($perPage, ['*'], 'page', $page);
