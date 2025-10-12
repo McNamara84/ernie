@@ -17,7 +17,7 @@ export function FundingReferenceField({
     value = [],
     onChange,
 }: FundingReferenceFieldProps) {
-    const [, setRorFunders] = useState<RorFunder[]>([]);
+    const [rorFunders, setRorFunders] = useState<RorFunder[]>([]);
     const [isLoadingRor, setIsLoadingRor] = useState(true);
 
     // Load ROR data on mount
@@ -109,6 +109,9 @@ export function FundingReferenceField({
                             onFunderNameChange={(val) =>
                                 handleFieldChange(index, 'funderName', val)
                             }
+                            onFunderIdentifierChange={(val) =>
+                                handleFieldChange(index, 'funderIdentifier', val)
+                            }
                             onAwardNumberChange={(val) =>
                                 handleFieldChange(index, 'awardNumber', val)
                             }
@@ -121,6 +124,7 @@ export function FundingReferenceField({
                             onToggleExpanded={() => handleToggleExpanded(index)}
                             onRemove={() => handleRemove(index)}
                             canRemove={canRemove}
+                            rorFunders={rorFunders}
                         />
                     ))}
                 </div>
