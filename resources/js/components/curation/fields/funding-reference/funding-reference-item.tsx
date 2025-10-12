@@ -81,6 +81,10 @@ export function FundingReferenceItem({
             onFunderIdentifierChange(suggestion.rorId);
             setShowSuggestions(false);
             setFilteredSuggestions([]);
+            // Blur the input to ensure the value is updated
+            if (inputRef.current) {
+                inputRef.current.blur();
+            }
         },
         [onFunderNameChange, onFunderIdentifierChange]
     );
@@ -157,7 +161,11 @@ export function FundingReferenceItem({
                                 <button
                                     key={suggestion.rorId}
                                     type="button"
-                                    onClick={() => handleSelectSuggestion(suggestion)}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleSelectSuggestion(suggestion);
+                                    }}
                                     className="flex w-full cursor-pointer flex-col gap-1 border-b border-border px-4 py-3 text-left transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none last:border-b-0"
                                     role="option"
                                     aria-selected={false}
@@ -187,9 +195,19 @@ export function FundingReferenceItem({
                 {/* ROR ID Badge (if available) */}
                 {funding.funderIdentifier && (
                     <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                            🏛️ ROR: {funding.funderIdentifier}
-                        </Badge>
+                        <a
+                            href={funding.funderIdentifier}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex"
+                        >
+                            <Badge 
+                                variant="outline" 
+                                className="cursor-pointer text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
+                            >
+                                🏛️ ROR: {funding.funderIdentifier}
+                            </Badge>
+                        </a>
                     </div>
                 )}
 
