@@ -1215,10 +1215,23 @@ export default function OldDatasets({
         const loadFilterOptions = async () => {
             try {
                 const response = await axios.get('/old-datasets/filter-options');
+                console.log('Filter options loaded:', response.data);
                 setFilterOptions(response.data);
             } catch (err) {
                 console.error('Failed to load filter options:', err);
-                // Filter options are optional, so we don't show an error toast
+                
+                // Provide empty fallback so filters don't stay disabled forever
+                setFilterOptions({
+                    resource_types: [],
+                    curators: [],
+                    year_range: { min: 2000, max: 2025 },
+                    statuses: ['published', 'draft', 'review', 'archived'],
+                });
+                
+                // Show a subtle warning toast
+                toast.error('Filter options could not be loaded. Some filters may be unavailable.', {
+                    duration: 5000,
+                });
             }
         };
 
@@ -1242,15 +1255,28 @@ export default function OldDatasets({
             setLoadingError('');
 
             try {
-                const response = await axios.get('/old-datasets/load-more', {
-                    params: {
-                        page,
-                        per_page: pagination.per_page,
-                        sort_key: sort.key,
-                        sort_direction: sort.direction,
-                        ...(filterParams || {}), // Spread filter parameters
-                    },
-                });
+                // Build URLSearchParams for proper array serialization
+                const searchParams = new URLSearchParams();
+                searchParams.append('page', page.toString());
+                searchParams.append('per_page', pagination.per_page.toString());
+                searchParams.append('sort_key', sort.key);
+                searchParams.append('sort_direction', sort.direction);
+
+                // Add filter parameters - arrays need to be sent as param[]=value
+                if (filterParams) {
+                    Object.entries(filterParams).forEach(([key, value]) => {
+                        if (Array.isArray(value)) {
+                            // For arrays, append each value with [] notation
+                            value.forEach(item => {
+                                searchParams.append(`${key}[]`, String(item));
+                            });
+                        } else {
+                            searchParams.append(key, String(value));
+                        }
+                    });
+                }
+
+                const response = await axios.get('/old-datasets/load-more?' + searchParams.toString());
 
                 if (pendingRequestRef.current !== requestId) {
                     return;
@@ -1350,9 +1376,10 @@ export default function OldDatasets({
                 page: pagination.current_page + 1,
                 sort: activeSortState,
                 replace: false,
+                filters,
             });
         }
-    }, [fetchDatasetsPage, pagination.has_more, pagination.current_page, activeSortState]);
+    }, [fetchDatasetsPage, pagination.has_more, pagination.current_page, activeSortState, filters]);
 
     useEffect(() => {
         if (
@@ -1372,11 +1399,24 @@ export default function OldDatasets({
 
     // Reload datasets when filters change (but not on initial mount)
     const isInitialMount = useRef(true);
+    const prevFiltersRef = useRef<FilterState>(filters);
+    
     useEffect(() => {
+        // Skip on initial mount
         if (isInitialMount.current) {
             isInitialMount.current = false;
+            prevFiltersRef.current = filters;
             return;
         }
+
+        // Check if filters actually changed
+        const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(filters);
+        
+        if (!filtersChanged) {
+            return;
+        }
+
+        prevFiltersRef.current = filters;
 
         void fetchDatasetsPage({
             page: 1,

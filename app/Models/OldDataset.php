@@ -321,7 +321,20 @@ class OldDataset extends Model
                 'first_author.first_author_firstname',
                 'first_author.first_author_name'
             ])
-            ->leftJoin('title', 'resource.id', '=', 'title.resource_id');
+            ->leftJoin(
+                \Illuminate\Support\Facades\DB::raw('(
+                    SELECT t1.resource_id, t1.title
+                    FROM title t1
+                    INNER JOIN (
+                        SELECT resource_id, MIN(id) as min_id
+                        FROM title
+                        GROUP BY resource_id
+                    ) t2 ON t1.resource_id = t2.resource_id AND t1.id = t2.min_id
+                ) as title'),
+                'resource.id',
+                '=',
+                'title.resource_id'
+            );
 
         // Always join first author data for display
         $query->leftJoin(
@@ -357,6 +370,7 @@ class OldDataset extends Model
                 ? $filters['resource_type'] 
                 : [$filters['resource_type']];
             $query->whereIn('resource.resourcetypegeneral', $types);
+            \Illuminate\Support\Facades\Log::debug('Applied resource_type filter', ['types' => $types]);
         }
 
         if (!empty($filters['curator'])) {
@@ -364,6 +378,7 @@ class OldDataset extends Model
                 ? $filters['curator'] 
                 : [$filters['curator']];
             $query->whereIn('resource.curator', $curators);
+            \Illuminate\Support\Facades\Log::debug('Applied curator filter', ['curators' => $curators]);
         }
 
         if (!empty($filters['status'])) {
@@ -371,6 +386,7 @@ class OldDataset extends Model
                 ? $filters['status'] 
                 : [$filters['status']];
             $query->whereIn('resource.publicstatus', $statuses);
+            \Illuminate\Support\Facades\Log::debug('Applied status filter', ['statuses' => $statuses]);
         }
 
         if (isset($filters['year_from']) && is_numeric($filters['year_from'])) {
@@ -419,6 +435,13 @@ class OldDataset extends Model
                 $query->orderBy('resource.id', 'asc');
             }
         }
+
+        // DEBUG: Log the final SQL query
+        $sql = str_replace(['?'], ['"%s"'], $query->toSql());
+        $fullSql = vsprintf($sql, $query->getBindings());
+        \Illuminate\Support\Facades\Log::debug('Final SQL Query (formatted)', [
+            'full_query' => substr($fullSql, 0, 5000), // First 5000 chars
+        ]);
 
         return $query->paginate($perPage, ['*'], 'page', $page);
     }

@@ -44,6 +44,12 @@ class OldDatasetController extends Controller
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
             $filters = $this->extractFilters($request);
 
+            // DEBUG: Log the incoming request parameters and extracted filters
+            \Illuminate\Support\Facades\Log::debug('Filter Debug', [
+                'all_params' => $request->all(),
+                'extracted_filters' => $filters,
+            ]);
+
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert mit Filtern)
             $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
                 $page, 
@@ -132,6 +138,13 @@ class OldDatasetController extends Controller
             
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
             $filters = $this->extractFilters($request);
+
+            // DEBUG: Log the incoming request parameters and extracted filters
+            \Illuminate\Support\Facades\Log::debug('LoadMore Filter Debug', [
+                'all_params' => $request->all(),
+                'extracted_filters' => $filters,
+                'query_params' => $request->query(),
+            ]);
 
             $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
                 $page, 
@@ -717,8 +730,9 @@ class OldDatasetController extends Controller
                 ->whereNotNull('publicationyear')
                 ->max('publicationyear');
 
-            // Define available statuses (based on the database schema)
-            $statuses = ['published', 'draft', 'review', 'archived'];
+            // Define available statuses (based on actual database values in metaworks.resource.publicstatus)
+            // Confirmed via tinker query: only 'pending' and 'released' exist
+            $statuses = ['pending', 'released'];
 
             return response()->json([
                 'resource_types' => $resourceTypes,

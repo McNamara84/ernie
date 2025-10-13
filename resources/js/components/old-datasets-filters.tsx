@@ -1,5 +1,5 @@
 import { Search, X } from 'lucide-react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -53,15 +53,55 @@ export function OldDatasetsFilters({
         onFilterChange(newFilters);
     }, [filters, onFilterChange]);
 
+    // Local state for search input (for immediate UI feedback)
+    const [searchInput, setSearchInput] = useState(filters.search || '');
+    const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+
+    // Debounced search handler
     const handleSearchChange = useCallback((value: string) => {
-        const newFilters = { ...filters };
-        if (value.trim()) {
-            newFilters.search = value.trim();
-        } else {
-            delete newFilters.search;
+        setSearchInput(value);
+
+        // Clear existing timeout
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
         }
-        onFilterChange(newFilters);
+
+        // Only trigger search if:
+        // 1. Value is empty (to clear search)
+        // 2. Value has at least 3 characters
+        if (value.trim().length === 0) {
+            const newFilters = { ...filters };
+            delete newFilters.search;
+            onFilterChange(newFilters);
+            return;
+        }
+
+        if (value.trim().length < 3) {
+            // Don't search yet, but keep the input value
+            return;
+        }
+
+        // Debounce: wait 500ms after user stops typing
+        searchTimeoutRef.current = setTimeout(() => {
+            const newFilters = { ...filters };
+            newFilters.search = value.trim();
+            onFilterChange(newFilters);
+        }, 500);
     }, [filters, onFilterChange]);
+
+    // Sync search input with filters when filters change externally
+    useEffect(() => {
+        setSearchInput(filters.search || '');
+    }, [filters.search]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const handleResourceTypeChange = useCallback((value: string) => {
         const newFilters = { ...filters };
@@ -125,8 +165,8 @@ export function OldDatasetsFilters({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         type="search"
-                        placeholder="Search title or DOI..."
-                        value={filters.search || ''}
+                        placeholder="Search title or DOI (min. 3 characters)..."
+                        value={searchInput}
                         onChange={(e) => handleSearchChange(e.target.value)}
                         className="pl-9"
                         disabled={isLoading}
