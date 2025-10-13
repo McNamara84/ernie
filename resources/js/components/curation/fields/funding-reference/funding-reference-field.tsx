@@ -1,13 +1,13 @@
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
+import { getFunderByRorId,loadRorFunders } from './ror-search';
 import { SortableFundingReferenceItem } from './sortable-funding-reference-item';
-import { loadRorFunders, getFunderByRorId } from './ror-search';
 import type { FundingReferenceEntry, RorFunder } from './types';
 import { MAX_FUNDING_REFERENCES } from './types';
 

@@ -1,6 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
+
 import { FundingReferenceItem } from './funding-reference-item';
 import type { FundingReferenceEntry, RorFunder } from './types';
 
