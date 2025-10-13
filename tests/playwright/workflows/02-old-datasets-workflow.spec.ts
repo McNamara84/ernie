@@ -18,9 +18,14 @@ import { loginAsTestUser } from '../helpers/test-helpers';
  * 2. Datensatzliste mit allen Metadaten anzeigen
  * 3. Sortierung und Filterung
  * 4. Import eines Datensatzes ins Curation-Formular
+ * 
+ * WICHTIG: Diese Tests benötigen Zugriff auf die externe "metaworks" MySQL-Datenbank,
+ * die nur im VPN erreichbar ist. In CI werden diese Tests übersprungen.
  */
 
 test.describe('Old Datasets Complete Workflow', () => {
+  // Skip all old datasets tests in CI - external database not accessible
+  test.skip(process.env.CI === 'true', 'Old Datasets tests require external metaworks database (not accessible in CI)');
   test('user can view and navigate old datasets list', async ({ page }) => {
     await loginAsTestUser(page);
 

@@ -62,9 +62,9 @@ export class DashboardPage {
   async verifyNavigationVisible() {
     await expect(this.navigationMenu).toBeVisible();
     
-    // Verify key navigation items are present
-    await expect(this.page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
-    await expect(this.page.getByRole('link', { name: 'Old Datasets' })).toBeVisible();
-    await expect(this.page.getByRole('link', { name: 'Curation' })).toBeVisible();
+    // Verify key navigation items are present (use first() to avoid strict mode violation with breadcrumbs)
+    await expect(this.page.getByRole('link', { name: 'Dashboard' }).first()).toBeVisible();
+    await expect(this.page.getByRole('link', { name: 'Old Datasets' }).first()).toBeVisible();
+    await expect(this.page.getByRole('link', { name: 'Curation' }).first()).toBeVisible();
   }
 }

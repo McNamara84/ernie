@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns="http://datacite.org/schema/kernel-4"
+          xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4/metadata.xsd">
+  <identifier identifierType="DOI">10.5880/TEST.2024.003</identifier>
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Minimal, Test</creatorName>
+    </creator>
+  </creators>
+  <titles>
+    <title xml:lang="en">Minimal Required Fields Test</title>
+  </titles>
+  <publisher>Test Publisher</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset">Test Data</resourceType>
+</resource>

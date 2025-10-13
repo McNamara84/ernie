@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This is an invalid XML file for testing error handling -->
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <identifier>Invalid - Missing type attribute</identifier>
+  <creators>
+    <creator>
+      <!-- Missing creatorName -->
+    </creator>
+  </creators>
+  <!-- Missing required titles element -->
+  <publisher>Test Publisher</publisher>
+  <publicationYear>Invalid Year Format</publicationYear>
+  <!-- Missing required resourceType element -->
+</resource>

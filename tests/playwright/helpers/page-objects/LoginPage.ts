@@ -19,7 +19,8 @@ export class LoginPage {
     this.emailInput = page.getByLabel('Email address');
     this.passwordInput = page.getByLabel('Password');
     this.loginButton = page.getByRole('button', { name: 'Log in' });
-    this.errorMessage = page.getByRole('alert');
+    // Laravel Breeze uses <p> tags with text-red-600 class for errors, not role="alert"
+    this.errorMessage = page.locator('p.text-red-600, p[class*="text-red"]').first();
     this.forgotPasswordLink = page.getByRole('link', { name: 'Forgot password' });
     this.rememberMeCheckbox = page.getByLabel('Remember me');
   }
