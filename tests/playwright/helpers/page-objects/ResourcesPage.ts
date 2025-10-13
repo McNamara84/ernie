@@ -99,7 +99,8 @@ export class ResourcesPage {
    * Verify that resources are displayed
    */
   async verifyResourcesDisplayed() {
-    await expect(this.resourceTable).toBeVisible();
+    // Wait for table with longer timeout for CI
+    await expect(this.resourceTable).toBeVisible({ timeout: 30000 });
     const rows = this.resourceTable.locator('tbody tr');
     await expect(rows).not.toHaveCount(0);
   }

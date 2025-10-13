@@ -69,8 +69,9 @@ test.describe('Critical Smoke Tests', () => {
       await expect(doiInput).toBeVisible({ timeout: 30000 });
       await doiInput.fill('10.5555/smoke-test-' + Date.now());
 
-      // Publication Year (required)
+      // Publication Year (required) - wait for it explicitly
       const yearInput = page.getByLabel('Publication Year');
+      await expect(yearInput).toBeVisible({ timeout: 30000 });
       await yearInput.fill('2024');
 
       // Resource Type (required)

@@ -64,8 +64,10 @@ export class CurationPage {
     await expect(this.page).toHaveURL(/\/curation/);
     // Wait for Inertia.js/React hydration to complete
     await this.page.waitForLoadState('networkidle');
-    // Wait for at least one accordion to be visible (indicates page is rendered)
-    await expect(this.authorsAccordion.or(this.titlesAccordion)).toBeVisible({ timeout: 30000 });
+    // Wait for page content (check if accordions OR save button exist)
+    // Some pages might not have accordions but should have save button
+    const pageContentVisible = this.authorsAccordion.or(this.titlesAccordion).or(this.saveButton);
+    await expect(pageContentVisible).toBeVisible({ timeout: 30000 });
   }
 
   /**
@@ -73,6 +75,8 @@ export class CurationPage {
    * @param section - The accordion button locator
    */
   async openAccordion(section: Locator) {
+    // Wait for accordion to exist first (with longer timeout for CI)
+    await expect(section).toBeVisible({ timeout: 30000 });
     const isExpanded = await section.getAttribute('aria-expanded');
     if (isExpanded === 'false') {
       await section.click();

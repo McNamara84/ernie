@@ -31,7 +31,8 @@ export class SettingsPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole('heading', { name: /Settings/i });
+    // Use .first() to avoid strict mode violation (Settings page has multiple headings)
+    this.heading = page.getByRole('heading', { name: /Settings/i }).first();
     
     // Profile
     this.nameInput = page.getByLabel('Name');
