@@ -9,7 +9,6 @@ interface SortableFundingReferenceItemProps {
     funding: FundingReferenceEntry;
     index: number;
     onFunderNameChange: (value: string) => void;
-    onFunderIdentifierChange: (value: string) => void;
     onFieldsChange: (fields: Partial<FundingReferenceEntry>) => void;
     onAwardNumberChange: (value: string) => void;
     onAwardUriChange: (value: string) => void;

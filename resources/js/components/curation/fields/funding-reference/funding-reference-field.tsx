@@ -178,9 +178,6 @@ export function FundingReferenceField({
                                     onFunderNameChange={(val: string) =>
                                         handleFieldChange(index, 'funderName', val)
                                     }
-                                    onFunderIdentifierChange={(val: string) =>
-                                        handleFieldChange(index, 'funderIdentifier', val)
-                                    }
                                     onFieldsChange={(fields: Partial<FundingReferenceEntry>) =>
                                         handleFieldsChange(index, fields)
                                     }

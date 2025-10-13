@@ -1,4 +1,4 @@
-import { AlertCircle, ChevronDown, ChevronRight, GripVertical, Trash2 } from 'lucide-react';
+import { AlertCircle, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,6 @@ interface FundingReferenceItemProps {
     funding: FundingReferenceEntry;
     index: number;
     onFunderNameChange: (value: string) => void;
-    onFunderIdentifierChange: (value: string) => void;
     onFieldsChange: (fields: Partial<FundingReferenceEntry>) => void;
     onAwardNumberChange: (value: string) => void;
     onAwardUriChange: (value: string) => void;
@@ -30,7 +29,6 @@ export function FundingReferenceItem({
     funding,
     index,
     onFunderNameChange,
-    onFunderIdentifierChange, // eslint-disable-line @typescript-eslint/no-unused-vars
     onFieldsChange,
     onAwardNumberChange,
     onAwardUriChange,
@@ -130,14 +128,6 @@ export function FundingReferenceItem({
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    {/* Drag Handle - will be added with @dnd-kit */}
-                    <div
-                        className="cursor-grab active:cursor-grabbing opacity-50"
-                        aria-label="Drag to reorder"
-                    >
-                        <GripVertical className="h-5 w-5 text-muted-foreground" />
-                    </div>
-
                     {/* Title */}
                     <h3
                         id={`${funding.id}-heading`}
