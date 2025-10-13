@@ -33,19 +33,20 @@ export default defineConfig({
   /* Test match patterns - organized by priority */
   testMatch: [
     // Critical smoke tests run first
-    '**/critical/*.spec.ts',
+    'tests/playwright/critical/**/*.spec.ts',
     // Then workflow tests
-    '**/workflows/*.spec.ts',
-    // Legacy tests (will be removed after migration)
-    '**/*.spec.ts',
+    'tests/playwright/workflows/**/*.spec.ts',
   ],
   
-  /* Ignore helper files and documentation */
+  /* Ignore helper files, documentation, and OLD tests to be deleted */
   testIgnore: [
     '**/helpers/**',
     '**/page-objects/**',
     '**/*.md',
     '**/constants.ts',
+    // ALL old tests at root level - will be deleted in Phase 5
+    // Only tests in critical/ and workflows/ should run
+    'tests/playwright/*.spec.ts',
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
