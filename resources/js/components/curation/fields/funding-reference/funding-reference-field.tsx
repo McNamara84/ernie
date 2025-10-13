@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 
-import { getFunderByRorId,loadRorFunders } from './ror-search';
+import { getFunderByRorId, loadRorFunders } from './ror-search';
 import { SortableFundingReferenceItem } from './sortable-funding-reference-item';
 import type { FundingReferenceEntry, RorFunder } from './types';
 import { MAX_FUNDING_REFERENCES } from './types';

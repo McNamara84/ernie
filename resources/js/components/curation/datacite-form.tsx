@@ -42,7 +42,7 @@ import ControlledVocabulariesField from './fields/controlled-vocabularies-field'
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
 import FreeKeywordsField from './fields/free-keywords-field';
-import { type FundingReferenceEntry,FundingReferenceField } from './fields/funding-reference';
+import { type FundingReferenceEntry, FundingReferenceField } from './fields/funding-reference';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import { RelatedWorkField } from './fields/related-work';
