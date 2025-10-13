@@ -253,7 +253,7 @@ export function OldDatasetsFilters({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Types</SelectItem>
-                        {filterOptions?.resource_types.map(type => (
+                        {filterOptions?.resource_types?.map(type => (
                             <SelectItem key={type} value={type}>
                                 {type}
                             </SelectItem>
@@ -272,7 +272,7 @@ export function OldDatasetsFilters({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Statuses</SelectItem>
-                        {filterOptions?.statuses.map(status => (
+                        {filterOptions?.statuses?.map(status => (
                             <SelectItem key={status} value={status}>
                                 {status.charAt(0).toUpperCase() + status.slice(1)}
                             </SelectItem>
@@ -291,7 +291,7 @@ export function OldDatasetsFilters({
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Curators</SelectItem>
-                        {filterOptions?.curators.map(curator => (
+                        {filterOptions?.curators?.map(curator => (
                             <SelectItem key={curator} value={curator}>
                                 {curator}
                             </SelectItem>
