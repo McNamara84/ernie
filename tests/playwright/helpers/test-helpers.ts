@@ -29,8 +29,11 @@ export async function loginAsTestUser(
  * @param page - Playwright page object
  */
 export async function logout(page: Page) {
-  // Click user menu
-  const userMenu = page.getByRole('button', { name: /User menu|Profile/i });
+  // Click user menu - finds the SidebarMenuButton with user info
+  // Try multiple strategies as the button doesn't have explicit aria-label
+  const userMenu = page.locator('[data-slot="sidebar-menu-button"]').filter({ hasText: /Test User|user/i }).first()
+    .or(page.getByRole('button', { name: /User menu|Profile/i }));
+  await userMenu.waitFor({ state: 'visible', timeout: 15000 });
   await userMenu.click();
   
   // Click logout

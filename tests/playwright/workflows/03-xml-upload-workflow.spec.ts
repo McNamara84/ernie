@@ -49,6 +49,8 @@ test.describe('XML Upload Complete Workflow', () => {
     await test.step('Wait for processing and redirect to curation', async () => {
       // Should redirect to curation form after successful upload
       await page.waitForURL(/\/curation/, { timeout: 15000 });
+      // Wait for Inertia.js/React hydration
+      await page.waitForLoadState('networkidle');
     });
 
     await test.step('Verify form is populated with XML data', async () => {

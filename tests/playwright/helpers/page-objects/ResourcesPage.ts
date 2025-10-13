@@ -34,7 +34,9 @@ export class ResourcesPage {
    */
   async verifyOnResourcesPage() {
     await expect(this.page).toHaveURL(/\/resources/);
-    await expect(this.heading).toBeVisible();
+    // Wait for Inertia.js/React hydration
+    await this.page.waitForLoadState('networkidle');
+    await expect(this.heading).toBeVisible({ timeout: 30000 });
   }
 
   /**

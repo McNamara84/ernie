@@ -59,11 +59,14 @@ test.describe('Critical Smoke Tests', () => {
 
     // Navigate to curation
     await page.goto('/curation');
+    // Wait for Inertia.js/React hydration in CI
+    await page.waitForLoadState('networkidle');
 
     // Fill minimal required fields
     await test.step('Fill required metadata', async () => {
       // DOI (required)
       const doiInput = page.getByLabel('DOI', { exact: true });
+      await expect(doiInput).toBeVisible({ timeout: 30000 });
       await doiInput.fill('10.5555/smoke-test-' + Date.now());
 
       // Publication Year (required)

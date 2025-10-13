@@ -58,6 +58,9 @@ export class SettingsPage {
    */
   async goto() {
     await this.page.goto('/settings');
+    // Wait for Inertia.js/React hydration
+    await this.page.waitForLoadState('networkidle');
+    await expect(this.heading).toBeVisible({ timeout: 30000 });
   }
 
   /**
@@ -66,6 +69,9 @@ export class SettingsPage {
    */
   async gotoSection(section: 'profile' | 'password' | 'appearance' | 'editor') {
     await this.page.goto(`/settings/${section}`);
+    // Wait for Inertia.js/React hydration
+    await this.page.waitForLoadState('networkidle');
+    await expect(this.heading).toBeVisible({ timeout: 30000 });
   }
 
   /**

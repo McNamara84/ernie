@@ -62,6 +62,10 @@ export class CurationPage {
    */
   async verifyOnCurationPage() {
     await expect(this.page).toHaveURL(/\/curation/);
+    // Wait for Inertia.js/React hydration to complete
+    await this.page.waitForLoadState('networkidle');
+    // Wait for at least one accordion to be visible (indicates page is rendered)
+    await expect(this.authorsAccordion.or(this.titlesAccordion)).toBeVisible({ timeout: 30000 });
   }
 
   /**
