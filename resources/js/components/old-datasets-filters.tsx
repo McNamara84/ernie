@@ -19,6 +19,12 @@ import {
 } from '@/components/ui/select';
 import type { FilterOptions, FilterState } from '@/types/old-datasets';
 
+/**
+ * Minimum number of characters required for search query.
+ * Search requests are only triggered when the input reaches this length.
+ */
+const MIN_SEARCH_LENGTH = 3;
+
 interface OldDatasetsFiltersProps {
     filters: FilterState;
     onFilterChange: (filters: FilterState) => void;
@@ -74,7 +80,7 @@ export function OldDatasetsFilters({
 
         // Only trigger search if:
         // 1. Value is empty (to clear search)
-        // 2. Value has at least 3 characters
+        // 2. Value has at least MIN_SEARCH_LENGTH characters
         if (value.trim().length === 0) {
             const newFilters = { ...filters };
             delete newFilters.search;
@@ -82,7 +88,7 @@ export function OldDatasetsFilters({
             return;
         }
 
-        if (value.trim().length < 3) {
+        if (value.trim().length < MIN_SEARCH_LENGTH) {
             // Don't search yet, but keep the input value
             return;
         }
@@ -233,7 +239,7 @@ export function OldDatasetsFilters({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         type="search"
-                        placeholder="Search title or DOI (min. 3 characters)..."
+                        placeholder={`Search title or DOI (min. ${MIN_SEARCH_LENGTH} characters)...`}
                         value={searchInput}
                         onChange={(e) => handleSearchChange(e.target.value)}
                         className="pl-9"
