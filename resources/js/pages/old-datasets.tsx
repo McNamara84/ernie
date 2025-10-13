@@ -843,6 +843,51 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             // Continue without descriptions if loading fails
         }
 
+        // Load funding references from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/funding-references`);
+            const fundingReferences = response.data.fundingReferences || [];
+            
+            fundingReferences.forEach((funding: {
+                funderName: string;
+                funderIdentifier: string | null;
+                funderIdentifierType: string | null;
+                awardNumber: string | null;
+                awardUri: string | null;
+                awardTitle: string | null;
+            }, index: number) => {
+                query[`fundingReferences[${index}][funderName]`] = funding.funderName;
+                if (funding.funderIdentifier) {
+                    query[`fundingReferences[${index}][funderIdentifier]`] = funding.funderIdentifier;
+                }
+                if (funding.funderIdentifierType) {
+                    query[`fundingReferences[${index}][funderIdentifierType]`] = funding.funderIdentifierType;
+                }
+                if (funding.awardNumber) {
+                    query[`fundingReferences[${index}][awardNumber]`] = funding.awardNumber;
+                }
+                if (funding.awardUri) {
+                    query[`fundingReferences[${index}][awardUri]`] = funding.awardUri;
+                }
+                if (funding.awardTitle) {
+                    query[`fundingReferences[${index}][awardTitle]`] = funding.awardTitle;
+                }
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading funding references for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading funding references for dataset:', error);
+            }
+            // Continue without funding references if loading fails
+        }
+
         // Load dates from old database
         try {
             const response = await axios.get(`/old-datasets/${dataset.id}/dates`);

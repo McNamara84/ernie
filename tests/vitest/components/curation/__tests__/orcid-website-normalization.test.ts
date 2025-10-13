@@ -8,7 +8,7 @@
  * Related: fix/orcid-validation-false-positive
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect,it } from 'vitest';
 
 // These are the helper functions from datacite-form.tsx
 // We're testing them in isolation

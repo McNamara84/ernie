@@ -60,6 +60,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/contributors', [OldDatasetController::class, 'getContributors'])
         ->name('old-datasets.contributors');
 
+    Route::get('old-datasets/{id}/funding-references', [OldDatasetController::class, 'getFundingReferences'])
+        ->name('old-datasets.funding-references');
+
     Route::get('old-datasets/{id}/descriptions', [OldDatasetController::class, 'getDescriptions'])
         ->name('old-datasets.descriptions');
 
@@ -127,6 +130,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return $item;
         }, $relatedWorks);
 
+        // Get funding references from query parameters
+        $fundingReferences = $request->query('fundingReferences', []);
+        if (is_string($fundingReferences)) {
+            $decoded = json_decode($fundingReferences, true);
+            $fundingReferences = is_array($decoded) ? $decoded : [];
+        }
+
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
@@ -147,6 +157,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'freeKeywords' => $request->query('freeKeywords', []),
             'coverages' => $request->query('coverages', []),
             'relatedWorks' => $relatedWorks,
+            'fundingReferences' => $fundingReferences,
         ]);
     })->name('curation');
 

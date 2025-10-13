@@ -15,6 +15,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
@@ -41,6 +42,7 @@ import ControlledVocabulariesField from './fields/controlled-vocabularies-field'
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
 import FreeKeywordsField from './fields/free-keywords-field';
+import { type FundingReferenceEntry, FundingReferenceField } from './fields/funding-reference';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
 import { RelatedWorkField } from './fields/related-work';
@@ -490,6 +492,7 @@ interface DataCiteFormProps {
     initialFreeKeywords?: string[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
+    initialFundingReferences?: FundingReferenceEntry[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -546,6 +549,7 @@ export default function DataCiteForm({
     initialFreeKeywords = [],
     initialSpatialTemporalCoverages = [],
     initialRelatedWorks = [],
+    initialFundingReferences = [],
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -717,6 +721,12 @@ export default function DataCiteForm({
     const [relatedWorks, setRelatedWorks] = useState<RelatedIdentifier[]>(() => {
         if (initialRelatedWorks && initialRelatedWorks.length > 0) {
             return initialRelatedWorks;
+        }
+        return [];
+    });
+    const [fundingReferences, setFundingReferences] = useState<FundingReferenceEntry[]>(() => {
+        if (initialFundingReferences && initialFundingReferences.length > 0) {
+            return initialFundingReferences;
         }
         return [];
     });
@@ -1220,6 +1230,18 @@ export default function DataCiteForm({
         setErrorMessage(null);
         setValidationErrors([]);
 
+        // Client-side validation for funding references
+        if (!validateAllFundingReferences(fundingReferences)) {
+            setValidationErrors(['Please fix the validation errors in the Funding References section before submitting.']);
+            setIsSaving(false);
+            // Scroll to funding references section
+            const fundingSection = document.getElementById('funding-references-section');
+            if (fundingSection) {
+                fundingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            return;
+        }
+
         const serializedAuthors: SerializedAuthor[] = authors.map((author, index) => {
             const affiliations = serializeAffiliations(author);
 
@@ -1338,6 +1360,14 @@ export default function DataCiteForm({
                 identifierType: string;
                 relationType: string;
             }[];
+            fundingReferences: {
+                funderName: string;
+                funderIdentifier: string;
+                funderIdentifierType: string | null;
+                awardNumber: string;
+                awardUri: string;
+                awardTitle: string;
+            }[];
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1395,6 +1425,14 @@ export default function DataCiteForm({
                 identifier: rw.identifier,
                 identifierType: rw.identifier_type,
                 relationType: rw.relation_type,
+            })),
+            fundingReferences: fundingReferences.map((funding) => ({
+                funderName: funding.funderName,
+                funderIdentifier: funding.funderIdentifier,
+                funderIdentifierType: funding.funderIdentifierType,
+                awardNumber: funding.awardNumber,
+                awardUri: funding.awardUri,
+                awardTitle: funding.awardTitle,
             })),
         };
 
@@ -1480,7 +1518,7 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates', 'related-work']}
+                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates', 'related-work', 'funding-references']}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1783,6 +1821,15 @@ export default function DataCiteForm({
                         <RelatedWorkField
                             relatedWorks={relatedWorks}
                             onChange={setRelatedWorks}
+                        />
+                    </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="funding-references">
+                    <AccordionTrigger>Funding References</AccordionTrigger>
+                    <AccordionContent id="funding-references-section">
+                        <FundingReferenceField
+                            value={fundingReferences}
+                            onChange={setFundingReferences}
                         />
                     </AccordionContent>
                 </AccordionItem>

@@ -297,7 +297,7 @@ describe('DataCiteForm', () => {
         global.fetch = vi.fn();
         
         // Mock the controlled vocabulary fetches that DataCiteForm makes on mount
-        // (GCMD Science Keywords, Platforms, and Instruments)
+        // (GCMD Science Keywords, Platforms, Instruments, and ROR Funders)
         const emptyVocabularyResponse = {
             ok: true,
             status: 200,
@@ -307,7 +307,8 @@ describe('DataCiteForm', () => {
         (global.fetch as unknown as vi.Mock)
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-science-keywords
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-platforms
-            .mockResolvedValueOnce(emptyVocabularyResponse); // gcmd-instruments
+            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-instruments
+            .mockResolvedValueOnce(emptyVocabularyResponse); // ror-funders
         
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();
@@ -2138,7 +2139,7 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
+        expect(global.fetch).toHaveBeenCalledTimes(5); // 4 vocabularies + 1 save
 
         // Get the save operation fetch call
         const saveCall = getSaveFetchCall();
@@ -2220,7 +2221,7 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
+        expect(global.fetch).toHaveBeenCalledTimes(5); // 4 vocabularies + 1 save
 
         // Get the save operation fetch call
         const saveCall = getSaveFetchCall();
@@ -2293,7 +2294,7 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(4); // 3 vocabularies + 1 save
+        expect(global.fetch).toHaveBeenCalledTimes(5); // 4 vocabularies + 1 save
         
         // Get the save operation fetch call
         const saveCall = getSaveFetchCall();
@@ -2331,8 +2332,8 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        // Only vocabulary fetches should have been called (3 times), but no save fetch
-        expect(global.fetch).toHaveBeenCalledTimes(3);
+        // Only vocabulary fetches should have been called (4 times), but no save fetch
+        expect(global.fetch).toHaveBeenCalledTimes(4);
         expect(
             await screen.findByText('Missing security token. Please refresh the page and try again.'),
         ).toBeInTheDocument();

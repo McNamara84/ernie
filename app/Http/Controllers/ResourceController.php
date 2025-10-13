@@ -52,6 +52,7 @@ class ResourceController extends Controller
                 'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
                 'coverages',
                 'relatedIdentifiers:id,resource_id,identifier,identifier_type,relation_type,position',
+                'fundingReferences:id,resource_id,funder_name,funder_identifier,funder_identifier_type,award_number,award_uri,award_title,position',
                 'authors' => function ($query): void {
                     $query
                         ->with([
@@ -277,6 +278,21 @@ class ResourceController extends Controller
                                 'identifierType' => $relatedIdentifier->identifier_type,
                                 'relationType' => $relatedIdentifier->relation_type,
                                 'position' => $relatedIdentifier->position,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                    'fundingReferences' => $resource->fundingReferences
+                        ->sortBy('position')
+                        ->map(static function (\App\Models\ResourceFundingReference $fundingReference): array {
+                            return [
+                                'funderName' => $fundingReference->funder_name,
+                                'funderIdentifier' => $fundingReference->funder_identifier,
+                                'funderIdentifierType' => $fundingReference->funder_identifier_type,
+                                'awardNumber' => $fundingReference->award_number,
+                                'awardUri' => $fundingReference->award_uri,
+                                'awardTitle' => $fundingReference->award_title,
+                                'position' => $fundingReference->position,
                             ];
                         })
                         ->values()
@@ -526,7 +542,29 @@ class ResourceController extends Controller
                     }
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages', 'relatedIdentifiers']), $isUpdate];
+                // Save funding references
+                if ($isUpdate) {
+                    $resource->fundingReferences()->delete();
+                }
+
+                $fundingReferences = $validated['fundingReferences'] ?? [];
+
+                foreach ($fundingReferences as $index => $fundingReference) {
+                    // Only save if funder name is not empty (required field)
+                    if (!empty(trim($fundingReference['funderName']))) {
+                        $resource->fundingReferences()->create([
+                            'funder_name' => trim($fundingReference['funderName']),
+                            'funder_identifier' => !empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
+                            'funder_identifier_type' => !empty($fundingReference['funderIdentifierType']) ? trim($fundingReference['funderIdentifierType']) : null,
+                            'award_number' => !empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
+                            'award_uri' => !empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
+                            'award_title' => !empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
+                            'position' => $index,
+                        ]);
+                    }
+                }
+
+                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages', 'relatedIdentifiers', 'fundingReferences']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);
