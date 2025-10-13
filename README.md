@@ -170,8 +170,6 @@ The Docker setup includes:
 - MariaDB database
 - Persistent volumes for storage and database
 
-## Testing
-
 ## Development Tools
 
 ### Code Quality
@@ -328,6 +326,136 @@ The service exposes a read-only REST API for metadata types. These endpoints req
 #### Roles
 - `GET /api/v1/roles/authors/elmo` – list author roles active for ELMO
 - `GET /api/v1/roles/contributor-persons/elmo` – list contributor person roles active for ELMO
+- `GET /api/v1/roles/contributor-institutions/elmo` – list contributor institution roles active for ELMO
+
+#### Documentation
+- `GET /api/v1/doc` – OpenAPI specification for the ELMO endpoints
+
+### Internal Endpoints (Authenticated)
+
+#### Old Datasets
+- `GET /old-datasets` – list old datasets with pagination
+- `GET /old-datasets/{id}/authors` – fetch authors from old dataset
+- `GET /old-datasets/{id}/contributors` – fetch contributors from old dataset
+- `GET /old-datasets/{id}/descriptions` – fetch descriptions from old dataset
+- `GET /old-datasets/{id}/dates` – fetch dates from old dataset
+- `GET /old-datasets/{id}/controlled-keywords` – fetch GCMD keywords from old dataset
+- `GET /old-datasets/{id}/free-keywords` – fetch free keywords from old dataset
+- `GET /old-datasets/{id}/coverages` – fetch spatial/temporal coverage from old dataset
+
+#### Vocabularies
+- `GET /vocabularies/gcmd-science-keywords` – NASA GCMD Science Keywords hierarchy
+- `GET /vocabularies/gcmd-platforms` – NASA GCMD Platforms hierarchy
+- `GET /vocabularies/gcmd-instruments` – NASA GCMD Instruments hierarchy
+
+#### ROR Affiliations
+- `GET /api/v1/ror-affiliations` – search Research Organization Registry affiliations
+
+## Project Structure
+
+```
+ernie/
+├── app/                        # Application core
+│   ├── Console/Commands/       # Artisan commands (GCMD, ROR, SPDX sync)
+│   ├── Http/                   # Controllers, Middleware, Requests
+│   ├── Models/                 # Eloquent models
+│   ├── Providers/              # Service providers
+│   ├── Services/               # Business logic services
+│   └── Support/                # Helper classes
+├── config/                     # Configuration files
+├── database/                   # Migrations, factories, seeders
+├── docker/                     # Docker configuration
+├── public/                     # Web root & compiled assets
+├── resources/                  # Frontend source code
+│   ├── css/                    # Stylesheets
+│   ├── js/                     # React components & TypeScript
+│   │   ├── Components/         # Reusable UI components
+│   │   ├── Layouts/            # Page layouts
+│   │   ├── lib/                # Utility functions
+│   │   ├── Pages/              # Inertia page components
+│   │   └── types/              # TypeScript type definitions
+│   └── views/                  # Blade templates
+├── routes/                     # Route definitions
+├── storage/                    # Application storage
+├── tests/                      # Test suites
+│   ├── Feature/                # Laravel feature tests
+│   ├── Unit/                   # Laravel unit tests
+│   ├── pest/                   # Pest-based tests
+│   ├── playwright/             # E2E tests
+│   └── vitest/                 # Frontend unit tests
+└── vendor/                     # Composer dependencies
+```
+
+## Application Routes
+
+### Public Routes
+- `/` – Homepage
+- `/about` – About page
+- `/changelog` – Version history
+- `/legal-notice` – Legal information
+- `/login` – User login
+- `/forgot-password` – Password reset request
+- `/reset-password/{token}` – Password reset with token
+- `/up` – Health check endpoint
+
+### Authenticated Routes
+- `/dashboard` – Main dashboard with statistics
+- `/resources` – Browse and manage curated resources
+- `/old-datasets` – Browse legacy datasets for import
+- `/curation` – Metadata curation form
+- `/docs` – Documentation overview
+- `/docs/users` – User documentation
+- `/settings` – User settings
+  - `/settings/profile` – Edit profile
+  - `/settings/password` – Change password
+  - `/settings/appearance` – Appearance preferences
+
+### API Routes
+- `/api/changelog` – Changelog data (public)
+- `/api/v1/doc` – OpenAPI documentation (requires API key)
+- `/api/v1/*` – ELMO integration endpoints (requires API key)
+
+## Contributing
+
+### Code Style
+
+This project follows the following code style standards:
+
+- **PHP:** PSR-12 via Laravel Pint
+- **JavaScript/TypeScript:** ESLint + Prettier with organized imports
+- **Commits:** Conventional Commits specification
+
+### Running Quality Checks
+
+Before committing, ensure all quality checks pass:
+
+```bash
+# PHP
+./vendor/bin/pint
+./vendor/bin/phpstan analyse
+composer run test
+
+# JavaScript/TypeScript
+npm run lint
+npm run format
+npm run types
+npm test
+```
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
+
+## Acknowledgments
+
+Developed at **GFZ German Research Centre for Geosciences** – Helmholtz Centre Potsdam.
+
+This project integrates with:
+- [DataCite](https://datacite.org/) metadata schema
+- [NASA GCMD](https://earthdata.nasa.gov/earth-observation-data/find-data/gcmd) vocabularies
+- [Research Organization Registry (ROR)](https://ror.org/)
+- [SPDX License List](https://spdx.org/licenses/)
+roles active for ELMO
 - `GET /api/v1/roles/contributor-institutions/elmo` – list contributor institution roles active for ELMO
 
 #### Documentation
