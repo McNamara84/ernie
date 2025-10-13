@@ -1,9 +1,15 @@
-import { Search, X } from 'lucide-react';
+import { Calendar, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import {
     Select,
     SelectContent,
@@ -133,7 +139,69 @@ export function OldDatasetsFilters({
         onFilterChange(newFilters);
     }, [filters, onFilterChange]);
 
-    const formatFilterLabel = (key: keyof FilterState, value: unknown): string => {
+    const handleYearFromChange = useCallback((value: string) => {
+        const newFilters = { ...filters };
+        const year = parseInt(value, 10);
+        if (!Number.isNaN(year) && year > 0) {
+            newFilters.year_from = year;
+        } else {
+            delete newFilters.year_from;
+        }
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
+
+    const handleYearToChange = useCallback((value: string) => {
+        const newFilters = { ...filters };
+        const year = parseInt(value, 10);
+        if (!Number.isNaN(year) && year > 0) {
+            newFilters.year_to = year;
+        } else {
+            delete newFilters.year_to;
+        }
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
+
+    const handleCreatedFromChange = useCallback((value: string) => {
+        const newFilters = { ...filters };
+        if (value) {
+            newFilters.created_from = value;
+        } else {
+            delete newFilters.created_from;
+        }
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
+
+    const handleCreatedToChange = useCallback((value: string) => {
+        const newFilters = { ...filters };
+        if (value) {
+            newFilters.created_to = value;
+        } else {
+            delete newFilters.created_to;
+        }
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
+
+    const handleUpdatedFromChange = useCallback((value: string) => {
+        const newFilters = { ...filters };
+        if (value) {
+            newFilters.updated_from = value;
+        } else {
+            delete newFilters.updated_from;
+        }
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
+
+    const handleUpdatedToChange = useCallback((value: string) => {
+        const newFilters = { ...filters };
+        if (value) {
+            newFilters.updated_to = value;
+        } else {
+            delete newFilters.updated_to;
+        }
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
+
+    const formatFilterLabel = useCallback((key: keyof FilterState, value: unknown): string => {
         const labelMap: Record<string, string> = {
             resource_type: 'Type',
             status: 'Status',
@@ -154,7 +222,7 @@ export function OldDatasetsFilters({
         }
 
         return `${label}: ${String(value)}`;
-    };
+    }, []);
 
     return (
         <div className="space-y-4 mb-4">
@@ -230,6 +298,221 @@ export function OldDatasetsFilters({
                         ))}
                     </SelectContent>
                 </Select>
+
+                {/* Publication Year Range Popover */}
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="default"
+                            className={`w-full sm:w-[180px] justify-start font-normal ${
+                                (filters.year_from || filters.year_to) ? 'border-primary' : ''
+                            }`}
+                            disabled={isLoading || !filterOptions}
+                            aria-label="Filter by publication year range"
+                        >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {filters.year_from || filters.year_to ? (
+                                <span>
+                                    {filters.year_from || '...'} - {filters.year_to || '...'}
+                                </span>
+                            ) : (
+                                <span>Year Range</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <h4 className="font-medium text-sm">Publication Year Range</h4>
+                                <p className="text-xs text-muted-foreground">
+                                    Filter datasets by their publication year
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="year-from" className="text-xs">From Year</Label>
+                                    <Input
+                                        id="year-from"
+                                        type="number"
+                                        placeholder={filterOptions?.year_range.min.toString()}
+                                        value={filters.year_from || ''}
+                                        onChange={(e) => handleYearFromChange(e.target.value)}
+                                        min={filterOptions?.year_range.min}
+                                        max={filterOptions?.year_range.max}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="year-to" className="text-xs">To Year</Label>
+                                    <Input
+                                        id="year-to"
+                                        type="number"
+                                        placeholder={filterOptions?.year_range.max.toString()}
+                                        value={filters.year_to || ''}
+                                        onChange={(e) => handleYearToChange(e.target.value)}
+                                        min={filterOptions?.year_range.min}
+                                        max={filterOptions?.year_range.max}
+                                        className="h-9"
+                                    />
+                                </div>
+                            </div>
+                            {(filters.year_from || filters.year_to) && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const newFilters = { ...filters };
+                                        delete newFilters.year_from;
+                                        delete newFilters.year_to;
+                                        onFilterChange(newFilters);
+                                    }}
+                                    className="w-full"
+                                >
+                                    Clear Year Range
+                                </Button>
+                            )}
+                        </div>
+                    </PopoverContent>
+                </Popover>
+
+                {/* Created Date Range Popover */}
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="default"
+                            className={`w-full sm:w-[180px] justify-start font-normal ${
+                                (filters.created_from || filters.created_to) ? 'border-primary' : ''
+                            }`}
+                            disabled={isLoading}
+                            aria-label="Filter by creation date range"
+                        >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {filters.created_from || filters.created_to ? (
+                                <span className="truncate">Created: {filters.created_from || '...'} - {filters.created_to || '...'}</span>
+                            ) : (
+                                <span>Created Date</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <h4 className="font-medium text-sm">Created Date Range</h4>
+                                <p className="text-xs text-muted-foreground">
+                                    Filter datasets by when they were created in the system
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="created-from" className="text-xs">From Date</Label>
+                                    <Input
+                                        id="created-from"
+                                        type="date"
+                                        value={filters.created_from || ''}
+                                        onChange={(e) => handleCreatedFromChange(e.target.value)}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="created-to" className="text-xs">To Date</Label>
+                                    <Input
+                                        id="created-to"
+                                        type="date"
+                                        value={filters.created_to || ''}
+                                        onChange={(e) => handleCreatedToChange(e.target.value)}
+                                        className="h-9"
+                                    />
+                                </div>
+                            </div>
+                            {(filters.created_from || filters.created_to) && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const newFilters = { ...filters };
+                                        delete newFilters.created_from;
+                                        delete newFilters.created_to;
+                                        onFilterChange(newFilters);
+                                    }}
+                                    className="w-full"
+                                >
+                                    Clear Created Date Range
+                                </Button>
+                            )}
+                        </div>
+                    </PopoverContent>
+                </Popover>
+
+                {/* Updated Date Range Popover */}
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            size="default"
+                            className={`w-full sm:w-[180px] justify-start font-normal ${
+                                (filters.updated_from || filters.updated_to) ? 'border-primary' : ''
+                            }`}
+                            disabled={isLoading}
+                            aria-label="Filter by last update date range"
+                        >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {filters.updated_from || filters.updated_to ? (
+                                <span className="truncate">Updated: {filters.updated_from || '...'} - {filters.updated_to || '...'}</span>
+                            ) : (
+                                <span>Updated Date</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80" align="start">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <h4 className="font-medium text-sm">Updated Date Range</h4>
+                                <p className="text-xs text-muted-foreground">
+                                    Filter datasets by when they were last updated
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="updated-from" className="text-xs">From Date</Label>
+                                    <Input
+                                        id="updated-from"
+                                        type="date"
+                                        value={filters.updated_from || ''}
+                                        onChange={(e) => handleUpdatedFromChange(e.target.value)}
+                                        className="h-9"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="updated-to" className="text-xs">To Date</Label>
+                                    <Input
+                                        id="updated-to"
+                                        type="date"
+                                        value={filters.updated_to || ''}
+                                        onChange={(e) => handleUpdatedToChange(e.target.value)}
+                                        className="h-9"
+                                    />
+                                </div>
+                            </div>
+                            {(filters.updated_from || filters.updated_to) && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        const newFilters = { ...filters };
+                                        delete newFilters.updated_from;
+                                        delete newFilters.updated_to;
+                                        onFilterChange(newFilters);
+                                    }}
+                                    className="w-full"
+                                >
+                                    Clear Updated Date Range
+                                </Button>
+                            )}
+                        </div>
+                    </PopoverContent>
+                </Popover>
 
                 {/* Clear All Filters Button */}
                 {hasActiveFilters && (

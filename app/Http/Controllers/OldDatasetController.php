@@ -44,12 +44,6 @@ class OldDatasetController extends Controller
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
             $filters = $this->extractFilters($request);
 
-            // DEBUG: Log the incoming request parameters and extracted filters
-            \Illuminate\Support\Facades\Log::debug('Filter Debug', [
-                'all_params' => $request->all(),
-                'extracted_filters' => $filters,
-            ]);
-
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert mit Filtern)
             $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
                 $page, 
@@ -139,13 +133,6 @@ class OldDatasetController extends Controller
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
             $filters = $this->extractFilters($request);
 
-            // DEBUG: Log the incoming request parameters and extracted filters
-            \Illuminate\Support\Facades\Log::debug('LoadMore Filter Debug', [
-                'all_params' => $request->all(),
-                'extracted_filters' => $filters,
-                'query_params' => $request->query(),
-            ]);
-
             $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
                 $page, 
                 $perPage, 
@@ -210,7 +197,7 @@ class OldDatasetController extends Controller
      *
      * @return array{string, string}
      */
-    private function resolveSortState(Request $request): array
+    protected function resolveSortState(Request $request): array
     {
         $requestedKey = strtolower((string) $request->get('sort_key', self::DEFAULT_SORT_KEY));
         $requestedDirection = strtolower((string) $request->get('sort_direction', self::DEFAULT_SORT_DIRECTION));
@@ -606,7 +593,7 @@ class OldDatasetController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return array<string, mixed>
      */
-    private function extractFilters(Request $request): array
+    protected function extractFilters(Request $request): array
     {
         $filters = [];
 
