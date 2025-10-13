@@ -42,9 +42,16 @@ class OldDatasetController extends Controller
             $perPage = min(200, max(10, (int) $perPage)); // Min 10, Max 200
             
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
+            $filters = $this->extractFilters($request);
 
-            // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert)
-            $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
+            // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert mit Filtern)
+            $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
+                $page, 
+                $perPage, 
+                $sortKey, 
+                $sortDirection,
+                $filters
+            );
 
             // Convert datasets to arrays and add licenses + first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
@@ -124,8 +131,15 @@ class OldDatasetController extends Controller
             $perPage = min(200, max(10, (int) $perPage));
             
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
+            $filters = $this->extractFilters($request);
 
-            $paginatedDatasets = OldDataset::getPaginatedOrdered($page, $perPage, $sortKey, $sortDirection);
+            $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
+                $page, 
+                $perPage, 
+                $sortKey, 
+                $sortDirection,
+                $filters
+            );
 
             // Convert datasets to arrays and add licenses + first author
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
@@ -568,6 +582,162 @@ class OldDatasetController extends Controller
 
             return response()->json([
                 'error' => 'Failed to load related identifiers from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
+    /**
+     * Extract filter parameters from the request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return array<string, mixed>
+     */
+    private function extractFilters(Request $request): array
+    {
+        $filters = [];
+
+        // Resource Type filter
+        if ($request->has('resource_type')) {
+            $resourceType = $request->input('resource_type');
+            if (is_array($resourceType)) {
+                $filters['resource_type'] = array_filter($resourceType);
+            } elseif (!empty($resourceType)) {
+                $filters['resource_type'] = [$resourceType];
+            }
+        }
+
+        // Curator filter
+        if ($request->has('curator')) {
+            $curator = $request->input('curator');
+            if (is_array($curator)) {
+                $filters['curator'] = array_filter($curator);
+            } elseif (!empty($curator)) {
+                $filters['curator'] = [$curator];
+            }
+        }
+
+        // Status filter
+        if ($request->has('status')) {
+            $status = $request->input('status');
+            if (is_array($status)) {
+                $filters['status'] = array_filter($status);
+            } elseif (!empty($status)) {
+                $filters['status'] = [$status];
+            }
+        }
+
+        // Publication Year Range
+        if ($request->has('year_from') && is_numeric($request->input('year_from'))) {
+            $filters['year_from'] = (int) $request->input('year_from');
+        }
+
+        if ($request->has('year_to') && is_numeric($request->input('year_to'))) {
+            $filters['year_to'] = (int) $request->input('year_to');
+        }
+
+        // Text Search
+        if ($request->has('search')) {
+            $search = trim((string) $request->input('search'));
+            if (!empty($search)) {
+                $filters['search'] = $search;
+            }
+        }
+
+        // Date Range filters
+        if ($request->has('created_from')) {
+            $createdFrom = $request->input('created_from');
+            if (!empty($createdFrom)) {
+                $filters['created_from'] = $createdFrom;
+            }
+        }
+
+        if ($request->has('created_to')) {
+            $createdTo = $request->input('created_to');
+            if (!empty($createdTo)) {
+                $filters['created_to'] = $createdTo;
+            }
+        }
+
+        if ($request->has('updated_from')) {
+            $updatedFrom = $request->input('updated_from');
+            if (!empty($updatedFrom)) {
+                $filters['updated_from'] = $updatedFrom;
+            }
+        }
+
+        if ($request->has('updated_to')) {
+            $updatedTo = $request->input('updated_to');
+            if (!empty($updatedTo)) {
+                $filters['updated_to'] = $updatedTo;
+            }
+        }
+
+        return $filters;
+    }
+
+    /**
+     * API endpoint to get available filter options.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getFilterOptions()
+    {
+        try {
+            // Get distinct resource types
+            $resourceTypes = DB::connection(self::DATASET_CONNECTION)
+                ->table('resource')
+                ->distinct()
+                ->whereNotNull('resourcetypegeneral')
+                ->where('resourcetypegeneral', '!=', '')
+                ->pluck('resourcetypegeneral')
+                ->sort()
+                ->values()
+                ->all();
+
+            // Get distinct curators
+            $curators = DB::connection(self::DATASET_CONNECTION)
+                ->table('resource')
+                ->distinct()
+                ->whereNotNull('curator')
+                ->where('curator', '!=', '')
+                ->pluck('curator')
+                ->sort()
+                ->values()
+                ->all();
+
+            // Get year range
+            $yearMin = DB::connection(self::DATASET_CONNECTION)
+                ->table('resource')
+                ->whereNotNull('publicationyear')
+                ->min('publicationyear');
+
+            $yearMax = DB::connection(self::DATASET_CONNECTION)
+                ->table('resource')
+                ->whereNotNull('publicationyear')
+                ->max('publicationyear');
+
+            // Define available statuses (based on the database schema)
+            $statuses = ['published', 'draft', 'review', 'archived'];
+
+            return response()->json([
+                'resource_types' => $resourceTypes,
+                'curators' => $curators,
+                'year_range' => [
+                    'min' => $yearMin,
+                    'max' => $yearMax,
+                ],
+                'statuses' => $statuses,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading filter options', $debugInfo + [
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load filter options from legacy database. Please check the database connection.',
                 'debug' => $debugInfo,
             ], 500);
         }

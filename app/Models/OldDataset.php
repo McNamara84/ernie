@@ -273,6 +273,157 @@ class OldDataset extends Model
     }
 
     /**
+     * Get paginated and ordered resources from the old database with optional filters.
+     *
+     * @param int $page
+     * @param int $perPage
+     * @param string $sortKey
+     * @param string $sortDirection
+     * @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, OldDataset>
+     */
+    public static function getPaginatedOrderedWithFilters(
+        int $page = 1,
+        int $perPage = 50,
+        string $sortKey = 'updated_at',
+        string $sortDirection = 'desc',
+        array $filters = []
+    ): LengthAwarePaginator {
+        $direction = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
+
+        $sortColumn = match ($sortKey) {
+            'id' => 'resource.id',
+            'identifier' => 'resource.identifier',
+            'title' => 'title.title',
+            'resourcetypegeneral' => 'resource.resourcetypegeneral',
+            'first_author' => 'first_author.first_author_lastname',
+            'publicationyear' => 'resource.publicationyear',
+            'curator' => 'resource.curator',
+            'publicstatus' => 'resource.publicstatus',
+            'created_at' => 'resource.created_at',
+            default => 'resource.updated_at',
+        };
+
+        $query = self::select([
+                'resource.id',
+                'resource.identifier',
+                'resource.resourcetypegeneral',
+                'resource.curator',
+                'resource.created_at',
+                'resource.updated_at',
+                'resource.publicstatus',
+                'resource.publisher',
+                'resource.publicationyear',
+                'resource.version',
+                'resource.language',
+                'title.title',
+                'first_author.first_author_lastname',
+                'first_author.first_author_firstname',
+                'first_author.first_author_name'
+            ])
+            ->leftJoin('title', 'resource.id', '=', 'title.resource_id');
+
+        // Always join first author data for display
+        $query->leftJoin(
+            \Illuminate\Support\Facades\DB::raw('(
+                SELECT 
+                    ra.resource_id,
+                    ra.lastname as first_author_lastname,
+                    ra.firstname as first_author_firstname,
+                    ra.name as first_author_name
+                FROM resourceagent ra
+                INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                    AND ra.order = r.resourceagent_order
+                INNER JOIN (
+                    SELECT ra2.resource_id, MIN(ra2.order) as min_order
+                    FROM resourceagent ra2
+                    INNER JOIN role r2 ON ra2.resource_id = r2.resourceagent_resource_id 
+                        AND ra2.order = r2.resourceagent_order
+                    WHERE r2.role = ?
+                    GROUP BY ra2.resource_id
+                ) first_order ON ra.resource_id = first_order.resource_id 
+                    AND ra.order = first_order.min_order
+                WHERE r.role = ?
+            ) as first_author'),
+            'resource.id',
+            '=',
+            'first_author.resource_id'
+        )->addBinding(self::ROLE_CREATOR, 'join')
+         ->addBinding(self::ROLE_CREATOR, 'join');
+
+        // Apply filters
+        if (!empty($filters['resource_type'])) {
+            $types = is_array($filters['resource_type']) 
+                ? $filters['resource_type'] 
+                : [$filters['resource_type']];
+            $query->whereIn('resource.resourcetypegeneral', $types);
+        }
+
+        if (!empty($filters['curator'])) {
+            $curators = is_array($filters['curator']) 
+                ? $filters['curator'] 
+                : [$filters['curator']];
+            $query->whereIn('resource.curator', $curators);
+        }
+
+        if (!empty($filters['status'])) {
+            $statuses = is_array($filters['status']) 
+                ? $filters['status'] 
+                : [$filters['status']];
+            $query->whereIn('resource.publicstatus', $statuses);
+        }
+
+        if (isset($filters['year_from']) && is_numeric($filters['year_from'])) {
+            $query->where('resource.publicationyear', '>=', (int) $filters['year_from']);
+        }
+
+        if (isset($filters['year_to']) && is_numeric($filters['year_to'])) {
+            $query->where('resource.publicationyear', '<=', (int) $filters['year_to']);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function($q) use ($search) {
+                $q->where('title.title', 'like', "%{$search}%")
+                  ->orWhere('resource.identifier', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($filters['created_from'])) {
+            $query->where('resource.created_at', '>=', $filters['created_from']);
+        }
+
+        if (!empty($filters['created_to'])) {
+            $query->where('resource.created_at', '<=', $filters['created_to']);
+        }
+
+        if (!empty($filters['updated_from'])) {
+            $query->where('resource.updated_at', '>=', $filters['updated_from']);
+        }
+
+        if (!empty($filters['updated_to'])) {
+            $query->where('resource.updated_at', '<=', $filters['updated_to']);
+        }
+
+        // Add ORDER BY clause
+        if ($sortKey === 'first_author') {
+            if ($direction === 'asc') {
+                $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) ASC");
+            } else {
+                $query->orderByRaw("TRIM(COALESCE(COALESCE(first_author.first_author_lastname, first_author.first_author_name), '')) DESC");
+            }
+            $query->orderBy('resource.id', 'asc');
+        } else {
+            $query->orderBy($sortColumn, $direction);
+            if ($sortColumn !== 'resource.id') {
+                $query->orderBy('resource.id', 'asc');
+            }
+        }
+
+        return $query->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    /**
      * Get licenses for this resource from the license table.
      *
      * @return array<string>

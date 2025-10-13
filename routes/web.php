@@ -51,6 +51,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
         ->name('old-datasets');
 
+    Route::get('old-datasets/filter-options', [OldDatasetController::class, 'getFilterOptions'])
+        ->name('old-datasets.filter-options');
+
     Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
         ->name('old-datasets.load-more');
 
