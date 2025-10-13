@@ -335,11 +335,11 @@ export function OldDatasetsFilters({
                                     <Input
                                         id="year-from"
                                         type="number"
-                                        placeholder={filterOptions?.year_range.min.toString()}
+                                        placeholder={filterOptions?.year_range?.min.toString()}
                                         value={filters.year_from || ''}
                                         onChange={(e) => handleYearFromChange(e.target.value)}
-                                        min={filterOptions?.year_range.min}
-                                        max={filterOptions?.year_range.max}
+                                        min={filterOptions?.year_range?.min}
+                                        max={filterOptions?.year_range?.max}
                                         className="h-9"
                                     />
                                 </div>
@@ -348,11 +348,11 @@ export function OldDatasetsFilters({
                                     <Input
                                         id="year-to"
                                         type="number"
-                                        placeholder={filterOptions?.year_range.max.toString()}
+                                        placeholder={filterOptions?.year_range?.max.toString()}
                                         value={filters.year_to || ''}
                                         onChange={(e) => handleYearToChange(e.target.value)}
-                                        min={filterOptions?.year_range.min}
-                                        max={filterOptions?.year_range.max}
+                                        min={filterOptions?.year_range?.min}
+                                        max={filterOptions?.year_range?.max}
                                         className="h-9"
                                     />
                                 </div>

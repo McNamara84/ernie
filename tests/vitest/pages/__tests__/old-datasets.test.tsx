@@ -129,6 +129,21 @@ describe('OldDatasets page', () => {
         consoleGroupCollapsedSpy = vi.spyOn(console, 'groupCollapsed').mockImplementation(() => {});
         consoleGroupEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
 
+        // Mock axios for filter options
+        mockedAxios.get.mockImplementation((url: string) => {
+            if (url === '/old-datasets/filter-options') {
+                return Promise.resolve({
+                    data: {
+                        resource_types: ['Dataset', 'Image', 'Software'],
+                        statuses: ['published', 'review', 'draft'],
+                        curators: ['Alice', 'Bob', 'Charlie'],
+                        year_range: { min: 2020, max: 2024 },
+                    },
+                });
+            }
+            return Promise.reject(new Error(`Unexpected axios call to ${url}`));
+        });
+
         // Mock fetch for API calls in buildCurationQuery
         global.fetch = vi.fn((url: string) => {
             if (url.includes('/api/v1/resource-types/ernie')) {
@@ -218,7 +233,7 @@ describe('OldDatasets page', () => {
         },
         error: undefined,
         sort: defaultSortState,
-    } as const;
+    };
 
     it('renders the legacy dataset overview with accessible labelling', () => {
         render(<OldDatasets {...baseProps} />);
