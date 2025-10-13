@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { OldDatasetsFilters } from '@/components/old-datasets-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import AppLayout from '@/layouts/app-layout';
 import { curation as curationRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
+import { type FilterOptions, type FilterState, type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
 import { parseContributorName } from '@/utils/nameParser';
 
 interface Author {
@@ -735,9 +736,6 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             const response = await axios.get(`/old-datasets/${dataset.id}/contributors`);
             const contributors = response.data.contributors || [];
             
-            // Debug logging
-            console.log('Contributors from API:', contributors);
-            
             contributors.forEach((contributor: {
                 type: string;
                 givenName: string | null;
@@ -1125,6 +1123,8 @@ export default function OldDatasets({
     const [loading, setLoading] = useState(false);
     const [isSorting, setIsSorting] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
+    const [filters, setFilters] = useState<FilterState>({});
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const observer = useRef<IntersectionObserver | null>(null);
     const pendingRequestRef = useRef(0);
     const lastRequestRef = useRef<{ page: number; sort: SortState; replace: boolean } | null>(null);
@@ -1206,6 +1206,33 @@ export default function OldDatasets({
         getResourceTypes();
         getLicenses();
     }, []);
+
+    // Load filter options on component mount
+    useEffect(() => {
+        const loadFilterOptions = async () => {
+            try {
+                const response = await axios.get('/old-datasets/filter-options');
+                setFilterOptions(response.data);
+            } catch (err) {
+                console.error('Failed to load filter options:', err);
+                
+                // Provide empty fallback so filters don't stay disabled forever
+                setFilterOptions({
+                    resource_types: [],
+                    curators: [],
+                    year_range: { min: 2000, max: 2025 },
+                    statuses: ['published', 'draft', 'review', 'archived'],
+                });
+                
+                // Show a subtle warning toast
+                toast.error('Filter options could not be loaded. Some filters may be unavailable.', {
+                    duration: 5000,
+                });
+            }
+        };
+
+        loadFilterOptions();
+    }, []);
     
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -1215,7 +1242,7 @@ export default function OldDatasets({
     ];
 
     const fetchDatasetsPage = useCallback(
-        async ({ page, sort, replace }: { page: number; sort: SortState; replace: boolean }) => {
+        async ({ page, sort, replace, filters: filterParams }: { page: number; sort: SortState; replace: boolean; filters?: FilterState }) => {
             const requestId = pendingRequestRef.current + 1;
             pendingRequestRef.current = requestId;
             lastRequestRef.current = { page, sort, replace };
@@ -1224,14 +1251,28 @@ export default function OldDatasets({
             setLoadingError('');
 
             try {
-                const response = await axios.get('/old-datasets/load-more', {
-                    params: {
-                        page,
-                        per_page: pagination.per_page,
-                        sort_key: sort.key,
-                        sort_direction: sort.direction,
-                    },
-                });
+                // Build URLSearchParams for proper array serialization
+                const searchParams = new URLSearchParams();
+                searchParams.append('page', page.toString());
+                searchParams.append('per_page', pagination.per_page.toString());
+                searchParams.append('sort_key', sort.key);
+                searchParams.append('sort_direction', sort.direction);
+
+                // Add filter parameters - arrays need to be sent as param[]=value
+                if (filterParams) {
+                    Object.entries(filterParams).forEach(([key, value]) => {
+                        if (Array.isArray(value)) {
+                            // For arrays, append each value with [] notation
+                            value.forEach(item => {
+                                searchParams.append(`${key}[]`, String(item));
+                            });
+                        } else {
+                            searchParams.append(key, String(value));
+                        }
+                    });
+                }
+
+                const response = await axios.get('/old-datasets/load-more?' + searchParams.toString());
 
                 if (pendingRequestRef.current !== requestId) {
                     return;
@@ -1310,8 +1351,9 @@ export default function OldDatasets({
             page: pagination.current_page + 1,
             sort: activeSortState,
             replace: false,
+            filters,
         });
-    }, [loading, pagination.has_more, pagination.current_page, fetchDatasetsPage, activeSortState]);
+    }, [loading, pagination.has_more, pagination.current_page, fetchDatasetsPage, activeSortState, filters]);
 
     const handleRetry = useCallback(() => {
         const lastRequest = lastRequestRef.current;
@@ -1330,9 +1372,10 @@ export default function OldDatasets({
                 page: pagination.current_page + 1,
                 sort: activeSortState,
                 replace: false,
+                filters,
             });
         }
-    }, [fetchDatasetsPage, pagination.has_more, pagination.current_page, activeSortState]);
+    }, [fetchDatasetsPage, pagination.has_more, pagination.current_page, activeSortState, filters]);
 
     useEffect(() => {
         if (
@@ -1346,8 +1389,38 @@ export default function OldDatasets({
             page: 1,
             sort: sortState,
             replace: true,
+            filters,
         });
-    }, [sortState, activeSortState, fetchDatasetsPage]);
+    }, [sortState, activeSortState, fetchDatasetsPage, filters]);
+
+    // Reload datasets when filters change (but not on initial mount)
+    const isInitialMount = useRef(true);
+    const prevFiltersRef = useRef<FilterState>(filters);
+    
+    useEffect(() => {
+        // Skip on initial mount
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            prevFiltersRef.current = filters;
+            return;
+        }
+
+        // Check if filters actually changed
+        const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(filters);
+        
+        if (!filtersChanged) {
+            return;
+        }
+
+        prevFiltersRef.current = filters;
+
+        void fetchDatasetsPage({
+            page: 1,
+            sort: activeSortState,
+            replace: true,
+            filters,
+        });
+    }, [filters, activeSortState, fetchDatasetsPage]);
 
     // Reference to the last dataset element for intersection observer
     const lastDatasetElementRef = useCallback((node: HTMLElement | null) => {
@@ -1696,10 +1769,17 @@ export default function OldDatasets({
                             </div>
                         ) : (
                             <>
+                                {/* Filter Component */}
+                                <OldDatasetsFilters
+                                    filters={filters}
+                                    onFilterChange={setFilters}
+                                    filterOptions={filterOptions}
+                                    resultCount={sortedDatasets.length}
+                                    totalCount={pagination.total}
+                                    isLoading={loading || isSorting}
+                                />
+
                                 <div className="mb-4 flex items-center gap-2 flex-wrap">
-                                    <Badge variant="secondary">
-                                        {sortedDatasets.length} of {pagination.total} datasets
-                                    </Badge>
                                     <Badge variant="outline" className="text-xs">
                                         Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
                                     </Badge>
