@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { OldDatasetsFilters } from '@/components/old-datasets-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import AppLayout from '@/layouts/app-layout';
 import { curation as curationRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
+import { type FilterOptions, type FilterState, type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
 import { parseContributorName } from '@/utils/nameParser';
 
 interface Author {
@@ -1125,6 +1126,8 @@ export default function OldDatasets({
     const [loading, setLoading] = useState(false);
     const [isSorting, setIsSorting] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
+    const [filters, setFilters] = useState<FilterState>({});
+    const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const observer = useRef<IntersectionObserver | null>(null);
     const pendingRequestRef = useRef(0);
     const lastRequestRef = useRef<{ page: number; sort: SortState; replace: boolean } | null>(null);
@@ -1206,6 +1209,21 @@ export default function OldDatasets({
         getResourceTypes();
         getLicenses();
     }, []);
+
+    // Load filter options on component mount
+    useEffect(() => {
+        const loadFilterOptions = async () => {
+            try {
+                const response = await axios.get('/old-datasets/filter-options');
+                setFilterOptions(response.data);
+            } catch (err) {
+                console.error('Failed to load filter options:', err);
+                // Filter options are optional, so we don't show an error toast
+            }
+        };
+
+        loadFilterOptions();
+    }, []);
     
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -1215,7 +1233,7 @@ export default function OldDatasets({
     ];
 
     const fetchDatasetsPage = useCallback(
-        async ({ page, sort, replace }: { page: number; sort: SortState; replace: boolean }) => {
+        async ({ page, sort, replace, filters: filterParams }: { page: number; sort: SortState; replace: boolean; filters?: FilterState }) => {
             const requestId = pendingRequestRef.current + 1;
             pendingRequestRef.current = requestId;
             lastRequestRef.current = { page, sort, replace };
@@ -1230,6 +1248,7 @@ export default function OldDatasets({
                         per_page: pagination.per_page,
                         sort_key: sort.key,
                         sort_direction: sort.direction,
+                        ...(filterParams || {}), // Spread filter parameters
                     },
                 });
 
@@ -1310,8 +1329,9 @@ export default function OldDatasets({
             page: pagination.current_page + 1,
             sort: activeSortState,
             replace: false,
+            filters,
         });
-    }, [loading, pagination.has_more, pagination.current_page, fetchDatasetsPage, activeSortState]);
+    }, [loading, pagination.has_more, pagination.current_page, fetchDatasetsPage, activeSortState, filters]);
 
     const handleRetry = useCallback(() => {
         const lastRequest = lastRequestRef.current;
@@ -1346,8 +1366,25 @@ export default function OldDatasets({
             page: 1,
             sort: sortState,
             replace: true,
+            filters,
         });
-    }, [sortState, activeSortState, fetchDatasetsPage]);
+    }, [sortState, activeSortState, fetchDatasetsPage, filters]);
+
+    // Reload datasets when filters change (but not on initial mount)
+    const isInitialMount = useRef(true);
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        void fetchDatasetsPage({
+            page: 1,
+            sort: activeSortState,
+            replace: true,
+            filters,
+        });
+    }, [filters, activeSortState, fetchDatasetsPage]);
 
     // Reference to the last dataset element for intersection observer
     const lastDatasetElementRef = useCallback((node: HTMLElement | null) => {
@@ -1696,10 +1733,17 @@ export default function OldDatasets({
                             </div>
                         ) : (
                             <>
+                                {/* Filter Component */}
+                                <OldDatasetsFilters
+                                    filters={filters}
+                                    onFilterChange={setFilters}
+                                    filterOptions={filterOptions}
+                                    resultCount={sortedDatasets.length}
+                                    totalCount={pagination.total}
+                                    isLoading={loading || isSorting}
+                                />
+
                                 <div className="mb-4 flex items-center gap-2 flex-wrap">
-                                    <Badge variant="secondary">
-                                        {sortedDatasets.length} of {pagination.total} datasets
-                                    </Badge>
                                     <Badge variant="outline" className="text-xs">
                                         Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
                                     </Badge>
