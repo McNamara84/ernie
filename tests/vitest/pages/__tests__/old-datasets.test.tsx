@@ -129,20 +129,7 @@ describe('OldDatasets page', () => {
         consoleGroupCollapsedSpy = vi.spyOn(console, 'groupCollapsed').mockImplementation(() => {});
         consoleGroupEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
 
-        // Mock axios for filter options
-        mockedAxios.get.mockImplementation((url: string) => {
-            if (url === '/old-datasets/filter-options') {
-                return Promise.resolve({
-                    data: {
-                        resource_types: ['Dataset', 'Image', 'Software'],
-                        statuses: ['published', 'review', 'draft'],
-                        curators: ['Alice', 'Bob', 'Charlie'],
-                        year_range: { min: 2020, max: 2024 },
-                    },
-                });
-            }
-            return Promise.reject(new Error(`Unexpected axios call to ${url}`));
-        });
+        // Note: Individual tests should set up their own axios mocks using mockResolvedValueOnce
 
         // Mock fetch for API calls in buildCurationQuery
         global.fetch = vi.fn((url: string) => {
@@ -235,13 +222,32 @@ describe('OldDatasets page', () => {
         sort: defaultSortState,
     };
 
-    it('renders the legacy dataset overview with accessible labelling', () => {
+    it('renders the legacy dataset overview with accessible labelling', async () => {
+        mockedAxios.get
+            .mockResolvedValueOnce({
+                // First call: filter-options
+                data: {
+                    resource_types: ['Dataset', 'Image', 'Software'],
+                    statuses: ['published', 'review', 'draft'],
+                    curators: ['Alice', 'Bob', 'Charlie'],
+                    year_range: { min: 2020, max: 2024 },
+                },
+            })
+            .mockResolvedValueOnce({
+                // Second call: initial load-more
+                data: {
+                    datasets: baseProps.datasets,
+                    pagination: baseProps.pagination,
+                    sort: baseProps.sort,
+                },
+            });
+
         render(<OldDatasets {...baseProps} />);
 
         expect(screen.getByRole('heading', { name: 'Old Datasets', level: 1 })).toBeVisible();
         expect(screen.getByText('Overview of legacy resources from the SUMARIOPMD database')).toBeVisible();
 
-        const badge = screen.getByText(/2 of 60 datasets/i);
+        const badge = await screen.findByText(/2 of 60 datasets/i);
         expect(badge).toBeVisible();
 
         const table = screen.getByRole('table');
@@ -333,6 +339,16 @@ describe('OldDatasets page', () => {
 
         mockedAxios.get
             .mockResolvedValueOnce({
+                // First call: filter-options
+                data: {
+                    resource_types: ['Dataset', 'Image', 'Software'],
+                    statuses: ['published', 'review', 'draft'],
+                    curators: ['Alice', 'Bob', 'Charlie'],
+                    year_range: { min: 2020, max: 2024 },
+                },
+            })
+            .mockResolvedValueOnce({
+                // Second call: load-more with sort by ID asc
                 data: {
                     datasets: [
                         {
@@ -414,9 +430,9 @@ describe('OldDatasets page', () => {
         await user.click(idSortButton);
 
         await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
-                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'asc' },
-            });
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                '/old-datasets/load-more?page=1&per_page=20&sort_key=id&sort_direction=asc'
+            );
         });
 
         await screen.findByText('Ascending dataset first');
@@ -433,9 +449,7 @@ describe('OldDatasets page', () => {
         await user.click(idSortButton);
 
         await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenLastCalledWith('/old-datasets/load-more', {
-                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'desc' },
-            });
+            expect(mockedAxios.get).toHaveBeenLastCalledWith('/old-datasets/load-more?page=1&per_page=20&sort_key=id&sort_direction=desc');
         });
 
         await screen.findByText('Descending dataset first');
@@ -455,14 +469,25 @@ describe('OldDatasets page', () => {
             JSON.stringify({ key: 'created_at', direction: 'asc' }),
         );
 
-        mockedAxios.get.mockResolvedValueOnce({
-            data: {
-                datasets: [
-                    {
-                        id: 3,
-                        identifier: '10.9999/early-dataset',
-                        title: 'Earliest dataset',
-                        resourcetypegeneral: 'Dataset',
+        mockedAxios.get
+            .mockResolvedValueOnce({
+                // First call: filter-options
+                data: {
+                    resource_types: ['Dataset', 'Image', 'Software'],
+                    statuses: ['published', 'review', 'draft'],
+                    curators: ['Alice', 'Bob', 'Charlie'],
+                    year_range: { min: 2020, max: 2024 },
+                },
+            })
+            .mockResolvedValueOnce({
+                // Second call: load-more with persisted sort
+                data: {
+                    datasets: [
+                        {
+                            id: 3,
+                            identifier: '10.9999/early-dataset',
+                            title: 'Earliest dataset',
+                            resourcetypegeneral: 'Dataset',
                         curator: 'Evelyn',
                         created_at: '2023-01-01T00:00:00Z',
                         updated_at: '2023-01-02T00:00:00Z',
@@ -495,9 +520,9 @@ describe('OldDatasets page', () => {
         render(<OldDatasets {...baseProps} />);
 
         await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
-                params: { page: 1, per_page: 20, sort_key: 'created_at', sort_direction: 'asc' },
-            });
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                '/old-datasets/load-more?page=1&per_page=20&sort_key=created_at&sort_direction=asc'
+            );
         });
 
         await screen.findByText('Earliest dataset');
@@ -533,8 +558,26 @@ describe('OldDatasets page', () => {
         });
 
         mockedAxios.get
-            .mockRejectedValueOnce(axiosError)
             .mockResolvedValueOnce({
+                // First call: filter-options
+                data: {
+                    resource_types: ['Dataset', 'Image', 'Software'],
+                    statuses: ['published', 'review', 'draft'],
+                    curators: ['Alice', 'Bob', 'Riley'],
+                    year_range: { min: 2020, max: 2024 },
+                },
+            })
+            .mockResolvedValueOnce({
+                // Second call: initial load-more (successful)
+                data: {
+                    datasets: baseProps.datasets,
+                    pagination: baseProps.pagination,
+                    sort: baseProps.sort,
+                },
+            })
+            .mockRejectedValueOnce(axiosError) // Third call: sort change (error)
+            .mockResolvedValueOnce({
+                // Fourth call: retry after error (successful)
                 data: {
                     datasets: [
                         {
@@ -572,9 +615,10 @@ describe('OldDatasets page', () => {
         await user.click(idSortButton);
 
         await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenNthCalledWith(1, '/old-datasets/load-more', {
-                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'asc' },
-            });
+            // First call is filter-options, second call should be load-more with error
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                '/old-datasets/load-more?page=1&per_page=20&sort_key=id&sort_direction=asc'
+            );
         });
 
         const alert = await screen.findByRole('alert');
@@ -666,16 +710,35 @@ describe('OldDatasets page', () => {
     });
 
     it('requests the next page when the sentinel row becomes visible', async () => {
-        mockedAxios.get.mockResolvedValueOnce({
-            data: {
-                datasets: [
-                    {
-                        id: 3,
-                        identifier: '10.5555/example-three',
-                        title: 'Recently ingested dataset',
-                        resourcetypegeneral: 'Text',
-                        curator: 'Charlie',
-                        created_at: '2024-03-01T09:30:00Z',
+        mockedAxios.get
+            .mockResolvedValueOnce({
+                // First call: filter-options
+                data: {
+                    resource_types: ['Dataset', 'Image', 'Software'],
+                    statuses: ['published', 'review', 'draft'],
+                    curators: ['Alice', 'Bob', 'Charlie'],
+                    year_range: { min: 2020, max: 2024 },
+                },
+            })
+            .mockResolvedValueOnce({
+                // Second call: load-more page 1 (initial load)
+                data: {
+                    datasets: baseProps.datasets,
+                    pagination: baseProps.pagination,
+                    sort: baseProps.sort,
+                },
+            })
+            .mockResolvedValueOnce({
+                // Third call: load-more page 2
+                data: {
+                    datasets: [
+                        {
+                            id: 3,
+                            identifier: '10.5555/example-three',
+                            title: 'Recently ingested dataset',
+                            resourcetypegeneral: 'Text',
+                            curator: 'Charlie',
+                            created_at: '2024-03-01T09:30:00Z',
                         updated_at: '2024-03-01T12:00:00Z',
                         publicstatus: 'draft',
                         publisher: 'Example Publisher',
@@ -710,9 +773,9 @@ describe('OldDatasets page', () => {
         ], {} as IntersectionObserver);
 
         await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
-                params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
-            });
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
+            );
         });
 
         await screen.findByText('Recently ingested dataset');
@@ -721,8 +784,18 @@ describe('OldDatasets page', () => {
 
     it('shows an inline retry affordance when loading additional pages fails', async () => {
         mockedAxios.get
-            .mockRejectedValueOnce(new Error('network down'))
             .mockResolvedValueOnce({
+                // First call: filter-options (from beforeEach mock)
+                data: {
+                    resource_types: ['Dataset', 'Image', 'Software'],
+                    statuses: ['published', 'review', 'draft'],
+                    curators: ['Alice', 'Bob', 'Charlie'],
+                    year_range: { min: 2020, max: 2024 },
+                },
+            })
+            .mockRejectedValueOnce(new Error('network down')) // Second call: load-more fails
+            .mockResolvedValueOnce({
+                // Third call: retry load-more succeeds
                 data: {
                     datasets: [
                         {
@@ -774,15 +847,18 @@ describe('OldDatasets page', () => {
         await screen.findByText('Recovered dataset');
 
         await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(3);
         });
 
-        expect(mockedAxios.get).toHaveBeenNthCalledWith(1, '/old-datasets/load-more', {
-            params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
-        });
-        expect(mockedAxios.get).toHaveBeenNthCalledWith(2, '/old-datasets/load-more', {
-            params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
-        });
+        expect(mockedAxios.get).toHaveBeenNthCalledWith(1, '/old-datasets/filter-options');
+        expect(mockedAxios.get).toHaveBeenNthCalledWith(
+            2,
+            '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
+        );
+        expect(mockedAxios.get).toHaveBeenNthCalledWith(
+            3,
+            '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
+        );
 
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(screen.getByText(/All datasets have been loaded/i)).toBeVisible();
@@ -892,7 +968,17 @@ describe('OldDatasets page', () => {
             },
         });
 
-        mockedAxios.get.mockRejectedValueOnce(axiosError);
+        mockedAxios.get
+            .mockResolvedValueOnce({
+                // First call: filter-options succeeds
+                data: {
+                    resource_types: ['Dataset', 'Image', 'Software'],
+                    statuses: ['published', 'review', 'draft'],
+                    curators: ['Alice', 'Bob', 'Charlie'],
+                    year_range: { min: 2020, max: 2024 },
+                },
+            })
+            .mockRejectedValueOnce(axiosError); // Second call: load-more fails with diagnostics
 
         render(<OldDatasets {...baseProps} />);
 
@@ -911,9 +997,9 @@ describe('OldDatasets page', () => {
             expect(consoleGroupCollapsedSpy).toHaveBeenCalledWith('SUMARIOPMD diagnostics – load more request');
         });
 
-        expect(mockedAxios.get).toHaveBeenCalledWith('/old-datasets/load-more', {
-            params: { page: 2, per_page: 20, sort_key: 'updated_at', sort_direction: 'desc' },
-        });
+        expect(mockedAxios.get).toHaveBeenCalledWith(
+            '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
+        );
         expect(consoleInfoSpy).toHaveBeenCalledWith('Message:', 'Request failed with status code 500');
         expect(consoleInfoSpy).toHaveBeenCalledWith('Details:', expect.objectContaining({
             connection: 'metaworks',
