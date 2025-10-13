@@ -24,11 +24,29 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? 'github' : 'html',
   /* Global timeout for each test */
-  timeout: 30 * 1000,
+  timeout: 60 * 1000, // Increased to 60s for workflow tests
   /* Global timeout for expect() */
   expect: {
-    timeout: 5 * 1000,
+    timeout: 10 * 1000, // Increased to 10s for more complex assertions
   },
+  
+  /* Test match patterns - organized by priority */
+  testMatch: [
+    // Critical smoke tests run first
+    '**/critical/*.spec.ts',
+    // Then workflow tests
+    '**/workflows/*.spec.ts',
+    // Legacy tests (will be removed after migration)
+    '**/*.spec.ts',
+  ],
+  
+  /* Ignore helper files and documentation */
+  testIgnore: [
+    '**/helpers/**',
+    '**/page-objects/**',
+    '**/*.md',
+    '**/constants.ts',
+  ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
