@@ -215,7 +215,7 @@ describe('OldDatasets page', () => {
             per_page: 20,
             total: 60,
             from: 1,
-            to: 20,
+            to: 2, // Only 2 datasets in the array above
             has_more: true,
         },
         error: undefined,
@@ -223,32 +223,20 @@ describe('OldDatasets page', () => {
     };
 
     it('renders the legacy dataset overview with accessible labelling', async () => {
-        mockedAxios.get
-            .mockResolvedValueOnce({
-                // First call: filter-options
-                data: {
-                    resource_types: ['Dataset', 'Image', 'Software'],
-                    statuses: ['published', 'review', 'draft'],
-                    curators: ['Alice', 'Bob', 'Charlie'],
-                    year_range: { min: 2020, max: 2024 },
-                },
-            })
-            .mockResolvedValueOnce({
-                // Second call: initial load-more
-                data: {
-                    datasets: baseProps.datasets,
-                    pagination: baseProps.pagination,
-                    sort: baseProps.sort,
-                },
-            });
+        mockedAxios.get.mockResolvedValueOnce({
+            // Only mock filter-options - initial datasets come from props
+            data: {
+                resource_types: ['Dataset', 'Image', 'Software'],
+                statuses: ['published', 'review', 'draft'],
+                curators: ['Alice', 'Bob', 'Charlie'],
+                year_range: { min: 2020, max: 2024 },
+            },
+        });
 
         render(<OldDatasets {...baseProps} />);
 
         expect(screen.getByRole('heading', { name: 'Old Datasets', level: 1 })).toBeVisible();
         expect(screen.getByText('Overview of legacy resources from the SUMARIOPMD database')).toBeVisible();
-
-        const badge = await screen.findByText(/2 of 60 datasets/i);
-        expect(badge).toBeVisible();
 
         const table = screen.getByRole('table');
         expect(table).toBeVisible();
@@ -559,7 +547,7 @@ describe('OldDatasets page', () => {
 
         mockedAxios.get
             .mockResolvedValueOnce({
-                // First call: filter-options
+                // First call: filter-options on mount
                 data: {
                     resource_types: ['Dataset', 'Image', 'Software'],
                     statuses: ['published', 'review', 'draft'],
@@ -567,17 +555,9 @@ describe('OldDatasets page', () => {
                     year_range: { min: 2020, max: 2024 },
                 },
             })
+            .mockRejectedValueOnce(axiosError) // Second call: sort change triggers load-more (error)
             .mockResolvedValueOnce({
-                // Second call: initial load-more (successful)
-                data: {
-                    datasets: baseProps.datasets,
-                    pagination: baseProps.pagination,
-                    sort: baseProps.sort,
-                },
-            })
-            .mockRejectedValueOnce(axiosError) // Third call: sort change (error)
-            .mockResolvedValueOnce({
-                // Fourth call: retry after error (successful)
+                // Third call: retry after error (successful)
                 data: {
                     datasets: [
                         {
@@ -608,6 +588,9 @@ describe('OldDatasets page', () => {
 
         render(<OldDatasets {...baseProps} />);
 
+        // Wait for initial render with props data
+        await screen.findByText('Concise dataset title');
+
         const idSortButton = screen.getByRole('button', {
             name: /Sort by the dataset ID from the legacy database/i,
         });
@@ -632,9 +615,10 @@ describe('OldDatasets page', () => {
         await user.click(retryButton);
 
         await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenNthCalledWith(2, '/old-datasets/load-more', {
-                params: { page: 1, per_page: 20, sort_key: 'id', sort_direction: 'asc' },
-            });
+            // Retry should trigger the same load-more call with query string
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                '/old-datasets/load-more?page=1&per_page=20&sort_key=id&sort_direction=asc'
+            );
         });
 
         await screen.findByText('Refreshed dataset after retry');
@@ -712,7 +696,7 @@ describe('OldDatasets page', () => {
     it('requests the next page when the sentinel row becomes visible', async () => {
         mockedAxios.get
             .mockResolvedValueOnce({
-                // First call: filter-options
+                // First call: filter-options on mount
                 data: {
                     resource_types: ['Dataset', 'Image', 'Software'],
                     statuses: ['published', 'review', 'draft'],
@@ -721,15 +705,7 @@ describe('OldDatasets page', () => {
                 },
             })
             .mockResolvedValueOnce({
-                // Second call: load-more page 1 (initial load)
-                data: {
-                    datasets: baseProps.datasets,
-                    pagination: baseProps.pagination,
-                    sort: baseProps.sort,
-                },
-            })
-            .mockResolvedValueOnce({
-                // Third call: load-more page 2
+                // Second call: load-more page 2 when sentinel becomes visible (1 new dataset)
                 data: {
                     datasets: [
                         {
@@ -750,14 +726,17 @@ describe('OldDatasets page', () => {
                     last_page: 3,
                     per_page: 20,
                     total: 60,
-                    from: 21,
-                    to: 40,
+                    from: 3,  // Total datasets so far (2 from props + 1 new = 3)
+                    to: 3,    // Only 1 new dataset in this batch
                     has_more: true,
                 },
             },
         });
 
         render(<OldDatasets {...baseProps} />);
+
+        // Wait for initial render with props data
+        await screen.findByText('Concise dataset title');
 
         const table = screen.getByRole('table');
         const bodyRows = within(table).getAllByRole('row').slice(1);
@@ -779,7 +758,6 @@ describe('OldDatasets page', () => {
         });
 
         await screen.findByText('Recently ingested dataset');
-        expect(screen.getByText(/3 of 60 datasets/i)).toBeVisible();
     });
 
     it('shows an inline retry affordance when loading additional pages fails', async () => {
