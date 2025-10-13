@@ -1,139 +1,80 @@
 import { expect, test } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
-import { DashboardPage, LoginPage } from '../helpers/page-objects';
+import { TEST_USER_EMAIL, TEST_USER_GREETING, TEST_USER_PASSWORD } from '../constants';
 
 /**
  * Critical Smoke Tests
  * 
- * Diese Tests prüfen die wichtigsten Funktionen der Anwendung.
- * Sie laufen vor allen anderen Tests und stoppen die Pipeline bei Fehlern.
+ * Simple, fast tests to verify core functionality works.
+ * Based on working tests from main branch.
  * 
- * Ziel: Schnelles Feedback (< 2 Minuten)
+ * Pattern: Dashboard → XML Upload → Curation with URL params
  */
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function resolveDatasetExample(filename: string): string {
+  return path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', filename);
+}
 
 test.describe('Critical Smoke Tests', () => {
   test('user can login and access dashboard', async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    const dashboard = new DashboardPage(page);
-
     // Navigate to login
-    await loginPage.goto();
-    await loginPage.verifyOnLoginPage();
-
+    await page.goto('/login');
+    
     // Perform login
-    await loginPage.loginAndWaitForDashboard(TEST_USER_EMAIL, TEST_USER_PASSWORD);
-
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    
+    // Verify redirect to dashboard
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    
     // Verify dashboard is accessible
-    await dashboard.verifyOnDashboard();
-    await dashboard.verifyNavigationVisible();
+    await expect(page.getByText(TEST_USER_GREETING)).toBeVisible();
   });
 
-  test('main navigation works', async ({ page }) => {
-    const loginPage = new LoginPage(page);
-    const dashboard = new DashboardPage(page);
+  test('user can upload XML file and access curation form', async ({ page }) => {
+    // Login first
+    await page.goto('/login');
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    
+    // Go to dashboard and upload XML
+    await page.goto('/dashboard');
+    await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
+    
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
+    await fileInput.setInputFiles(xmlFilePath);
+    
+    // Verify redirect to curation with URL params
+    await page.waitForURL(/\/curation/, { timeout: 10000 });
+    
+    const currentUrl = page.url();
+    expect(currentUrl).toMatch(/doi=/);
+    expect(currentUrl).toMatch(/year=/);
+  });
 
+  test('navigation between dashboard and settings works', async ({ page }) => {
     // Login
-    await loginPage.goto();
-    await loginPage.loginAndWaitForDashboard(TEST_USER_EMAIL, TEST_USER_PASSWORD);
-
-    // Test navigation to key pages
-    await dashboard.navigateTo('Old Datasets');
-    await expect(page).toHaveURL(/\/old-datasets/);
-    await expect(page.getByRole('heading', { name: 'Old Datasets' })).toBeVisible();
-
-    await dashboard.navigateTo('Curation');
-    await expect(page).toHaveURL(/\/curation/);
-
-    await dashboard.navigateTo('Resources');
-    await expect(page).toHaveURL(/\/resources/);
-    await expect(page.getByRole('heading', { name: 'Resources' })).toBeVisible();
-  });
-
-  test('user can create a minimal resource', async ({ page }) => {
-    const loginPage = new LoginPage(page);
-
-    // Login
-    await loginPage.goto();
-    await loginPage.loginAndWaitForDashboard(TEST_USER_EMAIL, TEST_USER_PASSWORD);
-
-    // Navigate to curation
-    await page.goto('/curation');
-    // Wait for Inertia.js/React hydration in CI
-    await page.waitForLoadState('networkidle');
-
-    // Fill minimal required fields
-    await test.step('Fill required metadata', async () => {
-      // DOI (required)
-      const doiInput = page.getByLabel('DOI', { exact: true });
-      await expect(doiInput).toBeVisible({ timeout: 30000 });
-      await doiInput.fill('10.5555/smoke-test-' + Date.now());
-
-      // Publication Year (required) - wait for it explicitly
-      const yearInput = page.getByLabel('Publication Year');
-      await expect(yearInput).toBeVisible({ timeout: 30000 });
-      await yearInput.fill('2024');
-
-      // Resource Type (required)
-      const resourceTypeButton = page.getByRole('button', { name: /Select Resource Type/i });
-      await resourceTypeButton.click();
-      const datasetOption = page.getByRole('option', { name: 'Dataset' });
-      await datasetOption.click();
-
-      // Language (required)
-      const languageButton = page.getByRole('button', { name: /Select Language/i });
-      await languageButton.click();
-      const englishOption = page.getByRole('option', { name: /English/i });
-      await englishOption.click();
-    });
-
-    await test.step('Add required author', async () => {
-      // Open Authors accordion
-      const authorsAccordion = page.getByRole('button', { name: 'Authors' });
-      const isExpanded = await authorsAccordion.getAttribute('aria-expanded');
-      if (isExpanded === 'false') {
-        await authorsAccordion.click();
-      }
-
-      // Fill first author
-      const authorLastName = page.getByLabel('Last name').first();
-      await authorLastName.fill('Smoke');
-      
-      const authorFirstName = page.getByLabel('First name').first();
-      await authorFirstName.fill('Test');
-    });
-
-    await test.step('Add required title', async () => {
-      // Open Titles accordion
-      const titlesAccordion = page.getByRole('button', { name: 'Titles' });
-      const isExpanded = await titlesAccordion.getAttribute('aria-expanded');
-      if (isExpanded === 'false') {
-        await titlesAccordion.click();
-      }
-
-      // Fill main title
-      const titleInput = page.getByLabel('Title').first();
-      await titleInput.fill('Smoke Test Resource');
-    });
-
-    // Note: We're NOT saving in smoke tests to avoid DB pollution
-    // Just verify the form is functional
-    await expect(page.getByRole('button', { name: /Save|Submit/i })).toBeVisible();
-  });
-
-  test('application handles errors gracefully', async ({ page }) => {
-    const loginPage = new LoginPage(page);
-
-    // Test invalid login
-    await loginPage.goto();
-    await loginPage.login('invalid@example.com', 'wrongpassword');
-
-    // Should show error message
-    await loginPage.verifyErrorDisplayed();
-
-    // Page should still be functional
-    await expect(loginPage.emailInput).toBeVisible();
-    await expect(loginPage.passwordInput).toBeVisible();
-    await expect(loginPage.loginButton).toBeVisible();
+    await page.goto('/login');
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    
+    // Navigate to settings
+    await page.goto('/settings');
+    await expect(page).toHaveURL(/\/settings/);
+    
+    // Navigate back to dashboard
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 });

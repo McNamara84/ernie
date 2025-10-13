@@ -107,20 +107,10 @@ export default defineConfig({
   /* Only use webServer for local development */
   ...(process.env.CI ? {} : {
     webServer: {
-      command: 'php artisan serve --host=127.0.0.1 --port=8000',
+      command: 'php artisan serve --host=127.0.0.1 --port=8000 --env=testing',
       url: 'http://127.0.0.1:8000',
       reuseExistingServer: true,
       timeout: 120 * 1000,
-      env: {
-        ...process.env,
-        APP_ENV: 'testing',
-        DB_CONNECTION: 'sqlite',
-        SESSION_DRIVER: 'file',
-        SESSION_PATH: '/',
-        CACHE_DRIVER: 'file',
-        QUEUE_CONNECTION: 'sync',
-        BROADCAST_DRIVER: 'log',
-      },
     },
   }),
 });
