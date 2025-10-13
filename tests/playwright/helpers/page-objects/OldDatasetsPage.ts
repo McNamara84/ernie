@@ -36,6 +36,7 @@ export class OldDatasetsPage {
   readonly resourceTypeFilter: Locator;
   readonly errorAlert: Locator;
   readonly noDataMessage: Locator;
+  readonly paginationContainer: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -47,6 +48,7 @@ export class OldDatasetsPage {
     this.resourceTypeFilter = page.getByLabel('Resource Type');
     this.errorAlert = page.getByRole('alert');
     this.noDataMessage = page.getByText('No datasets available');
+    this.paginationContainer = page.locator('.pagination, [role="navigation"][aria-label*="pagination" i]');
   }
 
   /**
@@ -214,5 +216,67 @@ export class OldDatasetsPage {
       .locator('[data-testid="dataset-year"]');
     
     return (await yearCell.textContent()) || '';
+  }
+
+  /**
+   * Verify that the old datasets list is visible
+   */
+  async verifyOldDatasetsListVisible() {
+    await expect(this.datasetTable).toBeVisible();
+    const rows = this.datasetTable.locator('tbody tr');
+    await expect(rows.first()).toBeVisible();
+  }
+
+  /**
+   * Sort by ID
+   * @param direction - Sort direction ('asc' or 'desc')
+   */
+  async sortById(direction: 'asc' | 'desc') {
+    const sortParam = direction === 'asc' ? 'id' : '-id';
+    await this.page.goto(`/old-datasets?sort=${sortParam}`);
+    await this.page.waitForLoadState('networkidle');
+  }
+
+  /**
+   * Sort by date
+   */
+  async sortByDate() {
+    await this.sortBy('year');
+  }
+
+  /**
+   * Filter by search term
+   * @param searchTerm - Text to search for
+   */
+  async filterBySearch(searchTerm: string) {
+    await this.page.goto(`/old-datasets?search=${searchTerm}`);
+    await this.page.waitForLoadState('networkidle');
+  }
+
+  /**
+   * Clear all filters
+   */
+  async clearFilters() {
+    await this.page.goto('/old-datasets');
+    await this.page.waitForLoadState('networkidle');
+  }
+
+  /**
+   * Import first dataset into curation form
+   */
+  async importFirstDataset() {
+    const firstRow = this.datasetTable.locator('tbody tr').first();
+    const importButton = firstRow.locator('button', { hasText: /import|load/i }).first();
+    await importButton.click();
+    await this.page.waitForURL(/\/curation/, { timeout: 10000 });
+  }
+
+  /**
+   * Navigate to specific page
+   * @param pageNumber - Page number to navigate to
+   */
+  async goToPage(pageNumber: number) {
+    await this.page.goto(`/old-datasets?page=${pageNumber}`);
+    await this.page.waitForLoadState('networkidle');
   }
 }
