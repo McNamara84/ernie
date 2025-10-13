@@ -736,9 +736,6 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             const response = await axios.get(`/old-datasets/${dataset.id}/contributors`);
             const contributors = response.data.contributors || [];
             
-            // Debug logging
-            console.log('Contributors from API:', contributors);
-            
             contributors.forEach((contributor: {
                 type: string;
                 givenName: string | null;
@@ -1215,7 +1212,6 @@ export default function OldDatasets({
         const loadFilterOptions = async () => {
             try {
                 const response = await axios.get('/old-datasets/filter-options');
-                console.log('Filter options loaded:', response.data);
                 setFilterOptions(response.data);
             } catch (err) {
                 console.error('Failed to load filter options:', err);
