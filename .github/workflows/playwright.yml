@@ -13,7 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        # Only Chromium for PRs to save time, all browsers for main branch
+        browser: ${{ github.event_name == 'pull_request' && fromJSON('["chromium"]') || fromJSON('["chromium", "firefox", "webkit"]') }}
     name: Playwright (${{ matrix.browser }})
     steps:
     - uses: actions/checkout@v4
@@ -109,8 +110,21 @@ jobs:
         BROADCAST_DRIVER: log
     - name: Wait for server to be ready
       run: |
-        timeout 30 bash -c 'until curl -s http://127.0.0.1:8000 > /dev/null; do sleep 1; done'
-        echo "Server is ready!"
+        echo "Waiting for Laravel server to start..."
+        for i in {1..60}; do
+          if curl -sf http://127.0.0.1:8000 > /dev/null 2>&1; then
+            echo "✅ Server is ready after $i seconds!"
+            curl -I http://127.0.0.1:8000 || true
+            sleep 2  # Extra grace period
+            exit 0
+          fi
+          echo "⏳ Attempt $i/60..."
+          sleep 1
+        done
+        echo "❌ Server failed to start within 60 seconds"
+        # Show Laravel logs for debugging
+        cat storage/logs/laravel.log || echo "No Laravel logs found"
+        exit 1
     - name: Run Playwright tests
       run: npx playwright test --project=${{ matrix.browser }}
       env:

@@ -24,10 +24,10 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? 'github' : 'html',
   /* Global timeout for each test */
-  timeout: 60 * 1000, // Increased to 60s for workflow tests
+  timeout: 90 * 1000, // Increased to 90s for workflow tests (CI needs more time)
   /* Global timeout for expect() */
   expect: {
-    timeout: 10 * 1000, // Increased to 10s for more complex assertions
+    timeout: 15 * 1000, // Increased to 15s for more complex assertions in CI
   },
   
   /* Test match patterns - organized by priority */
@@ -58,6 +58,12 @@ export default defineConfig({
     
     /* Record video on failure */
     video: 'retain-on-failure',
+    
+    /* Timeout for each action (click, fill, etc.) */
+    actionTimeout: 15 * 1000, // 15s for actions in CI
+    
+    /* Timeout for page navigation */
+    navigationTimeout: 30 * 1000, // 30s for page loads in CI
   },
 
   /* Configure projects for major browsers */
