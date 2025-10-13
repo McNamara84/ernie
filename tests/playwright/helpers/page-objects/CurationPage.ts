@@ -291,4 +291,113 @@ export class CurationPage {
       await expect(authorRegion.getByLabel('First name')).toHaveValue(expectedData.firstName);
     }
   }
+
+  /**
+   * Fill title details
+   * @param index - 0-based index of the title
+   * @param data - Title data to fill
+   */
+  async fillTitle(index: number, data: {
+    title: string;
+    language?: string;
+    type?: string;
+  }) {
+    await this.openAccordion(this.titlesAccordion);
+    
+    const titleInput = this.page.getByLabel('Title').nth(index);
+    await titleInput.fill(data.title);
+    
+    if (data.language) {
+      const languageSelect = this.page.getByLabel('Language').nth(index);
+      await languageSelect.click();
+      await this.page.getByRole('option', { name: data.language }).click();
+    }
+    
+    if (data.type) {
+      const typeSelect = this.page.getByLabel('Title Type').nth(index);
+      await typeSelect.click();
+      await this.page.getByRole('option', { name: data.type }).click();
+    }
+  }
+
+  /**
+   * Add a new description row
+   */
+  async addDescription() {
+    await this.openAccordion(this.descriptionsAccordion);
+    const addButton = this.page.getByRole('button', { name: 'Add description' }).first();
+    await addButton.click();
+  }
+
+  /**
+   * Fill description details
+   * @param index - 0-based index of the description
+   * @param data - Description data to fill
+   */
+  async fillDescription(index: number, data: {
+    description: string;
+    language?: string;
+    type?: string;
+  }) {
+    await this.openAccordion(this.descriptionsAccordion);
+    
+    const descriptionInput = this.page.getByLabel('Description').nth(index);
+    await descriptionInput.fill(data.description);
+    
+    if (data.language) {
+      const languageSelect = this.page.getByLabel('Language').nth(index);
+      await languageSelect.click();
+      await this.page.getByRole('option', { name: data.language }).click();
+    }
+    
+    if (data.type) {
+      const typeSelect = this.page.getByLabel('Description Type').nth(index);
+      await typeSelect.click();
+      await this.page.getByRole('option', { name: data.type }).click();
+    }
+  }
+
+  /**
+   * Add a new date row
+   */
+  async addDate() {
+    await this.openAccordion(this.datesAccordion);
+    const addButton = this.page.getByRole('button', { name: 'Add date' }).first();
+    await addButton.click();
+  }
+
+  /**
+   * Fill date details
+   * @param index - 0-based index of the date
+   * @param data - Date data to fill
+   */
+  async fillDate(index: number, data: {
+    date?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    type?: string;
+  }) {
+    await this.openAccordion(this.datesAccordion);
+    
+    if (data.date) {
+      const dateInput = this.page.getByLabel('Date').nth(index);
+      await dateInput.fill(data.date);
+    }
+    
+    if (data.dateFrom) {
+      const dateFromInput = this.page.getByLabel('Date From').nth(index);
+      await dateFromInput.fill(data.dateFrom);
+    }
+    
+    if (data.dateTo) {
+      const dateToInput = this.page.getByLabel('Date To').nth(index);
+      await dateToInput.fill(data.dateTo);
+    }
+    
+    if (data.type) {
+      const typeSelect = this.page.getByLabel('Date Type').nth(index);
+      await typeSelect.click();
+      await this.page.getByRole('option', { name: data.type }).click();
+    }
+  }
 }
