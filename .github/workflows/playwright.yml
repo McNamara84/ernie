@@ -13,8 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Only Chromium for PRs to save time, all browsers for main branch
-        browser: ${{ github.event_name == 'pull_request' && fromJSON('["chromium"]') || fromJSON('["chromium", "firefox", "webkit"]') }}
+        browser: [chromium, firefox, webkit]
     name: Playwright (${{ matrix.browser }})
     steps:
     - uses: actions/checkout@v4
@@ -64,6 +63,11 @@ jobs:
         chmod 666 database/database.sqlite
         php artisan key:generate
         php artisan migrate:fresh --seed --force
+        # Verify test user and data exist
+        echo "=== Verifying database setup ==="
+        php artisan tinker --execute="echo 'Test user exists: ' . (App\Models\User::where('email', 'test@example.com')->exists() ? 'YES' : 'NO');"
+        php artisan tinker --execute="echo 'Total users: ' . App\Models\User::count();"
+        php artisan tinker --execute="echo 'Total resources: ' . App\Models\Resource::count();"
         # Prepare ROR test data for Playwright tests
         mkdir -p storage/app/private/ror
         cat > storage/app/private/ror/ror-affiliations.json << 'EOF'
@@ -125,6 +129,10 @@ jobs:
         # Show Laravel logs for debugging
         cat storage/logs/laravel.log || echo "No Laravel logs found"
         exit 1
+    - name: Verify login page is accessible
+      run: |
+        echo "=== Testing login page ==="
+        curl -s http://127.0.0.1:8000/login | grep -q "login" && echo "✅ Login page accessible" || echo "❌ Login page NOT accessible"
     - name: Run Playwright tests
       run: npx playwright test --project=${{ matrix.browser }}
       env:
