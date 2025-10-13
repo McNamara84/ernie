@@ -19,7 +19,7 @@ services:
       - APP_DEBUG=false
       - SESSION_DRIVER=file
       - SESSION_LIFETIME=120
-      - SESSION_PATH=/
+      - SESSION_PATH=/ernie
       - SESSION_DOMAIN=.env.rz-vm182.gfz.de
       - SESSION_SECURE_COOKIE=true
       - SESSION_SAME_SITE=lax
