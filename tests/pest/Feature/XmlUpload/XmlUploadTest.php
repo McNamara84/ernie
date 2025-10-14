@@ -525,19 +525,19 @@ XML;
             [
                 'uuid' => 'b1ce822a-139b-4e11-8bbe-453f19501c36',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36',
-                'type' => 'science',
+                'scheme' => 'Science Keywords',
                 'path' => ['EARTH SCIENCE', 'CRYOSPHERE', 'FROZEN GROUND', 'ROCK GLACIERS'],
             ],
             [
                 'uuid' => '6438d343-2e1f-4a89-97a9-b032e651163f',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/6438d343-2e1f-4a89-97a9-b032e651163f',
-                'type' => 'platforms',
+                'scheme' => 'Platforms',
                 'path' => ['Living Organism-based Platforms', 'Living Organism'],
             ],
             [
                 'uuid' => 'aac79253-3894-408b-a20b-51e7101c36e3',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/aac79253-3894-408b-a20b-51e7101c36e3',
-                'type' => 'instruments',
+                'scheme' => 'Instruments',
                 'path' => ['Solar/Space Observing Instruments', 'Radio Wave Detectors', 'RIOMETER'],
             ],
         ],
@@ -578,7 +578,7 @@ XML;
             [
                 'uuid' => 'b1ce822a-139b-4e11-8bbe-453f19501c36',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36',
-                'type' => 'science',
+                'scheme' => 'Science Keywords',
                 'path' => ['EARTH SCIENCE', 'CRYOSPHERE', 'FROZEN GROUND', 'ROCK GLACIERS'],
             ],
         ],
