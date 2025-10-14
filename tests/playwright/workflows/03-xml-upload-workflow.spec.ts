@@ -1,4 +1,4 @@
-﻿import { expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
