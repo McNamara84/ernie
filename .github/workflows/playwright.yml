@@ -38,6 +38,13 @@ jobs:
       run: npm ci
     - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist --optimize-autoloader
+    - name: Cache Vite build output
+      uses: actions/cache@v4
+      with:
+        path: public/build
+        key: ${{ runner.os }}-vite-${{ hashFiles('resources/**', 'package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vite-
     - name: Build assets for CI
       run: npm run build
       env:
