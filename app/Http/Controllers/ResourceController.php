@@ -444,6 +444,11 @@ class ResourceController extends Controller
                     $this->syncAuthorAffiliations($resourceAuthor, $author);
                 }
 
+                // Delete old contributors (including MSL labs) if updating
+                if ($isUpdate) {
+                    $resource->contributors()->delete();
+                }
+
                 $contributors = $validated['contributors'] ?? [];
 
                 foreach ($contributors as $contributor) {
@@ -465,9 +470,7 @@ class ResourceController extends Controller
                 $mslLaboratories = $validated['mslLaboratories'] ?? [];
 
                 foreach ($mslLaboratories as $lab) {
-                    $position = isset($lab['position']) && is_int($lab['position'])
-                        ? $lab['position']
-                        : 0;
+                    $position = (int) ($lab['position'] ?? 0);
 
                     $resourceAuthor = $this->storeMslLaboratory($resource, $lab, $position);
                     $this->syncMslLaboratoryRole($resourceAuthor);

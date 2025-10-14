@@ -132,6 +132,7 @@ class StoreResourceRequest extends FormRequest
             'mslLaboratories.*.name' => ['required', 'string', 'max:255'],
             'mslLaboratories.*.affiliation_name' => ['required', 'string', 'max:255'],
             'mslLaboratories.*.affiliation_ror' => ['nullable', 'string', 'max:255'],
+            'mslLaboratories.*.position' => ['required', 'integer', 'min:0'],
         ];
     }
 
