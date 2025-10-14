@@ -47,4 +47,9 @@ Route::get('/v1/ror-affiliations', RorAffiliationController::class);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
+Route::get('/v1/msl-vocabulary-url', function () {
+    return response()->json([
+        'url' => config('msl.vocabulary_url'),
+    ]);
+});
 Route::get('/v1/doc', ApiDocController::class);

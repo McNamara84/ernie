@@ -130,7 +130,7 @@ class StoreResourceRequest extends FormRequest
             'mslLaboratories' => ['nullable', 'array'],
             'mslLaboratories.*.identifier' => ['required', 'string', 'max:255'],
             'mslLaboratories.*.name' => ['required', 'string', 'max:255'],
-            'mslLaboratories.*.affiliation_name' => ['required', 'string', 'max:255'],
+            'mslLaboratories.*.affiliation_name' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.affiliation_ror' => ['nullable', 'string', 'max:255'],
             'mslLaboratories.*.position' => ['required', 'integer', 'min:0'],
         ];
@@ -477,7 +477,7 @@ class StoreResourceRequest extends FormRequest
             $mslLaboratories[] = [
                 'identifier' => $identifier,
                 'name' => $name,
-                'affiliation_name' => $affiliationName,
+                'affiliation_name' => $affiliationName !== '' ? $affiliationName : null,
                 'affiliation_ror' => $affiliationRor !== '' ? $affiliationRor : null,
                 'position' => (int) $index,
             ];

@@ -22,8 +22,8 @@ return new class extends Migration
             $table->index('identifier');
             $table->index('identifier_type');
             
-            // Drop old unique constraint on (name, ror_id)
-            $table->dropUnique(['name', 'ror_id']);
+            // Drop old unique constraint on (name, ror_id) using explicit index name
+            $table->dropUnique('institutions_name_ror_id_unique');
         });
         
         // Migrate existing ROR data to new fields
@@ -54,8 +54,8 @@ return new class extends Migration
             $table->dropIndex(['identifier_type']);
             $table->dropColumn(['identifier', 'identifier_type']);
             
-            // Restore old unique constraint
-            $table->unique(['name', 'ror_id']);
+            // Restore old unique constraint using explicit index name
+            $table->unique(['name', 'ror_id'], 'institutions_name_ror_id_unique');
         });
     }
 };

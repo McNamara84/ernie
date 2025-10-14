@@ -8,11 +8,17 @@ use Illuminate\Support\Facades\Log;
 
 class MslLaboratoryService
 {
-    private const LABORATORIES_JSON_URL = 'https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/main/vocabularies/labs/laboratories.json';
-    
     private const CACHE_KEY = 'msl_laboratories';
     
     private const CACHE_TTL = 86400; // 24 hours
+
+    /**
+     * Get the MSL Laboratories vocabulary URL from config
+     */
+    private function getVocabularyUrl(): string
+    {
+        return config('msl.vocabulary_url');
+    }
 
     /**
      * @var array<string, array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}>|null
@@ -37,13 +43,15 @@ class MslLaboratoryService
             return $cached;
         }
 
+        $vocabularyUrl = $this->getVocabularyUrl();
+
         try {
-            $response = Http::timeout(10)->get(self::LABORATORIES_JSON_URL);
+            $response = Http::timeout(10)->get($vocabularyUrl);
 
             if (! $response->successful()) {
                 Log::warning('Failed to fetch MSL laboratories', [
                     'status' => $response->status(),
-                    'url' => self::LABORATORIES_JSON_URL,
+                    'url' => $vocabularyUrl,
                 ]);
                 $this->laboratoriesById = [];
                 return [];
@@ -80,7 +88,7 @@ class MslLaboratoryService
         } catch (\Exception $e) {
             Log::error('Exception while fetching MSL laboratories', [
                 'error' => $e->getMessage(),
-                'url' => self::LABORATORIES_JSON_URL,
+                'url' => $vocabularyUrl,
             ]);
             $this->laboratoriesById = [];
             return [];

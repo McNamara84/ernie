@@ -273,11 +273,13 @@ class UploadXmlController extends Controller
                 continue;
             }
 
-            $roles = $this->extractContributorRoles($contributor->getAttribute('contributorType'));
+            $contributorType = $contributor->getAttribute('contributorType');
+            $roles = $this->extractContributorRoles($contributorType);
 
             // Check if this is an MSL Laboratory (HostingInstitution with labid)
+            // Use contributorType directly for robust detection (case-insensitive)
             $labId = $this->extractLabId($content);
-            if ($labId !== null && in_array('Hosting Institution', $roles, true)) {
+            if ($labId !== null && strcasecmp($contributorType ?? '', 'HostingInstitution') === 0) {
                 // This is an MSL Laboratory
                 $mslLab = $this->extractMslLaboratory($content, $labId);
                 if ($mslLab !== null) {
