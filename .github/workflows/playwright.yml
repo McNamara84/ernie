@@ -14,7 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-    name: Playwright (${{ matrix.browser }})
+        shard: [1, 2]
+    name: Playwright (${{ matrix.browser }}) - Shard ${{ matrix.shard }}/2
     steps:
     - uses: actions/checkout@v4
     - name: Setup PHP
@@ -27,10 +28,24 @@ jobs:
       with:
         node-version: '22'
         cache: 'npm'
+    - name: Cache Composer dependencies
+      uses: actions/cache@v4
+      with:
+        path: vendor
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
     - name: Install Node dependencies
       run: npm ci
     - name: Install PHP dependencies
       run: composer install --no-interaction --prefer-dist --optimize-autoloader
+    - name: Cache Vite build output
+      uses: actions/cache@v4
+      with:
+        path: public/build
+        key: ${{ runner.os }}-vite-${{ hashFiles('resources/**', 'package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vite-
     - name: Build assets for CI
       run: npm run build
       env:
@@ -63,6 +78,11 @@ jobs:
         chmod 666 database/database.sqlite
         php artisan key:generate
         php artisan migrate:fresh --seed --force
+        # Verify test user and data exist
+        echo "=== Verifying database setup ==="
+        php artisan tinker --execute="echo 'Test user exists: ' . (App\Models\User::where('email', 'test@example.com')->exists() ? 'YES' : 'NO');"
+        php artisan tinker --execute="echo 'Total users: ' . App\Models\User::count();"
+        php artisan tinker --execute="echo 'Total resources: ' . App\Models\Resource::count();"
         # Prepare ROR test data for Playwright tests
         mkdir -p storage/app/private/ror
         cat > storage/app/private/ror/ror-affiliations.json << 'EOF'
@@ -109,10 +129,27 @@ jobs:
         BROADCAST_DRIVER: log
     - name: Wait for server to be ready
       run: |
-        timeout 30 bash -c 'until curl -s http://127.0.0.1:8000 > /dev/null; do sleep 1; done'
-        echo "Server is ready!"
+        echo "Waiting for Laravel server to start..."
+        for i in {1..60}; do
+          if curl -sf http://127.0.0.1:8000 > /dev/null 2>&1; then
+            echo "✅ Server is ready after $i seconds!"
+            curl -I http://127.0.0.1:8000 || true
+            sleep 2  # Extra grace period
+            exit 0
+          fi
+          echo "⏳ Attempt $i/60..."
+          sleep 1
+        done
+        echo "❌ Server failed to start within 60 seconds"
+        # Show Laravel logs for debugging
+        cat storage/logs/laravel.log || echo "No Laravel logs found"
+        exit 1
+    - name: Verify login page is accessible
+      run: |
+        echo "=== Testing login page ==="
+        curl -s http://127.0.0.1:8000/login | grep -q "login" && echo "✅ Login page accessible" || echo "❌ Login page NOT accessible"
     - name: Run Playwright tests
-      run: npx playwright test --project=${{ matrix.browser }}
+      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/2
       env:
         CI: true
     - name: Stop Laravel server
@@ -123,6 +160,6 @@ jobs:
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
-        name: playwright-report
+        name: playwright-report-${{ matrix.browser }}-${{ matrix.shard }}
         path: playwright-report/
         retention-days: 30

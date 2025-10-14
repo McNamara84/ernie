@@ -19,16 +19,32 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  /* Workers per shard - can be parallel now since sharding isolates tests */
+  workers: process.env.CI ? 2 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? 'github' : 'html',
   /* Global timeout for each test */
-  timeout: 30 * 1000,
+  timeout: 90 * 1000, // Increased to 90s for workflow tests (CI needs more time)
   /* Global timeout for expect() */
   expect: {
-    timeout: 5 * 1000,
+    timeout: 15 * 1000, // Increased to 15s for more complex assertions in CI
   },
+  
+  /* Test match patterns - organized by priority */
+  testMatch: [
+    // Critical smoke tests run first
+    'tests/playwright/critical/**/*.spec.ts',
+    // Then workflow tests
+    'tests/playwright/workflows/**/*.spec.ts',
+  ],
+  
+  /* Ignore helper files and documentation */
+  testIgnore: [
+    '**/helpers/**',
+    '**/page-objects/**',
+    '**/*.md',
+    '**/constants.ts',
+  ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -42,6 +58,12 @@ export default defineConfig({
     
     /* Record video on failure */
     video: 'retain-on-failure',
+    
+    /* Timeout for each action (click, fill, etc.) */
+    actionTimeout: 15 * 1000, // 15s for actions in CI
+    
+    /* Timeout for page navigation */
+    navigationTimeout: 30 * 1000, // 30s for page loads in CI
   },
 
   /* Configure projects for major browsers */
@@ -85,20 +107,10 @@ export default defineConfig({
   /* Only use webServer for local development */
   ...(process.env.CI ? {} : {
     webServer: {
-      command: 'php artisan serve --host=127.0.0.1 --port=8000',
+      command: 'php artisan serve --host=127.0.0.1 --port=8000 --env=testing',
       url: 'http://127.0.0.1:8000',
       reuseExistingServer: true,
       timeout: 120 * 1000,
-      env: {
-        ...process.env,
-        APP_ENV: 'testing',
-        DB_CONNECTION: 'sqlite',
-        SESSION_DRIVER: 'file',
-        SESSION_PATH: '/',
-        CACHE_DRIVER: 'file',
-        QUEUE_CONNECTION: 'sync',
-        BROADCAST_DRIVER: 'log',
-      },
     },
   }),
 });

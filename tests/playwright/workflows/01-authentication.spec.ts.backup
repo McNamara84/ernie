@@ -1,0 +1,167 @@
+import { expect, test } from '@playwright/test';
+
+import { INVALID_PASSWORD, TEST_USER_EMAIL, TEST_USER_GREETING, TEST_USER_PASSWORD } from '../constants';
+
+/**
+ * Authentication Tests
+ * 
+ * Simple, focused tests for login and logout functionality.
+ * Based on working tests from main branch.
+ */
+
+test.describe('Authentication', () => {
+  test('redirects to dashboard after valid login', async ({ page }) => {
+    await page.goto('/login');
+
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    await expect(page.getByText(TEST_USER_GREETING)).toBeVisible();
+  });
+
+  test('shows an error for invalid login credentials', async ({ page }) => {
+    await page.goto('/login');
+
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(INVALID_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+
+    await expect(page.getByText('These credentials do not match our records.')).toBeVisible();
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('user can logout', async ({ page }) => {
+    // Login first
+    await page.goto('/login');
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+
+    // Logout
+    await page.getByRole('button', { name: /logout|log out/i }).click();
+
+    // Should be redirected to login page
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test('authenticated user can access protected pages', async ({ page }) => {
+    await loginAsTestUser(page);
+
+    await test.step('Can access dashboard', async () => {
+      await page.goto('/dashboard');
+      await expect(page).toHaveURL('/dashboard');
+      await expect(page.getByText('Dropzone for XML files')).toBeVisible();
+    });
+
+    await test.step('Can access curation', async () => {
+      await page.goto('/curation');
+      await expect(page).toHaveURL(/\/curation/);
+    });
+
+    await test.step('Can access resources', async () => {
+      await page.goto('/resources');
+      await expect(page).toHaveURL(/\/resources/);
+    });
+
+    await test.step('Can access old datasets', async () => {
+      await page.goto('/old-datasets');
+      await expect(page).toHaveURL(/\/old-datasets/);
+    });
+
+    await test.step('Can access settings', async () => {
+      await page.goto('/settings');
+      await expect(page).toHaveURL(/\/settings/);
+    });
+  });
+
+  test('unauthenticated user is redirected to login', async ({ page }) => {
+    // Try to access protected pages without login
+    
+    await test.step('Dashboard redirects to login', async () => {
+      await page.goto('/dashboard');
+      await expect(page).toHaveURL('/login');
+    });
+
+    await test.step('Curation redirects to login', async () => {
+      await page.goto('/curation');
+      await expect(page).toHaveURL('/login');
+    });
+
+    await test.step('Resources redirects to login', async () => {
+      await page.goto('/resources');
+      await expect(page).toHaveURL('/login');
+    });
+
+    await test.step('Settings redirects to login', async () => {
+      await page.goto('/settings');
+      await expect(page).toHaveURL('/login');
+    });
+  });
+
+  test('remember me functionality', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+
+    await loginPage.goto();
+
+    await test.step('Login with remember me checked', async () => {
+      await loginPage.login(TEST_USER_EMAIL, TEST_USER_PASSWORD, true);
+      await page.waitForURL(/\/dashboard/);
+    });
+
+    // Note: Actual "remember me" cookie testing would require 
+    // browser restart or cookie inspection, which is beyond smoke testing
+    // This test at least verifies the checkbox is functional
+  });
+
+  test('password update flow', async ({ page }) => {
+    await loginAsTestUser(page);
+
+    const settings = new SettingsPage(page);
+
+    await test.step('Navigate to password settings', async () => {
+      await settings.gotoSection('password');
+      
+      await expect(settings.currentPasswordInput).toBeVisible();
+      await expect(settings.newPasswordInput).toBeVisible();
+      await expect(settings.confirmPasswordInput).toBeVisible();
+    });
+
+    await test.step('Validate password fields are present', async () => {
+      // Try to submit without filling (should show validation errors)
+      await settings.updatePasswordButton.click();
+      
+      // Form should still be visible (validation failed)
+      await expect(settings.currentPasswordInput).toBeVisible();
+    });
+
+    // Note: We don't actually change the password in tests
+    // to avoid affecting the test user account
+  });
+
+  test('session persists across page navigation', async ({ page }) => {
+    await loginAsTestUser(page);
+
+    await test.step('Navigate between pages', async () => {
+      // Navigate to different pages
+      await page.goto('/dashboard');
+      await expect(page).toHaveURL('/dashboard');
+
+      await page.goto('/curation');
+      await expect(page).toHaveURL(/\/curation/);
+
+      await page.goto('/resources');
+      await expect(page).toHaveURL(/\/resources/);
+
+      await page.goto('/old-datasets');
+      await expect(page).toHaveURL(/\/old-datasets/);
+
+      // Go back to dashboard - should still be authenticated
+      await page.goto('/dashboard');
+      await expect(page).toHaveURL('/dashboard');
+      await expect(page.getByText('Dropzone for XML files')).toBeVisible();
+    });
+  });
+});

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xmlns="http://datacite.org/schema/kernel-4"
+          xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4/metadata.xsd">
+  <identifier identifierType="DOI">10.5880/TEST.2024.002</identifier>
+  <creators>
+    <creator>
+      <creatorName nameType="Personal">Smith, John</creatorName>
+      <givenName>John</givenName>
+      <familyName>Smith</familyName>
+      <nameIdentifier schemeURI="https://orcid.org/" nameIdentifierScheme="ORCID">0000-0001-2345-6789</nameIdentifier>
+      <affiliation affiliationIdentifier="https://ror.org/04aj4c181" affiliationIdentifierScheme="ROR">University of Research</affiliation>
+    </creator>
+    <creator>
+      <creatorName nameType="Personal">Johnson, Emily</creatorName>
+      <givenName>Emily</givenName>
+      <familyName>Johnson</familyName>
+    </creator>
+  </creators>
+  <titles>
+    <title xml:lang="en">Comprehensive Metadata Test Dataset</title>
+    <title xml:lang="de" titleType="TranslatedTitle">Umfassender Metadaten-Testdatensatz</title>
+    <title xml:lang="en" titleType="Subtitle">With Multiple Fields and Languages</title>
+  </titles>
+  <publisher>Research Data Repository</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset">Comprehensive Test Data</resourceType>
+  <subjects>
+    <subject xml:lang="en" subjectScheme="LCSH">Climate Science</subject>
+    <subject xml:lang="en">Metadata</subject>
+    <subject xml:lang="de">Forschungsdaten</subject>
+  </subjects>
+  <contributors>
+    <contributor contributorType="DataCollector">
+      <contributorName>Research Team</contributorName>
+    </contributor>
+    <contributor contributorType="Editor">
+      <contributorName>Editorial Board</contributorName>
+    </contributor>
+  </contributors>
+  <dates>
+    <date dateType="Collected" dateInformation="Data collection period">2023-01-01/2023-12-31</date>
+    <date dateType="Created">2024-01-15</date>
+  </dates>
+  <language>en</language>
+  <alternateIdentifiers>
+    <alternateIdentifier alternateIdentifierType="URL">https://example.com/dataset/002</alternateIdentifier>
+  </alternateIdentifiers>
+  <relatedIdentifiers>
+    <relatedIdentifier relatedIdentifierType="DOI" relationType="IsSupplementTo">10.5880/RELATED.2023.001</relatedIdentifier>
+  </relatedIdentifiers>
+  <sizes>
+    <size>1.5 GB</size>
+  </sizes>
+  <formats>
+    <format>CSV</format>
+    <format>NetCDF</format>
+  </formats>
+  <version>1.0</version>
+  <rightsList>
+    <rights xml:lang="en" rightsURI="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</rights>
+  </rightsList>
+  <descriptions>
+    <description xml:lang="en" descriptionType="Abstract">
+      This is a comprehensive test dataset that includes all possible metadata fields 
+      supported by DataCite schema. It is used for thorough end-to-end testing.
+    </description>
+    <description xml:lang="en" descriptionType="Methods">
+      Data was collected using automated sensors and validated through manual inspection.
+    </description>
+    <description xml:lang="de" descriptionType="Abstract">
+      Dies ist ein umfassender Testdatensatz mit allen möglichen Metadatenfeldern.
+    </description>
+  </descriptions>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPlace>Global</geoLocationPlace>
+    </geoLocation>
+  </geoLocations>
+  <fundingReferences>
+    <fundingReference>
+      <funderName>Test Foundation</funderName>
+      <funderIdentifier funderIdentifierType="Crossref Funder ID">https://doi.org/10.13039/501100000001</funderIdentifier>
+      <awardNumber>TEST-2024-001</awardNumber>
+    </fundingReference>
+  </fundingReferences>
+</resource>
