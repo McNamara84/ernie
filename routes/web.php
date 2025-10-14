@@ -140,6 +140,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $fundingReferences = is_array($decoded) ? $decoded : [];
         }
 
+        // Get MSL Laboratories from query parameters
+        $mslLaboratories = $request->query('mslLaboratories', []);
+        if (is_string($mslLaboratories)) {
+            $decoded = json_decode($mslLaboratories, true);
+            $mslLaboratories = is_array($decoded) ? $decoded : [];
+        }
+
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
@@ -161,6 +168,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'coverages' => $request->query('coverages', []),
             'relatedWorks' => $relatedWorks,
             'fundingReferences' => $fundingReferences,
+            'mslLaboratories' => $mslLaboratories,
         ]);
     })->name('curation');
 
