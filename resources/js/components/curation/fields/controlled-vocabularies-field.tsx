@@ -27,8 +27,10 @@ interface ControlledVocabulariesFieldProps {
     scienceKeywords: GCMDKeyword[];
     platforms: GCMDKeyword[];
     instruments: GCMDKeyword[];
+    mslVocabulary?: GCMDKeyword[]; // Optional MSL vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
+    showMslTab?: boolean; // Control MSL tab visibility
 }
 
 /**
@@ -67,8 +69,10 @@ export default function ControlledVocabulariesField({
     scienceKeywords,
     platforms,
     instruments,
+    mslVocabulary = [],
     selectedKeywords,
     onChange,
+    showMslTab = false,
 }: ControlledVocabulariesFieldProps) {
     const [activeTab, setActiveTab] = useState<GCMDVocabularyType>('science');
     const [searchQuery, setSearchQuery] = useState('');
@@ -95,10 +99,12 @@ export default function ControlledVocabulariesField({
                 return platforms;
             case 'instruments':
                 return instruments;
+            case 'msl':
+                return mslVocabulary;
             default:
                 return [];
         }
-    }, [activeTab, scienceKeywords, platforms, instruments]);
+    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary]);
 
     // Filter keywords based on search query
     // Only search if query is at least MIN_SEARCH_LENGTH characters
@@ -155,6 +161,7 @@ export default function ControlledVocabulariesField({
             science: [],
             platforms: [],
             instruments: [],
+            msl: [],
         };
 
         for (const keyword of selectedKeywords) {
@@ -177,15 +184,16 @@ export default function ControlledVocabulariesField({
             {/* Selected Keywords Display */}
             {selectedKeywords.length > 0 && (
                 <div className="space-y-3">
-                    {(['science', 'platforms', 'instruments'] as GCMDVocabularyType[]).map(
+                    {(['science', 'platforms', 'instruments', ...(showMslTab ? ['msl' as const] : [])] as GCMDVocabularyType[]).map(
                         (type) => {
                             const keywords = keywordsByVocabulary[type];
                             if (keywords.length === 0) return null;
 
-                            const typeLabels = {
+                            const typeLabels: Record<GCMDVocabularyType, string> = {
                                 science: 'Science Keywords',
                                 platforms: 'Platforms',
                                 instruments: 'Instruments',
+                                msl: 'MSL Vocabulary',
                             };
 
                             return (
@@ -252,7 +260,7 @@ export default function ControlledVocabulariesField({
 
             {/* Tabs for vocabulary types */}
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className={cn("grid w-full", showMslTab ? "grid-cols-4" : "grid-cols-3")}>
                     <TabsTrigger value="science" className="relative">
                         Science Keywords
                         {hasKeywords('science') && (
@@ -283,6 +291,18 @@ export default function ControlledVocabulariesField({
                             />
                         )}
                     </TabsTrigger>
+                    {showMslTab && (
+                        <TabsTrigger value="msl" className="relative">
+                            MSL Vocabulary
+                            {hasKeywords('msl') && (
+                                <span
+                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                    aria-label="Has keywords"
+                                    title="This vocabulary has selected keywords"
+                                />
+                            )}
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value={activeTab} className="space-y-4 mt-4">

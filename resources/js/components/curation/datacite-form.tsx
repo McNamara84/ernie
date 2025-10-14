@@ -23,7 +23,7 @@ import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { hasValidDateValue } from '@/lib/date-utils';
 import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
-import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
+import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
@@ -696,12 +696,22 @@ export default function DataCiteForm({
 
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
         if (initialGcmdKeywords && initialGcmdKeywords.length > 0) {
-            return initialGcmdKeywords.map((kw) => ({
-                id: kw.id,
-                text: kw.text,
-                path: kw.path,
-                vocabularyType: kw.vocabularyType as 'science' | 'platforms' | 'instruments',
-            }));
+            return initialGcmdKeywords
+                .filter((kw): kw is typeof kw & { vocabularyType: string } => 
+                    kw.vocabularyType === 'science' || 
+                    kw.vocabularyType === 'platforms' || 
+                    kw.vocabularyType === 'instruments' ||
+                    kw.vocabularyType === 'msl'
+                )
+                .map((kw) => ({
+                    id: kw.id,
+                    text: kw.text,
+                    path: kw.path,
+                    language: ('language' in kw && typeof kw.language === 'string') ? kw.language : 'en',
+                    scheme: ('scheme' in kw && typeof kw.scheme === 'string') ? kw.scheme : '',
+                    schemeURI: ('schemeURI' in kw && typeof kw.schemeURI === 'string') ? kw.schemeURI : '',
+                    vocabularyType: kw.vocabularyType as GCMDVocabularyType,
+                }));
         }
         return [];
     });
@@ -756,10 +766,12 @@ export default function DataCiteForm({
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
         instruments: GCMDKeyword[];
+        msl: GCMDKeyword[];
     }>({
         science: [],
         platforms: [],
         instruments: [],
+        msl: [],
     });
     const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
 
@@ -798,6 +810,7 @@ export default function DataCiteForm({
                     science: scienceData.data || [],
                     platforms: platformsData.data || [],
                     instruments: instrumentsData.data || [],
+                    msl: [], // MSL will be loaded conditionally
                 });
             } catch (error) {
                 console.error('Error loading GCMD vocabularies:', error);
@@ -816,6 +829,34 @@ export default function DataCiteForm({
 
         return keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
     }, [freeKeywords]);
+
+    // Load MSL vocabulary when MSL section becomes visible
+    useEffect(() => {
+        if (shouldShowMSLSection && gcmdVocabularies.msl.length === 0) {
+            const loadMslVocabulary = async () => {
+                try {
+                    const response = await fetch(withBasePath('/vocabularies/msl'));
+                    
+                    if (!response.ok) {
+                        console.error('Failed to load MSL vocabulary', response.status);
+                        return;
+                    }
+
+                    const data = await response.json();
+                    console.log('Loaded MSL vocabulary:', data.length || 0, 'root nodes');
+
+                    setGcmdVocabularies((prev) => ({
+                        ...prev,
+                        msl: data || [],
+                    }));
+                } catch (error) {
+                    console.error('Error loading MSL vocabulary:', error);
+                }
+            };
+
+            void loadMslVocabulary();
+        }
+    }, [shouldShowMSLSection, gcmdVocabularies.msl.length]);
 
     // Automatically open MSL section when it becomes visible
     useEffect(() => {
@@ -1804,8 +1845,10 @@ export default function DataCiteForm({
                                 scienceKeywords={gcmdVocabularies.science}
                                 platforms={gcmdVocabularies.platforms}
                                 instruments={gcmdVocabularies.instruments}
+                                mslVocabulary={gcmdVocabularies.msl}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
+                                showMslTab={shouldShowMSLSection}
                             />
                         )}
                     </AccordionContent>

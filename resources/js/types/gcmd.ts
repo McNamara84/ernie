@@ -17,7 +17,7 @@ export interface GCMDVocabulary {
     data: GCMDKeyword[];
 }
 
-export type GCMDVocabularyType = 'science' | 'platforms' | 'instruments';
+export type GCMDVocabularyType = 'science' | 'platforms' | 'instruments' | 'msl';
 
 export interface SelectedKeyword {
     id: string;
