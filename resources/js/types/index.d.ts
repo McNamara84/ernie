@@ -155,3 +155,10 @@ export type RelationType =
     | 'IsPublishedIn'
     | 'Collects'
     | 'IsCollectedBy';
+
+export interface MSLLaboratory {
+    identifier: string;
+    name: string;
+    affiliation_name: string;
+    affiliation_ror: string;
+}
