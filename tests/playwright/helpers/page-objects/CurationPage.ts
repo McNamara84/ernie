@@ -64,10 +64,9 @@ export class CurationPage {
     await expect(this.page).toHaveURL(/\/curation/);
     // Wait for Inertia.js/React hydration to complete
     await this.page.waitForLoadState('networkidle');
-    // Wait for page content (check if accordions OR save button exist)
-    // Some pages might not have accordions but should have save button
-    const pageContentVisible = this.authorsAccordion.or(this.titlesAccordion).or(this.saveButton);
-    await expect(pageContentVisible).toBeVisible({ timeout: 30000 });
+    // Wait for save button as primary indicator (always present)
+    // Use .first() to avoid strict mode violations when multiple buttons exist
+    await expect(this.saveButton.first()).toBeVisible({ timeout: 30000 });
   }
 
   /**
