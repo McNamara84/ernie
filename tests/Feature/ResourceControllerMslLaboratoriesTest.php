@@ -296,13 +296,22 @@ class ResourceControllerMslLaboratoriesTest extends TestCase
 
         $response2->assertStatus(200);
 
+        // Refresh resource to reload relationships
+        $resource->refresh();
+
         // Old lab should no longer be linked to this resource
         $lab1 = Institution::where('identifier', 'lab1')->first();
-        $this->assertEquals(0, $resource->contributors()->where('authorable_id', $lab1->id)->count());
+        $this->assertEquals(0, $resource->contributors()
+            ->where('authorable_id', $lab1->id)
+            ->where('authorable_type', Institution::class)
+            ->count());
 
         // New lab should be linked
         $lab2 = Institution::where('identifier', 'lab2')->first();
-        $this->assertEquals(1, $resource->contributors()->where('authorable_id', $lab2->id)->count());
+        $this->assertEquals(1, $resource->contributors()
+            ->where('authorable_id', $lab2->id)
+            ->where('authorable_type', Institution::class)
+            ->count());
     }
 
     public function test_msl_laboratories_are_separated_from_regular_contributors(): void

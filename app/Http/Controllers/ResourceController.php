@@ -444,9 +444,21 @@ class ResourceController extends Controller
                     $this->syncAuthorAffiliations($resourceAuthor, $author);
                 }
 
-                // Delete old contributors (including MSL labs) if updating
+                // Delete old MSL labs if updating (before adding new ones)
                 if ($isUpdate) {
-                    $resource->contributors()->delete();
+                    // Get IDs of all existing MSL labs (institutions with identifier_type = 'labid')
+                    $mslLabIds = DB::table('resource_authors')
+                        ->join('institutions', function ($join) {
+                            $join->on('resource_authors.authorable_id', '=', 'institutions.id')
+                                ->where('resource_authors.authorable_type', '=', Institution::class);
+                        })
+                        ->where('resource_authors.resource_id', $resource->id)
+                        ->where('institutions.identifier_type', 'labid')
+                        ->pluck('resource_authors.id');
+                    
+                    if ($mslLabIds->isNotEmpty()) {
+                        ResourceAuthor::whereIn('id', $mslLabIds)->delete();
+                    }
                 }
 
                 $contributors = $validated['contributors'] ?? [];
