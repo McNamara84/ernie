@@ -111,7 +111,7 @@ class MslVocabularyService
         $count = count($tree);
 
         foreach ($tree as $node) {
-            if (isset($node['children']) && is_array($node['children']) && count($node['children']) > 0) {
+            if (isset($node['children']) && count($node['children']) > 0) {
                 $count += $this->countConcepts($node['children']);
             }
         }
