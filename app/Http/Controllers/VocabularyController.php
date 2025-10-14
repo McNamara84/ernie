@@ -41,6 +41,17 @@ class VocabularyController extends Controller
     }
 
     /**
+     * Return MSL Vocabulary (EPOS Multi-Scale Laboratories).
+     */
+    public function mslVocabulary(): JsonResponse
+    {
+        return $this->getVocabulary(
+            'msl-vocabulary.json',
+            'php artisan vocabulary:download-msl'
+        );
+    }
+
+    /**
      * Generic method to retrieve a vocabulary file.
      */
     private function getVocabulary(string $filename, string $command): JsonResponse
