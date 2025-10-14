@@ -351,5 +351,58 @@ XML;
         $this->assertIsArray($mslLabs);
         $this->assertEmpty($mslLabs);
     }
+
+    public function test_extracts_msl_laboratory_with_ror_without_scheme(): void
+    {
+        $xmlContent = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
+    <identifier identifierType="DOI">10.1234/test</identifier>
+    <creators>
+        <creator>
+            <creatorName>Test Author</creatorName>
+        </creator>
+    </creators>
+    <titles>
+        <title>Test Dataset</title>
+    </titles>
+    <publisher>Test Publisher</publisher>
+    <publicationYear>2024</publicationYear>
+    <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
+    <contributors>
+        <contributor contributorType="HostingInstitution">
+            <contributorName>Test Lab</contributorName>
+            <nameIdentifier nameIdentifierScheme="labid">testlab123</nameIdentifier>
+            <affiliation affiliationIdentifier="https://ror.org/04z8jg394">GFZ German Research Centre</affiliation>
+        </contributor>
+    </contributors>
+</resource>
+XML;
+
+        $file = UploadedFile::fake()->createWithContent('test.xml', $xmlContent);
+
+        Http::fake([
+            'raw.githubusercontent.com/*' => Http::response([
+                [
+                    'identifier' => 'testlab123',
+                    'name' => 'Test Laboratory',
+                    'affiliation_name' => 'Test University',
+                    'affiliation_ror' => 'https://ror.org/test',
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/dashboard/upload-xml', [
+            'file' => $file,
+        ]);
+
+        $response->assertStatus(200);
+        
+        $mslLabs = $response->json('mslLaboratories');
+        $this->assertCount(1, $mslLabs);
+        $this->assertEquals('testlab123', $mslLabs[0]['identifier']);
+        // Should recognize ROR even without affiliationIdentifierScheme
+        $this->assertEquals('https://ror.org/04z8jg394', $mslLabs[0]['affiliation_ror']);
+    }
 }
 

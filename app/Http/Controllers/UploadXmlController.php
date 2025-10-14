@@ -111,7 +111,7 @@ class UploadXmlController extends Controller
         }
 
         $titleElements = $reader
-            ->xpathElement('//*[local-name()="resource"]/*[local-name()="titles"]/*[local-name()="title"]')
+            ->xpathElement('//*[local-name()="titles"]/*[local-name()="title"]')
             ->get();
         $titles = [];
 
@@ -202,7 +202,7 @@ class UploadXmlController extends Controller
     private function extractAuthors(XmlReader $reader): array
     {
         $creatorElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="creators"]/*[local-name()="creator"]')
+            ->xpathElement('//*[local-name()="creators"]/*[local-name()="creator"]')
             ->get();
 
         $authors = [];
@@ -259,7 +259,7 @@ class UploadXmlController extends Controller
     private function extractContributorsAndMslLaboratories(XmlReader $reader): array
     {
         $contributorElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="contributors"]/*[local-name()="contributor"]')
+            ->xpathElement('//*[local-name()="contributors"]/*[local-name()="contributor"]')
             ->get();
 
         $contributors = [];
@@ -281,9 +281,20 @@ class UploadXmlController extends Controller
             $labId = $this->extractLabId($content);
             if ($labId !== null && strcasecmp($contributorType ?? '', 'HostingInstitution') === 0) {
                 // This is an MSL Laboratory
+                Log::info('Extracting MSL Laboratory', [
+                    'labId' => $labId,
+                    'contributorType' => $contributorType,
+                ]);
+                
                 $mslLab = $this->extractMslLaboratory($content, $labId);
+                
                 if ($mslLab !== null) {
+                    Log::info('MSL Laboratory extracted successfully', $mslLab);
                     $mslLaboratories[] = $mslLab;
+                } else {
+                    Log::warning('MSL Laboratory extraction returned null', [
+                        'labId' => $labId,
+                    ]);
                 }
                 continue; // Don't add to contributors
             }
@@ -352,7 +363,7 @@ class UploadXmlController extends Controller
     private function extractDescriptions(XmlReader $reader): array
     {
         $descriptionElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="descriptions"]/*[local-name()="description"]')
+            ->xpathElement('//*[local-name()="descriptions"]/*[local-name()="description"]')
             ->get();
 
         $descriptions = [];
@@ -380,7 +391,7 @@ class UploadXmlController extends Controller
     private function extractDates(XmlReader $reader): array
     {
         $dateElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="dates"]/*[local-name()="date"]')
+            ->xpathElement('//*[local-name()="dates"]/*[local-name()="date"]')
             ->get();
 
         $dates = [];
@@ -444,7 +455,7 @@ class UploadXmlController extends Controller
         
         // Extract geoLocations
         $geoLocationElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
+            ->xpathElement('//*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
             ->get();
         
         if (count($geoLocationElements) === 0 && $temporalCoverage !== null) {
@@ -1140,17 +1151,35 @@ class UploadXmlController extends Controller
         $affiliationElement = $this->firstElement($content, 'affiliation');
         $affiliationName = $this->stringValue($affiliationElement);
         
-        // Only treat as ROR if scheme explicitly indicates ROR
+        // Extract ROR if present - check scheme first, then fallback to identifier inspection
         $affiliationRor = null;
         $affiliationIdentifier = $affiliationElement?->getAttribute('affiliationIdentifier');
         $affiliationScheme = $affiliationElement?->getAttribute('affiliationIdentifierScheme');
         
-        if ($affiliationIdentifier && $affiliationScheme === 'ROR') {
-            // Normalize to full URL if not already
-            if (str_starts_with($affiliationIdentifier, 'http')) {
-                $affiliationRor = $affiliationIdentifier;
-            } else {
-                $affiliationRor = 'https://ror.org/' . $affiliationIdentifier;
+        Log::debug('Extracting MSL Lab affiliation', [
+            'labId' => $labId,
+            'affiliationName' => $affiliationName,
+            'affiliationIdentifier' => $affiliationIdentifier,
+            'affiliationScheme' => $affiliationScheme,
+        ]);
+        
+        if ($affiliationIdentifier) {
+            // Explicit ROR scheme OR identifier looks like a ROR
+            $isRor = ($affiliationScheme === 'ROR') || 
+                     str_contains(strtolower($affiliationIdentifier), 'ror.org');
+            
+            if ($isRor) {
+                // Normalize to full URL if not already
+                if (str_starts_with($affiliationIdentifier, 'http')) {
+                    $affiliationRor = $affiliationIdentifier;
+                } else {
+                    $affiliationRor = 'https://ror.org/' . $affiliationIdentifier;
+                }
+                
+                Log::debug('ROR identified and normalized', [
+                    'original' => $affiliationIdentifier,
+                    'normalized' => $affiliationRor,
+                ]);
             }
         }
 
