@@ -447,18 +447,20 @@ class ResourceController extends Controller
 
                 // Delete old MSL labs if updating (before adding new ones)
                 if ($isUpdate) {
-                    // Get IDs of all existing MSL labs (institutions with identifier_type = 'labid')
-                    $mslLabIds = DB::table('resource_authors')
-                        ->join('institutions', function ($join) {
-                            $join->on('resource_authors.authorable_id', '=', 'institutions.id')
-                                ->where('resource_authors.authorable_type', '=', Institution::class);
+                    // Get all existing MSL labs (institutions with identifier_type = 'labid')
+                    $mslLabs = ResourceAuthor::query()
+                        ->where('resource_id', $resource->id)
+                        ->where('authorable_type', Institution::class)
+                        ->whereHas('authorable', function ($query) {
+                            $query->where('identifier_type', 'labid');
                         })
-                        ->where('resource_authors.resource_id', $resource->id)
-                        ->where('institutions.identifier_type', 'labid')
-                        ->pluck('resource_authors.id');
+                        ->get();
                     
-                    if ($mslLabIds->isNotEmpty()) {
-                        ResourceAuthor::whereIn('id', $mslLabIds)->delete();
+                    // Properly cleanup relationships before deleting
+                    foreach ($mslLabs as $mslLab) {
+                        $mslLab->roles()->detach();      // Remove pivot table entries
+                        $mslLab->affiliations()->delete(); // Delete child affiliation records
+                        $mslLab->delete();               // Finally delete the ResourceAuthor
                     }
                 }
 

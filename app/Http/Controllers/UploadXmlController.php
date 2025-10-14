@@ -1139,7 +1139,20 @@ class UploadXmlController extends Controller
         // Get affiliation info from XML
         $affiliationElement = $this->firstElement($content, 'affiliation');
         $affiliationName = $this->stringValue($affiliationElement);
-        $affiliationRor = $affiliationElement?->getAttribute('affiliationIdentifier');
+        
+        // Only treat as ROR if scheme explicitly indicates ROR
+        $affiliationRor = null;
+        $affiliationIdentifier = $affiliationElement?->getAttribute('affiliationIdentifier');
+        $affiliationScheme = $affiliationElement?->getAttribute('affiliationIdentifierScheme');
+        
+        if ($affiliationIdentifier && $affiliationScheme === 'ROR') {
+            // Normalize to full URL if not already
+            if (str_starts_with($affiliationIdentifier, 'http')) {
+                $affiliationRor = $affiliationIdentifier;
+            } else {
+                $affiliationRor = 'https://ror.org/' . $affiliationIdentifier;
+            }
+        }
 
         // Enrich with data from Utrecht vocabulary (using labid)
         $enrichedLab = $mslService->enrichLaboratoryData(
@@ -1195,10 +1208,12 @@ class UploadXmlController extends Controller
 
     private function isRorIdentifier(string $identifier, ?string $scheme): bool
     {
+        // Only treat as ROR if scheme explicitly indicates ROR
         if (is_string($scheme) && Str::lower($scheme) === 'ror') {
             return true;
         }
 
+        // Also accept if identifier contains ror.org (URL format)
         return Str::contains(Str::lower($identifier), 'ror.org');
     }
 
@@ -1210,26 +1225,22 @@ class UploadXmlController extends Controller
             return null;
         }
 
+        // If already a full URL, extract and normalize
+        if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
+            $rorId = trim($matches[1]);
+            return $rorId !== '' ? 'https://ror.org/' . Str::lower($rorId) : null;
+        }
+
+        // If it contains a path structure, extract it
         $parsed = parse_url($trimmed);
-
         if ($parsed !== false && isset($parsed['path'])) {
-            $host = isset($parsed['host']) ? Str::lower($parsed['host']) : 'ror.org';
             $path = trim((string) $parsed['path'], '/');
-
-            if ($path === '') {
-                return null;
-            }
-
-            return 'https://' . $host . '/' . Str::lower($path);
+            return $path !== '' ? 'https://ror.org/' . Str::lower($path) : null;
         }
 
+        // Otherwise, treat as ROR ID and prepend URL
         $path = Str::lower(trim($trimmed, '/'));
-
-        if ($path === '') {
-            return null;
-        }
-
-        return 'https://ror.org/' . $path;
+        return $path !== '' ? 'https://ror.org/' . $path : null;
     }
 
     private function loadAffiliationMap(): void

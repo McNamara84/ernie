@@ -13,6 +13,6 @@ return [
     */
     'vocabulary_url' => env(
         'MSL_VOCABULARY_URL',
-        'https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/refs/heads/main/vocabularies/labs/laboratories.json'
+        'https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/main/vocabularies/labs/laboratories.json'
     ),
 ];

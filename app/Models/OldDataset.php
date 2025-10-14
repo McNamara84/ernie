@@ -832,10 +832,10 @@ class OldDataset extends Model
 
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
         
-        // Get all resourceagents with labid identifier
+        // Get all resourceagents with labid identifier (case-insensitive)
         $labAgents = $db->table('resourceagent')
             ->where('resource_id', $this->id)
-            ->where('identifiertype', 'labid')
+            ->whereRaw('LOWER(identifiertype) = ?', ['labid'])
             ->whereNotNull('identifier')
             ->orderBy('order')
             ->get();
