@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class MslLaboratoryService
 {
-    private const LABORATORIES_JSON_URL = 'https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/refs/heads/main/vocabularies/labs/laboratories.json';
+    private const LABORATORIES_JSON_URL = 'https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/main/vocabularies/labs/laboratories.json';
     
     private const CACHE_KEY = 'msl_laboratories';
     

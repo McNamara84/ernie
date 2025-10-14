@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import type { MSLLaboratory } from '@/types';
 
 const MSL_VOCABULARIES_URL =
-    'https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/refs/heads/main/vocabularies/labs/laboratories.json';
+    'https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/main/vocabularies/labs/laboratories.json';
 
 interface UseMSLLaboratoriesReturn {
     laboratories: MSLLaboratory[] | null;
