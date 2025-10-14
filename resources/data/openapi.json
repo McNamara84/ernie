@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ERNIE API",
-    "version": "0.2.0",
-    "description": "API for the ERNIE. A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.",
+    "version": "0.3.0",
+    "description": "REST API for ERNIE (Earth Research Notary for Information & Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems.",
     "termsOfService": "https://env.rz-vm182.gfz.de/ernie/legal-notice",
     "contact": {
       "name": "Holger Ehrmann",
@@ -11,9 +11,14 @@
       "email": "ehrmann@gfz.de"
     },
     "license": {
-      "name": "GPLv3",
-      "url": "https://opensource.org/licenses/GPL-3.0"
+      "name": "GPL-3.0-or-later",
+      "identifier": "GPL-3.0-or-later",
+      "url": "https://www.gnu.org/licenses/gpl-3.0.html"
     }
+  },
+  "externalDocs": {
+    "description": "ERNIE Project Documentation",
+    "url": "https://github.com/McNamara84/ernie"
   },
   "servers": [
     {
@@ -23,10 +28,12 @@
   ],
   "tags": [
     {
-      "name": "Editor Configuration"
+      "name": "Editor Configuration",
+      "description": "Endpoints for retrieving metadata types and roles configuration used by external editors like ELMO"
     },
     {
-      "name": "Vocabularies"
+      "name": "Vocabularies",
+      "description": "Endpoints for accessing controlled vocabularies from NASA GCMD (Global Change Master Directory)"
     }
   ],
   "paths": {
@@ -526,81 +533,107 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-API-Key",
-        "description": "API key required to access the ELMO-specific endpoints. The key may be sent in the `X-API-Key` header or as the `api_key` query parameter."
+        "description": "API key required to access ELMO-specific endpoints. Can be provided either in the `X-API-Key` header or as the `api_key` query parameter. Contact the ERNIE team to obtain an API key."
       }
     },
     "schemas": {
       "ElmoResourceType": {
         "type": "object",
+        "description": "A resource type configuration for ELMO editor",
         "properties": {
           "id": {
             "type": "integer",
-            "readOnly": true
+            "readOnly": true,
+            "example": 1
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "example": "Dataset"
           }
-        }
+        },
+        "required": ["id", "name"]
       },
       "Role": {
         "type": "object",
+        "description": "A role that can be assigned to authors or contributors",
         "properties": {
           "id": {
             "type": "integer",
-            "readOnly": true
+            "readOnly": true,
+            "example": 1
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "example": "Project Leader"
           },
           "slug": {
-            "type": "string"
+            "type": "string",
+            "example": "project-leader"
           }
-        }
+        },
+        "required": ["id", "name", "slug"]
       },
       "TitleType": {
         "type": "object",
+        "description": "A title type for categorizing resource titles",
         "properties": {
           "id": {
             "type": "integer",
-            "readOnly": true
+            "readOnly": true,
+            "example": 1
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "example": "Main Title"
           },
           "slug": {
-            "type": "string"
+            "type": "string",
+            "example": "main-title"
           }
-        }
+        },
+        "required": ["id", "name", "slug"]
       },
       "License": {
         "type": "object",
+        "description": "A license that can be applied to research data",
         "properties": {
           "id": {
             "type": "integer",
-            "readOnly": true
+            "readOnly": true,
+            "example": 1
           },
           "identifier": {
-            "type": "string"
+            "type": "string",
+            "description": "SPDX license identifier",
+            "example": "CC-BY-4.0"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "example": "Creative Commons Attribution 4.0 International"
           }
-        }
+        },
+        "required": ["id", "identifier", "name"]
       },
       "Language": {
         "type": "object",
+        "description": "A language supported for dataset metadata",
         "properties": {
           "id": {
             "type": "integer",
-            "readOnly": true
+            "readOnly": true,
+            "example": 1
           },
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "ISO 639-1 language code",
+            "example": "en"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "example": "English"
           }
-        }
+        },
+        "required": ["id", "code", "name"]
       },
       "GcmdScienceKeywords": {
         "type": "object",
