@@ -25,6 +25,7 @@
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Example ResourceType</resourceType>
     <subjects>
+        <subject>EPOS</subject>
         <subject subjectScheme="Fields of Science and Technology (FOS)" schemeURI="http://www.oecd.org/science/inno" valueURI="http://www.oecd.org/science/inno/38235147.pdf">FOS: Computer and information sciences</subject>
         <subject subjectScheme="Australian and New Zealand Standard Research Classification (ANZSRC), 2020" schemeURI="https://www.abs.gov.au/statistics/classifications/australian-and-new-zealand-standard-research-classification-anzsrc" classificationCode="461001">Digital curation and preservation</subject>
         <subject>Example Subject</subject>
