@@ -460,29 +460,27 @@ class StoreResourceRequest extends FormRequest
 
         $mslLaboratories = [];
 
-        if (is_array($rawMslLaboratories)) {
-            foreach ($rawMslLaboratories as $index => $lab) {
-                if (! is_array($lab)) {
-                    continue;
-                }
-
-                $identifier = isset($lab['identifier']) ? trim((string) $lab['identifier']) : '';
-                $name = isset($lab['name']) ? trim((string) $lab['name']) : '';
-                $affiliationName = isset($lab['affiliation_name']) ? trim((string) $lab['affiliation_name']) : '';
-                $affiliationRor = isset($lab['affiliation_ror']) ? trim((string) $lab['affiliation_ror']) : '';
-
-                if ($identifier === '' || $name === '') {
-                    continue;
-                }
-
-                $mslLaboratories[] = [
-                    'identifier' => $identifier,
-                    'name' => $name,
-                    'affiliation_name' => $affiliationName,
-                    'affiliation_ror' => $affiliationRor !== '' ? $affiliationRor : null,
-                    'position' => (int) $index,
-                ];
+        foreach ($rawMslLaboratories as $index => $lab) {
+            if (! is_array($lab)) {
+                continue;
             }
+
+            $identifier = isset($lab['identifier']) ? trim((string) $lab['identifier']) : '';
+            $name = isset($lab['name']) ? trim((string) $lab['name']) : '';
+            $affiliationName = isset($lab['affiliation_name']) ? trim((string) $lab['affiliation_name']) : '';
+            $affiliationRor = isset($lab['affiliation_ror']) ? trim((string) $lab['affiliation_ror']) : '';
+
+            if ($identifier === '' || $name === '') {
+                continue;
+            }
+
+            $mslLaboratories[] = [
+                'identifier' => $identifier,
+                'name' => $name,
+                'affiliation_name' => $affiliationName,
+                'affiliation_ror' => $affiliationRor !== '' ? $affiliationRor : null,
+                'position' => (int) $index,
+            ];
         }
 
         $this->merge([

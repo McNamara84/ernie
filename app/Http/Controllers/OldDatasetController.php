@@ -587,6 +587,9 @@ class OldDatasetController extends Controller
         }
     }
 
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function getMslLaboratories(Request $request, int $id)
     {
         try {

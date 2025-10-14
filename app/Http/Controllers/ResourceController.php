@@ -332,8 +332,8 @@ class ResourceController extends Controller
                             return [
                                 'identifier' => $authorable->identifier ?? '',
                                 'name' => $authorable->name ?? '',
-                                'affiliation_name' => $hostAffiliation?->value ?? '',
-                                'affiliation_ror' => $hostAffiliation?->ror_id ?? '',
+                                'affiliation_name' => $hostAffiliation->value ?? '',
+                                'affiliation_ror' => $hostAffiliation->ror_id ?? '',
                             ];
                         })
                         ->values()
