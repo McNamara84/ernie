@@ -161,6 +161,13 @@ class ResourceController extends Controller
                         ->all(),
                     'contributors' => $resource->contributors
                         ->filter(static function (ResourceAuthor $resourceContributor): bool {
+                            // Exclude MSL Labs (they have their own section)
+                            $authorable = $resourceContributor->authorable;
+                            
+                            if ($authorable instanceof Institution && $authorable->identifier_type === 'labid') {
+                                return false;
+                            }
+                            
                             // Filter: Only ResourceAuthors with Contributor roles
                             return $resourceContributor->roles->contains(static fn (Role $role): bool => 
                                 in_array($role->applies_to, [
@@ -293,6 +300,40 @@ class ResourceController extends Controller
                                 'awardUri' => $fundingReference->award_uri,
                                 'awardTitle' => $fundingReference->award_title,
                                 'position' => $fundingReference->position,
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                    'mslLaboratories' => $resource->contributors
+                        ->filter(static function (ResourceAuthor $resourceContributor): bool {
+                            // Filter: MSL Labs have labid identifier type and Hosting Institution role
+                            $authorable = $resourceContributor->authorable;
+                            
+                            if (!$authorable instanceof Institution) {
+                                return false;
+                            }
+                            
+                            if ($authorable->identifier_type !== 'labid') {
+                                return false;
+                            }
+                            
+                            return $resourceContributor->roles->contains(
+                                static fn (Role $role): bool => $role->slug === 'hosting-institution'
+                            );
+                        })
+                        ->sortBy('position')
+                        ->map(static function (ResourceAuthor $resourceContributor): array {
+                            /** @var Institution $authorable */
+                            $authorable = $resourceContributor->authorable;
+                            
+                            // Get host institution from affiliations
+                            $hostAffiliation = $resourceContributor->affiliations->first();
+                            
+                            return [
+                                'identifier' => $authorable->identifier ?? '',
+                                'name' => $authorable->name ?? '',
+                                'affiliation_name' => $hostAffiliation?->value ?? '',
+                                'affiliation_ror' => $hostAffiliation?->ror_id ?? '',
                             ];
                         })
                         ->values()
