@@ -310,59 +310,19 @@ npx playwright show-report
 - **Package Management:** Composer, npm
 - **Process Management:** Concurrently
 
-## API Endpoints
+## API Documentation
 
-### Public Endpoints
+ERNIE provides a **read-only REST API** (OpenAPI 3.1.0) for integration with external systems like ELMO. The API offers access to metadata types, roles, and NASA GCMD controlled vocabularies.
 
-- `GET /api/changelog` – changelog information (no authentication required)
-- `GET /up` – health check endpoint
+**📖 [View Interactive API Documentation](https://env.rz-vm182.gfz.de/ernie/api/v1/doc)**
 
-### ELMO Integration API
+The API documentation includes:
+- All available endpoints with request/response examples
+- Authentication requirements (API key via `X-API-Key` header)
+- Complete schema definitions
+- Interactive Swagger UI for testing endpoints
 
-The service exposes a **read-only REST API** (OpenAPI 3.1.0) for metadata types and controlled vocabularies. All ELMO endpoints require an API key supplied via the `X-API-Key` header or the `api_key` query parameter.
-
-**📖 Interactive Documentation:** Visit `/api/v1/doc` for the complete OpenAPI specification with Swagger UI
-
-#### Metadata Types
-- `GET /api/v1/resource-types/elmo` – list resource types active for ELMO
-- `GET /api/v1/title-types/elmo` – list title types active for ELMO
-- `GET /api/v1/licenses/elmo` – list licenses active for ELMO (SPDX identifiers)
-- `GET /api/v1/languages/elmo` – list languages active for ELMO (ISO 639-1 codes)
-
-#### Roles
-- `GET /api/v1/roles/authors/elmo` – list author roles active for ELMO
-- `GET /api/v1/roles/contributor-persons/elmo` – list contributor person roles active for ELMO
-- `GET /api/v1/roles/contributor-institutions/elmo` – list contributor institution roles active for ELMO
-
-#### Controlled Vocabularies (NASA GCMD)
-- `GET /api/v1/vocabularies/gcmd-science-keywords` – GCMD Science Keywords hierarchy (JSON)
-- `GET /api/v1/vocabularies/gcmd-platforms` – GCMD Platforms hierarchy (JSON)
-- `GET /api/v1/vocabularies/gcmd-instruments` – GCMD Instruments hierarchy (JSON)
-
-#### API Documentation
-- `GET /api/v1/doc` – OpenAPI 3.1.0 specification (JSON or interactive HTML)
-  - Returns JSON when `Accept: application/json` header is present
-  - Returns interactive Swagger UI for browser requests
-
-### Internal Endpoints (Authenticated)
-
-#### Old Datasets
-- `GET /old-datasets` – list old datasets with pagination
-- `GET /old-datasets/{id}/authors` – fetch authors from old dataset
-- `GET /old-datasets/{id}/contributors` – fetch contributors from old dataset
-- `GET /old-datasets/{id}/descriptions` – fetch descriptions from old dataset
-- `GET /old-datasets/{id}/dates` – fetch dates from old dataset
-- `GET /old-datasets/{id}/controlled-keywords` – fetch GCMD keywords from old dataset
-- `GET /old-datasets/{id}/free-keywords` – fetch free keywords from old dataset
-- `GET /old-datasets/{id}/coverages` – fetch spatial/temporal coverage from old dataset
-
-#### Vocabularies
-- `GET /vocabularies/gcmd-science-keywords` – NASA GCMD Science Keywords hierarchy
-- `GET /vocabularies/gcmd-platforms` – NASA GCMD Platforms hierarchy
-- `GET /vocabularies/gcmd-instruments` – NASA GCMD Instruments hierarchy
-
-#### ROR Affiliations
-- `GET /api/v1/ror-affiliations` – search Research Organization Registry affiliations
+For API access, contact the ERNIE team to obtain an API key.
 
 ## Project Structure
 
@@ -424,165 +384,45 @@ ernie/
   - `/settings/appearance` – Appearance preferences
 
 ### API Routes
-- `/api/changelog` – Changelog data (public)
-- `/api/v1/doc` – OpenAPI documentation (requires API key)
-- `/api/v1/*` – ELMO integration endpoints (requires API key)
+- `/api/changelog` – Changelog data (public, no authentication required)
+- `/api/v1/doc` – [Interactive API documentation](https://env.rz-vm182.gfz.de/ernie/api/v1/doc) (ELMO integration endpoints)
 
 ## Contributing
 
-### Code Style
+### Workflow
 
-This project follows the following code style standards:
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes following the code style standards
+4. Run quality checks (see below)
+5. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/)
+6. Push to your branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Code Style Standards
 
 - **PHP:** PSR-12 via Laravel Pint
 - **JavaScript/TypeScript:** ESLint + Prettier with organized imports
-- **Commits:** Conventional Commits specification
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) specification
 
-### Running Quality Checks
+### Quality Checks
 
 Before committing, ensure all quality checks pass:
 
 ```bash
-# PHP
-./vendor/bin/pint
-./vendor/bin/phpstan analyse
-composer run test
+# PHP Code Style & Analysis
+./vendor/bin/pint                    # Fix code style
+./vendor/bin/phpstan analyse         # Static analysis
 
 # JavaScript/TypeScript
-npm run lint
-npm run format
-npm run types
-npm test
-```
+npm run lint                         # Lint & fix
+npm run format                       # Format code
+npm run types                        # Type check
 
-## License
-
-This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
-
-## Acknowledgments
-
-Developed at **GFZ German Research Centre for Geosciences** – Helmholtz Centre Potsdam.
-
-This project integrates with:
-- [DataCite](https://datacite.org/) metadata schema
-- [NASA GCMD](https://earthdata.nasa.gov/earth-observation-data/find-data/gcmd) vocabularies
-- [Research Organization Registry (ROR)](https://ror.org/)
-- [SPDX License List](https://spdx.org/licenses/)
-roles active for ELMO
-- `GET /api/v1/roles/contributor-institutions/elmo` – list contributor institution roles active for ELMO
-
-#### Documentation
-- `GET /api/v1/doc` – OpenAPI specification for the ELMO endpoints
-
-### Internal Endpoints (Authenticated)
-
-#### Old Datasets
-- `GET /old-datasets` – list old datasets with pagination
-- `GET /old-datasets/{id}/authors` – fetch authors from old dataset
-- `GET /old-datasets/{id}/contributors` – fetch contributors from old dataset
-- `GET /old-datasets/{id}/descriptions` – fetch descriptions from old dataset
-- `GET /old-datasets/{id}/dates` – fetch dates from old dataset
-- `GET /old-datasets/{id}/controlled-keywords` – fetch GCMD keywords from old dataset
-- `GET /old-datasets/{id}/free-keywords` – fetch free keywords from old dataset
-- `GET /old-datasets/{id}/coverages` – fetch spatial/temporal coverage from old dataset
-
-#### Vocabularies
-- `GET /vocabularies/gcmd-science-keywords` – NASA GCMD Science Keywords hierarchy
-- `GET /vocabularies/gcmd-platforms` – NASA GCMD Platforms hierarchy
-- `GET /vocabularies/gcmd-instruments` – NASA GCMD Instruments hierarchy
-
-#### ROR Affiliations
-- `GET /api/v1/ror-affiliations` – search Research Organization Registry affiliations
-
-## Project Structure
-
-```
-ernie/
-├── app/                        # Application core
-│   ├── Console/Commands/       # Artisan commands (GCMD, ROR, SPDX sync)
-│   ├── Http/                   # Controllers, Middleware, Requests
-│   ├── Models/                 # Eloquent models
-│   ├── Providers/              # Service providers
-│   ├── Services/               # Business logic services
-│   └── Support/                # Helper classes
-├── config/                     # Configuration files
-├── database/                   # Migrations, factories, seeders
-├── docker/                     # Docker configuration
-├── public/                     # Web root & compiled assets
-├── resources/                  # Frontend source code
-│   ├── css/                    # Stylesheets
-│   ├── js/                     # React components & TypeScript
-│   │   ├── Components/         # Reusable UI components
-│   │   ├── Layouts/            # Page layouts
-│   │   ├── lib/                # Utility functions
-│   │   ├── Pages/              # Inertia page components
-│   │   └── types/              # TypeScript type definitions
-│   └── views/                  # Blade templates
-├── routes/                     # Route definitions
-├── storage/                    # Application storage
-├── tests/                      # Test suites
-│   ├── Feature/                # Laravel feature tests
-│   ├── Unit/                   # Laravel unit tests
-│   ├── pest/                   # Pest-based tests
-│   ├── playwright/             # E2E tests
-│   └── vitest/                 # Frontend unit tests
-└── vendor/                     # Composer dependencies
-```
-
-## Application Routes
-
-### Public Routes
-- `/` – Homepage
-- `/about` – About page
-- `/changelog` – Version history
-- `/legal-notice` – Legal information
-- `/login` – User login
-- `/forgot-password` – Password reset request
-- `/reset-password/{token}` – Password reset with token
-- `/up` – Health check endpoint
-
-### Authenticated Routes
-- `/dashboard` – Main dashboard with statistics
-- `/resources` – Browse and manage curated resources
-- `/old-datasets` – Browse legacy datasets for import
-- `/curation` – Metadata curation form
-- `/docs` – Documentation overview
-- `/docs/users` – User documentation
-- `/settings` – User settings
-  - `/settings/profile` – Edit profile
-  - `/settings/password` – Change password
-  - `/settings/appearance` – Appearance preferences
-
-### API Routes
-- `/api/changelog` – Changelog data (public)
-- `/api/v1/doc` – OpenAPI documentation (requires API key)
-- `/api/v1/*` – ELMO integration endpoints (requires API key)
-
-## Contributing
-
-### Code Style
-
-This project follows the following code style standards:
-
-- **PHP:** PSR-12 via Laravel Pint
-- **JavaScript/TypeScript:** ESLint + Prettier with organized imports
-- **Commits:** Conventional Commits specification
-
-### Running Quality Checks
-
-Before committing, ensure all quality checks pass:
-
-```bash
-# PHP
-./vendor/bin/pint
-./vendor/bin/phpstan analyse
-composer run test
-
-# JavaScript/TypeScript
-npm run lint
-npm run format
-npm run types
-npm test
+# Tests
+composer run test                    # PHP tests
+npm test                             # JavaScript tests
+npx playwright test                  # E2E tests (server must be running)
 ```
 
 ## License
