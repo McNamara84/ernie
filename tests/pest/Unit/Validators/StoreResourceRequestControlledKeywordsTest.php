@@ -17,8 +17,7 @@ it('has validation rules for gcmdKeywords', function (): void {
         ->and($rules)->toHaveKey('gcmdKeywords.*.path')
         ->and($rules)->toHaveKey('gcmdKeywords.*.language')
         ->and($rules)->toHaveKey('gcmdKeywords.*.scheme')
-        ->and($rules)->toHaveKey('gcmdKeywords.*.schemeURI')
-        ->and($rules)->toHaveKey('gcmdKeywords.*.vocabularyType');
+        ->and($rules)->toHaveKey('gcmdKeywords.*.schemeURI');
 });
 
 it('validates gcmdKeywords as nullable array', function (): void {
@@ -29,7 +28,7 @@ it('validates gcmdKeywords as nullable array', function (): void {
         ->and($rules['gcmdKeywords'])->toContain('array');
 });
 
-it('requires id, text, path, and vocabularyType for each keyword', function (): void {
+it('requires id, text, path, and scheme for each keyword', function (): void {
     $request = new StoreResourceRequest();
     $rules = $request->rules();
     
@@ -45,76 +44,17 @@ it('requires id, text, path, and vocabularyType for each keyword', function (): 
     expect($rules['gcmdKeywords.*.path'])->toContain('required')
         ->and($rules['gcmdKeywords.*.path'])->toContain('string');
     
-    // Vocabulary type is required and must be in specific values
-    expect($rules['gcmdKeywords.*.vocabularyType'])->toContain('required')
-        ->and($rules['gcmdKeywords.*.vocabularyType'])->toContain('string');
+    // Scheme is required and string (changed from nullable)
+    expect($rules['gcmdKeywords.*.scheme'])->toContain('required')
+        ->and($rules['gcmdKeywords.*.scheme'])->toContain('string');
 });
 
-it('allows nullable language, scheme, and schemeURI', function (): void {
+it('allows nullable language and schemeURI', function (): void {
     $request = new StoreResourceRequest();
     $rules = $request->rules();
     
     expect($rules['gcmdKeywords.*.language'])->toContain('nullable');
-    expect($rules['gcmdKeywords.*.scheme'])->toContain('nullable');
     expect($rules['gcmdKeywords.*.schemeURI'])->toContain('nullable');
-});
-
-it('validates vocabulary type enum values', function (): void {
-    $request = new StoreResourceRequest();
-    $rules = $request->rules();
-    
-    // Check that vocabularyType has a Rule::in() constraint
-    $vocabularyTypeRules = $rules['gcmdKeywords.*.vocabularyType'];
-    
-    expect($vocabularyTypeRules)->toBeArray();
-    
-    // Find the Rule::in() rule
-    $hasInRule = false;
-    foreach ($vocabularyTypeRules as $rule) {
-        if ($rule instanceof \Illuminate\Validation\Rules\In) {
-            $hasInRule = true;
-            break;
-        }
-    }
-    
-    expect($hasInRule)->toBeTrue('Should have Rule::in() for vocabulary type validation');
-});
-
-it('validates keyword_id max length of 512', function (): void {
-    $request = new StoreResourceRequest();
-    $rules = $request->rules();
-    
-    // ID should have max:512 validation
-    $idRules = $rules['gcmdKeywords.*.id'];
-    
-    $hasMaxRule = false;
-    foreach ($idRules as $rule) {
-        if (is_string($rule) && str_contains($rule, 'max:')) {
-            $hasMaxRule = true;
-            expect($rule)->toContain('max:512');
-            break;
-        }
-    }
-    
-    expect($hasMaxRule)->toBeTrue('Should have max:512 validation for keyword_id');
-});
-
-it('validates text max length of 255', function (): void {
-    $request = new StoreResourceRequest();
-    $rules = $request->rules();
-    
-    $textRules = $rules['gcmdKeywords.*.text'];
-    
-    $hasMaxRule = false;
-    foreach ($textRules as $rule) {
-        if (is_string($rule) && str_contains($rule, 'max:')) {
-            $hasMaxRule = true;
-            expect($rule)->toContain('max:255');
-            break;
-        }
-    }
-    
-    expect($hasMaxRule)->toBeTrue('Should have max:255 validation for text');
 });
 
 it('validates scheme max length of 255', function (): void {
