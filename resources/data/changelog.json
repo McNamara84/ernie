@@ -1,5 +1,95 @@
 [
   {
+    "version": "0.8.0",
+    "date": "2025-10-14",
+    "features": [
+      {
+        "title": "Funding References Management",
+        "description": "Comprehensive support for managing funding information with funder name, ROR ID lookup, award number, award title, and award URI. Includes autocomplete dropdown with ROR funder search supporting multi-word matching and improved result scoring. Supports multiple funder identifier types (ROR, Crossref Funder ID, ISNI, GRID, Other) for improved interoperability. Features drag-and-drop reordering with @dnd-kit and automatic loading from legacy datasets."
+      },
+      {
+        "title": "Old Datasets Filtering",
+        "description": "Advanced filtering system for old datasets including resource type, curator, status, publication year range, creation date range, last update date range, and full-text search. Features debounced search input, filter badges showing active filters, and popover-based UI for date and year range selection. Includes API endpoint for dynamic filter options and comprehensive backend filter application logic."
+      },
+      {
+        "title": "MSL Vocabulary Integration",
+        "description": "Full integration of EPOS Multi-Scale Laboratories (MSL) vocabulary with download command to fetch and transform vocabulary from GitHub. Includes API endpoint for serving MSL vocabulary, support in curation forms with conditional display, and extraction from both XML uploads and legacy database. Features automatic transformation of legacy MSL keywords and validation to ensure current vocabulary usage."
+      },
+      {
+        "title": "MSL Laboratories Form Section",
+        "description": "Searchable field for selecting Multi-Scale Laboratories using data from Utrecht University's MSL Vocabularies. Automatically opens/closes accordion section based on relevant keywords. Supports extraction from XML uploads with remote vocabulary enrichment. MSL Labs are managed separately from regular contributors and stored with 'labid' identifier and 'hosting-institution' role."
+      },
+      {
+        "title": "Institution Identifier Support",
+        "description": "Generic identifier fields added to Institution model supporting multiple identifier types (ROR, labid, etc.). Enables proper handling of institutional identifiers beyond affiliations, particularly for MSL Laboratories and other specialized institutions."
+      },
+      {
+        "title": "Comprehensive Playwright Test Suite",
+        "description": "Complete rewrite of E2E testing with page object models for all major application pages (Login, Dashboard, Old Datasets, Curation, Resources, Settings). Includes workflow tests covering critical user journeys: authentication, old datasets management, XML upload, curation, resources management, and settings. Added comprehensive test helpers and fixtures for improved maintainability and reliability."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Test Organization",
+        "description": "Major restructuring of test files into domain-based directories under tests/pest (Api, Commands, OldDatasets, Resources, XmlUpload, Config, Controllers, Models, Seeders, Services, Transformers, Validators). Removed redundant and obsolete test files for improved clarity and maintainability. Separated unit and integration tests for better organization."
+      },
+      {
+        "title": "API Documentation",
+        "description": "Expanded README with comprehensive REST API documentation, ELMO integration details, and controlled vocabularies overview. Updated OpenAPI specification to version 0.3.0 with improved descriptions, examples, and schema documentation. Added link to interactive API documentation and streamlined endpoint descriptions."
+      },
+      {
+        "title": "Playwright Test Reliability",
+        "description": "Enhanced CI workflow to run Chromium-only for PRs and all browsers for main branch. Improved server wait step with better diagnostics. Increased test and action timeouts for slower CI environments. Added explicit waits for Inertia.js/React hydration and database verification before test execution."
+      },
+      {
+        "title": "Filter Performance",
+        "description": "Optimized old dataset queries with proper filter application including resource type, curator, status, and date ranges. Implemented efficient array parameter serialization and backend filter extraction. Added comprehensive unit tests for filter logic (22 tests) ensuring CI compatibility without external database dependencies."
+      },
+      {
+        "title": "ROR Funder Integration",
+        "description": "Enhanced ROR funder search with multi-word matching and improved relevance scoring. Increased suggestion limit to 20 funders. Auto-fill funder names from ROR IDs for consistency. Automatic clearing of ROR ID when funder name is manually edited. Support for both ROR identifiers and other funder identifier types."
+      },
+      {
+        "title": "Controlled Vocabularies Refactoring",
+        "description": "Replaced vocabularyType field with scheme throughout backend and frontend for GCMD keywords. Introduced helper functions for mapping between scheme and vocabulary type. Eliminated vocabulary_type column from database in favor of scheme-based discrimination. Updated all tests to use scheme-based validation."
+      },
+      {
+        "title": "Session Configuration",
+        "description": "Updated SESSION_PATH from '/' to '/ernie' in production Docker Compose configuration to properly scope session cookies for the application."
+      },
+      {
+        "title": "Development Dependencies",
+        "description": "Upgraded @types/react-dom, @typescript-eslint packages, electron-to-chromium, caniuse-lite, and related dependencies to latest versions. Added @radix-ui/react-popover (v1.1.15) for filter UI components and @dnd-kit for drag-and-drop functionality."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Filter Options Optional Chaining",
+        "description": "Added optional chaining to resource_types, statuses, curators, and year_range properties in OldDatasetsFilters to prevent runtime errors when filter options are undefined. Fixed axios mocks in tests to ensure consistent filter options data."
+      },
+      {
+        "title": "Funder Selection Race Conditions",
+        "description": "Implemented atomic updates of funder name and identifier when selecting ROR suggestions to prevent race conditions. Added input blur after selection to ensure value updates. Prevented default behavior and event propagation on suggestion selection."
+      },
+      {
+        "title": "MSL Vocabulary Type Handling",
+        "description": "Added proper error handling for JSON encoding and empty file cases in MslVocabularyService. Improved type hints and removed duplicate return statements. Fixed handling of MSL keywords in both current and legacy formats with proper validation."
+      },
+      {
+        "title": "Test Database Dependencies",
+        "description": "Removed OldDatasetController feature tests that required live metaworks database connection, which caused CI failures. Replaced with comprehensive unit tests that are CI-compatible. Skipped old datasets workflow tests in CI due to external database requirements."
+      },
+      {
+        "title": "Playwright Strict Mode Violations",
+        "description": "Updated DashboardPage navigation checks to use .first() for strict mode compliance. Adjusted SettingsPage heading locator to avoid multiple element matches. Extended visibility timeouts to 30 seconds for critical elements in CI environments."
+      },
+      {
+        "title": "Element Hydration Timing",
+        "description": "Added explicit waits for Inertia.js/React hydration using waitForLoadState('networkidle') in Playwright tests. Improved element visibility checks to handle cases where pages may not be fully rendered before interaction attempts."
+      }
+    ]
+  },
+  {
     "version": "0.7.0",
     "date": "2025-10-12",
     "features": [
