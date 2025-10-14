@@ -45,7 +45,14 @@ class MslVocabularyService
 
             $transformedData = $this->transformVocabularyTree($sourceData);
 
-            Storage::put(self::STORAGE_PATH, json_encode($transformedData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            $jsonEncoded = json_encode($transformedData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            
+            if ($jsonEncoded === false) {
+                Log::error('Failed to encode MSL vocabulary to JSON');
+                return false;
+            }
+
+            Storage::put(self::STORAGE_PATH, $jsonEncoded);
 
             $totalConcepts = $this->countConcepts($transformedData);
 
@@ -53,8 +60,6 @@ class MslVocabularyService
                 'concepts_count' => $totalConcepts,
                 'storage_path' => self::STORAGE_PATH,
             ]);
-
-            return true;
 
             return true;
         } catch (\Exception $e) {
@@ -79,6 +84,12 @@ class MslVocabularyService
         }
 
         $content = Storage::get(self::STORAGE_PATH);
+        
+        if ($content === null) {
+            Log::error('MSL vocabulary file is empty');
+            return [];
+        }
+
         $data = json_decode($content, true);
 
         if (!is_array($data)) {
@@ -92,7 +103,7 @@ class MslVocabularyService
     /**
      * Count total number of concepts in the tree (including all children)
      *
-     * @param array<int, array{children?: array}> $tree
+     * @param array<int, array{children?: array<int, mixed>}> $tree
      * @return int
      */
     private function countConcepts(array $tree): int
@@ -100,7 +111,7 @@ class MslVocabularyService
         $count = count($tree);
 
         foreach ($tree as $node) {
-            if (isset($node['children']) && is_array($node['children'])) {
+            if (isset($node['children']) && is_array($node['children']) && count($node['children']) > 0) {
                 $count += $this->countConcepts($node['children']);
             }
         }
@@ -112,7 +123,7 @@ class MslVocabularyService
      * Transform the hierarchical tree structure while preserving the tree
      *
      * @param array<int|string, mixed> $tree
-     * @return array<int, array{id: string, text: string, language: string, scheme: string, schemeURI: string, description: string, children?: array}>
+     * @return array<int, array{id: string, text: string, language: string, scheme: string, schemeURI: string, description: string, children?: array<int, mixed>}>
      */
     private function transformVocabularyTree(array $tree): array
     {
@@ -133,10 +144,10 @@ class MslVocabularyService
     }
 
     /**
-     * Transform a single node and its children recursively
+     * Transform a single node recursively
      *
      * @param array<string, mixed> $node
-     * @return array{id: string, text: string, language: string, scheme: string, schemeURI: string, description: string, children?: array}|null
+     * @return array{id: string, text: string, language: string, scheme: string, schemeURI: string, description: string, children?: array<int, mixed>}|null
      */
     private function transformNode(array $node): ?array
     {
