@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
 use App\Support\GcmdUriHelper;
+use App\Support\MslLaboratoryService;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use JsonException;
@@ -84,7 +86,9 @@ class UploadXmlController extends Controller
             $reader->xpathValue('//*[local-name()="language"]'),
         );
         $authors = $this->extractAuthors($reader);
-        $contributors = $this->extractContributors($reader);
+        $contributorsAndLabs = $this->extractContributorsAndMslLaboratories($reader);
+        $contributors = $contributorsAndLabs['contributors'];
+        $mslLaboratories = $contributorsAndLabs['mslLaboratories'];
         $descriptions = $this->extractDescriptions($reader);
         $dates = $this->extractDates($reader);
         $coverages = $this->extractCoverages($reader, $dates);
@@ -158,6 +162,7 @@ class UploadXmlController extends Controller
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
             'fundingReferences' => $fundingReferences,
+            'mslLaboratories' => $mslLaboratories,
         ]);
     }
 
@@ -197,7 +202,7 @@ class UploadXmlController extends Controller
     private function extractAuthors(XmlReader $reader): array
     {
         $creatorElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="creators"]/*[local-name()="creator"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="creators"]/*[local-name()="creator"]')
             ->get();
 
         $authors = [];
@@ -247,16 +252,19 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Extract both regular contributors and MSL laboratories
+     * 
+     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>}
      */
-    private function extractContributors(XmlReader $reader): array
+    private function extractContributorsAndMslLaboratories(XmlReader $reader): array
     {
         $contributorElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="contributors"]/*[local-name()="contributor"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="contributors"]/*[local-name()="contributor"]')
             ->get();
 
         $contributors = [];
         $contributorIndexByKey = [];
+        $mslLaboratories = [];
 
         foreach ($contributorElements as $contributor) {
             $content = $contributor->getContent();
@@ -265,7 +273,31 @@ class UploadXmlController extends Controller
                 continue;
             }
 
-            $roles = $this->extractContributorRoles($contributor->getAttribute('contributorType'));
+            $contributorType = $contributor->getAttribute('contributorType');
+            $roles = $this->extractContributorRoles($contributorType);
+
+            // Check if this is an MSL Laboratory (HostingInstitution with labid)
+            // Use contributorType directly for robust detection (case-insensitive)
+            $labId = $this->extractLabId($content);
+            if ($labId !== null && strcasecmp($contributorType ?? '', 'HostingInstitution') === 0) {
+                // This is an MSL Laboratory
+                Log::info('Extracting MSL Laboratory', [
+                    'labId' => $labId,
+                    'contributorType' => $contributorType,
+                ]);
+                
+                $mslLab = $this->extractMslLaboratory($content, $labId);
+                
+                if ($mslLab !== null) {
+                    Log::info('MSL Laboratory extracted successfully', $mslLab);
+                    $mslLaboratories[] = $mslLab;
+                } else {
+                    Log::warning('MSL Laboratory extraction returned null', [
+                        'labId' => $labId,
+                    ]);
+                }
+                continue; // Don't add to contributors
+            }
 
             $nameElement = $this->firstElement($content, 'contributorName');
             $nameType = $nameElement?->getAttribute('nameType');
@@ -319,7 +351,10 @@ class UploadXmlController extends Controller
             );
         }
 
-        return $contributors;
+        return [
+            'contributors' => $contributors,
+            'mslLaboratories' => $mslLaboratories,
+        ];
     }
 
     /**
@@ -328,7 +363,7 @@ class UploadXmlController extends Controller
     private function extractDescriptions(XmlReader $reader): array
     {
         $descriptionElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="descriptions"]/*[local-name()="description"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="descriptions"]/*[local-name()="description"]')
             ->get();
 
         $descriptions = [];
@@ -356,7 +391,7 @@ class UploadXmlController extends Controller
     private function extractDates(XmlReader $reader): array
     {
         $dateElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="dates"]/*[local-name()="date"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="dates"]/*[local-name()="date"]')
             ->get();
 
         $dates = [];
@@ -420,7 +455,7 @@ class UploadXmlController extends Controller
         
         // Extract geoLocations
         $geoLocationElements = $reader
-            ->xpathElement('/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
             ->get();
         
         if (count($geoLocationElements) === 0 && $temporalCoverage !== null) {
@@ -1073,6 +1108,101 @@ class UploadXmlController extends Controller
     }
 
     /**
+     * Extract MSL Laboratory ID (labid) from contributor content
+     * 
+     * @param array<string, mixed> $content
+     * @return string|null
+     */
+    private function extractLabId(array $content): ?string
+    {
+        $identifierElements = $this->allElements($content, 'nameIdentifier');
+
+        foreach ($identifierElements as $element) {
+            $scheme = $element->getAttribute('nameIdentifierScheme');
+
+            if (is_string($scheme) && Str::lower($scheme) === 'labid') {
+                $value = $this->stringValue($element);
+                
+                if (is_string($value) && trim($value) !== '') {
+                    return trim($value);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract and enrich MSL Laboratory data
+     * 
+     * @param array<string, mixed> $content
+     * @param string $labId
+     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}|null
+     */
+    private function extractMslLaboratory(array $content, string $labId): ?array
+    {
+        $mslService = app(MslLaboratoryService::class);
+
+        // Get laboratory name from XML
+        $nameElement = $this->firstElement($content, 'contributorName');
+        $labName = $this->stringValue($nameElement);
+
+        // Get affiliation info from XML
+        $affiliationElement = $this->firstElement($content, 'affiliation');
+        $affiliationName = $this->stringValue($affiliationElement);
+        
+        // Extract ROR if present - check scheme first, then fallback to identifier inspection
+        $affiliationRor = null;
+        $affiliationIdentifier = $affiliationElement?->getAttribute('affiliationIdentifier');
+        $affiliationScheme = $affiliationElement?->getAttribute('affiliationIdentifierScheme');
+        
+        Log::debug('Extracting MSL Lab affiliation', [
+            'labId' => $labId,
+            'affiliationName' => $affiliationName,
+            'affiliationIdentifier' => $affiliationIdentifier,
+            'affiliationScheme' => $affiliationScheme,
+        ]);
+        
+        if ($affiliationIdentifier) {
+            // Explicit ROR scheme OR identifier looks like a ROR
+            $isRor = ($affiliationScheme === 'ROR') || 
+                     str_contains(strtolower($affiliationIdentifier), 'ror.org');
+            
+            if ($isRor) {
+                // Normalize to full URL if not already
+                if (str_starts_with($affiliationIdentifier, 'http')) {
+                    $affiliationRor = $affiliationIdentifier;
+                } else {
+                    $affiliationRor = 'https://ror.org/' . $affiliationIdentifier;
+                }
+                
+                Log::debug('ROR identified and normalized', [
+                    'original' => $affiliationIdentifier,
+                    'normalized' => $affiliationRor,
+                ]);
+            }
+        }
+
+        // Enrich with data from Utrecht vocabulary (using labid)
+        $enrichedLab = $mslService->enrichLaboratoryData(
+            $labId,
+            $labName,
+            $affiliationName,
+            $affiliationRor
+        );
+
+        // Validate that we have at least a name
+        if (empty($enrichedLab['name'])) {
+            Log::warning('MSL Laboratory extracted without name', [
+                'labId' => $labId,
+            ]);
+            return null;
+        }
+
+        return $enrichedLab;
+    }
+
+    /**
      * @return array{value: string, rorId: string}|null
      */
     private function resolveAffiliationByRor(string $identifier, ?string $scheme, ?string $fallback): ?array
@@ -1107,10 +1237,12 @@ class UploadXmlController extends Controller
 
     private function isRorIdentifier(string $identifier, ?string $scheme): bool
     {
+        // Only treat as ROR if scheme explicitly indicates ROR
         if (is_string($scheme) && Str::lower($scheme) === 'ror') {
             return true;
         }
 
+        // Also accept if identifier contains ror.org (URL format)
         return Str::contains(Str::lower($identifier), 'ror.org');
     }
 
@@ -1122,26 +1254,22 @@ class UploadXmlController extends Controller
             return null;
         }
 
+        // If already a full URL, extract and normalize
+        if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
+            $rorId = trim($matches[1]);
+            return $rorId !== '' ? 'https://ror.org/' . Str::lower($rorId) : null;
+        }
+
+        // If it contains a path structure, extract it
         $parsed = parse_url($trimmed);
-
         if ($parsed !== false && isset($parsed['path'])) {
-            $host = isset($parsed['host']) ? Str::lower($parsed['host']) : 'ror.org';
             $path = trim((string) $parsed['path'], '/');
-
-            if ($path === '') {
-                return null;
-            }
-
-            return 'https://' . $host . '/' . Str::lower($path);
+            return $path !== '' ? 'https://ror.org/' . Str::lower($path) : null;
         }
 
+        // Otherwise, treat as ROR ID and prepend URL
         $path = Str::lower(trim($trimmed, '/'));
-
-        if ($path === '') {
-            return null;
-        }
-
-        return 'https://ror.org/' . $path;
+        return $path !== '' ? 'https://ror.org/' . $path : null;
     }
 
     private function loadAffiliationMap(): void

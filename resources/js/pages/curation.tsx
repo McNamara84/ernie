@@ -14,6 +14,7 @@ import {
     type BreadcrumbItem,
     type Language,
     type License,
+    type MSLLaboratory,
     type RelatedIdentifier,
     type ResourceType,
     type Role,
@@ -41,6 +42,7 @@ interface CurationProps {
     coverages?: SpatialTemporalCoverageEntry[];
     relatedWorks?: RelatedIdentifier[];
     fundingReferences?: FundingReferenceEntry[];
+    mslLaboratories?: MSLLaboratory[];
 }
 
 export default function Curation({
@@ -64,6 +66,7 @@ export default function Curation({
     coverages = [],
     relatedWorks = [],
     fundingReferences = [],
+    mslLaboratories = [],
 }: CurationProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
@@ -206,6 +209,7 @@ export default function Curation({
                             initialSpatialTemporalCoverages={coverages}
                             initialRelatedWorks={relatedWorks}
                             initialFundingReferences={fundingReferences}
+                            initialMslLaboratories={mslLaboratories}
                         />
                     )}
             </div>

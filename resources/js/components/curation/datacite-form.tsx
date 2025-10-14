@@ -21,7 +21,7 @@ import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { hasValidDateValue } from '@/lib/date-utils';
-import type { Language, License, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 
@@ -45,6 +45,7 @@ import FreeKeywordsField from './fields/free-keywords-field';
 import { type FundingReferenceEntry, FundingReferenceField } from './fields/funding-reference';
 import InputField from './fields/input-field';
 import LicenseField from './fields/license-field';
+import MSLLaboratoriesField from './fields/msl-laboratories-field';
 import { RelatedWorkField } from './fields/related-work';
 import { SelectField } from './fields/select-field';
 import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
@@ -493,6 +494,7 @@ interface DataCiteFormProps {
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
     initialFundingReferences?: FundingReferenceEntry[];
+    initialMslLaboratories?: MSLLaboratory[];
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
@@ -548,6 +550,7 @@ export default function DataCiteForm({
     initialGcmdKeywords = [],
     initialFreeKeywords = [],
     initialSpatialTemporalCoverages = [],
+    initialMslLaboratories = [],
     initialRelatedWorks = [],
     initialFundingReferences = [],
 }: DataCiteFormProps) {
@@ -730,6 +733,25 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const [mslLaboratories, setMslLaboratories] = useState<MSLLaboratory[]>(() => {
+        if (initialMslLaboratories && initialMslLaboratories.length > 0) {
+            return initialMslLaboratories;
+        }
+        return [];
+    });
+    const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([
+        'resource-info',
+        'authors',
+        'licenses-rights',
+        'contributors',
+        'descriptions',
+        'controlled-vocabularies',
+        'free-keywords',
+        'spatial-temporal-coverage',
+        'dates',
+        'related-work',
+        'funding-references',
+    ]);
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
@@ -786,6 +808,23 @@ export default function DataCiteForm({
 
         void loadVocabularies();
     }, []);
+
+    // Check if MSL section should be shown based on Free Keywords
+    const shouldShowMSLSection = useMemo(() => {
+        const keywords = freeKeywords.map((k) => k.value.toLowerCase());
+        const triggers = ['epos', 'multi-scale laboratories', 'multi scale laboratories', 'msl'];
+
+        return keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
+    }, [freeKeywords]);
+
+    // Automatically open MSL section when it becomes visible
+    useEffect(() => {
+        if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
+            setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
+        } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
+            setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
+        }
+    }, [shouldShowMSLSection, openAccordionItems]);
     
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
@@ -1331,6 +1370,12 @@ export default function DataCiteForm({
             licenses: string[];
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
+            mslLaboratories: {
+                identifier: string;
+                name: string;
+                affiliation_name: string;
+                affiliation_ror: string | null;
+            }[];
             descriptions: { descriptionType: string; description: string }[];
             dates: { dateType: string; startDate: string | null; endDate: string | null }[];
             freeKeywords: string[];
@@ -1384,6 +1429,12 @@ export default function DataCiteForm({
                 .filter((license): license is string => Boolean(license)),
             authors: serializedAuthors,
             contributors: serializedContributors,
+            mslLaboratories: mslLaboratories.map((lab) => ({
+                identifier: lab.identifier,
+                name: lab.name,
+                affiliation_name: lab.affiliation_name,
+                affiliation_ror: lab.affiliation_ror || null,
+            })),
             descriptions: descriptions
                 .filter((desc) => desc.value.trim() !== '')
                 .map((desc) => ({
@@ -1518,7 +1569,8 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates', 'related-work', 'funding-references']}
+                value={openAccordionItems}
+                onValueChange={setOpenAccordionItems}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
@@ -1767,6 +1819,24 @@ export default function DataCiteForm({
                         />
                     </AccordionContent>
                 </AccordionItem>
+                {shouldShowMSLSection && (
+                    <AccordionItem value="msl-laboratories">
+                        <AccordionTrigger>
+                            <div className="flex items-center gap-2">
+                                <span>🔬 Originating Multi-Scale Laboratories</span>
+                                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">
+                                    EPOS/MSL
+                                </span>
+                            </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                            <MSLLaboratoriesField
+                                selectedLaboratories={mslLaboratories}
+                                onChange={setMslLaboratories}
+                            />
+                        </AccordionContent>
+                    </AccordionItem>
+                )}
                 <AccordionItem value="spatial-temporal-coverage">
                     <AccordionTrigger>Spatial and Temporal Coverage</AccordionTrigger>
                     <AccordionContent>

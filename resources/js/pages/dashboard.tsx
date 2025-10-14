@@ -114,6 +114,12 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 awardUri: string | null;
                 awardTitle: string | null;
             }[] | null;
+            mslLaboratories?: {
+                identifier: string;
+                name: string;
+                affiliation_name: string;
+                affiliation_ror: string;
+            }[] | null;
         } = await response.json();
         const query: Record<string, string | number> = {};
         if (data.doi) query.doi = data.doi;
@@ -368,6 +374,9 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         // Add funding references as JSON string (like relatedWorks)
         if (data.fundingReferences && data.fundingReferences.length > 0) {
             query.fundingReferences = JSON.stringify(data.fundingReferences);
+        }
+        if (data.mslLaboratories && data.mslLaboratories.length > 0) {
+            query.mslLaboratories = JSON.stringify(data.mslLaboratories);
         }
         
         router.get(curationRoute({ query }).url);

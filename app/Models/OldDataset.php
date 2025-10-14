@@ -698,10 +698,21 @@ class OldDataset extends Model
             })
             ->toArray();
 
-        // Filter out resourceagents that have the "Creator" role
+        // Filter out resourceagents that have the "Creator" role OR are MSL Labs (labid)
         $contributorAgents = $allResourceAgents->filter(function ($agent) use ($allRoles) {
             $roles = $allRoles[$agent->order] ?? [];
-            return !in_array('Creator', $roles);
+            
+            // Exclude if has Creator role
+            if (in_array('Creator', $roles)) {
+                return false;
+            }
+            
+            // Exclude if this is an MSL Laboratory (identifiertype = 'labid')
+            if ($agent->identifiertype === 'labid') {
+                return false;
+            }
+            
+            return true;
         });
 
         // Prefetch all affiliations for this resource to avoid N+1 queries
@@ -802,6 +813,101 @@ class OldDataset extends Model
         }
 
         return $contributors;
+    }
+
+    /**
+     * Get MSL Laboratories for this resource from the resourceagent table.
+     * Returns an array of laboratories with identifiers and affiliations.
+     * Only includes resourceagents that have:
+     * - "HostingInstitution" role
+     * - identifier with identifiertype="labid"
+     *
+     * @return array<int, array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}>
+     */
+    public function getMslLaboratories(): array
+    {
+        if (!$this->exists) {
+            return [];
+        }
+
+        $db = \Illuminate\Support\Facades\DB::connection($this->connection);
+        
+        // Get all resourceagents with labid identifier (case-insensitive)
+        $labAgents = $db->table('resourceagent')
+            ->where('resource_id', $this->id)
+            ->whereRaw('LOWER(identifiertype) = ?', ['labid'])
+            ->whereNotNull('identifier')
+            ->orderBy('order')
+            ->get();
+
+        if ($labAgents->isEmpty()) {
+            return [];
+        }
+
+        // Prefetch all roles for these agents
+        $agentOrders = $labAgents->pluck('order')->toArray();
+        $allRoles = $db->table('role')
+            ->where('resourceagent_resource_id', $this->id)
+            ->whereIn('resourceagent_order', $agentOrders)
+            ->get()
+            ->groupBy('resourceagent_order')
+            ->map(function ($roles) {
+                return $roles->pluck('role')->toArray();
+            })
+            ->toArray();
+
+        // Prefetch all affiliations for these agents
+        $allAffiliations = $db->table('affiliation')
+            ->where('resourceagent_resource_id', $this->id)
+            ->whereIn('resourceagent_order', $agentOrders)
+            ->orderBy('resourceagent_order')
+            ->orderBy('order')
+            ->get()
+            ->groupBy('resourceagent_order');
+
+        $mslLaboratories = [];
+
+        foreach ($labAgents as $agent) {
+            $roles = $allRoles[$agent->order] ?? [];
+            
+            // Only include if it has HostingInstitution role
+            if (!in_array('HostingInstitution', $roles)) {
+                continue;
+            }
+
+            $affiliations = $allAffiliations->get($agent->order, collect());
+            
+            // Get first affiliation (MSL labs typically have only one)
+            $affiliation = $affiliations->first();
+            
+            $affiliationName = '';
+            $affiliationRor = '';
+            
+            if ($affiliation) {
+                $affiliationName = $affiliation->name ?? '';
+                $identifier = $affiliation->identifier ?? null;
+                
+                // Normalize ROR identifier to full URL format
+                if ($identifier && !empty(trim($identifier)) && $affiliation->identifiertype === 'ROR') {
+                    // If it's already a full URL, keep it
+                    if (str_starts_with($identifier, 'http')) {
+                        $affiliationRor = $identifier;
+                    } else {
+                        // Otherwise, prepend https://ror.org/
+                        $affiliationRor = 'https://ror.org/' . $identifier;
+                    }
+                }
+            }
+
+            $mslLaboratories[] = [
+                'identifier' => $agent->identifier,
+                'name' => $agent->name ?? '',
+                'affiliation_name' => $affiliationName,
+                'affiliation_ror' => $affiliationRor,
+            ];
+        }
+
+        return $mslLaboratories;
     }
 
     /**

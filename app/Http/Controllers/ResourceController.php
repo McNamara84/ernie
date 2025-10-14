@@ -73,6 +73,100 @@ class ResourceController extends Controller
             ->latest('created_at')
             ->paginate($perPage, ['*'], 'page', $page)
             ->through(static function (Resource $resource): array {
+                // Partition contributors to avoid double iteration (MSL Labs vs regular contributors)
+                [$mslLabs, $regularContributors] = $resource->contributors->partition(
+                    static function (ResourceAuthor $resourceContributor): bool {
+                        // MSL Labs: labid identifier type + Hosting Institution role
+                        $authorable = $resourceContributor->authorable;
+                        
+                        if (!$authorable instanceof Institution || $authorable->identifier_type !== 'labid') {
+                            return false;
+                        }
+                        
+                        return $resourceContributor->roles->contains(
+                            static fn (Role $role): bool => $role->slug === 'hosting-institution'
+                        );
+                    }
+                );
+                
+                // Process regular contributors
+                // @phpstan-ignore-next-line method.nonObject - partition() always returns two collections
+                $contributorsData = $regularContributors
+                    ->filter(static function (ResourceAuthor $resourceContributor): bool {
+                        // Filter: Only ResourceAuthors with Contributor roles
+                        return $resourceContributor->roles->contains(static fn (Role $role): bool => 
+                            in_array($role->applies_to, [
+                                Role::APPLIES_TO_CONTRIBUTOR_PERSON,
+                                Role::APPLIES_TO_CONTRIBUTOR_INSTITUTION,
+                                Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
+                            ], true)
+                        );
+                    })
+                    ->map(static function (ResourceAuthor $resourceContributor): ?array {
+                        $affiliations = $resourceContributor->affiliations
+                            ->map(static fn (\App\Models\Affiliation $affiliation): array => [
+                                'value' => $affiliation->value,
+                                'rorId' => $affiliation->ror_id,
+                            ])
+                            ->values()
+                            ->all();
+
+                        $roles = $resourceContributor->roles
+                            ->map(static fn (Role $role): string => $role->name)
+                            ->values()
+                            ->all();
+
+                        $base = [
+                            'position' => $resourceContributor->position,
+                            'affiliations' => $affiliations,
+                            'roles' => $roles,
+                        ];
+
+                        $contributorAble = $resourceContributor->authorable;
+
+                        if ($contributorAble instanceof Person) {
+                            return $base + [
+                                'type' => 'person',
+                                'orcid' => $contributorAble->orcid,
+                                'firstName' => $contributorAble->first_name,
+                                'lastName' => $contributorAble->last_name,
+                            ];
+                        }
+
+                        if ($contributorAble instanceof Institution) {
+                            return $base + [
+                                'type' => 'institution',
+                                'institutionName' => $contributorAble->name,
+                            ];
+                        }
+
+                        return null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+                
+                // Process MSL laboratories
+                // @phpstan-ignore-next-line method.nonObject - partition() always returns two collections
+                $mslLaboratoriesData = $mslLabs
+                    ->sortBy('position')
+                    ->map(static function (ResourceAuthor $resourceContributor): array {
+                        /** @var Institution $authorable */
+                        $authorable = $resourceContributor->authorable;
+                        
+                        // Get host institution from affiliations (may be null)
+                        $hostAffiliation = $resourceContributor->affiliations->first();
+                        
+                        return [
+                            'identifier' => $authorable->identifier ?? '',
+                            'name' => $authorable->name ?? '',
+                            'affiliation_name' => $hostAffiliation->value ?? '',
+                            'affiliation_ror' => $hostAffiliation->ror_id ?? '',
+                        ];
+                    })
+                    ->values()
+                    ->all();
+                
                 return [
                     'id' => $resource->id,
                     'doi' => $resource->doi,
@@ -151,60 +245,6 @@ class ResourceController extends Controller
                                     'type' => 'institution',
                                     'institutionName' => $authorable->name,
                                     'rorId' => $authorable->ror_id,
-                                ];
-                            }
-
-                            return null;
-                        })
-                        ->filter()
-                        ->values()
-                        ->all(),
-                    'contributors' => $resource->contributors
-                        ->filter(static function (ResourceAuthor $resourceContributor): bool {
-                            // Filter: Only ResourceAuthors with Contributor roles
-                            return $resourceContributor->roles->contains(static fn (Role $role): bool => 
-                                in_array($role->applies_to, [
-                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON,
-                                    Role::APPLIES_TO_CONTRIBUTOR_INSTITUTION,
-                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
-                                ], true)
-                            );
-                        })
-                        ->map(static function (ResourceAuthor $resourceContributor): ?array {
-                            $affiliations = $resourceContributor->affiliations
-                                ->map(static fn (\App\Models\Affiliation $affiliation): array => [
-                                    'value' => $affiliation->value,
-                                    'rorId' => $affiliation->ror_id,
-                                ])
-                                ->values()
-                                ->all();
-
-                            $roles = $resourceContributor->roles
-                                ->map(static fn (Role $role): string => $role->name)
-                                ->values()
-                                ->all();
-
-                            $base = [
-                                'position' => $resourceContributor->position,
-                                'affiliations' => $affiliations,
-                                'roles' => $roles,
-                            ];
-
-                            $contributorAble = $resourceContributor->authorable;
-
-                            if ($contributorAble instanceof Person) {
-                                return $base + [
-                                    'type' => 'person',
-                                    'orcid' => $contributorAble->orcid,
-                                    'firstName' => $contributorAble->first_name,
-                                    'lastName' => $contributorAble->last_name,
-                                ];
-                            }
-
-                            if ($contributorAble instanceof Institution) {
-                                return $base + [
-                                    'type' => 'institution',
-                                    'institutionName' => $contributorAble->name,
                                 ];
                             }
 
@@ -297,6 +337,8 @@ class ResourceController extends Controller
                         })
                         ->values()
                         ->all(),
+                    'contributors' => $contributorsData,
+                    'mslLaboratories' => $mslLaboratoriesData,
                 ];
             });
 
@@ -403,6 +445,25 @@ class ResourceController extends Controller
                     $this->syncAuthorAffiliations($resourceAuthor, $author);
                 }
 
+                // Delete old MSL labs if updating (before adding new ones)
+                if ($isUpdate) {
+                    // Get all existing MSL labs (institutions with identifier_type = 'labid')
+                    $mslLabs = ResourceAuthor::query()
+                        ->where('resource_id', $resource->id)
+                        ->where('authorable_type', Institution::class)
+                        ->whereHas('authorable', function ($query) {
+                            $query->where('identifier_type', 'labid');
+                        })
+                        ->get();
+                    
+                    // Properly cleanup relationships before deleting
+                    foreach ($mslLabs as $mslLab) {
+                        $mslLab->roles()->detach();      // Remove pivot table entries
+                        $mslLab->affiliations()->delete(); // Delete child affiliation records
+                        $mslLab->delete();               // Finally delete the ResourceAuthor
+                    }
+                }
+
                 $contributors = $validated['contributors'] ?? [];
 
                 foreach ($contributors as $contributor) {
@@ -418,6 +479,17 @@ class ResourceController extends Controller
 
                     $this->syncContributorRoles($resourceContributor, $contributor);
                     $this->syncContributorAffiliations($resourceContributor, $contributor);
+                }
+
+                // Save MSL Laboratories
+                $mslLaboratories = $validated['mslLaboratories'] ?? [];
+
+                foreach ($mslLaboratories as $lab) {
+                    $position = (int) ($lab['position'] ?? 0);
+
+                    $resourceAuthor = $this->storeMslLaboratory($resource, $lab, $position);
+                    $this->syncMslLaboratoryRole($resourceAuthor);
+                    $this->syncMslLaboratoryAffiliation($resourceAuthor, $lab);
                 }
 
                 // Save descriptions
@@ -805,17 +877,59 @@ class ResourceController extends Controller
     private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceAuthor
     {
         $name = $data['institutionName'];
+        $identifier = $data['identifier'] ?? null;
+        $identifierType = $data['identifierType'] ?? null;
 
-        // Contributors don't have a direct rorId field, only in affiliations
-        $institution = Institution::query()
-            ->where('name', $name)
-            ->whereNull('ror_id')
-            ->first();
+        $institution = null;
 
+        // Try to find by identifier and identifier_type first (if provided)
+        if ($identifier !== null && $identifierType !== null) {
+            $institution = Institution::query()
+                ->where('identifier', $identifier)
+                ->where('identifier_type', $identifierType)
+                ->first();
+        }
+
+        // Fallback: find by name without identifier
+        if ($institution === null) {
+            $institution = Institution::query()
+                ->where('name', $name)
+                ->whereNull('identifier')
+                ->whereNull('identifier_type')
+                ->first();
+        }
+
+        // Create new institution if not found
         if ($institution === null) {
             $institution = new Institution();
             $institution->name = $name;
+            
+            if ($identifier !== null && $identifierType !== null) {
+                $institution->identifier = $identifier;
+                $institution->identifier_type = $identifierType;
+            }
+            
             $institution->save();
+        } else {
+            // Update existing institution if identifier info is provided
+            $needsUpdate = false;
+            
+            if ($institution->name !== $name) {
+                $institution->name = $name;
+                $needsUpdate = true;
+            }
+            
+            if ($identifier !== null && $identifierType !== null) {
+                if ($institution->identifier !== $identifier || $institution->identifier_type !== $identifierType) {
+                    $institution->identifier = $identifier;
+                    $institution->identifier_type = $identifierType;
+                    $needsUpdate = true;
+                }
+            }
+            
+            if ($needsUpdate) {
+                $institution->save();
+            }
         }
 
         return ResourceAuthor::query()->create([
@@ -903,5 +1017,83 @@ class ResourceController extends Controller
         }
 
         $resourceContributor->affiliations()->createMany($payload);
+    }
+
+    /**
+     * Store an MSL Laboratory as Institution contributor.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function storeMslLaboratory(Resource $resource, array $data, int $position): ResourceAuthor
+    {
+        $identifier = $data['identifier'];
+        $name = $data['name'];
+
+        // Try to find existing laboratory by identifier
+        $institution = Institution::query()
+            ->where('identifier', $identifier)
+            ->where('identifier_type', 'labid')
+            ->first();
+
+        // Create or update institution
+        if ($institution === null) {
+            $institution = Institution::query()->create([
+                'name' => $name,
+                'identifier' => $identifier,
+                'identifier_type' => 'labid',
+            ]);
+        } else {
+            // Update name if changed
+            if ($institution->name !== $name) {
+                $institution->name = $name;
+                $institution->save();
+            }
+        }
+
+        // Create ResourceAuthor link
+        return ResourceAuthor::query()->create([
+            'resource_id' => $resource->id,
+            'authorable_id' => $institution->id,
+            'authorable_type' => Institution::class,
+            'position' => $position,
+            'email' => null,
+            'website' => null,
+        ]);
+    }
+
+    /**
+     * Sync the "Hosting Institution" role for an MSL Laboratory.
+     */
+    private function syncMslLaboratoryRole(ResourceAuthor $resourceAuthor): void
+    {
+        // Get or create the "Hosting Institution" role
+        $role = Role::query()->firstOrCreate(
+            ['slug' => 'hosting-institution'],
+            ['name' => 'Hosting Institution', 'applies_to' => 'institution'],
+        );
+
+        $resourceAuthor->roles()->sync([$role->id]);
+    }
+
+    /**
+     * Sync the affiliation (host institution) for an MSL Laboratory.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function syncMslLaboratoryAffiliation(ResourceAuthor $resourceAuthor, array $data): void
+    {
+        $affiliationName = $data['affiliation_name'] ?? '';
+        $affiliationRor = $data['affiliation_ror'] ?? null;
+
+        // Skip if no affiliation name
+        if (trim($affiliationName) === '') {
+            return;
+        }
+
+        // Create affiliation for the host institution
+        $resourceAuthor->affiliations()->create([
+            'value' => trim($affiliationName),
+            'ror_id' => $affiliationRor !== '' ? $affiliationRor : null,
+        ]);
     }
 }

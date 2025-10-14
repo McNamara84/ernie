@@ -184,6 +184,12 @@ export interface ResourceForCuration {
         awardTitle: string | null;
         position: number;
     }[] | null;
+    mslLaboratories?: {
+        identifier: string;
+        name: string;
+        affiliation_name: string;
+        affiliation_ror: string;
+    }[] | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -755,6 +761,12 @@ export const buildCurationQueryFromResource = async (
     const fundingReferences = resource.fundingReferences ?? [];
     if (fundingReferences.length > 0) {
         query.fundingReferences = JSON.stringify(fundingReferences);
+    }
+
+    // Add MSL Laboratories to query as JSON string
+    const mslLaboratories = resource.mslLaboratories ?? [];
+    if (mslLaboratories.length > 0) {
+        query.mslLaboratories = JSON.stringify(mslLaboratories);
     }
 
     return query;

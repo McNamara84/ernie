@@ -1055,6 +1055,30 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             }
             // Continue without related identifiers if loading fails
         }
+
+        // Load MSL Laboratories from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/msl-laboratories`);
+            const mslLaboratories = response.data.mslLaboratories || [];
+            
+            // Encode MSL laboratories as JSON (similar to relatedIdentifiers and fundingReferences)
+            if (mslLaboratories.length > 0) {
+                query.mslLaboratories = JSON.stringify(mslLaboratories);
+            }
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading MSL laboratories for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading MSL laboratories for dataset:', error);
+            }
+            // Continue without MSL laboratories if loading fails
+        }
     }
 
     return query;

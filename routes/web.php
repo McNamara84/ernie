@@ -84,6 +84,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/related-identifiers', [OldDatasetController::class, 'getRelatedIdentifiers'])
         ->name('old-datasets.related-identifiers');
 
+    Route::get('old-datasets/{id}/msl-laboratories', [OldDatasetController::class, 'getMslLaboratories'])
+        ->name('old-datasets.msl-laboratories');
+
     // DOI validation endpoint (proxy to avoid CORS issues)
     Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
         ->name('api.validate-doi');
@@ -140,6 +143,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $fundingReferences = is_array($decoded) ? $decoded : [];
         }
 
+        // Get MSL Laboratories from query parameters
+        $mslLaboratories = $request->query('mslLaboratories', []);
+        if (is_string($mslLaboratories)) {
+            $decoded = json_decode($mslLaboratories, true);
+            $mslLaboratories = is_array($decoded) ? $decoded : [];
+        }
+
         return Inertia::render('curation', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
@@ -161,6 +171,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'coverages' => $request->query('coverages', []),
             'relatedWorks' => $relatedWorks,
             'fundingReferences' => $fundingReferences,
+            'mslLaboratories' => $mslLaboratories,
         ]);
     })->name('curation');
 
@@ -174,6 +185,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.gcmd-platforms');
     Route::get('vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])
         ->name('vocabularies.gcmd-instruments');
+    Route::get('vocabularies/msl-vocabulary-url', function () {
+        return response()->json([
+            'url' => config('msl.vocabulary_url'),
+        ]);
+    })->name('vocabularies.msl-vocabulary-url');
 });
 
 require __DIR__.'/settings.php';
