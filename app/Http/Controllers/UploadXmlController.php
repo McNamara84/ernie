@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
 use App\Support\GcmdUriHelper;
+use App\Support\MslLaboratoryService;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use JsonException;
@@ -84,7 +86,9 @@ class UploadXmlController extends Controller
             $reader->xpathValue('//*[local-name()="language"]'),
         );
         $authors = $this->extractAuthors($reader);
-        $contributors = $this->extractContributors($reader);
+        $contributorsAndLabs = $this->extractContributorsAndMslLaboratories($reader);
+        $contributors = $contributorsAndLabs['contributors'];
+        $mslLaboratories = $contributorsAndLabs['mslLaboratories'];
         $descriptions = $this->extractDescriptions($reader);
         $dates = $this->extractDates($reader);
         $coverages = $this->extractCoverages($reader, $dates);
@@ -158,6 +162,7 @@ class UploadXmlController extends Controller
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
             'fundingReferences' => $fundingReferences,
+            'mslLaboratories' => $mslLaboratories,
         ]);
     }
 
@@ -247,9 +252,11 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Extract both regular contributors and MSL laboratories
+     * 
+     * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>}
      */
-    private function extractContributors(XmlReader $reader): array
+    private function extractContributorsAndMslLaboratories(XmlReader $reader): array
     {
         $contributorElements = $reader
             ->xpathElement('/*[local-name()="resource"]/*[local-name()="contributors"]/*[local-name()="contributor"]')
@@ -257,6 +264,7 @@ class UploadXmlController extends Controller
 
         $contributors = [];
         $contributorIndexByKey = [];
+        $mslLaboratories = [];
 
         foreach ($contributorElements as $contributor) {
             $content = $contributor->getContent();
@@ -266,6 +274,17 @@ class UploadXmlController extends Controller
             }
 
             $roles = $this->extractContributorRoles($contributor->getAttribute('contributorType'));
+
+            // Check if this is an MSL Laboratory (HostingInstitution with labid)
+            $labId = $this->extractLabId($content);
+            if ($labId !== null && in_array('Hosting Institution', $roles, true)) {
+                // This is an MSL Laboratory
+                $mslLab = $this->extractMslLaboratory($content, $labId);
+                if ($mslLab !== null) {
+                    $mslLaboratories[] = $mslLab;
+                }
+                continue; // Don't add to contributors
+            }
 
             $nameElement = $this->firstElement($content, 'contributorName');
             $nameType = $nameElement?->getAttribute('nameType');
@@ -319,7 +338,10 @@ class UploadXmlController extends Controller
             );
         }
 
-        return $contributors;
+        return [
+            'contributors' => $contributors,
+            'mslLaboratories' => $mslLaboratories,
+        ];
     }
 
     /**
@@ -1070,6 +1092,70 @@ class UploadXmlController extends Controller
         // Return only the ORCID identifier (e.g., "0000-0001-5727-2427")
         // without the URL prefix, as the frontend expects this format
         return $identifier;
+    }
+
+    /**
+     * Extract MSL Laboratory ID (labid) from contributor content
+     * 
+     * @param array<string, mixed> $content
+     * @return string|null
+     */
+    private function extractLabId(array $content): ?string
+    {
+        $identifierElements = $this->allElements($content, 'nameIdentifier');
+
+        foreach ($identifierElements as $element) {
+            $scheme = $element->getAttribute('nameIdentifierScheme');
+
+            if (is_string($scheme) && Str::lower($scheme) === 'labid') {
+                $value = $this->stringValue($element);
+                
+                if (is_string($value) && trim($value) !== '') {
+                    return trim($value);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract and enrich MSL Laboratory data
+     * 
+     * @param array<string, mixed> $content
+     * @param string $labId
+     * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}|null
+     */
+    private function extractMslLaboratory(array $content, string $labId): ?array
+    {
+        $mslService = app(MslLaboratoryService::class);
+
+        // Get laboratory name from XML
+        $nameElement = $this->firstElement($content, 'contributorName');
+        $labName = $this->stringValue($nameElement);
+
+        // Get affiliation info from XML
+        $affiliationElement = $this->firstElement($content, 'affiliation');
+        $affiliationName = $this->stringValue($affiliationElement);
+        $affiliationRor = $affiliationElement?->getAttribute('affiliationIdentifier');
+
+        // Enrich with data from Utrecht vocabulary (using labid)
+        $enrichedLab = $mslService->enrichLaboratoryData(
+            $labId,
+            $labName,
+            $affiliationName,
+            $affiliationRor
+        );
+
+        // Validate that we have at least a name
+        if (empty($enrichedLab['name'])) {
+            Log::warning('MSL Laboratory extracted without name', [
+                'labId' => $labId,
+            ]);
+            return null;
+        }
+
+        return $enrichedLab;
     }
 
     /**

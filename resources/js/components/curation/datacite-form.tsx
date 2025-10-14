@@ -739,6 +739,19 @@ export default function DataCiteForm({
         }
         return [];
     });
+    const [openAccordionItems, setOpenAccordionItems] = useState<string[]>([
+        'resource-info',
+        'authors',
+        'licenses-rights',
+        'contributors',
+        'descriptions',
+        'controlled-vocabularies',
+        'free-keywords',
+        'spatial-temporal-coverage',
+        'dates',
+        'related-work',
+        'funding-references',
+    ]);
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
@@ -795,7 +808,7 @@ export default function DataCiteForm({
 
         void loadVocabularies();
     }, []);
-    
+
     // Check if MSL section should be shown based on Free Keywords
     const shouldShowMSLSection = useMemo(() => {
         const keywords = freeKeywords.map((k) => k.value.toLowerCase());
@@ -803,6 +816,15 @@ export default function DataCiteForm({
 
         return keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
     }, [freeKeywords]);
+
+    // Automatically open MSL section when it becomes visible
+    useEffect(() => {
+        if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
+            setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
+        } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
+            setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
+        }
+    }, [shouldShowMSLSection, openAccordionItems]);
     
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
@@ -1535,7 +1557,8 @@ export default function DataCiteForm({
             )}
             <Accordion
                 type="multiple"
-                defaultValue={['resource-info', 'authors', 'licenses-rights', 'contributors', 'descriptions', 'controlled-vocabularies', 'free-keywords', 'spatial-temporal-coverage', 'dates', 'related-work', 'funding-references']}
+                value={openAccordionItems}
+                onValueChange={setOpenAccordionItems}
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
