@@ -1370,6 +1370,12 @@ export default function DataCiteForm({
             licenses: string[];
             authors: SerializedAuthor[];
             contributors: SerializedContributor[];
+            mslLaboratories: {
+                identifier: string;
+                name: string;
+                affiliation_name: string;
+                affiliation_ror: string | null;
+            }[];
             descriptions: { descriptionType: string; description: string }[];
             dates: { dateType: string; startDate: string | null; endDate: string | null }[];
             freeKeywords: string[];
@@ -1423,6 +1429,12 @@ export default function DataCiteForm({
                 .filter((license): license is string => Boolean(license)),
             authors: serializedAuthors,
             contributors: serializedContributors,
+            mslLaboratories: mslLaboratories.map((lab) => ({
+                identifier: lab.identifier,
+                name: lab.name,
+                affiliation_name: lab.affiliation_name,
+                affiliation_ror: lab.affiliation_ror || null,
+            })),
             descriptions: descriptions
                 .filter((desc) => desc.value.trim() !== '')
                 .map((desc) => ({

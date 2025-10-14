@@ -13,7 +13,9 @@ class Institution extends Model
 
     protected $fillable = [
         'name',
-        'ror_id',
+        'ror_id',          // Legacy field for backwards compatibility
+        'identifier',      // Generic identifier (ROR, labid, ISNI, etc.)
+        'identifier_type', // Type of identifier (ROR, labid, ISNI, etc.)
     ];
 
     /** @return MorphMany<ResourceAuthor, static> */
@@ -23,5 +25,21 @@ class Institution extends Model
         $relation = $this->morphMany(ResourceAuthor::class, 'authorable');
 
         return $relation;
+    }
+
+    /**
+     * Check if this institution is an MSL Laboratory
+     */
+    public function isLaboratory(): bool
+    {
+        return $this->identifier_type === 'labid';
+    }
+
+    /**
+     * Check if this institution has a ROR identifier
+     */
+    public function isRorInstitution(): bool
+    {
+        return $this->identifier_type === 'ROR';
     }
 }

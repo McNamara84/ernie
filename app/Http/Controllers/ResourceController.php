@@ -420,6 +420,19 @@ class ResourceController extends Controller
                     $this->syncContributorAffiliations($resourceContributor, $contributor);
                 }
 
+                // Save MSL Laboratories
+                $mslLaboratories = $validated['mslLaboratories'] ?? [];
+
+                foreach ($mslLaboratories as $lab) {
+                    $position = isset($lab['position']) && is_int($lab['position'])
+                        ? $lab['position']
+                        : 0;
+
+                    $resourceAuthor = $this->storeMslLaboratory($resource, $lab, $position);
+                    $this->syncMslLaboratoryRole($resourceAuthor);
+                    $this->syncMslLaboratoryAffiliation($resourceAuthor, $lab);
+                }
+
                 // Save descriptions
                 if ($isUpdate) {
                     $resource->descriptions()->delete();
@@ -805,17 +818,59 @@ class ResourceController extends Controller
     private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceAuthor
     {
         $name = $data['institutionName'];
+        $identifier = $data['identifier'] ?? null;
+        $identifierType = $data['identifierType'] ?? null;
 
-        // Contributors don't have a direct rorId field, only in affiliations
-        $institution = Institution::query()
-            ->where('name', $name)
-            ->whereNull('ror_id')
-            ->first();
+        $institution = null;
 
+        // Try to find by identifier and identifier_type first (if provided)
+        if ($identifier !== null && $identifierType !== null) {
+            $institution = Institution::query()
+                ->where('identifier', $identifier)
+                ->where('identifier_type', $identifierType)
+                ->first();
+        }
+
+        // Fallback: find by name without identifier
+        if ($institution === null) {
+            $institution = Institution::query()
+                ->where('name', $name)
+                ->whereNull('identifier')
+                ->whereNull('identifier_type')
+                ->first();
+        }
+
+        // Create new institution if not found
         if ($institution === null) {
             $institution = new Institution();
             $institution->name = $name;
+            
+            if ($identifier !== null && $identifierType !== null) {
+                $institution->identifier = $identifier;
+                $institution->identifier_type = $identifierType;
+            }
+            
             $institution->save();
+        } else {
+            // Update existing institution if identifier info is provided
+            $needsUpdate = false;
+            
+            if ($institution->name !== $name) {
+                $institution->name = $name;
+                $needsUpdate = true;
+            }
+            
+            if ($identifier !== null && $identifierType !== null) {
+                if ($institution->identifier !== $identifier || $institution->identifier_type !== $identifierType) {
+                    $institution->identifier = $identifier;
+                    $institution->identifier_type = $identifierType;
+                    $needsUpdate = true;
+                }
+            }
+            
+            if ($needsUpdate) {
+                $institution->save();
+            }
         }
 
         return ResourceAuthor::query()->create([
@@ -903,5 +958,83 @@ class ResourceController extends Controller
         }
 
         $resourceContributor->affiliations()->createMany($payload);
+    }
+
+    /**
+     * Store an MSL Laboratory as Institution contributor.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function storeMslLaboratory(Resource $resource, array $data, int $position): ResourceAuthor
+    {
+        $identifier = $data['identifier'];
+        $name = $data['name'];
+
+        // Try to find existing laboratory by identifier
+        $institution = Institution::query()
+            ->where('identifier', $identifier)
+            ->where('identifier_type', 'labid')
+            ->first();
+
+        // Create or update institution
+        if ($institution === null) {
+            $institution = Institution::query()->create([
+                'name' => $name,
+                'identifier' => $identifier,
+                'identifier_type' => 'labid',
+            ]);
+        } else {
+            // Update name if changed
+            if ($institution->name !== $name) {
+                $institution->name = $name;
+                $institution->save();
+            }
+        }
+
+        // Create ResourceAuthor link
+        return ResourceAuthor::query()->create([
+            'resource_id' => $resource->id,
+            'authorable_id' => $institution->id,
+            'authorable_type' => Institution::class,
+            'position' => $position,
+            'email' => null,
+            'website' => null,
+        ]);
+    }
+
+    /**
+     * Sync the "Hosting Institution" role for an MSL Laboratory.
+     */
+    private function syncMslLaboratoryRole(ResourceAuthor $resourceAuthor): void
+    {
+        // Get or create the "Hosting Institution" role
+        $role = Role::query()->firstOrCreate(
+            ['slug' => 'hosting-institution'],
+            ['name' => 'Hosting Institution', 'applies_to' => 'institution'],
+        );
+
+        $resourceAuthor->roles()->sync([$role->id]);
+    }
+
+    /**
+     * Sync the affiliation (host institution) for an MSL Laboratory.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function syncMslLaboratoryAffiliation(ResourceAuthor $resourceAuthor, array $data): void
+    {
+        $affiliationName = $data['affiliation_name'] ?? '';
+        $affiliationRor = $data['affiliation_ror'] ?? null;
+
+        // Skip if no affiliation name
+        if (trim($affiliationName) === '') {
+            return;
+        }
+
+        // Create affiliation for the host institution
+        $resourceAuthor->affiliations()->create([
+            'value' => trim($affiliationName),
+            'ror_id' => $affiliationRor !== '' ? $affiliationRor : null,
+        ]);
     }
 }

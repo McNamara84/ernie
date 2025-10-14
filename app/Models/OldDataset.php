@@ -698,10 +698,21 @@ class OldDataset extends Model
             })
             ->toArray();
 
-        // Filter out resourceagents that have the "Creator" role
+        // Filter out resourceagents that have the "Creator" role OR are MSL Labs (labid)
         $contributorAgents = $allResourceAgents->filter(function ($agent) use ($allRoles) {
             $roles = $allRoles[$agent->order] ?? [];
-            return !in_array('Creator', $roles);
+            
+            // Exclude if has Creator role
+            if (in_array('Creator', $roles)) {
+                return false;
+            }
+            
+            // Exclude if this is an MSL Laboratory (identifiertype = 'labid')
+            if ($agent->identifiertype === 'labid') {
+                return false;
+            }
+            
+            return true;
         });
 
         // Prefetch all affiliations for this resource to avoid N+1 queries

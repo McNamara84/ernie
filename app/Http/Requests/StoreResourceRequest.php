@@ -55,6 +55,8 @@ class StoreResourceRequest extends FormRequest
             'contributors.*.firstName' => ['nullable', 'string', 'max:255'],
             'contributors.*.lastName' => ['nullable', 'string', 'max:255'],
             'contributors.*.institutionName' => ['nullable', 'string', 'max:255'],
+            'contributors.*.identifier' => ['nullable', 'string', 'max:255'],
+            'contributors.*.identifierType' => ['nullable', 'string', 'max:50'],
             'contributors.*.affiliations' => ['array'],
             'contributors.*.affiliations.*.value' => ['required', 'string', 'max:255'],
             'contributors.*.affiliations.*.rorId' => ['nullable', 'string', 'max:255'],
@@ -125,6 +127,11 @@ class StoreResourceRequest extends FormRequest
             'fundingReferences.*.awardNumber' => ['nullable', 'string', 'max:255'],
             'fundingReferences.*.awardUri' => ['nullable', 'url', 'max:2048'],
             'fundingReferences.*.awardTitle' => ['nullable', 'string', 'max:500'],
+            'mslLaboratories' => ['nullable', 'array'],
+            'mslLaboratories.*.identifier' => ['required', 'string', 'max:255'],
+            'mslLaboratories.*.name' => ['required', 'string', 'max:255'],
+            'mslLaboratories.*.affiliation_name' => ['required', 'string', 'max:255'],
+            'mslLaboratories.*.affiliation_ror' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -355,6 +362,8 @@ class StoreResourceRequest extends FormRequest
                 $contributors[] = [
                     'type' => 'institution',
                     'institutionName' => $this->normalizeString($contributor['institutionName'] ?? null),
+                    'identifier' => $this->normalizeString($contributor['identifier'] ?? null),
+                    'identifierType' => $this->normalizeString($contributor['identifierType'] ?? null),
                     'roles' => $roles,
                     'affiliations' => $affiliations,
                     'position' => (int) $index,
@@ -444,6 +453,37 @@ class StoreResourceRequest extends FormRequest
             ];
         }
 
+        // Process MSL Laboratories
+        /** @var array<int, array<string, mixed>|mixed> $rawMslLaboratories */
+        $rawMslLaboratories = $this->input('mslLaboratories', []);
+
+        $mslLaboratories = [];
+
+        if (is_array($rawMslLaboratories)) {
+            foreach ($rawMslLaboratories as $index => $lab) {
+                if (! is_array($lab)) {
+                    continue;
+                }
+
+                $identifier = isset($lab['identifier']) ? trim((string) $lab['identifier']) : '';
+                $name = isset($lab['name']) ? trim((string) $lab['name']) : '';
+                $affiliationName = isset($lab['affiliation_name']) ? trim((string) $lab['affiliation_name']) : '';
+                $affiliationRor = isset($lab['affiliation_ror']) ? trim((string) $lab['affiliation_ror']) : '';
+
+                if ($identifier === '' || $name === '') {
+                    continue;
+                }
+
+                $mslLaboratories[] = [
+                    'identifier' => $identifier,
+                    'name' => $name,
+                    'affiliation_name' => $affiliationName,
+                    'affiliation_ror' => $affiliationRor !== '' ? $affiliationRor : null,
+                    'position' => (int) $index,
+                ];
+            }
+        }
+
         $this->merge([
             'doi' => $this->filled('doi') ? trim((string) $this->input('doi')) : null,
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
@@ -455,6 +495,7 @@ class StoreResourceRequest extends FormRequest
             'resourceId' => $this->filled('resourceId') ? (int) $this->input('resourceId') : null,
             'authors' => $authors,
             'contributors' => $contributors,
+            'mslLaboratories' => $mslLaboratories,
             'descriptions' => $descriptions,
             'dates' => $dates,
         ]);
