@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Support\MslLaboratoryService;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 

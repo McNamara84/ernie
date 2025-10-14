@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Support\MslLaboratoryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;

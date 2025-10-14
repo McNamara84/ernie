@@ -326,14 +326,16 @@ class ResourceController extends Controller
                             /** @var Institution $authorable */
                             $authorable = $resourceContributor->authorable;
                             
-                            // Get host institution from affiliations
+                            // Get host institution from affiliations (may be null)
                             $hostAffiliation = $resourceContributor->affiliations->first();
                             
                             return [
                                 'identifier' => $authorable->identifier ?? '',
                                 'name' => $authorable->name ?? '',
-                                'affiliation_name' => $hostAffiliation->value ?? '',
-                                'affiliation_ror' => $hostAffiliation->ror_id ?? '',
+                                // @phpstan-ignore-next-line nullsafe.neverNull - More readable with explicit fallback
+                                'affiliation_name' => $hostAffiliation?->value ?? '',
+                                // @phpstan-ignore-next-line nullsafe.neverNull - More readable with explicit fallback
+                                'affiliation_ror' => $hostAffiliation?->ror_id ?? '',
                             ];
                         })
                         ->values()

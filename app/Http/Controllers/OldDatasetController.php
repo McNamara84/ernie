@@ -94,7 +94,7 @@ class OldDatasetController extends Controller
             ]);
 
             // Bei Datenbankproblemen leere Resultate mit Fehlermeldung zurückgeben
-            return Inertia::render('old-datasets', [
+            $errorData = [
                 'datasets' => [],
                 'pagination' => [
                     'current_page' => 1,
@@ -106,12 +106,18 @@ class OldDatasetController extends Controller
                     'has_more' => false,
                 ],
                 'error' => 'SUMARIOPMD-Datenbankverbindung fehlgeschlagen: ' . $e->getMessage(),
-                'debug' => $debugInfo,
                 'sort' => [
                     'key' => self::DEFAULT_SORT_KEY,
                     'direction' => self::DEFAULT_SORT_DIRECTION,
                 ],
-            ]);
+            ];
+
+            // Only include debug info when app debug is enabled
+            if (config('app.debug')) {
+                $errorData['debug'] = $debugInfo;
+            }
+
+            return Inertia::render('old-datasets', $errorData);
         }
     }
 
@@ -181,14 +187,20 @@ class OldDatasetController extends Controller
                 'exception' => $e,
             ]);
 
-            return response()->json([
-                'error' => 'Error loading datasets:ss ' . $e->getMessage(),
-                'debug' => $debugInfo,
+            $response = [
+                'error' => 'Error loading datasets: ' . $e->getMessage(),
                 'sort' => [
                     'key' => self::DEFAULT_SORT_KEY,
                     'direction' => self::DEFAULT_SORT_DIRECTION,
                 ],
-            ], 500);
+            ];
+
+            // Only include debug info when app debug is enabled
+            if (config('app.debug')) {
+                $response['debug'] = $debugInfo;
+            }
+
+            return response()->json($response, 500);
         }
     }
 
@@ -244,10 +256,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load authors from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load authors from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -282,10 +291,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load contributors from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load contributors from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -320,10 +326,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load descriptions from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load descriptions from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -358,10 +361,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load funding references from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load funding references from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -396,10 +396,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load dates from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load dates from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -450,10 +447,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load controlled keywords from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load controlled keywords from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -504,10 +498,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load free keywords from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load free keywords from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -542,10 +533,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load spatial and temporal coverages from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load spatial and temporal coverages from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -580,10 +568,7 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load related identifiers from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load related identifiers from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -614,10 +599,16 @@ class OldDatasetController extends Controller
                 'dataset_id' => $id,
             ]);
 
-            return response()->json([
+            $response = [
                 'error' => 'Failed to load MSL laboratories from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            ];
+
+            // Only include debug info when app debug is enabled
+            if (config('app.debug')) {
+                $response['debug'] = $debugInfo;
+            }
+
+            return response()->json($response, 500);
         }
     }
 
@@ -771,10 +762,7 @@ class OldDatasetController extends Controller
                 'exception' => $e,
             ]);
 
-            return response()->json([
-                'error' => 'Failed to load filter options from legacy database. Please check the database connection.',
-                'debug' => $debugInfo,
-            ], 500);
+            return $this->errorResponse('Failed to load filter options from legacy database. Please check the database connection.', $debugInfo, 500);
         }
     }
 
@@ -839,4 +827,25 @@ class OldDatasetController extends Controller
 
         return $hosts;
     }
+
+    /**
+     * Build error response with optional debug information.
+     *
+     * @param string $message
+     * @param array<string, mixed> $debugInfo
+     * @param int $statusCode
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function errorResponse(string $message, array $debugInfo = [], int $statusCode = 500): \Illuminate\Http\JsonResponse
+    {
+        $response = ['error' => $message];
+
+        // Only include debug info when app debug is enabled
+        if (config('app.debug') && ! empty($debugInfo)) {
+            $response['debug'] = $debugInfo;
+        }
+
+        return response()->json($response, $statusCode);
+    }
 }
+
