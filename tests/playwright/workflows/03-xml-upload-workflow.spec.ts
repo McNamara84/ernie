@@ -29,7 +29,7 @@ test.describe('XML Upload', () => {
     await page.goto('/dashboard');
     await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
 
-    const fileInput = page.locator('input[type=\"file\"][accept=\".xml\"]');
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
     const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
 
@@ -54,7 +54,7 @@ test.describe('XML Upload', () => {
   test('handles invalid XML files gracefully', async ({ page }) => {
     await page.goto('/dashboard');
 
-    const fileInput = page.locator('input[type=\"file\"][accept=\".xml\"]');
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
     
     // Create temporary invalid XML file
     const invalidXml = '<invalid>Not a proper DataCite XML</invalid>';
