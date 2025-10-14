@@ -49,7 +49,7 @@ class ResourceController extends Controller
                 'descriptions:id,resource_id,description_type,description',
                 'dates:id,resource_id,date_type,start_date,end_date,date_information',
                 'keywords:id,resource_id,keyword',
-                'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri,vocabulary_type',
+                'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri',
                 'coverages',
                 'relatedIdentifiers:id,resource_id,identifier,identifier_type,relation_type,position',
                 'fundingReferences:id,resource_id,funder_name,funder_identifier,funder_identifier_type,award_number,award_uri,award_title,position',
@@ -288,7 +288,6 @@ class ResourceController extends Controller
                                 'language' => $keyword->language,
                                 'scheme' => $keyword->scheme,
                                 'schemeURI' => $keyword->scheme_uri,
-                                'vocabularyType' => $keyword->vocabulary_type,
                             ];
                         })
                         ->values()
@@ -448,12 +447,14 @@ class ResourceController extends Controller
                 // Delete old MSL labs if updating (before adding new ones)
                 if ($isUpdate) {
                     // Get all existing MSL labs (institutions with identifier_type = 'labid')
+                    // Use whereIn with subquery to avoid morph type issues
+                    $mslLabIds = Institution::where('identifier_type', 'labid')
+                        ->pluck('id');
+                    
                     $mslLabs = ResourceAuthor::query()
                         ->where('resource_id', $resource->id)
                         ->where('authorable_type', Institution::class)
-                        ->whereHas('authorable', function ($query) {
-                            $query->where('identifier_type', 'labid');
-                        })
+                        ->whereIn('authorable_id', $mslLabIds)
                         ->get();
                     
                     // Properly cleanup relationships before deleting
@@ -548,16 +549,15 @@ class ResourceController extends Controller
                 // Prepare controlled keywords for bulk creation
                 $controlledKeywordsData = [];
                 foreach ($controlledKeywords as $keyword) {
-                    // Validate required fields
-                    if (!empty($keyword['id']) && !empty($keyword['text']) && !empty($keyword['vocabularyType'])) {
+                    // Validate required fields (scheme is now the discriminator instead of vocabularyType)
+                    if (!empty($keyword['id']) && !empty($keyword['text']) && !empty($keyword['scheme'])) {
                         $controlledKeywordsData[] = [
                             'keyword_id' => $keyword['id'],
                             'text' => $keyword['text'],
                             'path' => $keyword['path'] ?? $keyword['text'],
                             'language' => $keyword['language'] ?? 'en',
-                            'scheme' => $keyword['scheme'] ?? '',
+                            'scheme' => $keyword['scheme'],
                             'scheme_uri' => $keyword['schemeURI'] ?? '',
-                            'vocabulary_type' => $keyword['vocabularyType'],
                         ];
                     }
                 }

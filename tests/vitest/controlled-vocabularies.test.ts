@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
+import { getVocabularyTypeFromScheme, getSchemeFromVocabularyType } from '@/types/gcmd';
 
 describe('SelectedKeyword Type', () => {
     it('should have all required fields', () => {
@@ -16,9 +17,8 @@ describe('SelectedKeyword Type', () => {
             text: 'CALCIUM',
             path: 'EARTH SCIENCE > AGRICULTURE > SOILS > CALCIUM',
             language: 'en',
-            scheme: 'Earth Science',
+            scheme: 'Science Keywords',
             schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-            vocabularyType: 'science',
         };
 
         expect(keyword).toHaveProperty('id');
@@ -27,24 +27,23 @@ describe('SelectedKeyword Type', () => {
         expect(keyword).toHaveProperty('language');
         expect(keyword).toHaveProperty('scheme');
         expect(keyword).toHaveProperty('schemeURI');
-        expect(keyword).toHaveProperty('vocabularyType');
+        expect(keyword).not.toHaveProperty('vocabularyType'); // Removed
     });
 
-    it('should validate science vocabulary type', () => {
+    it('should validate science vocabulary type using scheme', () => {
         const keyword: SelectedKeyword = {
             id: 'https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid',
             text: 'TEST',
             path: 'EARTH SCIENCE > TEST',
             language: 'en',
-            scheme: 'Earth Science',
+            scheme: 'Science Keywords',
             schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-            vocabularyType: 'science',
         };
 
-        expect(keyword.vocabularyType).toBe('science');
+        expect(getVocabularyTypeFromScheme(keyword.scheme)).toBe('science');
     });
 
-    it('should validate platforms vocabulary type', () => {
+    it('should validate platforms vocabulary type using scheme', () => {
         const keyword: SelectedKeyword = {
             id: 'https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid',
             text: 'TEST PLATFORM',
@@ -52,13 +51,12 @@ describe('SelectedKeyword Type', () => {
             language: 'en',
             scheme: 'Platforms',
             schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms',
-            vocabularyType: 'platforms',
         };
 
-        expect(keyword.vocabularyType).toBe('platforms');
+        expect(getVocabularyTypeFromScheme(keyword.scheme)).toBe('platforms');
     });
 
-    it('should validate instruments vocabulary type', () => {
+    it('should validate instruments vocabulary type using scheme', () => {
         const keyword: SelectedKeyword = {
             id: 'https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid',
             text: 'TEST INSTRUMENT',
@@ -66,10 +64,9 @@ describe('SelectedKeyword Type', () => {
             language: 'en',
             scheme: 'Instruments',
             schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments',
-            vocabularyType: 'instruments',
         };
 
-        expect(keyword.vocabularyType).toBe('instruments');
+        expect(getVocabularyTypeFromScheme(keyword.scheme)).toBe('instruments');
     });
 
     it('should store full hierarchical path', () => {
@@ -78,9 +75,8 @@ describe('SelectedKeyword Type', () => {
             text: 'CALCIUM',
             path: 'EARTH SCIENCE > AGRICULTURE > SOILS > SOIL CHEMISTRY > CALCIUM',
             language: 'en',
-            scheme: 'Earth Science',
+            scheme: 'Science Keywords',
             schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-            vocabularyType: 'science',
         };
 
         expect(keyword.path).toContain(' > ');
@@ -97,9 +93,8 @@ describe('SelectedKeyword Type', () => {
                 text: 'TEST',
                 path: 'TEST',
                 language: lang,
-                scheme: 'Test',
+                scheme: 'Science Keywords',
                 schemeURI: 'https://test.com',
-                vocabularyType: 'science',
             };
 
             expect(keyword.language).toBe(lang);
@@ -114,9 +109,8 @@ describe('SelectedKeyword Type', () => {
             text: 'TEST',
             path: 'TEST',
             language: 'en',
-            scheme: 'Test',
+            scheme: 'Science Keywords',
             schemeURI: 'https://test.com',
-            vocabularyType: 'science',
         };
 
         expect(keyword.id).toBe(fullUri);
@@ -127,13 +121,27 @@ describe('SelectedKeyword Type', () => {
 
 describe('GCMDVocabularyType', () => {
     it('should only allow valid vocabulary types', () => {
-        const validTypes: GCMDVocabularyType[] = ['science', 'platforms', 'instruments'];
+        const validTypes: GCMDVocabularyType[] = ['science', 'platforms', 'instruments', 'msl'];
 
         validTypes.forEach((type) => {
-            expect(['science', 'platforms', 'instruments']).toContain(type);
+            expect(['science', 'platforms', 'instruments', 'msl']).toContain(type);
         });
 
-        expect(validTypes).toHaveLength(3);
+        expect(validTypes).toHaveLength(4);
+    });
+
+    it('should convert scheme to vocabulary type', () => {
+        expect(getVocabularyTypeFromScheme('Science Keywords')).toBe('science');
+        expect(getVocabularyTypeFromScheme('Platforms')).toBe('platforms');
+        expect(getVocabularyTypeFromScheme('Instruments')).toBe('instruments');
+        expect(getVocabularyTypeFromScheme('EPOS MSL vocabulary')).toBe('msl');
+    });
+
+    it('should convert vocabulary type to scheme', () => {
+        expect(getSchemeFromVocabularyType('science')).toBe('Science Keywords');
+        expect(getSchemeFromVocabularyType('platforms')).toBe('Platforms');
+        expect(getSchemeFromVocabularyType('instruments')).toBe('Instruments');
+        expect(getSchemeFromVocabularyType('msl')).toBe('EPOS MSL vocabulary');
     });
 });
 
@@ -147,21 +155,20 @@ describe('Controlled Vocabularies Data Flow', () => {
             path: 'EARTH SCIENCE > AGRICULTURE > SOILS > SOIL MOISTURE/WATER CONTENT',
         };
 
-        // Transform to SelectedKeyword
+        // Transform to SelectedKeyword (scheme-based)
         const newKeyword: SelectedKeyword = {
             id: oldKeyword.id,
             text: oldKeyword.text,
             path: oldKeyword.path,
             language: 'en', // Default for old DB
-            scheme: oldKeyword.vocabulary, // Use vocabulary name as scheme
+            scheme: 'Science Keywords', // Mapped from 'gcmd-science-keywords'
             schemeURI: oldKeyword.id.replace(/\/concept\/[^/]+$/, '/concepts/concept_scheme'),
-            vocabularyType: 'science', // Mapped from 'gcmd-science-keywords'
         };
 
         expect(newKeyword.id).toBe(oldKeyword.id);
         expect(newKeyword.text).toBe(oldKeyword.text);
         expect(newKeyword.path).toBe(oldKeyword.path);
-        expect(newKeyword.vocabularyType).toBe('science');
+        expect(getVocabularyTypeFromScheme(newKeyword.scheme)).toBe('science');
         expect(newKeyword.language).toBe('en');
     });
 
@@ -171,12 +178,11 @@ describe('Controlled Vocabularies Data Flow', () => {
             text: 'CALCIUM',
             path: 'EARTH SCIENCE > AGRICULTURE > SOILS > CALCIUM',
             language: 'en',
-            scheme: 'Earth Science',
+            scheme: 'Science Keywords',
             schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-            vocabularyType: 'science',
         };
 
-        // Prepare for API submission
+        // Prepare for API submission (scheme is sent to backend)
         const payload = {
             id: keyword.id,
             text: keyword.text,
@@ -184,11 +190,10 @@ describe('Controlled Vocabularies Data Flow', () => {
             language: keyword.language,
             scheme: keyword.scheme,
             schemeURI: keyword.schemeURI,
-            vocabularyType: keyword.vocabularyType,
         };
 
         expect(payload).toEqual(keyword);
-        expect(Object.keys(payload)).toHaveLength(7);
+        expect(Object.keys(payload)).toHaveLength(6); // Changed from 7
     });
 
     it('should handle multiple keywords of different types', () => {
@@ -198,9 +203,8 @@ describe('Controlled Vocabularies Data Flow', () => {
                 text: 'CALCIUM',
                 path: 'EARTH SCIENCE > AGRICULTURE > SOILS > CALCIUM',
                 language: 'en',
-                scheme: 'Earth Science',
+                scheme: 'Science Keywords',
                 schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-                vocabularyType: 'science',
             },
             {
                 id: 'https://gcmd.earthdata.nasa.gov/kms/concept/platform-1',
@@ -209,7 +213,6 @@ describe('Controlled Vocabularies Data Flow', () => {
                 language: 'en',
                 scheme: 'Platforms',
                 schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/platforms',
-                vocabularyType: 'platforms',
             },
             {
                 id: 'https://gcmd.earthdata.nasa.gov/kms/concept/instrument-1',
@@ -218,37 +221,34 @@ describe('Controlled Vocabularies Data Flow', () => {
                 language: 'en',
                 scheme: 'Instruments',
                 schemeURI: 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/instruments',
-                vocabularyType: 'instruments',
             },
         ];
 
         expect(keywords).toHaveLength(3);
-        expect(keywords.filter((k) => k.vocabularyType === 'science')).toHaveLength(1);
-        expect(keywords.filter((k) => k.vocabularyType === 'platforms')).toHaveLength(1);
-        expect(keywords.filter((k) => k.vocabularyType === 'instruments')).toHaveLength(1);
+        expect(keywords.filter((k) => getVocabularyTypeFromScheme(k.scheme) === 'science')).toHaveLength(1);
+        expect(keywords.filter((k) => getVocabularyTypeFromScheme(k.scheme) === 'platforms')).toHaveLength(1);
+        expect(keywords.filter((k) => getVocabularyTypeFromScheme(k.scheme) === 'instruments')).toHaveLength(1);
     });
 });
 
 describe('Vocabulary Type Grouping', () => {
-    it('should group keywords by vocabulary type', () => {
+    it('should group keywords by vocabulary type using scheme', () => {
         const keywords: SelectedKeyword[] = [
             {
                 id: 'science-1',
                 text: 'KEYWORD 1',
                 path: 'PATH 1',
                 language: 'en',
-                scheme: 'Science',
+                scheme: 'Science Keywords',
                 schemeURI: 'https://test.com',
-                vocabularyType: 'science',
             },
             {
                 id: 'science-2',
                 text: 'KEYWORD 2',
                 path: 'PATH 2',
                 language: 'en',
-                scheme: 'Science',
+                scheme: 'Science Keywords',
                 schemeURI: 'https://test.com',
-                vocabularyType: 'science',
             },
             {
                 id: 'platform-1',
@@ -257,7 +257,6 @@ describe('Vocabulary Type Grouping', () => {
                 language: 'en',
                 scheme: 'Platforms',
                 schemeURI: 'https://test.com',
-                vocabularyType: 'platforms',
             },
         ];
 
@@ -265,36 +264,39 @@ describe('Vocabulary Type Grouping', () => {
             science: [],
             platforms: [],
             instruments: [],
+            msl: [], // Added MSL
         };
 
         keywords.forEach((keyword) => {
-            grouped[keyword.vocabularyType].push(keyword);
+            const type = getVocabularyTypeFromScheme(keyword.scheme);
+            grouped[type].push(keyword);
         });
 
         expect(grouped.science).toHaveLength(2);
         expect(grouped.platforms).toHaveLength(1);
         expect(grouped.instruments).toHaveLength(0);
+        expect(grouped.msl).toHaveLength(0);
     });
 
-    it('should check if vocabulary type has keywords', () => {
+    it('should check if vocabulary type has keywords using scheme', () => {
         const keywords: SelectedKeyword[] = [
             {
                 id: 'science-1',
                 text: 'TEST',
                 path: 'TEST',
                 language: 'en',
-                scheme: 'Science',
+                scheme: 'Science Keywords',
                 schemeURI: 'https://test.com',
-                vocabularyType: 'science',
             },
         ];
 
         const hasKeywords = (type: GCMDVocabularyType): boolean => {
-            return keywords.some((k) => k.vocabularyType === type);
+            return keywords.some((k) => getVocabularyTypeFromScheme(k.scheme) === type);
         };
 
         expect(hasKeywords('science')).toBe(true);
         expect(hasKeywords('platforms')).toBe(false);
         expect(hasKeywords('instruments')).toBe(false);
+        expect(hasKeywords('msl')).toBe(false);
     });
 });

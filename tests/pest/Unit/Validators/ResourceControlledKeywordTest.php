@@ -18,7 +18,6 @@ it('has correct fillable attributes', function (): void {
         'language',
         'scheme',
         'scheme_uri',
-        'vocabulary_type',
     ];
     
     expect($model->getFillable())->toBe($expectedFillable);
@@ -30,17 +29,23 @@ it('uses correct table name', function (): void {
     expect($model->getTable())->toBe('resource_controlled_keywords');
 });
 
-it('validates vocabulary type enum values', function (): void {
-    // This test verifies that the expected vocabulary types are documented
-    // The actual database constraint is tested in migration tests
+it('validates scheme attribute values', function (): void {
+    // This test verifies that different scheme values are properly handled
+    // Scheme now discriminates keyword types instead of vocabulary_type column
     
-    $validTypes = ['science', 'platforms', 'instruments'];
+    $validSchemes = [
+        'Science Keywords',
+        'Platforms', 
+        'Instruments',
+        'EPOS MSL vocabulary',
+    ];
     
-    // These values should match the ENUM in the migration
-    expect($validTypes)->toContain('science')
-        ->and($validTypes)->toContain('platforms')
-        ->and($validTypes)->toContain('instruments')
-        ->and($validTypes)->toHaveCount(3);
+    // These values should match the actual scheme values used in the system
+    expect($validSchemes)->toContain('Science Keywords')
+        ->and($validSchemes)->toContain('Platforms')
+        ->and($validSchemes)->toContain('Instruments')
+        ->and($validSchemes)->toContain('EPOS MSL vocabulary')
+        ->and($validSchemes)->toHaveCount(4);
 });
 
 it('can instantiate model without database', function (): void {
@@ -65,9 +70,8 @@ it('accepts valid keyword data structure', function (): void {
         'text' => 'CALCIUM',
         'path' => 'EARTH SCIENCE > AGRICULTURE > SOILS > CALCIUM',
         'language' => 'en',
-        'scheme' => 'Earth Science',
+        'scheme' => 'Science Keywords',
         'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-        'vocabulary_type' => 'science',
     ];
     
     // Fill the model (without saving to DB)
@@ -78,12 +82,11 @@ it('accepts valid keyword data structure', function (): void {
         ->and($model->text)->toBe('CALCIUM')
         ->and($model->path)->toBe('EARTH SCIENCE > AGRICULTURE > SOILS > CALCIUM')
         ->and($model->language)->toBe('en')
-        ->and($model->scheme)->toBe('Earth Science')
-        ->and($model->scheme_uri)->toBe($validData['scheme_uri'])
-        ->and($model->vocabulary_type)->toBe('science');
+        ->and($model->scheme)->toBe('Science Keywords')
+        ->and($model->scheme_uri)->toBe($validData['scheme_uri']);
 });
 
-it('handles all vocabulary types correctly', function (string $vocabularyType): void {
+it('handles all scheme types correctly', function (string $scheme): void {
     $model = new ResourceControlledKeyword();
     
     $data = [
@@ -92,15 +95,14 @@ it('handles all vocabulary types correctly', function (string $vocabularyType): 
         'text' => 'Test Keyword',
         'path' => 'TEST > PATH',
         'language' => 'en',
-        'scheme' => 'Test Scheme',
+        'scheme' => $scheme,
         'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/test',
-        'vocabulary_type' => $vocabularyType,
     ];
     
     $model->fill($data);
     
-    expect($model->vocabulary_type)->toBe($vocabularyType);
-})->with(['science', 'platforms', 'instruments']);
+    expect($model->scheme)->toBe($scheme);
+})->with(['Science Keywords', 'Platforms', 'Instruments', 'EPOS MSL vocabulary']);
 
 it('handles multilingual keywords', function (string $language): void {
     $model = new ResourceControlledKeyword();
@@ -111,9 +113,8 @@ it('handles multilingual keywords', function (string $language): void {
         'text' => 'Test',
         'path' => 'TEST',
         'language' => $language,
-        'scheme' => 'Test',
+        'scheme' => 'Science Keywords',
         'scheme_uri' => 'https://test.com',
-        'vocabulary_type' => 'science',
     ];
     
     $model->fill($data);
@@ -132,9 +133,8 @@ it('stores full GCMD URI in keyword_id', function (): void {
         'text' => 'Test',
         'path' => 'TEST',
         'language' => 'en',
-        'scheme' => 'Test',
+        'scheme' => 'Science Keywords',
         'scheme_uri' => 'https://test.com',
-        'vocabulary_type' => 'science',
     ];
     
     $model->fill($data);
@@ -154,9 +154,8 @@ it('stores hierarchical path correctly', function (): void {
         'text' => 'CATION EXCHANGE CAPACITY',
         'path' => $hierarchicalPath,
         'language' => 'en',
-        'scheme' => 'Earth Science',
+        'scheme' => 'Science Keywords',
         'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-        'vocabulary_type' => 'science',
     ];
     
     $model->fill($data);
@@ -166,7 +165,7 @@ it('stores hierarchical path correctly', function (): void {
         ->and($model->text)->toBe('CATION EXCHANGE CAPACITY');
 });
 
-it('handles scheme URIs for different vocabulary types', function (string $vocabularyType, string $expectedSchemePattern): void {
+it('handles scheme URIs for different keyword types', function (string $scheme, string $expectedSchemePattern): void {
     $model = new ResourceControlledKeyword();
     
     $schemeUri = "https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/{$expectedSchemePattern}";
@@ -177,16 +176,15 @@ it('handles scheme URIs for different vocabulary types', function (string $vocab
         'text' => 'Test',
         'path' => 'TEST',
         'language' => 'en',
-        'scheme' => 'Test Scheme',
+        'scheme' => $scheme,
         'scheme_uri' => $schemeUri,
-        'vocabulary_type' => $vocabularyType,
     ];
     
     $model->fill($data);
     
     expect($model->scheme_uri)->toContain($expectedSchemePattern);
 })->with([
-    ['science', 'sciencekeywords'],
-    ['platforms', 'platforms'],
-    ['instruments', 'instruments'],
+    ['Science Keywords', 'sciencekeywords'],
+    ['Platforms', 'platforms'],
+    ['Instruments', 'instruments'],
 ]);

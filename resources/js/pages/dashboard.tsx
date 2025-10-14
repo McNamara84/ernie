@@ -104,8 +104,16 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 timezone?: string;
                 description?: string;
             }[] | null;
-            gcmdKeywords?: { uuid: string; id: string; path: string[]; type: string }[] | null;
+            gcmdKeywords?: { uuid: string; id: string; path: string[]; scheme: string }[] | null;
             freeKeywords?: string[] | null;
+            mslKeywords?: {
+                id: string;
+                text: string;
+                path: string;
+                language: string;
+                scheme: string;
+                schemeURI: string;
+            }[] | null;
             fundingReferences?: {
                 funderName: string;
                 funderIdentifier: string | null;
@@ -333,17 +341,44 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 }
 
                 const id = typeof keyword.id === 'string' ? keyword.id.trim() : '';
-                const type = typeof keyword.type === 'string' ? keyword.type.trim() : '';
+                const scheme = typeof keyword.scheme === 'string' ? keyword.scheme.trim() : '';
                 const path = Array.isArray(keyword.path) ? keyword.path : [];
 
-                if (!id || !type || path.length === 0) {
+                if (!id || !scheme || path.length === 0) {
                     return;
                 }
 
                 query[`gcmdKeywords[${i}][id]`] = id;
-                query[`gcmdKeywords[${i}][vocabularyType]`] = type;
+                query[`gcmdKeywords[${i}][scheme]`] = scheme;
                 query[`gcmdKeywords[${i}][path]`] = path.join(' > ');
                 query[`gcmdKeywords[${i}][text]`] = path[path.length - 1] || '';
+            });
+        }
+        if (data.mslKeywords && data.mslKeywords.length > 0) {
+            const gcmdIndex = data.gcmdKeywords ? data.gcmdKeywords.length : 0;
+            data.mslKeywords.forEach((keyword, i) => {
+                if (!keyword || typeof keyword !== 'object') {
+                    return;
+                }
+
+                const id = typeof keyword.id === 'string' ? keyword.id.trim() : '';
+                const path = typeof keyword.path === 'string' ? keyword.path.trim() : '';
+                const text = typeof keyword.text === 'string' ? keyword.text.trim() : '';
+                const language = typeof keyword.language === 'string' ? keyword.language.trim() : 'en';
+                const scheme = typeof keyword.scheme === 'string' ? keyword.scheme.trim() : '';
+                const schemeURI = typeof keyword.schemeURI === 'string' ? keyword.schemeURI.trim() : '';
+
+                if (!id || !path) {
+                    return;
+                }
+
+                const index = gcmdIndex + i;
+                query[`gcmdKeywords[${index}][id]`] = id;
+                query[`gcmdKeywords[${index}][path]`] = path;
+                query[`gcmdKeywords[${index}][text]`] = text;
+                query[`gcmdKeywords[${index}][language]`] = language;
+                query[`gcmdKeywords[${index}][scheme]`] = scheme;
+                query[`gcmdKeywords[${index}][schemeURI]`] = schemeURI;
             });
         }
         if (data.freeKeywords && data.freeKeywords.length > 0) {

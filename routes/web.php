@@ -78,6 +78,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/free-keywords', [OldDatasetController::class, 'getFreeKeywords'])
         ->name('old-datasets.free-keywords');
 
+    Route::get('old-datasets/{id}/msl-keywords', [OldDatasetController::class, 'getMslKeywords'])
+        ->name('old-datasets.msl-keywords');
+
     Route::get('old-datasets/{id}/coverages', [OldDatasetController::class, 'getCoverages'])
         ->name('old-datasets.coverages');
 
@@ -185,6 +188,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.gcmd-platforms');
     Route::get('vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])
         ->name('vocabularies.gcmd-instruments');
+    Route::get('vocabularies/msl', [VocabularyController::class, 'mslVocabulary'])
+        ->name('vocabularies.msl');
     Route::get('vocabularies/msl-vocabulary-url', function () {
         return response()->json([
             'url' => config('msl.vocabulary_url'),

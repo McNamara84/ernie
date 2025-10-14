@@ -18,6 +18,11 @@ class XmlKeywordExtractor
     ];
 
     /**
+     * MSL Vocabulary scheme identifier in DataCite XML
+     */
+    private const MSL_VOCABULARY_SCHEME = 'EPOS MSL vocabulary';
+
+    /**
      * Extract free keywords from XML DataCite metadata
      * 
      * Free keywords are subject elements WITHOUT subjectScheme, schemeURI, or valueURI attributes.
@@ -52,6 +57,74 @@ class XmlKeywordExtractor
         }
 
         return $freeKeywords;
+    }
+
+    /**
+     * Extract MSL (Multi-Scale Laboratories) controlled vocabulary keywords from XML
+     * 
+     * MSL keywords are subject elements with:
+     * - subjectScheme="EPOS MSL vocabulary"
+     * - schemeURI="https://epos-msl.uu.nl/voc"
+     * - valueURI attribute containing the concept URI
+     * - Content is hierarchical path (e.g., "Material > sedimentary rock > coal")
+     *
+     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string}>
+     */
+    public function extractMslKeywords(XmlReader $reader): array
+    {
+        $subjectElements = $reader
+            ->xpathElement('//*[local-name()="subjects"]/*[local-name()="subject"]')
+            ->get();
+
+        $mslKeywords = [];
+
+        foreach ($subjectElements as $element) {
+            $scheme = $element->getAttribute('subjectScheme');
+            $schemeUri = $element->getAttribute('schemeURI');
+            $valueUri = $element->getAttribute('valueURI');
+            $language = $element->getAttribute('xml:lang') ?? 'en';
+            $content = $this->extractElementTextContent($element);
+
+            // Only process MSL vocabulary keywords
+            if ($scheme !== self::MSL_VOCABULARY_SCHEME) {
+                continue;
+            }
+
+            // Skip if no valueURI (required for controlled vocabulary)
+            if (!$valueUri || trim($valueUri) === '') {
+                continue;
+            }
+
+            // Skip empty content
+            if (!$content || trim($content) === '') {
+                continue;
+            }
+
+            $mslKeywords[] = [
+                'id' => trim($valueUri),
+                'text' => $this->extractLastPathSegment(trim($content)),
+                'path' => trim($content),
+                'language' => $language,
+                'scheme' => $scheme,
+                'schemeURI' => $schemeUri ?? 'https://epos-msl.uu.nl/voc',
+            ];
+        }
+
+        return $mslKeywords;
+    }
+
+    /**
+     * Extract the last segment from a hierarchical path
+     * 
+     * Example: "Material > sedimentary rock > coal" -> "coal"
+     *
+     * @param string $path Hierarchical path with " > " separator
+     * @return string Last segment of the path
+     */
+    private function extractLastPathSegment(string $path): string
+    {
+        $segments = array_map('trim', explode(' > ', $path));
+        return end($segments) ?: $path;
     }
 
     /**

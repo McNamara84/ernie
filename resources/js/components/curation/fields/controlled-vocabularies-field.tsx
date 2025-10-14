@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
+import { getVocabularyTypeFromScheme, getSchemeFromVocabularyType } from '@/types/gcmd';
 
 import { GCMDTree } from './gcmd-tree';
 
@@ -27,8 +28,10 @@ interface ControlledVocabulariesFieldProps {
     scienceKeywords: GCMDKeyword[];
     platforms: GCMDKeyword[];
     instruments: GCMDKeyword[];
+    mslVocabulary?: GCMDKeyword[]; // Optional MSL vocabulary
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
+    showMslTab?: boolean; // Control MSL tab visibility
 }
 
 /**
@@ -67,8 +70,10 @@ export default function ControlledVocabulariesField({
     scienceKeywords,
     platforms,
     instruments,
+    mslVocabulary = [],
     selectedKeywords,
     onChange,
+    showMslTab = false,
 }: ControlledVocabulariesFieldProps) {
     const [activeTab, setActiveTab] = useState<GCMDVocabularyType>('science');
     const [searchQuery, setSearchQuery] = useState('');
@@ -95,10 +100,12 @@ export default function ControlledVocabulariesField({
                 return platforms;
             case 'instruments':
                 return instruments;
+            case 'msl':
+                return mslVocabulary;
             default:
                 return [];
         }
-    }, [activeTab, scienceKeywords, platforms, instruments]);
+    }, [activeTab, scienceKeywords, platforms, instruments, mslVocabulary]);
 
     // Filter keywords based on search query
     // Only search if query is at least MIN_SEARCH_LENGTH characters
@@ -111,8 +118,12 @@ export default function ControlledVocabulariesField({
 
     // Get selected keyword IDs for current vocabulary
     const selectedIdsForCurrentVocabulary = useMemo(() => {
+        // Filter keywords by scheme matching the active tab
+        const targetScheme = getSchemeFromVocabularyType(activeTab);
         return new Set(
-            selectedKeywords.filter((k) => k.vocabularyType === activeTab).map((k) => k.id),
+            selectedKeywords
+                .filter((k) => k.scheme.toLowerCase().includes(targetScheme.toLowerCase().split(' ')[0]))
+                .map((k) => k.id),
         );
     }, [selectedKeywords, activeTab]);
 
@@ -133,12 +144,11 @@ export default function ControlledVocabulariesField({
                     language: keyword.language,
                     scheme: keyword.scheme,
                     schemeURI: keyword.schemeURI,
-                    vocabularyType: activeTab,
                 };
                 onChange([...selectedKeywords, newKeyword]);
             }
         },
-        [selectedKeywords, onChange, activeTab],
+        [selectedKeywords, onChange],
     );
 
     // Handle keyword removal from badge
@@ -149,16 +159,18 @@ export default function ControlledVocabulariesField({
         [selectedKeywords, onChange],
     );
 
-    // Group selected keywords by vocabulary type
+    // Group selected keywords by vocabulary type (based on scheme)
     const keywordsByVocabulary = useMemo(() => {
         const grouped: Record<GCMDVocabularyType, SelectedKeyword[]> = {
             science: [],
             platforms: [],
             instruments: [],
+            msl: [],
         };
 
         for (const keyword of selectedKeywords) {
-            grouped[keyword.vocabularyType].push(keyword);
+            const type = getVocabularyTypeFromScheme(keyword.scheme);
+            grouped[type].push(keyword);
         }
 
         return grouped;
@@ -177,30 +189,45 @@ export default function ControlledVocabulariesField({
             {/* Selected Keywords Display */}
             {selectedKeywords.length > 0 && (
                 <div className="space-y-3">
-                    {(['science', 'platforms', 'instruments'] as GCMDVocabularyType[]).map(
+                    {(['science', 'platforms', 'instruments', ...(showMslTab ? ['msl' as const] : [])] as GCMDVocabularyType[]).map(
                         (type) => {
                             const keywords = keywordsByVocabulary[type];
                             if (keywords.length === 0) return null;
 
-                            const typeLabels = {
+                            const typeLabels: Record<GCMDVocabularyType, string> = {
                                 science: 'Science Keywords',
                                 platforms: 'Platforms',
                                 instruments: 'Instruments',
+                                msl: 'MSL Vocabulary',
                             };
+
+                            // Check if there are any legacy keywords
+                            const legacyKeywords = keywords.filter(kw => kw.isLegacy);
+                            const hasLegacyKeywords = legacyKeywords.length > 0;
 
                             return (
                                 <div key={type}>
                                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">
                                         {typeLabels[type]}:
+                                        {hasLegacyKeywords && (
+                                            <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 font-semibold" title="Some keywords are from the old database and don't exist in the current vocabulary. Please review and replace with current keywords.">
+                                                ⚠️ {legacyKeywords.length} Legacy Keyword{legacyKeywords.length > 1 ? 's' : ''} - Please Review
+                                            </span>
+                                        )}
                                     </Label>
                                     <div className="flex flex-wrap gap-2">
                                         {keywords.map((keyword) => (
                                             <Badge
                                                 key={keyword.id}
-                                                variant="secondary"
-                                                className="gap-1.5 pr-1.5"
+                                                variant={keyword.isLegacy ? "destructive" : "secondary"}
+                                                className={cn(
+                                                    "gap-1.5 pr-1.5",
+                                                    keyword.isLegacy && "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700"
+                                                )}
+                                                title={keyword.isLegacy ? `⚠️ Legacy keyword from old database: "${keyword.path}"\nThis keyword doesn't exist in the current vocabulary.\nPlease remove and select a replacement from the current MSL vocabulary.` : keyword.path}
                                             >
-                                                <span className="max-w-md truncate" title={keyword.path}>
+                                                {keyword.isLegacy && <span className="text-amber-600 dark:text-amber-400">⚠️</span>}
+                                                <span className="max-w-md truncate">
                                                     {keyword.path}
                                                 </span>
                                                 <Button
@@ -252,7 +279,7 @@ export default function ControlledVocabulariesField({
 
             {/* Tabs for vocabulary types */}
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className={cn("grid w-full", showMslTab ? "grid-cols-4" : "grid-cols-3")}>
                     <TabsTrigger value="science" className="relative">
                         Science Keywords
                         {hasKeywords('science') && (
@@ -283,6 +310,18 @@ export default function ControlledVocabulariesField({
                             />
                         )}
                     </TabsTrigger>
+                    {showMslTab && (
+                        <TabsTrigger value="msl" className="relative">
+                            MSL Vocabulary
+                            {hasKeywords('msl') && (
+                                <span
+                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                    aria-label="Has keywords"
+                                    title="This vocabulary has selected keywords"
+                                />
+                            )}
+                        </TabsTrigger>
+                    )}
                 </TabsList>
 
                 <TabsContent value={activeTab} className="space-y-4 mt-4">

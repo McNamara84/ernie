@@ -68,35 +68,35 @@ describe('OldDatasetKeywordTransformer', function () {
         });
     });
 
-    describe('mapVocabularyType', function () {
-        it('maps NASA/GCMD Earth Science Keywords to gcmd-science-keywords', function () {
-            $type = OldDatasetKeywordTransformer::mapVocabularyType('NASA/GCMD Earth Science Keywords');
+    describe('mapScheme', function () {
+        it('maps NASA/GCMD Earth Science Keywords to Science Keywords', function () {
+            $scheme = OldDatasetKeywordTransformer::mapScheme('NASA/GCMD Earth Science Keywords');
             
-            expect($type)->toBe('gcmd-science-keywords');
+            expect($scheme)->toBe('Science Keywords');
         });
 
-        it('maps GCMD Platforms to gcmd-platforms', function () {
-            $type = OldDatasetKeywordTransformer::mapVocabularyType('GCMD Platforms');
+        it('maps GCMD Platforms to Platforms', function () {
+            $scheme = OldDatasetKeywordTransformer::mapScheme('GCMD Platforms');
             
-            expect($type)->toBe('gcmd-platforms');
+            expect($scheme)->toBe('Platforms');
         });
 
-        it('maps GCMD Instruments to gcmd-instruments', function () {
-            $type = OldDatasetKeywordTransformer::mapVocabularyType('GCMD Instruments');
+        it('maps GCMD Instruments to Instruments', function () {
+            $scheme = OldDatasetKeywordTransformer::mapScheme('GCMD Instruments');
             
-            expect($type)->toBe('gcmd-instruments');
+            expect($scheme)->toBe('Instruments');
         });
 
         it('returns null for unsupported thesaurus', function () {
-            $type = OldDatasetKeywordTransformer::mapVocabularyType('Unsupported Thesaurus');
+            $scheme = OldDatasetKeywordTransformer::mapScheme('Unsupported Thesaurus');
             
-            expect($type)->toBeNull();
+            expect($scheme)->toBeNull();
         });
 
         it('returns null for empty string', function () {
-            $type = OldDatasetKeywordTransformer::mapVocabularyType('');
+            $scheme = OldDatasetKeywordTransformer::mapScheme('');
             
-            expect($type)->toBeNull();
+            expect($scheme)->toBeNull();
         });
     });
 
@@ -114,7 +114,7 @@ describe('OldDatasetKeywordTransformer', function () {
             expect($result)->toBe([
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/a956d045-3b12-441c-8a18-fac7d33b2b4e',
                 'text' => 'EARTH SCIENCE > AGRICULTURE',
-                'vocabulary' => 'gcmd-science-keywords',
+                'scheme' => 'Science Keywords',
                 'path' => 'EARTH SCIENCE > AGRICULTURE',
                 'uuid' => 'a956d045-3b12-441c-8a18-fac7d33b2b4e',
                 'description' => 'Test description',
@@ -134,7 +134,7 @@ describe('OldDatasetKeywordTransformer', function () {
             expect($result)->toBe([
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/bab77f95-aa34-42aa-9a12-922d1c9fae63',
                 'text' => 'Aircraft > A340-600',
-                'vocabulary' => 'gcmd-platforms',
+                'scheme' => 'Platforms',
                 'path' => 'Aircraft > A340-600',
                 'uuid' => 'bab77f95-aa34-42aa-9a12-922d1c9fae63',
                 'description' => null,
@@ -154,7 +154,7 @@ describe('OldDatasetKeywordTransformer', function () {
             expect($result)->toBe([
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/6015ef7b-f3bd-49e1-9193-cc23db566b69',
                 'text' => 'Earth Remote Sensing Instruments',
-                'vocabulary' => 'gcmd-instruments',
+                'scheme' => 'Instruments',
                 'path' => 'Earth Remote Sensing Instruments',
                 'uuid' => '6015ef7b-f3bd-49e1-9193-cc23db566b69',
                 'description' => '',
@@ -224,7 +224,7 @@ describe('OldDatasetKeywordTransformer', function () {
             expect($result[0])->toBe([
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/e9f67a66-e9fc-435c-b720-ae32a2c3d8f5',
                 'text' => 'EARTH SCIENCE',
-                'vocabulary' => 'gcmd-science-keywords',
+                'scheme' => 'Science Keywords',
                 'path' => 'EARTH SCIENCE',
                 'uuid' => 'e9f67a66-e9fc-435c-b720-ae32a2c3d8f5',
                 'description' => null,
@@ -232,7 +232,7 @@ describe('OldDatasetKeywordTransformer', function () {
             expect($result[1])->toBe([
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/227d9c3d-f631-402d-84ed-b8c5a562fc27',
                 'text' => 'Aircraft',
-                'vocabulary' => 'gcmd-platforms',
+                'scheme' => 'Platforms',
                 'path' => 'Aircraft',
                 'uuid' => '227d9c3d-f631-402d-84ed-b8c5a562fc27',
                 'description' => null,

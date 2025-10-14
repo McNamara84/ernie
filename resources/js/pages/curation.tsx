@@ -37,7 +37,7 @@ interface CurationProps {
     contributors?: InitialContributor[];
     descriptions?: { type: string; description: string }[];
     dates?: { dateType: string; startDate: string; endDate: string }[];
-    gcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
+    gcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string }[];
     freeKeywords?: string[];
     coverages?: SpatialTemporalCoverageEntry[];
     relatedWorks?: RelatedIdentifier[];

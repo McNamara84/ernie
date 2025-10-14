@@ -7,12 +7,12 @@ use App\Support\GcmdUriHelper;
 class OldDatasetKeywordTransformer
 {
     /**
-     * Maps old thesaurus names to new vocabulary types.
+     * Maps old thesaurus names to scheme names.
      */
-    private const VOCABULARY_TYPE_MAP = [
-        'NASA/GCMD Earth Science Keywords' => 'gcmd-science-keywords',
-        'GCMD Platforms' => 'gcmd-platforms',
-        'GCMD Instruments' => 'gcmd-instruments',
+    private const SCHEME_MAP = [
+        'NASA/GCMD Earth Science Keywords' => 'Science Keywords',
+        'GCMD Platforms' => 'Platforms',
+        'GCMD Instruments' => 'Instruments',
     ];
 
     /**
@@ -40,21 +40,21 @@ class OldDatasetKeywordTransformer
     }
 
     /**
-     * Map old thesaurus name to new vocabulary type.
+     * Map old thesaurus name to scheme name.
      *
      * @param string $thesaurusName
      * @return string|null
      */
-    public static function mapVocabularyType(string $thesaurusName): ?string
+    public static function mapScheme(string $thesaurusName): ?string
     {
-        return self::VOCABULARY_TYPE_MAP[$thesaurusName] ?? null;
+        return self::SCHEME_MAP[$thesaurusName] ?? null;
     }
 
     /**
      * Transform a keyword from old database format to new format.
      *
      * @param object $oldKeyword Object with properties: keyword, thesaurus, uri, description
-     * @return array<string, string|null>|null Array with keys: id, text, vocabulary, path, uuid, description
+     * @return array<string, string|null>|null Array with keys: id, text, scheme, path, uuid, description
      */
     public static function transform(object $oldKeyword): ?array
     {
@@ -65,10 +65,10 @@ class OldDatasetKeywordTransformer
             return null;
         }
 
-        // Map vocabulary type
-        $vocabularyType = self::mapVocabularyType($oldKeyword->thesaurus ?? '');
+        // Map to scheme name
+        $scheme = self::mapScheme($oldKeyword->thesaurus ?? '');
         
-        if (!$vocabularyType) {
+        if (!$scheme) {
             return null;
         }
 
@@ -78,7 +78,7 @@ class OldDatasetKeywordTransformer
         return [
             'id' => $newUri,
             'text' => $oldKeyword->keyword ?? '',
-            'vocabulary' => $vocabularyType,
+            'scheme' => $scheme,
             'path' => $oldKeyword->keyword ?? '', // The keyword text IS the hierarchical path
             'uuid' => $uuid,
             'description' => $oldKeyword->description ?? null,
@@ -113,6 +113,6 @@ class OldDatasetKeywordTransformer
      */
     public static function getSupportedThesauri(): array
     {
-        return array_keys(self::VOCABULARY_TYPE_MAP);
+        return array_keys(self::SCHEME_MAP);
     }
 }

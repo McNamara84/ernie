@@ -31,7 +31,6 @@ class ResourceControlledKeyword extends Model
         'language',
         'scheme',
         'scheme_uri',
-        'vocabulary_type',
     ];
 
     /**

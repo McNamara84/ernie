@@ -573,6 +573,106 @@ class OldDatasetController extends Controller
     }
 
     /**
+     * API endpoint to get MSL keywords for a specific old dataset.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  int  $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getMslKeywords(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            // Get supported MSL thesauri
+            $supportedThesauri = \App\Services\MslKeywordTransformer::getSupportedThesauri();
+
+            // Load MSL keywords from old database with JOIN
+            $oldKeywords = DB::connection(self::DATASET_CONNECTION)
+                ->table('thesauruskeyword as tk')
+                ->join('thesaurusvalue as tv', function ($join) {
+                    $join->on('tk.keyword', '=', 'tv.keyword')
+                         ->on('tk.thesaurus', '=', 'tv.thesaurus');
+                })
+                ->where('tk.resource_id', $id)
+                ->whereIn('tk.thesaurus', $supportedThesauri)
+                ->select('tv.keyword', 'tv.thesaurus', 'tv.uri', 'tv.description')
+                ->get();
+
+            // Transform to new format
+            $transformedKeywords = \App\Services\MslKeywordTransformer::transformMany($oldKeywords->all());
+
+            // Load current MSL vocabulary to validate keywords
+            $vocabularyService = new \App\Services\MslVocabularyService();
+            $currentVocabulary = $vocabularyService->getVocabulary();
+
+            // Separate keywords into validated (exist in current vocab) and legacy (don't exist)
+            $validatedKeywords = [];
+            $legacyKeywords = [];
+
+            foreach ($transformedKeywords as $keyword) {
+                if (self::findKeywordInVocabulary($keyword['id'], $currentVocabulary)) {
+                    // Keyword exists in current vocabulary - use as is
+                    $validatedKeywords[] = $keyword;
+                } else {
+                    // Keyword doesn't exist - mark as legacy
+                    $keyword['isLegacy'] = true;
+                    $legacyKeywords[] = $keyword;
+                }
+            }
+
+            return response()->json([
+                'keywords' => $validatedKeywords,
+                'legacyKeywords' => $legacyKeywords,
+                'summary' => [
+                    'total' => count($transformedKeywords),
+                    'validated' => count($validatedKeywords),
+                    'legacy' => count($legacyKeywords),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading MSL keywords for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return $this->errorResponse('Failed to load MSL keywords from legacy database. Please check the database connection.', $debugInfo, 500);
+        }
+    }
+
+    /**
+     * Recursively search for a keyword by ID in the vocabulary tree.
+     *
+     * @param string $id Keyword ID to search for
+     * @param array<int, array<string, mixed>> $vocabulary Vocabulary tree
+     * @return bool True if keyword exists in vocabulary
+     */
+    private static function findKeywordInVocabulary(string $id, array $vocabulary): bool
+    {
+        foreach ($vocabulary as $item) {
+            if (isset($item['id']) && $item['id'] === $id) {
+                return true;
+            }
+            
+            if (isset($item['children']) && is_array($item['children'])) {
+                if (self::findKeywordInVocabulary($id, $item['children'])) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
      * @return \Illuminate\Http\JsonResponse
      */
     public function getMslLaboratories(Request $request, int $id)

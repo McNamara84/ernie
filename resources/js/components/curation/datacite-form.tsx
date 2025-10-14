@@ -24,6 +24,7 @@ import { hasValidDateValue } from '@/lib/date-utils';
 import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
+import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
@@ -489,7 +490,7 @@ interface DataCiteFormProps {
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string }[];
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
-    initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
+    initialGcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; isLegacy?: string }[];
     initialFreeKeywords?: string[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
@@ -696,12 +697,19 @@ export default function DataCiteForm({
 
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
         if (initialGcmdKeywords && initialGcmdKeywords.length > 0) {
-            return initialGcmdKeywords.map((kw) => ({
-                id: kw.id,
-                text: kw.text,
-                path: kw.path,
-                vocabularyType: kw.vocabularyType as 'science' | 'platforms' | 'instruments',
-            }));
+            return initialGcmdKeywords
+                .filter((kw): kw is typeof kw & { scheme: string } => 
+                    typeof kw.scheme === 'string' && kw.scheme.length > 0
+                )
+                .map((kw) => ({
+                    id: kw.id,
+                    text: kw.text,
+                    path: kw.path,
+                    language: ('language' in kw && typeof kw.language === 'string') ? kw.language : 'en',
+                    scheme: kw.scheme,
+                    schemeURI: ('schemeURI' in kw && typeof kw.schemeURI === 'string') ? kw.schemeURI : '',
+                    isLegacy: kw.isLegacy === 'true', // String from URL params
+                }));
         }
         return [];
     });
@@ -756,10 +764,12 @@ export default function DataCiteForm({
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
         instruments: GCMDKeyword[];
+        msl: GCMDKeyword[];
     }>({
         science: [],
         platforms: [],
         instruments: [],
+        msl: [],
     });
     const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
 
@@ -798,6 +808,7 @@ export default function DataCiteForm({
                     science: scienceData.data || [],
                     platforms: platformsData.data || [],
                     instruments: instrumentsData.data || [],
+                    msl: [], // MSL will be loaded conditionally
                 });
             } catch (error) {
                 console.error('Error loading GCMD vocabularies:', error);
@@ -816,6 +827,34 @@ export default function DataCiteForm({
 
         return keywords.some((keyword) => triggers.some((trigger) => keyword.includes(trigger)));
     }, [freeKeywords]);
+
+    // Load MSL vocabulary when MSL section becomes visible
+    useEffect(() => {
+        if (shouldShowMSLSection && gcmdVocabularies.msl.length === 0) {
+            const loadMslVocabulary = async () => {
+                try {
+                    const response = await fetch(withBasePath('/vocabularies/msl'));
+                    
+                    if (!response.ok) {
+                        console.error('Failed to load MSL vocabulary', response.status);
+                        return;
+                    }
+
+                    const data = await response.json();
+                    console.log('Loaded MSL vocabulary:', data.length || 0, 'root nodes');
+
+                    setGcmdVocabularies((prev) => ({
+                        ...prev,
+                        msl: data || [],
+                    }));
+                } catch (error) {
+                    console.error('Error loading MSL vocabulary:', error);
+                }
+            };
+
+            void loadMslVocabulary();
+        }
+    }, [shouldShowMSLSection, gcmdVocabularies.msl.length]);
 
     // Automatically open MSL section when it becomes visible
     useEffect(() => {
@@ -924,6 +963,11 @@ export default function DataCiteForm({
             dateCreatedFilled
         );
     }, [authors, descriptions, dates, form.language, form.resourceType, form.year, licenseEntries, titles]);
+
+    // Check if there are any legacy MSL keywords that need to be replaced
+    const hasLegacyKeywords = useMemo(() => {
+        return gcmdKeywords.some(kw => kw.isLegacy === true);
+    }, [gcmdKeywords]);
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -1458,7 +1502,6 @@ export default function DataCiteForm({
                 language: kw.language,
                 scheme: kw.scheme,
                 schemeURI: kw.schemeURI,
-                vocabularyType: kw.vocabularyType,
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
                 latMin: coverage.latMin,
@@ -1804,8 +1847,10 @@ export default function DataCiteForm({
                                 scienceKeywords={gcmdVocabularies.science}
                                 platforms={gcmdVocabularies.platforms}
                                 instruments={gcmdVocabularies.instruments}
+                                mslVocabulary={gcmdVocabularies.msl}
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
+                                showMslTab={shouldShowMSLSection}
                             />
                         )}
                     </AccordionContent>
@@ -1904,12 +1949,29 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+            {hasLegacyKeywords && (
+                <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4">
+                    <div className="flex items-start gap-3">
+                        <span className="text-amber-600 dark:text-amber-400 text-xl">⚠️</span>
+                        <div>
+                            <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                                Legacy Keywords Detected
+                            </h3>
+                            <p className="text-sm text-amber-800 dark:text-amber-200">
+                                This dataset contains MSL keywords from the old database that don't exist in the current vocabulary.
+                                Please review the highlighted keywords in the "Controlled Vocabularies" section and replace them with keywords from the current MSL vocabulary before saving.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex justify-end">
                 <Button
                     type="submit"
-                    disabled={isSaving || !areRequiredFieldsFilled}
+                    disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
                     aria-busy={isSaving}
-                    aria-disabled={isSaving || !areRequiredFieldsFilled}
+                    aria-disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
+                    title={hasLegacyKeywords ? "Please replace all legacy keywords before saving" : undefined}
                 >
                     {isSaving ? 'Saving…' : 'Save to database'}
                 </Button>

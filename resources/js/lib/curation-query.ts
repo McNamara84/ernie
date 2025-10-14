@@ -155,7 +155,6 @@ export interface ResourceForCuration {
         language: string;
         scheme: string;
         schemeURI: string;
-        vocabularyType: string;
     }[] | null;
     spatialTemporalCoverages?: {
         latMin: string;
@@ -730,7 +729,6 @@ export const buildCurationQueryFromResource = async (
         query[`${prefix}[language]`] = keyword.language;
         query[`${prefix}[scheme]`] = keyword.scheme;
         query[`${prefix}[schemeURI]`] = keyword.schemeURI;
-        query[`${prefix}[vocabularyType]`] = keyword.vocabularyType;
     });
 
     // Add spatial temporal coverages to query
