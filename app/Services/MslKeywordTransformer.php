@@ -40,7 +40,7 @@ class MslKeywordTransformer
      * Transform an MSL keyword from old database format to new format.
      *
      * @param object $oldKeyword Object with properties: keyword, thesaurus, uri, description
-     * @return array<string, string>|null Array with keys: id, text, path, language, scheme, schemeURI, vocabularyType
+     * @return array<string, string>|null Array with keys: id, text, path, language, scheme, schemeURI, description
      */
     public static function transform(object $oldKeyword): ?array
     {
@@ -81,7 +81,6 @@ class MslKeywordTransformer
             'language' => 'en',
             'scheme' => self::MSL_SCHEME,
             'schemeURI' => self::MSL_SCHEME_URI,
-            'vocabularyType' => 'msl',
             'description' => $description,
         ];
     }

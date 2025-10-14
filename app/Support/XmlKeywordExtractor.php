@@ -68,7 +68,7 @@ class XmlKeywordExtractor
      * - valueURI attribute containing the concept URI
      * - Content is hierarchical path (e.g., "Material > sedimentary rock > coal")
      *
-     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string, vocabularyType: string}>
+     * @return array<int, array{id: string, text: string, path: string, language: string, scheme: string, schemeURI: string}>
      */
     public function extractMslKeywords(XmlReader $reader): array
     {
@@ -107,7 +107,6 @@ class XmlKeywordExtractor
                 'language' => $language,
                 'scheme' => $scheme,
                 'schemeURI' => $schemeUri ?? 'https://epos-msl.uu.nl/voc',
-                'vocabularyType' => 'msl',
             ];
         }
 
