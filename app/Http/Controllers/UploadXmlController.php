@@ -111,7 +111,7 @@ class UploadXmlController extends Controller
         }
 
         $titleElements = $reader
-            ->xpathElement('//*[local-name()="titles"]/*[local-name()="title"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="titles"]/*[local-name()="title"]')
             ->get();
         $titles = [];
 
@@ -202,7 +202,7 @@ class UploadXmlController extends Controller
     private function extractAuthors(XmlReader $reader): array
     {
         $creatorElements = $reader
-            ->xpathElement('//*[local-name()="creators"]/*[local-name()="creator"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="creators"]/*[local-name()="creator"]')
             ->get();
 
         $authors = [];
@@ -259,7 +259,7 @@ class UploadXmlController extends Controller
     private function extractContributorsAndMslLaboratories(XmlReader $reader): array
     {
         $contributorElements = $reader
-            ->xpathElement('//*[local-name()="contributors"]/*[local-name()="contributor"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="contributors"]/*[local-name()="contributor"]')
             ->get();
 
         $contributors = [];
@@ -363,7 +363,7 @@ class UploadXmlController extends Controller
     private function extractDescriptions(XmlReader $reader): array
     {
         $descriptionElements = $reader
-            ->xpathElement('//*[local-name()="descriptions"]/*[local-name()="description"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="descriptions"]/*[local-name()="description"]')
             ->get();
 
         $descriptions = [];
@@ -391,7 +391,7 @@ class UploadXmlController extends Controller
     private function extractDates(XmlReader $reader): array
     {
         $dateElements = $reader
-            ->xpathElement('//*[local-name()="dates"]/*[local-name()="date"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="dates"]/*[local-name()="date"]')
             ->get();
 
         $dates = [];
@@ -455,7 +455,7 @@ class UploadXmlController extends Controller
         
         // Extract geoLocations
         $geoLocationElements = $reader
-            ->xpathElement('//*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
+            ->xpathElement('//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
             ->get();
         
         if (count($geoLocationElements) === 0 && $temporalCoverage !== null) {
