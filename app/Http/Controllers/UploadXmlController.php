@@ -97,6 +97,7 @@ class UploadXmlController extends Controller
         // Use dedicated service for keyword extraction
         $keywordExtractor = new XmlKeywordExtractor();
         $freeKeywords = $keywordExtractor->extractFreeKeywords($reader);
+        $mslKeywords = $keywordExtractor->extractMslKeywords($reader);
 
         $rightsElements = $reader
             ->xpathElement('//*[local-name()="rightsList"]/*[local-name()="rights"]')
@@ -161,6 +162,7 @@ class UploadXmlController extends Controller
             'coverages' => $coverages,
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
+            'mslKeywords' => $mslKeywords,
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
         ]);

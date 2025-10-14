@@ -27,6 +27,7 @@ export interface SelectedKeyword {
     scheme: string;
     schemeURI: string;
     vocabularyType: GCMDVocabularyType;
+    isLegacy?: boolean; // True if keyword doesn't exist in current vocabulary (from old database)
 }
 
 export interface GCMDVocabularies {

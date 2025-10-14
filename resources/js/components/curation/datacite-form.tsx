@@ -489,7 +489,7 @@ interface DataCiteFormProps {
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string }[];
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
-    initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string }[];
+    initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string; isLegacy?: string }[];
     initialFreeKeywords?: string[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
@@ -711,6 +711,7 @@ export default function DataCiteForm({
                     scheme: ('scheme' in kw && typeof kw.scheme === 'string') ? kw.scheme : '',
                     schemeURI: ('schemeURI' in kw && typeof kw.schemeURI === 'string') ? kw.schemeURI : '',
                     vocabularyType: kw.vocabularyType as GCMDVocabularyType,
+                    isLegacy: kw.isLegacy === 'true', // String from URL params
                 }));
         }
         return [];
@@ -965,6 +966,11 @@ export default function DataCiteForm({
             dateCreatedFilled
         );
     }, [authors, descriptions, dates, form.language, form.resourceType, form.year, licenseEntries, titles]);
+
+    // Check if there are any legacy MSL keywords that need to be replaced
+    const hasLegacyKeywords = useMemo(() => {
+        return gcmdKeywords.some(kw => kw.isLegacy === true);
+    }, [gcmdKeywords]);
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -1947,12 +1953,29 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
+            {hasLegacyKeywords && (
+                <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4">
+                    <div className="flex items-start gap-3">
+                        <span className="text-amber-600 dark:text-amber-400 text-xl">⚠️</span>
+                        <div>
+                            <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                                Legacy Keywords Detected
+                            </h3>
+                            <p className="text-sm text-amber-800 dark:text-amber-200">
+                                This dataset contains MSL keywords from the old database that don't exist in the current vocabulary.
+                                Please review the highlighted keywords in the "Controlled Vocabularies" section and replace them with keywords from the current MSL vocabulary before saving.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="flex justify-end">
                 <Button
                     type="submit"
-                    disabled={isSaving || !areRequiredFieldsFilled}
+                    disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
                     aria-busy={isSaving}
-                    aria-disabled={isSaving || !areRequiredFieldsFilled}
+                    aria-disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
+                    title={hasLegacyKeywords ? "Please replace all legacy keywords before saving" : undefined}
                 >
                     {isSaving ? 'Saving…' : 'Save to database'}
                 </Button>

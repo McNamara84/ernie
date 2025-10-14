@@ -196,19 +196,33 @@ export default function ControlledVocabulariesField({
                                 msl: 'MSL Vocabulary',
                             };
 
+                            // Check if there are any legacy keywords
+                            const legacyKeywords = keywords.filter(kw => kw.isLegacy);
+                            const hasLegacyKeywords = legacyKeywords.length > 0;
+
                             return (
                                 <div key={type}>
                                     <Label className="text-xs font-medium text-muted-foreground mb-2 block">
                                         {typeLabels[type]}:
+                                        {hasLegacyKeywords && (
+                                            <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 font-semibold" title="Some keywords are from the old database and don't exist in the current vocabulary. Please review and replace with current keywords.">
+                                                ⚠️ {legacyKeywords.length} Legacy Keyword{legacyKeywords.length > 1 ? 's' : ''} - Please Review
+                                            </span>
+                                        )}
                                     </Label>
                                     <div className="flex flex-wrap gap-2">
                                         {keywords.map((keyword) => (
                                             <Badge
                                                 key={keyword.id}
-                                                variant="secondary"
-                                                className="gap-1.5 pr-1.5"
+                                                variant={keyword.isLegacy ? "destructive" : "secondary"}
+                                                className={cn(
+                                                    "gap-1.5 pr-1.5",
+                                                    keyword.isLegacy && "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700"
+                                                )}
+                                                title={keyword.isLegacy ? `⚠️ Legacy keyword from old database: "${keyword.path}"\nThis keyword doesn't exist in the current vocabulary.\nPlease remove and select a replacement from the current MSL vocabulary.` : keyword.path}
                                             >
-                                                <span className="max-w-md truncate" title={keyword.path}>
+                                                {keyword.isLegacy && <span className="text-amber-600 dark:text-amber-400">⚠️</span>}
+                                                <span className="max-w-md truncate">
                                                     {keyword.path}
                                                 </span>
                                                 <Button

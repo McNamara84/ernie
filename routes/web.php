@@ -78,6 +78,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/free-keywords', [OldDatasetController::class, 'getFreeKeywords'])
         ->name('old-datasets.free-keywords');
 
+    Route::get('old-datasets/{id}/msl-keywords', [OldDatasetController::class, 'getMslKeywords'])
+        ->name('old-datasets.msl-keywords');
+
     Route::get('old-datasets/{id}/coverages', [OldDatasetController::class, 'getCoverages'])
         ->name('old-datasets.coverages');
 

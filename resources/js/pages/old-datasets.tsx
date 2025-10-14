@@ -985,6 +985,80 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             // Continue without free keywords if loading fails
         }
 
+        // Load MSL keywords from old database
+        try {
+            const response = await axios.get(`/old-datasets/${dataset.id}/msl-keywords`);
+            const validatedKeywords = response.data.keywords || [];
+            const legacyKeywords = response.data.legacyKeywords || [];
+            const summary = response.data.summary || {};
+            
+            console.log(`Loaded ${summary.total || 0} MSL keywords from old database for dataset ${dataset.id}:`, {
+                validated: validatedKeywords.length,
+                legacy: legacyKeywords.length,
+                summary,
+            });
+            
+            // Get current gcmdKeywords index to append MSL keywords
+            let currentIndex = Object.keys(query).filter(key => key.startsWith('gcmdKeywords[')).length / 7; // 7 properties per keyword
+            
+            // Add validated keywords first (these exist in current vocabulary and will be auto-selected)
+            validatedKeywords.forEach((keyword: {
+                id: string;
+                text: string;
+                path: string;
+                language: string;
+                scheme: string;
+                schemeURI: string;
+                vocabularyType: string;
+                description?: string;
+            }) => {
+                query[`gcmdKeywords[${currentIndex}][id]`] = keyword.id;
+                query[`gcmdKeywords[${currentIndex}][text]`] = keyword.text;
+                query[`gcmdKeywords[${currentIndex}][path]`] = keyword.path;
+                query[`gcmdKeywords[${currentIndex}][language]`] = keyword.language || 'en';
+                query[`gcmdKeywords[${currentIndex}][scheme]`] = keyword.scheme;
+                query[`gcmdKeywords[${currentIndex}][schemeURI]`] = keyword.schemeURI;
+                query[`gcmdKeywords[${currentIndex}][vocabularyType]`] = keyword.vocabularyType;
+                currentIndex++;
+            });
+
+            // Add legacy keywords (these don't exist in current vocabulary - will show as badges with warning)
+            legacyKeywords.forEach((keyword: {
+                id: string;
+                text: string;
+                path: string;
+                language: string;
+                scheme: string;
+                schemeURI: string;
+                vocabularyType: string;
+                description?: string;
+                isLegacy: boolean;
+            }) => {
+                query[`gcmdKeywords[${currentIndex}][id]`] = keyword.id;
+                query[`gcmdKeywords[${currentIndex}][text]`] = keyword.text;
+                query[`gcmdKeywords[${currentIndex}][path]`] = keyword.path;
+                query[`gcmdKeywords[${currentIndex}][language]`] = keyword.language || 'en';
+                query[`gcmdKeywords[${currentIndex}][scheme]`] = keyword.scheme;
+                query[`gcmdKeywords[${currentIndex}][schemeURI]`] = keyword.schemeURI;
+                query[`gcmdKeywords[${currentIndex}][vocabularyType]`] = keyword.vocabularyType;
+                query[`gcmdKeywords[${currentIndex}][isLegacy]`] = 'true'; // Pass as string for URL params
+                currentIndex++;
+            });
+        } catch (error) {
+            // Surface structured error information to aid diagnosis
+            if (isAxiosError(error) && error.response?.data) {
+                const errorData = error.response.data as { error?: string; debug?: unknown };
+                console.error('Error loading MSL keywords for dataset:', {
+                    message: errorData.error || error.message,
+                    debug: errorData.debug,
+                    status: error.response.status,
+                });
+            } else {
+                console.error('Error loading MSL keywords for dataset:', error);
+            }
+            // Continue without MSL keywords if loading fails
+        }
+
         // Load spatial and temporal coverages from old database
         try {
             const response = await axios.get(`/old-datasets/${dataset.id}/coverages`);
