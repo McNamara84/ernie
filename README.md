@@ -39,7 +39,11 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 
 ### API & Documentation
 
-- **REST API** – read-only API with OpenAPI specification at `/api/v1/doc`
+- **REST API** – read-only REST API with OpenAPI 3.1.0 specification at `/api/v1/doc`
+  - Interactive Swagger UI for exploring endpoints
+  - Metadata types for ELMO integration (resource types, title types, licenses, languages, roles)
+  - NASA GCMD controlled vocabularies (Science Keywords, Platforms, Instruments)
+  - API key authentication via `X-API-Key` header or `api_key` query parameter
 - **Changelog** – interactive version history accessible at `/changelog`
 - **User Documentation** – comprehensive guides available at `/docs`
 
@@ -313,23 +317,32 @@ npx playwright show-report
 - `GET /api/changelog` – changelog information (no authentication required)
 - `GET /up` – health check endpoint
 
-### ELMO Integration Endpoints
+### ELMO Integration API
 
-The service exposes a read-only REST API for metadata types. These endpoints require an API key supplied via the `X-API-Key` header or the `api_key` query parameter.
+The service exposes a **read-only REST API** (OpenAPI 3.1.0) for metadata types and controlled vocabularies. All ELMO endpoints require an API key supplied via the `X-API-Key` header or the `api_key` query parameter.
+
+**📖 Interactive Documentation:** Visit `/api/v1/doc` for the complete OpenAPI specification with Swagger UI
 
 #### Metadata Types
 - `GET /api/v1/resource-types/elmo` – list resource types active for ELMO
 - `GET /api/v1/title-types/elmo` – list title types active for ELMO
-- `GET /api/v1/licenses/elmo` – list licenses active for ELMO
-- `GET /api/v1/languages/elmo` – list languages active for ELMO
+- `GET /api/v1/licenses/elmo` – list licenses active for ELMO (SPDX identifiers)
+- `GET /api/v1/languages/elmo` – list languages active for ELMO (ISO 639-1 codes)
 
 #### Roles
 - `GET /api/v1/roles/authors/elmo` – list author roles active for ELMO
 - `GET /api/v1/roles/contributor-persons/elmo` – list contributor person roles active for ELMO
 - `GET /api/v1/roles/contributor-institutions/elmo` – list contributor institution roles active for ELMO
 
-#### Documentation
-- `GET /api/v1/doc` – OpenAPI specification for the ELMO endpoints
+#### Controlled Vocabularies (NASA GCMD)
+- `GET /api/v1/vocabularies/gcmd-science-keywords` – GCMD Science Keywords hierarchy (JSON)
+- `GET /api/v1/vocabularies/gcmd-platforms` – GCMD Platforms hierarchy (JSON)
+- `GET /api/v1/vocabularies/gcmd-instruments` – GCMD Instruments hierarchy (JSON)
+
+#### API Documentation
+- `GET /api/v1/doc` – OpenAPI 3.1.0 specification (JSON or interactive HTML)
+  - Returns JSON when `Accept: application/json` header is present
+  - Returns interactive Swagger UI for browser requests
 
 ### Internal Endpoints (Authenticated)
 
