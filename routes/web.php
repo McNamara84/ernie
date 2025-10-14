@@ -84,6 +84,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/related-identifiers', [OldDatasetController::class, 'getRelatedIdentifiers'])
         ->name('old-datasets.related-identifiers');
 
+    Route::get('old-datasets/{id}/msl-laboratories', [OldDatasetController::class, 'getMslLaboratories'])
+        ->name('old-datasets.msl-laboratories');
+
     // DOI validation endpoint (proxy to avoid CORS issues)
     Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
         ->name('api.validate-doi');

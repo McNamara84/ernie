@@ -587,6 +587,37 @@ class OldDatasetController extends Controller
         }
     }
 
+    public function getMslLaboratories(Request $request, int $id)
+    {
+        try {
+            $dataset = OldDataset::find($id);
+
+            if (!$dataset) {
+                return response()->json([
+                    'error' => 'Dataset not found',
+                ], 404);
+            }
+
+            $mslLaboratories = $dataset->getMslLaboratories();
+
+            return response()->json([
+                'mslLaboratories' => $mslLaboratories,
+            ]);
+        } catch (\Throwable $e) {
+            $debugInfo = $this->buildConnectionDebugInfo($e);
+
+            Log::error('SUMARIOPMD connection failure when loading MSL laboratories for dataset ' . $id, $debugInfo + [
+                'exception' => $e,
+                'dataset_id' => $id,
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to load MSL laboratories from legacy database. Please check the database connection.',
+                'debug' => $debugInfo,
+            ], 500);
+        }
+    }
+
     /**
      * Extract filter parameters from the request.
      *
