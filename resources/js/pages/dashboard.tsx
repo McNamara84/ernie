@@ -104,7 +104,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 timezone?: string;
                 description?: string;
             }[] | null;
-            gcmdKeywords?: { uuid: string; id: string; path: string[]; type: string }[] | null;
+            gcmdKeywords?: { uuid: string; id: string; path: string[]; scheme: string }[] | null;
             freeKeywords?: string[] | null;
             mslKeywords?: {
                 id: string;
@@ -113,7 +113,6 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 language: string;
                 scheme: string;
                 schemeURI: string;
-                vocabularyType: string;
             }[] | null;
             fundingReferences?: {
                 funderName: string;
@@ -342,15 +341,15 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
                 }
 
                 const id = typeof keyword.id === 'string' ? keyword.id.trim() : '';
-                const type = typeof keyword.type === 'string' ? keyword.type.trim() : '';
+                const scheme = typeof keyword.scheme === 'string' ? keyword.scheme.trim() : '';
                 const path = Array.isArray(keyword.path) ? keyword.path : [];
 
-                if (!id || !type || path.length === 0) {
+                if (!id || !scheme || path.length === 0) {
                     return;
                 }
 
                 query[`gcmdKeywords[${i}][id]`] = id;
-                query[`gcmdKeywords[${i}][vocabularyType]`] = type;
+                query[`gcmdKeywords[${i}][scheme]`] = scheme;
                 query[`gcmdKeywords[${i}][path]`] = path.join(' > ');
                 query[`gcmdKeywords[${i}][text]`] = path[path.length - 1] || '';
             });
@@ -375,7 +374,6 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
 
                 const index = gcmdIndex + i;
                 query[`gcmdKeywords[${index}][id]`] = id;
-                query[`gcmdKeywords[${index}][vocabularyType]`] = 'msl';
                 query[`gcmdKeywords[${index}][path]`] = path;
                 query[`gcmdKeywords[${index}][text]`] = text;
                 query[`gcmdKeywords[${index}][language]`] = language;

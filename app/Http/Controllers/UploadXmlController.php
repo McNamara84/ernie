@@ -1457,17 +1457,12 @@ class UploadXmlController extends Controller
                 continue;
             }
 
-            // Determine keyword type based on scheme
-            $type = null;
-            if (stripos($scheme, 'Science Keywords') !== false) {
-                $type = 'science';
-            } elseif (stripos($scheme, 'Platforms') !== false) {
-                $type = 'platforms';
-            } elseif (stripos($scheme, 'Instruments') !== false) {
-                $type = 'instruments';
-            }
+            // Only process GCMD keywords (Science Keywords, Platforms, Instruments)
+            $isGcmdKeyword = stripos($scheme, 'Science Keywords') !== false ||
+                            stripos($scheme, 'Platforms') !== false ||
+                            stripos($scheme, 'Instruments') !== false;
 
-            if (! $type) {
+            if (! $isGcmdKeyword) {
                 continue;
             }
 
@@ -1485,11 +1480,21 @@ class UploadXmlController extends Controller
             // Example: "Science Keywords > EARTH SCIENCE > ATMOSPHERE" -> ["EARTH SCIENCE", "ATMOSPHERE"]
             $path = XmlKeywordExtractor::parseGcmdPath($content);
 
+            // Normalize scheme name (e.g., "NASA/GCMD Earth Science Keywords" -> "Science Keywords")
+            $normalizedScheme = $scheme;
+            if (stripos($scheme, 'Science') !== false) {
+                $normalizedScheme = 'Science Keywords';
+            } elseif (stripos($scheme, 'Platform') !== false) {
+                $normalizedScheme = 'Platforms';
+            } elseif (stripos($scheme, 'Instrument') !== false) {
+                $normalizedScheme = 'Instruments';
+            }
+
             $keywords[] = [
                 'uuid' => $uuid,
                 'id' => $id,
                 'path' => $path,
-                'type' => $type,
+                'scheme' => $normalizedScheme,
             ];
         }
 

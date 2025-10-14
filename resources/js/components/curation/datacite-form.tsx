@@ -23,7 +23,8 @@ import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { hasValidDateValue } from '@/lib/date-utils';
 import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
-import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
+import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
+import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
@@ -489,7 +490,7 @@ interface DataCiteFormProps {
     initialContributors?: InitialContributor[];
     initialDescriptions?: { type: string; description: string }[];
     initialDates?: { dateType: string; startDate: string; endDate: string }[];
-    initialGcmdKeywords?: { id: string; path: string; text: string; vocabularyType: string; isLegacy?: string }[];
+    initialGcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; isLegacy?: string }[];
     initialFreeKeywords?: string[];
     initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
     initialRelatedWorks?: RelatedIdentifier[];
@@ -697,20 +698,16 @@ export default function DataCiteForm({
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
         if (initialGcmdKeywords && initialGcmdKeywords.length > 0) {
             return initialGcmdKeywords
-                .filter((kw): kw is typeof kw & { vocabularyType: string } => 
-                    kw.vocabularyType === 'science' || 
-                    kw.vocabularyType === 'platforms' || 
-                    kw.vocabularyType === 'instruments' ||
-                    kw.vocabularyType === 'msl'
+                .filter((kw): kw is typeof kw & { scheme: string } => 
+                    typeof kw.scheme === 'string' && kw.scheme.length > 0
                 )
                 .map((kw) => ({
                     id: kw.id,
                     text: kw.text,
                     path: kw.path,
                     language: ('language' in kw && typeof kw.language === 'string') ? kw.language : 'en',
-                    scheme: ('scheme' in kw && typeof kw.scheme === 'string') ? kw.scheme : '',
+                    scheme: kw.scheme,
                     schemeURI: ('schemeURI' in kw && typeof kw.schemeURI === 'string') ? kw.schemeURI : '',
-                    vocabularyType: kw.vocabularyType as GCMDVocabularyType,
                     isLegacy: kw.isLegacy === 'true', // String from URL params
                 }));
         }
@@ -1505,7 +1502,6 @@ export default function DataCiteForm({
                 language: kw.language,
                 scheme: kw.scheme,
                 schemeURI: kw.schemeURI,
-                vocabularyType: kw.vocabularyType,
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
                 latMin: coverage.latMin,

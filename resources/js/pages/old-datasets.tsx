@@ -921,30 +921,21 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             const keywords = response.data.keywords || [];
             
             // Transform keywords to query parameter format expected by curation page
-            // Expected format: { id, path, text, language, scheme, schemeURI, vocabularyType }
-            // vocabularyType must be: 'science' | 'platforms' | 'instruments'
+            // Expected format: { id, path, text, language, scheme, schemeURI }
             keywords.forEach((keyword: {
                 id: string;
                 text: string;
-                vocabulary: string;
+                scheme: string; // Now comes directly from backend
                 path: string;
                 uuid: string;
                 description?: string;
             }, index: number) => {
-                // Map vocabulary types to expected format
-                const vocabularyTypeMap: Record<string, string> = {
-                    'gcmd-science-keywords': 'science',
-                    'gcmd-platforms': 'platforms',
-                    'gcmd-instruments': 'instruments',
-                };
-                
                 query[`gcmdKeywords[${index}][id]`] = keyword.id;
                 query[`gcmdKeywords[${index}][text]`] = keyword.text;
                 query[`gcmdKeywords[${index}][path]`] = keyword.path;
                 query[`gcmdKeywords[${index}][language]`] = 'en'; // Default language for old database keywords
-                query[`gcmdKeywords[${index}][scheme]`] = keyword.vocabulary; // Use vocabulary name as scheme
+                query[`gcmdKeywords[${index}][scheme]`] = keyword.scheme;
                 query[`gcmdKeywords[${index}][schemeURI]`] = keyword.id.replace(/\/concept\/[^/]+$/, '/concepts/concept_scheme'); // Derive scheme URI from keyword ID
-                query[`gcmdKeywords[${index}][vocabularyType]`] = vocabularyTypeMap[keyword.vocabulary] || keyword.vocabulary;
             });
         } catch (error) {
             // Surface structured error information to aid diagnosis
@@ -1018,7 +1009,6 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 query[`gcmdKeywords[${currentIndex}][language]`] = keyword.language || 'en';
                 query[`gcmdKeywords[${currentIndex}][scheme]`] = keyword.scheme;
                 query[`gcmdKeywords[${currentIndex}][schemeURI]`] = keyword.schemeURI;
-                query[`gcmdKeywords[${currentIndex}][vocabularyType]`] = keyword.vocabularyType;
                 currentIndex++;
             });
 
@@ -1030,7 +1020,6 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 language: string;
                 scheme: string;
                 schemeURI: string;
-                vocabularyType: string;
                 description?: string;
                 isLegacy: boolean;
             }) => {
@@ -1040,7 +1029,6 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 query[`gcmdKeywords[${currentIndex}][language]`] = keyword.language || 'en';
                 query[`gcmdKeywords[${currentIndex}][scheme]`] = keyword.scheme;
                 query[`gcmdKeywords[${currentIndex}][schemeURI]`] = keyword.schemeURI;
-                query[`gcmdKeywords[${currentIndex}][vocabularyType]`] = keyword.vocabularyType;
                 query[`gcmdKeywords[${currentIndex}][isLegacy]`] = 'true'; // Pass as string for URL params
                 currentIndex++;
             });

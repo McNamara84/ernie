@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
+import { getVocabularyTypeFromScheme, getSchemeFromVocabularyType } from '@/types/gcmd';
 
 import { GCMDTree } from './gcmd-tree';
 
@@ -117,8 +118,12 @@ export default function ControlledVocabulariesField({
 
     // Get selected keyword IDs for current vocabulary
     const selectedIdsForCurrentVocabulary = useMemo(() => {
+        // Filter keywords by scheme matching the active tab
+        const targetScheme = getSchemeFromVocabularyType(activeTab);
         return new Set(
-            selectedKeywords.filter((k) => k.vocabularyType === activeTab).map((k) => k.id),
+            selectedKeywords
+                .filter((k) => k.scheme.toLowerCase().includes(targetScheme.toLowerCase().split(' ')[0]))
+                .map((k) => k.id),
         );
     }, [selectedKeywords, activeTab]);
 
@@ -139,12 +144,11 @@ export default function ControlledVocabulariesField({
                     language: keyword.language,
                     scheme: keyword.scheme,
                     schemeURI: keyword.schemeURI,
-                    vocabularyType: activeTab,
                 };
                 onChange([...selectedKeywords, newKeyword]);
             }
         },
-        [selectedKeywords, onChange, activeTab],
+        [selectedKeywords, onChange],
     );
 
     // Handle keyword removal from badge
@@ -155,7 +159,7 @@ export default function ControlledVocabulariesField({
         [selectedKeywords, onChange],
     );
 
-    // Group selected keywords by vocabulary type
+    // Group selected keywords by vocabulary type (based on scheme)
     const keywordsByVocabulary = useMemo(() => {
         const grouped: Record<GCMDVocabularyType, SelectedKeyword[]> = {
             science: [],
@@ -165,7 +169,8 @@ export default function ControlledVocabulariesField({
         };
 
         for (const keyword of selectedKeywords) {
-            grouped[keyword.vocabularyType].push(keyword);
+            const type = getVocabularyTypeFromScheme(keyword.scheme);
+            grouped[type].push(keyword);
         }
 
         return grouped;

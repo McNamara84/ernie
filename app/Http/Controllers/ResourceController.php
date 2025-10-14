@@ -281,15 +281,6 @@ class ResourceController extends Controller
                         ->all(),
                     'controlledKeywords' => $resource->controlledKeywords
                         ->map(static function (\App\Models\ResourceControlledKeyword $keyword): array {
-                            // Map scheme to vocabularyType for frontend compatibility
-                            $vocabularyType = match ($keyword->scheme) {
-                                'Science Keywords', 'NASA/GCMD Earth Science Keywords' => 'science',
-                                'Platforms', 'GCMD Platforms' => 'platforms',
-                                'Instruments', 'GCMD Instruments' => 'instruments',
-                                'EPOS MSL vocabulary' => 'msl',
-                                default => 'science', // Fallback
-                            };
-                            
                             return [
                                 'id' => $keyword->keyword_id,
                                 'text' => $keyword->text,
@@ -297,7 +288,6 @@ class ResourceController extends Controller
                                 'language' => $keyword->language,
                                 'scheme' => $keyword->scheme,
                                 'schemeURI' => $keyword->scheme_uri,
-                                'vocabularyType' => $vocabularyType,
                             ];
                         })
                         ->values()
@@ -457,12 +447,14 @@ class ResourceController extends Controller
                 // Delete old MSL labs if updating (before adding new ones)
                 if ($isUpdate) {
                     // Get all existing MSL labs (institutions with identifier_type = 'labid')
+                    // Use whereIn with subquery to avoid morph type issues
+                    $mslLabIds = Institution::where('identifier_type', 'labid')
+                        ->pluck('id');
+                    
                     $mslLabs = ResourceAuthor::query()
                         ->where('resource_id', $resource->id)
                         ->where('authorable_type', Institution::class)
-                        ->whereHas('authorable', function ($query) {
-                            $query->where('identifier_type', 'labid');
-                        })
+                        ->whereIn('authorable_id', $mslLabIds)
                         ->get();
                     
                     // Properly cleanup relationships before deleting
