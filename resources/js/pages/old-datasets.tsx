@@ -990,7 +990,7 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             });
             
             // Get current gcmdKeywords index to append MSL keywords
-            let currentIndex = Object.keys(query).filter(key => key.startsWith('gcmdKeywords[')).length / 7; // 7 properties per keyword
+            let currentIndex = Object.keys(query).filter(key => key.startsWith('gcmdKeywords[')).length / 6; // 6 properties per keyword (id, text, path, language, scheme, schemeURI)
             
             // Add validated keywords first (these exist in current vocabulary and will be auto-selected)
             validatedKeywords.forEach((keyword: {
