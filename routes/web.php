@@ -185,6 +185,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('vocabularies.gcmd-platforms');
     Route::get('vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments'])
         ->name('vocabularies.gcmd-instruments');
+    Route::get('vocabularies/msl-vocabulary-url', function () {
+        return response()->json([
+            'url' => config('msl.vocabulary_url'),
+        ]);
+    })->name('vocabularies.msl-vocabulary-url');
 });
 
 require __DIR__.'/settings.php';

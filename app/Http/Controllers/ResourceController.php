@@ -73,6 +73,100 @@ class ResourceController extends Controller
             ->latest('created_at')
             ->paginate($perPage, ['*'], 'page', $page)
             ->through(static function (Resource $resource): array {
+                // Partition contributors to avoid double iteration (MSL Labs vs regular contributors)
+                [$mslLabs, $regularContributors] = $resource->contributors->partition(
+                    static function (ResourceAuthor $resourceContributor): bool {
+                        // MSL Labs: labid identifier type + Hosting Institution role
+                        $authorable = $resourceContributor->authorable;
+                        
+                        if (!$authorable instanceof Institution || $authorable->identifier_type !== 'labid') {
+                            return false;
+                        }
+                        
+                        return $resourceContributor->roles->contains(
+                            static fn (Role $role): bool => $role->slug === 'hosting-institution'
+                        );
+                    }
+                );
+                
+                // Process regular contributors
+                // @phpstan-ignore-next-line method.nonObject - partition() always returns two collections
+                $contributorsData = $regularContributors
+                    ->filter(static function (ResourceAuthor $resourceContributor): bool {
+                        // Filter: Only ResourceAuthors with Contributor roles
+                        return $resourceContributor->roles->contains(static fn (Role $role): bool => 
+                            in_array($role->applies_to, [
+                                Role::APPLIES_TO_CONTRIBUTOR_PERSON,
+                                Role::APPLIES_TO_CONTRIBUTOR_INSTITUTION,
+                                Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
+                            ], true)
+                        );
+                    })
+                    ->map(static function (ResourceAuthor $resourceContributor): ?array {
+                        $affiliations = $resourceContributor->affiliations
+                            ->map(static fn (\App\Models\Affiliation $affiliation): array => [
+                                'value' => $affiliation->value,
+                                'rorId' => $affiliation->ror_id,
+                            ])
+                            ->values()
+                            ->all();
+
+                        $roles = $resourceContributor->roles
+                            ->map(static fn (Role $role): string => $role->name)
+                            ->values()
+                            ->all();
+
+                        $base = [
+                            'position' => $resourceContributor->position,
+                            'affiliations' => $affiliations,
+                            'roles' => $roles,
+                        ];
+
+                        $contributorAble = $resourceContributor->authorable;
+
+                        if ($contributorAble instanceof Person) {
+                            return $base + [
+                                'type' => 'person',
+                                'orcid' => $contributorAble->orcid,
+                                'firstName' => $contributorAble->first_name,
+                                'lastName' => $contributorAble->last_name,
+                            ];
+                        }
+
+                        if ($contributorAble instanceof Institution) {
+                            return $base + [
+                                'type' => 'institution',
+                                'institutionName' => $contributorAble->name,
+                            ];
+                        }
+
+                        return null;
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+                
+                // Process MSL laboratories
+                // @phpstan-ignore-next-line method.nonObject - partition() always returns two collections
+                $mslLaboratoriesData = $mslLabs
+                    ->sortBy('position')
+                    ->map(static function (ResourceAuthor $resourceContributor): array {
+                        /** @var Institution $authorable */
+                        $authorable = $resourceContributor->authorable;
+                        
+                        // Get host institution from affiliations (may be null)
+                        $hostAffiliation = $resourceContributor->affiliations->first();
+                        
+                        return [
+                            'identifier' => $authorable->identifier ?? '',
+                            'name' => $authorable->name ?? '',
+                            'affiliation_name' => $hostAffiliation->value ?? '',
+                            'affiliation_ror' => $hostAffiliation->ror_id ?? '',
+                        ];
+                    })
+                    ->values()
+                    ->all();
+                
                 return [
                     'id' => $resource->id,
                     'doi' => $resource->doi,
@@ -151,67 +245,6 @@ class ResourceController extends Controller
                                     'type' => 'institution',
                                     'institutionName' => $authorable->name,
                                     'rorId' => $authorable->ror_id,
-                                ];
-                            }
-
-                            return null;
-                        })
-                        ->filter()
-                        ->values()
-                        ->all(),
-                    'contributors' => $resource->contributors
-                        ->filter(static function (ResourceAuthor $resourceContributor): bool {
-                            // Exclude MSL Labs (they have their own section)
-                            $authorable = $resourceContributor->authorable;
-                            
-                            if ($authorable instanceof Institution && $authorable->identifier_type === 'labid') {
-                                return false;
-                            }
-                            
-                            // Filter: Only ResourceAuthors with Contributor roles
-                            return $resourceContributor->roles->contains(static fn (Role $role): bool => 
-                                in_array($role->applies_to, [
-                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON,
-                                    Role::APPLIES_TO_CONTRIBUTOR_INSTITUTION,
-                                    Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
-                                ], true)
-                            );
-                        })
-                        ->map(static function (ResourceAuthor $resourceContributor): ?array {
-                            $affiliations = $resourceContributor->affiliations
-                                ->map(static fn (\App\Models\Affiliation $affiliation): array => [
-                                    'value' => $affiliation->value,
-                                    'rorId' => $affiliation->ror_id,
-                                ])
-                                ->values()
-                                ->all();
-
-                            $roles = $resourceContributor->roles
-                                ->map(static fn (Role $role): string => $role->name)
-                                ->values()
-                                ->all();
-
-                            $base = [
-                                'position' => $resourceContributor->position,
-                                'affiliations' => $affiliations,
-                                'roles' => $roles,
-                            ];
-
-                            $contributorAble = $resourceContributor->authorable;
-
-                            if ($contributorAble instanceof Person) {
-                                return $base + [
-                                    'type' => 'person',
-                                    'orcid' => $contributorAble->orcid,
-                                    'firstName' => $contributorAble->first_name,
-                                    'lastName' => $contributorAble->last_name,
-                                ];
-                            }
-
-                            if ($contributorAble instanceof Institution) {
-                                return $base + [
-                                    'type' => 'institution',
-                                    'institutionName' => $contributorAble->name,
                                 ];
                             }
 
@@ -304,42 +337,8 @@ class ResourceController extends Controller
                         })
                         ->values()
                         ->all(),
-                    'mslLaboratories' => $resource->contributors
-                        ->filter(static function (ResourceAuthor $resourceContributor): bool {
-                            // Filter: MSL Labs have labid identifier type and Hosting Institution role
-                            $authorable = $resourceContributor->authorable;
-                            
-                            if (!$authorable instanceof Institution) {
-                                return false;
-                            }
-                            
-                            if ($authorable->identifier_type !== 'labid') {
-                                return false;
-                            }
-                            
-                            return $resourceContributor->roles->contains(
-                                static fn (Role $role): bool => $role->slug === 'hosting-institution'
-                            );
-                        })
-                        ->sortBy('position')
-                        ->map(static function (ResourceAuthor $resourceContributor): array {
-                            /** @var Institution $authorable */
-                            $authorable = $resourceContributor->authorable;
-                            
-                            // Get host institution from affiliations (may be null)
-                            $hostAffiliation = $resourceContributor->affiliations->first();
-                            
-                            return [
-                                'identifier' => $authorable->identifier ?? '',
-                                'name' => $authorable->name ?? '',
-                                // @phpstan-ignore-next-line nullsafe.neverNull - More readable with explicit fallback
-                                'affiliation_name' => $hostAffiliation?->value ?? '',
-                                // @phpstan-ignore-next-line nullsafe.neverNull - More readable with explicit fallback
-                                'affiliation_ror' => $hostAffiliation?->ror_id ?? '',
-                            ];
-                        })
-                        ->values()
-                        ->all(),
+                    'contributors' => $contributorsData,
+                    'mslLaboratories' => $mslLaboratoriesData,
                 ];
             });
 

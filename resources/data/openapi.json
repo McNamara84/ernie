@@ -518,57 +518,6 @@
           }
         }
       }
-    },
-    "/api/v1/msl-vocabulary-url": {
-      "get": {
-        "tags": [
-          "Vocabularies"
-        ],
-        "summary": "Get MSL Laboratories vocabulary URL",
-        "description": "Returns the URL to the MSL (Multi-Scale Laboratories) vocabulary JSON file. This endpoint provides a centralized configuration point for both frontend and backend to access the same vocabulary source. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
-        "security": [
-          {
-            "ElmoApiKey": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "MSL vocabulary URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "format": "uri",
-                      "description": "URL to the MSL laboratories vocabulary JSON file",
-                      "example": "https://raw.githubusercontent.com/UtrechtUniversity/msl_vocabularies/refs/heads/main/vocabularies/labs/laboratories.json"
-                    }
-                  },
-                  "required": ["url"]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Invalid or missing API key",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "message": {
-                      "type": "string",
-                      "example": "Invalid API key."
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
     }
   },
   "components": {
