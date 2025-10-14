@@ -16,6 +16,14 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 
+vi.mock('@/components/changelog-timeline-nav', () => ({
+    ChangelogTimelineNav: () => null,
+}));
+
+vi.mock('@/components/ui/badge', () => ({
+    Badge: ({ children, ...props }: { children?: React.ReactNode }) => <span {...props}>{children}</span>,
+}));
+
 vi.mock('framer-motion', () => ({
     AnimatePresence: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     motion: {
@@ -23,15 +31,35 @@ vi.mock('framer-motion', () => ({
         button: ({ children, ...props }: React.HTMLAttributes<HTMLButtonElement>) => (
             <button {...props}>{children}</button>
         ),
+        li: ({ children, ref, ...props }: React.HTMLAttributes<HTMLLIElement> & { ref?: React.Ref<HTMLLIElement> }) => (
+            <li ref={ref} {...props}>{children}</li>
+        ),
     },
+}));
+
+vi.mock('lucide-react', () => ({
+    Bug: () => <svg data-testid="bug-icon" />,
+    Sparkles: () => <svg data-testid="sparkles-icon" />,
+    TrendingUp: () => <svg data-testid="trending-up-icon" />,
 }));
 
 describe('Changelog integration', () => {
     beforeEach(() => {
         document.title = '';
         global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) }) as unknown as typeof fetch;
-        // @ts-expect-error jsdom stub
         window.scrollTo = vi.fn();
+        Element.prototype.scrollIntoView = vi.fn();
+        
+        // Mock IntersectionObserver
+        global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+            observe: vi.fn(),
+            unobserve: vi.fn(),
+            disconnect: vi.fn(),
+            root: null,
+            rootMargin: '',
+            thresholds: [],
+            takeRecords: vi.fn(),
+        })) as unknown as typeof IntersectionObserver;
     });
 
     it('sets the document title', () => {
