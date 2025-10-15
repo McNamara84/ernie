@@ -44,34 +44,33 @@ export default function Changelog() {
         return releaseDate >= thirtyDaysAgo;
     };
 
+    // Fetch changelog data on mount
     useEffect(() => {
         fetch(withBasePath('/api/changelog'))
             .then((res) => {
                 if (!res.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Failed to fetch changelog');
                 }
                 return res.json();
             })
             .then((data: Release[]) => {
                 setReleases(data);
                 releaseRefs.current = new Array(data.length).fill(null);
-                
-                // Check for hash in URL and scroll to version
+
+                // Read hash directly from URL when data is loaded
                 const hash = window.location.hash.replace('#', '');
                 if (hash.startsWith('v')) {
                     const version = hash.substring(1);
                     const index = data.findIndex((r) => r.version === version);
                     if (index !== -1) {
                         setActive(index);
-                        // Delay scroll to ensure refs are set
+                        // Scroll to element after React has rendered
                         setTimeout(() => {
                             const element = releaseRefs.current[index];
                             if (element) {
                                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             }
-                        }, 100);
-                    } else {
-                        setActive(data.length > 0 ? 0 : null);
+                        }, 300); // Increased timeout for reliability
                     }
                 } else {
                     setActive(data.length > 0 ? 0 : null);
@@ -80,7 +79,34 @@ export default function Changelog() {
             .catch(() => setError('Unable to load changelog.'));
     }, []);
 
-    // Intersection Observer für scroll-basiertes Highlighting
+    // Handle hash changes (for browser navigation and timeline clicks)
+    useEffect(() => {
+        if (releases.length === 0) return;
+
+        const processHash = () => {
+            const hash = window.location.hash.replace('#', '');
+            if (hash.startsWith('v')) {
+                const version = hash.substring(1);
+                const index = releases.findIndex((r) => r.version === version);
+                if (index !== -1) {
+                    setActive(index);
+                    setTimeout(() => {
+                        const element = releaseRefs.current[index];
+                        if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }, 100);
+                }
+            }
+        };
+
+        // Listen for hash changes (browser back/forward, timeline clicks)
+        window.addEventListener('hashchange', processHash);
+
+        return () => {
+            window.removeEventListener('hashchange', processHash);
+        };
+    }, [releases]);    // Intersection Observer für scroll-basiertes Highlighting
     useEffect(() => {
         if (releases.length === 0) return;
 
@@ -96,7 +122,7 @@ export default function Changelog() {
                     const index = releaseRefs.current.findIndex((ref) => ref === entry.target);
                     if (index !== -1) {
                         setHighlightedIndex(index);
-                        setActive(index);
+                        // Nicht mehr automatisch aufklappen - Nutzer behält Kontrolle
                     }
                 }
             });
@@ -271,12 +297,13 @@ export default function Changelog() {
                                             const items = release[key];
                                             if (!items || items.length === 0) return null;
                                             const Icon = sectionConfig[key].icon;
+                                            const iconTestId = key === 'features' ? 'sparkles-icon' : key === 'improvements' ? 'trending-up-icon' : 'bug-icon';
                                             return (
                                                 <section key={key} className="mb-4 last:mb-0">
                                                     <h3
                                                         className={`mb-1 flex items-center gap-1.5 font-semibold ${sectionConfig[key].color}`}
                                                     >
-                                                        <Icon className="h-4 w-4" aria-hidden="true" />
+                                                        <Icon className="h-4 w-4" aria-hidden="true" data-testid={iconTestId} />
                                                         {sectionConfig[key].label}
                                                     </h3>
                                                     <ul className="space-y-1">
