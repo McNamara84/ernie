@@ -10,7 +10,7 @@ import { TEST_USER_EMAIL, TEST_USER_GREETING, TEST_USER_PASSWORD } from '../cons
  * Simple, fast tests to verify core functionality works.
  * Based on working tests from main branch.
  * 
- * Pattern: Dashboard → XML Upload → Curation with URL params
+ * Pattern: Dashboard → XML Upload → Editor with URL params
  */
 
 const __filename = fileURLToPath(import.meta.url);
@@ -37,7 +37,7 @@ test.describe('Critical Smoke Tests', () => {
     await expect(page.getByText(TEST_USER_GREETING)).toBeVisible();
   });
 
-  test('user can upload XML file and access curation form', async ({ page }) => {
+  test('user can upload XML file and access editor form', async ({ page }) => {
     // Login first
     await page.goto('/login');
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
@@ -53,8 +53,8 @@ test.describe('Critical Smoke Tests', () => {
     const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
     
-    // Verify redirect to curation with URL params
-    await page.waitForURL(/\/curation/, { timeout: 10000 });
+    // Verify redirect to editor with URL params
+    await page.waitForURL(/\/editor/, { timeout: 10000 });
     
     const currentUrl = page.url();
     expect(currentUrl).toMatch(/doi=/);
