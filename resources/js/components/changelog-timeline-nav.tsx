@@ -20,6 +20,19 @@ type TimelineNavProps = {
 export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: TimelineNavProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        setPrefersReducedMotion(mediaQuery.matches);
+
+        const handleChange = (e: MediaQueryListEvent) => {
+            setPrefersReducedMotion(e.matches);
+        };
+
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, []);
 
     useEffect(() => {
         const checkMobile = () => {
@@ -75,9 +88,9 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
 
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                        initial={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8, y: 20 }}
+                        animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1, y: 0 }}
+                        exit={prefersReducedMotion ? {} : { opacity: 0, scale: 0.8, y: 20 }}
                         className="absolute bottom-16 right-0 max-h-96 w-48 overflow-y-auto rounded-lg bg-white p-4 shadow-2xl dark:bg-gray-800"
                     >
                         <div className="space-y-2">
@@ -128,8 +141,8 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <motion.button
-                                        whileHover={{ scale: 1.3 }}
-                                        whileTap={{ scale: 0.9 }}
+                                        whileHover={prefersReducedMotion ? {} : { scale: 1.3 }}
+                                        whileTap={prefersReducedMotion ? {} : { scale: 0.9 }}
                                         onClick={() => onNavigate(index)}
                                         className={cn(
                                             'relative rounded-full transition-all',
@@ -144,7 +157,7 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                             <motion.span
                                                 layoutId="activeIndicator"
                                                 className="absolute inset-0 rounded-full bg-white/30"
-                                                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                                                transition={prefersReducedMotion ? {} : { type: 'spring', stiffness: 380, damping: 30 }}
                                             />
                                         )}
                                     </motion.button>
@@ -152,7 +165,7 @@ export function ChangelogTimelineNav({ releases, activeIndex, onNavigate }: Time
                                 <TooltipContent side="left" className="text-xs">
                                     <div>
                                         <p className="font-semibold">Version {release.version}</p>
-                                        <p className="text-gray-500">{release.date}</p>
+                                        <p className="text-gray-700 dark:text-gray-300">{release.date}</p>
                                     </div>
                                 </TooltipContent>
                             </Tooltip>

@@ -36,6 +36,8 @@ export default defineConfig({
     'tests/playwright/critical/**/*.spec.ts',
     // Then workflow tests
     'tests/playwright/workflows/**/*.spec.ts',
+    // Accessibility tests
+    'tests/playwright/accessibility/**/*.spec.ts',
   ],
   
   /* Ignore helper files and documentation */
@@ -73,15 +75,16 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
 
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
+    // Firefox and WebKit disabled for accessibility tests (Chromium sufficient for BITV 2.0)
+    // {
+    //   name: 'firefox',
+    //   use: { ...devices['Desktop Firefox'] },
+    // },
 
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // {
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
+    // },
 
     /* Test against mobile viewports. */
     // {

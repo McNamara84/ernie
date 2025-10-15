@@ -34,9 +34,9 @@ const sectionConfig: Record<
     keyof Omit<Release, 'version' | 'date'>,
     { label: string; color: string; icon: React.ComponentType<{ className?: string }> }
 > = {
-    features: { label: 'Features', color: 'text-green-600', icon: Sparkles },
-    improvements: { label: 'Improvements', color: 'text-blue-600', icon: TrendingUp },
-    fixes: { label: 'Fixes', color: 'text-red-600', icon: Bug },
+    features: { label: 'Features', color: 'text-green-700', icon: Sparkles },
+    improvements: { label: 'Improvements', color: 'text-blue-700', icon: TrendingUp },
+    fixes: { label: 'Fixes', color: 'text-red-700', icon: Bug },
 };
 
 export default function Changelog() {
@@ -44,8 +44,23 @@ export default function Changelog() {
     const [active, setActive] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
+    const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+    const [announcement, setAnnouncement] = useState('');
     const releaseRefs = useRef<(HTMLLIElement | null)[]>([]);
     const userInteractedRef = useRef<boolean>(false);
+
+    // Check for reduced motion preference
+    useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        setPrefersReducedMotion(mediaQuery.matches);
+
+        const handleChange = (e: MediaQueryListEvent) => {
+            setPrefersReducedMotion(e.matches);
+        };
+
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, []);
 
     const isNewRelease = (dateString: string, index: number) => {
         // Only show "New" badge for the first 3 releases
@@ -297,11 +312,30 @@ export default function Changelog() {
         <PublicLayout>
             <Head title="Changelog" />
             <ChangelogTimelineNav releases={releases} activeIndex={active} onNavigate={handleNavigate} />
+            
+            {/* Screen reader announcements */}
+            <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+                {announcement}
+            </div>
+            
             <h1 className="mb-6 text-2xl font-semibold">Changelog</h1>
             {error ? (
-                <p role="alert" className="text-red-600">
-                    {error}
-                </p>
+                <div 
+                    role="alert" 
+                    aria-atomic="true"
+                    className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-950/20"
+                >
+                    <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">
+                        Changelog konnte nicht geladen werden
+                    </h2>
+                    <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:bg-red-700 dark:hover:bg-red-800"
+                    >
+                        Seite neu laden
+                    </button>
+                </div>
             ) : (
                 <ul
                     className="relative space-y-4 border-l border-gray-300 pl-6"
@@ -337,21 +371,23 @@ export default function Changelog() {
                             ref={(el) => {
                                 releaseRefs.current[index] = el;
                             }}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ 
+                            initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
+                            animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
+                            transition={prefersReducedMotion ? {} : { 
                                 duration: 0.4, 
                                 delay: index * 0.1,
                                 ease: 'easeOut'
                             }}
                         >
                             <motion.div
-                                animate={{
+                                animate={prefersReducedMotion ? {} : {
                                     scale: highlightedIndex === index ? 1.02 : 1,
+                                }}
+                                transition={prefersReducedMotion ? {} : { duration: 0.3, ease: 'easeInOut' }}
+                                className={`rounded-lg bg-gradient-to-r p-1 ${gradientBg}`}
+                                style={{
                                     opacity: highlightedIndex === null || highlightedIndex === index ? 1 : 0.6,
                                 }}
-                                transition={{ duration: 0.3, ease: 'easeInOut' }}
-                                className={`rounded-lg bg-gradient-to-r p-1 ${gradientBg}`}
                             >
                             <span
                                 aria-hidden="true"
@@ -361,7 +397,15 @@ export default function Changelog() {
                             <button
                                 onClick={() => {
                                     userInteractedRef.current = true;
+                                    const wasOpen = isOpen;
                                     setActive(isOpen ? null : index);
+                                    
+                                    // Announce for screen readers
+                                    setAnnouncement(
+                                        wasOpen 
+                                            ? `Version ${release.version} eingeklappt` 
+                                            : `Version ${release.version} erweitert`
+                                    );
                                     
                                     // Scroll element into view after toggle
                                     if (!isOpen) {
@@ -383,26 +427,23 @@ export default function Changelog() {
                                     <span className="font-medium">Version {release.version}</span>
                                     {isNewRelease(release.date, index) && (
                                         <span 
-                                            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
-                                            style={{ 
-                                                backgroundColor: '#166534', 
-                                                color: '#ffffff'
-                                            }}
+                                            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white"
+                                            style={{ backgroundColor: '#000200' }}
                                         >
                                             New
                                         </span>
                                     )}
                                 </span>
-                                <span className="ml-4 text-sm text-gray-600 dark:text-gray-400">{release.date}</span>
+                                <span className="ml-4 text-sm text-gray-700 dark:text-gray-300">{release.date}</span>
                             </button>
                             <AnimatePresence initial={false}>
                                 {isOpen && (
                                     <motion.div
                                         id={panelId}
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.3 }}
+                                        initial={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
+                                        animate={prefersReducedMotion ? {} : { height: 'auto', opacity: 1 }}
+                                        exit={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
+                                        transition={prefersReducedMotion ? {} : { duration: 0.3 }}
                                         className="ml-5 mt-2 border-l pl-4 text-sm text-gray-700"
                                         role="region"
                                         aria-labelledby={buttonId}
