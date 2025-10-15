@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
-import { getVocabularyTypeFromScheme, getSchemeFromVocabularyType } from '@/types/gcmd';
+import { getSchemeFromVocabularyType,getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 import { GCMDTree } from './gcmd-tree';
 

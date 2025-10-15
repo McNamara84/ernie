@@ -36,6 +36,8 @@ export default defineConfig({
     'tests/playwright/critical/**/*.spec.ts',
     // Then workflow tests
     'tests/playwright/workflows/**/*.spec.ts',
+    // Accessibility tests
+    'tests/playwright/accessibility/**/*.spec.ts',
   ],
   
   /* Ignore helper files and documentation */

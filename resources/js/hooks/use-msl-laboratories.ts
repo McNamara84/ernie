@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 
 import { withBasePath } from '@/lib/base-path';
-
 import type { MSLLaboratory } from '@/types';
 
 interface UseMSLLaboratoriesReturn {

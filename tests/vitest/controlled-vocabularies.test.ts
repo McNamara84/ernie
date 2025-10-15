@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
-import { getVocabularyTypeFromScheme, getSchemeFromVocabularyType } from '@/types/gcmd';
+import { getSchemeFromVocabularyType,getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 describe('SelectedKeyword Type', () => {
     it('should have all required fields', () => {

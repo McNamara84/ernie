@@ -16,8 +16,17 @@ vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('@/components/changelog-timeline-nav', () => ({
+    ChangelogTimelineNav: () => null,
+}));
+
+vi.mock('@/components/ui/badge', () => ({
+    Badge: ({ children, ...props }: { children?: React.ReactNode }) => <span {...props}>{children}</span>,
+}));
+
 type MotionButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
     whileHover?: unknown;
+    whileTap?: unknown;
 };
 
 type MotionDivProps = React.HTMLAttributes<HTMLDivElement> & {
@@ -27,19 +36,30 @@ type MotionDivProps = React.HTMLAttributes<HTMLDivElement> & {
     transition?: unknown;
 };
 
+type MotionLiProps = React.HTMLAttributes<HTMLLIElement> & {
+    initial?: unknown;
+    animate?: unknown;
+    transition?: unknown;
+};
+
 const consumeMotionOnlyProps = (...values: unknown[]) => {
     values.forEach(() => {
         // Accessing via forEach keeps eslint satisfied without mutating output.
     });
 };
 
-const sanitizeButtonMotionProps = ({ whileHover, ...rest }: MotionButtonProps) => {
-    consumeMotionOnlyProps(whileHover);
+const sanitizeButtonMotionProps = ({ whileHover, whileTap, ...rest }: MotionButtonProps) => {
+    consumeMotionOnlyProps(whileHover, whileTap);
     return rest;
 };
 
 const sanitizeDivMotionProps = ({ initial, animate, exit, transition, ...rest }: MotionDivProps) => {
     consumeMotionOnlyProps(initial, animate, exit, transition);
+    return rest;
+};
+
+const sanitizeLiMotionProps = ({ initial, animate, transition, ...rest }: MotionLiProps) => {
+    consumeMotionOnlyProps(initial, animate, transition);
     return rest;
 };
 
@@ -54,7 +74,17 @@ vi.mock('framer-motion', () => ({
             const rest = sanitizeDivMotionProps(props);
             return <div {...rest}>{children}</div>;
         },
+        li: ({ children, ref, ...props }: MotionLiProps & { children?: React.ReactNode; ref?: React.Ref<HTMLLIElement> }) => {
+            const rest = sanitizeLiMotionProps(props);
+            return <li ref={ref} {...rest}>{children}</li>;
+        },
     },
+}));
+
+vi.mock('lucide-react', () => ({
+    Bug: () => <svg data-testid="bug-icon" />,
+    Sparkles: () => <svg data-testid="sparkles-icon" />,
+    TrendingUp: () => <svg data-testid="trending-up-icon" />,
 }));
 
 describe('Changelog', () => {
@@ -99,9 +129,21 @@ describe('Changelog', () => {
                     },
                 ]),
         }) as unknown as typeof fetch;
-        // framer-motion calls scrollTo in tests
-        // @ts-expect-error missing on jsdom
+        
+        // Mock scrollTo and scrollIntoView
         window.scrollTo = vi.fn();
+        Element.prototype.scrollIntoView = vi.fn();
+        
+        // Mock IntersectionObserver
+        global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+            observe: vi.fn(),
+            unobserve: vi.fn(),
+            disconnect: vi.fn(),
+            root: null,
+            rootMargin: '',
+            thresholds: [],
+            takeRecords: vi.fn(),
+        })) as unknown as typeof IntersectionObserver;
     });
 
     afterEach(() => {
@@ -112,6 +154,7 @@ describe('Changelog', () => {
     it('renders releases on a timeline, expands the latest by default, and toggles grouped details', async () => {
         const user = userEvent.setup();
         render(<Changelog />);
+        
         const list = await screen.findByRole('list', { name: /changelog timeline/i });
         expect(list).toBeInTheDocument();
         const firstButton = await screen.findByRole('button', { name: /version 0.1.0/i });
