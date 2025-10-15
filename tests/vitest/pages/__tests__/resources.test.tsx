@@ -7,13 +7,13 @@ import ResourcesPage, { buildDoiUrl, formatDateTime, getPrimaryTitle } from '@/p
 
 const routerMock = vi.hoisted(() => ({ get: vi.fn(), delete: vi.fn() }));
 const buildCurationQueryFromResourceMock = vi.hoisted(() => vi.fn());
-const curationRouteMock = vi.hoisted(
+const editorRouteMock = vi.hoisted(
     () =>
         vi.fn(
             ({ query }: { query?: Record<string, string> } = {}) => ({
                 url: query
-                    ? `/curation?${new URLSearchParams(query).toString()}`
-                    : '/curation',
+                    ? `/editor?${new URLSearchParams(query).toString()}`
+                    : '/editor',
                 method: 'get',
             }),
         ),
@@ -29,7 +29,7 @@ vi.mock('@/lib/curation-query', () => ({
 }));
 
 vi.mock('@/routes', () => ({
-    curation: curationRouteMock,
+    curation: editorRouteMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -68,7 +68,7 @@ describe('ResourcesPage', () => {
         routerMock.delete.mockClear();
         buildCurationQueryFromResourceMock.mockReset();
         buildCurationQueryFromResourceMock.mockResolvedValue({});
-        curationRouteMock.mockClear();
+        editorRouteMock.mockClear();
     });
 
     afterEach(() => {
@@ -141,7 +141,7 @@ describe('ResourcesPage', () => {
         ).not.toBeInTheDocument();
         expect(screen.getByRole('columnheader', { name: /actions/i })).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: /edit primary title in the curation editor/i }),
+            screen.getByRole('button', { name: /edit primary title in the editor/i }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /delete primary title from ernie/i }),
@@ -296,7 +296,7 @@ describe('ResourcesPage', () => {
         );
 
         const editButton = screen.getByRole('button', {
-            name: /edit primary title in the curation editor/i,
+            name: /edit primary title in the editor/i,
         });
 
         await act(async () => {
@@ -305,11 +305,11 @@ describe('ResourcesPage', () => {
         });
 
         expect(buildCurationQueryFromResourceMock).toHaveBeenCalledWith(resource);
-        expect(curationRouteMock).toHaveBeenCalledWith({
+        expect(editorRouteMock).toHaveBeenCalledWith({
             query: { doi: resource.doi, resourceId: String(resource.id) },
         });
         const lastCall = routerMock.get.mock.calls.at(-1);
-        expect(lastCall?.[0]).toBe('/curation?doi=10.9999%2Fexample&resourceId=1');
+        expect(lastCall?.[0]).toBe('/editor?doi=10.9999%2Fexample&resourceId=1');
     });
 
     it('confirms destructive actions before deleting a resource', async () => {

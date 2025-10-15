@@ -117,7 +117,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('docs-users');
     })->name('docs.users');
 
-    Route::get('curation', function (\Illuminate\Http\Request $request) {
+    Route::get('editor', function (\Illuminate\Http\Request $request) {
         // Decode relatedWorks from JSON if it's a string (to handle large datasets)
         $relatedWorks = $request->query('relatedWorks', []);
         if (is_string($relatedWorks)) {
@@ -153,7 +153,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $mslLaboratories = is_array($decoded) ? $decoded : [];
         }
 
-        return Inertia::render('curation', [
+        return Inertia::render('editor', [
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
             'googleMapsApiKey' => config('services.google_maps.api_key'),
@@ -176,10 +176,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
         ]);
-    })->name('curation');
+    })->name('editor');
 
-    Route::post('curation/resources', [ResourceController::class, 'store'])
-        ->name('curation.resources.store');
+    Route::post('editor/resources', [ResourceController::class, 'store'])
+        ->name('editor.resources.store');
 
     // GCMD Vocabulary routes for frontend (without API key requirement)
     Route::get('vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords'])

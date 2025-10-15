@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import { curation as curationRoute } from '@/routes';
+import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { type FilterOptions, type FilterState, type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
 import { parseContributorName } from '@/utils/nameParser';
@@ -428,7 +428,7 @@ const normaliseLicenses = (dataset: Dataset): string[] => {
  * accepts string and number inputs but intentionally filters out values that contain
  * non-digit characters. Only purely numeric strings (for example, "123") are forwarded,
  * while mixed alphanumeric values such as "type123" or "12abc" are rejected so the
- * curation form never receives invalid identifiers.
+ * editor form never receives invalid identifiers.
  */
 const getResourceTypeIdentifier = (dataset: Dataset): string | null => {
     const candidates = [
@@ -920,7 +920,7 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
             const response = await axios.get(`/old-datasets/${dataset.id}/controlled-keywords`);
             const keywords = response.data.keywords || [];
             
-            // Transform keywords to query parameter format expected by curation page
+            // Transform keywords to query parameter format expected by editor page
             // Expected format: { id, path, text, language, scheme, schemeURI }
             keywords.forEach((keyword: {
                 id: string;
@@ -1242,7 +1242,7 @@ export default function OldDatasets({
 
     const handleOpenInCuration = useCallback(async (dataset: Dataset) => {
         const query = await buildCurationQuery(dataset);
-        router.get(curationRoute({ query }).url);
+        router.get(editorRoute({ query }).url);
     }, []);
 
     const logDebugInformation = useCallback((source: string, message: string | undefined, payload?: Record<string, unknown>) => {
@@ -1976,8 +1976,8 @@ export default function OldDatasets({
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     onClick={() => handleOpenInCuration(dataset)}
-                                                                    aria-label={`Open dataset ${datasetLabel} in curation form`}
-                                                                    title={`Open dataset ${datasetLabel} in curation form`}
+                                                                    aria-label={`Open dataset ${datasetLabel} in editor form`}
+                                                                    title={`Open dataset ${datasetLabel} in editor form`}
                                                                 >
                                                                     <ArrowUpRight aria-hidden="true" className="size-4" />
                                                                 </Button>

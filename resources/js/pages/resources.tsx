@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
 import { buildCurationQueryFromResource } from '@/lib/curation-query';
-import { curation as curationRoute } from '@/routes';
+import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
 interface ResourceTitleType {
@@ -192,10 +192,10 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
     const handleEditResource = useCallback(async (resource: ResourceListItem) => {
         try {
             const query = await buildCurationQueryFromResource(resource);
-            router.get(curationRoute({ query }).url);
+            router.get(editorRoute({ query }).url);
         } catch (error) {
-            console.error('Unable to open resource in curation.', error);
-            router.get(curationRoute().url);
+            console.error('Unable to open resource in editor.', error);
+            router.get(editorRoute().url);
         }
     }, []);
 
@@ -257,7 +257,7 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                             <Alert role="status">
                                 <AlertTitle>No resources found</AlertTitle>
                                 <AlertDescription>
-                                    Once new resources are added through the curation workflow, they will appear in this list.
+                                    Once new resources are added through the editor workflow, they will appear in this list.
                                 </AlertDescription>
                             </Alert>
                         ) : (
@@ -390,8 +390,8 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                     onClick={() => {
                                                                         void handleEditResource(resource);
                                                                     }}
-                                                                    aria-label={`Edit ${primaryTitle} in the curation editor`}
-                                                                    title={`Edit ${primaryTitle} in the curation editor`}
+                                                                    aria-label={`Edit ${primaryTitle} in the editor`}
+                                                                    title={`Edit ${primaryTitle} in the editor`}
                                                                     disabled={isResourceBeingDeleted}
                                                                 >
                                                                     <PencilLine aria-hidden="true" className="size-4" />

@@ -631,7 +631,7 @@ describe('OldDatasets page', () => {
         render(<OldDatasets {...baseProps} />);
 
         const datasetOneButton = screen.getByRole('button', {
-            name: /open dataset 10\.1234\/example-one in curation form/i,
+            name: /open dataset 10\.1234\/example-one in editor form/i,
         });
 
         await user.click(datasetOneButton);
@@ -662,7 +662,7 @@ describe('OldDatasets page', () => {
         params.append('licenses[1]', 'MIT');
         params.append('licenses[2]', 'GPL-3.0');
 
-        expect(routerGetSpy).toHaveBeenCalledWith(`/curation?${params.toString()}`);
+        expect(routerGetSpy).toHaveBeenCalledWith(`/editor?${params.toString()}`);
     });
 
     it('omits the resource type when the identifier contains non-digit characters', async () => {
@@ -681,7 +681,7 @@ describe('OldDatasets page', () => {
         );
 
         const button = screen.getByRole('button', {
-            name: /open dataset 10\.1234\/example-one in curation form/i,
+            name: /open dataset 10\.1234\/example-one in editor form/i,
         });
 
         await user.click(button);

@@ -9,7 +9,7 @@ import { type FundingReferenceEntry } from '@/components/curation/fields/funding
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
-import { curation } from '@/routes';
+import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
     type Language,
@@ -21,7 +21,7 @@ import {
     type TitleType,
 } from '@/types';
 
-interface CurationProps {
+interface EditorProps {
     maxTitles: number;
     maxLicenses: number;
     googleMapsApiKey: string;
@@ -45,7 +45,7 @@ interface CurationProps {
     mslLaboratories?: MSLLaboratory[];
 }
 
-export default function Curation({
+export default function Editor({
     maxTitles,
     maxLicenses,
     googleMapsApiKey,
@@ -67,7 +67,7 @@ export default function Curation({
     relatedWorks = [],
     fundingReferences = [],
     mslLaboratories = [],
-}: CurationProps) {
+}: EditorProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
     const [licenses, setLicenses] = useState<License[] | null>(null);
@@ -79,8 +79,8 @@ export default function Curation({
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
-            title: 'Curation',
-            href: curation().url,
+            title: 'Editor',
+            href: editor().url,
         },
     ];
 
@@ -144,7 +144,7 @@ export default function Curation({
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Curation" />
+            <Head title="Editor" />
             <div
                 className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
                 aria-busy={

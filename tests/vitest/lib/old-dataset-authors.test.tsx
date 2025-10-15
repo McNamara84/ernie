@@ -132,7 +132,7 @@ describe('OldDataset Authors Loading', () => {
             />
         );
 
-        // Finde "Open in Curation" Button für den Datensatz
+        // Finde "Open in Editor" Button für den Datensatz
         const button = container.querySelector('button[aria-label*="Open dataset"]');
         expect(button).toBeTruthy();
 
@@ -149,7 +149,7 @@ describe('OldDataset Authors Loading', () => {
         expect(routerCall).toBeDefined();
         
         const url = routerCall[0]; // Erste Parameter ist die URL
-        expect(url).toContain('/curation');
+        expect(url).toContain('/editor');
         
         // Prüfe, dass die URL Charlotte Läuchli als Autorin enthält
         expect(url).toContain('authors%5B0%5D%5BfirstName%5D=Charlotte');

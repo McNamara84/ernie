@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import Curation from '@/pages/curation';
+import Editor from '@/pages/editor';
 import type { Language,License, ResourceType, TitleType } from '@/types';
 
 const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
@@ -35,7 +35,7 @@ vi.mock('@/components/curation/datacite-form', () => ({
     },
 }));
 
-describe('Curation page', () => {
+describe('Editor page', () => {
     beforeEach(() => {
         renderForm.mockClear();
         vi.stubGlobal(
@@ -63,7 +63,7 @@ describe('Curation page', () => {
     });
 
     it('fetches resource types and passes data to DataCiteForm', async () => {
-        render(<Curation maxTitles={99} maxLicenses={99} />);
+        render(<Editor maxTitles={99} maxLicenses={99} />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
                 expect.objectContaining({ resourceTypes, titleTypes, licenses, languages }),
@@ -75,7 +75,7 @@ describe('Curation page', () => {
         (fetch as unknown as vi.Mock).mockImplementation(
             () => new Promise(() => {}),
         );
-        render(<Curation maxTitles={99} maxLicenses={99} />);
+        render(<Editor maxTitles={99} maxLicenses={99} />);
         expect(screen.getByRole('status')).toHaveTextContent(
             /loading resource and title types, licenses, languages, and role options/i,
         );
@@ -88,14 +88,14 @@ describe('Curation page', () => {
                 ? Promise.resolve({ ok: true, json: () => Promise.resolve(resourceTypes) })
                 : unresolved,
         );
-        render(<Curation maxTitles={99} maxLicenses={99} />);
+        render(<Editor maxTitles={99} maxLicenses={99} />);
         expect(screen.getByRole('status')).toHaveTextContent(
             /loading resource and title types, licenses, languages, and role options/i,
         );
     });
 
     it('passes limits to DataCiteForm', async () => {
-        render(<Curation maxTitles={5} maxLicenses={7} />);
+        render(<Editor maxTitles={5} maxLicenses={7} />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
                 expect.objectContaining({ maxTitles: 5, maxLicenses: 7 }),
