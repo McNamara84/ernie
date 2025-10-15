@@ -403,7 +403,7 @@ it('updates an existing resource when the request includes a resource identifier
         ],
     ];
 
-    postJson(route('curation.resources.store'), $payload)
+    postJson(route('editor.resources.store'), $payload)
         ->assertStatus(200)
         ->assertJson([
             'message' => 'Successfully updated resource.',
@@ -516,7 +516,7 @@ it('stores authors with roles and affiliations when creating a resource', functi
         ],
     ];
 
-    postJson(route('curation.resources.store'), $payload)
+    postJson(route('editor.resources.store'), $payload)
         ->assertStatus(201)
         ->assertJson([
             'message' => 'Successfully saved resource.',
@@ -610,7 +610,7 @@ it('normalizes blank affiliation ror ids to null when storing resource authors',
         ],
     ];
 
-    postJson(route('curation.resources.store'), $payload)
+    postJson(route('editor.resources.store'), $payload)
         ->assertStatus(201);
 
     $resource = Resource::query()
@@ -719,7 +719,7 @@ it('reuses existing institutions when a ROR identifier is added later', function
         ],
     ];
 
-    postJson(route('curation.resources.store'), $initialPayload)->assertStatus(201);
+    postJson(route('editor.resources.store'), $initialPayload)->assertStatus(201);
 
     $resource = Resource::query()->firstOrFail();
     $institution = Institution::query()->firstOrFail();
@@ -754,7 +754,7 @@ it('reuses existing institutions when a ROR identifier is added later', function
         ],
     ];
 
-    postJson(route('curation.resources.store'), $updatePayload)
+    postJson(route('editor.resources.store'), $updatePayload)
         ->assertStatus(200)
         ->assertJsonPath('resource.id', $resource->id);
 
@@ -818,7 +818,7 @@ it('does not require a contact email when isContact is explicitly false', functi
         ],
     ];
 
-    postJson(route('curation.resources.store'), $payload)->assertStatus(201);
+    postJson(route('editor.resources.store'), $payload)->assertStatus(201);
 
     $resource = Resource::query()
         ->with(['authors.roles', 'authors.authorable'])
@@ -895,7 +895,7 @@ it('stores descriptions and dates with a resource', function (): void {
         ],
     ];
 
-    postJson(route('curation.resources.store'), $payload)
+    postJson(route('editor.resources.store'), $payload)
         ->assertStatus(201)
         ->assertJson([
             'message' => 'Successfully saved resource.',
@@ -1031,7 +1031,7 @@ it('updates descriptions and dates when updating a resource', function (): void 
         ],
     ];
 
-    postJson(route('curation.resources.store'), $payload)
+    postJson(route('editor.resources.store'), $payload)
         ->assertStatus(200)
         ->assertJson([
             'message' => 'Successfully updated resource.',
