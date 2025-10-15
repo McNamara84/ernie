@@ -1532,7 +1532,7 @@ describe('DataCiteForm', () => {
                 initialContributors={[
                     {
                         type: 'person',
-                        firstName: 'Jean François',
+                        firstName: 'Jean FranÃ§ois',
                         lastName: 'Iffly',
                         roles: ['Data Collector', 'Data Curator'],
                         affiliations: [
@@ -2824,7 +2824,7 @@ describe('DataCiteForm', () => {
             // After adding a new date: First row has 1 filled + 1 empty (endDate), second row has 2 empty = 3 empty total
             expect(dateInputs).toHaveLength(3);
             const allDateInputs = document.querySelectorAll('input[type="date"]');
-            // Total: 2 date fields per row × 2 rows = 4 date inputs
+            // Total: 2 date fields per row ï¿½ 2 rows = 4 date inputs
             expect(allDateInputs).toHaveLength(4);
         });
 
