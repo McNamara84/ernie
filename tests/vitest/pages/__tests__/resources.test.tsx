@@ -29,7 +29,7 @@ vi.mock('@/lib/curation-query', () => ({
 }));
 
 vi.mock('@/routes', () => ({
-    curation: editorRouteMock,
+    editor: editorRouteMock,
 }));
 
 vi.mock('@/layouts/app-layout', () => ({

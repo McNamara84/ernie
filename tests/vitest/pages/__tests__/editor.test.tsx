@@ -105,7 +105,7 @@ describe('Editor page', () => {
 
     it('passes doi to DataCiteForm when provided', async () => {
         render(
-            <Curation
+            <Editor
                 maxTitles={99}
                 maxLicenses={99}
                 doi="10.1234/xyz"
@@ -120,7 +120,7 @@ describe('Editor page', () => {
 
     it('passes year to DataCiteForm when provided', async () => {
         render(
-            <Curation
+            <Editor
                 maxTitles={99}
                 maxLicenses={99}
                 year="2024"
@@ -135,7 +135,7 @@ describe('Editor page', () => {
 
     it('passes version to DataCiteForm when provided', async () => {
         render(
-            <Curation
+            <Editor
                 maxTitles={99}
                 maxLicenses={99}
                 version="2.0"
@@ -150,7 +150,7 @@ describe('Editor page', () => {
 
     it('passes language to DataCiteForm when provided', async () => {
         render(
-            <Curation
+            <Editor
                 maxTitles={99}
                 maxLicenses={99}
                 language="de"
@@ -165,7 +165,7 @@ describe('Editor page', () => {
 
     it('passes resource type to DataCiteForm when provided', async () => {
         render(
-            <Curation
+            <Editor
                 maxTitles={99}
                 maxLicenses={99}
                 resourceType="1"
@@ -184,7 +184,7 @@ describe('Editor page', () => {
             { title: 'Alt', titleType: 'alternative-title' },
         ];
         render(
-            <Curation
+            <Editor
                 maxTitles={99}
                 maxLicenses={99}
                 titles={titles}
@@ -200,7 +200,7 @@ describe('Editor page', () => {
     it('passes initial licenses to DataCiteForm when provided', async () => {
         const initialLicenses = ['MIT'];
         render(
-            <Curation
+            <Editor
                 maxTitles={99}
                 maxLicenses={99}
                 initialLicenses={initialLicenses}

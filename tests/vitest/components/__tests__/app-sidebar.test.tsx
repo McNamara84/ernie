@@ -74,8 +74,8 @@ describe('AppSidebar', () => {
         const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
         expect(dashboardLink).toHaveAttribute('href', withBasePath('/dashboard'));
 
-        const curationLink = screen.getByRole('link', { name: /editor/i });
-        expect(curationLink).toHaveAttribute('href', withBasePath('/editor'));
+        const editorLink = screen.getByRole('link', { name: /^editor$/i });
+        expect(editorLink).toHaveAttribute('href', withBasePath('/editor'));
 
         const oldDatasetsLink = screen.getByRole('link', { name: /old datasets/i });
         expect(oldDatasetsLink).toHaveAttribute('href', withBasePath('/old-datasets'));
@@ -129,7 +129,7 @@ describe('AppSidebar', () => {
         render(<AppSidebar />);
 
         expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/ernie/dashboard');
-        expect(screen.getByRole('link', { name: /editor/i })).toHaveAttribute('href', '/ernie/editor');
+        expect(screen.getByRole('link', { name: /^editor$/i })).toHaveAttribute('href', '/ernie/editor');
         expect(screen.getByRole('link', { name: /old datasets/i })).toHaveAttribute('href', '/ernie/old-datasets');
         expect(screen.getByRole('link', { name: /resources/i })).toHaveAttribute('href', '/ernie/resources');
         expect(screen.getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/ernie/changelog');

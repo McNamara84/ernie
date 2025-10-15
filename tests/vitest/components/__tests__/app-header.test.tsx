@@ -116,8 +116,8 @@ describe('AppHeader', () => {
         docLinks.forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe(withBasePath('/docs')));
         const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
         apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/api/v1/doc')));
-        const curationLinks = screen.getAllByRole('link', { name: /editor/i });
-        curationLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/editor')));
+        const editorLinks = screen.getAllByRole('link', { name: /^editor$/i });
+        editorLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/editor')));
         const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
         settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/settings')));
         const navs = screen.getAllByRole('navigation');
@@ -157,8 +157,8 @@ describe('AppHeader', () => {
         screen
             .getAllByRole('link', { name: /dashboard/i })
             .forEach((link) => expect(link).toHaveAttribute('href', '/ernie/dashboard'));
-        const curationLinks = screen.getAllByRole('link', { name: /editor/i });
-        curationLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/editor'));
+        const editorLinks = screen.getAllByRole('link', { name: /^editor$/i });
+        editorLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/editor'));
         const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
         apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/api/v1/doc'));
         const changelogLinks = screen.getAllByRole('link', { name: /changelog/i });

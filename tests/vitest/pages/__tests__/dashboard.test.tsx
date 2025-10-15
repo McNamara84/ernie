@@ -54,7 +54,7 @@ vi.mock('@/routes', async () => {
 
     return {
         dashboard: () => makeRoute('/dashboard'),
-        curation: (params?: { query?: Record<string, string | number> }) => 
+        editor: (params?: { query?: Record<string, string | number> }) => 
             makeRoute('/editor', params?.query),
         changelog: () => makeRoute('/changelog'),
         about: () => makeRoute('/about'),
