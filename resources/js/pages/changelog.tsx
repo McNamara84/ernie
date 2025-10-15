@@ -4,9 +4,18 @@ import { Bug, Sparkles, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';
-import { Badge } from '@/components/ui/badge';
 import PublicLayout from '@/layouts/public-layout';
 import { withBasePath } from '@/lib/base-path';
+
+// Type declaration for test helpers exposed on window object
+declare global {
+    interface Window {
+        __testHelper_updateActiveRelease?: () => void;
+        __testHelper_getUserInteracted?: () => boolean;
+        __testHelper_setUserInteracted?: (value: boolean) => void;
+        __testHelper_expandRelease?: (index: number) => void;
+    }
+}
 
 type Change = {
     title: string;
@@ -36,12 +45,17 @@ export default function Changelog() {
     const [error, setError] = useState<string | null>(null);
     const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
     const releaseRefs = useRef<(HTMLLIElement | null)[]>([]);
+    const userInteractedRef = useRef<boolean>(false);
 
-    const isNewRelease = (dateString: string) => {
+    const isNewRelease = (dateString: string, index: number) => {
+        // Only show "New" badge for the first 3 releases
+        if (index > 2) return false;
+
+        // Only if less than 14 days old
         const releaseDate = new Date(dateString);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return releaseDate >= thirtyDaysAgo;
+        const fourteenDaysAgo = new Date();
+        fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+        return releaseDate >= fourteenDaysAgo;
     };
 
     // Fetch changelog data on mount
@@ -63,6 +77,7 @@ export default function Changelog() {
                     const version = hash.substring(1);
                     const index = data.findIndex((r) => r.version === version);
                     if (index !== -1) {
+                        userInteractedRef.current = true; // Prevent auto-expand from overriding deep-link
                         setActive(index);
                         // Scroll to element after React has rendered
                         setTimeout(() => {
@@ -89,6 +104,7 @@ export default function Changelog() {
                 const version = hash.substring(1);
                 const index = releases.findIndex((r) => r.version === version);
                 if (index !== -1) {
+                    userInteractedRef.current = true; // Prevent auto-expand from overriding deep-link
                     setActive(index);
                     setTimeout(() => {
                         const element = releaseRefs.current[index];
@@ -106,26 +122,92 @@ export default function Changelog() {
         return () => {
             window.removeEventListener('hashchange', processHash);
         };
-    }, [releases]);    // Intersection Observer für scroll-basiertes Highlighting
+    }, [releases]);    // Helper function to find most visible release (extracted for reuse)
+    const findMostVisibleRelease = useCallback(() => {
+        let bestIndex = -1;
+        let bestRatio = 0;
+        
+        const viewportHeight = window.innerHeight;
+        const centerViewport = viewportHeight * 0.3; // Wider viewport window
+        const centerViewportBottom = viewportHeight * 0.7;
+        
+        releaseRefs.current.forEach((ref, index) => {
+            if (!ref) return;
+            const rect = ref.getBoundingClientRect();
+            
+            // Element is in viewport center zone
+            if (rect.top < centerViewportBottom && rect.bottom > centerViewport) {
+                const visibleHeight = Math.min(rect.bottom, centerViewportBottom) - Math.max(rect.top, centerViewport);
+                const ratio = visibleHeight / (centerViewportBottom - centerViewport);
+                
+                if (ratio > bestRatio) {
+                    bestRatio = ratio;
+                    bestIndex = index;
+                }
+            }
+        });
+        
+        return bestIndex;
+    }, []);
+
+    // Update active release based on visibility (extracted for reuse)
+    const updateActiveRelease = useCallback(() => {
+        const mostVisibleIndex = findMostVisibleRelease();
+        
+        if (mostVisibleIndex !== -1) {
+            setHighlightedIndex(mostVisibleIndex);
+            
+            if (!userInteractedRef.current) {
+                setActive(mostVisibleIndex);
+            }
+        }
+    }, [findMostVisibleRelease]);
+
+    // Test helper: Expose updateActiveRelease for E2E tests (Playwright doesn't trigger IntersectionObserver properly)
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.__testHelper_updateActiveRelease = updateActiveRelease;
+            window.__testHelper_getUserInteracted = () => userInteractedRef.current;
+            window.__testHelper_setUserInteracted = (value: boolean) => {
+                userInteractedRef.current = value;
+            };
+            // Direct helper to expand specific release by index (bypasses visibility check)
+            // NOTE: For tests only - bypasses userInteracted check for full control
+            window.__testHelper_expandRelease = (index: number) => {
+                if (index >= 0 && index < releases.length) {
+                    setHighlightedIndex(index);
+                    setActive(index);
+                }
+            };
+        }
+        return () => {
+            if (typeof window !== 'undefined') {
+                delete window.__testHelper_updateActiveRelease;
+                delete window.__testHelper_getUserInteracted;
+                delete window.__testHelper_setUserInteracted;
+                delete window.__testHelper_expandRelease;
+            }
+        };
+    }, [updateActiveRelease, releases, setActive, setHighlightedIndex]);
+
+    // Intersection Observer for scroll-based highlighting and auto-expand
     useEffect(() => {
         if (releases.length === 0) return;
 
         const observerOptions = {
             root: null,
-            rootMargin: '-40% 0px -40% 0px', // Mittlerer Bereich des Viewports
-            threshold: 0.5,
+            rootMargin: '-30% 0px -30% 0px', // Wider margin for better detection
+            threshold: [0, 0.1, 0.25, 0.5, 0.75, 1.0],
         };
 
-        const observerCallback = (entries: IntersectionObserverEntry[]) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    const index = releaseRefs.current.findIndex((ref) => ref === entry.target);
-                    if (index !== -1) {
-                        setHighlightedIndex(index);
-                        // Nicht mehr automatisch aufklappen - Nutzer behält Kontrolle
-                    }
-                }
-            });
+        let intersectionTimeout: ReturnType<typeof setTimeout>;
+
+        const observerCallback = () => {
+            // Debounce intersection updates to avoid rapid state changes during smooth scrolling
+            clearTimeout(intersectionTimeout);
+            intersectionTimeout = setTimeout(() => {
+                updateActiveRelease();
+            }, 100);
         };
 
         const observer = new IntersectionObserver(observerCallback, observerOptions);
@@ -134,10 +216,22 @@ export default function Changelog() {
             if (ref) observer.observe(ref);
         });
 
+        // Additional scroll listener for better reliability  
+        let scrollTimeout: NodeJS.Timeout;
+        const handleScroll = () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(updateActiveRelease, 50);
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
         return () => {
             observer.disconnect();
+            window.removeEventListener('scroll', handleScroll);
+            clearTimeout(scrollTimeout);
+            clearTimeout(intersectionTimeout); // Cleanup intersection debounce too
         };
-    }, [releases]);
+    }, [releases, updateActiveRelease]);
 
     const handleNavigate = useCallback(
         (index: number) => {
@@ -148,10 +242,14 @@ export default function Changelog() {
                     window.history.pushState(null, '', `#v${version}`);
                 }
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                userInteractedRef.current = true;
                 setActive(index);
+                
+                // Manually trigger update after programmatic scroll
+                setTimeout(() => updateActiveRelease(), 400);
             }
         },
-        [releases]
+        [releases, updateActiveRelease]
     );
 
     // Keyboard navigation
@@ -185,6 +283,7 @@ export default function Changelog() {
                 case 'Enter':
                 case ' ':
                     event.preventDefault();
+                    userInteractedRef.current = true;
                     setActive((prev) => (prev === active ? null : active));
                     break;
             }
@@ -259,26 +358,43 @@ export default function Changelog() {
                                 data-testid="version-anchor"
                                 className={`absolute -left-3 top-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
                             ></span>
-                            <motion.button
-                                whileHover={{ scale: 1.01, x: 4 }}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => setActive(isOpen ? null : index)}
+                            <button
+                                onClick={() => {
+                                    userInteractedRef.current = true;
+                                    setActive(isOpen ? null : index);
+                                    
+                                    // Scroll element into view after toggle
+                                    if (!isOpen) {
+                                        setTimeout(() => {
+                                            const element = releaseRefs.current[index];
+                                            if (element) {
+                                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                            }
+                                        }, 50);
+                                    }
+                                }}
                                 id={buttonId}
                                 aria-expanded={isOpen}
                                 aria-controls={panelId}
-                                className="flex w-full items-center rounded p-2 text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring dark:hover:bg-gray-800"
                                 type="button"
+                                className="flex w-full items-center rounded px-2 py-3 text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-gray-800"
                             >
                                 <span className="flex flex-1 items-center gap-2">
                                     <span className="font-medium">Version {release.version}</span>
-                                    {isNewRelease(release.date) && (
-                                        <Badge variant="secondary" className="text-xs">
+                                    {isNewRelease(release.date, index) && (
+                                        <span 
+                                            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+                                            style={{ 
+                                                backgroundColor: '#166534', 
+                                                color: '#ffffff'
+                                            }}
+                                        >
                                             New
-                                        </Badge>
+                                        </span>
                                     )}
                                 </span>
                                 <span className="ml-4 text-sm text-gray-600 dark:text-gray-400">{release.date}</span>
-                            </motion.button>
+                            </button>
                             <AnimatePresence initial={false}>
                                 {isOpen && (
                                     <motion.div
