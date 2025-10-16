@@ -112,7 +112,7 @@ class OrcidService
      * Fetch ORCID record data
      * 
      * @param string $orcid The ORCID ID
-     * @return array{success: bool, data: array|null, error: string|null}
+     * @return array{success: bool, data: array<string, mixed>|null, error: string|null}
      */
     public function fetchOrcidRecord(string $orcid): array
     {
@@ -196,7 +196,7 @@ class OrcidService
      * 
      * @param string $query Search query (name)
      * @param int $limit Number of results (max 200)
-     * @return array{success: bool, data: array|null, error: string|null}
+     * @return array{success: bool, data: array<string, mixed>|null, error: string|null}
      */
     public function searchOrcid(string $query, int $limit = 10): array
     {
@@ -287,8 +287,8 @@ class OrcidService
      * Extract person data from ORCID API response
      * 
      * @param string $orcid The ORCID ID
-     * @param array $fullRecord Raw API response (full record with person + activities)
-     * @return array Extracted person data
+     * @param array<string, mixed> $fullRecord Raw API response (full record with person + activities)
+     * @return array<string, mixed> Extracted person data
      */
     private function extractPersonData(string $orcid, array $fullRecord): array
     {
@@ -321,7 +321,7 @@ class OrcidService
                     $employment = $summary['employment-summary'] ?? null;
                     if ($employment) {
                         // Only include current employments (no end-date)
-                        $hasEndDate = isset($employment['end-date']) && $employment['end-date'] !== null;
+                        $hasEndDate = !empty($employment['end-date']);
                         
                         if (!$hasEndDate) {
                             $affiliations[] = [
@@ -344,7 +344,7 @@ class OrcidService
                     $education = $summary['education-summary'] ?? null;
                     if ($education) {
                         // Only include current education (no end-date)
-                        $hasEndDate = isset($education['end-date']) && $education['end-date'] !== null;
+                        $hasEndDate = !empty($education['end-date']);
                         
                         if (!$hasEndDate) {
                             $affiliations[] = [
@@ -373,8 +373,8 @@ class OrcidService
     /**
      * Extract search results from ORCID API response
      * 
-     * @param array $searchResults Raw API response
-     * @return array Extracted search results
+     * @param array<string, mixed> $searchResults Raw API response
+     * @return array<int, array<string, mixed>> Extracted search results
      */
     private function extractSearchResults(array $searchResults): array
     {
