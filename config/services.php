@@ -22,6 +22,11 @@ return [
         'api_key' => env('GM_API_KEY', ''),
     ],
 
+    'orcid' => [
+        'api_url' => env('ORCID_API_URL', 'https://pub.orcid.org/v3.0'),
+        'search_url' => env('ORCID_SEARCH_URL', 'https://pub.orcid.org/v3.0/search'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],
