@@ -5,12 +5,22 @@
  * Shows an empty state when no contributors are present.
  */
 
-import { Plus } from 'lucide-react';
-import React from 'react';
+import { Plus, Upload } from 'lucide-react';
+import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
+import ContributorCsvImport from '../contributor-csv-import';
+import type { ParsedContributor } from '../contributor-csv-import';
 import ContributorItem from './contributor-item';
 import type { ContributorEntry, ContributorRoleTag, ContributorType } from './types';
 
@@ -19,6 +29,7 @@ interface ContributorListProps {
     onAdd: () => void;
     onRemove: (index: number) => void;
     onContributorChange: (index: number, contributor: ContributorEntry) => void;
+    onBulkAdd?: (contributors: ContributorEntry[]) => void;
     affiliationSuggestions: AffiliationSuggestion[];
     personRoleOptions: readonly string[];
     institutionRoleOptions: readonly string[];
@@ -32,10 +43,67 @@ export default function ContributorList({
     onAdd,
     onRemove,
     onContributorChange,
+    onBulkAdd,
     affiliationSuggestions,
     personRoleOptions,
     institutionRoleOptions,
 }: ContributorListProps) {
+    // State for CSV import dialog
+    const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+
+    // Helper: Convert CSV parsed contributor to ContributorEntry
+    const convertParsedContributorToEntry = (parsed: ParsedContributor): ContributorEntry => {
+        const id = `contributor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        
+        if (parsed.type === 'institution') {
+            return {
+                id,
+                type: 'institution',
+                institutionName: parsed.institutionName || '',
+                roles: parsed.contributorRole 
+                    ? [{ value: parsed.contributorRole }]
+                    : [],
+                rolesInput: parsed.contributorRole || '',
+                affiliations: parsed.affiliations.map((name: string) => ({
+                    id: `aff-${Date.now()}-${Math.random()}`,
+                    value: name,
+                    rorId: null,
+                })),
+                affiliationsInput: parsed.affiliations.join(', '),
+            };
+        }
+        
+        // Person type
+        return {
+            id,
+            type: 'person',
+            orcid: parsed.orcid || '',
+            firstName: parsed.firstName || '',
+            lastName: parsed.lastName || '',
+            orcidVerified: false,
+            roles: parsed.contributorRole 
+                ? [{ value: parsed.contributorRole }]
+                : [],
+            rolesInput: parsed.contributorRole || '',
+            affiliations: parsed.affiliations.map((name: string) => ({
+                id: `aff-${Date.now()}-${Math.random()}`,
+                value: name,
+                rorId: null,
+            })),
+            affiliationsInput: parsed.affiliations.join(', '),
+        };
+    };
+
+    // Helper: Handle CSV import
+    const handleCsvImport = (parsedContributors: ParsedContributor[]) => {
+        const newContributors = parsedContributors.map(convertParsedContributorToEntry);
+        if (onBulkAdd) {
+            onBulkAdd(newContributors);
+        }
+        // Close dialog immediately after import
+        setCsvDialogOpen(false);
+    };
+
     // Helper: Handle type change
     const handleTypeChange = (index: number, type: ContributorType) => {
         const contributor = contributors[index];
@@ -127,14 +195,32 @@ export default function ContributorList({
         return (
             <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
                 <p className="mb-4">No contributors yet.</p>
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onAdd}
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Contributor
-                </Button>
+                <div className="flex justify-center gap-2">
+                    <Button type="button" variant="outline" onClick={onAdd}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Contributor
+                    </Button>
+                    <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline">
+                                <Upload className="h-4 w-4 mr-2" />
+                                Import CSV
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh]">
+                            <DialogHeader>
+                                <DialogTitle>Import Contributors from CSV</DialogTitle>
+                                <DialogDescription>
+                                    Upload a CSV file to add multiple contributors at once
+                                </DialogDescription>
+                            </DialogHeader>
+                            <ContributorCsvImport
+                                onImport={handleCsvImport}
+                                onClose={() => setCsvDialogOpen(false)}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
         );
     }
@@ -171,7 +257,7 @@ export default function ContributorList({
             </div>
 
             {/* Add button */}
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-2">
                 <Button
                     type="button"
                     variant="outline"
@@ -180,6 +266,26 @@ export default function ContributorList({
                     <Plus className="h-4 w-4 mr-2" />
                     Add Contributor
                 </Button>
+                <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button type="button" variant="outline">
+                            <Upload className="h-4 w-4 mr-2" />
+                            Import CSV
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh]">
+                        <DialogHeader>
+                            <DialogTitle>Import Contributors from CSV</DialogTitle>
+                            <DialogDescription>
+                                Upload a CSV file to add multiple contributors at once
+                            </DialogDescription>
+                        </DialogHeader>
+                        <ContributorCsvImport
+                            onImport={handleCsvImport}
+                            onClose={() => setCsvDialogOpen(false)}
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );

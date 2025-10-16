@@ -89,6 +89,22 @@ export default function ContributorField({
         onChange(updated);
     };
 
+    const handleBulkAdd = (newContributors: ContributorEntry[]) => {
+        const remainingSlots = MAX_CONTRIBUTORS - contributors.length;
+        
+        if (newContributors.length > remainingSlots) {
+            alert(
+                `Cannot add all ${newContributors.length} contributors. ` +
+                `Only ${remainingSlots} slot(s) available. ` +
+                `The first ${remainingSlots} will be imported.`
+            );
+            const limitedContributors = newContributors.slice(0, remainingSlots);
+            onChange([...contributors, ...limitedContributors]);
+        } else {
+            onChange([...contributors, ...newContributors]);
+        }
+    };
+
     return (
         <div className="space-y-4">
             {/* Contributor List or Empty State */}
@@ -97,6 +113,7 @@ export default function ContributorField({
                 onAdd={() => handleAdd('person')}
                 onRemove={handleRemove}
                 onContributorChange={handleContributorChange}
+                onBulkAdd={handleBulkAdd}
                 affiliationSuggestions={affiliationSuggestions}
                 personRoleOptions={personRoleOptions}
                 institutionRoleOptions={institutionRoleOptions}
