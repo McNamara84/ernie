@@ -296,7 +296,7 @@ export default function ContributorItem({
                 {isPerson ? (
                     <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
                         {/* ORCID with Verify & Fill Button */}
-                        <div className="md:col-span-12 lg:col-span-4" data-testid={`contributor-${index}-orcid-field`}>
+                        <div className="flex flex-col gap-2 md:col-span-12 lg:col-span-4" data-testid={`contributor-${index}-orcid-field`}>
                             <Label htmlFor={`${contributor.id}-orcid`}>
                                 ORCID
                                 {contributor.type === 'person' && contributor.orcidVerified && (
@@ -309,7 +309,7 @@ export default function ContributorItem({
                                     </Badge>
                                 )}
                             </Label>
-                            <div className="flex gap-2 mt-1.5">
+                            <div className="flex gap-2">
                                 <input
                                     id={`${contributor.id}-orcid`}
                                     type="text"
@@ -345,7 +345,7 @@ export default function ContributorItem({
                                 </Tooltip>
                             </div>
                             {verificationError && (
-                                <p className="text-sm text-red-600 mt-1.5">
+                                <p className="text-sm text-red-600 mt-1">
                                     {verificationError}
                                 </p>
                             )}
@@ -354,7 +354,7 @@ export default function ContributorItem({
                                     href={OrcidService.formatOrcidUrl(contributor.orcid)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1 mt-1.5"
+                                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
                                 >
                                     View on ORCID.org
                                     <ExternalLink className="h-3 w-3" />
