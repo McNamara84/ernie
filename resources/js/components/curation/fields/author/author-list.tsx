@@ -5,12 +5,22 @@
  * Shows an empty state when no authors are present.
  */
 
-import { Plus } from 'lucide-react';
-import React from 'react';
+import { Plus, Upload } from 'lucide-react';
+import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
+import AuthorCsvImport from '../author-csv-import';
+import type { ParsedAuthor } from '../author-csv-import';
 import AuthorItem from './author-item';
 import type { AuthorEntry, AuthorType } from './types';
 
@@ -19,6 +29,7 @@ interface AuthorListProps {
     onAdd: () => void;
     onRemove: (index: number) => void;
     onAuthorChange: (index: number, author: AuthorEntry) => void;
+    onBulkAdd?: (authors: AuthorEntry[]) => void;
     affiliationSuggestions: AffiliationSuggestion[];
 }
 
@@ -30,8 +41,60 @@ export default function AuthorList({
     onAdd,
     onRemove,
     onAuthorChange,
+    onBulkAdd,
     affiliationSuggestions,
 }: AuthorListProps) {
+    // State for CSV import dialog
+    const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+
+    // Helper: Convert CSV row to AuthorEntry
+    const convertParsedAuthorToEntry = (parsed: ParsedAuthor): AuthorEntry => {
+        const id = `author-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        
+        if (parsed.type === 'institution') {
+            return {
+                id,
+                type: 'institution',
+                institutionName: parsed.institutionName || '',
+                affiliations: parsed.affiliations.map((name: string) => ({
+                    id: `aff-${Date.now()}-${Math.random()}`,
+                    value: name,
+                    rorId: null,
+                })),
+                affiliationsInput: parsed.affiliations.join(', '),
+            };
+        }
+        
+        // Person type
+        return {
+            id,
+            type: 'person',
+            orcid: parsed.orcid || '',
+            firstName: parsed.firstName || '',
+            lastName: parsed.lastName || '',
+            email: parsed.email || '',
+            website: '',
+            isContact: parsed.isContact || false,
+            orcidVerified: false,
+            affiliations: parsed.affiliations.map((name: string) => ({
+                id: `aff-${Date.now()}-${Math.random()}`,
+                value: name,
+                rorId: null,
+            })),
+            affiliationsInput: parsed.affiliations.join(', '),
+        };
+    };
+
+    // Helper: Handle CSV import
+    const handleCsvImport = (parsedAuthors: ParsedAuthor[]) => {
+        const newAuthors = parsedAuthors.map(convertParsedAuthorToEntry);
+        if (onBulkAdd) {
+            onBulkAdd(newAuthors);
+        }
+        // Close dialog immediately after import
+        setCsvDialogOpen(false);
+    };
+
     // Helper: Handle type change
     const handleTypeChange = (index: number, type: AuthorType) => {
         const author = authors[index];
@@ -119,14 +182,32 @@ export default function AuthorList({
         return (
             <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
                 <p className="mb-4">No authors yet.</p>
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onAdd}
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add First Author
-                </Button>
+                <div className="flex justify-center gap-2">
+                    <Button type="button" variant="outline" onClick={onAdd}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Author
+                    </Button>
+                    <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline">
+                                <Upload className="h-4 w-4 mr-2" />
+                                Import CSV
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[90vh]">
+                            <DialogHeader>
+                                <DialogTitle>Import Authors from CSV</DialogTitle>
+                                <DialogDescription>
+                                    Upload a CSV file to add multiple authors at once
+                                </DialogDescription>
+                            </DialogHeader>
+                            <AuthorCsvImport
+                                onImport={handleCsvImport}
+                                onClose={() => setCsvDialogOpen(false)}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
         );
     }
@@ -163,15 +244,31 @@ export default function AuthorList({
             </div>
 
             {/* Add button */}
-            <div className="flex justify-center">
-                <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onAdd}
-                >
+            <div className="flex justify-center gap-2">
+                <Button type="button" variant="outline" onClick={onAdd}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Author
                 </Button>
+                <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button type="button" variant="outline">
+                            <Upload className="h-4 w-4 mr-2" />
+                            Import CSV
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh]">
+                        <DialogHeader>
+                            <DialogTitle>Import Authors from CSV</DialogTitle>
+                            <DialogDescription>
+                                Upload a CSV file to add multiple authors at once
+                            </DialogDescription>
+                        </DialogHeader>
+                        <AuthorCsvImport
+                            onImport={handleCsvImport}
+                            onClose={() => setCsvDialogOpen(false)}
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );

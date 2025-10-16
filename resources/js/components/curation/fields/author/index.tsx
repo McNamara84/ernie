@@ -79,6 +79,23 @@ export default function AuthorField({
         onChange(updated);
     };
 
+    const handleBulkAdd = (newAuthors: AuthorEntry[]) => {
+        // Check if adding would exceed max limit
+        const totalAfterAdd = authors.length + newAuthors.length;
+        
+        if (totalAfterAdd > MAX_AUTHORS) {
+            const remaining = MAX_AUTHORS - authors.length;
+            if (remaining > 0) {
+                alert(`Nur ${remaining} von ${newAuthors.length} Authors können hinzugefügt werden (Maximum: ${MAX_AUTHORS})`);
+                onChange([...authors, ...newAuthors.slice(0, remaining)]);
+            } else {
+                alert(`Maximum von ${MAX_AUTHORS} Authors bereits erreicht.`);
+            }
+        } else {
+            onChange([...authors, ...newAuthors]);
+        }
+    };
+
     return (
         <div className="space-y-4">
             {/* Author List or Empty State */}
@@ -87,6 +104,7 @@ export default function AuthorField({
                 onAdd={() => handleAdd('person')}
                 onRemove={handleRemove}
                 onAuthorChange={handleAuthorChange}
+                onBulkAdd={handleBulkAdd}
                 affiliationSuggestions={affiliationSuggestions}
             />
 

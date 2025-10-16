@@ -2,13 +2,15 @@
  * CsvImportDialog Component
  * 
  * Modal dialog for importing Authors or Contributors from CSV files.
- * Features: File upload, column mapping, preview, validation, and bulk import.
+ * Features: File upload, validation, preview, and bulk import.
+ * Based on related-work-csv-import.tsx design.
  */
 
-import { AlertCircle, CheckCircle2, FileText, Upload } from 'lucide-react';
-import { useState } from 'react';
+import { FileUp, Info, Upload, X } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import Papa from 'papaparse';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -19,13 +21,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 
 interface CsvRow {
     [key: string]: string;
@@ -69,6 +65,105 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
     const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
     const [mappedData, setMappedData] = useState<MappedRow[]>([]);
     const [fileName, setFileName] = useState('');
+
+    // Generate and download example CSV
+    const handleDownloadExample = () => {
+        const exampleData = type === 'author' 
+            ? [
+                {
+                    'Type': 'person',
+                    'First Name': 'Max',
+                    'Last Name': 'Mustermann',
+                    'ORCID': '0000-0002-1234-5678',
+                    'Email': 'max.mustermann@example.com',
+                    'Affiliations': 'Helmholtz Centre Potsdam - GFZ, University of Potsdam',
+                    'Contact Person': 'yes',
+                },
+                {
+                    'Type': 'person',
+                    'First Name': 'Erika',
+                    'Last Name': 'Musterfrau',
+                    'ORCID': '',
+                    'Email': 'erika.musterfrau@example.org',
+                    'Affiliations': 'Freie Universität Berlin',
+                    'Contact Person': 'no',
+                },
+                {
+                    'Type': 'organization',
+                    'First Name': '',
+                    'Last Name': '',
+                    'ORCID': '',
+                    'Email': '',
+                    'Organization Name': 'Deutsche Forschungsgemeinschaft (DFG)',
+                    'Affiliations': '',
+                    'Contact Person': '',
+                },
+                {
+                    'Type': 'person',
+                    'First Name': 'John',
+                    'Last Name': 'Doe',
+                    'ORCID': '0000-0001-9876-5432',
+                    'Email': '',
+                    'Affiliations': 'MIT, Harvard University',
+                    'Contact Person': 'no',
+                },
+            ]
+            : [
+                {
+                    'Type': 'person',
+                    'First Name': 'Anna',
+                    'Last Name': 'Schmidt',
+                    'ORCID': '0000-0003-1111-2222',
+                    'Email': 'anna.schmidt@example.de',
+                    'Affiliations': 'Technical University Munich',
+                    'Contributor Role': 'DataCollector',
+                },
+                {
+                    'Type': 'person',
+                    'First Name': 'Peter',
+                    'Last Name': 'Meyer',
+                    'ORCID': '',
+                    'Email': '',
+                    'Affiliations': 'University of Heidelberg',
+                    'Contributor Role': 'Editor',
+                },
+                {
+                    'Type': 'organization',
+                    'First Name': '',
+                    'Last Name': '',
+                    'ORCID': '',
+                    'Email': '',
+                    'Organization Name': 'Max Planck Society',
+                    'Affiliations': '',
+                    'Contributor Role': 'Sponsor',
+                },
+                {
+                    'Type': 'person',
+                    'First Name': 'Sarah',
+                    'Last Name': 'Johnson',
+                    'ORCID': '0000-0002-3333-4444',
+                    'Email': 'sarah.j@example.com',
+                    'Affiliations': 'ETH Zurich',
+                    'Contributor Role': 'DataCurator',
+                },
+            ];
+
+        // Convert to CSV using PapaParse
+        const csv = Papa.unparse(exampleData as any[]);
+        
+        // Create download
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', `example-${type}s-import.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -246,30 +341,59 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
 
                 {/* Step 1: Upload */}
                 {step === 'upload' && (
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg">
-                        <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-                        <Label
-                            htmlFor="csv-upload"
-                            className="cursor-pointer text-center"
-                        >
-                            <div className="text-lg font-medium mb-2">
-                                CSV-Datei auswählen
+                    <div className="flex-1 flex flex-col gap-6">
+                        {/* Example CSV Download */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                                <FileText className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                    <h4 className="font-medium text-sm text-blue-900 mb-1">
+                                        Beispiel-CSV herunterladen
+                                    </h4>
+                                    <p className="text-sm text-blue-800 mb-3">
+                                        Laden Sie eine Beispieldatei mit 4 Mustereinträgen herunter, 
+                                        um die richtige Struktur Ihrer CSV-Datei zu sehen.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleDownloadExample}
+                                        className="border-blue-300 hover:bg-blue-100"
+                                    >
+                                        <Download className="h-4 w-4 mr-2" />
+                                        Beispiel-CSV herunterladen
+                                    </Button>
+                                </div>
                             </div>
-                            <div className="text-sm text-muted-foreground mb-4">
-                                Klicken oder Datei hierher ziehen
-                            </div>
-                        </Label>
-                        <input
-                            id="csv-upload"
-                            type="file"
-                            accept=".csv"
-                            onChange={handleFileUpload}
-                            className="hidden"
-                        />
-                        <Button type="button" onClick={() => document.getElementById('csv-upload')?.click()}>
-                            <Upload className="h-4 w-4 mr-2" />
-                            Datei auswählen
-                        </Button>
+                        </div>
+
+                        {/* Upload Area */}
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg">
+                            <FileText className="h-16 w-16 text-muted-foreground mb-4" />
+                            <Label
+                                htmlFor="csv-upload"
+                                className="cursor-pointer text-center"
+                            >
+                                <div className="text-lg font-medium mb-2">
+                                    CSV-Datei auswählen
+                                </div>
+                                <div className="text-sm text-muted-foreground mb-4">
+                                    Klicken oder Datei hierher ziehen
+                                </div>
+                            </Label>
+                            <input
+                                id="csv-upload"
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                            />
+                            <Button type="button" onClick={() => document.getElementById('csv-upload')?.click()}>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Datei auswählen
+                            </Button>
+                        </div>
                     </div>
                 )}
 
