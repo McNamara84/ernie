@@ -137,10 +137,10 @@ class OrcidService
         }
 
         try {
-            // Fetch person data
+            // Fetch full record (person + activities)
             $response = Http::timeout(10)
                 ->acceptJson()
-                ->get(self::API_BASE_URL . '/' . $orcid . '/person');
+                ->get(self::API_BASE_URL . '/' . $orcid);
 
             if ($response->status() === 404) {
                 return [
@@ -164,10 +164,10 @@ class OrcidService
                 ];
             }
 
-            $personData = $response->json();
+            $fullRecord = $response->json();
             
-            // Extract relevant data
-            $extractedData = $this->extractPersonData($orcid, $personData);
+            // Extract relevant data from person and activities
+            $extractedData = $this->extractPersonData($orcid, $fullRecord);
 
             // Cache the result
             Cache::put($cacheKey, $extractedData, self::CACHE_TTL);
@@ -287,11 +287,13 @@ class OrcidService
      * Extract person data from ORCID API response
      * 
      * @param string $orcid The ORCID ID
-     * @param array $personData Raw API response
+     * @param array $fullRecord Raw API response (full record with person + activities)
      * @return array Extracted person data
      */
-    private function extractPersonData(string $orcid, array $personData): array
+    private function extractPersonData(string $orcid, array $fullRecord): array
     {
+        // Extract person data
+        $personData = $fullRecord['person'] ?? [];
         $name = $personData['name'] ?? [];
         $givenNames = $name['given-names']['value'] ?? '';
         $familyName = $name['family-name']['value'] ?? '';
@@ -307,40 +309,51 @@ class OrcidService
             }
         }
 
-        // Extract affiliations (employments + educations)
+        // Extract affiliations from activities
         $affiliations = [];
+        $activities = $fullRecord['activities-summary'] ?? [];
         
-        // Employment affiliations
-        if (isset($personData['employments']['affiliation-group'])) {
-            foreach ($personData['employments']['affiliation-group'] as $group) {
+        // Employment affiliations (current employments only - where end-date is null)
+        if (isset($activities['employments']['affiliation-group'])) {
+            foreach ($activities['employments']['affiliation-group'] as $group) {
                 $summaries = $group['summaries'] ?? [];
                 foreach ($summaries as $summary) {
                     $employment = $summary['employment-summary'] ?? null;
                     if ($employment) {
-                        $affiliations[] = [
-                            'type' => 'employment',
-                            'name' => $employment['organization']['name'] ?? null,
-                            'role' => $employment['role-title'] ?? null,
-                            'department' => $employment['department-name'] ?? null,
-                        ];
+                        // Only include current employments (no end-date)
+                        $hasEndDate = isset($employment['end-date']) && $employment['end-date'] !== null;
+                        
+                        if (!$hasEndDate) {
+                            $affiliations[] = [
+                                'type' => 'employment',
+                                'name' => $employment['organization']['name'] ?? null,
+                                'role' => $employment['role-title'] ?? null,
+                                'department' => $employment['department-name'] ?? null,
+                            ];
+                        }
                     }
                 }
             }
         }
 
-        // Education affiliations
-        if (isset($personData['educations']['affiliation-group'])) {
-            foreach ($personData['educations']['affiliation-group'] as $group) {
+        // Education affiliations (current education only - where end-date is null)
+        if (isset($activities['educations']['affiliation-group'])) {
+            foreach ($activities['educations']['affiliation-group'] as $group) {
                 $summaries = $group['summaries'] ?? [];
                 foreach ($summaries as $summary) {
                     $education = $summary['education-summary'] ?? null;
                     if ($education) {
-                        $affiliations[] = [
-                            'type' => 'education',
-                            'name' => $education['organization']['name'] ?? null,
-                            'role' => $education['role-title'] ?? null,
-                            'department' => $education['department-name'] ?? null,
-                        ];
+                        // Only include current education (no end-date)
+                        $hasEndDate = isset($education['end-date']) && $education['end-date'] !== null;
+                        
+                        if (!$hasEndDate) {
+                            $affiliations[] = [
+                                'type' => 'education',
+                                'name' => $education['organization']['name'] ?? null,
+                                'role' => $education['role-title'] ?? null,
+                                'department' => $education['department-name'] ?? null,
+                            ];
+                        }
                     }
                 }
             }

@@ -109,77 +109,6 @@ export default function AuthorItem({
     }, [affiliationSuggestions]);
 
     /**
-     * Handle ORCID verification and auto-fill
-     */
-    const handleVerifyAndFill = async () => {
-        if (author.type !== 'person' || !author.orcid) {
-            return;
-        }
-
-        setIsVerifying(true);
-        setVerificationError(null);
-
-        try {
-            const result = await OrcidService.fetchOrcidRecord(author.orcid);
-
-            if (!result.success || !result.data) {
-                setVerificationError(result.error || 'Failed to fetch ORCID data');
-                setIsVerifying(false);
-                return;
-            }
-
-            const data = result.data;
-
-            // Prepare updated author with auto-filled data
-            const updatedAuthor: PersonAuthorEntry = {
-                ...author,
-                firstName: data.firstName && !author.firstName ? data.firstName : author.firstName,
-                lastName: data.lastName && !author.lastName ? data.lastName : author.lastName,
-                email: data.emails.length > 0 && !author.email ? data.emails[0] : author.email,
-                orcidVerified: true,
-                orcidVerifiedAt: new Date().toISOString(),
-            };
-
-            // Auto-fill affiliations (only employment, not education)
-            if (data.affiliations.length > 0) {
-                const employmentAffiliations = data.affiliations
-                    .filter(aff => aff.type === 'employment' && aff.name)
-                    .map(aff => ({
-                        value: aff.name!,
-                        rorId: null,
-                    }));
-
-                if (employmentAffiliations.length > 0) {
-                    // Merge with existing affiliations
-                    const existingValues = new Set(author.affiliations.map(a => a.value));
-                    const newAffiliations = employmentAffiliations.filter(
-                        a => !existingValues.has(a.value)
-                    );
-
-                    if (newAffiliations.length > 0) {
-                        updatedAuthor.affiliations = [
-                            ...author.affiliations,
-                            ...newAffiliations as AffiliationTag[],
-                        ];
-                        updatedAuthor.affiliationsInput = updatedAuthor.affiliations
-                            .map((a: AffiliationTag) => a.value)
-                            .join(', ');
-                    }
-                }
-            }
-
-            // Apply all changes at once
-            onAuthorChange(updatedAuthor);
-
-            setIsVerifying(false);
-        } catch (error) {
-            console.error('ORCID verification error:', error);
-            setVerificationError('An unexpected error occurred');
-            setIsVerifying(false);
-        }
-    };
-    
-    /**
      * Handle ORCID Search & Select
      * Triggered when user selects a person from the search dialog
      */
@@ -320,6 +249,103 @@ export default function AuthorItem({
         return () => clearTimeout(timeoutId);
     }, [author]);
 
+    /**
+     * Auto-verify and fill when a valid ORCID is entered
+     * Triggered when ORCID is syntactically valid and not yet verified
+     */
+    useEffect(() => {
+        const autoVerifyOrcid = async () => {
+            // Only auto-verify if:
+            // 1. Person type
+            // 2. ORCID has valid format
+            // 3. Not already verified
+            // 4. Not currently verifying
+            if (
+                author.type !== 'person' ||
+                !author.orcid?.trim() ||
+                !OrcidService.isValidFormat(author.orcid) ||
+                author.orcidVerified ||
+                isVerifying
+            ) {
+                return;
+            }
+
+            setIsVerifying(true);
+            setVerificationError(null);
+
+            try {
+                // Validate ORCID exists
+                const validationResponse = await OrcidService.validateOrcid(author.orcid);
+                
+                if (!validationResponse.success || !validationResponse.data?.exists) {
+                    setVerificationError('ORCID not found');
+                    setIsVerifying(false);
+                    return;
+                }
+
+                // Fetch full ORCID record
+                const response = await OrcidService.fetchOrcidRecord(author.orcid);
+
+                if (!response.success || !response.data) {
+                    setVerificationError('Failed to fetch ORCID data');
+                    setIsVerifying(false);
+                    return;
+                }
+
+                const data = response.data;
+
+                // Auto-fill fields
+                const updatedAuthor = {
+                    ...author,
+                    firstName: data.firstName || author.firstName,
+                    lastName: data.lastName || author.lastName,
+                    email: data.emails.length > 0 && !author.email ? data.emails[0] : author.email,
+                    orcidVerified: true,
+                    orcidVerifiedAt: new Date().toISOString(),
+                };
+
+                // Auto-fill affiliations from full ORCID record
+                if (data.affiliations.length > 0) {
+                    const employmentAffiliations = data.affiliations
+                        .filter(aff => aff.type === 'employment' && aff.name)
+                        .map(aff => ({
+                            value: aff.name!,
+                            rorId: null,
+                        }));
+
+                    if (employmentAffiliations.length > 0) {
+                        const existingValues = new Set(author.affiliations.map(a => a.value));
+                        const newAffiliations = employmentAffiliations.filter(
+                            a => !existingValues.has(a.value)
+                        );
+
+                        if (newAffiliations.length > 0) {
+                            updatedAuthor.affiliations = [
+                                ...author.affiliations,
+                                ...newAffiliations as AffiliationTag[],
+                            ];
+                            updatedAuthor.affiliationsInput = updatedAuthor.affiliations
+                                .map((a: AffiliationTag) => a.value)
+                                .join(', ');
+                        }
+                    }
+                }
+
+                onAuthorChange(updatedAuthor);
+                setIsVerifying(false);
+            } catch (error) {
+                console.error('Auto-verify ORCID error:', error);
+                setVerificationError('Failed to verify ORCID');
+                setIsVerifying(false);
+            }
+        };
+
+        // Debounce: Wait 800ms after ORCID input stops
+        const timeoutId = setTimeout(autoVerifyOrcid, 800);
+
+        return () => clearTimeout(timeoutId);
+    }, [author]);
+
     return (
         <section
             className="rounded-lg border border-border bg-card p-6 shadow-sm transition hover:shadow-md"
@@ -388,42 +414,25 @@ export default function AuthorItem({
                                             Verified
                                         </Badge>
                                     )}
+                                    {isVerifying && (
+                                        <span className="ml-2 text-sm text-muted-foreground inline-flex items-center gap-1">
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            Verifying...
+                                        </span>
+                                    )}
                                 </Label>
-                                <div className="flex gap-2">
-                                    <input
-                                        id={`${author.id}-orcid`}
-                                        type="text"
-                                        value={author.orcid || ''}
-                                        onChange={(event) =>
-                                            onPersonFieldChange('orcid', event.target.value)
-                                        }
-                                        placeholder="0000-0000-0000-0000"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        inputMode="text"
-                                        pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
-                                    />
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={handleVerifyAndFill}
-                                                disabled={!author.orcid || !OrcidService.isValidFormat(author.orcid) || isVerifying}
-                                                aria-label="Verify ORCID and auto-fill fields"
-                                            >
-                                                {isVerifying ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <ExternalLink className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Verify ORCID & auto-fill</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </div>
+                                <input
+                                    id={`${author.id}-orcid`}
+                                    type="text"
+                                    value={author.orcid || ''}
+                                    onChange={(event) =>
+                                        onPersonFieldChange('orcid', event.target.value)
+                                    }
+                                    placeholder="0000-0000-0000-0000"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    inputMode="text"
+                                    pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
+                                />
                                 {verificationError && (
                                     <p className="text-sm text-red-600 mt-1">
                                         {verificationError}
