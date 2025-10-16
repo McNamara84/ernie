@@ -11,8 +11,8 @@
  */
 
 import { FileUp, Info, Upload, X } from 'lucide-react';
-import { useCallback, useState } from 'react';
 import Papa from 'papaparse';
+import { useCallback, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -92,14 +92,6 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
 
                     const validationErrors: ValidationError[] = [];
                     const data: ParsedAuthor[] = [];
-                    const headers = Object.keys(results.data[0]).map(h => h.toLowerCase().trim());
-
-                    // Check for required columns
-                    const hasType = headers.some(h => h.includes('type') || h.includes('typ'));
-                    const hasFirstName = headers.some(h => h.includes('first') || h.includes('vorname') || h.includes('given'));
-                    const hasLastName = headers.some(h => h.includes('last') || h.includes('nachname') || h.includes('family'));
-                    const hasOrgName = headers.some(h => h.includes('organization') || h.includes('organisation') || h.includes('institution'));
-
                     results.data.forEach((row, index) => {
                         const rowNum = index + 2; // +1 for header, +1 for 1-based
                         

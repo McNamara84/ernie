@@ -6,11 +6,10 @@
  * Based on related-work-csv-import.tsx design.
  */
 
-import { FileUp, Info, Upload, X } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { AlertCircle, CheckCircle2, Download, FileText, Upload } from 'lucide-react';
 import Papa from 'papaparse';
+import { useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -21,7 +20,13 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 interface CsvRow {
     [key: string]: string;
@@ -149,7 +154,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
             ];
 
         // Convert to CSV using PapaParse
-        const csv = Papa.unparse(exampleData as any[]);
+        const csv = Papa.unparse(exampleData as Record<string, string>[]);
         
         // Create download
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -255,7 +260,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                         mappedRow.type = 'person'; // Default
                     }
                 } else {
-                    (mappedRow as any)[targetField] = value || undefined;
+                    (mappedRow as Record<string, string | undefined>)[targetField] = value || undefined;
                 }
             });
 

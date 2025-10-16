@@ -9,21 +9,21 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
-import { CheckCircle2, Loader2, Trash2, ExternalLink, GripVertical } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { CheckCircle2, ExternalLink, GripVertical,Loader2, Trash2 } from 'lucide-react';
+import { useEffect,useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { type OrcidSearchResult,OrcidService } from '@/services/orcid';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
-import { OrcidService, type OrcidSearchResult } from '@/services/orcid';
 
 import InputField from '../input-field';
+import { OrcidSearchDialog } from '../orcid-search-dialog';
 import { SelectField } from '../select-field';
 import TagInputField, { type TagInputItem } from '../tag-input-field';
-import { OrcidSearchDialog } from '../orcid-search-dialog';
 import type { AuthorEntry, AuthorType, PersonAuthorEntry } from './types';
 
 interface AuthorItemProps {
@@ -363,7 +363,7 @@ export default function AuthorItem({
         const timeoutId = setTimeout(autoVerifyOrcid, 800);
 
         return () => clearTimeout(timeoutId);
-    }, [author]);
+    }, [author, isVerifying, onAuthorChange]);
 
     return (
         <section

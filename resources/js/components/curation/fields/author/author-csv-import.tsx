@@ -7,16 +7,13 @@
 
 import React from 'react';
 
-interface AuthorCsvImportProps {
-    onImport: (authors: any[]) => void;
-    onClose: () => void;
-}
-
 /**
  * AuthorCsvImport - CSV bulk import
- * TODO: Implement full CSV import functionality
+ * TODO: Implement full CSV import functionality with proper props:
+ * - onImport: (authors: AuthorEntry[]) => void
+ * - onClose: () => void
  */
-export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportProps) {
+export default function AuthorCsvImport() {
     return (
         <div className="p-6">
             <h3 className="text-lg font-semibold mb-4">Import Authors from CSV</h3>

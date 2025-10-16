@@ -6,13 +6,13 @@
  */
 
 import {
-    DndContext,
     closestCenter,
+    DndContext,
+    type DragEndEvent,
     KeyboardSensor,
     PointerSensor,
     useSensor,
     useSensors,
-    type DragEndEvent,
 } from '@dnd-kit/core';
 import {
     arrayMove,
@@ -34,8 +34,8 @@ import {
 } from '@/components/ui/dialog';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
-import ContributorCsvImport from '../contributor-csv-import';
 import type { ParsedContributor } from '../contributor-csv-import';
+import ContributorCsvImport from '../contributor-csv-import';
 import ContributorItem from './contributor-item';
 import type { ContributorEntry, ContributorRoleTag, ContributorType } from './types';
 

@@ -9,19 +9,19 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
-import { CheckCircle2, Loader2, Trash2, ExternalLink, GripVertical } from 'lucide-react';
-import { useMemo, useState, useEffect } from 'react';
+import { CheckCircle2, ExternalLink, GripVertical,Loader2, Trash2 } from 'lucide-react';
+import { useEffect,useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { type OrcidSearchResult,OrcidService } from '@/services/orcid';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
-import { OrcidService, type OrcidSearchResult } from '@/services/orcid';
 
 import InputField from '../input-field';
+import { OrcidSearchDialog } from '../orcid-search-dialog';
 import { SelectField } from '../select-field';
 import TagInputField, { type TagInputItem } from '../tag-input-field';
-import { OrcidSearchDialog } from '../orcid-search-dialog';
 import type { ContributorEntry, ContributorRoleTag, ContributorType, PersonContributorEntry } from './types';
 
 interface ContributorItemProps {
@@ -368,7 +368,7 @@ export default function ContributorItem({
         const timeoutId = setTimeout(autoVerifyOrcid, 800);
 
         return () => clearTimeout(timeoutId);
-    }, [contributor]);
+    }, [contributor, isVerifying, onContributorChange]);
 
     // Tagify settings for affiliations autocomplete
     const affiliationTagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {

@@ -5,7 +5,7 @@
  * Allows users to find and select ORCID records without pre-filling name fields.
  */
 
-import { Search, Loader2, ExternalLink } from 'lucide-react';
+import { ExternalLink,Loader2, Search } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { OrcidService, type OrcidSearchResult } from '@/services/orcid';
+import { type OrcidSearchResult,OrcidService } from '@/services/orcid';
 
 interface OrcidSearchDialogProps {
     onSelect: (result: OrcidSearchResult) => void;

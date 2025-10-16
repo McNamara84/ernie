@@ -7,17 +7,12 @@
 
 import React from 'react';
 
-import type { AuthorEntry, AuthorType } from './types';
-
-interface AuthorQuickAddProps {
-    onAdd: (author: Omit<AuthorEntry, 'id'>) => void;
-}
-
 /**
  * AuthorQuickAdd - Compact form for quick author entry
- * TODO: Implement actual form
+ * TODO: Implement actual form with proper props:
+ * - onAdd: (author: Omit<AuthorEntry, 'id'>) => void
  */
-export default function AuthorQuickAdd({ onAdd }: AuthorQuickAddProps) {
+export default function AuthorQuickAdd() {
     return (
         <div className="p-4 border rounded-lg bg-muted/30">
             <p className="text-sm text-muted-foreground">

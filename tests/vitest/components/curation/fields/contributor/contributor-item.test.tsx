@@ -2,9 +2,10 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { beforeEach,describe, expect, it, vi } from 'vitest';
+
 import ContributorItem from '@/components/curation/fields/contributor/contributor-item';
 import type { ContributorEntry } from '@/components/curation/fields/contributor/types';
 

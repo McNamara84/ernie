@@ -11,8 +11,8 @@
  */
 
 import { FileUp, Info, Upload, X } from 'lucide-react';
-import { useCallback, useState } from 'react';
 import Papa from 'papaparse';
+import { useCallback, useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -207,7 +207,7 @@ export default function ContributorCsvImport({ onImport, onClose }: ContributorC
                     setProgress(100);
                     setIsProcessing(false);
                 },
-                error: (error: any) => {
+                error: (error: Error) => {
                     setErrors([{
                         row: 0,
                         field: 'file',
