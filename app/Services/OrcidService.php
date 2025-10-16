@@ -397,13 +397,40 @@ class OrcidService
                 continue;
             }
 
-            $results[] = [
-                'orcid' => $orcid,
-                'firstName' => $result['given-names'] ?? '',
-                'lastName' => $result['family-names'] ?? '',
-                'creditName' => $result['credit-name'] ?? null,
-                'institutions' => $result['institution-name'] ?? [],
-            ];
+            // ORCID Search API returns only the ORCID ID, not the full profile
+            // We need to fetch the full record to get name and affiliations
+            $personData = $this->fetchOrcidRecord($orcid);
+            
+            if ($personData['success'] && $personData['data']) {
+                $data = $personData['data'];
+                
+                // Extract institution names from affiliations array
+                $institutions = [];
+                if (isset($data['affiliations']) && is_array($data['affiliations'])) {
+                    foreach ($data['affiliations'] as $affiliation) {
+                        if (isset($affiliation['name']) && !empty($affiliation['name'])) {
+                            $institutions[] = $affiliation['name'];
+                        }
+                    }
+                }
+                
+                $results[] = [
+                    'orcid' => $orcid,
+                    'firstName' => $data['firstName'] ?? '',
+                    'lastName' => $data['lastName'] ?? '',
+                    'creditName' => $data['creditName'] ?? null,
+                    'institutions' => $institutions,
+                ];
+            } else {
+                // Fallback if fetching full record fails
+                $results[] = [
+                    'orcid' => $orcid,
+                    'firstName' => '',
+                    'lastName' => '',
+                    'creditName' => null,
+                    'institutions' => [],
+                ];
+            }
         }
 
         return $results;

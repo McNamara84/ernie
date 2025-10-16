@@ -21,6 +21,7 @@ import { OrcidService, type OrcidSearchResult } from '@/services/orcid';
 import InputField from '../input-field';
 import { SelectField } from '../select-field';
 import TagInputField, { type TagInputItem } from '../tag-input-field';
+import { OrcidSearchDialog } from '../orcid-search-dialog';
 import type { AuthorEntry, AuthorType, PersonAuthorEntry } from './types';
 
 interface AuthorItemProps {
@@ -403,36 +404,44 @@ export default function AuthorItem({
                         <>
                             {/* ORCID with Verify & Fill Button */}
                             <div className="relative flex flex-col gap-2 md:col-span-3" data-testid={`author-${index}-orcid-field`}>
-                                <Label htmlFor={`${author.id}-orcid`}>
-                                    ORCID
+                                <Label htmlFor={`${author.id}-orcid`} className="inline-flex items-baseline flex-wrap gap-x-2">
+                                    <span>ORCID</span>
                                     {author.type === 'person' && author.orcidVerified && (
                                         <Badge 
                                             variant="outline" 
-                                            className="ml-2 text-green-600 border-green-600"
+                                            className="text-green-600 border-green-600 h-4 py-0 px-1.5 text-[10px] leading-none"
                                         >
-                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
                                             Verified
                                         </Badge>
                                     )}
                                     {isVerifying && (
-                                        <span className="ml-2 text-sm text-muted-foreground inline-flex items-center gap-1">
-                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                        <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5">
+                                            <Loader2 className="h-2.5 w-2.5 animate-spin" />
                                             Verifying...
                                         </span>
                                     )}
                                 </Label>
-                                <input
-                                    id={`${author.id}-orcid`}
-                                    type="text"
-                                    value={author.orcid || ''}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('orcid', event.target.value)
-                                    }
-                                    placeholder="0000-0000-0000-0000"
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                    inputMode="text"
-                                    pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
-                                />
+                                <div className="flex gap-2">
+                                    <input
+                                        id={`${author.id}-orcid`}
+                                        type="text"
+                                        value={author.orcid || ''}
+                                        onChange={(event) =>
+                                            onPersonFieldChange('orcid', event.target.value)
+                                        }
+                                        placeholder="0000-0000-0000-0000"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        inputMode="text"
+                                        pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
+                                    />
+                                    {author.type === 'person' && (
+                                        <OrcidSearchDialog
+                                            onSelect={handleSelectSuggestion}
+                                            triggerClassName="h-10 w-10 flex-shrink-0 p-0 hover:bg-accent"
+                                        />
+                                    )}
+                                </div>
                                 {verificationError && (
                                     <p className="text-sm text-red-600 mt-1">
                                         {verificationError}
