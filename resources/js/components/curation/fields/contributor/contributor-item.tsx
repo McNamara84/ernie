@@ -8,14 +8,14 @@
 
 import type { TagData, TagifySettings } from '@yaireo/tagify';
 import { CheckCircle2, Loader2, Trash2, ExternalLink } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
-import { OrcidService } from '@/services/orcid';
+import { OrcidService, type OrcidSearchResult } from '@/services/orcid';
 
 import InputField from '../input-field';
 import { SelectField } from '../select-field';
@@ -61,6 +61,11 @@ export default function ContributorItem({
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
+    
+    // ORCID Auto-Suggest State
+    const [orcidSuggestions, setOrcidSuggestions] = useState<OrcidSearchResult[]>([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
     // Role options based on type
     const roleOptions = useMemo(
@@ -180,6 +185,146 @@ export default function ContributorItem({
             setIsVerifying(false);
         }
     };
+    
+    /**
+     * Handle ORCID Search & Select
+     * Triggered when user selects a person from the search dialog
+     */
+    const handleOrcidSelect = async (orcid: string, searchResult: OrcidSearchResult) => {
+        if (contributor.type !== 'person') return;
+        
+        // Set the ORCID and clear any previous errors
+        onPersonFieldChange('orcid', orcid);
+        setVerificationError(null);
+        
+        // Auto-fill name fields if empty
+        if (!contributor.firstName && searchResult.firstName) {
+            onPersonFieldChange('firstName', searchResult.firstName);
+        }
+        if (!contributor.lastName && searchResult.lastName) {
+            onPersonFieldChange('lastName', searchResult.lastName);
+        }
+        
+        // Now verify and fetch full details
+        setIsVerifying(true);
+        
+        try {
+            const response = await OrcidService.fetchOrcidRecord(orcid);
+            
+            if (!response.success || !response.data) {
+                setVerificationError(response.error || 'Failed to fetch ORCID data');
+                setIsVerifying(false);
+                return;
+            }
+            
+            const data = response.data;
+            
+            // Update with complete ORCID data
+            const updatedContributor: PersonContributorEntry = {
+                ...contributor,
+                orcid,
+                firstName: data.firstName || contributor.firstName,
+                lastName: data.lastName || contributor.lastName,
+                orcidVerified: true,
+                orcidVerifiedAt: new Date().toISOString(),
+            };
+
+            // Auto-fill affiliations from full ORCID record
+            if (data.affiliations.length > 0) {
+                const employmentAffiliations = data.affiliations
+                    .filter(aff => aff.type === 'employment' && aff.name)
+                    .map(aff => ({
+                        value: aff.name!,
+                        rorId: null,
+                    }));
+
+                if (employmentAffiliations.length > 0) {
+                    const existingValues = new Set(contributor.affiliations.map(a => a.value));
+                    const newAffiliations = employmentAffiliations.filter(
+                        a => !existingValues.has(a.value)
+                    );
+
+                    if (newAffiliations.length > 0) {
+                        updatedContributor.affiliations = [
+                            ...contributor.affiliations,
+                            ...newAffiliations as AffiliationTag[],
+                        ];
+                        updatedContributor.affiliationsInput = updatedContributor.affiliations
+                            .map((a: AffiliationTag) => a.value)
+                            .join(', ');
+                    }
+                }
+            }
+
+            onContributorChange(updatedContributor);
+            setIsVerifying(false);
+        } catch (error) {
+            console.error('ORCID fetch error:', error);
+            setVerificationError('Failed to fetch complete ORCID data');
+            setIsVerifying(false);
+        }
+    };
+    
+    /**
+     * Handle selecting an ORCID suggestion
+     */
+    const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {
+        setShowSuggestions(false);
+        await handleOrcidSelect(suggestion.orcid, suggestion);
+    };
+    
+    /**
+     * Auto-suggest ORCIDs based on name and affiliations
+     * Triggered when firstName + lastName are filled and ORCID is empty
+     */
+    useEffect(() => {
+        const searchForOrcid = async () => {
+            // Only search if person type, has name, and no ORCID yet
+            if (
+                contributor.type !== 'person' ||
+                !contributor.firstName?.trim() ||
+                !contributor.lastName?.trim() ||
+                contributor.orcid?.trim() ||
+                contributor.orcidVerified
+            ) {
+                setOrcidSuggestions([]);
+                setShowSuggestions(false);
+                return;
+            }
+
+            setIsLoadingSuggestions(true);
+            setShowSuggestions(true);
+
+            try {
+                // Build search query: "FirstName LastName"
+                let searchQuery = `${contributor.firstName.trim()} ${contributor.lastName.trim()}`;
+                
+                // Add first affiliation if available to refine search
+                if (contributor.affiliations.length > 0 && contributor.affiliations[0].value) {
+                    searchQuery += ` ${contributor.affiliations[0].value}`;
+                }
+
+                const response = await OrcidService.searchOrcid(searchQuery);
+
+                if (response.success && response.data) {
+                    // Limit to top 5 suggestions
+                    setOrcidSuggestions(response.data.results.slice(0, 5));
+                } else {
+                    setOrcidSuggestions([]);
+                }
+            } catch (error) {
+                console.error('ORCID suggestion error:', error);
+                setOrcidSuggestions([]);
+            } finally {
+                setIsLoadingSuggestions(false);
+            }
+        };
+
+        // Debounce: Wait 800ms after user stops typing
+        const timeoutId = setTimeout(searchForOrcid, 800);
+
+        return () => clearTimeout(timeoutId);
+    }, [contributor]);
 
     // Tagify settings for affiliations autocomplete
     const affiliationTagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
@@ -296,7 +441,7 @@ export default function ContributorItem({
                 {isPerson ? (
                     <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
                         {/* ORCID with Verify & Fill Button */}
-                        <div className="flex flex-col gap-2 md:col-span-12 lg:col-span-4" data-testid={`contributor-${index}-orcid-field`}>
+                        <div className="relative flex flex-col gap-2 md:col-span-12 lg:col-span-4" data-testid={`contributor-${index}-orcid-field`}>
                             <Label htmlFor={`${contributor.id}-orcid`}>
                                 ORCID
                                 {contributor.type === 'person' && contributor.orcidVerified && (
@@ -313,7 +458,7 @@ export default function ContributorItem({
                                 <input
                                     id={`${contributor.id}-orcid`}
                                     type="text"
-                                    value={contributor.orcid}
+                                    value={contributor.orcid || ''}
                                     onChange={(event) =>
                                         onPersonFieldChange('orcid', event.target.value)
                                     }
@@ -360,11 +505,49 @@ export default function ContributorItem({
                                     <ExternalLink className="h-3 w-3" />
                                 </a>
                             )}
+                            
+                            {/* ORCID Auto-Suggestions */}
+                            {showSuggestions && orcidSuggestions.length > 0 && (
+                                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    {isLoadingSuggestions && (
+                                        <div className="p-3 text-sm text-gray-500 flex items-center gap-2">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Searching for matching ORCIDs...
+                                        </div>
+                                    )}
+                                    {!isLoadingSuggestions && orcidSuggestions.map((suggestion) => (
+                                        <button
+                                            key={suggestion.orcid}
+                                            type="button"
+                                            onClick={() => handleSelectSuggestion(suggestion)}
+                                            className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-gray-900 truncate">
+                                                        {suggestion.creditName || `${suggestion.firstName} ${suggestion.lastName}`}
+                                                    </p>
+                                                    <p className="text-xs text-gray-600 font-mono mt-1">
+                                                        {suggestion.orcid}
+                                                    </p>
+                                                    {suggestion.institutions.length > 0 && (
+                                                        <p className="text-xs text-gray-500 mt-1 truncate">
+                                                            {suggestion.institutions.join(', ')}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+                        
                         <InputField
                             id={`${contributor.id}-firstName`}
                             label="First name"
-                            value={contributor.firstName}
+                            value={contributor.firstName || ''}
                             onChange={(event) =>
                                 onPersonFieldChange('firstName', event.target.value)
                             }
@@ -373,7 +556,7 @@ export default function ContributorItem({
                         <InputField
                             id={`${contributor.id}-lastName`}
                             label="Last name"
-                            value={contributor.lastName}
+                            value={contributor.lastName || ''}
                             onChange={(event) =>
                                 onPersonFieldChange('lastName', event.target.value)
                             }
@@ -386,7 +569,7 @@ export default function ContributorItem({
                         <InputField
                             id={`${contributor.id}-institution`}
                             label="Institution name"
-                            value={contributor.institutionName}
+                            value={contributor.institutionName || ''}
                             onChange={(event) => onInstitutionNameChange(event.target.value)}
                             containerProps={{ className: 'md:col-span-12' }}
                             required

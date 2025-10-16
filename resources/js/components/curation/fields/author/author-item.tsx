@@ -8,7 +8,7 @@
 
 import type { TagData, TagifySettings } from '@yaireo/tagify';
 import { CheckCircle2, Loader2, Trash2, ExternalLink } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
-import { OrcidService } from '@/services/orcid';
+import { OrcidService, type OrcidSearchResult } from '@/services/orcid';
 
 import InputField from '../input-field';
 import { SelectField } from '../select-field';
@@ -62,6 +62,11 @@ export default function AuthorItem({
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
+    
+    // ORCID Auto-Suggest State
+    const [orcidSuggestions, setOrcidSuggestions] = useState<OrcidSearchResult[]>([]);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
     
     // Extract affiliations with ROR IDs
     const affiliationsWithRorId = useMemo(() => {
@@ -173,6 +178,147 @@ export default function AuthorItem({
             setIsVerifying(false);
         }
     };
+    
+    /**
+     * Handle ORCID Search & Select
+     * Triggered when user selects a person from the search dialog
+     */
+    const handleOrcidSelect = async (orcid: string, searchResult: OrcidSearchResult) => {
+        if (author.type !== 'person') return;
+        
+        // Set the ORCID and clear any previous errors
+        onPersonFieldChange('orcid', orcid);
+        setVerificationError(null);
+        
+        // Auto-fill name fields if empty
+        if (!author.firstName && searchResult.firstName) {
+            onPersonFieldChange('firstName', searchResult.firstName);
+        }
+        if (!author.lastName && searchResult.lastName) {
+            onPersonFieldChange('lastName', searchResult.lastName);
+        }
+        
+        // Now verify and fetch full details
+        setIsVerifying(true);
+        
+        try {
+            const response = await OrcidService.fetchOrcidRecord(orcid);
+            
+            if (!response.success || !response.data) {
+                setVerificationError(response.error || 'Failed to fetch ORCID data');
+                setIsVerifying(false);
+                return;
+            }
+            
+            const data = response.data;
+            
+            // Update with complete ORCID data
+            const updatedAuthor: PersonAuthorEntry = {
+                ...author,
+                orcid,
+                firstName: data.firstName || author.firstName,
+                lastName: data.lastName || author.lastName,
+                email: data.emails.length > 0 && !author.email ? data.emails[0] : author.email,
+                orcidVerified: true,
+                orcidVerifiedAt: new Date().toISOString(),
+            };
+
+            // Auto-fill affiliations from full ORCID record
+            if (data.affiliations.length > 0) {
+                const employmentAffiliations = data.affiliations
+                    .filter(aff => aff.type === 'employment' && aff.name)
+                    .map(aff => ({
+                        value: aff.name!,
+                        rorId: null,
+                    }));
+
+                if (employmentAffiliations.length > 0) {
+                    const existingValues = new Set(author.affiliations.map(a => a.value));
+                    const newAffiliations = employmentAffiliations.filter(
+                        a => !existingValues.has(a.value)
+                    );
+
+                    if (newAffiliations.length > 0) {
+                        updatedAuthor.affiliations = [
+                            ...author.affiliations,
+                            ...newAffiliations as AffiliationTag[],
+                        ];
+                        updatedAuthor.affiliationsInput = updatedAuthor.affiliations
+                            .map((a: AffiliationTag) => a.value)
+                            .join(', ');
+                    }
+                }
+            }
+
+            onAuthorChange(updatedAuthor);
+            setIsVerifying(false);
+        } catch (error) {
+            console.error('ORCID fetch error:', error);
+            setVerificationError('Failed to fetch complete ORCID data');
+            setIsVerifying(false);
+        }
+    };
+    
+    /**
+     * Handle selecting an ORCID suggestion
+     */
+    const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {
+        setShowSuggestions(false);
+        await handleOrcidSelect(suggestion.orcid, suggestion);
+    };
+    
+    /**
+     * Auto-suggest ORCIDs based on name and affiliations
+     * Triggered when firstName + lastName are filled and ORCID is empty
+     */
+    useEffect(() => {
+        const searchForOrcid = async () => {
+            // Only search if person type, has name, and no ORCID yet
+            if (
+                author.type !== 'person' ||
+                !author.firstName?.trim() ||
+                !author.lastName?.trim() ||
+                author.orcid?.trim() ||
+                author.orcidVerified
+            ) {
+                setOrcidSuggestions([]);
+                setShowSuggestions(false);
+                return;
+            }
+
+            setIsLoadingSuggestions(true);
+            setShowSuggestions(true);
+
+            try {
+                // Build search query: "FirstName LastName"
+                let searchQuery = `${author.firstName.trim()} ${author.lastName.trim()}`;
+                
+                // Add first affiliation if available to refine search
+                if (author.affiliations.length > 0 && author.affiliations[0].value) {
+                    searchQuery += ` ${author.affiliations[0].value}`;
+                }
+
+                const response = await OrcidService.searchOrcid(searchQuery);
+
+                if (response.success && response.data) {
+                    // Limit to top 5 suggestions
+                    setOrcidSuggestions(response.data.results.slice(0, 5));
+                } else {
+                    setOrcidSuggestions([]);
+                }
+            } catch (error) {
+                console.error('ORCID suggestion error:', error);
+                setOrcidSuggestions([]);
+            } finally {
+                setIsLoadingSuggestions(false);
+            }
+        };
+
+        // Debounce: Wait 800ms after user stops typing
+        const timeoutId = setTimeout(searchForOrcid, 800);
+
+        return () => clearTimeout(timeoutId);
+    }, [author]);
 
     return (
         <section
@@ -230,7 +376,7 @@ export default function AuthorItem({
                     {isPerson ? (
                         <>
                             {/* ORCID with Verify & Fill Button */}
-                            <div className="flex flex-col gap-2 md:col-span-3" data-testid={`author-${index}-orcid-field`}>
+                            <div className="relative flex flex-col gap-2 md:col-span-3" data-testid={`author-${index}-orcid-field`}>
                                 <Label htmlFor={`${author.id}-orcid`}>
                                     ORCID
                                     {author.type === 'person' && author.orcidVerified && (
@@ -247,7 +393,7 @@ export default function AuthorItem({
                                     <input
                                         id={`${author.id}-orcid`}
                                         type="text"
-                                        value={author.orcid}
+                                        value={author.orcid || ''}
                                         onChange={(event) =>
                                             onPersonFieldChange('orcid', event.target.value)
                                         }
@@ -294,11 +440,49 @@ export default function AuthorItem({
                                         <ExternalLink className="h-3 w-3" />
                                     </a>
                                 )}
+                                
+                                {/* ORCID Auto-Suggestions */}
+                                {showSuggestions && orcidSuggestions.length > 0 && (
+                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                        {isLoadingSuggestions && (
+                                            <div className="p-3 text-sm text-gray-500 flex items-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                Searching for matching ORCIDs...
+                                            </div>
+                                        )}
+                                        {!isLoadingSuggestions && orcidSuggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion.orcid}
+                                                type="button"
+                                                onClick={() => handleSelectSuggestion(suggestion)}
+                                                className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="font-medium text-gray-900 truncate">
+                                                            {suggestion.creditName || `${suggestion.firstName} ${suggestion.lastName}`}
+                                                        </p>
+                                                        <p className="text-xs text-gray-600 font-mono mt-1">
+                                                            {suggestion.orcid}
+                                                        </p>
+                                                        {suggestion.institutions.length > 0 && (
+                                                            <p className="text-xs text-gray-500 mt-1 truncate">
+                                                                {suggestion.institutions.join(', ')}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
+                            
                             <InputField
                                 id={`${author.id}-firstName`}
                                 label="First name"
-                                value={author.firstName}
+                                value={author.firstName || ''}
                                 onChange={(event) =>
                                     onPersonFieldChange('firstName', event.target.value)
                                 }
@@ -307,7 +491,7 @@ export default function AuthorItem({
                             <InputField
                                 id={`${author.id}-lastName`}
                                 label="Last name"
-                                value={author.lastName}
+                                value={author.lastName || ''}
                                 onChange={(event) =>
                                     onPersonFieldChange('lastName', event.target.value)
                                 }
@@ -352,7 +536,7 @@ export default function AuthorItem({
                         <InputField
                             id={`${author.id}-institution`}
                             label="Institution name"
-                            value={author.institutionName}
+                            value={author.institutionName || ''}
                             onChange={(event) => onInstitutionNameChange(event.target.value)}
                             containerProps={{ className: 'md:col-span-10' }}
                             required
@@ -398,7 +582,7 @@ export default function AuthorItem({
                                 id={`${author.id}-email`}
                                 type="email"
                                 label="Email address"
-                                value={author.email}
+                                value={author.email || ''}
                                 onChange={(event) =>
                                     onPersonFieldChange('email', event.target.value)
                                 }
@@ -409,7 +593,7 @@ export default function AuthorItem({
                                 id={`${author.id}-website`}
                                 type="url"
                                 label="Website"
-                                value={author.website}
+                                value={author.website || ''}
                                 onChange={(event) =>
                                     onPersonFieldChange('website', event.target.value)
                                 }

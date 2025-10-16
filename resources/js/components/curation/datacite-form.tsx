@@ -1625,7 +1625,7 @@ export default function DataCiteForm({
                             <InputField
                                 id="doi"
                                 label="DOI"
-                                value={form.doi}
+                                value={form.doi || ''}
                                 onChange={(e) => handleChange('doi', e.target.value)}
                                 placeholder="10.xxxx/xxxxx"
                                 className="md:col-span-3"
@@ -1634,7 +1634,7 @@ export default function DataCiteForm({
                                 id="year"
                                 type="number"
                                 label="Year"
-                                value={form.year}
+                                value={form.year || ''}
                                 onChange={(e) => handleChange('year', e.target.value)}
                                 placeholder="2024"
                                 className="md:col-span-2"
@@ -1643,7 +1643,7 @@ export default function DataCiteForm({
                             <SelectField
                                 id="resourceType"
                                 label="Resource Type"
-                                value={form.resourceType}
+                                value={form.resourceType || ''}
                                 onValueChange={(val) => handleChange('resourceType', val)}
                                 options={resourceTypes.map((type) => ({
                                     value: String(type.id),
@@ -1655,7 +1655,7 @@ export default function DataCiteForm({
                             <InputField
                                 id="version"
                                 label="Version"
-                                value={form.version}
+                                value={form.version || ''}
                                 onChange={(e) => handleChange('version', e.target.value)}
                                 placeholder="1.0"
                                 className="md:col-span-1"
@@ -1663,7 +1663,7 @@ export default function DataCiteForm({
                             <SelectField
                                 id="language"
                                 label="Language of Data"
-                                value={form.language}
+                                value={form.language || ''}
                                 onValueChange={(val) => handleChange('language', val)}
                                 options={languages.map((l) => ({
                                     value: l.code,

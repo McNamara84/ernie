@@ -212,8 +212,28 @@ class OrcidService
         $limit = min($limit, 200);
 
         try {
-            // Build search query
-            $searchQuery = 'given-and-family-names:"' . addslashes($query) . '"';
+            // Build search query for ORCID Public API
+            // Search in given-names, family-name, and other-names fields
+            $queryParts = explode(' ', trim($query));
+            
+            if (count($queryParts) >= 2) {
+                // If multiple words, assume first is given name, rest is family name
+                $givenName = array_shift($queryParts);
+                $familyName = implode(' ', $queryParts);
+                $searchQuery = sprintf(
+                    'given-names:%s AND family-name:%s',
+                    $givenName,
+                    $familyName
+                );
+            } else {
+                // Single word - search in all name fields
+                $searchQuery = sprintf(
+                    '(given-names:%s OR family-name:%s OR other-names:%s)',
+                    $query,
+                    $query,
+                    $query
+                );
+            }
 
             $response = Http::timeout(10)
                 ->acceptJson()
