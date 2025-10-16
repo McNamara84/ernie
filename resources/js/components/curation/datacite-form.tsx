@@ -657,7 +657,8 @@ export default function DataCiteForm({
             }
         }
 
-        return [createEmptyAuthor()];
+        // Empty state - no authors initially
+        return [];
     });
     const [contributors, setContributors] = useState<ContributorEntry[]>(() => {
         if (initialContributors.length > 0) {
@@ -670,7 +671,8 @@ export default function DataCiteForm({
             }
         }
 
-        return [createEmptyContributor()];
+        // Empty state - no contributors initially
+        return [];
     });
     const [descriptions, setDescriptions] = useState<DescriptionEntry[]>(() => {
         if (initialDescriptions && initialDescriptions.length > 0) {
