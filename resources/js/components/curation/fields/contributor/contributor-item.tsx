@@ -2,12 +2,14 @@
  * ContributorItem Component
  * 
  * Individual contributor entry with all fields.
- * Supports both person and institution types with roles.
+ * Supports both person and institution types with roles and drag & drop reordering.
  * Migrated from contributor-field.tsx
  */
 
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
-import { CheckCircle2, Loader2, Trash2, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Loader2, Trash2, ExternalLink, GripVertical } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -57,6 +59,22 @@ export default function ContributorItem({
     institutionRoleOptions,
 }: ContributorItemProps) {
     const isPerson = contributor.type === 'person';
+
+    // Drag & Drop
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: contributor.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
 
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
@@ -373,18 +391,32 @@ export default function ContributorItem({
 
     return (
         <section
+            ref={setNodeRef}
+            style={style}
             className="rounded-lg border border-border bg-card p-6 shadow-sm transition hover:shadow-md"
             aria-labelledby={`${contributor.id}-heading`}
         >
-            {/* Header with Remove Button */}
+            {/* Header with Drag Handle and Remove Button */}
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <h3
-                        id={`${contributor.id}-heading`}
-                        className="text-lg font-semibold leading-6 text-foreground"
+                <div className="flex items-center gap-3">
+                    {/* Drag Handle */}
+                    <button
+                        type="button"
+                        className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground transition-colors"
+                        {...attributes}
+                        {...listeners}
+                        aria-label={`Reorder contributor ${index + 1}`}
                     >
-                        Contributor {index + 1}
-                    </h3>
+                        <GripVertical className="h-5 w-5" />
+                    </button>
+                    <div>
+                        <h3
+                            id={`${contributor.id}-heading`}
+                            className="text-lg font-semibold leading-6 text-foreground"
+                        >
+                            Contributor {index + 1}
+                        </h3>
+                    </div>
                 </div>
                 {canRemove && (
                     <Button

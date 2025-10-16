@@ -5,6 +5,21 @@
  * Shows an empty state when no contributors are present.
  */
 
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { Plus, Upload } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -36,7 +51,7 @@ interface ContributorListProps {
 }
 
 /**
- * ContributorList - Manages the list of contributors with empty state
+ * ContributorList - Manages the list of contributors with empty state and drag & drop reordering
  */
 export default function ContributorList({
     contributors,
@@ -50,6 +65,14 @@ export default function ContributorList({
 }: ContributorListProps) {
     // State for CSV import dialog
     const [csvDialogOpen, setCsvDialogOpen] = useState(false);
+
+    // Drag & Drop sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     // Helper: Convert CSV parsed contributor to ContributorEntry
     const convertParsedContributorToEntry = (parsed: ParsedContributor): ContributorEntry => {
@@ -103,6 +126,25 @@ export default function ContributorList({
         // Close dialog immediately after import
         setCsvDialogOpen(false);
     };
+
+    // Drag & Drop handler
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = contributors.findIndex((contributor) => contributor.id === active.id);
+            const newIndex = contributors.findIndex((contributor) => contributor.id === over.id);
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const reorderedContributors = arrayMove(contributors, oldIndex, newIndex);
+                // Update all contributors with new order
+                reorderedContributors.forEach((contributor, index) => {
+                    onContributorChange(index, contributor);
+                });
+            }
+        }
+    };
+
 
     // Helper: Handle type change
     const handleTypeChange = (index: number, type: ContributorType) => {
@@ -236,51 +278,60 @@ export default function ContributorList({
 
     // List with contributors
     return (
-        <div className="space-y-4">
-            {/* Contributor items */}
-            <div className="space-y-4" role="list" aria-label="Contributors">
-                {contributors.map((contributor, index) => (
-                    <div key={contributor.id} role="listitem">
-                        <ContributorItem
-                            contributor={contributor}
-                            index={index}
-                            onTypeChange={(type) => handleTypeChange(index, type)}
-                            onRolesChange={(value) => handleRolesChange(index, value)}
-                            onPersonFieldChange={(field, value) => 
-                                handlePersonFieldChange(index, field, value)
-                            }
-                            onInstitutionNameChange={(value) => 
-                                handleInstitutionNameChange(index, value)
-                            }
-                            onAffiliationsChange={(value) => 
-                                handleAffiliationsChange(index, value)
-                            }
-                            onContributorChange={(updatedContributor) => onContributorChange(index, updatedContributor)}
-                            onRemove={() => onRemove(index)}
-                            canRemove={contributors.length > 1}
-                            affiliationSuggestions={affiliationSuggestions}
-                            personRoleOptions={personRoleOptions}
-                            institutionRoleOptions={institutionRoleOptions}
-                        />
-                    </div>
-                ))}
-            </div>
-
-            {/* Add button */}
-            <div className="flex justify-center gap-2">
-                <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={onAdd}
-                    aria-label="Add another contributor"
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+        >
+            <div className="space-y-4">
+                {/* Contributor items */}
+                <SortableContext
+                    items={contributors.map((contributor) => contributor.id)}
+                    strategy={verticalListSortingStrategy}
                 >
-                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-                    Add Contributor
-                </Button>
-                <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button 
-                            type="button" 
+                    <div className="space-y-4" role="list" aria-label="Contributors">
+                        {contributors.map((contributor, index) => (
+                            <ContributorItem
+                                key={contributor.id}
+                                contributor={contributor}
+                                index={index}
+                                onTypeChange={(type) => handleTypeChange(index, type)}
+                                onRolesChange={(value) => handleRolesChange(index, value)}
+                                onPersonFieldChange={(field, value) => 
+                                    handlePersonFieldChange(index, field, value)
+                                }
+                                onInstitutionNameChange={(value) => 
+                                    handleInstitutionNameChange(index, value)
+                                }
+                                onAffiliationsChange={(value) => 
+                                    handleAffiliationsChange(index, value)
+                                }
+                                onContributorChange={(updatedContributor) => onContributorChange(index, updatedContributor)}
+                                onRemove={() => onRemove(index)}
+                                canRemove={contributors.length > 1}
+                                affiliationSuggestions={affiliationSuggestions}
+                                personRoleOptions={personRoleOptions}
+                                institutionRoleOptions={institutionRoleOptions}
+                            />
+                        ))}
+                    </div>
+                </SortableContext>
+
+                {/* Add button */}
+                <div className="flex justify-center gap-2">
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={onAdd}
+                        aria-label="Add another contributor"
+                    >
+                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                        Add Contributor
+                    </Button>
+                    <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button 
+                                type="button" 
                             variant="outline"
                             aria-label="Import contributors from CSV file"
                         >
@@ -288,20 +339,21 @@ export default function ContributorList({
                             Import CSV
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[90vh]">
-                        <DialogHeader>
-                            <DialogTitle>Import Contributors from CSV</DialogTitle>
-                            <DialogDescription>
-                                Upload a CSV file to add multiple contributors at once
-                            </DialogDescription>
-                        </DialogHeader>
-                        <ContributorCsvImport
-                            onImport={handleCsvImport}
-                            onClose={() => setCsvDialogOpen(false)}
-                        />
-                    </DialogContent>
-                </Dialog>
+                        <DialogContent className="max-w-2xl max-h-[90vh]">
+                            <DialogHeader>
+                                <DialogTitle>Import Contributors from CSV</DialogTitle>
+                                <DialogDescription>
+                                    Upload a CSV file to add multiple contributors at once
+                                </DialogDescription>
+                            </DialogHeader>
+                            <ContributorCsvImport
+                                onImport={handleCsvImport}
+                                onClose={() => setCsvDialogOpen(false)}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
-        </div>
+        </DndContext>
     );
 }
