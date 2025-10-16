@@ -31,14 +31,14 @@ import AuthorField, {
     type AuthorType,
     type InstitutionAuthorEntry,
     type PersonAuthorEntry,
-} from './fields/author-field';
+} from './fields/author';
 import ContributorField, {
     type ContributorEntry,
     type ContributorRoleTag,
     type ContributorType,
     type InstitutionContributorEntry,
     type PersonContributorEntry,
-} from './fields/contributor-field';
+} from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
@@ -1744,86 +1744,23 @@ export default function DataCiteForm({
                                 } ${authorRoleSummary}.`}
                             </p>
                         )}
-                        <div
-                            className="space-y-6"
-                            role="group"
-                            aria-describedby={authorRolesDescriptionId}
-                            data-testid="author-entries-group"
-                        >
-                            {authors.map((author, index) => (
-                                <AuthorField
-                                    key={author.id}
-                                    author={author}
-                                    index={index}
-                                    onTypeChange={(type) =>
-                                        handleAuthorTypeChange(author.id, type)
-                                    }
-                                    onPersonFieldChange={(field, value) =>
-                                        handlePersonAuthorChange(author.id, field, value)
-                                    }
-                                    onInstitutionNameChange={(value) =>
-                                        handleInstitutionNameChange(author.id, value)
-                                    }
-                                    onContactChange={(checked) =>
-                                        handleAuthorContactChange(author.id, checked)
-                                    }
-                                    onAffiliationsChange={(value) =>
-                                        handleAffiliationsChange(author.id, value)
-                                    }
-                                    onRemoveAuthor={() => removeAuthor(author.id)}
-                                    canRemove={authors.length > 1}
-                                    onAddAuthor={addAuthor}
-                                    canAddAuthor={index === authors.length - 1}
-                                    affiliationSuggestions={affiliationSuggestions}
-                                />
-                            ))}
-                        </div>
+                        <AuthorField
+                            authors={authors}
+                            onChange={setAuthors}
+                            affiliationSuggestions={affiliationSuggestions}
+                        />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="contributors">
                     <AccordionTrigger>Contributors</AccordionTrigger>
                     <AccordionContent>
-                        <div className="space-y-6">
-                            {contributors.map((contributor, index) => (
-                                <ContributorField
-                                    key={contributor.id}
-                                    contributor={contributor}
-                                    index={index}
-                                    onTypeChange={(type) =>
-                                        handleContributorTypeChange(contributor.id, type)
-                                    }
-                                    onRolesChange={(value) =>
-                                        handleContributorRolesChange(contributor.id, value)
-                                    }
-                                    onPersonFieldChange={(field, value) =>
-                                        handleContributorPersonChange(
-                                            contributor.id,
-                                            field,
-                                            value,
-                                        )
-                                    }
-                                    onInstitutionNameChange={(value) =>
-                                        handleContributorInstitutionChange(
-                                            contributor.id,
-                                            value,
-                                        )
-                                    }
-                                    onAffiliationsChange={(value) =>
-                                        handleContributorAffiliationsChange(
-                                            contributor.id,
-                                            value,
-                                        )
-                                    }
-                                    onRemoveContributor={() => removeContributor(contributor.id)}
-                                    canRemove={contributors.length > 1}
-                                    onAddContributor={addContributor}
-                                    canAddContributor={index === contributors.length - 1}
-                                    affiliationSuggestions={affiliationSuggestions}
-                                    personRoleOptions={contributorPersonRoleNames}
-                                    institutionRoleOptions={contributorInstitutionRoleNames}
-                                />
-                            ))}
-                        </div>
+                        <ContributorField
+                            contributors={contributors}
+                            onChange={setContributors}
+                            affiliationSuggestions={affiliationSuggestions}
+                            personRoleOptions={contributorPersonRoleNames}
+                            institutionRoleOptions={contributorInstitutionRoleNames}
+                        />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="descriptions">

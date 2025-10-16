@@ -60,6 +60,7 @@ const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
 export default function AuthorField({
     authors,
     onChange,
+    affiliationSuggestions,
 }: AuthorFieldProps) {
     const handleAdd = (type: AuthorType = 'person') => {
         if (authors.length >= MAX_AUTHORS) return;
@@ -73,6 +74,11 @@ export default function AuthorField({
         onChange(updated);
     };
 
+    const handleAuthorChange = (index: number, author: AuthorEntry) => {
+        const updated = authors.map((a, i) => (i === index ? author : a));
+        onChange(updated);
+    };
+
     return (
         <div className="space-y-4">
             {/* Author List or Empty State */}
@@ -80,7 +86,8 @@ export default function AuthorField({
                 authors={authors}
                 onAdd={() => handleAdd('person')}
                 onRemove={handleRemove}
-                onChange={onChange}
+                onAuthorChange={handleAuthorChange}
+                affiliationSuggestions={affiliationSuggestions}
             />
 
             {/* Max limit info */}

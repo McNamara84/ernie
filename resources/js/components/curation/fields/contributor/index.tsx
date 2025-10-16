@@ -68,6 +68,9 @@ const createEmptyContributor = (type: ContributorType = 'person'): ContributorEn
 export default function ContributorField({
     contributors,
     onChange,
+    affiliationSuggestions,
+    personRoleOptions,
+    institutionRoleOptions,
 }: ContributorFieldProps) {
     const handleAdd = (type: ContributorType = 'person') => {
         if (contributors.length >= MAX_CONTRIBUTORS) return;
@@ -81,6 +84,11 @@ export default function ContributorField({
         onChange(updated);
     };
 
+    const handleContributorChange = (index: number, contributor: ContributorEntry) => {
+        const updated = contributors.map((c, i) => (i === index ? contributor : c));
+        onChange(updated);
+    };
+
     return (
         <div className="space-y-4">
             {/* Contributor List or Empty State */}
@@ -88,7 +96,10 @@ export default function ContributorField({
                 contributors={contributors}
                 onAdd={() => handleAdd('person')}
                 onRemove={handleRemove}
-                onChange={onChange}
+                onContributorChange={handleContributorChange}
+                affiliationSuggestions={affiliationSuggestions}
+                personRoleOptions={personRoleOptions}
+                institutionRoleOptions={institutionRoleOptions}
             />
 
             {/* Max limit info */}
@@ -104,6 +115,7 @@ export default function ContributorField({
 // Re-export types for convenience
 export type {
     ContributorEntry,
+    ContributorRoleTag,
     ContributorType,
     InstitutionContributorEntry,
     PersonContributorEntry,

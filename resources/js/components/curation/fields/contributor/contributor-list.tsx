@@ -9,14 +9,19 @@ import { Plus } from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
+import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
-import type { ContributorEntry } from './types';
+import ContributorItem from './contributor-item';
+import type { ContributorEntry, ContributorRoleTag, ContributorType } from './types';
 
 interface ContributorListProps {
     contributors: ContributorEntry[];
     onAdd: () => void;
     onRemove: (index: number) => void;
-    onChange: (contributors: ContributorEntry[]) => void;
+    onContributorChange: (index: number, contributor: ContributorEntry) => void;
+    affiliationSuggestions: AffiliationSuggestion[];
+    personRoleOptions: readonly string[];
+    institutionRoleOptions: readonly string[];
 }
 
 /**
@@ -26,8 +31,97 @@ export default function ContributorList({
     contributors,
     onAdd,
     onRemove,
-    onChange,
+    onContributorChange,
+    affiliationSuggestions,
+    personRoleOptions,
+    institutionRoleOptions,
 }: ContributorListProps) {
+    // Helper: Handle type change
+    const handleTypeChange = (index: number, type: ContributorType) => {
+        const contributor = contributors[index];
+        
+        if (type === contributor.type) return;
+        
+        // Create new contributor entry with correct type
+        const newContributor: ContributorEntry = type === 'person' 
+            ? {
+                id: contributor.id,
+                type: 'person',
+                orcid: '',
+                firstName: '',
+                lastName: '',
+                roles: contributor.roles,
+                rolesInput: contributor.rolesInput,
+                affiliations: contributor.affiliations,
+                affiliationsInput: contributor.affiliationsInput,
+            }
+            : {
+                id: contributor.id,
+                type: 'institution',
+                institutionName: '',
+                roles: contributor.roles,
+                rolesInput: contributor.rolesInput,
+                affiliations: contributor.affiliations,
+                affiliationsInput: contributor.affiliationsInput,
+            };
+        
+        onContributorChange(index, newContributor);
+    };
+
+    // Helper: Handle roles change
+    const handleRolesChange = (
+        index: number,
+        value: { raw: string; tags: ContributorRoleTag[] }
+    ) => {
+        const contributor = contributors[index];
+        
+        onContributorChange(index, {
+            ...contributor,
+            roles: value.tags,
+            rolesInput: value.raw,
+        });
+    };
+
+    // Helper: Handle person field change
+    const handlePersonFieldChange = (
+        index: number,
+        field: 'orcid' | 'firstName' | 'lastName',
+        value: string
+    ) => {
+        const contributor = contributors[index];
+        if (contributor.type !== 'person') return;
+        
+        onContributorChange(index, {
+            ...contributor,
+            [field]: value,
+        });
+    };
+
+    // Helper: Handle institution name change
+    const handleInstitutionNameChange = (index: number, value: string) => {
+        const contributor = contributors[index];
+        if (contributor.type !== 'institution') return;
+        
+        onContributorChange(index, {
+            ...contributor,
+            institutionName: value,
+        });
+    };
+
+    // Helper: Handle affiliations change
+    const handleAffiliationsChange = (
+        index: number,
+        value: { raw: string; tags: AffiliationTag[] }
+    ) => {
+        const contributor = contributors[index];
+        
+        onContributorChange(index, {
+            ...contributor,
+            affiliations: value.tags,
+            affiliationsInput: value.raw,
+        });
+    };
+
     // Empty state
     if (contributors.length === 0) {
         return (
@@ -48,30 +142,30 @@ export default function ContributorList({
     // List with contributors
     return (
         <div className="space-y-4">
-            {/* Contributor count */}
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                    {contributors.length} contributor{contributors.length !== 1 ? 's' : ''}
-                </p>
-            </div>
-
-            {/* Contributor items - TODO: Implement drag & drop */}
+            {/* Contributor items */}
             <div className="space-y-4">
                 {contributors.map((contributor, index) => (
-                    <div key={contributor.id} className="p-4 border rounded-lg">
-                        <p className="text-sm">
-                            Contributor {index + 1}: {contributor.type === 'person' ? `${contributor.firstName} ${contributor.lastName}` : contributor.institutionName}
-                        </p>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onRemove(index)}
-                            className="mt-2"
-                        >
-                            Remove
-                        </Button>
-                    </div>
+                    <ContributorItem
+                        key={contributor.id}
+                        contributor={contributor}
+                        index={index}
+                        onTypeChange={(type) => handleTypeChange(index, type)}
+                        onRolesChange={(value) => handleRolesChange(index, value)}
+                        onPersonFieldChange={(field, value) => 
+                            handlePersonFieldChange(index, field, value)
+                        }
+                        onInstitutionNameChange={(value) => 
+                            handleInstitutionNameChange(index, value)
+                        }
+                        onAffiliationsChange={(value) => 
+                            handleAffiliationsChange(index, value)
+                        }
+                        onRemove={() => onRemove(index)}
+                        canRemove={contributors.length > 1}
+                        affiliationSuggestions={affiliationSuggestions}
+                        personRoleOptions={personRoleOptions}
+                        institutionRoleOptions={institutionRoleOptions}
+                    />
                 ))}
             </div>
 
