@@ -210,7 +210,7 @@ const fetchResourceTypes = async (): Promise<ResourceTypeReference[]> => {
 
         return resourceTypesCache;
     } catch (error) {
-        console.error('Failed to fetch resource types for curation.', error);
+        console.error('Failed to fetch resource types for editor.', error);
         return [];
     }
 };

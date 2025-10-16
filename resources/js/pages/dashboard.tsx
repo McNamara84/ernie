@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { latestVersion } from '@/lib/version';
-import { changelog as changelogRoute,curation as curationRoute, dashboard } from '@/routes';
+import { changelog as changelogRoute, editor as editorRoute, dashboard } from '@/routes';
 import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -414,7 +414,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             query.mslLaboratories = JSON.stringify(data.mslLaboratories);
         }
         
-        router.get(curationRoute({ query }).url);
+        router.get(editorRoute({ query }).url);
     } catch (error) {
         console.error('XML upload failed', error);
         if (error instanceof Error) {

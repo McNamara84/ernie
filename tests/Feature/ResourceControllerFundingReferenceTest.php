@@ -111,7 +111,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->postJson(route('curation.resources.store'), $payload);
+            ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(201);
 
@@ -180,7 +180,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->postJson(route('curation.resources.store'), $payload);
+            ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(200);
 
@@ -226,7 +226,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->postJson(route('curation.resources.store'), $payload);
+            ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(201);
 
@@ -275,7 +275,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->postJson(route('curation.resources.store'), $payload);
+            ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(422);
     }
@@ -314,7 +314,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson(route('curation.resources.store'), $payload);
+            ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(422);  // Unprocessable Entity
         $response->assertJsonValidationErrors(['fundingReferences.0.funderIdentifierType']);
@@ -354,7 +354,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson(route('curation.resources.store'), $payload);
+            ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['fundingReferences.0.awardUri']);
@@ -374,7 +374,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
         ]);
 
         $response = $this->actingAs($this->user)
-            ->postJson(route('curation.resources.store'), $payload);
+            ->postJson(route('editor.resources.store'), $payload);
 
         $response->assertStatus(201);
 

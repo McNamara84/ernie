@@ -1,4 +1,4 @@
-﻿import '@testing-library/jest-dom/vitest';
+import '@testing-library/jest-dom/vitest';
 
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -1999,7 +1999,7 @@ describe('DataCiteForm', () => {
         const saveCalls = fetchMock.mock.calls
             .map((call, index) => ({ call, index }))
             .filter(
-                ({ call }) => call[0] === '/curation/resources' && call[1]?.method === 'POST'
+                ({ call }) => call[0] === '/editor/resources' && call[1]?.method === 'POST'
             );
         
         // Validate: exactly zero or one save call expected in most tests
@@ -2054,7 +2054,7 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.objectContaining({
+        expect(global.fetch).toHaveBeenCalledWith('/editor/resources', expect.objectContaining({
             method: 'POST',
             credentials: 'same-origin',
         }));
@@ -2386,7 +2386,7 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledWith('/curation/resources', expect.any(Object));
+        expect(global.fetch).toHaveBeenCalledWith('/editor/resources', expect.any(Object));
         
         // Get the save operation fetch call
         const saveCall = getSaveFetchCall();

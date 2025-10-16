@@ -134,7 +134,7 @@ describe('buildCurationQueryFromResource', () => {
             year: '2022',
             language: 'de',
         });
-        expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch resource types for curation.', error);
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch resource types for editor.', error);
     });
 
     it('includes authors and affiliations when provided', async () => {

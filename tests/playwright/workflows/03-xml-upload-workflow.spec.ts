@@ -25,7 +25,7 @@ test.describe('XML Upload', () => {
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
   });
 
-  test('uploads XML file and redirects to curation with populated form', async ({ page }) => {
+  test('uploads XML file and redirects to editor with populated form', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
 
@@ -33,8 +33,8 @@ test.describe('XML Upload', () => {
     const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
 
-    // Wait for redirect to curation page
-    await page.waitForURL(/\/curation/, { timeout: 10000 });
+    // Wait for redirect to editor page
+    await page.waitForURL(/\/editor/, { timeout: 10000 });
 
     const currentUrl = page.url();
     expect(currentUrl).toMatch(/doi=/);

@@ -1288,7 +1288,7 @@ export default function DataCiteForm({
         }
     }, [errorMessage]);
 
-    const saveUrl = useMemo(() => withBasePath('/curation/resources'), []);
+    const saveUrl = useMemo(() => withBasePath('/editor/resources'), []);
 
     const resolvedResourceId = useMemo(() => {
         if (!initialResourceId) {

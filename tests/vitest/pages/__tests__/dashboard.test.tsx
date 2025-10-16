@@ -54,8 +54,8 @@ vi.mock('@/routes', async () => {
 
     return {
         dashboard: () => makeRoute('/dashboard'),
-        curation: (params?: { query?: Record<string, string | number> }) => 
-            makeRoute('/curation', params?.query),
+        editor: (params?: { query?: Record<string, string | number> }) => 
+            makeRoute('/editor', params?.query),
         changelog: () => makeRoute('/changelog'),
         about: () => makeRoute('/about'),
         legalNotice: () => makeRoute('/legal-notice'),
@@ -230,7 +230,7 @@ describe('handleXmlFiles', () => {
         const [redirectUrl] = routerMock.get.mock.calls[0];
         expect(typeof redirectUrl).toBe('string');
         const [path, search = ''] = (redirectUrl as string).split('?');
-        expect(path).toBe('/curation');
+        expect(path).toBe('/editor');
         const params = new URLSearchParams(search);
         expect(params.get('doi')).toBe('10.1234/abc');
         expect(params.get('year')).toBe('2024');
@@ -301,7 +301,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation?titles%5B0%5D%5Btitle%5D=A+mandatory+Event&titles%5B0%5D%5BtitleType%5D=main-title');
+        expect(routerMock.get).toHaveBeenCalledWith('/editor?titles%5B0%5D%5Btitle%5D=A+mandatory+Event&titles%5B0%5D%5BtitleType%5D=main-title');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -317,7 +317,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation');
+        expect(routerMock.get).toHaveBeenCalledWith('/editor');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -333,7 +333,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation?year=2023&language=en');
+        expect(routerMock.get).toHaveBeenCalledWith('/editor?year=2023&language=en');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -349,7 +349,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation?version=2.0&language=en');
+        expect(routerMock.get).toHaveBeenCalledWith('/editor?version=2.0&language=en');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -365,7 +365,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation?language=de');
+        expect(routerMock.get).toHaveBeenCalledWith('/editor?language=de');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -381,7 +381,7 @@ describe('handleXmlFiles', () => {
         await handleXmlFiles([file]);
 
         expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/curation?resourceType=1');
+        expect(routerMock.get).toHaveBeenCalledWith('/editor?resourceType=1');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -549,7 +549,7 @@ describe('handleXmlFiles', () => {
         expect(fetchMock).toHaveBeenCalled();
         const [url] = fetchMock.mock.calls[0];
         expect(normalizeTestUrl(url as string)).toBe('/ernie/dashboard/upload-xml');
-        expect(routerMock.get).toHaveBeenCalledWith('/ernie/curation');
+        expect(routerMock.get).toHaveBeenCalledWith('/ernie/editor');
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });

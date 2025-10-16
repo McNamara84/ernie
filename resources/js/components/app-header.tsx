@@ -26,8 +26,8 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Curation',
-        href: withBasePath('/curation'),
+        title: 'Editor',
+        href: withBasePath('/editor'),
         icon: Database,
     },
 ];
