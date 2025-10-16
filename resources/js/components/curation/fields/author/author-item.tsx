@@ -7,8 +7,8 @@
  */
 
 import type { TagData, TagifySettings } from '@yaireo/tagify';
-import { Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { CheckCircle2, Loader2, Trash2, ExternalLink } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,11 +16,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
+import { OrcidService } from '@/services/orcid';
 
 import InputField from '../input-field';
 import { SelectField } from '../select-field';
 import TagInputField, { type TagInputItem } from '../tag-input-field';
-import type { AuthorEntry, AuthorType } from './types';
+import type { AuthorEntry, AuthorType, PersonAuthorEntry } from './types';
 
 interface AuthorItemProps {
     author: AuthorEntry;
@@ -33,6 +34,7 @@ interface AuthorItemProps {
     onInstitutionNameChange: (value: string) => void;
     onContactChange: (checked: boolean) => void;
     onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
+    onAuthorChange: (author: AuthorEntry) => void; // For bulk updates (e.g., ORCID verification)
     onRemove: () => void;
     canRemove: boolean;
     affiliationSuggestions: AffiliationSuggestion[];
@@ -49,12 +51,17 @@ export default function AuthorItem({
     onInstitutionNameChange,
     onContactChange,
     onAffiliationsChange,
+    onAuthorChange,
     onRemove,
     canRemove,
     affiliationSuggestions,
 }: AuthorItemProps) {
     const isPerson = author.type === 'person';
     const contactLabelTextId = `${author.id}-contact-label-text`;
+    
+    // ORCID Auto-Fill State
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [verificationError, setVerificationError] = useState<string | null>(null);
     
     // Extract affiliations with ROR IDs
     const affiliationsWithRorId = useMemo(() => {
@@ -96,13 +103,84 @@ export default function AuthorItem({
         };
     }, [affiliationSuggestions]);
 
+    /**
+     * Handle ORCID verification and auto-fill
+     */
+    const handleVerifyAndFill = async () => {
+        if (author.type !== 'person' || !author.orcid) {
+            return;
+        }
+
+        setIsVerifying(true);
+        setVerificationError(null);
+
+        try {
+            const result = await OrcidService.fetchOrcidRecord(author.orcid);
+
+            if (!result.success || !result.data) {
+                setVerificationError(result.error || 'Failed to fetch ORCID data');
+                setIsVerifying(false);
+                return;
+            }
+
+            const data = result.data;
+
+            // Prepare updated author with auto-filled data
+            const updatedAuthor: PersonAuthorEntry = {
+                ...author,
+                firstName: data.firstName && !author.firstName ? data.firstName : author.firstName,
+                lastName: data.lastName && !author.lastName ? data.lastName : author.lastName,
+                email: data.emails.length > 0 && !author.email ? data.emails[0] : author.email,
+                orcidVerified: true,
+                orcidVerifiedAt: new Date().toISOString(),
+            };
+
+            // Auto-fill affiliations (only employment, not education)
+            if (data.affiliations.length > 0) {
+                const employmentAffiliations = data.affiliations
+                    .filter(aff => aff.type === 'employment' && aff.name)
+                    .map(aff => ({
+                        value: aff.name!,
+                        rorId: null,
+                    }));
+
+                if (employmentAffiliations.length > 0) {
+                    // Merge with existing affiliations
+                    const existingValues = new Set(author.affiliations.map(a => a.value));
+                    const newAffiliations = employmentAffiliations.filter(
+                        a => !existingValues.has(a.value)
+                    );
+
+                    if (newAffiliations.length > 0) {
+                        updatedAuthor.affiliations = [
+                            ...author.affiliations,
+                            ...newAffiliations as AffiliationTag[],
+                        ];
+                        updatedAuthor.affiliationsInput = updatedAuthor.affiliations
+                            .map((a: AffiliationTag) => a.value)
+                            .join(', ');
+                    }
+                }
+            }
+
+            // Apply all changes at once
+            onAuthorChange(updatedAuthor);
+
+            setIsVerifying(false);
+        } catch (error) {
+            console.error('ORCID verification error:', error);
+            setVerificationError('An unexpected error occurred');
+            setIsVerifying(false);
+        }
+    };
+
     return (
         <section
             className="rounded-lg border border-border bg-card p-6 shadow-sm transition hover:shadow-md"
             aria-labelledby={`${author.id}-heading`}
         >
             {/* Header with Remove Button */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">`
                 <div>
                     <h3
                         id={`${author.id}-heading`}
@@ -151,22 +229,72 @@ export default function AuthorItem({
 
                     {isPerson ? (
                         <>
-                            <InputField
-                                id={`${author.id}-orcid`}
-                                label="ORCID"
-                                value={author.orcid}
-                                onChange={(event) =>
-                                    onPersonFieldChange('orcid', event.target.value)
-                                }
-                                placeholder="0000-0000-0000-0000"
-                                containerProps={{
-                                    'data-testid': `author-${index}-orcid-field`,
-                                    className: 'md:col-span-3',
-                                }}
-                                inputClassName="w-full"
-                                inputMode="text"
-                                pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
-                            />
+                            {/* ORCID with Verify & Fill Button */}
+                            <div className="md:col-span-3" data-testid={`author-${index}-orcid-field`}>
+                                <Label htmlFor={`${author.id}-orcid`}>
+                                    ORCID
+                                    {author.type === 'person' && author.orcidVerified && (
+                                        <Badge 
+                                            variant="outline" 
+                                            className="ml-2 text-green-600 border-green-600"
+                                        >
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Verified
+                                        </Badge>
+                                    )}
+                                </Label>
+                                <div className="flex gap-2 mt-1.5">
+                                    <input
+                                        id={`${author.id}-orcid`}
+                                        type="text"
+                                        value={author.orcid}
+                                        onChange={(event) =>
+                                            onPersonFieldChange('orcid', event.target.value)
+                                        }
+                                        placeholder="0000-0000-0000-0000"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        inputMode="text"
+                                        pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
+                                    />
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={handleVerifyAndFill}
+                                                disabled={!author.orcid || !OrcidService.isValidFormat(author.orcid) || isVerifying}
+                                                aria-label="Verify ORCID and auto-fill fields"
+                                            >
+                                                {isVerifying ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <ExternalLink className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Verify ORCID & auto-fill</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                                {verificationError && (
+                                    <p className="text-sm text-red-600 mt-1.5">
+                                        {verificationError}
+                                    </p>
+                                )}
+                                {author.orcid && OrcidService.isValidFormat(author.orcid) && (
+                                    <a
+                                        href={OrcidService.formatOrcidUrl(author.orcid)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1 mt-1.5"
+                                    >
+                                        View on ORCID.org
+                                        <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                )}
+                            </div>
                             <InputField
                                 id={`${author.id}-firstName`}
                                 label="First name"

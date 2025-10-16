@@ -154,6 +154,7 @@ export default function AuthorList({
                         onAffiliationsChange={(value) => 
                             handleAffiliationsChange(index, value)
                         }
+                        onAuthorChange={(updatedAuthor) => onAuthorChange(index, updatedAuthor)}
                         onRemove={() => onRemove(index)}
                         canRemove={authors.length > 1}
                         affiliationSuggestions={affiliationSuggestions}
