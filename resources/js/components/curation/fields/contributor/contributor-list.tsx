@@ -193,17 +193,26 @@ export default function ContributorList({
     // Empty state
     if (contributors.length === 0) {
         return (
-            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg" role="status">
                 <p className="mb-4">No contributors yet.</p>
                 <div className="flex justify-center gap-2">
-                    <Button type="button" variant="outline" onClick={onAdd}>
-                        <Plus className="h-4 w-4 mr-2" />
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={onAdd}
+                        aria-label="Add first contributor"
+                    >
+                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                         Add First Contributor
                     </Button>
                     <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button type="button" variant="outline">
-                                <Upload className="h-4 w-4 mr-2" />
+                            <Button 
+                                type="button" 
+                                variant="outline"
+                                aria-label="Import contributors from CSV file"
+                            >
+                                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
                                 Import CSV
                             </Button>
                         </DialogTrigger>
@@ -229,47 +238,53 @@ export default function ContributorList({
     return (
         <div className="space-y-4">
             {/* Contributor items */}
-            <div className="space-y-4">
+            <div className="space-y-4" role="list" aria-label="Contributors">
                 {contributors.map((contributor, index) => (
-                    <ContributorItem
-                        key={contributor.id}
-                        contributor={contributor}
-                        index={index}
-                        onTypeChange={(type) => handleTypeChange(index, type)}
-                        onRolesChange={(value) => handleRolesChange(index, value)}
-                        onPersonFieldChange={(field, value) => 
-                            handlePersonFieldChange(index, field, value)
-                        }
-                        onInstitutionNameChange={(value) => 
-                            handleInstitutionNameChange(index, value)
-                        }
-                        onAffiliationsChange={(value) => 
-                            handleAffiliationsChange(index, value)
-                        }
-                        onContributorChange={(updatedContributor) => onContributorChange(index, updatedContributor)}
-                        onRemove={() => onRemove(index)}
-                        canRemove={contributors.length > 1}
-                        affiliationSuggestions={affiliationSuggestions}
-                        personRoleOptions={personRoleOptions}
-                        institutionRoleOptions={institutionRoleOptions}
-                    />
+                    <div key={contributor.id} role="listitem">
+                        <ContributorItem
+                            contributor={contributor}
+                            index={index}
+                            onTypeChange={(type) => handleTypeChange(index, type)}
+                            onRolesChange={(value) => handleRolesChange(index, value)}
+                            onPersonFieldChange={(field, value) => 
+                                handlePersonFieldChange(index, field, value)
+                            }
+                            onInstitutionNameChange={(value) => 
+                                handleInstitutionNameChange(index, value)
+                            }
+                            onAffiliationsChange={(value) => 
+                                handleAffiliationsChange(index, value)
+                            }
+                            onContributorChange={(updatedContributor) => onContributorChange(index, updatedContributor)}
+                            onRemove={() => onRemove(index)}
+                            canRemove={contributors.length > 1}
+                            affiliationSuggestions={affiliationSuggestions}
+                            personRoleOptions={personRoleOptions}
+                            institutionRoleOptions={institutionRoleOptions}
+                        />
+                    </div>
                 ))}
             </div>
 
             {/* Add button */}
             <div className="flex justify-center gap-2">
-                <Button
-                    type="button"
-                    variant="outline"
+                <Button 
+                    type="button" 
+                    variant="outline" 
                     onClick={onAdd}
+                    aria-label="Add another contributor"
                 >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                     Add Contributor
                 </Button>
                 <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button type="button" variant="outline">
-                            <Upload className="h-4 w-4 mr-2" />
+                        <Button 
+                            type="button" 
+                            variant="outline"
+                            aria-label="Import contributors from CSV file"
+                        >
+                            <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
                             Import CSV
                         </Button>
                     </DialogTrigger>

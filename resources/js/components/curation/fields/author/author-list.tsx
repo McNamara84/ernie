@@ -180,17 +180,26 @@ export default function AuthorList({
     // Empty state
     if (authors.length === 0) {
         return (
-            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg" role="status">
                 <p className="mb-4">No authors yet.</p>
                 <div className="flex justify-center gap-2">
-                    <Button type="button" variant="outline" onClick={onAdd}>
-                        <Plus className="h-4 w-4 mr-2" />
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={onAdd}
+                        aria-label="Add first author"
+                    >
+                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                         Add First Author
                     </Button>
                     <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button type="button" variant="outline">
-                                <Upload className="h-4 w-4 mr-2" />
+                            <Button 
+                                type="button" 
+                                variant="outline"
+                                aria-label="Import authors from CSV file"
+                            >
+                                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
                                 Import CSV
                             </Button>
                         </DialogTrigger>
@@ -216,43 +225,53 @@ export default function AuthorList({
     return (
         <div className="space-y-4">
             {/* Author items */}
-            <div className="space-y-4">
+            <div className="space-y-4" role="list" aria-label="Authors">
                 {authors.map((author, index) => (
-                    <AuthorItem
-                        key={author.id}
-                        author={author}
-                        index={index}
-                        onTypeChange={(type) => handleTypeChange(index, type)}
-                        onPersonFieldChange={(field, value) => 
-                            handlePersonFieldChange(index, field, value)
-                        }
-                        onInstitutionNameChange={(value) => 
-                            handleInstitutionNameChange(index, value)
-                        }
-                        onContactChange={(checked) => 
-                            handleContactChange(index, checked)
-                        }
-                        onAffiliationsChange={(value) => 
-                            handleAffiliationsChange(index, value)
-                        }
-                        onAuthorChange={(updatedAuthor) => onAuthorChange(index, updatedAuthor)}
-                        onRemove={() => onRemove(index)}
-                        canRemove={authors.length > 1}
-                        affiliationSuggestions={affiliationSuggestions}
-                    />
+                    <div key={author.id} role="listitem">
+                        <AuthorItem
+                            author={author}
+                            index={index}
+                            onTypeChange={(type) => handleTypeChange(index, type)}
+                            onPersonFieldChange={(field, value) => 
+                                handlePersonFieldChange(index, field, value)
+                            }
+                            onInstitutionNameChange={(value) => 
+                                handleInstitutionNameChange(index, value)
+                            }
+                            onContactChange={(checked) => 
+                                handleContactChange(index, checked)
+                            }
+                            onAffiliationsChange={(value) => 
+                                handleAffiliationsChange(index, value)
+                            }
+                            onAuthorChange={(updatedAuthor) => onAuthorChange(index, updatedAuthor)}
+                            onRemove={() => onRemove(index)}
+                            canRemove={authors.length > 1}
+                            affiliationSuggestions={affiliationSuggestions}
+                        />
+                    </div>
                 ))}
             </div>
 
             {/* Add button */}
             <div className="flex justify-center gap-2">
-                <Button type="button" variant="outline" onClick={onAdd}>
-                    <Plus className="h-4 w-4 mr-2" />
+                <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={onAdd}
+                    aria-label="Add another author"
+                >
+                    <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                     Add Author
                 </Button>
                 <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button type="button" variant="outline">
-                            <Upload className="h-4 w-4 mr-2" />
+                        <Button 
+                            type="button" 
+                            variant="outline"
+                            aria-label="Import authors from CSV file"
+                        >
+                            <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
                             Import CSV
                         </Button>
                     </DialogTrigger>
