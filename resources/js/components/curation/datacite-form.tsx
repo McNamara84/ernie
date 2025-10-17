@@ -1046,6 +1046,22 @@ export default function DataCiteForm({
             setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
         }
     }, [shouldShowMSLSection, openAccordionItems]);
+
+    // MSL validation info - show recommendation when section is visible but no laboratories selected
+    const mslValidationInfo = useMemo(() => {
+        if (!shouldShowMSLSection) {
+            return null; // Section not visible, no validation needed
+        }
+
+        if (mslLaboratories.length === 0) {
+            return {
+                severity: 'info' as const,
+                message: 'This dataset is tagged with EPOS/MSL keywords. Consider adding originating multi-scale laboratories to improve discoverability.',
+            };
+        }
+
+        return null; // Laboratories are selected, all good
+    }, [shouldShowMSLSection, mslLaboratories.length]);
     
     const contributorPersonRoleNames = useMemo(
         () => contributorPersonRoles.map((role) => role.name),
@@ -1961,6 +1977,34 @@ export default function DataCiteForm({
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
+                            {mslValidationInfo && (
+                                <div
+                                    className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <div className="flex items-start gap-2">
+                                        <svg
+                                            className="mt-0.5 h-4 w-4 flex-shrink-0"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            aria-hidden="true"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                        </svg>
+                                        <div>
+                                            <strong className="font-semibold">Recommendation:</strong>
+                                            <p className="mt-1">{mslValidationInfo.message}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <MSLLaboratoriesField
                                 selectedLaboratories={mslLaboratories}
                                 onChange={setMslLaboratories}
