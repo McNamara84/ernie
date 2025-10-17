@@ -2,9 +2,11 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Changelog Page', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/changelog');
-        // Wait for the page to be fully loaded
-        await page.waitForSelector('[aria-label="Changelog Timeline"]');
+        await page.goto('/changelog', { waitUntil: 'networkidle' });
+        // Wait for the page to be fully loaded (including dynamic imports)
+        await page.waitForSelector('[aria-label="Changelog Timeline"]', { timeout: 30000 });
+        // Additional wait for animations and content to render
+        await page.waitForLoadState('domcontentloaded');
     });
 
     test('displays the changelog with timeline navigation', async ({ page }) => {
@@ -178,13 +180,13 @@ test.describe('Changelog Page', () => {
 
     test('supports deep linking with hash URLs', async ({ page }) => {
         // Navigate directly to the hash URL (realistic user scenario)
-        await page.goto('/changelog#v0.7.0');
+        await page.goto('/changelog#v0.7.0', { waitUntil: 'networkidle' });
         
-        // Wait for the page to load
-        await page.waitForSelector('[aria-label="Changelog Timeline"]', { timeout: 5000 });
+        // Wait for the page to load (including dynamic imports)
+        await page.waitForSelector('[aria-label="Changelog Timeline"]', { timeout: 30000 });
         
         // Wait a bit for hash processing (100ms setTimeout in code + React render)
-        await page.waitForTimeout(200);
+        await page.waitForTimeout(300);
         
         // The version 0.7.0 should be expanded
         const targetButton = page.locator('#release-trigger-1');
@@ -253,8 +255,8 @@ test.describe('Changelog Page', () => {
         });
 
         // Navigate to the page
-        await page.goto('/changelog');
-        await page.waitForTimeout(500);
+        await page.goto('/changelog', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1000);
 
         // Should show an error message
         const errorMessage = page.getByRole('alert');

@@ -8,7 +8,7 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 test.describe('Old Datasets', () => {
   test('old datasets page requires authentication', async ({ page }) => {
     // Try to access without login
-    await page.goto('/old-datasets');
+    await page.goto('/old-datasets', { waitUntil: 'networkidle' });
     
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);
@@ -23,7 +23,7 @@ test.describe('Old Datasets', () => {
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     
     // Navigate to old datasets
-    await page.goto('/old-datasets');
+    await page.goto('/old-datasets', { waitUntil: 'networkidle' });
     
     // Should be accessible
     await expect(page).toHaveURL(/\/old-datasets/);

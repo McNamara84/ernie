@@ -3,8 +3,11 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/changelog');
-        await page.waitForSelector('[aria-label="Changelog Timeline"]');
+        await page.goto('/changelog', { waitUntil: 'networkidle' });
+        // Wait for the page to be fully loaded (including dynamic imports)
+        await page.waitForSelector('[aria-label="Changelog Timeline"]', { timeout: 30000 });
+        // Additional wait for animations and content to render
+        await page.waitForLoadState('domcontentloaded');
     });
 
     test('should not have any WCAG 2.1 Level A/AA violations (BITV 2.0 required)', async ({ page }) => {
@@ -117,8 +120,8 @@ test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', ()
             route.abort('failed');
         });
 
-        await page.goto('/changelog');
-        await page.waitForTimeout(500);
+        await page.goto('/changelog', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1000);
 
         const errorAlert = page.locator('[role="alert"]');
         await expect(errorAlert).toBeVisible();

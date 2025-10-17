@@ -9,7 +9,7 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 test.describe('Editor Form', () => {
   test('editor page requires authentication', async ({ page }) => {
     // Try to access editor without login
-    await page.goto('/editor');
+    await page.goto('/editor', { waitUntil: 'networkidle' });
     
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);
@@ -24,7 +24,7 @@ test.describe('Editor Form', () => {
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     
     // Navigate to editor
-    await page.goto('/editor');
+    await page.goto('/editor', { waitUntil: 'networkidle' });
     
     // Should be accessible (even if empty without XML upload)
     await expect(page).toHaveURL(/\/editor/);
