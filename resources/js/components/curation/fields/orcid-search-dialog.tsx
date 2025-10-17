@@ -5,7 +5,7 @@
  * Allows users to find and select ORCID records without pre-filling name fields.
  */
 
-import { ExternalLink,Loader2, Search } from 'lucide-react';
+import { ExternalLink, Loader2, Search } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { type OrcidSearchResult,OrcidService } from '@/services/orcid';
+import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
 
 interface OrcidSearchDialogProps {
     onSelect: (result: OrcidSearchResult) => void;
@@ -85,7 +85,7 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle>Search ORCID</DialogTitle>
+                    <DialogTitle>Search for ORCID</DialogTitle>
                     <DialogDescription>
                         Search for ORCID records by name, institution, or keywords
                     </DialogDescription>
@@ -157,10 +157,10 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                             <table className="w-full">
                                 <thead className="bg-muted/50 sticky top-0 z-10">
                                     <tr className="border-b">
-                                        <th className="text-left p-3 text-sm font-semibold">Nachname</th>
-                                        <th className="text-left p-3 text-sm font-semibold">Vorname</th>
+                                        <th className="text-left p-3 text-sm font-semibold">Last Name</th>
+                                        <th className="text-left p-3 text-sm font-semibold">First Name</th>
                                         <th className="text-left p-3 text-sm font-semibold">ORCID</th>
-                                        <th className="text-left p-3 text-sm font-semibold">Aktuelle Affiliations</th>
+                                        <th className="text-left p-3 text-sm font-semibold">Current Affiliations</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y">
@@ -212,7 +212,7 @@ export function OrcidSearchDialog({ onSelect, triggerClassName }: OrcidSearchDia
                                                     </ul>
                                                 ) : (
                                                     <span className="text-muted-foreground italic">
-                                                        Keine Affiliations
+                                                        No affiliations
                                                     </span>
                                                 )}
                                             </td>

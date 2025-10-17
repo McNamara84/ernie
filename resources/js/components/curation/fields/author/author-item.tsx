@@ -9,15 +9,15 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
-import { CheckCircle2, ExternalLink, GripVertical,Loader2, Trash2 } from 'lucide-react';
-import { useEffect,useMemo, useState } from 'react';
+import { CheckCircle2, ExternalLink, GripVertical, Loader2, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { type OrcidSearchResult,OrcidService } from '@/services/orcid';
+import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import InputField from '../input-field';

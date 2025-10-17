@@ -4,7 +4,7 @@
 
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach,describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorItem from '@/components/curation/fields/author/author-item';
 import type { AuthorEntry } from '@/components/curation/fields/author/types';

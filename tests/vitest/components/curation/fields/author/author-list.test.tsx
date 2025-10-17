@@ -4,7 +4,7 @@
 
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach,describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorList from '@/components/curation/fields/author/author-list';
 import type { AuthorEntry } from '@/components/curation/fields/author/types';

@@ -9,7 +9,7 @@
  * - ORCID Search Dialog
  */
 
-import { expect,test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test.describe('Authors Form', () => {
     test.beforeEach(async ({ page }) => {
@@ -223,7 +223,7 @@ test.describe('ORCID Search Dialog', () => {
         await page.click('button[aria-label="Search for ORCID"]');
         
         // Verify dialog opens
-        await expect(page.locator('text=Search ORCID Registry')).toBeVisible();
+        await expect(page.locator('text=Search for ORCID')).toBeVisible();
     });
 
     test('should perform ORCID search', async ({ page }) => {
@@ -242,13 +242,13 @@ test.describe('ORCID Search Dialog', () => {
 
     test('should close ORCID search dialog', async ({ page }) => {
         await page.click('button[aria-label="Search for ORCID"]');
-        await expect(page.locator('text=Search ORCID Registry')).toBeVisible();
+        await expect(page.locator('text=Search for ORCID')).toBeVisible();
         
         // Close dialog
         await page.keyboard.press('Escape');
         
         // Verify dialog closed
-        await expect(page.locator('text=Search ORCID Registry')).not.toBeVisible();
+        await expect(page.locator('text=Search for ORCID')).not.toBeVisible();
     });
 });
 
