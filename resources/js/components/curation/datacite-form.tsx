@@ -21,10 +21,11 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import {
-    checkDOIRegistration,
     validateDOIFormat,
     validateRequired,
     validateSemanticVersion,
+    validateTextLength,
+    validateTitleUniqueness,
     validateYear,
 } from '@/utils/validation-rules';
 import { withBasePath } from '@/lib/base-path';
@@ -761,7 +762,7 @@ export default function DataCiteForm({
     ]);
 
     // Form validation hook
-    const { validateField, markFieldTouched, getFieldState, hasFieldError } = useFormValidation();
+    const { validateField, markFieldTouched, getFieldState } = useFormValidation();
 
     // DOI validation rules
     const doiValidationRules: ValidationRule[] = [
@@ -833,6 +834,68 @@ export default function DataCiteForm({
                     return null; // Version is optional
                 }
                 const result = validateSemanticVersion(String(value));
+                if (!result.isValid) {
+                    return { severity: 'error', message: result.error! };
+                }
+                return null;
+            },
+        },
+    ];
+
+    // Title validation rules
+    const createTitleValidationRules = (
+        index: number,
+        titleType: string,
+        allTitles: TitleEntry[],
+    ): ValidationRule[] => [
+        {
+            validate: (value) => {
+                const titleValue = String(value || '');
+
+                // Main title is required
+                if (titleType === 'main-title') {
+                    const requiredResult = validateRequired(titleValue, 'Main title');
+                    if (!requiredResult.isValid) {
+                        return { severity: 'error', message: requiredResult.error! };
+                    }
+                }
+
+                // If title is provided (for any type), validate length
+                if (titleValue.trim() !== '') {
+                    const lengthResult = validateTextLength(titleValue, {
+                        min: 1,
+                        max: 325,
+                        fieldName: 'Title',
+                    });
+                    if (!lengthResult.isValid) {
+                        return {
+                            severity: lengthResult.warning ? 'warning' : 'error',
+                            message: lengthResult.error || lengthResult.warning!,
+                        };
+                    }
+                }
+
+                // Check uniqueness across all titles
+                const uniquenessResult = validateTitleUniqueness(
+                    allTitles.map((t) => ({ title: t.title, type: t.titleType })),
+                );
+                if (!uniquenessResult.isValid && uniquenessResult.errors[index]) {
+                    return {
+                        severity: 'error',
+                        message: uniquenessResult.errors[index],
+                    };
+                }
+
+                return null;
+            },
+        },
+    ];
+
+    // License validation rules (primary license is required)
+    const primaryLicenseValidationRules: ValidationRule[] = [
+        {
+            validate: (value) => {
+                const result = validateRequired(String(value || ''), 'Primary license');
                 if (!result.isValid) {
                     return { severity: 'error', message: result.error! };
                 }
@@ -1086,6 +1149,41 @@ export default function DataCiteForm({
         setTitles((prev) => {
             const next = [...prev];
             next[index] = { ...next[index], [field]: value };
+
+            // Validate title text when it changes
+            if (field === 'title') {
+                const titleType = next[index].titleType;
+                validateField({
+                    fieldId: `title-${index}`,
+                    value,
+                    rules: createTitleValidationRules(index, titleType, next),
+                    formData: form,
+                });
+
+                // Revalidate all other titles for uniqueness
+                next.forEach((t, idx) => {
+                    if (idx !== index && t.title.trim() !== '') {
+                        validateField({
+                            fieldId: `title-${idx}`,
+                            value: t.title,
+                            rules: createTitleValidationRules(idx, t.titleType, next),
+                            formData: form,
+                        });
+                    }
+                });
+            }
+
+            // When title type changes, revalidate the title text
+            if (field === 'titleType') {
+                const titleText = next[index].title;
+                validateField({
+                    fieldId: `title-${index}`,
+                    value: titleText,
+                    rules: createTitleValidationRules(index, value, next),
+                    formData: form,
+                });
+            }
+
             return next;
         });
     };
@@ -1109,6 +1207,17 @@ export default function DataCiteForm({
         setLicenseEntries((prev) => {
             const next = [...prev];
             next[index] = { ...next[index], license: value };
+
+            // Validate primary license (index 0)
+            if (index === 0) {
+                validateField({
+                    fieldId: 'license-0',
+                    value,
+                    rules: primaryLicenseValidationRules,
+                    formData: form,
+                });
+            }
+
             return next;
         });
     };
@@ -1572,6 +1681,9 @@ export default function DataCiteForm({
                                     onRemove={() => removeTitle(index)}
                                     isFirst={index === 0}
                                     canAdd={canAddTitle(titles, MAX_TITLES)}
+                                    validationMessages={getFieldState(`title-${index}`).messages}
+                                    touched={getFieldState(`title-${index}`).touched}
+                                    onValidationBlur={() => markFieldTouched(`title-${index}`)}
                                 />
                             ))}
                         </div>
@@ -1601,6 +1713,9 @@ export default function DataCiteForm({
                                         MAX_LICENSES,
                                     )}
                                     required={index === 0}
+                                    validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
+                                    touched={index === 0 ? getFieldState('license-0').touched : undefined}
+                                    onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
                                 />
                             ))}
                         </div>

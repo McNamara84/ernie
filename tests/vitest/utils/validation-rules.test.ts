@@ -395,7 +395,8 @@ describe('Validation Rules Utilities', () => {
         });
 
         it('should provide warning when approaching maximum', () => {
-            const result = validateTextLength('123456789', { max: 10 });
+            // 10 chars with max of 11: 10/11 = 90.9%, which is > 90% threshold (11 * 0.9 = 9.9)
+            const result = validateTextLength('a'.repeat(10), { max: 11 });
             expect(result.isValid).toBe(true);
             expect(result.warning).toBeDefined();
             expect(result.warning).toContain('approaching maximum length');
@@ -472,51 +473,55 @@ describe('Validation Rules Utilities', () => {
     });
 
     describe('validateTitleUniqueness', () => {
-        it('should validate unique main titles', () => {
+        it('should validate unique titles', () => {
             const titles = [
-                { title: 'First Title', type: 'main' },
-                { title: 'Second Title', type: 'main' },
+                { title: 'First Title', type: 'main-title' },
+                { title: 'Second Title', type: 'alternative' },
             ];
             const result = validateTitleUniqueness(titles);
             expect(result.isValid).toBe(true);
             expect(Object.keys(result.errors)).toHaveLength(0);
         });
 
-        it('should detect duplicate main titles', () => {
+        it('should detect duplicate titles', () => {
             const titles = [
-                { title: 'Same Title', type: 'main' },
-                { title: 'Same Title', type: 'main' },
+                { title: 'Same Title', type: 'main-title' },
+                { title: 'Same Title', type: 'alternative' },
             ];
             const result = validateTitleUniqueness(titles);
             expect(result.isValid).toBe(false);
-            expect(result.errors[1]).toBe('Main title must be unique');
+            expect(result.errors[1]).toBe('This title already exists');
         });
 
-        it('should be case-insensitive', () => {
+        it('should be case-sensitive', () => {
             const titles = [
-                { title: 'My Title', type: 'main' },
-                { title: 'my title', type: 'main' },
-            ];
-            const result = validateTitleUniqueness(titles);
-            expect(result.isValid).toBe(false);
-        });
-
-        it('should ignore non-main titles', () => {
-            const titles = [
-                { title: 'Main Title', type: 'main' },
-                { title: 'Main Title', type: 'alternative' },
+                { title: 'My Title', type: 'main-title' },
+                { title: 'my title', type: 'alternative' },
             ];
             const result = validateTitleUniqueness(titles);
             expect(result.isValid).toBe(true);
         });
 
-        it('should trim whitespace before comparison', () => {
+        it('should validate across all title types', () => {
             const titles = [
-                { title: '  Title  ', type: 'main' },
-                { title: 'Title', type: 'main' },
+                { title: 'Same Title', type: 'main-title' },
+                { title: 'Same Title', type: 'alternative' },
+                { title: 'Same Title', type: 'translated' },
             ];
             const result = validateTitleUniqueness(titles);
             expect(result.isValid).toBe(false);
+            expect(result.errors[1]).toBe('This title already exists');
+            expect(result.errors[2]).toBe('This title already exists');
+        });
+
+        it('should trim whitespace before comparison', () => {
+            const titles = [
+                { title: '  Title  ', type: 'main-title' },
+                { title: 'Title', type: 'alternative' },
+            ];
+            const result = validateTitleUniqueness(titles);
+            expect(result.isValid).toBe(false);
+            expect(result.errors[1]).toBe('This title already exists');
         });
 
         it('should handle empty titles array', () => {
@@ -524,16 +529,41 @@ describe('Validation Rules Utilities', () => {
             expect(result.isValid).toBe(true);
         });
 
-        it('should detect multiple duplicates', () => {
+        it('should skip empty titles in validation', () => {
             const titles = [
-                { title: 'Title A', type: 'main' },
-                { title: 'Title A', type: 'main' },
-                { title: 'Title B', type: 'main' },
-                { title: 'Title B', type: 'main' },
+                { title: '', type: 'main-title' },
+                { title: 'Valid Title', type: 'alternative' },
+                { title: '   ', type: 'translated' },
+            ];
+            const result = validateTitleUniqueness(titles);
+            expect(result.isValid).toBe(true);
+        });
+
+        it('should detect multiple duplicates and mark newer ones', () => {
+            const titles = [
+                { title: 'Title A', type: 'main-title' },
+                { title: 'Title A', type: 'alternative' },
+                { title: 'Title B', type: 'translated' },
+                { title: 'Title B', type: 'other' },
             ];
             const result = validateTitleUniqueness(titles);
             expect(result.isValid).toBe(false);
             expect(Object.keys(result.errors)).toHaveLength(2);
+            expect(result.errors[1]).toBe('This title already exists');
+            expect(result.errors[3]).toBe('This title already exists');
+        });
+
+        it('should keep first occurrence valid and mark subsequent as errors', () => {
+            const titles = [
+                { title: 'Duplicate', type: 'main-title' },
+                { title: 'Unique', type: 'alternative' },
+                { title: 'Duplicate', type: 'translated' },
+            ];
+            const result = validateTitleUniqueness(titles);
+            expect(result.isValid).toBe(false);
+            expect(result.errors[0]).toBeUndefined(); // First occurrence is valid
+            expect(result.errors[1]).toBeUndefined(); // Unique title is valid
+            expect(result.errors[2]).toBe('This title already exists'); // Second occurrence gets error
         });
     });
 });

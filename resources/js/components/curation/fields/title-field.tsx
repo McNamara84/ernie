@@ -1,6 +1,7 @@
-import { Minus,Plus } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
 
 import InputField from './input-field';
@@ -23,6 +24,9 @@ interface TitleFieldProps {
     isFirst: boolean;
     canAdd?: boolean;
     className?: string;
+    validationMessages?: ValidationMessage[];
+    touched?: boolean;
+    onValidationBlur?: () => void;
 }
 
 export function TitleField({
@@ -37,6 +41,9 @@ export function TitleField({
     isFirst,
     canAdd = true,
     className,
+    validationMessages,
+    touched,
+    onValidationBlur,
 }: TitleFieldProps) {
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
@@ -45,9 +52,13 @@ export function TitleField({
                 label="Title"
                 value={title}
                 onChange={(e) => onTitleChange(e.target.value)}
+                onValidationBlur={onValidationBlur}
+                validationMessages={validationMessages}
+                touched={touched}
                 hideLabel={!isFirst}
                 className="md:col-span-8"
                 required={titleType === 'main-title'}
+                labelTooltip="Enter a title between 1 and 325 characters"
             />
             <SelectField
                 id={`${id}-titleType`}

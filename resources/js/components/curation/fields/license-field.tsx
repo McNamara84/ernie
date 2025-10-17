@@ -1,6 +1,7 @@
-import { Minus,Plus } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
 
 import { SelectField } from './select-field';
@@ -21,6 +22,9 @@ interface LicenseFieldProps {
     canAdd?: boolean;
     className?: string;
     required?: boolean;
+    validationMessages?: ValidationMessage[];
+    touched?: boolean;
+    onValidationBlur?: () => void;
 }
 
 export function LicenseField({
@@ -34,6 +38,9 @@ export function LicenseField({
     canAdd = true,
     className,
     required = false,
+    validationMessages,
+    touched,
+    onValidationBlur,
 }: LicenseFieldProps) {
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
@@ -42,6 +49,9 @@ export function LicenseField({
                 label="License"
                 value={license}
                 onValueChange={onLicenseChange}
+                onValidationBlur={onValidationBlur}
+                validationMessages={validationMessages}
+                touched={touched}
                 options={options}
                 hideLabel={!isFirst}
                 className="md:col-span-11"

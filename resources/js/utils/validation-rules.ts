@@ -343,7 +343,8 @@ export function validateRequired(
 
 /**
  * Title Uniqueness Check
- * Validates that main title is unique among multiple titles
+ * Validates that titles are unique (case-sensitive)
+ * Only marks newer duplicates as errors, keeping the first occurrence valid
  */
 export function validateTitleUniqueness(
     titles: Array<{ title: string; type: string }>,
@@ -352,18 +353,25 @@ export function validateTitleUniqueness(
     errors: Record<number, string>;
 } {
     const errors: Record<number, string> = {};
-    const mainTitles = titles
-        .map((t, idx) => ({ title: t.title.trim().toLowerCase(), type: t.type, index: idx }))
-        .filter((t) => t.type === 'main');
+    const seen = new Map<string, number>(); // Maps title to first index
 
-    const seen = new Set<string>();
-
-    for (const titleObj of mainTitles) {
-        if (seen.has(titleObj.title)) {
-            errors[titleObj.index] = 'Main title must be unique';
+    titles.forEach((t, idx) => {
+        const trimmedTitle = t.title.trim();
+        
+        // Skip empty titles
+        if (trimmedTitle === '') {
+            return;
         }
-        seen.add(titleObj.title);
-    }
+
+        // Case-sensitive comparison
+        if (seen.has(trimmedTitle)) {
+            // This is a duplicate - mark it with error
+            errors[idx] = 'This title already exists';
+        } else {
+            // First occurrence - record it
+            seen.set(trimmedTitle, idx);
+        }
+    });
 
     return {
         isValid: Object.keys(errors).length === 0,
