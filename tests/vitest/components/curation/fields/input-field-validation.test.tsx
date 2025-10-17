@@ -14,14 +14,14 @@ describe('InputField with Validation', () => {
         it('should render input field without validation', () => {
             render(<InputField id="test-input" label="Test Label" />);
 
-            expect(screen.getByLabelText('Test Label')).toBeInTheDocument();
+            expect(screen.getByLabelText(/^Test Label/)).toBeInTheDocument();
             expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         });
 
         it('should render required indicator', () => {
             render(<InputField id="test-input" label="Test Label" required />);
 
-            const label = screen.getByText('Test Label').closest('label');
+            const label = screen.getByText(/^Test Label/).closest('label');
             expect(label).toHaveTextContent('*');
         });
 
@@ -133,7 +133,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toHaveAttribute('aria-invalid', 'true');
         });
 
@@ -147,7 +147,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).not.toHaveAttribute('aria-invalid', 'true');
         });
 
@@ -160,7 +160,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             const describedBy = input.getAttribute('aria-describedby');
             expect(describedBy).toContain('test-input-help');
         });
@@ -175,7 +175,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             const describedBy = input.getAttribute('aria-describedby');
             expect(describedBy).toContain('test-input-feedback');
         });
@@ -183,7 +183,7 @@ describe('InputField with Validation', () => {
         it('should use aria-labelledby for visible label', () => {
             render(<InputField id="test-input" label="Test Label" />);
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toHaveAttribute('aria-labelledby', 'test-input-label');
             expect(input).not.toHaveAttribute('aria-label');
         });
@@ -191,7 +191,7 @@ describe('InputField with Validation', () => {
         it('should use aria-label for hidden label', () => {
             render(<InputField id="test-input" label="Test Label" hideLabel />);
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toHaveAttribute('aria-label', 'Test Label');
             expect(input).not.toHaveAttribute('aria-labelledby');
         });
@@ -210,7 +210,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             await user.click(input);
             await user.tab(); // Blur the input
 
@@ -231,7 +231,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             await user.click(input);
             await user.tab();
 
@@ -251,7 +251,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             await user.type(input, 'test');
 
             expect(onChange).toHaveBeenCalled();
@@ -281,7 +281,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toHaveClass('custom-input-class');
         });
 
@@ -309,7 +309,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toHaveAttribute('type', 'number');
         });
 
@@ -322,7 +322,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toHaveAttribute('type', 'email');
         });
 
@@ -335,7 +335,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toHaveAttribute('type', 'password');
         });
     });
@@ -350,7 +350,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).toBeRequired();
         });
 
@@ -363,7 +363,7 @@ describe('InputField with Validation', () => {
                 />,
             );
 
-            const input = screen.getByLabelText('Test Label');
+            const input = screen.getByLabelText(/^Test Label/);
             expect(input).not.toBeRequired();
         });
     });

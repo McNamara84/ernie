@@ -26,20 +26,20 @@ describe('LicenseField Validation Integration', () => {
         it('renders without validation props', () => {
             render(<LicenseField {...defaultProps} />);
             
-            expect(screen.getByLabelText('License')).toBeInTheDocument();
+            expect(screen.getByLabelText(/^License/)).toBeInTheDocument();
         });
 
         it('renders with required indicator when required is true', () => {
             render(<LicenseField {...defaultProps} required={true} />);
             
-            const select = screen.getByLabelText('License');
+            const select = screen.getByLabelText(/^License/);
             expect(select).toBeRequired();
         });
 
         it('does not show required indicator for secondary licenses', () => {
             render(<LicenseField {...defaultProps} isFirst={false} required={false} />);
             
-            const select = screen.getByLabelText('License');
+            const select = screen.getByLabelText(/^License/);
             expect(select).not.toBeRequired();
         });
     });

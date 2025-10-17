@@ -26,14 +26,14 @@ describe('TitleField Validation Integration', () => {
         it('renders without validation props', () => {
             render(<TitleField {...defaultProps} />);
             
-            expect(screen.getByLabelText('Title')).toBeInTheDocument();
-            expect(screen.getByLabelText('Title Type')).toBeInTheDocument();
+            expect(screen.getByLabelText(/^Title$/)).toBeInTheDocument();
+            expect(screen.getByLabelText(/^Title Type$/)).toBeInTheDocument();
         });
 
         it('renders with tooltip on title field', () => {
             render(<TitleField {...defaultProps} />);
             
-            const titleLabel = screen.getByText('Title').closest('label');
+            const titleLabel = screen.getByText(/^Title/).closest('label');
             expect(titleLabel).toHaveClass('cursor-help');
         });
     });
@@ -141,7 +141,7 @@ describe('TitleField Validation Integration', () => {
                 />
             );
 
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             expect(input).toHaveAttribute('aria-invalid', 'true');
         });
 
@@ -158,7 +158,7 @@ describe('TitleField Validation Integration', () => {
                 />
             );
 
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             expect(input).toHaveAttribute('aria-invalid', 'false');
         });
 
@@ -175,7 +175,7 @@ describe('TitleField Validation Integration', () => {
                 />
             );
 
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             const describedBy = input.getAttribute('aria-describedby');
             expect(describedBy).toBeTruthy();
             expect(describedBy).toContain('validation-feedback');
@@ -197,7 +197,7 @@ describe('TitleField Validation Integration', () => {
                 />
             );
 
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             await user.click(input);
             await user.tab();
 
@@ -220,7 +220,7 @@ describe('TitleField Validation Integration', () => {
                 />
             );
 
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             await user.type(input, 'Test Title');
 
             expect(changedValue).toBe('Test Title');
@@ -231,14 +231,14 @@ describe('TitleField Validation Integration', () => {
         it('shows required indicator for main title', () => {
             render(<TitleField {...defaultProps} titleType="main-title" />);
             
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             expect(input).toBeRequired();
         });
 
         it('does not show required indicator for alternative title', () => {
             render(<TitleField {...defaultProps} titleType="alternative" />);
             
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             expect(input).not.toBeRequired();
         });
     });
@@ -247,14 +247,14 @@ describe('TitleField Validation Integration', () => {
         it('shows labels when isFirst is true', () => {
             render(<TitleField {...defaultProps} isFirst={true} />);
             
-            expect(screen.getByText('Title')).toBeVisible();
-            expect(screen.getByText('Title Type')).toBeVisible();
+            expect(screen.getByText(/^Title/)).toBeVisible();
+            expect(screen.getByText(/^Title Type/)).toBeVisible();
         });
 
         it('hides labels when isFirst is false', () => {
             render(<TitleField {...defaultProps} isFirst={false} />);
             
-            const titleInput = screen.getByLabelText('Title');
+            const titleInput = screen.getByLabelText(/^Title$/);
             const titleLabel = titleInput.closest('div')?.querySelector('label');
             expect(titleLabel).toHaveClass('sr-only');
         });
@@ -294,7 +294,7 @@ describe('TitleField Validation Integration', () => {
                 />
             );
 
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             expect(input).toHaveClass('border-destructive');
         });
 
@@ -311,7 +311,7 @@ describe('TitleField Validation Integration', () => {
                 />
             );
 
-            const input = screen.getByLabelText('Title');
+            const input = screen.getByLabelText(/^Title$/);
             expect(input).toHaveClass('border-amber-500');
         });
     });
