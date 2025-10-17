@@ -22,9 +22,40 @@ export default defineConfig(() => {
             outDir: 'public/build',
             assetsDir: 'assets',
             sourcemap: false,
+            chunkSizeWarningLimit: 1200, // Erhöht auf 1200 kB für Swagger UI
             rollupOptions: {
                 output: {
-                    manualChunks: undefined
+                    manualChunks: (id) => {
+                        // Swagger UI in separaten Chunk (wird nur auf API-Docs-Seite geladen)
+                        if (id.includes('swagger-ui-react')) {
+                            return 'swagger-ui';
+                        }
+                        // Framer Motion für Animationen (hauptsächlich Changelog)
+                        if (id.includes('framer-motion')) {
+                            return 'framer-motion';
+                        }
+                        // Große UI-Bibliotheken (Radix UI Komponenten)
+                        if (id.includes('@radix-ui')) {
+                            return 'radix-ui';
+                        }
+                        // React Core Libraries separat für besseres Caching
+                        if (id.includes('node_modules')) {
+                            if (id.includes('react-dom')) {
+                                return 'react-dom';
+                            }
+                            if (id.includes('react') && !id.includes('react-dom')) {
+                                return 'react';
+                            }
+                            // Lucide Icons separat (viele Icons)
+                            if (id.includes('lucide-react')) {
+                                return 'lucide';
+                            }
+                            // Axios separat
+                            if (id.includes('axios')) {
+                                return 'axios';
+                            }
+                        }
+                    }
                 }
             }
         },
@@ -42,7 +73,7 @@ export default defineConfig(() => {
             },
         },
         optimizeDeps: {
-            include: ['react', 'react-dom', 'swagger-ui-react'],
+            include: ['react', 'react-dom', 'swagger-ui-react', 'papaparse'],
         },
         server: {
             warmup: {
