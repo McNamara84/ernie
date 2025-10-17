@@ -1535,9 +1535,9 @@ describe('DataCiteForm', () => {
                 authorRoles={authorRoles}
                 initialContributors={[
                     {
-                        type: 'person',
+                        type: 'institution',
                         roles: ['ResearchGroup'],
-                        lastName: 'ExampleContributorRG',
+                        institutionName: 'ExampleContributorRG',
                         affiliations: [
                             {
                                 value: 'ExampleOrganization',
