@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import axios from 'axios';
+
 import {
     Accordion,
     AccordionContent,
@@ -19,11 +21,11 @@ import { validateAllFundingReferences } from '@/hooks/use-funding-reference-vali
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
-import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { hasValidDateValue } from '@/lib/date-utils';
 import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
+import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
@@ -1236,6 +1238,7 @@ export default function DataCiteForm({
                 language: kw.language,
                 scheme: kw.scheme,
                 schemeURI: kw.schemeURI,
+                vocabularyType: getVocabularyTypeFromScheme(kw.scheme),
             })),
             spatialTemporalCoverages: spatialTemporalCoverages.map((coverage) => ({
                 latMin: coverage.latMin,
@@ -1269,54 +1272,42 @@ export default function DataCiteForm({
         }
 
         try {
-            const csrfHeaders = buildCsrfHeaders();
-            const csrfToken = csrfHeaders['X-CSRF-TOKEN'];
-
-            if (!csrfToken) {
-                setErrorMessage(
-                    'Missing security token. Please refresh the page and try again.',
-                );
-                console.error('CSRF token unavailable when attempting to save resource.');
-                return;
-            }
-
-            const response = await fetch(saveUrl, {
-                method: 'POST',
+            const response = await axios.post(saveUrl, payload, {
                 headers: {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
-                    ...csrfHeaders,
-                    'X-Requested-With': 'XMLHttpRequest',
                 },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload),
             });
 
-            let data: unknown = null;
-
-            try {
-                data = await response.clone().json();
-            } catch (parseError) {
-                console.error('Failed to parse resource save response JSON', parseError);
-                // Ignore JSON parse errors for empty responses.
-            }
-
-            if (!response.ok) {
-                const defaultError = 'Unable to save resource. Please review the highlighted issues.';
-                const parsed = data as { message?: string; errors?: Record<string, string[]> } | null;
-                const messages = parsed?.errors
-                    ? Object.values(parsed.errors).flat().map((message) => String(message))
-                    : [];
-
-                setValidationErrors(messages);
-                setErrorMessage(parsed?.message || defaultError);
-                return;
-            }
-
-            const parsed = data as { message?: string } | null;
-            setSuccessMessage(parsed?.message || 'Successfully saved resource.');
+            const data = response.data as { message?: string } | null;
+            setSuccessMessage(data?.message || 'Successfully saved resource.');
             setShowSuccessModal(true);
         } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const response = error.response;
+                
+                if (response?.status === 419) {
+                    console.error('CSRF token mismatch detected');
+                    setErrorMessage(
+                        'Your session has expired. Please refresh the page and try again.',
+                    );
+                    // The axios interceptor in app.tsx will handle the page reload
+                    return;
+                }
+
+                if (response) {
+                    const defaultError = 'Unable to save resource. Please review the highlighted issues.';
+                    const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
+                    const messages = parsed?.errors
+                        ? Object.values(parsed.errors).flat().map((message) => String(message))
+                        : [];
+
+                    setValidationErrors(messages);
+                    setErrorMessage(parsed?.message || defaultError);
+                    return;
+                }
+            }
+            
             console.error('Failed to save resource', error);
             setErrorMessage('A network error prevented saving the resource. Please try again.');
         } finally {
