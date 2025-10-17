@@ -764,7 +764,7 @@ export default function DataCiteForm({
     ]);
 
     // Form validation hook
-    const { validateField, markFieldTouched, getFieldState } = useFormValidation();
+    const { validateField, markFieldTouched, getFieldState, getFieldMessages } = useFormValidation();
 
     // DOI validation rules
     const doiValidationRules: ValidationRule[] = [
@@ -901,6 +901,41 @@ export default function DataCiteForm({
                 if (!result.isValid) {
                     return { severity: 'error', message: result.error! };
                 }
+                return null;
+            },
+        },
+    ];
+
+    // Abstract (Description) validation rules
+    const abstractValidationRules: ValidationRule[] = [
+        {
+            validate: (value) => {
+                const text = String(value || '');
+                
+                // Required check
+                const requiredResult = validateRequired(text, 'Abstract');
+                if (!requiredResult.isValid) {
+                    return { severity: 'error', message: requiredResult.error! };
+                }
+                
+                // Length check (50-17500 characters)
+                const lengthResult = validateTextLength(text, {
+                    min: 50,
+                    max: 17500,
+                    fieldName: 'Abstract'
+                });
+                if (!lengthResult.isValid) {
+                    return { severity: 'error', message: lengthResult.error! };
+                }
+                
+                // Warning at 90% of max length
+                if (text.length > 15750) { // 90% of 17500
+                    return { 
+                        severity: 'warning', 
+                        message: `Abstract is very long (${text.length}/17500 characters). Consider condensing if possible.` 
+                    };
+                }
+                
                 return null;
             },
         },
@@ -1230,6 +1265,21 @@ export default function DataCiteForm({
     };
 
     const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
+
+    const handleDescriptionChange = (descriptions: DescriptionEntry[]) => {
+        setDescriptions(descriptions);
+
+        // Validate Abstract field if it exists
+        const abstractEntry = descriptions.find((d) => d.type === 'Abstract');
+        if (abstractEntry !== undefined) {
+            validateField({
+                fieldId: 'abstract',
+                value: abstractEntry.value,
+                rules: abstractValidationRules,
+                formData: form,
+            });
+        }
+    };
 
     const handleLicenseChange = (index: number, value: string) => {
         setLicenseEntries((prev) => {
@@ -1802,7 +1852,10 @@ export default function DataCiteForm({
                     <AccordionContent>
                         <DescriptionField
                             descriptions={descriptions}
-                            onChange={setDescriptions}
+                            onChange={handleDescriptionChange}
+                            abstractValidationMessages={getFieldMessages('abstract')}
+                            abstractTouched={getFieldState('abstract').touched}
+                            onAbstractValidationBlur={() => markFieldTouched('abstract')}
                         />
                     </AccordionContent>
                 </AccordionItem>

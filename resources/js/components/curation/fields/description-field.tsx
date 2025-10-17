@@ -1,8 +1,10 @@
 import { useState } from 'react';
 
+import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import type { ValidationMessage } from '@/hooks/use-form-validation';
 
 export type DescriptionType =
     | 'Abstract'
@@ -20,6 +22,10 @@ export interface DescriptionEntry {
 interface DescriptionFieldProps {
     descriptions: DescriptionEntry[];
     onChange: (descriptions: DescriptionEntry[]) => void;
+    // Validation props for Abstract field
+    abstractValidationMessages?: ValidationMessage[];
+    abstractTouched?: boolean;
+    onAbstractValidationBlur?: () => void;
 }
 
 const DESCRIPTION_TYPES: { 
@@ -68,7 +74,13 @@ const DESCRIPTION_TYPES: {
     },
 ];
 
-export default function DescriptionField({ descriptions, onChange }: DescriptionFieldProps) {
+export default function DescriptionField({ 
+    descriptions, 
+    onChange,
+    abstractValidationMessages = [],
+    abstractTouched = false,
+    onAbstractValidationBlur,
+}: DescriptionFieldProps) {
     const [activeTab, setActiveTab] = useState<DescriptionType>('Abstract');
 
     const getDescriptionValue = (type: DescriptionType): string => {
@@ -125,47 +137,77 @@ export default function DescriptionField({ descriptions, onChange }: Description
                     ))}
                 </TabsList>
 
-                {DESCRIPTION_TYPES.map((desc) => (
-                    <TabsContent key={desc.value} value={desc.value} className="space-y-2">
-                        <div className="space-y-2">
-                            <Label htmlFor={`description-${desc.value}`}>
-                                {desc.label}
-                                {desc.required ? (
-                                    <span className="ml-2 text-sm font-normal text-destructive">
-                                        (Required)
-                                    </span>
-                                ) : (
-                                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                        (Optional)
-                                    </span>
+                {DESCRIPTION_TYPES.map((desc) => {
+                    const isAbstract = desc.value === 'Abstract';
+                    const hasValidationError = isAbstract && abstractTouched && abstractValidationMessages.length > 0;
+                    const charCount = getCharacterCount(desc.value);
+                    const isNearLimit = charCount > 15750; // 90% of 17500
+                    const isTooShort = charCount > 0 && charCount < 50;
+                    
+                    return (
+                        <TabsContent key={desc.value} value={desc.value} className="space-y-2">
+                            <div className="space-y-2">
+                                <Label htmlFor={`description-${desc.value}`}>
+                                    {desc.label}
+                                    {desc.required ? (
+                                        <span className="ml-2 text-sm font-normal text-destructive">
+                                            (Required)
+                                        </span>
+                                    ) : (
+                                        <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                            (Optional)
+                                        </span>
+                                    )}
+                                </Label>
+                                {desc.helpText && (
+                                    <p className="text-sm text-muted-foreground">
+                                        {desc.helpText}
+                                    </p>
                                 )}
-                            </Label>
-                            {desc.helpText && (
-                                <p className="text-sm text-muted-foreground">
-                                    {desc.helpText}
-                                </p>
-                            )}
-                            <Textarea
-                                id={`description-${desc.value}`}
-                                value={getDescriptionValue(desc.value)}
-                                onChange={(e) =>
-                                    handleDescriptionChange(desc.value, e.target.value)
-                                }
-                                placeholder={desc.placeholder}
-                                rows={8}
-                                className="resize-y"
-                                aria-describedby={`description-${desc.value}-count`}
-                                required={desc.required}
-                            />
-                            <div
-                                id={`description-${desc.value}-count`}
-                                className="text-right text-sm text-muted-foreground"
-                            >
-                                {getCharacterCount(desc.value)} characters
+                                <Textarea
+                                    id={`description-${desc.value}`}
+                                    value={getDescriptionValue(desc.value)}
+                                    onChange={(e) =>
+                                        handleDescriptionChange(desc.value, e.target.value)
+                                    }
+                                    onBlur={() => {
+                                        if (isAbstract && onAbstractValidationBlur) {
+                                            onAbstractValidationBlur();
+                                        }
+                                    }}
+                                    placeholder={desc.placeholder}
+                                    rows={8}
+                                    className="resize-y"
+                                    aria-describedby={`description-${desc.value}-count ${isAbstract ? 'description-abstract-validation' : ''}`}
+                                    aria-invalid={hasValidationError}
+                                    required={desc.required}
+                                />
+                                {isAbstract && abstractTouched && (
+                                    <FieldValidationFeedback 
+                                        messages={abstractValidationMessages}
+                                    />
+                                )}
+                                <div
+                                    id={`description-${desc.value}-count`}
+                                    className={`text-right text-sm ${
+                                        hasValidationError 
+                                            ? 'text-destructive' 
+                                            : isNearLimit || isTooShort
+                                                ? 'text-yellow-600 font-medium' 
+                                                : 'text-muted-foreground'
+                                    }`}
+                                >
+                                    {charCount} characters
+                                    {isAbstract && charCount > 0 && (
+                                        <span className="ml-1">
+                                            ({charCount < 50 ? `${50 - charCount} more needed` : `of 17,500`})
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </TabsContent>
-                ))}
+                        </TabsContent>
+                    );
+                })}
             </Tabs>
         </div>
     );
