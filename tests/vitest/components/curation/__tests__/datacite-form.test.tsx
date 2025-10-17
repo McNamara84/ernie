@@ -2,11 +2,14 @@ import '@testing-library/jest-dom/vitest';
 
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import axios from 'axios';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import type { Language, License, ResourceType, Role, TitleType } from '@/types';
+
+vi.mock('axios');
 
 import {
     getTagifyInstance,
@@ -307,11 +310,32 @@ describe('DataCiteForm', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
-        (useRorAffiliations as unknown as vi.Mock).mockReturnValue({
+        (useRorAffiliations as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
             suggestions: [],
             isLoading: false,
             error: null,
         });
+        
+        // Mock axios.get for vocabulary fetches
+        const mockedAxios = axios as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; isAxiosError: (error: unknown) => boolean };
+        mockedAxios.get = vi.fn().mockResolvedValue({ data: [] });
+        
+        // Mock axios.post for form submission - return axios response format
+        // Axios response: { data, status, statusText, headers, config, request }
+        mockedAxios.post = vi.fn().mockResolvedValue({
+            data: { message: 'Success' },
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config: {},
+        });
+        
+        // Mock axios.isAxiosError helper
+        mockedAxios.isAxiosError = (error: unknown) => {
+            return error !== null && typeof error === 'object' && 'isAxiosError' in error;
+        };
+        
+        // Keep global.fetch mock for backward compatibility with other parts
         global.fetch = vi.fn();
         
         // Mock the controlled vocabulary fetches that DataCiteForm makes on mount
@@ -322,7 +346,7 @@ describe('DataCiteForm', () => {
             json: () => Promise.resolve([]),
         } as Response;
         
-        (global.fetch as unknown as vi.Mock)
+        (global.fetch as unknown as ReturnType<typeof vi.fn>)
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-science-keywords
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-platforms
             .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-instruments
@@ -2059,20 +2083,28 @@ describe('DataCiteForm', () => {
     );
 
     /**
-     * Helper function to get the save operation fetch call from the mock.
-     * The save operation is a POST request to /curation/resources.
+     * Helper function to get the save operation axios.post call from the mock.
+     * The save operation is a POST request to /editor/resources using axios.
      * 
-     * @returns The most recent save call, or null if no save call was found
+     * Returns data in a format compatible with old fetch-based tests:
+     * [url, { body: JSON.stringify(data), headers, method: 'POST', credentials: 'same-origin' }]
+     * 
+     * @returns The save call in fetch-compatible format, or null if no save call was found
      * @throws Error if multiple save calls are found (unexpected test scenario)
      */
-    const getSaveFetchCall = () => {
-        const fetchMock = global.fetch as unknown as vi.Mock;
+    const getSaveAxiosCall = () => {
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn> };
+        const axiosPostMock = mockedAxios.post;
         
-        // Find all POST calls to /curation/resources
-        const saveCalls = fetchMock.mock.calls
+        if (!axiosPostMock || !axiosPostMock.mock) {
+            return null;
+        }
+        
+        // Find all POST calls to /editor/resources
+        const saveCalls = axiosPostMock.mock.calls
             .map((call, index) => ({ call, index }))
             .filter(
-                ({ call }) => call[0] === '/editor/resources' && call[1]?.method === 'POST'
+                ({ call }) => call[0] === '/editor/resources'
             );
         
         // Validate: exactly zero or one save call expected in most tests
@@ -2087,8 +2119,20 @@ describe('DataCiteForm', () => {
             );
         }
         
-        // Return the single save call found
-        return fetchMock.mock.calls[saveCalls[0].index];
+        // Return in fetch-compatible format: [url, options]
+        // axios.post(url, data, config) -> [url, { body, headers, method, credentials }]
+        const call = axiosPostMock.mock.calls[saveCalls[0].index];
+        const [url, data, config] = call;
+        
+        return [
+            url,
+            {
+                body: JSON.stringify(data),
+                headers: config?.headers || {},
+                method: 'POST',
+                credentials: 'same-origin',
+            },
+        ];
     };
 
     it('submits data and shows success modal when saving succeeds', async () => {
@@ -2102,7 +2146,7 @@ describe('DataCiteForm', () => {
             clone: () => ({ json: jsonMock }),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
         render(
             <DataCiteForm
@@ -2127,13 +2171,13 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledWith('/editor/resources', expect.objectContaining({
+        expect(axios.post).toHaveBeenCalledWith('/editor/resources', expect.objectContaining({
             method: 'POST',
             credentials: 'same-origin',
         }));
 
         // Get the save operation fetch call
-        const saveCall = getSaveFetchCall();
+        const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
         const fetchArgs = saveCall![1];
         expect(fetchArgs).toBeDefined();
@@ -2186,7 +2230,7 @@ describe('DataCiteForm', () => {
             clone: () => ({ json: jsonMock }),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
         render(
             <DataCiteForm
@@ -2212,10 +2256,10 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(5); // 4 vocabularies + 1 save
+        expect(axios.post).toHaveBeenCalledTimes(5); // 4 vocabularies + 1 save
 
         // Get the save operation fetch call
-        const saveCall = getSaveFetchCall();
+        const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
         const fetchArgs = saveCall![1] as RequestInit;
         const body = JSON.parse(fetchArgs.body as string);
@@ -2248,7 +2292,7 @@ describe('DataCiteForm', () => {
             clone: () => ({ json: jsonMock }),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
         render(
             <DataCiteForm
@@ -2296,10 +2340,10 @@ describe('DataCiteForm', () => {
 
         // With initialAuthors that have ROR IDs, there may be additional fetch calls for ROR validation
         // The exact count may vary, so we just verify save was called
-        expect(global.fetch).toHaveBeenCalled();
+        expect(axios.post).toHaveBeenCalled();
 
         // Get the save operation fetch call
-        const saveCall = getSaveFetchCall();
+        const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
         const fetchArgs = saveCall![1] as RequestInit;
         const body = JSON.parse(fetchArgs.body as string);
@@ -2344,7 +2388,7 @@ describe('DataCiteForm', () => {
             clone: () => ({ json: jsonMock }),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
         render(
             <DataCiteForm
@@ -2369,10 +2413,10 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledTimes(5); // 4 vocabularies + 1 save
+        expect(axios.post).toHaveBeenCalledTimes(5); // 4 vocabularies + 1 save
         
         // Get the save operation fetch call
-        const saveCall = getSaveFetchCall();
+        const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
         const fetchArgs = saveCall![1] as RequestInit;
         const headers = fetchArgs.headers as Record<string, string>;
@@ -2408,7 +2452,7 @@ describe('DataCiteForm', () => {
         await user.click(saveButton);
 
         // Only vocabulary fetches should have been called (4 times), but no save fetch
-        expect(global.fetch).toHaveBeenCalledTimes(4);
+        expect(axios.post).toHaveBeenCalledTimes(4);
         expect(
             await screen.findByText('Missing security token. Please refresh the page and try again.'),
         ).toBeInTheDocument();
@@ -2461,10 +2505,10 @@ describe('DataCiteForm', () => {
         await fillRequiredDateCreated(user);
         await user.click(saveButton);
 
-        expect(global.fetch).toHaveBeenCalledWith('/editor/resources', expect.any(Object));
+        expect(axios.post).toHaveBeenCalledWith('/editor/resources', expect.any(Object));
         
         // Get the save operation fetch call
-        const saveCall = getSaveFetchCall();
+        const saveCall = getSaveAxiosCall();
         expect(saveCall).toBeDefined();
         const fetchArgs = saveCall![1];
         expect(fetchArgs).toBeDefined();
@@ -2530,7 +2574,7 @@ describe('DataCiteForm', () => {
         await user.click(saveButton);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalled();
+            expect(axios.post).toHaveBeenCalled();
         });
 
         const alert = await screen.findByRole('alert');
@@ -2629,7 +2673,7 @@ describe('DataCiteForm', () => {
             clone: () => ({ json: jsonMock }),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
         render(
             <DataCiteForm
@@ -2666,11 +2710,11 @@ describe('DataCiteForm', () => {
         await user.click(saveButton);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalled();
+            expect(axios.post).toHaveBeenCalled();
         });
 
         // Get the save operation fetch call
-        const fetchCall = getSaveFetchCall();
+        const fetchCall = getSaveAxiosCall();
         expect(fetchCall).toBeDefined();
         const requestBody = JSON.parse(fetchCall![1].body);
 
@@ -2703,7 +2747,7 @@ describe('DataCiteForm', () => {
             clone: () => ({ json: jsonMock }),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
         render(
             <DataCiteForm
@@ -2734,11 +2778,11 @@ describe('DataCiteForm', () => {
         await user.click(saveButton);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalled();
+            expect(axios.post).toHaveBeenCalled();
         });
 
         // Get the save operation fetch call
-        const fetchCall = getSaveFetchCall();
+        const fetchCall = getSaveAxiosCall();
         expect(fetchCall).toBeDefined();
         const requestBody = JSON.parse(fetchCall![1].body);
 
@@ -2761,7 +2805,7 @@ describe('DataCiteForm', () => {
             clone: () => ({ json: jsonMock }),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (axios as unknown as { post: ReturnType<typeof vi.fn> }).post.mockResolvedValue({ data: responseData, status: 200 });
 
         render(
             <DataCiteForm
@@ -2792,11 +2836,11 @@ describe('DataCiteForm', () => {
         await user.click(saveButton);
 
         await waitFor(() => {
-            expect(global.fetch).toHaveBeenCalled();
+            expect(axios.post).toHaveBeenCalled();
         });
 
         // Get the save operation fetch call
-        const fetchCall = getSaveFetchCall();
+        const fetchCall = getSaveAxiosCall();
         expect(fetchCall).toBeDefined();
         const requestBody = JSON.parse(fetchCall![1].body);
 
@@ -2982,4 +3026,6 @@ describe('DataCiteForm', () => {
         });
     });
 });
+
+
 
