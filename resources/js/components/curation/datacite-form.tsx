@@ -17,6 +17,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -1234,6 +1240,73 @@ export default function DataCiteForm({
         return gcmdKeywords.some(kw => kw.isLegacy === true);
     }, [gcmdKeywords]);
 
+    // Collect all missing required fields for Save button tooltip
+    const missingRequiredFields = useMemo(() => {
+        const missing: string[] = [];
+
+        // Check main title
+        const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
+        if (!mainTitleEntry?.title.trim()) {
+            missing.push('Main Title is required');
+        }
+
+        // Check year
+        if (!form.year?.trim()) {
+            missing.push('Publication Year is required');
+        }
+
+        // Check resource type
+        if (!form.resourceType) {
+            missing.push('Resource Type is required');
+        }
+
+        // Check language
+        if (!form.language) {
+            missing.push('Language is required');
+        }
+
+        // Check primary license
+        if (!licenseEntries[0]?.license?.trim()) {
+            missing.push('Primary License is required');
+        }
+
+        // Check authors
+        if (authors.length === 0) {
+            missing.push('At least one Author is required');
+        } else {
+            const invalidAuthors = authors.filter((author) => {
+                if (author.type === 'person') {
+                    const hasLastName = Boolean(author.lastName.trim());
+                    const contactValid = !author.isContact || Boolean(author.email.trim());
+                    return !hasLastName || !contactValid;
+                }
+                return !author.institutionName.trim();
+            });
+
+            if (invalidAuthors.length > 0) {
+                missing.push(`${invalidAuthors.length} Author(s) with missing required fields`);
+            }
+        }
+
+        // Check abstract
+        const abstractEntry = descriptions.find((desc) => desc.type === 'Abstract');
+        if (!abstractEntry?.value.trim()) {
+            missing.push('Abstract is required');
+        } else if (abstractEntry.value.trim().length < 50) {
+            missing.push('Abstract must be at least 50 characters');
+        }
+
+        // Check created date
+        const createdDate = dates.find((date) => date.dateType === REQUIRED_DATE_TYPE);
+        if (!createdDate) {
+            missing.push('Created Date is required');
+        } else if (!hasValidDateValue(createdDate)) {
+            missing.push('Created Date must have a valid date value');
+        }
+
+        return missing;
+    }, [authors, descriptions, dates, form.language, form.resourceType, form.year, licenseEntries, titles]);
+
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -2110,15 +2183,53 @@ export default function DataCiteForm({
                 </div>
             )}
             <div className="flex justify-end">
-                <Button
-                    type="submit"
-                    disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
-                    aria-busy={isSaving}
-                    aria-disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
-                    title={hasLegacyKeywords ? "Please replace all legacy keywords before saving" : undefined}
-                >
-                    {isSaving ? 'Saving…' : 'Save to database'}
-                </Button>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={0}>
+                                <Button
+                                    type="submit"
+                                    disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
+                                    aria-busy={isSaving}
+                                    aria-disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
+                                >
+                                    {isSaving ? 'Saving…' : 'Save to database'}
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {(!areRequiredFieldsFilled || hasLegacyKeywords) && !isSaving && (
+                            <TooltipContent
+                                side="top"
+                                align="end"
+                                className="max-w-sm"
+                            >
+                                <div className="space-y-2">
+                                    <p className="font-semibold text-sm">
+                                        {hasLegacyKeywords
+                                            ? 'Cannot save: Legacy keywords detected'
+                                            : 'Cannot save: Required fields missing'}
+                                    </p>
+                                    {hasLegacyKeywords ? (
+                                        <p className="text-xs">
+                                            Please replace all legacy MSL keywords with keywords from the current vocabulary.
+                                        </p>
+                                    ) : (
+                                        <>
+                                            <p className="text-xs text-muted-foreground">
+                                                Please complete the following required fields:
+                                            </p>
+                                            <ul className="text-xs space-y-1 list-disc pl-4">
+                                                {missingRequiredFields.map((field, idx) => (
+                                                    <li key={idx}>{field}</li>
+                                                ))}
+                                            </ul>
+                                        </>
+                                    )}
+                                </div>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
             </div>
             <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
                 <DialogContent>
