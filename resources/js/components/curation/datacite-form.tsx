@@ -22,6 +22,8 @@ import { validateAllFundingReferences } from '@/hooks/use-funding-reference-vali
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import {
     validateDOIFormat,
+    validateEmail,
+    validateORCID,
     validateRequired,
     validateSemanticVersion,
     validateTextLength,
@@ -1051,6 +1053,32 @@ export default function DataCiteForm({
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
+    // Compute author validation issues
+    const authorValidationIssues = useMemo(() => {
+        const issues: string[] = [];
+        
+        if (authors.length === 0) {
+            issues.push('At least one author is required');
+        } else {
+            authors.forEach((author, index) => {
+                if (author.type === 'person') {
+                    if (!author.lastName.trim()) {
+                        issues.push(`Author ${index + 1}: Last name is required`);
+                    }
+                    if (author.isContact && !author.email.trim()) {
+                        issues.push(`Author ${index + 1}: Email is required for contact person`);
+                    }
+                } else {
+                    if (!author.institutionName.trim()) {
+                        issues.push(`Author ${index + 1}: Institution name is required`);
+                    }
+                }
+            });
+        }
+        
+        return issues;
+    }, [authors]);
+
     const areRequiredFieldsFilled = useMemo(() => {
         const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
         const mainTitleFilled = Boolean(mainTitleEntry?.title.trim());
@@ -1724,6 +1752,21 @@ export default function DataCiteForm({
                 <AccordionItem value="authors">
                     <AccordionTrigger>Authors</AccordionTrigger>
                     <AccordionContent>
+                        {/* Validation issues notification */}
+                        {authorValidationIssues.length > 0 && (
+                            <div
+                                className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
+                                role="alert"
+                                aria-live="polite"
+                            >
+                                <strong>Required fields missing:</strong>
+                                <ul className="mt-2 list-disc pl-5 space-y-1">
+                                    {authorValidationIssues.map((issue, idx) => (
+                                        <li key={idx}>{issue}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                         {authorRoleNames.length > 0 && (
                             <p
                                 id={authorRolesDescriptionId}
