@@ -21,6 +21,7 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import {
+    validateDate,
     validateDOIFormat,
     validateEmail,
     validateORCID,
@@ -1114,6 +1115,67 @@ export default function DataCiteForm({
         return issues;
     }, [authors]);
 
+    // Date validation issues (specifically for "Created" date type)
+    const dateValidationIssues = useMemo(() => {
+        const issues: string[] = [];
+        
+        // Check if at least one "Created" date exists
+        const createdDates = dates.filter((date) => date.dateType === REQUIRED_DATE_TYPE);
+        
+        if (createdDates.length === 0) {
+            issues.push('At least one "Created" date is required');
+            return issues;
+        }
+        
+        // Validate each "Created" date
+        createdDates.forEach((date) => {
+            const dateIndex = dates.findIndex((d) => d === date) + 1;
+            
+            // Check if at least one date field is filled
+            if (!hasValidDateValue(date)) {
+                issues.push(`Date ${dateIndex}: Start date or end date is required for "Created" type`);
+                return;
+            }
+            
+            // Validate start date if provided
+            if (date.startDate && date.startDate.trim() !== '') {
+                const startDateValidation = validateDate(date.startDate, {
+                    allowFuture: false,
+                    minDate: new Date('1900-01-01'),
+                });
+                
+                if (!startDateValidation.isValid) {
+                    issues.push(`Date ${dateIndex} (Start): ${startDateValidation.error}`);
+                }
+            }
+            
+            // Validate end date if provided
+            if (date.endDate && date.endDate.trim() !== '') {
+                const endDateValidation = validateDate(date.endDate, {
+                    allowFuture: false,
+                    minDate: new Date('1900-01-01'),
+                });
+                
+                if (!endDateValidation.isValid) {
+                    issues.push(`Date ${dateIndex} (End): ${endDateValidation.error}`);
+                }
+            }
+            
+            // Validate that end date is after start date (if both provided)
+            if (date.startDate && date.endDate && 
+                date.startDate.trim() !== '' && date.endDate.trim() !== '') {
+                const start = new Date(date.startDate);
+                const end = new Date(date.endDate);
+                
+                if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end < start) {
+                    issues.push(`Date ${dateIndex}: End date must be after start date`);
+                }
+            }
+        });
+        
+        return issues;
+    }, [dates]);
+
     const areRequiredFieldsFilled = useMemo(() => {
         const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
         const mainTitleFilled = Boolean(mainTitleEntry?.title.trim());
@@ -1919,6 +1981,20 @@ export default function DataCiteForm({
                 <AccordionItem value="dates">
                     <AccordionTrigger>Dates</AccordionTrigger>
                     <AccordionContent>
+                        {dateValidationIssues.length > 0 && (
+                            <div
+                                className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
+                                role="alert"
+                                aria-live="polite"
+                            >
+                                <strong>Date validation issues:</strong>
+                                <ul className="mt-2 list-disc pl-5 space-y-1">
+                                    {dateValidationIssues.map((issue, idx) => (
+                                        <li key={idx}>{issue}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                         <div className="space-y-4">
                             {dates.map((entry, index) => {
                                 const selectedDateType = dateTypes.find(dt => dt.value === entry.dateType);
