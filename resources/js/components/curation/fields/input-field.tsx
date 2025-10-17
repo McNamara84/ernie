@@ -3,6 +3,7 @@ import { type HTMLAttributes, type InputHTMLAttributes } from 'react';
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     onValidationBlur?: () => void;
     showSuccessFeedback?: boolean;
     helpText?: string;
+    labelTooltip?: string;
 }
 
 export function InputField({
@@ -36,6 +38,7 @@ export function InputField({
     onValidationBlur,
     showSuccessFeedback = true,
     helpText,
+    labelTooltip,
     onBlur,
     ...props
 }: InputFieldProps) {
@@ -67,20 +70,45 @@ export function InputField({
         ? { 'aria-label': label }
         : { 'aria-labelledby': labelId };
 
+    const labelContent = (
+        <>
+            {label}
+            {required && (
+                <span aria-hidden="true" className="text-destructive ml-1">
+                    *
+                </span>
+            )}
+        </>
+    );
+
     return (
         <div {...containerProps} className={mergedClassName}>
-            <Label
-                id={labelId}
-                htmlFor={id}
-                className={hideLabel ? 'sr-only' : undefined}
-            >
-                {label}
-                {required && (
-                    <span aria-hidden="true" className="text-destructive ml-1">
-                        *
-                    </span>
-                )}
-            </Label>
+            {labelTooltip ? (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Label
+                            id={labelId}
+                            htmlFor={id}
+                            className={cn(
+                                hideLabel ? 'sr-only' : 'cursor-help',
+                            )}
+                        >
+                            {labelContent}
+                        </Label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{labelTooltip}</p>
+                    </TooltipContent>
+                </Tooltip>
+            ) : (
+                <Label
+                    id={labelId}
+                    htmlFor={id}
+                    className={hideLabel ? 'sr-only' : undefined}
+                >
+                    {labelContent}
+                </Label>
+            )}
 
             {helpText && (
                 <p id={helpTextId} className="text-sm text-muted-foreground">

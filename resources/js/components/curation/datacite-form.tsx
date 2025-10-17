@@ -1488,7 +1488,7 @@ export default function DataCiteForm({
                                 validationMessages={getFieldState('doi').messages}
                                 touched={getFieldState('doi').touched}
                                 placeholder="10.xxxx/xxxxx"
-                                helpText="Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
+                                labelTooltip="Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
                                 className="md:col-span-3"
                             />
                             <InputField
@@ -1528,7 +1528,7 @@ export default function DataCiteForm({
                                 validationMessages={getFieldState('version').messages}
                                 touched={getFieldState('version').touched}
                                 placeholder="1.0"
-                                helpText="Semantic versioning (e.g., 1.2.3)"
+                                labelTooltip="Semantic versioning (e.g., 1.2.3)"
                                 className="md:col-span-1"
                             />
                             <SelectField

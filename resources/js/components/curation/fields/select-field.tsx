@@ -9,6 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +37,7 @@ interface SelectFieldProps {
     onValidationBlur?: () => void;
     showSuccessFeedback?: boolean;
     helpText?: string;
+    labelTooltip?: string;
 }
 
 export function SelectField({
@@ -55,6 +57,7 @@ export function SelectField({
     onValidationBlur,
     showSuccessFeedback = true,
     helpText,
+    labelTooltip,
 }: SelectFieldProps) {
     const labelId = `${id}-label`;
     const helpTextId = helpText ? `${id}-help` : undefined;
@@ -90,19 +93,43 @@ export function SelectField({
         }
     };
 
+    const labelContent = (
+        <>
+            {label}
+            {required && (
+                <span aria-hidden="true" className="text-destructive ml-1">
+                    *
+                </span>
+            )}
+        </>
+    );
+
     return (
         <div {...containerProps} className={mergedClassName}>
-            <Label
-                id={labelId}
-                className={hideLabel ? 'sr-only' : undefined}
-            >
-                {label}
-                {required && (
-                    <span aria-hidden="true" className="text-destructive ml-1">
-                        *
-                    </span>
-                )}
-            </Label>
+            {labelTooltip ? (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Label
+                            id={labelId}
+                            className={cn(
+                                hideLabel ? 'sr-only' : 'cursor-help',
+                            )}
+                        >
+                            {labelContent}
+                        </Label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{labelTooltip}</p>
+                    </TooltipContent>
+                </Tooltip>
+            ) : (
+                <Label
+                    id={labelId}
+                    className={hideLabel ? 'sr-only' : undefined}
+                >
+                    {labelContent}
+                </Label>
+            )}
 
             {helpText && (
                 <p id={helpTextId} className="text-sm text-muted-foreground">
