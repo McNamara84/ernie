@@ -23,7 +23,7 @@ function resolveDatasetExample(filename: string): string {
 test.describe('Critical Smoke Tests', () => {
   test('user can login and access dashboard', async ({ page }) => {
     // Navigate to login
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
     
     // Perform login
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
@@ -39,14 +39,14 @@ test.describe('Critical Smoke Tests', () => {
 
   test('user can upload XML file and access editor form', async ({ page }) => {
     // Login first
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     
     // Go to dashboard and upload XML
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'networkidle' });
     await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
     
     const fileInput = page.locator('input[type="file"][accept=".xml"]');
@@ -63,18 +63,18 @@ test.describe('Critical Smoke Tests', () => {
 
   test('navigation between dashboard and settings works', async ({ page }) => {
     // Login
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     
     // Navigate to settings
-    await page.goto('/settings');
+    await page.goto('/settings', { waitUntil: 'networkidle' });
     await expect(page).toHaveURL(/\/settings/);
     
     // Navigate back to dashboard
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'networkidle' });
     await expect(page).toHaveURL(/\/dashboard/);
   });
 });

@@ -18,7 +18,7 @@ function resolveDatasetExample(filename: string): string {
 test.describe('XML Upload', () => {
   test.beforeEach(async ({ page }) => {
     // Login as test user
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
     await page.getByRole('button', { name: 'Log in' }).click();
@@ -26,7 +26,7 @@ test.describe('XML Upload', () => {
   });
 
   test('uploads XML file and redirects to editor with populated form', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'networkidle' });
     await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
 
     const fileInput = page.locator('input[type="file"][accept=".xml"]');
@@ -52,7 +52,7 @@ test.describe('XML Upload', () => {
   });
 
   test('handles invalid XML files gracefully', async ({ page }) => {
-    await page.goto('/dashboard');
+    await page.goto('/dashboard', { waitUntil: 'networkidle' });
 
     const fileInput = page.locator('input[type="file"][accept=".xml"]');
     

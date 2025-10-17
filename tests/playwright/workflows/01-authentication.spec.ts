@@ -8,7 +8,7 @@ import { INVALID_PASSWORD, TEST_USER_EMAIL, TEST_USER_GREETING, TEST_USER_PASSWO
 
 test.describe('Authentication', () => {
   test('redirects to dashboard after valid login', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
 
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
@@ -19,7 +19,7 @@ test.describe('Authentication', () => {
   });
 
   test('shows an error for invalid login credentials', async ({ page }) => {
-    await page.goto('/login');
+    await page.goto('/login', { waitUntil: 'networkidle' });
 
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(INVALID_PASSWORD);

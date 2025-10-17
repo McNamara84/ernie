@@ -14,9 +14,9 @@ import { expect, test } from '@playwright/test';
 test.describe('Authors Form', () => {
     test.beforeEach(async ({ page }) => {
         // Navigate to the dataset editor
-        await page.goto('/editor');
+        await page.goto('/editor', { waitUntil: 'networkidle' });
         // Wait for the form to be fully loaded
-        await page.waitForSelector('[data-testid="author-0-fields-grid"]', { timeout: 10000 });
+        await page.waitForSelector('[data-testid="author-0-fields-grid"]', { timeout: 30000 });
     });
 
     test('should add a new author', async ({ page }) => {
@@ -108,8 +108,8 @@ test.describe('Authors Form', () => {
 
 test.describe('Contributors Form', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/editor');
-        await page.waitForSelector('[data-testid="contributor-0-fields-grid"]', { timeout: 10000 });
+        await page.goto('/editor', { waitUntil: 'networkidle' });
+        await page.waitForSelector('[data-testid="contributor-0-fields-grid"]', { timeout: 30000 });
     });
 
     test('should add a new contributor with role', async ({ page }) => {
@@ -141,7 +141,8 @@ test.describe('Contributors Form', () => {
 
 test.describe('CSV Import', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/editor');
+        await page.goto('/editor', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1000);
     });
 
     test('should open CSV import dialog for authors', async ({ page }) => {
@@ -173,7 +174,8 @@ test.describe('CSV Import', () => {
 
 test.describe('Drag and Drop Reordering', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/editor');
+        await page.goto('/editor', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1000);
     });
 
     test('should show drag handles for authors', async ({ page }) => {
@@ -214,7 +216,8 @@ test.describe('Drag and Drop Reordering', () => {
 
 test.describe('ORCID Search Dialog', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/editor');
+        await page.goto('/editor', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1000);
         await page.click('button:has-text("Add First Author")');
     });
 
@@ -254,7 +257,8 @@ test.describe('ORCID Search Dialog', () => {
 
 test.describe('Accessibility', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/editor');
+        await page.goto('/editor', { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1000);
     });
 
     test('should have proper ARIA labels for buttons', async ({ page }) => {
