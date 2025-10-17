@@ -88,6 +88,14 @@ export const buildCsrfHeaders = (): Record<string, string> => {
     const metaToken = getMetaCsrfToken();
     const cookieToken = getXsrfTokenFromCookie();
 
+    // Only log token presence in development, never log actual token values
+    if (import.meta.env.DEV) {
+        console.debug('[CSRF] Building headers', { 
+            hasMetaToken: !!metaToken,
+            hasCookieToken: !!cookieToken 
+        });
+    }
+
     if (metaToken) {
         headers['X-CSRF-TOKEN'] = metaToken;
     }
@@ -98,6 +106,10 @@ export const buildCsrfHeaders = (): Record<string, string> => {
         if (!headers['X-CSRF-TOKEN']) {
             headers['X-CSRF-TOKEN'] = cookieToken;
         }
+    }
+
+    if (Object.keys(headers).length === 0) {
+        console.error('[CSRF] No CSRF token found in meta tag or cookie');
     }
 
     return headers;
