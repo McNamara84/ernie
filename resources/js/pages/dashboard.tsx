@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { latestVersion } from '@/lib/version';
-import { changelog as changelogRoute, editor as editorRoute, dashboard } from '@/routes';
+import { changelog as changelogRoute, dashboard,editor as editorRoute } from '@/routes';
 import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 

@@ -9,6 +9,7 @@ use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\RorAffiliationController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\VocabularyController;
+use App\Http\Controllers\OrcidController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/changelog', [ChangelogController::class, 'index']);
@@ -44,6 +45,10 @@ Route::middleware('elmo.api-key')->get(
     [RoleController::class, 'contributorInstitutionRolesForElmo'],
 );
 Route::get('/v1/ror-affiliations', RorAffiliationController::class);
+// ORCID routes - specific routes BEFORE parameterized routes!
+Route::get('/v1/orcid/search', [OrcidController::class, 'search']);
+Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
+Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);

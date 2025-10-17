@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     Accordion,
@@ -24,21 +24,18 @@ import { hasValidDateValue } from '@/lib/date-utils';
 import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
-import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
-    type AuthorType,
     type InstitutionAuthorEntry,
     type PersonAuthorEntry,
-} from './fields/author-field';
+} from './fields/author';
 import ContributorField, {
     type ContributorEntry,
     type ContributorRoleTag,
-    type ContributorType,
     type InstitutionContributorEntry,
     type PersonContributorEntry,
-} from './fields/contributor-field';
+} from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
@@ -182,10 +179,6 @@ const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
     affiliationsInput: '',
 });
 
-const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
-    return type === 'person' ? createEmptyPersonAuthor() : createEmptyInstitutionAuthor();
-};
-
 const createEmptyPersonContributor = (): PersonContributorEntry => ({
     id: crypto.randomUUID(),
     type: 'person',
@@ -207,12 +200,6 @@ const createEmptyInstitutionContributor = (): InstitutionContributorEntry => ({
     affiliations: [],
     affiliationsInput: '',
 });
-
-const createEmptyContributor = (type: ContributorType = 'person'): ContributorEntry => {
-    return type === 'person'
-        ? createEmptyPersonContributor()
-        : createEmptyInstitutionContributor();
-};
 
 /**
  * Serializes and normalizes affiliations from an author or contributor entry.
@@ -657,7 +644,8 @@ export default function DataCiteForm({
             }
         }
 
-        return [createEmptyAuthor()];
+        // Empty state - no authors initially
+        return [];
     });
     const [contributors, setContributors] = useState<ContributorEntry[]>(() => {
         if (initialContributors.length > 0) {
@@ -670,7 +658,8 @@ export default function DataCiteForm({
             }
         }
 
-        return [createEmptyContributor()];
+        // Empty state - no contributors initially
+        return [];
     });
     const [descriptions, setDescriptions] = useState<DescriptionEntry[]>(() => {
         if (initialDescriptions && initialDescriptions.length > 0) {
@@ -873,14 +862,6 @@ export default function DataCiteForm({
         () => contributorInstitutionRoles.map((role) => role.name),
         [contributorInstitutionRoles],
     );
-    const contributorPersonRoleSet = useMemo(
-        () => new Set(contributorPersonRoleNames),
-        [contributorPersonRoleNames],
-    );
-    const contributorInstitutionRoleSet = useMemo(
-        () => new Set(contributorInstitutionRoleNames),
-        [contributorInstitutionRoleNames],
-    );
     const authorRoleNames = useMemo(
         () =>
             authorRoles
@@ -907,18 +888,6 @@ export default function DataCiteForm({
     }, [authorRoleNames]);
     const authorRolesDescriptionId =
         authorRoleNames.length > 0 ? 'author-roles-description' : undefined;
-    const filterRolesForType = useCallback(
-        (roles: ContributorRoleTag[], type: ContributorType): ContributorRoleTag[] => {
-            const allowedRoles =
-                type === 'institution' ? contributorInstitutionRoleSet : contributorPersonRoleSet;
-
-            return roles.filter((role) => allowedRoles.has(role.value));
-        },
-        [contributorInstitutionRoleSet, contributorPersonRoleSet],
-    );
-    const serialiseRoleInput = useCallback((roles: ContributorRoleTag[]): string => {
-        return roles.map((role) => role.value).join(', ');
-    }, []);
     const { suggestions: affiliationSuggestions } = useRorAffiliations();
 
     const [isSaving, setIsSaving] = useState(false);
@@ -999,241 +968,6 @@ export default function DataCiteForm({
     };
 
     const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
-
-    const handleAuthorTypeChange = (authorId: string, type: AuthorType) => {
-        setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId) {
-                    return author;
-                }
-
-                if (author.type === type) {
-                    return author;
-                }
-
-                if (type === 'person') {
-                    return {
-                        ...createEmptyPersonAuthor(),
-                        id: author.id,
-                        affiliations: author.affiliations,
-                        affiliationsInput: author.affiliationsInput,
-                    } as PersonAuthorEntry;
-                }
-
-                return {
-                    ...createEmptyInstitutionAuthor(),
-                    id: author.id,
-                    affiliations: author.affiliations,
-                    affiliationsInput: author.affiliationsInput,
-                } as InstitutionAuthorEntry;
-            }),
-        );
-    };
-
-    const handlePersonAuthorChange = (
-        authorId: string,
-        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
-        value: string,
-    ) => {
-        setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId || author.type !== 'person') {
-                    return author;
-                }
-
-                return { ...author, [field]: value } as PersonAuthorEntry;
-            }),
-        );
-    };
-
-    const handleInstitutionNameChange = (authorId: string, value: string) => {
-        setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId || author.type !== 'institution') {
-                    return author;
-                }
-
-                return { ...author, institutionName: value } as InstitutionAuthorEntry;
-            }),
-        );
-    };
-
-    const handleAuthorContactChange = (authorId: string, checked: boolean) => {
-        setAuthors((previous) =>
-            previous.map((author) => {
-                if (author.id !== authorId || author.type !== 'person') {
-                    return author;
-                }
-
-                return {
-                    ...author,
-                    isContact: checked,
-                    email: checked ? author.email : '',
-                    website: checked ? author.website : '',
-                } as PersonAuthorEntry;
-            }),
-        );
-    };
-
-    const handleAffiliationsChange = (
-        authorId: string,
-        value: { raw: string; tags: AffiliationTag[] },
-    ) => {
-        setAuthors((previous) =>
-            previous.map((author) =>
-                author.id === authorId
-                    ? ({
-                          ...author,
-                          affiliations: value.tags,
-                          affiliationsInput: value.raw,
-                      } as AuthorEntry)
-                    : author,
-            ),
-        );
-    };
-
-    const addAuthor = () => {
-        setAuthors((previous) => [...previous, createEmptyAuthor()]);
-    };
-
-    const removeAuthor = (authorId: string) => {
-        setAuthors((previous) =>
-            previous.length > 1
-                ? previous.filter((author) => author.id !== authorId)
-                : previous,
-        );
-    };
-
-    const handleContributorTypeChange = (
-        contributorId: string,
-        type: ContributorType,
-    ) => {
-        setContributors((previous) =>
-            previous.map((contributor) => {
-                if (contributor.id !== contributorId) {
-                    return contributor;
-                }
-
-                if (contributor.type === type) {
-                    return contributor;
-                }
-
-                const filteredRoles = filterRolesForType(contributor.roles, type);
-                const rolesInput = serialiseRoleInput(filteredRoles);
-
-                if (type === 'person') {
-                    return {
-                        ...createEmptyPersonContributor(),
-                        id: contributor.id,
-                        roles: filteredRoles,
-                        rolesInput,
-                        affiliations: contributor.affiliations,
-                        affiliationsInput: contributor.affiliationsInput,
-                    } satisfies PersonContributorEntry;
-                }
-
-                return {
-                    ...createEmptyInstitutionContributor(),
-                    id: contributor.id,
-                    roles: filteredRoles,
-                    rolesInput,
-                    affiliations: contributor.affiliations,
-                    affiliationsInput: contributor.affiliationsInput,
-                } satisfies InstitutionContributorEntry;
-            }),
-        );
-    };
-
-    const handleContributorRolesChange = (
-        contributorId: string,
-        value: { raw: string; tags: ContributorRoleTag[] },
-    ) => {
-        setContributors((previous) =>
-            previous.map((contributor) => {
-                if (contributor.id !== contributorId) {
-                    return contributor;
-                }
-
-                const allowedRoles =
-                    contributor.type === 'institution'
-                        ? contributorInstitutionRoleSet
-                        : contributorPersonRoleSet;
-
-                const uniqueRoles = Array.from(
-                    new Set(
-                        value.tags
-                            .map((tag) => (typeof tag.value === 'string' ? tag.value.trim() : ''))
-                            .filter((role) => role.length > 0 && allowedRoles.has(role)),
-                    ),
-                );
-
-                const normalisedRoles = uniqueRoles.map((role) => ({ value: role }));
-
-                return {
-                    ...contributor,
-                    roles: normalisedRoles,
-                    rolesInput: serialiseRoleInput(normalisedRoles),
-                } satisfies ContributorEntry;
-            }),
-        );
-    };
-
-    const handleContributorPersonChange = (
-        contributorId: string,
-        field: 'orcid' | 'firstName' | 'lastName',
-        value: string,
-    ) => {
-        setContributors((previous) =>
-            previous.map((contributor) => {
-                if (contributor.id !== contributorId || contributor.type !== 'person') {
-                    return contributor;
-                }
-
-                return { ...contributor, [field]: value } satisfies PersonContributorEntry;
-            }),
-        );
-    };
-
-    const handleContributorInstitutionChange = (contributorId: string, value: string) => {
-        setContributors((previous) =>
-            previous.map((contributor) => {
-                if (contributor.id !== contributorId || contributor.type !== 'institution') {
-                    return contributor;
-                }
-
-                return { ...contributor, institutionName: value } satisfies InstitutionContributorEntry;
-            }),
-        );
-    };
-
-    const handleContributorAffiliationsChange = (
-        contributorId: string,
-        value: { raw: string; tags: AffiliationTag[] },
-    ) => {
-        setContributors((previous) =>
-            previous.map((contributor) =>
-                contributor.id === contributorId
-                    ? ({
-                          ...contributor,
-                          affiliations: value.tags,
-                          affiliationsInput: value.raw,
-                      } satisfies ContributorEntry)
-                    : contributor,
-            ),
-        );
-    };
-
-    const addContributor = () => {
-        setContributors((previous) => [...previous, createEmptyContributor()]);
-    };
-
-    const removeContributor = (contributorId: string) => {
-        setContributors((previous) =>
-            previous.length > 1
-                ? previous.filter((contributor) => contributor.id !== contributorId)
-                : previous,
-        );
-    };
 
     const handleLicenseChange = (index: number, value: string) => {
         setLicenseEntries((prev) => {
@@ -1623,7 +1357,7 @@ export default function DataCiteForm({
                             <InputField
                                 id="doi"
                                 label="DOI"
-                                value={form.doi}
+                                value={form.doi || ''}
                                 onChange={(e) => handleChange('doi', e.target.value)}
                                 placeholder="10.xxxx/xxxxx"
                                 className="md:col-span-3"
@@ -1632,7 +1366,7 @@ export default function DataCiteForm({
                                 id="year"
                                 type="number"
                                 label="Year"
-                                value={form.year}
+                                value={form.year || ''}
                                 onChange={(e) => handleChange('year', e.target.value)}
                                 placeholder="2024"
                                 className="md:col-span-2"
@@ -1641,7 +1375,7 @@ export default function DataCiteForm({
                             <SelectField
                                 id="resourceType"
                                 label="Resource Type"
-                                value={form.resourceType}
+                                value={form.resourceType || ''}
                                 onValueChange={(val) => handleChange('resourceType', val)}
                                 options={resourceTypes.map((type) => ({
                                     value: String(type.id),
@@ -1653,7 +1387,7 @@ export default function DataCiteForm({
                             <InputField
                                 id="version"
                                 label="Version"
-                                value={form.version}
+                                value={form.version || ''}
                                 onChange={(e) => handleChange('version', e.target.value)}
                                 placeholder="1.0"
                                 className="md:col-span-1"
@@ -1661,7 +1395,7 @@ export default function DataCiteForm({
                             <SelectField
                                 id="language"
                                 label="Language of Data"
-                                value={form.language}
+                                value={form.language || ''}
                                 onValueChange={(val) => handleChange('language', val)}
                                 options={languages.map((l) => ({
                                     value: l.code,
@@ -1744,86 +1478,23 @@ export default function DataCiteForm({
                                 } ${authorRoleSummary}.`}
                             </p>
                         )}
-                        <div
-                            className="space-y-6"
-                            role="group"
-                            aria-describedby={authorRolesDescriptionId}
-                            data-testid="author-entries-group"
-                        >
-                            {authors.map((author, index) => (
-                                <AuthorField
-                                    key={author.id}
-                                    author={author}
-                                    index={index}
-                                    onTypeChange={(type) =>
-                                        handleAuthorTypeChange(author.id, type)
-                                    }
-                                    onPersonFieldChange={(field, value) =>
-                                        handlePersonAuthorChange(author.id, field, value)
-                                    }
-                                    onInstitutionNameChange={(value) =>
-                                        handleInstitutionNameChange(author.id, value)
-                                    }
-                                    onContactChange={(checked) =>
-                                        handleAuthorContactChange(author.id, checked)
-                                    }
-                                    onAffiliationsChange={(value) =>
-                                        handleAffiliationsChange(author.id, value)
-                                    }
-                                    onRemoveAuthor={() => removeAuthor(author.id)}
-                                    canRemove={authors.length > 1}
-                                    onAddAuthor={addAuthor}
-                                    canAddAuthor={index === authors.length - 1}
-                                    affiliationSuggestions={affiliationSuggestions}
-                                />
-                            ))}
-                        </div>
+                        <AuthorField
+                            authors={authors}
+                            onChange={setAuthors}
+                            affiliationSuggestions={affiliationSuggestions}
+                        />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="contributors">
                     <AccordionTrigger>Contributors</AccordionTrigger>
                     <AccordionContent>
-                        <div className="space-y-6">
-                            {contributors.map((contributor, index) => (
-                                <ContributorField
-                                    key={contributor.id}
-                                    contributor={contributor}
-                                    index={index}
-                                    onTypeChange={(type) =>
-                                        handleContributorTypeChange(contributor.id, type)
-                                    }
-                                    onRolesChange={(value) =>
-                                        handleContributorRolesChange(contributor.id, value)
-                                    }
-                                    onPersonFieldChange={(field, value) =>
-                                        handleContributorPersonChange(
-                                            contributor.id,
-                                            field,
-                                            value,
-                                        )
-                                    }
-                                    onInstitutionNameChange={(value) =>
-                                        handleContributorInstitutionChange(
-                                            contributor.id,
-                                            value,
-                                        )
-                                    }
-                                    onAffiliationsChange={(value) =>
-                                        handleContributorAffiliationsChange(
-                                            contributor.id,
-                                            value,
-                                        )
-                                    }
-                                    onRemoveContributor={() => removeContributor(contributor.id)}
-                                    canRemove={contributors.length > 1}
-                                    onAddContributor={addContributor}
-                                    canAddContributor={index === contributors.length - 1}
-                                    affiliationSuggestions={affiliationSuggestions}
-                                    personRoleOptions={contributorPersonRoleNames}
-                                    institutionRoleOptions={contributorInstitutionRoleNames}
-                                />
-                            ))}
-                        </div>
+                        <ContributorField
+                            contributors={contributors}
+                            onChange={setContributors}
+                            affiliationSuggestions={affiliationSuggestions}
+                            personRoleOptions={contributorPersonRoleNames}
+                            institutionRoleOptions={contributorInstitutionRoleNames}
+                        />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="descriptions">
