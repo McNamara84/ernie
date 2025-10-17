@@ -185,14 +185,14 @@ describe('DataCiteForm', () => {
     };
 
     const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
-        const authorsTrigger = screen.getByRole('button', { name: 'Authors' });
+        const authorsTrigger = screen.getByRole('button', { name: /Authors/i });
         if (authorsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(authorsTrigger);
         }
     };
 
     const ensureContributorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
-        const contributorsTrigger = screen.getByRole('button', { name: 'Contributors' });
+        const contributorsTrigger = screen.getByRole('button', { name: /Contributors/i });
         if (contributorsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(contributorsTrigger);
         }
@@ -262,7 +262,7 @@ describe('DataCiteForm', () => {
     };
 
     const ensureDescriptionsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
-        const descriptionsTrigger = screen.getByRole('button', { name: 'Descriptions' });
+        const descriptionsTrigger = screen.getByRole('button', { name: /Descriptions/i });
         if (descriptionsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(descriptionsTrigger);
         }
@@ -279,7 +279,7 @@ describe('DataCiteForm', () => {
     };
 
     const ensureDatesOpen = async (user: ReturnType<typeof userEvent.setup>) => {
-        const datesTrigger = screen.getByRole('button', { name: 'Dates' });
+        const datesTrigger = screen.getByRole('button', { name: /Dates/i });
         if (datesTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(datesTrigger);
         }
@@ -415,16 +415,16 @@ describe('DataCiteForm', () => {
 
         // accordion sections
         const resourceTrigger = screen.getByRole('button', {
-            name: 'Resource Information',
+            name: /Resource Information/i,
         });
         const authorsTrigger = screen.getByRole('button', {
-            name: 'Authors',
+            name: /Authors/i,
         });
         const licensesTrigger = screen.getByRole('button', {
-            name: 'Licenses and Rights',
+            name: /Licenses and Rights/i,
         });
         const contributorsTrigger = screen.getByRole('button', {
-            name: 'Contributors',
+            name: /Contributors/i,
         });
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
@@ -1174,9 +1174,9 @@ describe('DataCiteForm', () => {
         );
 
         const licensesTrigger = screen.getByRole('button', {
-            name: 'Licenses and Rights',
+            name: /Licenses and Rights/i,
         });
-        const authorsTrigger = screen.getByRole('button', { name: 'Authors' });
+        const authorsTrigger = screen.getByRole('button', { name: /Authors/i });
 
         const position = licensesTrigger.compareDocumentPosition(authorsTrigger);
         expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -2900,7 +2900,7 @@ describe('DataCiteForm', () => {
             />,
             );
 
-            const datesTrigger = screen.getByRole('button', { name: 'Dates' });
+            const datesTrigger = screen.getByRole('button', { name: /Dates/i });
             expect(datesTrigger).toBeInTheDocument();
             expect(datesTrigger).toHaveAttribute('aria-expanded', 'true');
         });

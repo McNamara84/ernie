@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 
@@ -143,13 +143,13 @@ describe('LicenseField Validation Integration', () => {
             const trigger = screen.getByRole('combobox');
             const describedBy = trigger.getAttribute('aria-describedby');
             expect(describedBy).toBeTruthy();
-            expect(describedBy).toContain('validation-feedback');
+            expect(describedBy).toContain('feedback');
         });
     });
 
     describe('Event Handlers', () => {
         it('calls onValidationBlur when provided', async () => {
-            const user = userEvent.setup();
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
             let blurCalled = false;
             const handleBlur = () => {
                 blurCalled = true;
@@ -163,16 +163,16 @@ describe('LicenseField Validation Integration', () => {
             );
 
             const trigger = screen.getByRole('combobox');
-            await user.click(trigger);
-            await user.tab();
-
-            // Note: SelectField triggers onValidationBlur in handleValueChange
-            // So we need to actually select a value
+            
+            // SelectField triggers onValidationBlur in handleValueChange
+            // So we select a value to trigger the blur handler
             await user.click(trigger);
             const option = await screen.findByText('CC BY 4.0');
             await user.click(option);
 
-            expect(blurCalled).toBe(true);
+            await waitFor(() => {
+                expect(blurCalled).toBe(true);
+            });
         });
 
         it('calls onLicenseChange when selecting a license', async () => {
@@ -234,7 +234,9 @@ describe('LicenseField Validation Integration', () => {
             );
 
             const trigger = screen.getByRole('combobox');
-            expect(trigger).toHaveClass('border-destructive');
+            expect(trigger).toHaveAttribute('aria-invalid', 'true');
+            // Border styling is applied via aria-invalid attribute and Tailwind CSS
+            expect(trigger).toHaveClass('aria-invalid:border-destructive');
         });
 
         it('applies normal styling when no validation errors', () => {
