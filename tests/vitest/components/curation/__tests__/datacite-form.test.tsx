@@ -317,11 +317,10 @@ describe('DataCiteForm', () => {
             error: null,
         });
         
-        // Mock axios.get for vocabulary fetches
-        const mockedAxios = axios as unknown as { get: ReturnType<typeof vi.fn>; post: ReturnType<typeof vi.fn>; isAxiosError: (error: unknown) => boolean };
-        mockedAxios.get = vi.fn().mockResolvedValue({ data: [] });
-        
         // Mock axios.post for form submission - return axios response format
+        // Note: Vocabularies are loaded via fetch, not axios
+        const mockedAxios = axios as unknown as { post: ReturnType<typeof vi.fn>; isAxiosError: (error: unknown) => boolean };
+        
         // Axios response: { data, status, statusText, headers, config, request }
         mockedAxios.post = vi.fn().mockResolvedValue({
             data: { message: 'Success' },
@@ -331,9 +330,9 @@ describe('DataCiteForm', () => {
             config: {},
         });
         
-        // Mock axios.isAxiosError helper
+        // Mock axios.isAxiosError helper - check for truthy isAxiosError flag
         mockedAxios.isAxiosError = (error: unknown) => {
-            return error !== null && typeof error === 'object' && 'isAxiosError' in error;
+            return error !== null && typeof error === 'object' && 'isAxiosError' in error && !!(error as { isAxiosError?: boolean }).isAxiosError;
         };
         
         // Keep global.fetch mock for backward compatibility with other parts
