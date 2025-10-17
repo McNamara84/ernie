@@ -17,8 +17,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import {
+    checkDOIRegistration,
+    validateDOIFormat,
+    validateRequired,
+    validateSemanticVersion,
+    validateYear,
+} from '@/utils/validation-rules';
 import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { hasValidDateValue } from '@/lib/date-utils';
@@ -751,6 +759,88 @@ export default function DataCiteForm({
         'related-work',
         'funding-references',
     ]);
+
+    // Form validation hook
+    const { validateField, markFieldTouched, getFieldState, hasFieldError } = useFormValidation();
+
+    // DOI validation rules
+    const doiValidationRules: ValidationRule[] = [
+        {
+            validate: (value) => {
+                if (!value || String(value).trim() === '') {
+                    return null; // DOI is optional at this stage
+                }
+                const result = validateDOIFormat(String(value));
+                if (!result.isValid) {
+                    return { severity: 'error', message: result.error! };
+                }
+                return null;
+            },
+        },
+        // TODO: Add async DOI registration check in separate effect
+    ];
+
+    // Year validation rules
+    const yearValidationRules: ValidationRule[] = [
+        {
+            validate: (value) => {
+                const requiredResult = validateRequired(String(value || ''), 'Year');
+                if (!requiredResult.isValid) {
+                    return { severity: 'error', message: requiredResult.error! };
+                }
+
+                const yearResult = validateYear(String(value));
+                if (!yearResult.isValid) {
+                    return { severity: 'error', message: yearResult.error! };
+                }
+
+                return null;
+            },
+        },
+    ];
+
+    // Resource Type validation rules
+    const resourceTypeValidationRules: ValidationRule[] = [
+        {
+            validate: (value) => {
+                const result = validateRequired(String(value || ''), 'Resource Type');
+                if (!result.isValid) {
+                    return { severity: 'error', message: result.error! };
+                }
+                return null;
+            },
+        },
+    ];
+
+    // Language validation rules
+    const languageValidationRules: ValidationRule[] = [
+        {
+            validate: (value) => {
+                const result = validateRequired(String(value || ''), 'Language');
+                if (!result.isValid) {
+                    return { severity: 'error', message: result.error! };
+                }
+                return null;
+            },
+        },
+    ];
+
+    // Version validation rules (optional but must be semantic if provided)
+    const versionValidationRules: ValidationRule[] = [
+        {
+            validate: (value) => {
+                if (!value || String(value).trim() === '') {
+                    return null; // Version is optional
+                }
+                const result = validateSemanticVersion(String(value));
+                if (!result.isValid) {
+                    return { severity: 'error', message: result.error! };
+                }
+                return null;
+            },
+        },
+    ];
+
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
         science: GCMDKeyword[];
         platforms: GCMDKeyword[];
@@ -942,6 +1032,50 @@ export default function DataCiteForm({
 
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
+
+        // Trigger validation based on field
+        switch (field) {
+            case 'doi':
+                validateField({
+                    fieldId: 'doi',
+                    value,
+                    rules: doiValidationRules,
+                    formData: form,
+                });
+                break;
+            case 'year':
+                validateField({
+                    fieldId: 'year',
+                    value,
+                    rules: yearValidationRules,
+                    formData: form,
+                });
+                break;
+            case 'resourceType':
+                validateField({
+                    fieldId: 'resourceType',
+                    value,
+                    rules: resourceTypeValidationRules,
+                    formData: form,
+                });
+                break;
+            case 'language':
+                validateField({
+                    fieldId: 'language',
+                    value,
+                    rules: languageValidationRules,
+                    formData: form,
+                });
+                break;
+            case 'version':
+                validateField({
+                    fieldId: 'version',
+                    value,
+                    rules: versionValidationRules,
+                    formData: form,
+                });
+                break;
+        }
     };
 
     const handleTitleChange = (
@@ -1350,7 +1484,11 @@ export default function DataCiteForm({
                                 label="DOI"
                                 value={form.doi || ''}
                                 onChange={(e) => handleChange('doi', e.target.value)}
+                                onValidationBlur={() => markFieldTouched('doi')}
+                                validationMessages={getFieldState('doi').messages}
+                                touched={getFieldState('doi').touched}
                                 placeholder="10.xxxx/xxxxx"
+                                helpText="Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
                                 className="md:col-span-3"
                             />
                             <InputField
@@ -1359,6 +1497,9 @@ export default function DataCiteForm({
                                 label="Year"
                                 value={form.year || ''}
                                 onChange={(e) => handleChange('year', e.target.value)}
+                                onValidationBlur={() => markFieldTouched('year')}
+                                validationMessages={getFieldState('year').messages}
+                                touched={getFieldState('year').touched}
                                 placeholder="2024"
                                 className="md:col-span-2"
                                 required
@@ -1368,6 +1509,9 @@ export default function DataCiteForm({
                                 label="Resource Type"
                                 value={form.resourceType || ''}
                                 onValueChange={(val) => handleChange('resourceType', val)}
+                                onValidationBlur={() => markFieldTouched('resourceType')}
+                                validationMessages={getFieldState('resourceType').messages}
+                                touched={getFieldState('resourceType').touched}
                                 options={resourceTypes.map((type) => ({
                                     value: String(type.id),
                                     label: type.name,
@@ -1380,7 +1524,11 @@ export default function DataCiteForm({
                                 label="Version"
                                 value={form.version || ''}
                                 onChange={(e) => handleChange('version', e.target.value)}
+                                onValidationBlur={() => markFieldTouched('version')}
+                                validationMessages={getFieldState('version').messages}
+                                touched={getFieldState('version').touched}
                                 placeholder="1.0"
+                                helpText="Semantic versioning (e.g., 1.2.3)"
                                 className="md:col-span-1"
                             />
                             <SelectField
@@ -1388,6 +1536,9 @@ export default function DataCiteForm({
                                 label="Language of Data"
                                 value={form.language || ''}
                                 onValueChange={(val) => handleChange('language', val)}
+                                onValidationBlur={() => markFieldTouched('language')}
+                                validationMessages={getFieldState('language').messages}
+                                touched={getFieldState('language').touched}
                                 options={languages.map((l) => ({
                                     value: l.code,
                                     label: l.name,
