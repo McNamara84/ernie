@@ -1,5 +1,6 @@
 import { type HTMLAttributes } from 'react';
 
+import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -8,6 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
 
 interface Option {
@@ -27,6 +29,13 @@ interface SelectFieldProps {
     required?: boolean;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     triggerClassName?: string;
+
+    // Validation props
+    validationMessages?: ValidationMessage[];
+    touched?: boolean;
+    onValidationBlur?: () => void;
+    showSuccessFeedback?: boolean;
+    helpText?: string;
 }
 
 export function SelectField({
@@ -41,18 +50,45 @@ export function SelectField({
     required = false,
     containerProps,
     triggerClassName,
+    validationMessages = [],
+    touched = false,
+    onValidationBlur,
+    showSuccessFeedback = true,
+    helpText,
 }: SelectFieldProps) {
     const labelId = `${id}-label`;
+    const helpTextId = helpText ? `${id}-help` : undefined;
+    const feedbackId = validationMessages.length > 0 ? `${id}-feedback` : undefined;
+
     const mergedClassName = cn(
         'flex flex-col gap-2',
         containerProps?.className,
         className,
     );
 
+    // Determine if field has error
+    const hasError = validationMessages.some((m) => m.severity === 'error');
+    const isInvalid = hasError && touched;
+
+    // Build aria-describedby
+    const ariaDescribedBy = [helpTextId, feedbackId].filter(Boolean).join(' ') || undefined;
+
     // Only use aria-label when label is hidden; otherwise use aria-labelledby
     const ariaProps = hideLabel
         ? { 'aria-label': label }
         : { 'aria-labelledby': labelId };
+
+    // Handle value change with optional blur callback
+    const handleValueChange = (newValue: string) => {
+        onValueChange(newValue);
+        // Call validation blur after value changes (select acts like blur)
+        if (onValidationBlur) {
+            // Small delay to ensure state updates
+            setTimeout(() => {
+                onValidationBlur();
+            }, 0);
+        }
+    };
 
     return (
         <div {...containerProps} className={mergedClassName}>
@@ -67,10 +103,19 @@ export function SelectField({
                     </span>
                 )}
             </Label>
-            <Select value={value} onValueChange={onValueChange} required={required}>
+
+            {helpText && (
+                <p id={helpTextId} className="text-sm text-muted-foreground">
+                    {helpText}
+                </p>
+            )}
+
+            <Select value={value} onValueChange={handleValueChange} required={required}>
                 <SelectTrigger
                     id={id}
                     aria-required={required || undefined}
+                    aria-invalid={isInvalid}
+                    aria-describedby={ariaDescribedBy}
                     className={triggerClassName}
                     {...ariaProps}
                 >
@@ -84,6 +129,13 @@ export function SelectField({
                     ))}
                 </SelectContent>
             </Select>
+
+            {touched && validationMessages.length > 0 && (
+                <FieldValidationFeedback
+                    messages={validationMessages}
+                    showSuccess={showSuccessFeedback}
+                />
+            )}
         </div>
     );
 }

@@ -1,7 +1,9 @@
 import { type HTMLAttributes, type InputHTMLAttributes } from 'react';
 
+import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
 
 interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -11,6 +13,13 @@ interface InputFieldProps extends InputHTMLAttributes<HTMLInputElement> {
     className?: string;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     inputClassName?: string;
+
+    // Validation props
+    validationMessages?: ValidationMessage[];
+    touched?: boolean;
+    onValidationBlur?: () => void;
+    showSuccessFeedback?: boolean;
+    helpText?: string;
 }
 
 export function InputField({
@@ -22,14 +31,36 @@ export function InputField({
     required,
     containerProps,
     inputClassName,
+    validationMessages = [],
+    touched = false,
+    onValidationBlur,
+    showSuccessFeedback = true,
+    helpText,
+    onBlur,
     ...props
 }: InputFieldProps) {
     const labelId = `${id}-label`;
+    const helpTextId = helpText ? `${id}-help` : undefined;
+    const feedbackId = validationMessages.length > 0 ? `${id}-feedback` : undefined;
+
     const mergedClassName = cn(
         'flex flex-col gap-2',
         containerProps?.className,
         className,
     );
+
+    // Determine if field has error
+    const hasError = validationMessages.some((m) => m.severity === 'error');
+    const isInvalid = hasError && touched;
+
+    // Handle blur event
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        onValidationBlur?.();
+        onBlur?.(e);
+    };
+
+    // Build aria-describedby
+    const ariaDescribedBy = [helpTextId, feedbackId].filter(Boolean).join(' ') || undefined;
 
     // Only use aria-label when label is hidden; otherwise use aria-labelledby
     const ariaProps = hideLabel
@@ -50,14 +81,31 @@ export function InputField({
                     </span>
                 )}
             </Label>
+
+            {helpText && (
+                <p id={helpTextId} className="text-sm text-muted-foreground">
+                    {helpText}
+                </p>
+            )}
+
             <Input
                 id={id}
                 type={type}
                 required={required}
                 className={inputClassName}
+                aria-invalid={isInvalid}
+                aria-describedby={ariaDescribedBy}
+                onBlur={handleBlur}
                 {...ariaProps}
                 {...props}
             />
+
+            {touched && validationMessages.length > 0 && (
+                <FieldValidationFeedback
+                    messages={validationMessages}
+                    showSuccess={showSuccessFeedback}
+                />
+            )}
         </div>
     );
 }
