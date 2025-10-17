@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import axios from 'axios';
+import { AlertCircle, CheckCircle, Circle } from 'lucide-react';
 
 import {
     Accordion,
@@ -626,6 +627,14 @@ export default function DataCiteForm({
     ];
     
     const errorRef = useRef<HTMLDivElement | null>(null);
+    
+    // Refs for accordion sections (for auto-scroll on validation errors)
+    const resourceInfoRef = useRef<HTMLDivElement | null>(null);
+    const licensesRef = useRef<HTMLDivElement | null>(null);
+    const authorsRef = useRef<HTMLDivElement | null>(null);
+    const descriptionsRef = useRef<HTMLDivElement | null>(null);
+    const datesRef = useRef<HTMLDivElement | null>(null);
+    
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
         year: initialYear,
@@ -1307,6 +1316,263 @@ export default function DataCiteForm({
         return missing;
     }, [authors, descriptions, dates, form.language, form.resourceType, form.year, licenseEntries, titles]);
 
+    // ===================================================================
+    // Accordion Section Status Badges
+    // ===================================================================
+    // Calculate validation status for each accordion section to show badges:
+    // - 'valid' (green check): All required fields complete and valid
+    // - 'invalid' (yellow warning): Missing required fields or validation errors
+    // - 'optional-empty' (gray circle): Optional section with no content
+
+    const resourceInfoStatus = useMemo(() => {
+        const mainTitleEntry = titles.find((entry) => entry.titleType === 'main-title');
+        const hasMainTitle = Boolean(mainTitleEntry?.title.trim());
+        const hasYear = Boolean(form.year?.trim());
+        const hasResourceType = Boolean(form.resourceType);
+        const hasLanguage = Boolean(form.language);
+
+        // Check if DOI has validation errors (if present)
+        const doiMessages = getFieldState('doi').messages;
+        const hasDoiError = doiMessages.some((msg) => msg.severity === 'error');
+
+        // Check if Year has validation errors (if present)
+        const yearMessages = getFieldState('year').messages;
+        const hasYearError = yearMessages.some((msg) => msg.severity === 'error');
+
+        // Check if Version has validation errors (if present)
+        const versionMessages = getFieldState('version').messages;
+        const hasVersionError = versionMessages.some((msg) => msg.severity === 'error');
+
+        const allRequiredPresent = hasMainTitle && hasYear && hasResourceType && hasLanguage;
+        const hasErrors = hasDoiError || hasYearError || hasVersionError;
+
+        if (!allRequiredPresent || hasErrors) {
+            return 'invalid';
+        }
+        return 'valid';
+    }, [titles, form.year, form.resourceType, form.language, getFieldState]);
+
+    const licensesStatus = useMemo(() => {
+        const primaryLicense = licenseEntries[0]?.license?.trim();
+        if (!primaryLicense) {
+            return 'invalid';
+        }
+        return 'valid';
+    }, [licenseEntries]);
+
+    const authorsStatus = useMemo(() => {
+        if (authors.length === 0) {
+            return 'invalid';
+        }
+        if (authorValidationIssues.length > 0) {
+            return 'invalid';
+        }
+        return 'valid';
+    }, [authors.length, authorValidationIssues.length]);
+
+    const contributorsStatus = useMemo(() => {
+        // Contributors are optional
+        const hasAnyContributor = contributors.some((contributor) => {
+            if (contributor.type === 'person') {
+                return contributor.lastName.trim() !== '';
+            }
+            return contributor.institutionName.trim() !== '';
+        });
+
+        if (!hasAnyContributor) {
+            return 'optional-empty';
+        }
+
+        // If present, check for validation issues
+        // (Currently no specific contributor validation, but could be added)
+        return 'valid';
+    }, [contributors]);
+
+    const descriptionsStatus = useMemo(() => {
+        const abstractEntry = descriptions.find((desc) => desc.type === 'Abstract');
+        if (!abstractEntry?.value.trim()) {
+            return 'invalid';
+        }
+        if (abstractEntry.value.trim().length < 50) {
+            return 'invalid';
+        }
+
+        // Check for validation errors
+        const abstractMessages = getFieldState('abstract').messages;
+        const hasAbstractError = abstractMessages.some((msg) => msg.severity === 'error');
+        if (hasAbstractError) {
+            return 'invalid';
+        }
+
+        return 'valid';
+    }, [descriptions, getFieldState]);
+
+    const controlledVocabulariesStatus = useMemo(() => {
+        // Controlled vocabularies are optional
+        if (gcmdKeywords.length === 0) {
+            return 'optional-empty';
+        }
+        return 'valid';
+    }, [gcmdKeywords.length]);
+
+    const freeKeywordsStatus = useMemo(() => {
+        // Free keywords are optional
+        const hasKeywords = freeKeywords.some((kw) => kw.value.trim() !== '');
+        if (!hasKeywords) {
+            return 'optional-empty';
+        }
+        return 'valid';
+    }, [freeKeywords]);
+
+    const mslLaboratoriesStatus = useMemo(() => {
+        // MSL section only relevant if EPOS/MSL keywords present
+        if (!shouldShowMSLSection) {
+            return 'optional-empty'; // Section hidden, not relevant
+        }
+
+        if (mslLaboratories.length === 0) {
+            return 'invalid'; // Show info message (recommendation)
+        }
+
+        return 'valid';
+    }, [shouldShowMSLSection, mslLaboratories.length]);
+
+    const spatialTemporalCoverageStatus = useMemo(() => {
+        // Spatial/temporal coverage is optional
+        const hasAnyCoverage = spatialTemporalCoverages.some(
+            (coverage) =>
+                coverage.latMin.trim() !== '' ||
+                coverage.lonMin.trim() !== '' ||
+                coverage.startDate.trim() !== ''
+        );
+
+        if (!hasAnyCoverage) {
+            return 'optional-empty';
+        }
+
+        return 'valid';
+    }, [spatialTemporalCoverages]);
+
+    const datesStatus = useMemo(() => {
+        const createdDate = dates.find((date) => date.dateType === REQUIRED_DATE_TYPE);
+        if (!createdDate) {
+            return 'invalid';
+        }
+        if (!hasValidDateValue(createdDate)) {
+            return 'invalid';
+        }
+        if (dateValidationIssues.length > 0) {
+            return 'invalid';
+        }
+        return 'valid';
+    }, [dates, dateValidationIssues.length]);
+
+    const relatedWorkStatus = useMemo(() => {
+        // Related work is optional
+        const hasAnyRelatedWork = relatedWorks.some((rw) => rw.identifier.trim() !== '');
+        if (!hasAnyRelatedWork) {
+            return 'optional-empty';
+        }
+        return 'valid';
+    }, [relatedWorks]);
+
+    const fundingReferencesStatus = useMemo(() => {
+        // Funding references are optional
+        const hasAnyFunding = fundingReferences.some((fr) => fr.funderName.trim() !== '');
+        if (!hasAnyFunding) {
+            return 'optional-empty';
+        }
+
+        // Check for validation errors
+        const hasErrors = !validateAllFundingReferences(fundingReferences);
+        if (hasErrors) {
+            return 'invalid';
+        }
+
+        return 'valid';
+    }, [fundingReferences]);
+
+    // ===================================================================
+    // Auto-Scroll to First Invalid Section
+    // ===================================================================
+    // Scrolls to the first accordion section with validation errors
+    // Opens the section automatically and focuses the first problematic field
+    const scrollToFirstInvalidSection = () => {
+        // Define priority order of sections to check
+        const sectionsToCheck: Array<{
+            status: 'valid' | 'invalid' | 'optional-empty';
+            ref: React.RefObject<HTMLDivElement | null>;
+            accordionValue: string;
+            focusSelector?: string; // CSS selector for first field to focus
+        }> = [
+            {
+                status: resourceInfoStatus,
+                ref: resourceInfoRef,
+                accordionValue: 'resource-info',
+                focusSelector: '#main-title-input', // Focus main title if invalid
+            },
+            {
+                status: licensesStatus,
+                ref: licensesRef,
+                accordionValue: 'licenses-rights',
+                focusSelector: '[data-testid="license-select-0"]', // Focus primary license
+            },
+            {
+                status: authorsStatus,
+                ref: authorsRef,
+                accordionValue: 'authors',
+                // Authors is complex, just scroll to section
+            },
+            {
+                status: descriptionsStatus,
+                ref: descriptionsRef,
+                accordionValue: 'descriptions',
+                focusSelector: '[data-testid="abstract-textarea"]', // Focus abstract
+            },
+            {
+                status: datesStatus,
+                ref: datesRef,
+                accordionValue: 'dates',
+                // Dates is complex, just scroll to section
+            },
+        ];
+
+        // Find first invalid section
+        const firstInvalidSection = sectionsToCheck.find((section) => section.status === 'invalid');
+
+        if (firstInvalidSection) {
+            // Open the accordion section
+            setOpenAccordionItems((prev) => {
+                if (!prev.includes(firstInvalidSection.accordionValue)) {
+                    return [...prev, firstInvalidSection.accordionValue];
+                }
+                return prev;
+            });
+
+            // Scroll to the section after a brief delay to allow accordion to open
+            setTimeout(() => {
+                if (firstInvalidSection.ref.current) {
+                    firstInvalidSection.ref.current.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                    });
+
+                    // Focus the first field if selector provided
+                    if (firstInvalidSection.focusSelector) {
+                        setTimeout(() => {
+                            const fieldToFocus = document.querySelector(
+                                firstInvalidSection.focusSelector!
+                            ) as HTMLElement;
+                            if (fieldToFocus) {
+                                fieldToFocus.focus();
+                            }
+                        }, 400); // Additional delay for smooth scroll to complete
+                    }
+                }
+            }, 100); // Brief delay for accordion animation
+        }
+    };
+
     const handleChange = (field: keyof DataCiteFormData, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -1520,6 +1786,13 @@ export default function DataCiteForm({
         setIsSaving(true);
         setErrorMessage(null);
         setValidationErrors([]);
+
+        // Check if required fields are filled - if not, scroll to first invalid section
+        if (!areRequiredFieldsFilled) {
+            setIsSaving(false);
+            scrollToFirstInvalidSection();
+            return;
+        }
 
         // Client-side validation for funding references
         if (!validateAllFundingReferences(fundingReferences)) {
@@ -1787,6 +2060,19 @@ export default function DataCiteForm({
         }
     };
 
+    // ===================================================================
+    // Status Badge Rendering Helper
+    // ===================================================================
+    const renderStatusBadge = (status: 'valid' | 'invalid' | 'optional-empty') => {
+        if (status === 'valid') {
+            return <CheckCircle className="h-4 w-4 text-green-600" aria-label="Section complete" />;
+        }
+        if (status === 'invalid') {
+            return <AlertCircle className="h-4 w-4 text-yellow-600" aria-label="Section incomplete or has errors" />;
+        }
+        return <Circle className="h-4 w-4 text-gray-400" aria-label="Optional section" />;
+    };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {errorMessage && (
@@ -1814,8 +2100,13 @@ export default function DataCiteForm({
                 className="w-full"
             >
                 <AccordionItem value="resource-info">
-                    <AccordionTrigger>Resource Information</AccordionTrigger>
-                    <AccordionContent className="space-y-6">
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Resource Information</span>
+                            {renderStatusBadge(resourceInfoStatus)}
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent ref={resourceInfoRef} className="space-y-6">
                         <div className="grid gap-4 md:grid-cols-12">
                             <InputField
                                 id="doi"
@@ -1919,8 +2210,13 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="licenses-rights">
-                    <AccordionTrigger>Licenses and Rights</AccordionTrigger>
-                    <AccordionContent>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Licenses and Rights</span>
+                            {renderStatusBadge(licensesStatus)}
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent ref={licensesRef}>
                         <div className="space-y-4">
                             {licenseEntries.map((entry, index) => (
                                 <LicenseField
@@ -1951,8 +2247,13 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="authors">
-                    <AccordionTrigger>Authors</AccordionTrigger>
-                    <AccordionContent>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Authors</span>
+                            {renderStatusBadge(authorsStatus)}
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent ref={authorsRef}>
                         {/* Validation issues notification */}
                         {authorValidationIssues.length > 0 && (
                             <div
@@ -1987,7 +2288,12 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="contributors">
-                    <AccordionTrigger>Contributors</AccordionTrigger>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Contributors</span>
+                            {renderStatusBadge(contributorsStatus)}
+                        </div>
+                    </AccordionTrigger>
                     <AccordionContent>
                         <ContributorField
                             contributors={contributors}
@@ -1999,8 +2305,13 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="descriptions">
-                    <AccordionTrigger>Descriptions</AccordionTrigger>
-                    <AccordionContent>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Descriptions</span>
+                            {renderStatusBadge(descriptionsStatus)}
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent ref={descriptionsRef}>
                         <DescriptionField
                             descriptions={descriptions}
                             onChange={handleDescriptionChange}
@@ -2011,7 +2322,12 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="controlled-vocabularies">
-                    <AccordionTrigger>Controlled Vocabularies</AccordionTrigger>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Controlled Vocabularies</span>
+                            {renderStatusBadge(controlledVocabulariesStatus)}
+                        </div>
+                    </AccordionTrigger>
                     <AccordionContent>
                         {isLoadingVocabularies ? (
                             <div className="text-center py-8 text-muted-foreground">
@@ -2031,7 +2347,12 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="free-keywords">
-                    <AccordionTrigger>Free Keywords</AccordionTrigger>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Free Keywords</span>
+                            {renderStatusBadge(freeKeywordsStatus)}
+                        </div>
+                    </AccordionTrigger>
                     <AccordionContent>
                         <FreeKeywordsField
                             keywords={freeKeywords}
@@ -2047,6 +2368,7 @@ export default function DataCiteForm({
                                 <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">
                                     EPOS/MSL
                                 </span>
+                                {renderStatusBadge(mslLaboratoriesStatus)}
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
@@ -2086,7 +2408,12 @@ export default function DataCiteForm({
                     </AccordionItem>
                 )}
                 <AccordionItem value="spatial-temporal-coverage">
-                    <AccordionTrigger>Spatial and Temporal Coverage</AccordionTrigger>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Spatial and Temporal Coverage</span>
+                            {renderStatusBadge(spatialTemporalCoverageStatus)}
+                        </div>
+                    </AccordionTrigger>
                     <AccordionContent>
                         <SpatialTemporalCoverageField
                             coverages={spatialTemporalCoverages}
@@ -2096,8 +2423,13 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="dates">
-                    <AccordionTrigger>Dates</AccordionTrigger>
-                    <AccordionContent>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Dates</span>
+                            {renderStatusBadge(datesStatus)}
+                        </div>
+                    </AccordionTrigger>
+                    <AccordionContent ref={datesRef}>
                         {dateValidationIssues.length > 0 && (
                             <div
                                 className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
@@ -2148,7 +2480,12 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="related-work">
-                    <AccordionTrigger>Related Work</AccordionTrigger>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Related Work</span>
+                            {renderStatusBadge(relatedWorkStatus)}
+                        </div>
+                    </AccordionTrigger>
                     <AccordionContent>
                         <RelatedWorkField
                             relatedWorks={relatedWorks}
@@ -2157,7 +2494,12 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="funding-references">
-                    <AccordionTrigger>Funding References</AccordionTrigger>
+                    <AccordionTrigger>
+                        <div className="flex items-center gap-2">
+                            <span>Funding References</span>
+                            {renderStatusBadge(fundingReferencesStatus)}
+                        </div>
+                    </AccordionTrigger>
                     <AccordionContent id="funding-references-section">
                         <FundingReferenceField
                             value={fundingReferences}
