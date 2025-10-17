@@ -21,10 +21,17 @@ export default defineConfig(() => {
         build: {
             outDir: 'public/build',
             assetsDir: 'assets',
-            sourcemap: false,
+            sourcemap: false, // Auf 'hidden' setzen für Production-Debugging ohne Offenlegung
             chunkSizeWarningLimit: 1200, // Erhöht auf 1200 kB für Swagger UI
+            cssCodeSplit: true, // CSS Code-Splitting für besseres Caching
+            minify: 'esbuild', // esbuild ist schneller als terser
+            target: 'es2020', // Moderne Browser für kleinere Bundles
             rollupOptions: {
                 output: {
+                    // Optimierte Chunk-Namen für besseres Caching
+                    chunkFileNames: 'assets/[name]-[hash].js',
+                    entryFileNames: 'assets/[name]-[hash].js',
+                    assetFileNames: 'assets/[name]-[hash].[ext]',
                     manualChunks: (id) => {
                         // Swagger UI in separaten Chunk (wird nur auf API-Docs-Seite geladen)
                         if (id.includes('swagger-ui-react')) {
@@ -50,9 +57,13 @@ export default defineConfig(() => {
                             if (id.includes('lucide-react')) {
                                 return 'lucide';
                             }
-                            // Axios separat
+                            // Axios separat für HTTP-Requests
                             if (id.includes('axios')) {
                                 return 'axios';
+                            }
+                            // Inertia.js separat
+                            if (id.includes('@inertiajs')) {
+                                return 'inertia';
                             }
                         }
                     }
@@ -73,11 +84,30 @@ export default defineConfig(() => {
             },
         },
         optimizeDeps: {
-            include: ['react', 'react-dom', 'swagger-ui-react', 'papaparse'],
+            include: [
+                'react',
+                'react-dom',
+                'swagger-ui-react',
+                'papaparse',
+                '@inertiajs/react',
+                'axios',
+            ],
+            // Exkludiere große Bibliotheken, die bereits optimiert sind
+            exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
         },
         server: {
             warmup: {
-                clientFiles: ['resources/js/swagger.tsx'],
+                clientFiles: [
+                    'resources/js/app.tsx',
+                    'resources/js/pages/dashboard.tsx',
+                    'resources/js/swagger.tsx',
+                ],
+            },
+            // CORS für lokale Entwicklung
+            cors: true,
+            // HMR Konfiguration
+            hmr: {
+                overlay: true,
             },
         },
         test: {
