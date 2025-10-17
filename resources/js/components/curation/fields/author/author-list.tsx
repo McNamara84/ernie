@@ -275,7 +275,7 @@ export default function AuthorList({
                     items={authors.map((author) => author.id)}
                     strategy={verticalListSortingStrategy}
                 >
-                    <div className="space-y-4" role="list" aria-label="Authors">
+                    <div className="space-y-4" role="list" aria-label="Authors" aria-describedby="author-roles-description" data-testid="author-entries-group">
                         {authors.map((author, index) => (
                             <AuthorItem
                                 key={author.id}

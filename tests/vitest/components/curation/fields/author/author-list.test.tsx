@@ -21,6 +21,14 @@ vi.mock('@dnd-kit/core', () => ({
 
 vi.mock('@dnd-kit/sortable', () => ({
     SortableContext: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    useSortable: () => ({
+        attributes: {},
+        listeners: {},
+        setNodeRef: vi.fn(),
+        transform: null,
+        transition: null,
+        isDragging: false,
+    }),
     arrayMove: vi.fn((array, from, to) => {
         const result = [...array];
         const [removed] = result.splice(from, 1);
@@ -29,6 +37,14 @@ vi.mock('@dnd-kit/sortable', () => ({
     }),
     sortableKeyboardCoordinates: vi.fn(),
     verticalListSortingStrategy: vi.fn(),
+}));
+
+vi.mock('@dnd-kit/utilities', () => ({
+    CSS: {
+        Transform: {
+            toString: () => '',
+        },
+    },
 }));
 
 describe('AuthorList Component', () => {
