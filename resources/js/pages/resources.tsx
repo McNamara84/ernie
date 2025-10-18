@@ -284,7 +284,6 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
     const [loading, setLoading] = useState(false);
-    const [isSorting, setIsSorting] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
     const [filters, setFilters] = useState<ResourceFilterState>({});
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
@@ -379,54 +378,61 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     }, [sortState]);
 
     const handleSortChange = useCallback((key: ResourceSortKey) => {
-        setSortState(prev => {
-            const newDirection = determineNextDirection(prev, key);
-            return { key, direction: newDirection };
+        const newDirection = determineNextDirection(sortState, key);
+        const newState = { key, direction: newDirection };
+        
+        setSortState(newState);
+        
+        // Build query string
+        const params = new URLSearchParams({
+            sort_key: newState.key,
+            sort_direction: newState.direction,
         });
-    }, []);
+        
+        // Add current filters
+        Object.entries(filters).forEach(([filterKey, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                if (Array.isArray(value)) {
+                    value.forEach(v => params.append(`${filterKey}[]`, String(v)));
+                } else {
+                    params.append(filterKey, String(value));
+                }
+            }
+        });
+        
+        // Navigate to same page with new query params
+        router.visit(`/resources?${params.toString()}`, {
+            preserveState: false,
+            replace: true,
+        });
+    }, [sortState, filters]);
 
     const handleFilterChange = useCallback((newFilters: ResourceFilterState) => {
         setFilters(newFilters);
-    }, []);
+        
+        // Build query string with current sort state
+        const params = new URLSearchParams({
+            sort_key: sortState.key,
+            sort_direction: sortState.direction,
+        });
 
-    // Fetch resources when sort or filters change
-    useEffect(() => {
-        const fetchResources = async () => {
-            setIsSorting(true);
-            setLoadingError(null);
-
-            try {
-                const params = new URLSearchParams({
-                    sort_key: sortState.key,
-                    sort_direction: sortState.direction,
-                    per_page: String(pagination.per_page),
-                });
-
-                // Add filters to params
-                Object.entries(filters).forEach(([key, value]) => {
-                    if (value !== undefined && value !== null && value !== '') {
-                        if (Array.isArray(value)) {
-                            value.forEach(v => params.append(`${key}[]`, String(v)));
-                        } else {
-                            params.append(key, String(value));
-                        }
-                    }
-                });
-
-                const response = await axios.get(withBasePath('/resources'), { params });
-                
-                setResources(response.data.resources || []);
-                setPagination(response.data.pagination || initialPagination);
-            } catch (err) {
-                console.error('Error fetching resources:', err);
-                setLoadingError('Failed to load resources. Please try again.');
-            } finally {
-                setIsSorting(false);
+        // Add filters to params
+        Object.entries(newFilters).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                if (Array.isArray(value)) {
+                    value.forEach(v => params.append(`${key}[]`, String(v)));
+                } else {
+                    params.append(key, String(value));
+                }
             }
-        };
+        });
 
-        void fetchResources();
-    }, [sortState, filters, pagination.per_page, initialPagination]);
+        // Navigate to same page with new query params
+        router.visit(`/resources?${params.toString()}`, {
+            preserveState: false,
+            replace: true,
+        });
+    }, [sortState]);
 
     // Infinite scrolling
     useEffect(() => {
@@ -751,7 +757,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             </Alert>
                         )}
 
-                        {sortedResources.length === 0 && !isSorting && !loading && !loadingError ? (
+                        {sortedResources.length === 0 && !loading && !loadingError ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
                                     "No resources available. Please check the database connection." :
@@ -767,7 +773,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                     filterOptions={filterOptions}
                                     resultCount={sortedResources.length}
                                     totalCount={pagination.total}
-                                    isLoading={loading || isSorting}
+                                    isLoading={loading}
                                 />
 
                                 <div className="mb-4 flex items-center gap-2 flex-wrap">
@@ -851,7 +857,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
-                                            {(isSorting || (loading && sortedResources.length === 0)) && <LoadingSkeleton />}
+                                            {loading && sortedResources.length === 0 && <LoadingSkeleton />}
                                             {sortedResources.map((resource, index) => {
                                                 const isLast = index === sortedResources.length - 1;
                                                 const resourceLabel =

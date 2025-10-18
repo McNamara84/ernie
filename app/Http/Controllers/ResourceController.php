@@ -27,9 +27,9 @@ class ResourceController extends Controller
 {
     private const DEFAULT_PER_PAGE = 50;
 
-    private const MIN_PER_PAGE = 10;
+    private const MIN_PER_PAGE = 1;
 
-    private const MAX_PER_PAGE = 200;
+    private const MAX_PER_PAGE = 100;
 
     private const DEFAULT_SORT_KEY = 'updated_at';
 
@@ -90,7 +90,7 @@ class ResourceController extends Controller
         $resources = $query
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $resourcesData = $resources->map(function (Resource $resource): array {
+        $resourcesData = collect($resources->items())->map(function (Resource $resource): array {
             // Get first author
             $firstAuthor = $resource->authors->first();
             $firstAuthorData = null;
@@ -531,7 +531,7 @@ class ResourceController extends Controller
         $resources = $query
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $resourcesData = $resources->map(function (Resource $resource): array {
+        $resourcesData = collect($resources->items())->map(function (Resource $resource): array {
             // Get first author
             $firstAuthor = $resource->authors->first();
             $firstAuthorData = null;
