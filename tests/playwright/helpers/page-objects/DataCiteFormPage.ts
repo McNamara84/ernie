@@ -63,8 +63,7 @@ export class DataCiteFormPage {
     this.resourceTypeSelect = page.getByTestId('resource-type-select');
     this.languageSelect = page.getByTestId('language-select');
     this.versionInput = page.locator('#version');
-    // Main title uses dynamic ID, so use role-based query
-    this.mainTitleInput = page.getByRole('textbox', { name: /^Title$/i });
+    this.mainTitleInput = page.getByTestId('main-title-input');
     
     // License Fields
     this.primaryLicenseSelect = page.getByTestId('license-select-0');
@@ -132,35 +131,43 @@ export class DataCiteFormPage {
    * Get validation messages for a field (errors, warnings, success)
    */
   async getFieldValidationMessages(fieldLocator: Locator): Promise<string[]> {
-    const fieldContainer = fieldLocator.locator('xpath=ancestor::div[contains(@class, "space-y")]').first();
-    const messages = fieldContainer.locator('.validation-message');
-    const count = await messages.count();
+    // Get aria-describedby to find validation feedback element
+    const describedBy = await fieldLocator.getAttribute('aria-describedby');
+    if (!describedBy) return [];
     
-    const texts: string[] = [];
-    for (let i = 0; i < count; i++) {
-      const text = await messages.nth(i).textContent();
-      if (text) {
-        texts.push(text.trim());
-      }
-    }
+    // Find the feedback ID (contains 'feedback')
+    const feedbackId = describedBy.split(' ').find(id => id.includes('feedback'));
+    if (!feedbackId) return [];
     
-    return texts;
+    // Get the feedback element
+    const feedback = this.page.locator(`#${feedbackId}`);
+    const count = await feedback.count();
+    if (count === 0) return [];
+    
+    // Extract all text content from the feedback element
+    const text = await feedback.textContent();
+    return text ? [text.trim()] : [];
   }
   
   /**
    * Check if a field has validation error styling
    */
   async hasValidationError(fieldLocator: Locator): Promise<boolean> {
-    const classes = await fieldLocator.getAttribute('class') || '';
-    return classes.includes('border-red') || classes.includes('ring-red');
+    const ariaInvalid = await fieldLocator.getAttribute('aria-invalid');
+    return ariaInvalid === 'true';
   }
   
   /**
    * Check if a field has validation success styling
    */
   async hasValidationSuccess(fieldLocator: Locator): Promise<boolean> {
-    const classes = await fieldLocator.getAttribute('class') || '';
-    return classes.includes('border-green') || classes.includes('ring-green');
+    const ariaInvalid = await fieldLocator.getAttribute('aria-invalid');
+    // Field is valid if aria-invalid is explicitly 'false' AND has validation feedback
+    if (ariaInvalid !== 'false') return false;
+    
+    // Check if there's success feedback text
+    const messages = await this.getFieldValidationMessages(fieldLocator);
+    return messages.length > 0;
   }
   
   /**

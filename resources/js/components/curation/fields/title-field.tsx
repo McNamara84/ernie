@@ -27,6 +27,7 @@ interface TitleFieldProps {
     validationMessages?: ValidationMessage[];
     touched?: boolean;
     onValidationBlur?: () => void;
+    'data-testid'?: string;
 }
 
 export function TitleField({
@@ -44,6 +45,7 @@ export function TitleField({
     validationMessages,
     touched,
     onValidationBlur,
+    'data-testid': dataTestId,
 }: TitleFieldProps) {
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
@@ -59,6 +61,7 @@ export function TitleField({
                 className="md:col-span-8"
                 required={titleType === 'main-title'}
                 labelTooltip="Enter a title between 1 and 325 characters"
+                data-testid={dataTestId}
             />
             <SelectField
                 id={`${id}-titleType`}

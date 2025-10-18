@@ -181,6 +181,7 @@ export default function DescriptionField({
                                     aria-describedby={`description-${desc.value}-count ${isAbstract ? 'description-abstract-validation' : ''}`}
                                     aria-invalid={hasValidationError}
                                     required={desc.required}
+                                    data-testid={isAbstract ? 'abstract-textarea' : undefined}
                                 />
                                 {isAbstract && abstractTouched && (
                                     <FieldValidationFeedback 

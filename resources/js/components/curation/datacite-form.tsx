@@ -2147,6 +2147,7 @@ export default function DataCiteForm({
                                 }))}
                                 className="md:col-span-4"
                                 required
+                                data-testid="resource-type-select"
                             />
                             <InputField
                                 id="version"
@@ -2174,6 +2175,7 @@ export default function DataCiteForm({
                                 }))}
                                 className="md:col-span-2"
                                 required
+                                data-testid="language-select"
                             />
                         </div>
                         <div className="space-y-4 mt-3">
@@ -2204,6 +2206,7 @@ export default function DataCiteForm({
                                     validationMessages={getFieldState(`title-${index}`).messages}
                                     touched={getFieldState(`title-${index}`).touched}
                                     onValidationBlur={() => markFieldTouched(`title-${index}`)}
+                                    data-testid={entry.titleType === 'main-title' ? 'main-title-input' : undefined}
                                 />
                             ))}
                         </div>
