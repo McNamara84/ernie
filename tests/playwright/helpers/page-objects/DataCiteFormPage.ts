@@ -284,7 +284,8 @@ export class DataCiteFormPage {
     await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
     
     // Now wait for and click the specific option
-    const ccByOption = this.page.getByRole('option', { name: /CC BY 4\.0/i }).first();
+    // Note: SPDX license name is the full name, not the identifier
+    const ccByOption = this.page.getByRole('option', { name: /Creative Commons Attribution 4\.0/i }).first();
     await ccByOption.waitFor({ state: 'visible', timeout: 10000 });
     await ccByOption.click();
     
