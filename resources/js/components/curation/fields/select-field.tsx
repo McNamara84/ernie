@@ -162,6 +162,7 @@ export function SelectField({
 
             {touched && validationMessages.length > 0 && (
                 <FieldValidationFeedback
+                    id={feedbackId}
                     messages={validationMessages}
                     showSuccess={showSuccessFeedback}
                 />

@@ -8,6 +8,7 @@ interface FieldValidationFeedbackProps {
     className?: string;
     showSuccess?: boolean;
     compact?: boolean;
+    id?: string;
 }
 
 /**
@@ -70,6 +71,7 @@ export function FieldValidationFeedback({
     className,
     showSuccess = true,
     compact = false,
+    id,
 }: FieldValidationFeedbackProps) {
     // Filtere Nachrichten basierend auf showSuccess
     const filteredMessages = showSuccess
@@ -94,6 +96,7 @@ export function FieldValidationFeedback({
 
     return (
         <div
+            id={id}
             className={cn('space-y-1', className)}
             role="alert"
             aria-live="polite"

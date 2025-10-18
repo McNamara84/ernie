@@ -258,13 +258,16 @@ export class DataCiteFormPage {
     await this.mainTitleInput.fill('Test Dataset for Validation E2E');
     await this.yearInput.fill('2024');
     await this.resourceTypeSelect.click();
+    await this.page.waitForTimeout(100); // Wait for dropdown to open
     await this.page.getByRole('option', { name: /Dataset/i }).first().click();
     await this.languageSelect.click();
+    await this.page.waitForTimeout(100); // Wait for dropdown to open
     await this.page.getByRole('option', { name: /English/i }).first().click();
     
     // License
     await this.expandAccordion(this.licensesAccordion);
     await this.primaryLicenseSelect.click();
+    await this.page.waitForTimeout(100); // Wait for dropdown to open
     await this.page.getByRole('option', { name: /CC BY 4.0/i }).first().click();
     
     // Abstract (50+ characters required)
@@ -283,6 +286,10 @@ export class DataCiteFormPage {
     await this.mainTitleInput.clear();
     await this.yearInput.clear();
     await this.versionInput.clear();
+    
+    // Clear select fields by selecting empty/first option
+    // Note: This might not work for all select implementations
+    // If selects don't have empty option, this will fail silently
     
     await this.expandAccordion(this.descriptionsAccordion);
     await this.abstractTextarea.clear();

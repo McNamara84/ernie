@@ -130,6 +130,7 @@ export function InputField({
 
             {touched && validationMessages.length > 0 && (
                 <FieldValidationFeedback
+                    id={feedbackId}
                     messages={validationMessages}
                     showSuccess={showSuccessFeedback}
                 />
