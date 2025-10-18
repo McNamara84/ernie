@@ -293,8 +293,45 @@ export class DataCiteFormPage {
     await this.expandAccordion(this.descriptionsAccordion);
     await this.abstractTextarea.fill('This is a comprehensive test abstract that contains more than fifty characters to meet the minimum length requirement for validation.');
     
+    // Authors (at least one required with lastName)
+    await this.expandAccordion(this.authorsAccordion);
+    const addAuthorButton = this.page.getByRole('button', { name: /Add Author/i });
+    if (await addAuthorButton.isVisible()) {
+      await addAuthorButton.click();
+      await this.page.waitForTimeout(300);
+      
+      const lastNameInput = this.page.locator('input[name*="lastName"]').first();
+      await lastNameInput.fill('Testauthor');
+      await lastNameInput.blur();
+      await this.page.waitForTimeout(300);
+    }
+    
+    // Created Date (required)
+    await this.expandAccordion(this.datesAccordion);
+    const addDateButton = this.page.getByRole('button', { name: /Add.*Date/i }).first();
+    if (await addDateButton.isVisible()) {
+      await addDateButton.click();
+      await this.page.waitForTimeout(300);
+      
+      const dateTypeSelect = this.page.getByTestId('date-type-select-0');
+      if (await dateTypeSelect.isVisible()) {
+        await dateTypeSelect.scrollIntoViewIfNeeded();
+        await dateTypeSelect.click();
+        await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
+        const createdOption = this.page.getByRole('option', { name: /Created/i }).first();
+        await createdOption.waitFor({ state: 'visible', timeout: 10000 });
+        await createdOption.click();
+        await this.page.waitForTimeout(300);
+        
+        // Fill date value (YYYY-MM-DD format)
+        const dateInput = this.page.locator('input[name*="dateValue"]').first();
+        await dateInput.fill('2024-01-01');
+        await dateInput.blur();
+      }
+    }
+    
     // Wait for all validations to complete
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(1000);
   }
   
   /**
