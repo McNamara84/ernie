@@ -96,6 +96,7 @@ describe('AppSidebar', () => {
             'Old Datasets',
             'Resources',
             'IGSNs',
+            'IGSN Editor',
         ]);
 
         const footerArgs = NavFooterMock.mock.calls[0][0];
