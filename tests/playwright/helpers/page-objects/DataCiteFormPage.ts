@@ -45,15 +45,15 @@ export class DataCiteFormPage {
     
     // Accordion triggers - locate by text content and button role
     this.resourceInfoAccordion = page.getByRole('button', { name: /Resource Information/i });
-    this.licensesAccordion = page.getByRole('button', { name: /Licenses & Rights/i });
-    this.authorsAccordion = page.getByRole('button', { name: /^Authors$/i });
+    this.licensesAccordion = page.getByRole('button', { name: /Licenses.*Rights/i });
+    this.authorsAccordion = page.getByRole('button', { name: /Authors/i });
     this.contributorsAccordion = page.getByRole('button', { name: /Contributors/i });
     this.descriptionsAccordion = page.getByRole('button', { name: /Descriptions/i });
     this.controlledVocabulariesAccordion = page.getByRole('button', { name: /Controlled Vocabularies/i });
     this.freeKeywordsAccordion = page.getByRole('button', { name: /Free Keywords/i });
     this.mslLaboratoriesAccordion = page.getByRole('button', { name: /MSL Laboratories/i });
-    this.spatialTemporalCoverageAccordion = page.getByRole('button', { name: /Spatial & Temporal Coverage/i });
-    this.datesAccordion = page.getByRole('button', { name: /^Dates$/i });
+    this.spatialTemporalCoverageAccordion = page.getByRole('button', { name: /Spatial.*Temporal Coverage/i });
+    this.datesAccordion = page.getByRole('button', { name: /Dates/i });
     this.relatedWorkAccordion = page.getByRole('button', { name: /Related Work/i });
     this.fundingAccordion = page.getByRole('button', { name: /Funding/i });
     
@@ -73,7 +73,7 @@ export class DataCiteFormPage {
     this.abstractCharacterCount = page.locator('.character-count').first();
     
     // Save Button
-    this.saveButton = page.getByRole('button', { name: /Save Dataset/i });
+    this.saveButton = page.getByRole('button', { name: /Save to database/i });
     this.saveButtonTooltip = page.locator('[role="tooltip"]');
   }
   
