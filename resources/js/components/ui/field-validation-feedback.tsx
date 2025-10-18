@@ -82,7 +82,7 @@ export function FieldValidationFeedback({
         return null;
     }
 
-    // Sortiere Nachrichten nach Priorität: error > warning > info > success
+    // Sort messages by priority: error > warning > info > success
     const severityOrder: Record<ValidationSeverity, number> = {
         error: 0,
         warning: 1,

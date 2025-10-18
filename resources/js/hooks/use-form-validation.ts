@@ -109,22 +109,22 @@ export function useFormValidation(): UseFormValidationReturn {
      */
     const validateField = useCallback(
         <T = unknown>({ fieldId, value, rules, formData, immediate = false }: ValidateFieldOptions<T>) => {
-            // Bestimme Debounce-Zeit (längste Zeit aller Regeln)
+            // Determine debounce time (longest time of all rules)
             const debounceTime = immediate
                 ? 0
                 : Math.max(0, ...rules.map((rule) => rule.debounce ?? 0));
 
-            // Lösche vorhandenen Timer
+            // Clear existing timer
             if (debounceTimers[fieldId]) {
                 clearTimeout(debounceTimers[fieldId]);
             }
 
-            // Funktion zum Ausführen der Validierung
+            // Function to execute validation
             const executeValidation = () => {
-                // Merke den alten Status VOR dem Validating-Update
+                // Remember the old status BEFORE the validating update
                 const oldStatusBeforeValidating = validationState.fields[fieldId]?.status;
                 
-                // Setze Status auf "validating"
+                // Set status to "validating"
                 setValidationState((prev) => ({
                     ...prev,
                     fields: {
@@ -137,7 +137,7 @@ export function useFormValidation(): UseFormValidationReturn {
                     },
                 }));
 
-                // Führe alle Validierungsregeln aus
+                // Execute all validation rules
                 const messages: ValidationMessage[] = [];
                 for (const rule of rules) {
                     const result = rule.validate(value, formData);
@@ -146,18 +146,18 @@ export function useFormValidation(): UseFormValidationReturn {
                     }
                 }
 
-                // Bestimme finalen Status
+                // Determine final status
                 const hasError = messages.some((msg) => msg.severity === 'error');
                 const finalStatus: ValidationStatus = hasError ? 'invalid' : 'valid';
 
-                // Update Validierungszustand
+                // Update validation state
                 setValidationState((prev) => {
                     const oldFieldState = prev.fields[fieldId];
-                    // Verwende den gespeicherten Status vor 'validating', um korrekte Counter-Berechnung zu ermöglichen
+                    // Use the stored status before 'validating' to enable correct counter calculation
                     const wasInvalid = oldStatusBeforeValidating === 'invalid';
                     const isNowInvalid = finalStatus === 'invalid';
 
-                    // Berechne neue Zähler
+                    // Calculate new counters
                     let newInvalidCount = prev.invalidCount;
                     if (wasInvalid && !isNowInvalid) {
                         newInvalidCount = Math.max(0, newInvalidCount - 1);
@@ -184,7 +184,7 @@ export function useFormValidation(): UseFormValidationReturn {
                 });
             };
 
-            // Entweder sofort ausführen oder mit Debounce
+            // Execute either immediately or with debounce
             if (debounceTime > 0) {
                 debounceTimers[fieldId] = setTimeout(executeValidation, debounceTime);
             } else {
@@ -202,7 +202,7 @@ export function useFormValidation(): UseFormValidationReturn {
             const oldFieldState = prev.fields[fieldId];
             const wasTouched = oldFieldState?.touched ?? false;
 
-            // Wenn bereits touched, nichts ändern
+            // If already touched, don't change anything
             if (wasTouched) {
                 return prev;
             }
@@ -244,7 +244,7 @@ export function useFormValidation(): UseFormValidationReturn {
      * Setzt die Validierung eines Feldes zurück
      */
     const resetFieldValidation = useCallback((fieldId: string) => {
-        // Lösche Debounce-Timer
+        // Clear debounce timer
         if (debounceTimers[fieldId]) {
             clearTimeout(debounceTimers[fieldId]);
             delete debounceTimers[fieldId];
@@ -277,7 +277,7 @@ export function useFormValidation(): UseFormValidationReturn {
      * Setzt die gesamte Validierung zurück
      */
     const resetAllValidation = useCallback(() => {
-        // Lösche alle Debounce-Timer
+        // Clear all debounce timers
         Object.values(debounceTimers).forEach((timer) => clearTimeout(timer));
         Object.keys(debounceTimers).forEach((key) => delete debounceTimers[key]);
 
