@@ -41,22 +41,24 @@ class MockIntersectionObserver implements IntersectionObserver {
     readonly root: Element | Document | null = null;
     readonly rootMargin = '';
     readonly thresholds: ReadonlyArray<number> = [];
-    private callback: IntersectionObserverCallback;
 
-    constructor(callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {
-        this.callback = callback;
+    constructor(callback: IntersectionObserverCallback) {
+        // Store callback for potential future use
+        void callback;
     }
 
-    observe(_target: Element): void {
+    observe(target: Element): void {
         // Mock implementation
+        void target;
     }
 
     disconnect(): void {
         // Mock implementation
     }
 
-    unobserve(_target: Element): void {
+    unobserve(target: Element): void {
         // Mock implementation
+        void target;
     }
 
     takeRecords(): IntersectionObserverEntry[] {
