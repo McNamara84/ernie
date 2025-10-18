@@ -295,15 +295,19 @@ export class DataCiteFormPage {
     
     // Authors (at least one required with lastName)
     await this.expandAccordion(this.authorsAccordion);
-    const addAuthorButton = this.page.getByRole('button', { name: /Add Author/i });
+    
+    // Button text is "Add First Author" when no authors exist, "Add author" for subsequent ones
+    const addAuthorButton = this.page.getByRole('button', { name: /Add.*Author/i }).first();
     if (await addAuthorButton.isVisible()) {
       await addAuthorButton.click();
-      await this.page.waitForTimeout(300);
+      await this.page.waitForTimeout(500);
       
-      const lastNameInput = this.page.locator('input[name*="lastName"]').first();
+      // The lastName input has ID like "{uuid}-lastName", so we search by ID pattern
+      const lastNameInput = this.page.locator('input[id$="-lastName"]').first();
+      await lastNameInput.scrollIntoViewIfNeeded();
       await lastNameInput.fill('Testauthor');
       await lastNameInput.blur();
-      await this.page.waitForTimeout(300);
+      await this.page.waitForTimeout(500);
     }
     
     // Created Date (required) - Note: First date entry already exists with type "Created"
