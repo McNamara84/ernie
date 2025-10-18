@@ -249,8 +249,15 @@ test.describe('DataCite Form Validation UX', () => {
       // Fill all required fields
       await formPage.fillAllRequiredFields();
       
-      // Save button should be enabled
+      // Debug: Check what's in the tooltip if button is still disabled
       const isDisabled = await formPage.isSaveButtonDisabled();
+      if (isDisabled) {
+        await formPage.hoverSaveButton();
+        const tooltipText = await formPage.getSaveButtonTooltipText();
+        console.log('Save button is still disabled. Tooltip text:', tooltipText);
+      }
+      
+      // Save button should be enabled
       expect(isDisabled).toBeFalsy();
     });
   });

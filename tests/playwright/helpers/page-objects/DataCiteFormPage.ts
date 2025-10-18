@@ -311,9 +311,10 @@ export class DataCiteFormPage {
     await this.expandAccordion(this.datesAccordion);
     
     // The first date should already exist with type "Created"
-    // Just fill in the start date
-    const firstDateInput = this.page.locator('input[name*="startDate"]').first();
+    // Find the first date input (type="date") and fill it
+    const firstDateInput = this.page.locator('input[type="date"]').first();
     if (await firstDateInput.isVisible()) {
+      await firstDateInput.scrollIntoViewIfNeeded();
       await firstDateInput.fill('2024-01-01');
       await firstDateInput.blur();
       await this.page.waitForTimeout(300);
