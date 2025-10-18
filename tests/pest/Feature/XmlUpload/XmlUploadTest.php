@@ -440,11 +440,11 @@ it('ignores related item creators when extracting authors', function () {
         ], JSON_THROW_ON_ERROR),
     );
 
-    $xmlContents = file_get_contents(base_path('tests/pest/dataset-examples/datacite-example-full-v4.xml'));
+    $xmlContents = file_get_contents(base_path('tests/pest/dataset-examples/datacite-xml-example-full-v4.xml'));
 
     $this->assertIsString($xmlContents);
 
-    $file = UploadedFile::fake()->createWithContent('datacite-example-full-v4.xml', $xmlContents);
+    $file = UploadedFile::fake()->createWithContent('datacite-xml-example-full-v4.xml', $xmlContents);
 
     $response = $this->post(route('dashboard.upload-xml'), [
         'file' => $file,

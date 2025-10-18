@@ -6,13 +6,13 @@ use Illuminate\Http\UploadedFile;
 
 uses(RefreshDatabase::class);
 
-test('extracts coverages from datacite-example-full-v4.xml', function () {
+test('extracts coverages from datacite-xml-example-full-v4.xml', function () {
     $this->actingAs(User::factory()->create());
 
-    $xmlPath = base_path('tests/pest/dataset-examples/datacite-example-full-v4.xml');
+    $xmlPath = base_path('tests/pest/dataset-examples/datacite-xml-example-full-v4.xml');
     $xmlContent = file_get_contents($xmlPath);
     
-    $file = UploadedFile::fake()->createWithContent('datacite-example-full-v4.xml', $xmlContent);
+    $file = UploadedFile::fake()->createWithContent('datacite-xml-example-full-v4.xml', $xmlContent);
 
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
