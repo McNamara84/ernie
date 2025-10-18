@@ -1,82 +1,47 @@
 import { Head, router } from '@inertiajs/react';
-import { PencilLine, Trash2 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import axios, { isAxiosError } from 'axios';
+import { ArrowDown, ArrowUp, ArrowUpDown, PencilLine, Trash2 } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ResourcesFilters } from '@/components/resources-filters';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
-import { buildCurationQueryFromResource } from '@/lib/curation-query';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
+import { 
+    type ResourceFilterOptions, 
+    type ResourceFilterState, 
+    type ResourceSortDirection, 
+    type ResourceSortKey, 
+    type ResourceSortState 
+} from '@/types/resources';
 
-interface ResourceTitleType {
-    name: string | null;
-    slug: string | null;
+interface Author {
+    givenName?: string | null;
+    familyName?: string | null;
+    name?: string;
 }
 
-interface ResourceTitle {
-    title: string;
-    title_type: ResourceTitleType | null;
-}
-
-interface ResourceLicense {
-    identifier: string | null;
-    name: string | null;
-}
-
-interface ResourceAuthorAffiliationSummary {
-    value: string | null;
-    rorId: string | null;
-}
-
-interface PersonResourceAuthor {
-    type: 'person';
-    position: number;
-    orcid: string | null;
-    firstName: string | null;
-    lastName: string | null;
-    email: string | null;
-    website: string | null;
-    isContact: boolean;
-    affiliations: ResourceAuthorAffiliationSummary[];
-}
-
-interface InstitutionResourceAuthor {
-    type: 'institution';
-    position: number;
-    institutionName: string | null;
-    rorId: string | null;
-    affiliations: ResourceAuthorAffiliationSummary[];
-}
-
-type ResourceAuthor = PersonResourceAuthor | InstitutionResourceAuthor;
-
-interface ResourceTypeSummary {
-    name: string | null;
-    slug: string | null;
-}
-
-interface ResourceLanguageSummary {
-    code: string | null;
-    name: string | null;
-}
-
-interface ResourceListItem {
+interface Resource {
     id: number;
-    doi: string | null;
+    doi?: string | null;
     year: number;
-    version: string | null;
-    created_at: string | null;
-    updated_at: string | null;
-    resource_type: ResourceTypeSummary | null;
-    language: ResourceLanguageSummary | null;
-    titles: ResourceTitle[];
-    licenses: ResourceLicense[];
-    authors: ResourceAuthor[];
+    version?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    curator?: string;
+    publicstatus?: string;
+    resourcetypegeneral?: string;
+    title?: string;
+    first_author?: Author | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any;
 }
 
 interface PaginationInfo {
@@ -84,315 +49,840 @@ interface PaginationInfo {
     last_page: number;
     per_page: number;
     total: number;
-    from: number | null;
-    to: number | null;
+    from: number;
+    to: number;
     has_more: boolean;
 }
 
-interface ResourcesPageProps {
-    resources: ResourceListItem[];
+interface ResourcesProps {
+    resources: Resource[];
     pagination: PaginationInfo;
+    error?: string;
+    sort: ResourceSortState;
 }
 
-const PAGE_TITLE = 'Resources';
-const MAIN_TITLE_SLUG = 'main-title';
+interface SortOption {
+    key: ResourceSortKey;
+    label: string;
+    description: string;
+}
+
+interface ResourceColumn {
+    key: string;
+    label: ReactNode;
+    widthClass: string;
+    cellClassName?: string;
+    render?: (resource: Resource) => React.ReactNode;
+    sortOptions?: SortOption[];
+    sortGroupLabel?: string;
+}
+
+const TITLE_COLUMN_WIDTH_CLASSES = 'min-w-[24rem] lg:min-w-[36rem] xl:min-w-[44rem]';
+const DATE_COLUMN_CONTAINER_CLASSES = 'flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300';
+const DATE_COLUMN_HEADER_LABEL = (
+    <span className="flex flex-col leading-tight normal-case">
+        <span>Created</span>
+        <span>Updated</span>
+    </span>
+);
+const IDENTIFIER_COLUMN_HEADER_LABEL = (
+    <span className="flex flex-col leading-tight normal-case">
+        <span>ID</span>
+        <span>DOI</span>
+    </span>
+);
+const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-32 min-w-[8rem]';
+
+const DEFAULT_SORT: ResourceSortState = { key: 'updated_at', direction: 'desc' };
+const SORT_PREFERENCE_STORAGE_KEY = 'resources.sort-preference';
+const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> = {
+    id: 'asc',
+    doi: 'asc',
+    title: 'asc',
+    resourcetypegeneral: 'asc',
+    first_author: 'asc',
+    year: 'desc',
+    curator: 'asc',
+    publicstatus: 'asc',
+    created_at: 'desc',
+    updated_at: 'desc',
+};
+
+const describeDirection = (direction: ResourceSortDirection): string =>
+    direction === 'asc' ? 'ascending' : 'descending';
+
+const isSortState = (value: unknown): value is ResourceSortState => {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const maybeState = value as { key?: unknown; direction?: unknown };
+    
+    const validKeys: ResourceSortKey[] = [
+        'id', 'doi', 'title', 'resourcetypegeneral', 
+        'first_author', 'year', 'curator', 
+        'publicstatus', 'created_at', 'updated_at'
+    ];
+
+    return (
+        validKeys.includes(maybeState.key as ResourceSortKey)
+    ) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
+};
+
+const resolveDisplayDirection = (option: SortOption, sortState: ResourceSortState): ResourceSortDirection =>
+    sortState.key === option.key ? sortState.direction : DEFAULT_DIRECTION_BY_KEY[option.key];
+
+const determineNextDirection = (currentState: ResourceSortState, targetKey: ResourceSortKey): ResourceSortDirection => {
+    if (currentState.key !== targetKey) {
+        return DEFAULT_DIRECTION_BY_KEY[targetKey];
+    }
+
+    return currentState.direction === 'asc' ? 'desc' : 'asc';
+};
+
+const buildSortButtonLabel = (option: SortOption, sortState: ResourceSortState): string => {
+    const currentDirection = resolveDisplayDirection(option, sortState);
+    const nextDirection = determineNextDirection(sortState, option.key);
+
+    if (sortState.key === option.key) {
+        return `${option.description}. Currently sorted ${describeDirection(currentDirection)}. Activate to switch to ${describeDirection(nextDirection)} order.`;
+    }
+
+    return `${option.description}. Activate to sort ${describeDirection(currentDirection)}.`;
+};
+
+const getSortLabel = (key: ResourceSortKey): string => {
+    const labels: Record<ResourceSortKey, string> = {
+        id: 'ID',
+        doi: 'DOI',
+        title: 'Title',
+        resourcetypegeneral: 'Resource Type',
+        first_author: 'Author',
+        year: 'Year',
+        curator: 'Curator',
+        publicstatus: 'Status',
+        created_at: 'Created Date',
+        updated_at: 'Updated Date',
+    };
+    return labels[key];
+};
+
+const SortDirectionIndicator = ({
+    isActive,
+    direction,
+}: {
+    isActive: boolean;
+    direction: ResourceSortDirection;
+}) => {
+    if (!isActive) {
+        return <ArrowUpDown aria-hidden="true" className="size-3.5" />;
+    }
+
+    if (direction === 'asc') {
+        return <ArrowUp aria-hidden="true" className="size-3.5" />;
+    }
+
+    return <ArrowDown aria-hidden="true" className="size-3.5" />;
+};
+
+type DateDetails = { label: string; iso: string | null };
+
+const deriveResourceRowKey = (resource: Resource): string => {
+    if (resource.id !== undefined && resource.id !== null) {
+        return `resource-id-${resource.id}`;
+    }
+
+    if (resource.doi) {
+        return `resource-doi-${resource.doi}`;
+    }
+
+    const metadataSegments: string[] = [];
+    
+    if (resource.title) metadataSegments.push(resource.title);
+    if (resource.year) metadataSegments.push(String(resource.year));
+    if (resource.created_at) metadataSegments.push(resource.created_at);
+    
+    return `resource-${metadataSegments.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '-')}`;
+};
+
+const getDateDetails = (isoDate: string | null): DateDetails => {
+    if (!isoDate) {
+        return { label: '-', iso: null };
+    }
+
+    try {
+        const date = new Date(isoDate);
+        if (isNaN(date.getTime())) {
+            return { label: '-', iso: null };
+        }
+
+        const formatter = new Intl.DateTimeFormat(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+        });
+
+        return {
+            label: formatter.format(date),
+            iso: date.toISOString(),
+        };
+    } catch {
+        return { label: '-', iso: null };
+    }
+};
+
+const describeDate = (
+    label: string,
+    iso: string | null,
+    rawValue: string | null | undefined,
+    dateType: string,
+): string | null => {
+    if (!rawValue || iso === null) {
+        return null;
+    }
+
+    return `${dateType} date: ${label}`;
+};
+
+const renderDateContent = (details: DateDetails) => {
+    if (details.iso) {
+        return (
+            <time dateTime={details.iso} className="text-sm">
+                {details.label}
+            </time>
+        );
+    }
+
+    return <span className="text-sm">{details.label}</span>;
+};
+
+const formatValue = (key: string, value: unknown): string => {
+    if (value === null || value === undefined) {
+        return '-';
+    }
+
+    if (typeof value === 'string') {
+        return value || '-';
+    }
+
+    if (typeof value === 'number') {
+        return String(value);
+    }
+
+    return '-';
+};
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: PAGE_TITLE,
+        title: 'Resources',
         href: '/resources',
     },
 ];
 
-const getPrimaryTitle = (titles: ResourceTitle[]): string => {
-    if (titles.length === 0) {
-        return 'Untitled resource';
-    }
+function ResourcesPage({ resources: initialResources, pagination: initialPagination, error, sort: initialSort }: ResourcesProps) {
+    const [resources, setResources] = useState<Resource[]>(initialResources);
+    const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
+    const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
+    const [loading, setLoading] = useState(false);
+    const [isSorting, setIsSorting] = useState(false);
+    const [loadingError, setLoadingError] = useState<string | null>(null);
+    const [filters, setFilters] = useState<ResourceFilterState>({});
+    const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
 
-    const mainTitle = titles.find((entry) => entry.title_type?.slug === MAIN_TITLE_SLUG);
+    const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
+    const observerRef = useRef<IntersectionObserver | null>(null);
 
-    return (mainTitle ?? titles[0]).title || 'Untitled resource';
-};
-
-const buildDoiUrl = (doi: string | null): string | null => {
-    if (!doi) {
-        return null;
-    }
-
-    const trimmed = doi.trim();
-
-    if (!trimmed) {
-        return null;
-    }
-
-    return `https://doi.org/${trimmed}`;
-};
-
-const formatDateTime = (isoString: string | null): { label: string; iso?: string } => {
-    if (!isoString) {
-        return { label: 'Not available' };
-    }
-
-    const date = new Date(isoString);
-
-    if (Number.isNaN(date.getTime())) {
-        return { label: 'Not available' };
-    }
-
-    const formatter = new Intl.DateTimeFormat(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    });
-
-    return { label: formatter.format(date), iso: date.toISOString() };
-};
-
-const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
-    const hasResources = resources.length > 0;
-
-    const [resourcePendingDeletion, setResourcePendingDeletion] = useState<ResourceListItem | null>(null);
-    const [isDeletingResource, setIsDeletingResource] = useState(false);
-
-    const pendingDeletionTitle = useMemo(() => {
-        if (!resourcePendingDeletion) {
-            return null;
+    // Load more resources for infinite scrolling
+    const loadMore = useCallback(async () => {
+        if (loading || !pagination.has_more) {
+            return;
         }
 
-        return getPrimaryTitle(resourcePendingDeletion.titles);
-    }, [resourcePendingDeletion]);
+        setLoading(true);
+        setLoadingError(null);
 
-    const isDeleteDialogOpen = resourcePendingDeletion !== null;
-
-    const summaryLabel = useMemo(() => {
-        if (!hasResources) {
-            return 'No resources available yet.';
-        }
-
-        const from = pagination.from ?? 0;
-        const to = pagination.to ?? resources.length;
-        const total = pagination.total;
-
-        return `Showing ${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()} resources`;
-    }, [hasResources, pagination.from, pagination.to, pagination.total, resources.length]);
-
-    const handlePageChange = (page: number) => {
-        router.get(
-            withBasePath('/resources'),
-            {
-                page,
-                per_page: pagination.per_page,
-            },
-            {
-                preserveScroll: true,
-                preserveState: true,
-            },
-        );
-    };
-
-    const handleEditResource = useCallback(async (resource: ResourceListItem) => {
         try {
-            const query = await buildCurationQueryFromResource(resource);
-            router.get(editorRoute({ query }).url);
-        } catch (error) {
-            console.error('Unable to open resource in editor.', error);
-            router.get(editorRoute().url);
+            const params = new URLSearchParams({
+                page: String(pagination.current_page + 1),
+                per_page: String(pagination.per_page),
+                sort_key: sortState.key,
+                sort_direction: sortState.direction,
+            });
+
+            // Add filters
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    if (Array.isArray(value)) {
+                        value.forEach(v => params.append(`${key}[]`, String(v)));
+                    } else {
+                        params.append(key, String(value));
+                    }
+                }
+            });
+
+            const response = await axios.get(withBasePath('/resources/load-more'), { params });
+
+            setResources(prev => [...prev, ...(response.data.resources || [])]);
+            setPagination(response.data.pagination);
+        } catch (err) {
+            console.error('Error loading more resources:', err);
+            
+            if (isAxiosError(err)) {
+                const errorMessage = err.response?.data?.error || err.message;
+                setLoadingError(`Failed to load more resources: ${errorMessage}`);
+                toast.error('Failed to load more resources');
+            } else {
+                setLoadingError('An unexpected error occurred while loading resources.');
+                toast.error('Failed to load more resources');
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, [loading, pagination, sortState, filters]);
+
+    // Load filter options on mount
+    useEffect(() => {
+        const loadFilterOptions = async () => {
+            try {
+                const response = await axios.get(withBasePath('/resources/filter-options'));
+                setFilterOptions(response.data);
+            } catch (err) {
+                console.error('Failed to load filter options:', err);
+            }
+        };
+
+        void loadFilterOptions();
+    }, []);
+
+    // Load sort preference from localStorage
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem(SORT_PREFERENCE_STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (isSortState(parsed)) {
+                    setSortState(parsed);
+                }
+            }
+        } catch {
+            // Ignore parse errors
         }
     }, []);
 
-    const closeDeleteDialog = useCallback(() => {
-        if (isDeletingResource) {
-            return;
+    // Save sort preference to localStorage
+    useEffect(() => {
+        try {
+            localStorage.setItem(SORT_PREFERENCE_STORAGE_KEY, JSON.stringify(sortState));
+        } catch {
+            // Ignore storage errors
         }
+    }, [sortState]);
 
-        setResourcePendingDeletion(null);
-    }, [isDeletingResource]);
-
-    const handleDeleteResourceRequest = useCallback((resource: ResourceListItem) => {
-        setResourcePendingDeletion(resource);
-    }, []);
-
-    const confirmDeleteResource = useCallback(() => {
-        if (!resourcePendingDeletion) {
-            return;
-        }
-
-        setIsDeletingResource(true);
-
-        router.delete(withBasePath(`/resources/${resourcePendingDeletion.id}`), {
-            preserveScroll: true,
-            onSuccess: () => {
-                setResourcePendingDeletion(null);
-            },
-            onError: () => {
-                // Leave the dialog open to allow retrying the deletion.
-            },
-            onFinish: () => {
-                setIsDeletingResource(false);
-            },
+    const handleSortChange = useCallback((key: ResourceSortKey) => {
+        setSortState(prev => {
+            const newDirection = determineNextDirection(prev, key);
+            return { key, direction: newDirection };
         });
-    }, [resourcePendingDeletion]);
+    }, []);
 
-    const isFirstPage = pagination.current_page <= 1;
-    const isLastPage = !pagination.has_more;
+    const handleFilterChange = useCallback((newFilters: ResourceFilterState) => {
+        setFilters(newFilters);
+    }, []);
+
+    // Fetch resources when sort or filters change
+    useEffect(() => {
+        const fetchResources = async () => {
+            setIsSorting(true);
+            setLoadingError(null);
+
+            try {
+                const params = new URLSearchParams({
+                    sort_key: sortState.key,
+                    sort_direction: sortState.direction,
+                    per_page: String(pagination.per_page),
+                });
+
+                // Add filters to params
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value !== undefined && value !== null && value !== '') {
+                        if (Array.isArray(value)) {
+                            value.forEach(v => params.append(`${key}[]`, String(v)));
+                        } else {
+                            params.append(key, String(value));
+                        }
+                    }
+                });
+
+                const response = await axios.get(withBasePath('/resources'), { params });
+                
+                setResources(response.data.resources || []);
+                setPagination(response.data.pagination || initialPagination);
+            } catch (err) {
+                console.error('Error fetching resources:', err);
+                setLoadingError('Failed to load resources. Please try again.');
+            } finally {
+                setIsSorting(false);
+            }
+        };
+
+        void fetchResources();
+    }, [sortState, filters, pagination.per_page, initialPagination]);
+
+    // Infinite scrolling
+    useEffect(() => {
+        if (!lastResourceElementRef.current || loading || !pagination.has_more) {
+            return;
+        }
+
+        const callback: IntersectionObserverCallback = (entries) => {
+            if (entries[0].isIntersecting && pagination.has_more && !loading) {
+                void loadMore();
+            }
+        };
+
+        observerRef.current = new IntersectionObserver(callback, {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1,
+        });
+
+        observerRef.current.observe(lastResourceElementRef.current);
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+            }
+        };
+    }, [pagination.has_more, loading, loadMore]);
+
+    const handleRetry = useCallback(() => {
+        void loadMore();
+    }, [loadMore]);
+
+    const handleOpenInEditor = useCallback(async (resource: Resource) => {
+        try {
+            // Navigate to editor with resource data
+            router.get(editorRoute({ query: { resourceId: resource.id } }).url);
+        } catch (error) {
+            console.error('Unable to open resource in editor:', error);
+            toast.error('Failed to open resource in editor');
+        }
+    }, []);
+
+    const sortedResources = resources;
+
+    const resourceColumns: ResourceColumn[] = [
+        {
+            key: 'id_doi',
+            label: IDENTIFIER_COLUMN_HEADER_LABEL,
+            widthClass: 'min-w-[12rem]',
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'id',
+                    label: 'ID',
+                    description: 'Sort by the resource ID',
+                },
+                {
+                    key: 'doi',
+                    label: 'DOI',
+                    description: 'Sort by the DOI',
+                },
+            ],
+            sortGroupLabel: 'Sort options for ID and DOI',
+            render: (resource: Resource) => {
+                const hasId = resource.id !== undefined && resource.id !== null;
+                const idValue = hasId ? `#${resource.id}` : '-';
+                const identifierValue = resource.doi || 'Not registered';
+                const identifierClasses = resource.doi
+                    ? 'text-sm text-gray-600 dark:text-gray-300'
+                    : 'text-sm text-gray-400 dark:text-gray-500 italic';
+
+                return (
+                    <div
+                        className="flex flex-col gap-1 text-left"
+                        aria-label={`Resource ID: ${idValue}. DOI: ${identifierValue}`}
+                    >
+                        <span
+                            className={hasId
+                                ? 'text-sm font-semibold text-gray-900 dark:text-gray-100'
+                                : 'text-sm text-gray-500 dark:text-gray-300'}
+                        >
+                            {idValue}
+                        </span>
+                        <span className={identifierClasses}>
+                            {identifierValue}
+                        </span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'title_resourcetype',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Title</span>
+                    <span>Resource Type</span>
+                </span>
+            ),
+            widthClass: TITLE_COLUMN_WIDTH_CLASSES,
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'title',
+                    label: 'Title',
+                    description: 'Sort by the resource title',
+                },
+                {
+                    key: 'resourcetypegeneral',
+                    label: 'Type',
+                    description: 'Sort by the resource type',
+                },
+            ],
+            sortGroupLabel: 'Sort options for title and resource type',
+            render: (resource: Resource) => {
+                const title = resource.title ?? '-';
+                const resourceType = resource.resourcetypegeneral ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
+                            {title}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                            {resourceType}
+                        </span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'author_year',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Author</span>
+                    <span>Year</span>
+                </span>
+            ),
+            widthClass: 'min-w-[12rem]',
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'first_author',
+                    label: 'Author',
+                    description: 'Sort by the first author\'s last name',
+                },
+                {
+                    key: 'year',
+                    label: 'Year',
+                    description: 'Sort by the publication year',
+                },
+            ],
+            sortGroupLabel: 'Sort options for author and publication year',
+            render: (resource: Resource) => {
+                // Format first author name
+                let authorName = '-';
+                if (resource.first_author) {
+                    const author = resource.first_author;
+                    if (author.familyName && author.givenName) {
+                        authorName = `${author.familyName}, ${author.givenName}`;
+                    } else if (author.familyName) {
+                        authorName = author.familyName;
+                    } else if (author.name) {
+                        authorName = author.name;
+                    }
+                }
+
+                const year = resource.year?.toString() ?? '-';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                        <span className="text-sm">{authorName}</span>
+                        <span className="text-sm">{year}</span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'curator_status',
+            label: (
+                <span className="flex flex-col leading-tight normal-case">
+                    <span>Curator</span>
+                    <span>Status</span>
+                </span>
+            ),
+            widthClass: 'min-w-[10rem]',
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'curator',
+                    label: 'Curator',
+                    description: 'Sort by the curator name',
+                },
+                {
+                    key: 'publicstatus',
+                    label: 'Status',
+                    description: 'Sort by the publication status',
+                },
+            ],
+            sortGroupLabel: 'Sort options for curator and status',
+            render: (resource: Resource) => {
+                const curator = resource.curator ?? '-';
+                const status = resource.publicstatus ?? 'curation';
+
+                return (
+                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                        <span className="text-sm">{curator}</span>
+                        <span className="text-sm capitalize">{status}</span>
+                    </div>
+                );
+            },
+        },
+        {
+            key: 'created_updated',
+            label: DATE_COLUMN_HEADER_LABEL,
+            widthClass: 'min-w-[9rem]',
+            cellClassName: 'whitespace-normal align-top',
+            sortOptions: [
+                {
+                    key: 'created_at',
+                    label: 'Created',
+                    description: 'Sort by the Created date',
+                },
+                {
+                    key: 'updated_at',
+                    label: 'Updated',
+                    description: 'Sort by the Updated date',
+                },
+            ],
+            sortGroupLabel: 'Sort options for created and updated dates',
+            render: (resource: Resource) => {
+                const createdDetails = getDateDetails(resource.created_at ?? null);
+                const updatedDetails = getDateDetails(resource.updated_at ?? null);
+
+                const ariaLabelParts = [
+                    describeDate(createdDetails.label, createdDetails.iso, resource.created_at, 'Created'),
+                    describeDate(updatedDetails.label, updatedDetails.iso, resource.updated_at, 'Updated'),
+                ].filter((part): part is string => part !== null);
+
+                const dateColumnAriaLabel = ariaLabelParts.length > 0 ? ariaLabelParts.join('. ') : undefined;
+
+                return (
+                    <div
+                        className={DATE_COLUMN_CONTAINER_CLASSES}
+                        aria-label={dateColumnAriaLabel}
+                    >
+                        {renderDateContent(createdDetails)}
+                        {renderDateContent(updatedDetails)}
+                    </div>
+                );
+            },
+        },
+    ];
+
+    const LoadingSkeleton = () => (
+        <>
+            {[...Array(5)].map((_, index) => (
+                <tr key={`skeleton-${index}`} className="animate-pulse">
+                    {resourceColumns.map((column) => (
+                        <td key={column.key} className={`px-6 py-4 ${column.widthClass} ${column.cellClassName ?? ''}`}>
+                            {column.key === 'id_doi' ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                    <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                </div>
+                            ) : column.key === 'created_updated' ? (
+                                <div className="flex flex-col gap-2">
+                                    <div className="h-4 w-28 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                    <div className="h-4 w-32 rounded bg-gray-200 dark:bg-gray-700"></div>
+                                </div>
+                            ) : (
+                                <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-gray-700"></div>
+                            )}
+                        </td>
+                    ))}
+                    <td className={`px-6 py-4 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                        <div className="flex items-center gap-1">
+                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        </div>
+                    </td>
+                </tr>
+            ))}
+        </>
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title={PAGE_TITLE} />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+            <Head title="Resources" />
+            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
-                    <CardHeader className="space-y-2">
+                    <CardHeader>
                         <CardTitle asChild>
-                            <h1 className="text-2xl font-semibold tracking-tight">{PAGE_TITLE}</h1>
+                            <h1 className="text-2xl font-semibold tracking-tight">Resources</h1>
                         </CardTitle>
-                        <CardDescription className="text-base">
-                            Browse and review the curated resources stored in ERNIE.
+                        <CardDescription>
+                            Overview of curated resources in ERNIE
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
-                            {summaryLabel}
-                        </p>
-
-                        {!hasResources ? (
-                            <Alert role="status">
-                                <AlertTitle>No resources found</AlertTitle>
+                    <CardContent>
+                        {error ? (
+                            <Alert className="mb-4" variant="destructive">
                                 <AlertDescription>
-                                    Once new resources are added through the editor workflow, they will appear in this list.
+                                    {error}
                                 </AlertDescription>
                             </Alert>
+                        ) : null}
+
+                        {loadingError && (
+                            <Alert className="mb-4" variant="destructive">
+                                <AlertDescription>
+                                    {loadingError}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="ml-2"
+                                        onClick={handleRetry}
+                                        disabled={loading}
+                                    >
+                                        Retry
+                                    </Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        {sortedResources.length === 0 && !isSorting && !loading && !loadingError ? (
+                            <div className="text-center py-8 text-muted-foreground">
+                                {error ?
+                                    "No resources available. Please check the database connection." :
+                                    "No resources found."
+                                }
+                            </div>
                         ) : (
                             <>
+                                {/* Filter Component */}
+                                <ResourcesFilters
+                                    filters={filters}
+                                    onFilterChange={handleFilterChange}
+                                    filterOptions={filterOptions}
+                                    resultCount={sortedResources.length}
+                                    totalCount={pagination.total}
+                                    isLoading={loading || isSorting}
+                                />
+
+                                <div className="mb-4 flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="text-xs">
+                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
+                                    </Badge>
+                                </div>
+
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                                        <caption className="sr-only">
-                                            Detailed list of curated resources including identifiers and lifecycle information.
-                                        </caption>
-                                        <colgroup>
-                                            <col className="w-[18rem]" />
-                                            <col className="min-w-[24rem]" />
-                                            <col className="w-[18rem]" />
-                                            <col className="w-32" />
-                                        </colgroup>
-                                        <thead className="bg-muted/60">
+                                        <thead className="bg-gray-50 dark:bg-gray-800">
                                             <tr>
+                                                {resourceColumns.map((column) => {
+                                                    const isColumnSorted =
+                                                        column.sortOptions?.some(option => option.key === sortState.key) ??
+                                                        false;
+                                                    const ariaSortValue = isColumnSorted
+                                                        ? sortState.direction === 'asc'
+                                                            ? 'ascending'
+                                                            : 'descending'
+                                                        : 'none';
+
+                                                    return (
+                                                        <th
+                                                            key={column.key}
+                                                            className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${column.widthClass}`}
+                                                            aria-sort={column.sortOptions ? ariaSortValue : undefined}
+                                                            scope="col"
+                                                        >
+                                                            {column.sortOptions ? (
+                                                                <div
+                                                                    className="flex flex-col gap-1"
+                                                                    role="group"
+                                                                    aria-label={column.sortGroupLabel ?? 'Sorting options'}
+                                                                >
+                                                                    {column.sortOptions.map(option => {
+                                                                        const isActive = sortState.key === option.key;
+                                                                        const displayDirection = resolveDisplayDirection(
+                                                                            option,
+                                                                            sortState,
+                                                                        );
+                                                                        const buttonLabel = buildSortButtonLabel(
+                                                                            option,
+                                                                            sortState,
+                                                                        );
+
+                                                                        return (
+                                                                            <Button
+                                                                                key={option.key}
+                                                                                type="button"
+                                                                                variant={isActive ? 'secondary' : 'ghost'}
+                                                                                size="sm"
+                                                                                className="h-7 px-2 text-xs font-medium justify-start"
+                                                                                onClick={() => handleSortChange(option.key)}
+                                                                                aria-pressed={isActive}
+                                                                                aria-label={buttonLabel}
+                                                                                title={buttonLabel}
+                                                                            >
+                                                                                <span>{option.label}</span>
+                                                                                <SortDirectionIndicator
+                                                                                    isActive={isActive}
+                                                                                    direction={displayDirection}
+                                                                                />
+                                                                            </Button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
+                                                                    {column.label}
+                                                                </div>
+                                                            )}
+                                                        </th>
+                                                    );
+                                                })}
                                                 <th
-                                                    scope="col"
-                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                                >
-                                                    <span className="flex flex-col leading-tight">
-                                                        <span>ID</span>
-                                                        <span>DOI</span>
-                                                    </span>
-                                                </th>
-                                                <th
-                                                    scope="col"
-                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                                >
-                                                    Title
-                                                </th>
-                                                <th
-                                                    scope="col"
-                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
-                                                >
-                                                    Lifecycle
-                                                </th>
-                                                <th
-                                                    scope="col"
-                                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                 >
                                                     Actions
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-background text-sm dark:divide-gray-700">
-                                            {resources.map((resource) => {
-                                                const primaryTitle = getPrimaryTitle(resource.titles);
-                                                const doiUrl = buildDoiUrl(resource.doi);
-                                                const createdAt = formatDateTime(resource.created_at);
-                                                const updatedAt = formatDateTime(resource.updated_at);
-                                                const isResourcePendingDeletion = resourcePendingDeletion?.id === resource.id;
-                                                const isResourceBeingDeleted = isDeletingResource && isResourcePendingDeletion;
-                                                const deleteButtonLabel = `Delete ${primaryTitle} from ERNIE`;
-
+                                        <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                                            {(isSorting || (loading && sortedResources.length === 0)) && <LoadingSkeleton />}
+                                            {sortedResources.map((resource, index) => {
+                                                const isLast = index === sortedResources.length - 1;
+                                                const resourceLabel =
+                                                    resource.doi ??
+                                                    resource.title ??
+                                                    (resource.id !== undefined ? `#${resource.id}` : 'entry');
                                                 return (
                                                     <tr
-                                                        key={resource.id}
-                                                        className="transition-colors hover:bg-muted/40 focus-within:bg-muted/50"
+                                                        key={deriveResourceRowKey(resource)}
+                                                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                                                        ref={isLast ? lastResourceElementRef : null}
                                                     >
-                                                        <td className="px-6 py-4 align-top">
-                                                            <dl className="space-y-2 text-sm">
-                                                                <div>
-                                                                    <dt className="sr-only">Resource ID</dt>
-                                                                    <dd className="text-base font-semibold text-foreground">
-                                                                        {resource.id}
-                                                                    </dd>
-                                                                </div>
-                                                                <div>
-                                                                    <dt className="sr-only">Digital Object Identifier</dt>
-                                                                    <dd>
-                                                                        {doiUrl ? (
-                                                                            <a
-                                                                                className="inline-flex items-center gap-2 text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                                                                href={doiUrl}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                            >
-                                                                                {resource.doi}
-                                                                                <span className="sr-only">(opens in a new tab)</span>
-                                                                            </a>
-                                                                        ) : (
-                                                                            <span className="text-muted-foreground">Not registered yet</span>
-                                                                        )}
-                                                                    </dd>
-                                                                </div>
-                                                            </dl>
-                                                        </td>
-                                                        <td className="px-6 py-4 align-top">
-                                                            <div className="flex flex-col gap-2">
-                                                                <div className="flex flex-wrap items-center gap-3">
-                                                                    <span className="text-base font-semibold text-foreground">{primaryTitle}</span>
-                                                                    <Badge variant="outline" className="rounded-full px-3 text-xs">
-                                                                        {resource.year}
-                                                                    </Badge>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 align-top">
-                                                            <dl className="space-y-2 text-sm">
-                                                                <div>
-                                                                    <dt className="font-medium text-muted-foreground">Created</dt>
-                                                                    <dd>
-                                                                        {createdAt.iso ? (
-                                                                            <time dateTime={createdAt.iso}>{createdAt.label}</time>
-                                                                        ) : (
-                                                                            <span className="text-muted-foreground">{createdAt.label}</span>
-                                                                        )}
-                                                                    </dd>
-                                                                </div>
-                                                                <div>
-                                                                    <dt className="font-medium text-muted-foreground">Updated</dt>
-                                                                    <dd>
-                                                                        {updatedAt.iso ? (
-                                                                            <time dateTime={updatedAt.iso}>{updatedAt.label}</time>
-                                                                        ) : (
-                                                                            <span className="text-muted-foreground">{updatedAt.label}</span>
-                                                                        )}
-                                                                    </dd>
-                                                                </div>
-                                                            </dl>
-                                                        </td>
-                                                        <td className="px-6 py-4 align-top">
-                                                            <div className="flex items-center gap-2">
+                                                        {resourceColumns.map((column) => (
+                                                            <td
+                                                                key={column.key}
+                                                                className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                            >
+                                                                {column.render
+                                                                    ? column.render(resource)
+                                                                    : formatValue(column.key, resource[column.key])}
+                                                            </td>
+                                                        ))}
+                                                        <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                                                            <div className="flex items-center gap-1">
                                                                 <Button
                                                                     type="button"
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    onClick={() => {
-                                                                        void handleEditResource(resource);
-                                                                    }}
-                                                                    aria-label={`Edit ${primaryTitle} in the editor`}
-                                                                    title={`Edit ${primaryTitle} in the editor`}
-                                                                    disabled={isResourceBeingDeleted}
+                                                                    onClick={() => handleOpenInEditor(resource)}
+                                                                    aria-label={`Open resource ${resourceLabel} in editor form`}
+                                                                    title={`Open resource ${resourceLabel} in editor form`}
                                                                 >
                                                                     <PencilLine aria-hidden="true" className="size-4" />
                                                                 </Button>
@@ -400,14 +890,10 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                                     type="button"
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="text-destructive hover:text-destructive focus-visible:ring-destructive/20"
-                                                                    onClick={() => {
-                                                                        handleDeleteResourceRequest(resource);
-                                                                    }}
-                                                                    aria-label={deleteButtonLabel}
-                                                                    title={deleteButtonLabel}
-                                                                    disabled={isResourceBeingDeleted}
-                                                                    aria-busy={isResourceBeingDeleted}
+                                                                    disabled
+                                                                    aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
+                                                                    title="Delete resource (not yet implemented)"
+                                                                    className="opacity-40 cursor-not-allowed"
                                                                 >
                                                                     <Trash2 aria-hidden="true" className="size-4" />
                                                                 </Button>
@@ -416,96 +902,25 @@ const ResourcesPage = ({ resources, pagination }: ResourcesPageProps) => {
                                                     </tr>
                                                 );
                                             })}
+                                            {loading && sortedResources.length > 0 && <LoadingSkeleton />}
                                         </tbody>
                                     </table>
                                 </div>
-                                <nav
-                                    aria-label="Resources pagination"
-                                    className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div className="text-sm text-muted-foreground">
-                                        Page {pagination.current_page.toLocaleString()} of {pagination.last_page.toLocaleString()}
+
+                                {!loading && !pagination.has_more && sortedResources.length > 0 && (
+                                    <div className="text-center py-4 text-muted-foreground text-sm">
+                                        All resources have been loaded ({pagination.total} total)
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            disabled={isFirstPage}
-                                            onClick={() => handlePageChange(pagination.current_page - 1)}
-                                        >
-                                            Previous
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            disabled={isLastPage}
-                                            onClick={() => handlePageChange(pagination.current_page + 1)}
-                                        >
-                                            Next
-                                        </Button>
-                                    </div>
-                                </nav>
+                                )}
                             </>
                         )}
                     </CardContent>
                 </Card>
-                <Dialog
-                    open={isDeleteDialogOpen}
-                    onOpenChange={(open) => {
-                        if (!open) {
-                            closeDeleteDialog();
-                        }
-                    }}
-                >
-                    <DialogContent
-                        className="space-y-4"
-                        aria-busy={isDeletingResource}
-                        aria-live="assertive"
-                    >
-                        <DialogHeader>
-                            <DialogTitle>
-                                Delete “{pendingDeletionTitle ?? 'this resource'}”?
-                            </DialogTitle>
-                            <DialogDescription>
-                                This will permanently remove the resource and its associated metadata from ERNIE. This
-                                action cannot be undone.
-                            </DialogDescription>
-                        </DialogHeader>
-                        {resourcePendingDeletion ? (
-                            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
-                                <p className="font-medium text-foreground">{pendingDeletionTitle}</p>
-                                <p className="text-muted-foreground">
-                                    DOI: {resourcePendingDeletion.doi ?? 'Not registered yet'}
-                                </p>
-                            </div>
-                        ) : null}
-                        <DialogFooter>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={closeDeleteDialog}
-                                disabled={isDeletingResource}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={confirmDeleteResource}
-                                disabled={isDeletingResource}
-                                aria-busy={isDeletingResource}
-                            >
-                                <Trash2 aria-hidden="true" className="size-4" />
-                                Delete resource
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </div>
         </AppLayout>
     );
-};
+}
 
 export default ResourcesPage;
 
-export { buildDoiUrl, formatDateTime,getPrimaryTitle };
+export { deriveResourceRowKey };
