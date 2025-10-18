@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, Database, FileText, Hash, History, Layers,LayoutGrid, Settings } from 'lucide-react';
+import { BookOpen, ClipboardEdit, Database, FileText, FlaskConical, History, Layers,LayoutGrid, Settings } from 'lucide-react';
 
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -36,9 +36,15 @@ const mainNavItems: NavItem[] = [
     {
         title: 'IGSNs',
         href: withBasePath('/igsns'),
-        icon: Hash,
+        icon: FlaskConical,
         disabled: true,
         separator: true,
+    },
+    {
+        title: 'IGSN Editor',
+        href: withBasePath('/igsn-editor'),
+        icon: ClipboardEdit,
+        disabled: true,
     },
 ];
 
