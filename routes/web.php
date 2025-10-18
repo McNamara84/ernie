@@ -90,6 +90,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets/{id}/msl-laboratories', [OldDatasetController::class, 'getMslLaboratories'])
         ->name('old-datasets.msl-laboratories');
 
+    // Resources routes (new curated resources)
+    Route::get('resources/filter-options', [ResourceController::class, 'getFilterOptions'])
+        ->name('resources.filter-options');
+
+    Route::get('resources/load-more', [ResourceController::class, 'loadMore'])
+        ->name('resources.load-more');
+
     // DOI validation endpoint (proxy to avoid CORS issues)
     Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
         ->name('api.validate-doi');

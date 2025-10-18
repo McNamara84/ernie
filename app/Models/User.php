@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -44,5 +45,31 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the resources created by this user.
+     *
+     * @return HasMany<Resource, static>
+     */
+    public function createdResources(): HasMany
+    {
+        /** @var HasMany<Resource, static> $relation */
+        $relation = $this->hasMany(Resource::class, 'created_by_user_id');
+
+        return $relation;
+    }
+
+    /**
+     * Get the resources updated by this user.
+     *
+     * @return HasMany<Resource, static>
+     */
+    public function updatedResources(): HasMany
+    {
+        /** @var HasMany<Resource, static> $relation */
+        $relation = $this->hasMany(Resource::class, 'updated_by_user_id');
+
+        return $relation;
     }
 }

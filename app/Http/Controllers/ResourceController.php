@@ -12,6 +12,7 @@ use App\Models\ResourceAuthor;
 use App\Models\ResourceTitle;
 use App\Models\Role;
 use App\Models\TitleType;
+use App\Models\User;
 use App\Support\BooleanNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -24,325 +25,136 @@ use Throwable;
 
 class ResourceController extends Controller
 {
-    private const DEFAULT_PER_PAGE = 25;
+    private const DEFAULT_PER_PAGE = 50;
 
-    private const MIN_PER_PAGE = 5;
+    private const MIN_PER_PAGE = 10;
 
-    private const MAX_PER_PAGE = 100;
+    private const MAX_PER_PAGE = 200;
+
+    private const DEFAULT_SORT_KEY = 'updated_at';
+
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    private const ALLOWED_SORT_KEYS = [
+        'id',
+        'doi',
+        'title',
+        'resourcetypegeneral',
+        'first_author',
+        'year',
+        'curator',
+        'publicstatus',
+        'created_at',
+        'updated_at',
+    ];
+
+    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
 
     public function index(Request $request): Response
     {
         $page = max(1, (int) $request->query('page', 1));
         $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
-
         $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
 
-        $resources = Resource::query()
+        [$sortKey, $sortDirection] = $this->resolveSortState($request);
+        $filters = $this->extractFilters($request);
+
+        $query = Resource::query()
             ->with([
                 'resourceType:id,name,slug',
                 'language:id,code,name',
+                'createdBy:id,name',
+                'updatedBy:id,name',
                 'titles' => function ($query): void {
                     $query->select(['id', 'resource_id', 'title', 'title_type_id'])
-                        ->with(['titleType:id,name,slug']);
+                        ->with(['titleType:id,name,slug'])
+                        ->limit(1);
                 },
                 'licenses:id,identifier,name',
-                'descriptions:id,resource_id,description_type,description',
-                'dates:id,resource_id,date_type,start_date,end_date,date_information',
-                'keywords:id,resource_id,keyword',
-                'controlledKeywords:id,resource_id,keyword_id,text,path,language,scheme,scheme_uri',
-                'coverages',
-                'relatedIdentifiers:id,resource_id,identifier,identifier_type,relation_type,position',
-                'fundingReferences:id,resource_id,funder_name,funder_identifier,funder_identifier_type,award_number,award_uri,award_title,position',
                 'authors' => function ($query): void {
                     $query
                         ->with([
                             'authorable',
                             'roles:id,name,slug,applies_to',
-                            'affiliations:id,resource_author_id,value,ror_id',
-                        ]);
+                        ])
+                        ->limit(1);
                 },
-                'contributors' => function ($query): void {
-                    $query
-                        ->with([
-                            'authorable',
-                            'roles:id,name,slug,applies_to',
-                            'affiliations:id,resource_author_id,value,ror_id',
-                        ]);
-                },
-            ])
-            ->latest('created_at')
-            ->paginate($perPage, ['*'], 'page', $page)
-            ->through(static function (Resource $resource): array {
-                // Partition contributors to avoid double iteration (MSL Labs vs regular contributors)
-                [$mslLabs, $regularContributors] = $resource->contributors->partition(
-                    static function (ResourceAuthor $resourceContributor): bool {
-                        // MSL Labs: labid identifier type + Hosting Institution role
-                        $authorable = $resourceContributor->authorable;
-                        
-                        if (!$authorable instanceof Institution || $authorable->identifier_type !== 'labid') {
-                            return false;
-                        }
-                        
-                        return $resourceContributor->roles->contains(
-                            static fn (Role $role): bool => $role->slug === 'hosting-institution'
-                        );
-                    }
-                );
-                
-                // Process regular contributors
-                // @phpstan-ignore-next-line method.nonObject - partition() always returns two collections
-                $contributorsData = $regularContributors
-                    ->filter(static function (ResourceAuthor $resourceContributor): bool {
-                        // Filter: Only ResourceAuthors with Contributor roles
-                        return $resourceContributor->roles->contains(static fn (Role $role): bool => 
-                            in_array($role->applies_to, [
-                                Role::APPLIES_TO_CONTRIBUTOR_PERSON,
-                                Role::APPLIES_TO_CONTRIBUTOR_INSTITUTION,
-                                Role::APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION,
-                            ], true)
-                        );
-                    })
-                    ->map(static function (ResourceAuthor $resourceContributor): ?array {
-                        $affiliations = $resourceContributor->affiliations
-                            ->map(static fn (\App\Models\Affiliation $affiliation): array => [
-                                'value' => $affiliation->value,
-                                'rorId' => $affiliation->ror_id,
-                            ])
-                            ->values()
-                            ->all();
+            ]);
 
-                        $roles = $resourceContributor->roles
-                            ->map(static fn (Role $role): string => $role->name)
-                            ->values()
-                            ->all();
+        // Apply filters
+        $this->applyFilters($query, $filters);
 
-                        $base = [
-                            'position' => $resourceContributor->position,
-                            'affiliations' => $affiliations,
-                            'roles' => $roles,
-                        ];
+        // Apply sorting
+        $this->applySorting($query, $sortKey, $sortDirection);
 
-                        $contributorAble = $resourceContributor->authorable;
+        $resources = $query
+            ->paginate($perPage, ['*'], 'page', $page);
 
-                        if ($contributorAble instanceof Person) {
-                            return $base + [
-                                'type' => 'person',
-                                'orcid' => $contributorAble->orcid,
-                                'firstName' => $contributorAble->first_name,
-                                'lastName' => $contributorAble->last_name,
-                            ];
-                        }
+        $resourcesData = $resources->map(function (Resource $resource): array {
+            // Get first author
+            $firstAuthor = $resource->authors->first();
+            $firstAuthorData = null;
 
-                        if ($contributorAble instanceof Institution) {
-                            return $base + [
-                                'type' => 'institution',
-                                'institutionName' => $contributorAble->name,
-                            ];
-                        }
+            if ($firstAuthor) {
+                $authorable = $firstAuthor->authorable;
+                if ($authorable instanceof Person) {
+                    $firstAuthorData = [
+                        'givenName' => $authorable->first_name,
+                        'familyName' => $authorable->last_name,
+                    ];
+                } elseif ($authorable instanceof Institution) {
+                    $firstAuthorData = [
+                        'name' => $authorable->name,
+                    ];
+                }
+            }
 
-                        return null;
-                    })
-                    ->filter()
-                    ->values()
-                    ->all();
-                
-                // Process MSL laboratories
-                // @phpstan-ignore-next-line method.nonObject - partition() always returns two collections
-                $mslLaboratoriesData = $mslLabs
-                    ->sortBy('position')
-                    ->map(static function (ResourceAuthor $resourceContributor): array {
-                        /** @var Institution $authorable */
-                        $authorable = $resourceContributor->authorable;
-                        
-                        // Get host institution from affiliations (may be null)
-                        $hostAffiliation = $resourceContributor->affiliations->first();
-                        
+            return [
+                'id' => $resource->id,
+                'doi' => $resource->doi,
+                'year' => $resource->year,
+                'version' => $resource->version,
+                'created_at' => $resource->created_at?->toIso8601String(),
+                'updated_at' => $resource->updated_at?->toIso8601String(),
+                'curator' => $resource->createdBy?->name,
+                'publicstatus' => 'curation', // Dummy status for all new resources
+                'resourcetypegeneral' => $resource->resourceType?->name,
+                'resource_type' => $resource->resourceType ? [
+                    'name' => $resource->resourceType->name,
+                    'slug' => $resource->resourceType->slug,
+                ] : null,
+                'language' => $resource->language ? [
+                    'code' => $resource->language->code,
+                    'name' => $resource->language->name,
+                ] : null,
+                'title' => $resource->titles->first()?->title,
+                'titles' => $resource->titles
+                    ->map(static function (ResourceTitle $title): array {
                         return [
-                            'identifier' => $authorable->identifier ?? '',
-                            'name' => $authorable->name ?? '',
-                            'affiliation_name' => $hostAffiliation->value ?? '',
-                            'affiliation_ror' => $hostAffiliation->ror_id ?? '',
+                            'title' => $title->title,
+                            'title_type' => $title->titleType ? [
+                                'name' => $title->titleType->name,
+                                'slug' => $title->titleType->slug,
+                            ] : null,
                         ];
                     })
                     ->values()
-                    ->all();
-                
-                return [
-                    'id' => $resource->id,
-                    'doi' => $resource->doi,
-                    'year' => $resource->year,
-                    'version' => $resource->version,
-                    'created_at' => $resource->created_at?->toIso8601String(),
-                    'updated_at' => $resource->updated_at?->toIso8601String(),
-                    'resource_type' => $resource->resourceType ? [
-                        'name' => $resource->resourceType->name,
-                        'slug' => $resource->resourceType->slug,
-                    ] : null,
-                    'language' => $resource->language ? [
-                        'code' => $resource->language->code,
-                        'name' => $resource->language->name,
-                    ] : null,
-                    'titles' => $resource->titles
-                        ->map(static function (ResourceTitle $title): array {
-                            return [
-                                'title' => $title->title,
-                                'title_type' => $title->titleType ? [
-                                    'name' => $title->titleType->name,
-                                    'slug' => $title->titleType->slug,
-                                ] : null,
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'licenses' => $resource->licenses
-                        ->map(static function (License $license): array {
-                            return [
-                                'identifier' => $license->identifier,
-                                'name' => $license->name,
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'authors' => $resource->authors
-                        ->filter(static function (ResourceAuthor $resourceAuthor): bool {
-                            // Filter: Only ResourceAuthors with "Author" role
-                            return $resourceAuthor->roles->contains(static fn (Role $role): bool => $role->applies_to === Role::APPLIES_TO_AUTHOR);
-                        })
-                        ->map(static function (ResourceAuthor $resourceAuthor): ?array {
-                            $affiliations = $resourceAuthor->affiliations
-                                ->map(static fn (\App\Models\Affiliation $affiliation): array => [
-                                    'value' => $affiliation->value,
-                                    'rorId' => $affiliation->ror_id,
-                                ])
-                                ->values()
-                                ->all();
-
-                            $base = [
-                                'position' => $resourceAuthor->position,
-                                'affiliations' => $affiliations,
-                            ];
-
-                            $authorable = $resourceAuthor->authorable;
-
-                            if ($authorable instanceof Person) {
-                                $isContact = $resourceAuthor->roles->contains(
-                                    static fn (Role $role): bool => $role->slug === 'contact-person',
-                                );
-
-                                return $base + [
-                                    'type' => 'person',
-                                    'orcid' => $authorable->orcid,
-                                    'firstName' => $authorable->first_name,
-                                    'lastName' => $authorable->last_name,
-                                    'email' => $resourceAuthor->email,
-                                    'website' => $resourceAuthor->website,
-                                    'isContact' => $isContact,
-                                ];
-                            }
-
-                            if ($authorable instanceof Institution) {
-                                return $base + [
-                                    'type' => 'institution',
-                                    'institutionName' => $authorable->name,
-                                    'rorId' => $authorable->ror_id,
-                                ];
-                            }
-
-                            return null;
-                        })
-                        ->filter()
-                        ->values()
-                        ->all(),
-                    'descriptions' => $resource->descriptions
-                        ->map(static function (\App\Models\ResourceDescription $description): array {
-                            return [
-                                'descriptionType' => $description->description_type,
-                                'description' => $description->description,
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'dates' => $resource->dates
-                        ->map(static function (\App\Models\ResourceDate $date): array {
-                            return [
-                                'dateType' => $date->date_type,
-                                'startDate' => $date->start_date?->toDateString(),
-                                'endDate' => $date->end_date?->toDateString(),
-                                'dateInformation' => $date->date_information,
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'freeKeywords' => $resource->keywords
-                        ->map(static function (\App\Models\ResourceKeyword $keyword): string {
-                            return $keyword->keyword;
-                        })
-                        ->values()
-                        ->all(),
-                    'controlledKeywords' => $resource->controlledKeywords
-                        ->map(static function (\App\Models\ResourceControlledKeyword $keyword): array {
-                            return [
-                                'id' => $keyword->keyword_id,
-                                'text' => $keyword->text,
-                                'path' => $keyword->path,
-                                'language' => $keyword->language,
-                                'scheme' => $keyword->scheme,
-                                'schemeURI' => $keyword->scheme_uri,
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'spatialTemporalCoverages' => $resource->coverages
-                        ->map(static function (\App\Models\ResourceCoverage $coverage): array {
-                            return [
-                                'latMin' => $coverage->lat_min !== null ? (string) $coverage->lat_min : '',
-                                'latMax' => $coverage->lat_max !== null ? (string) $coverage->lat_max : '',
-                                'lonMin' => $coverage->lon_min !== null ? (string) $coverage->lon_min : '',
-                                'lonMax' => $coverage->lon_max !== null ? (string) $coverage->lon_max : '',
-                                'startDate' => $coverage->start_date?->toDateString() ?? '',
-                                'endDate' => $coverage->end_date?->toDateString() ?? '',
-                                'startTime' => $coverage->start_time ?? '',
-                                'endTime' => $coverage->end_time ?? '',
-                                'timezone' => $coverage->timezone ?? 'UTC',
-                                'description' => $coverage->description ?? '',
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'relatedIdentifiers' => $resource->relatedIdentifiers
-                        ->sortBy('position')
-                        ->map(static function (\App\Models\RelatedIdentifier $relatedIdentifier): array {
-                            return [
-                                'identifier' => $relatedIdentifier->identifier,
-                                'identifierType' => $relatedIdentifier->identifier_type,
-                                'relationType' => $relatedIdentifier->relation_type,
-                                'position' => $relatedIdentifier->position,
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'fundingReferences' => $resource->fundingReferences
-                        ->sortBy('position')
-                        ->map(static function (\App\Models\ResourceFundingReference $fundingReference): array {
-                            return [
-                                'funderName' => $fundingReference->funder_name,
-                                'funderIdentifier' => $fundingReference->funder_identifier,
-                                'funderIdentifierType' => $fundingReference->funder_identifier_type,
-                                'awardNumber' => $fundingReference->award_number,
-                                'awardUri' => $fundingReference->award_uri,
-                                'awardTitle' => $fundingReference->award_title,
-                                'position' => $fundingReference->position,
-                            ];
-                        })
-                        ->values()
-                        ->all(),
-                    'contributors' => $contributorsData,
-                    'mslLaboratories' => $mslLaboratoriesData,
-                ];
-            });
+                    ->all(),
+                'licenses' => $resource->licenses
+                    ->map(static function (License $license): array {
+                        return [
+                            'identifier' => $license->identifier,
+                            'name' => $license->name,
+                        ];
+                    })
+                    ->values()
+                    ->all(),
+                'first_author' => $firstAuthorData,
+            ];
+        })->all();
 
         return Inertia::render('resources', [
-            'resources' => $resources->items(),
+            'resources' => $resourcesData,
             'pagination' => [
                 'current_page' => $resources->currentPage(),
                 'last_page' => $resources->lastPage(),
@@ -351,6 +163,10 @@ class ResourceController extends Controller
                 'from' => $resources->firstItem(),
                 'to' => $resources->lastItem(),
                 'has_more' => $resources->hasMorePages(),
+            ],
+            'sort' => [
+                'key' => $sortKey,
+                'direction' => $sortDirection,
             ],
         ]);
     }
@@ -385,8 +201,14 @@ class ResourceController extends Controller
                         ->lockForUpdate()
                         ->findOrFail($validated['resourceId']);
 
+                    // Track who updated the resource
+                    $attributes['updated_by_user_id'] = $request->user()?->id;
+
                     $resource->update($attributes);
                 } else {
+                    // Track who created the resource
+                    $attributes['created_by_user_id'] = $request->user()?->id;
+                    
                     $resource = Resource::query()->create($attributes);
                 }
 
@@ -664,6 +486,181 @@ class ResourceController extends Controller
         return redirect()
             ->route('resources')
             ->with('success', 'Resource deleted successfully.');
+    }
+
+    /**
+     * API endpoint for loading more resources (for infinite scrolling).
+     */
+    public function loadMore(Request $request): JsonResponse
+    {
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
+        $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
+
+        [$sortKey, $sortDirection] = $this->resolveSortState($request);
+        $filters = $this->extractFilters($request);
+
+        $query = Resource::query()
+            ->with([
+                'resourceType:id,name,slug',
+                'language:id,code,name',
+                'createdBy:id,name',
+                'updatedBy:id,name',
+                'titles' => function ($query): void {
+                    $query->select(['id', 'resource_id', 'title', 'title_type_id'])
+                        ->with(['titleType:id,name,slug'])
+                        ->limit(1);
+                },
+                'licenses:id,identifier,name',
+                'authors' => function ($query): void {
+                    $query
+                        ->with([
+                            'authorable',
+                            'roles:id,name,slug,applies_to',
+                        ])
+                        ->limit(1);
+                },
+            ]);
+
+        // Apply filters
+        $this->applyFilters($query, $filters);
+
+        // Apply sorting
+        $this->applySorting($query, $sortKey, $sortDirection);
+
+        $resources = $query
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $resourcesData = $resources->map(function (Resource $resource): array {
+            // Get first author
+            $firstAuthor = $resource->authors->first();
+            $firstAuthorData = null;
+
+            if ($firstAuthor) {
+                $authorable = $firstAuthor->authorable;
+                if ($authorable instanceof Person) {
+                    $firstAuthorData = [
+                        'givenName' => $authorable->first_name,
+                        'familyName' => $authorable->last_name,
+                    ];
+                } elseif ($authorable instanceof Institution) {
+                    $firstAuthorData = [
+                        'name' => $authorable->name,
+                    ];
+                }
+            }
+
+            return [
+                'id' => $resource->id,
+                'doi' => $resource->doi,
+                'year' => $resource->year,
+                'version' => $resource->version,
+                'created_at' => $resource->created_at?->toIso8601String(),
+                'updated_at' => $resource->updated_at?->toIso8601String(),
+                'curator' => $resource->createdBy?->name,
+                'publicstatus' => 'curation',
+                'resourcetypegeneral' => $resource->resourceType?->name,
+                'resource_type' => $resource->resourceType ? [
+                    'name' => $resource->resourceType->name,
+                    'slug' => $resource->resourceType->slug,
+                ] : null,
+                'language' => $resource->language ? [
+                    'code' => $resource->language->code,
+                    'name' => $resource->language->name,
+                ] : null,
+                'title' => $resource->titles->first()?->title,
+                'titles' => $resource->titles
+                    ->map(static function (ResourceTitle $title): array {
+                        return [
+                            'title' => $title->title,
+                            'title_type' => $title->titleType ? [
+                                'name' => $title->titleType->name,
+                                'slug' => $title->titleType->slug,
+                            ] : null,
+                        ];
+                    })
+                    ->values()
+                    ->all(),
+                'licenses' => $resource->licenses
+                    ->map(static function (License $license): array {
+                        return [
+                            'identifier' => $license->identifier,
+                            'name' => $license->name,
+                        ];
+                    })
+                    ->values()
+                    ->all(),
+                'first_author' => $firstAuthorData,
+            ];
+        })->all();
+
+        return response()->json([
+            'resources' => $resourcesData,
+            'pagination' => [
+                'current_page' => $resources->currentPage(),
+                'last_page' => $resources->lastPage(),
+                'per_page' => $resources->perPage(),
+                'total' => $resources->total(),
+                'from' => $resources->firstItem(),
+                'to' => $resources->lastItem(),
+                'has_more' => $resources->hasMorePages(),
+            ],
+            'sort' => [
+                'key' => $sortKey,
+                'direction' => $sortDirection,
+            ],
+        ]);
+    }
+
+    /**
+     * API endpoint to get available filter options.
+     */
+    public function getFilterOptions(): JsonResponse
+    {
+        // Get distinct resource types
+        $resourceTypes = \App\Models\ResourceType::query()
+            ->whereHas('resources')
+            ->orderBy('name')
+            ->pluck('slug', 'name')
+            ->map(fn ($slug, $name) => ['name' => $name, 'slug' => $slug])
+            ->values()
+            ->all();
+
+        // Get distinct curators (users who created resources)
+        $curators = User::query()
+            ->whereHas('createdResources')
+            ->orderBy('name')
+            ->pluck('name')
+            ->unique()
+            ->values()
+            ->all();
+
+        // Get year range
+        $yearMin = Resource::query()->min('year');
+        $yearMax = Resource::query()->max('year');
+
+        // Get distinct languages
+        $languages = Language::query()
+            ->whereHas('resources')
+            ->orderBy('name')
+            ->get(['code', 'name'])
+            ->map(fn ($lang) => ['code' => $lang->code, 'name' => $lang->name])
+            ->values()
+            ->all();
+
+        // Status is hardcoded to 'curation' for now
+        $statuses = ['curation'];
+
+        return response()->json([
+            'resource_types' => $resourceTypes,
+            'curators' => $curators,
+            'year_range' => [
+                'min' => $yearMin,
+                'max' => $yearMax,
+            ],
+            'languages' => $languages,
+            'statuses' => $statuses,
+        ]);
     }
 
     /**
@@ -1095,5 +1092,256 @@ class ResourceController extends Controller
             'value' => trim($affiliationName),
             'ror_id' => $affiliationRor !== '' ? $affiliationRor : null,
         ]);
+    }
+
+    /**
+     * Resolve the requested sort state, falling back to the default when invalid.
+     *
+     * @return array{string, string}
+     */
+    protected function resolveSortState(Request $request): array
+    {
+        $requestedKey = strtolower((string) $request->get('sort_key', self::DEFAULT_SORT_KEY));
+        $requestedDirection = strtolower((string) $request->get('sort_direction', self::DEFAULT_SORT_DIRECTION));
+
+        $sortKey = in_array($requestedKey, self::ALLOWED_SORT_KEYS, true)
+            ? $requestedKey
+            : self::DEFAULT_SORT_KEY;
+
+        $sortDirection = in_array($requestedDirection, self::ALLOWED_SORT_DIRECTIONS, true)
+            ? $requestedDirection
+            : self::DEFAULT_SORT_DIRECTION;
+
+        return [$sortKey, $sortDirection];
+    }
+
+    /**
+     * Extract filters from the request.
+     *
+     * @return array<string, mixed>
+     */
+    protected function extractFilters(Request $request): array
+    {
+        $filters = [];
+
+        // Resource Type filter
+        if ($request->has('resource_type')) {
+            $resourceType = $request->input('resource_type');
+            if (is_array($resourceType)) {
+                $filters['resource_type'] = array_filter($resourceType);
+            } elseif (!empty($resourceType)) {
+                $filters['resource_type'] = [$resourceType];
+            }
+        }
+
+        // Curator filter
+        if ($request->has('curator')) {
+            $curator = $request->input('curator');
+            if (is_array($curator)) {
+                $filters['curator'] = array_filter($curator);
+            } elseif (!empty($curator)) {
+                $filters['curator'] = [$curator];
+            }
+        }
+
+        // Status filter (currently only 'curation' for new resources)
+        if ($request->has('status')) {
+            $status = $request->input('status');
+            if (is_array($status)) {
+                $filters['status'] = array_filter($status);
+            } elseif (!empty($status)) {
+                $filters['status'] = [$status];
+            }
+        }
+
+        // Language filter
+        if ($request->has('language')) {
+            $language = $request->input('language');
+            if (is_array($language)) {
+                $filters['language'] = array_filter($language);
+            } elseif (!empty($language)) {
+                $filters['language'] = [$language];
+            }
+        }
+
+        // Publication Year Range
+        if ($request->has('year_from') && is_numeric($request->input('year_from'))) {
+            $filters['year_from'] = (int) $request->input('year_from');
+        }
+
+        if ($request->has('year_to') && is_numeric($request->input('year_to'))) {
+            $filters['year_to'] = (int) $request->input('year_to');
+        }
+
+        // Text Search
+        if ($request->has('search')) {
+            $search = trim((string) $request->input('search'));
+            if (!empty($search)) {
+                $filters['search'] = $search;
+            }
+        }
+
+        // Date Range filters
+        if ($request->has('created_from')) {
+            $createdFrom = $request->input('created_from');
+            if (!empty($createdFrom)) {
+                $filters['created_from'] = $createdFrom;
+            }
+        }
+
+        if ($request->has('created_to')) {
+            $createdTo = $request->input('created_to');
+            if (!empty($createdTo)) {
+                $filters['created_to'] = $createdTo;
+            }
+        }
+
+        if ($request->has('updated_from')) {
+            $updatedFrom = $request->input('updated_from');
+            if (!empty($updatedFrom)) {
+                $filters['updated_from'] = $updatedFrom;
+            }
+        }
+
+        if ($request->has('updated_to')) {
+            $updatedTo = $request->input('updated_to');
+            if (!empty($updatedTo)) {
+                $filters['updated_to'] = $updatedTo;
+            }
+        }
+
+        return $filters;
+    }
+
+    /**
+     * Apply filters to the query.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<Resource> $query
+     * @param array<string, mixed> $filters
+     */
+    protected function applyFilters($query, array $filters): void
+    {
+        // Resource Type filter
+        if (!empty($filters['resource_type'])) {
+            $query->whereHas('resourceType', function ($q) use ($filters) {
+                $q->whereIn('slug', $filters['resource_type']);
+            });
+        }
+
+        // Language filter
+        if (!empty($filters['language'])) {
+            $query->whereHas('language', function ($q) use ($filters) {
+                $q->whereIn('code', $filters['language']);
+            });
+        }
+
+        // Curator filter
+        if (!empty($filters['curator'])) {
+            $query->whereHas('createdBy', function ($q) use ($filters) {
+                $q->whereIn('name', $filters['curator']);
+            });
+        }
+
+        // Status filter (dummy - all are 'curation')
+        // We don't actually filter since all new resources have the same status
+
+        // Year range filter
+        if (isset($filters['year_from'])) {
+            $query->where('year', '>=', $filters['year_from']);
+        }
+
+        if (isset($filters['year_to'])) {
+            $query->where('year', '<=', $filters['year_to']);
+        }
+
+        // Text search (title, DOI)
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('doi', 'like', "%{$search}%")
+                  ->orWhereHas('titles', function ($titleQuery) use ($search) {
+                      $titleQuery->where('title', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Created date range
+        if (!empty($filters['created_from'])) {
+            $query->whereDate('created_at', '>=', $filters['created_from']);
+        }
+
+        if (!empty($filters['created_to'])) {
+            $query->whereDate('created_at', '<=', $filters['created_to']);
+        }
+
+        // Updated date range
+        if (!empty($filters['updated_from'])) {
+            $query->whereDate('updated_at', '>=', $filters['updated_from']);
+        }
+
+        if (!empty($filters['updated_to'])) {
+            $query->whereDate('updated_at', '<=', $filters['updated_to']);
+        }
+    }
+
+    /**
+     * Apply sorting to the query.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<Resource> $query
+     */
+    protected function applySorting($query, string $sortKey, string $sortDirection): void
+    {
+        switch ($sortKey) {
+            case 'title':
+                // Sort by first title
+                $query->leftJoin('resource_titles', function ($join) {
+                    $join->on('resources.id', '=', 'resource_titles.resource_id')
+                         ->whereRaw('resource_titles.id = (SELECT MIN(id) FROM resource_titles WHERE resource_id = resources.id)');
+                })
+                ->orderBy('resource_titles.title', $sortDirection)
+                ->select('resources.*');
+                break;
+
+            case 'resourcetypegeneral':
+                $query->leftJoin('resource_types', 'resources.resource_type_id', '=', 'resource_types.id')
+                      ->orderBy('resource_types.name', $sortDirection)
+                      ->select('resources.*');
+                break;
+
+            case 'first_author':
+                // Sort by first author's last name
+                $query->leftJoin('resource_authors', function ($join) {
+                    $join->on('resources.id', '=', 'resource_authors.resource_id')
+                         ->whereRaw('resource_authors.position = (SELECT MIN(position) FROM resource_authors WHERE resource_id = resources.id)');
+                })
+                ->leftJoin('people', function ($join) {
+                    $join->on('resource_authors.authorable_id', '=', 'people.id')
+                         ->where('resource_authors.authorable_type', '=', Person::class);
+                })
+                ->leftJoin('institutions', function ($join) {
+                    $join->on('resource_authors.authorable_id', '=', 'institutions.id')
+                         ->where('resource_authors.authorable_type', '=', Institution::class);
+                })
+                ->orderByRaw("COALESCE(people.last_name, institutions.name) {$sortDirection}")
+                ->select('resources.*');
+                break;
+
+            case 'curator':
+                $query->leftJoin('users as creator_users', 'resources.created_by_user_id', '=', 'creator_users.id')
+                      ->orderBy('creator_users.name', $sortDirection)
+                      ->select('resources.*');
+                break;
+
+            case 'publicstatus':
+                // All resources have 'curation' status, so this doesn't really sort
+                // But we keep it for consistency
+                $query->orderBy('id', $sortDirection);
+                break;
+
+            default:
+                // Direct column sorting (id, doi, year, created_at, updated_at)
+                $query->orderBy($sortKey, $sortDirection);
+                break;
+        }
     }
 }
