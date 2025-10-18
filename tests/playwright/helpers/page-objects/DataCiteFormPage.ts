@@ -58,12 +58,13 @@ export class DataCiteFormPage {
     this.fundingAccordion = page.getByRole('button', { name: /Funding/i });
     
     // Resource Info Fields
-    this.doiInput = page.locator('#doi-input');
-    this.yearInput = page.locator('#year-input');
+    this.doiInput = page.locator('#doi');
+    this.yearInput = page.locator('#year');
     this.resourceTypeSelect = page.getByTestId('resource-type-select');
     this.languageSelect = page.getByTestId('language-select');
-    this.versionInput = page.locator('#version-input');
-    this.mainTitleInput = page.locator('#main-title-input');
+    this.versionInput = page.locator('#version');
+    // Main title uses dynamic ID, so use role-based query
+    this.mainTitleInput = page.getByRole('textbox', { name: /^Title$/i });
     
     // License Fields
     this.primaryLicenseSelect = page.getByTestId('license-select-0');
