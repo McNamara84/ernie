@@ -12,7 +12,7 @@ interface FieldValidationFeedbackProps {
 }
 
 /**
- * Konfiguration für die verschiedenen Validation-Severity-Level
+ * Configuration for the different validation severity levels
  */
 const severityConfig: Record<
     ValidationSeverity,
@@ -50,10 +50,10 @@ const severityConfig: Record<
 };
 
 /**
- * Komponente zur Anzeige von Validierungs-Feedback
+ * Component for displaying validation feedback
  * 
- * Zeigt inline Validierungsnachrichten mit Icons für verschiedene
- * Severity-Level (error, warning, success, info).
+ * Shows inline validation messages with icons for different
+ * severity levels (error, warning, success, info).
  * 
  * @example
  * ```tsx
@@ -134,7 +134,7 @@ export function FieldValidationFeedback({
 }
 
 /**
- * Kompakte Version der Feedback-Komponente für Inline-Verwendung
+ * Compact version of the feedback component for inline use
  */
 export function CompactFieldValidationFeedback(
     props: Omit<FieldValidationFeedbackProps, 'compact'>,
@@ -143,7 +143,7 @@ export function CompactFieldValidationFeedback(
 }
 
 /**
- * Helper-Funktion: Gibt nur die erste Nachricht einer bestimmten Severity zurück
+ * Helper function: Returns only the first message of a specific severity
  */
 export function getFirstMessageBySeverity(
     messages: ValidationMessage[],
@@ -153,7 +153,7 @@ export function getFirstMessageBySeverity(
 }
 
 /**
- * Helper-Funktion: Prüft ob Nachrichten eine bestimmte Severity enthalten
+ * Helper function: Checks if messages contain a specific severity
  */
 export function hasMessageWithSeverity(
     messages: ValidationMessage[],
@@ -163,7 +163,7 @@ export function hasMessageWithSeverity(
 }
 
 /**
- * Helper-Funktion: Filtert Nachrichten nach Severity
+ * Helper function: Filters messages by severity
  */
 export function filterMessagesBySeverity(
     messages: ValidationMessage[],

@@ -40,7 +40,7 @@ export interface FormValidationState {
 }
 
 /**
- * Eine Validierungsregel für ein Feld
+ * A validation rule for a field
  */
 export type ValidationRule<T = unknown> = {
     validate: (value: T, formData?: unknown) => ValidationMessage | null;
@@ -48,7 +48,7 @@ export type ValidationRule<T = unknown> = {
 };
 
 /**
- * Optionen für die Feldvalidierung
+ * Options for field validation
  */
 export interface ValidateFieldOptions<T = unknown> {
     fieldId: string;
@@ -59,7 +59,7 @@ export interface ValidateFieldOptions<T = unknown> {
 }
 
 /**
- * Rückgabewert des useFormValidation Hooks
+ * Return value of the useFormValidation Hook
  */
 export interface UseFormValidationReturn {
     validationState: FormValidationState;
@@ -73,23 +73,23 @@ export interface UseFormValidationReturn {
 }
 
 /**
- * Hook für Formular-Validierung mit Echtzeit-Feedback
+ * Hook for form validation with real-time feedback
  * 
- * Dieser Hook verwaltet den Validierungszustand aller Formularfelder
- * und bietet Funktionen zur Validierung einzelner Felder.
+ * This hook manages the validation state of all form fields
+ * and provides functions for validating individual fields.
  * 
  * @example
  * ```tsx
  * const { validateField, getFieldState, markFieldTouched } = useFormValidation();
  * 
- * // Feld validieren
+ * // Validate field
  * validateField({
  *   fieldId: 'email',
  *   value: emailValue,
  *   rules: [emailValidationRule],
  * });
  * 
- * // Feld-Status abrufen
+ * // Get field state
  * const fieldState = getFieldState('email');
  * ```
  */
@@ -105,7 +105,7 @@ export function useFormValidation(): UseFormValidationReturn {
     const debounceTimers = useState<Record<string, NodeJS.Timeout>>(() => ({}))[0];
 
     /**
-     * Validiert ein einzelnes Feld mit den gegebenen Regeln
+     * Validates a single field with the given rules
      */
     const validateField = useCallback(
         <T = unknown>({ fieldId, value, rules, formData, immediate = false }: ValidateFieldOptions<T>) => {
@@ -195,7 +195,7 @@ export function useFormValidation(): UseFormValidationReturn {
     );
 
     /**
-     * Markiert ein Feld als "touched" (berührt/fokussiert)
+     * Marks a field as "touched" (visited/focused)
      */
     const markFieldTouched = useCallback((fieldId: string) => {
         setValidationState((prev) => {
@@ -224,7 +224,7 @@ export function useFormValidation(): UseFormValidationReturn {
     }, []);
 
     /**
-     * Gibt den Validierungszustand eines Feldes zurück
+     * Returns the validation state of a field
      */
     const getFieldState = useCallback(
         (fieldId: string): FieldValidationState => {
@@ -241,7 +241,7 @@ export function useFormValidation(): UseFormValidationReturn {
     );
 
     /**
-     * Setzt die Validierung eines Feldes zurück
+     * Resets the validation of a field
      */
     const resetFieldValidation = useCallback((fieldId: string) => {
         // Clear debounce timer
@@ -274,7 +274,7 @@ export function useFormValidation(): UseFormValidationReturn {
     }, [debounceTimers]);
 
     /**
-     * Setzt die gesamte Validierung zurück
+     * Resets all validation
      */
     const resetAllValidation = useCallback(() => {
         // Clear all debounce timers
@@ -290,7 +290,7 @@ export function useFormValidation(): UseFormValidationReturn {
     }, [debounceTimers]);
 
     /**
-     * Prüft ob ein Feld einen Fehler hat
+     * Checks if a field has an error
      */
     const hasFieldError = useCallback(
         (fieldId: string): boolean => {
@@ -301,7 +301,7 @@ export function useFormValidation(): UseFormValidationReturn {
     );
 
     /**
-     * Gibt alle Validierungsnachrichten eines Feldes zurück
+     * Returns all validation messages of a field
      */
     const getFieldMessages = useCallback(
         (fieldId: string): ValidationMessage[] => {
