@@ -36,40 +36,6 @@ vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div data-testid="app-layout">{children}</div>,
 }));
 
-// Mock IntersectionObserver
-class MockIntersectionObserver implements IntersectionObserver {
-    readonly root: Element | Document | null = null;
-    readonly rootMargin = '';
-    readonly thresholds: ReadonlyArray<number> = [];
-
-    constructor(callback: IntersectionObserverCallback) {
-        // Store callback for potential future use
-        void callback;
-    }
-
-    observe(target: Element): void {
-        // Mock implementation
-        void target;
-    }
-
-    disconnect(): void {
-        // Mock implementation
-    }
-
-    unobserve(target: Element): void {
-        // Mock implementation
-        void target;
-    }
-
-    takeRecords(): IntersectionObserverEntry[] {
-        return [];
-    }
-}
-
-// Set up global IntersectionObserver
-(globalThis as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = 
-    MockIntersectionObserver as unknown as typeof IntersectionObserver;
-
 describe('ResourcesPage', () => {
     beforeEach(() => {
         routerMock.get.mockClear();

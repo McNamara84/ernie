@@ -463,9 +463,8 @@ class ResourceController extends Controller
         $resourceTypes = \App\Models\ResourceType::query()
             ->whereHas('resources')
             ->orderBy('name')
-            ->pluck('slug', 'name')
-            ->map(fn ($slug, $name) => ['name' => $name, 'slug' => $slug])
-            ->values()
+            ->get(['name', 'slug'])
+            ->map(fn ($type) => ['name' => $type->name, 'slug' => $type->slug])
             ->all();
 
         // Get distinct curators (users who created resources)

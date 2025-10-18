@@ -784,6 +784,9 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
 
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <caption className="sr-only">
+                                            List of resources with metadata including title, type, DOI, contributors, language, and version
+                                        </caption>
                                         <thead className="bg-gray-50 dark:bg-gray-800">
                                             <tr>
                                                 {resourceColumns.map((column) => {

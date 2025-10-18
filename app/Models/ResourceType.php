@@ -54,11 +54,11 @@ class ResourceType extends Model
     /**
      * Get the resources with this resource type.
      *
-     * @return HasMany<Resource, static>
+     * @return HasMany<\App\Models\Resource, static>
      */
     public function resources(): HasMany
     {
-        /** @var HasMany<Resource, static> $relation */
+        /** @var HasMany<\App\Models\Resource, static> $relation */
         $relation = $this->hasMany(Resource::class);
 
         return $relation;
