@@ -18,6 +18,8 @@ class IntersectionObserver {
 }
 
 Object.defineProperty(globalThis, 'IntersectionObserver', {
+    writable: true,
+    configurable: true,
     value: IntersectionObserver,
 });
 
