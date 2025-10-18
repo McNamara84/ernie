@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, Database, FileText, History, Layers,LayoutGrid, Settings } from 'lucide-react';
+import { BookOpen, Database, FileText, Hash, History, Layers,LayoutGrid, Settings } from 'lucide-react';
 
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -18,9 +18,10 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     {
-        title: 'Editor',
+        title: 'Data Editor',
         href: withBasePath('/editor'),
         icon: FileText,
+        separator: true,
     },
     {
         title: 'Old Datasets',
@@ -31,6 +32,13 @@ const mainNavItems: NavItem[] = [
         title: 'Resources',
         href: withBasePath('/resources'),
         icon: Layers,
+    },
+    {
+        title: 'IGSNs',
+        href: withBasePath('/igsns'),
+        icon: Hash,
+        disabled: true,
+        separator: true,
     },
 ];
 

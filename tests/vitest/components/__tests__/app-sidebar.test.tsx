@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { render, screen } from '@testing-library/react';
-import { afterEach,describe, expect, it, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
 import type { NavItem } from '@/types';
@@ -12,9 +12,13 @@ const NavMainMock = vi.hoisted(() =>
             {items.map((item) => {
                 const href = typeof item.href === 'string' ? item.href : item.href.url;
                 return (
-                    <a key={item.title} href={href}>
-                        {item.title}
-                    </a>
+                    <div key={item.title}>
+                        {item.disabled ? (
+                            <span>{item.title}</span>
+                        ) : (
+                            <a href={href}>{item.title}</a>
+                        )}
+                    </div>
                 );
             })}
         </nav>
@@ -68,27 +72,30 @@ describe('AppSidebar', () => {
 
     it('renders main and footer navigation with user section', async () => {
         const { AppSidebar } = await import('@/components/app-sidebar');
-
+        
         render(<AppSidebar />);
         expect(NavMainMock).toHaveBeenCalled();
-        const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+        
+        const navMain = screen.getByTestId('nav-main');
+        const dashboardLink = within(navMain).getByRole('link', { name: /dashboard/i });
         expect(dashboardLink).toHaveAttribute('href', withBasePath('/dashboard'));
 
-        const editorLink = screen.getByRole('link', { name: /^editor$/i });
+        const editorLink = within(navMain).getByRole('link', { name: /^data editor$/i });
         expect(editorLink).toHaveAttribute('href', withBasePath('/editor'));
 
-        const oldDatasetsLink = screen.getByRole('link', { name: /old datasets/i });
+        const oldDatasetsLink = within(navMain).getByRole('link', { name: /old datasets/i });
         expect(oldDatasetsLink).toHaveAttribute('href', withBasePath('/old-datasets'));
 
-        const resourcesLink = screen.getByRole('link', { name: /resources/i });
+        const resourcesLink = within(navMain).getByRole('link', { name: /resources/i });
         expect(resourcesLink).toHaveAttribute('href', withBasePath('/resources'));
 
         const mainArgs = NavMainMock.mock.calls[0][0];
         expect(mainArgs.items.map((i: NavItem) => i.title)).toEqual([
             'Dashboard',
-            'Editor',
+            'Data Editor',
             'Old Datasets',
             'Resources',
+            'IGSNs',
         ]);
 
         const footerArgs = NavFooterMock.mock.calls[0][0];
@@ -99,13 +106,14 @@ describe('AppSidebar', () => {
         ]);
         expect(footerArgs.className).toBe('mt-auto');
 
-        const settingsLink = screen.getByRole('link', { name: /editor settings/i });
+        const navFooter = screen.getByTestId('nav-footer');
+        const settingsLink = within(navFooter).getByRole('link', { name: /editor settings/i });
         expect(settingsLink).toHaveAttribute('href', withBasePath('/settings'));
 
-        const changelogLink = screen.getByRole('link', { name: /changelog/i });
+        const changelogLink = within(navFooter).getByRole('link', { name: /changelog/i });
         expect(changelogLink).toHaveAttribute('href', withBasePath('/changelog'));
 
-        const docsLink = screen.getByRole('link', { name: /documentation/i });
+        const docsLink = within(navFooter).getByRole('link', { name: /documentation/i });
         expect(docsLink).toHaveAttribute('href', withBasePath('/docs'));
 
         expect(screen.getByTestId('nav-user')).toBeInTheDocument();
@@ -128,13 +136,16 @@ describe('AppSidebar', () => {
 
         render(<AppSidebar />);
 
-        expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/ernie/dashboard');
-        expect(screen.getByRole('link', { name: /^editor$/i })).toHaveAttribute('href', '/ernie/editor');
-        expect(screen.getByRole('link', { name: /old datasets/i })).toHaveAttribute('href', '/ernie/old-datasets');
-        expect(screen.getByRole('link', { name: /resources/i })).toHaveAttribute('href', '/ernie/resources');
-        expect(screen.getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/ernie/changelog');
-        expect(screen.getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/ernie/docs');
-        expect(screen.getByRole('link', { name: /editor settings/i })).toHaveAttribute('href', '/ernie/settings');
+        const navMain = screen.getByTestId('nav-main');
+        expect(within(navMain).getByRole('link', { name: /^dashboard$/i })).toHaveAttribute('href', '/ernie/dashboard');
+        expect(within(navMain).getByRole('link', { name: /^data editor$/i })).toHaveAttribute('href', '/ernie/editor');
+        expect(within(navMain).getByRole('link', { name: /old datasets/i })).toHaveAttribute('href', '/ernie/old-datasets');
+        expect(within(navMain).getByRole('link', { name: /resources/i })).toHaveAttribute('href', '/ernie/resources');
+        
+        const navFooter = screen.getByTestId('nav-footer');
+        expect(within(navFooter).getByRole('link', { name: /changelog/i })).toHaveAttribute('href', '/ernie/changelog');
+        expect(within(navFooter).getByRole('link', { name: /documentation/i })).toHaveAttribute('href', '/ernie/docs');
+        expect(within(navFooter).getByRole('link', { name: /editor settings/i })).toHaveAttribute('href', '/ernie/settings');
     });
 });
 
