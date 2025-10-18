@@ -259,22 +259,33 @@ export class DataCiteFormPage {
     await this.yearInput.fill('2024');
     
     // Resource Type Select
+    await this.resourceTypeSelect.scrollIntoViewIfNeeded();
     await this.resourceTypeSelect.click();
+    await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
     const datasetOption = this.page.getByRole('option', { name: /Dataset/i }).first();
-    await datasetOption.waitFor({ state: 'visible', timeout: 5000 });
+    await datasetOption.waitFor({ state: 'visible', timeout: 10000 });
     await datasetOption.click();
     
     // Language Select
+    await this.languageSelect.scrollIntoViewIfNeeded();
     await this.languageSelect.click();
+    await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
     const englishOption = this.page.getByRole('option', { name: /English/i }).first();
-    await englishOption.waitFor({ state: 'visible', timeout: 5000 });
+    await englishOption.waitFor({ state: 'visible', timeout: 10000 });
     await englishOption.click();
     
-    // License
+    // License - needs extra robustness
     await this.expandAccordion(this.licensesAccordion);
+    await this.page.waitForTimeout(500); // Wait for accordion animation
+    await this.primaryLicenseSelect.scrollIntoViewIfNeeded();
     await this.primaryLicenseSelect.click();
+    
+    // Wait for the listbox to appear (the container for options)
+    await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
+    
+    // Now wait for and click the specific option
     const ccByOption = this.page.getByRole('option', { name: /CC BY 4\.0/i }).first();
-    await ccByOption.waitFor({ state: 'visible', timeout: 5000 });
+    await ccByOption.waitFor({ state: 'visible', timeout: 10000 });
     await ccByOption.click();
     
     // Abstract (50+ characters required)
