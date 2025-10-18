@@ -185,14 +185,20 @@ describe('DataCiteForm', () => {
     };
 
     const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
-        const authorsTrigger = screen.getByRole('button', { name: /Authors/i });
+        // Use getAllByRole and filter to avoid matching "Import authors from CSV" button
+        const buttons = screen.getAllByRole('button', { name: /Authors/i });
+        const authorsTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!authorsTrigger) throw new Error('Authors accordion trigger not found');
         if (authorsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(authorsTrigger);
         }
     };
 
     const ensureContributorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
-        const contributorsTrigger = screen.getByRole('button', { name: /Contributors/i });
+        // Use getAllByRole and filter to avoid matching "Import contributors from CSV" button
+        const buttons = screen.getAllByRole('button', { name: /Contributors/i });
+        const contributorsTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!contributorsTrigger) throw new Error('Contributors accordion trigger not found');
         if (contributorsTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(contributorsTrigger);
         }
@@ -417,15 +423,19 @@ describe('DataCiteForm', () => {
         const resourceTrigger = screen.getByRole('button', {
             name: /Resource Information/i,
         });
-        const authorsTrigger = screen.getByRole('button', {
-            name: /Authors/i,
-        });
+        // Use getAllByRole and filter for Authors/Contributors to avoid matching Import CSV buttons
+        const authorsButtons = screen.getAllByRole('button', { name: /Authors/i });
+        const authorsTrigger = authorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!authorsTrigger) throw new Error('Authors accordion trigger not found');
+        
         const licensesTrigger = screen.getByRole('button', {
             name: /Licenses and Rights/i,
         });
-        const contributorsTrigger = screen.getByRole('button', {
-            name: /Contributors/i,
-        });
+        
+        const contributorsButtons = screen.getAllByRole('button', { name: /Contributors/i });
+        const contributorsTrigger = contributorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!contributorsTrigger) throw new Error('Contributors accordion trigger not found');
+        
         expect(resourceTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(authorsTrigger).toHaveAttribute('aria-expanded', 'true');
         expect(licensesTrigger).toHaveAttribute('aria-expanded', 'true');
@@ -1176,7 +1186,10 @@ describe('DataCiteForm', () => {
         const licensesTrigger = screen.getByRole('button', {
             name: /Licenses and Rights/i,
         });
-        const authorsTrigger = screen.getByRole('button', { name: /Authors/i });
+        // Use getAllByRole and filter to avoid matching "Import authors from CSV" button
+        const authorsButtons = screen.getAllByRole('button', { name: /Authors/i });
+        const authorsTrigger = authorsButtons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!authorsTrigger) throw new Error('Authors accordion trigger not found');
 
         const position = licensesTrigger.compareDocumentPosition(authorsTrigger);
         expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -2629,8 +2642,13 @@ describe('DataCiteForm', () => {
             expect(axios.post).toHaveBeenCalled();
         });
 
-        const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent(
+        // Use findAllByRole and filter to find the network error alert specifically
+        const alerts = await screen.findAllByRole('alert');
+        const networkErrorAlert = alerts.find(alert => 
+            alert.textContent?.includes('A network error prevented saving the resource')
+        );
+        expect(networkErrorAlert).toBeDefined();
+        expect(networkErrorAlert).toHaveTextContent(
             'A network error prevented saving the resource. Please try again.',
         );
         expect(consoleSpy).toHaveBeenCalledWith(
