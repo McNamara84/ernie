@@ -306,28 +306,17 @@ export class DataCiteFormPage {
       await this.page.waitForTimeout(300);
     }
     
-    // Created Date (required)
+    // Created Date (required) - Note: First date entry already exists with type "Created"
+    // We just need to fill in the date value
     await this.expandAccordion(this.datesAccordion);
-    const addDateButton = this.page.getByRole('button', { name: /Add.*Date/i }).first();
-    if (await addDateButton.isVisible()) {
-      await addDateButton.click();
+    
+    // The first date should already exist with type "Created"
+    // Just fill in the start date
+    const firstDateInput = this.page.locator('input[name*="startDate"]').first();
+    if (await firstDateInput.isVisible()) {
+      await firstDateInput.fill('2024-01-01');
+      await firstDateInput.blur();
       await this.page.waitForTimeout(300);
-      
-      const dateTypeSelect = this.page.getByTestId('date-type-select-0');
-      if (await dateTypeSelect.isVisible()) {
-        await dateTypeSelect.scrollIntoViewIfNeeded();
-        await dateTypeSelect.click();
-        await this.page.getByRole('listbox').waitFor({ state: 'visible', timeout: 10000 });
-        const createdOption = this.page.getByRole('option', { name: /Created/i }).first();
-        await createdOption.waitFor({ state: 'visible', timeout: 10000 });
-        await createdOption.click();
-        await this.page.waitForTimeout(300);
-        
-        // Fill date value (YYYY-MM-DD format)
-        const dateInput = this.page.locator('input[name*="dateValue"]').first();
-        await dateInput.fill('2024-01-01');
-        await dateInput.blur();
-      }
     }
     
     // Wait for all validations to complete
