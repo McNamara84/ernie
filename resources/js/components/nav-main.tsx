@@ -16,25 +16,27 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                         <Fragment key={item.title}>
                             {item.separator && index > 0 && <SidebarSeparator className="my-2" />}
                             <SidebarMenuItem>
-                                <SidebarMenuButton
-                                    asChild={!item.disabled}
-                                    isActive={!item.disabled && page.url.startsWith(href)}
-                                    tooltip={{ children: item.title }}
-                                    disabled={item.disabled}
-                                    className={item.disabled ? 'cursor-not-allowed opacity-50' : ''}
-                                >
-                                    {item.disabled ? (
-                                        <div>
-                                            {item.icon && <item.icon />}
-                                            <span>{item.title}</span>
-                                        </div>
-                                    ) : (
+                                {item.disabled ? (
+                                    <SidebarMenuButton
+                                        disabled
+                                        tooltip={{ children: item.title }}
+                                        className="cursor-not-allowed opacity-50"
+                                    >
+                                        {item.icon && <item.icon />}
+                                        <span>{item.title}</span>
+                                    </SidebarMenuButton>
+                                ) : (
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={page.url.startsWith(href)}
+                                        tooltip={{ children: item.title }}
+                                    >
                                         <Link href={href} prefetch>
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
                                         </Link>
-                                    )}
-                                </SidebarMenuButton>
+                                    </SidebarMenuButton>
+                                )}
                             </SidebarMenuItem>
                         </Fragment>
                     );
