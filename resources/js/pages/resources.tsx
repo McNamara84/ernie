@@ -401,7 +401,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         });
         
         // Navigate to same page with new query params
-        router.visit(`/resources?${params.toString()}`, {
+        router.visit(withBasePath(`/resources?${params.toString()}`), {
             preserveState: false,
             replace: true,
         });
@@ -428,7 +428,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         });
 
         // Navigate to same page with new query params
-        router.visit(`/resources?${params.toString()}`, {
+        router.visit(withBasePath(`/resources?${params.toString()}`), {
             preserveState: false,
             replace: true,
         });

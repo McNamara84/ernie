@@ -90,68 +90,9 @@ class ResourceController extends Controller
         $resources = $query
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $resourcesData = collect($resources->items())->map(function (Resource $resource): array {
-            // Get first author
-            $firstAuthor = $resource->authors->first();
-            $firstAuthorData = null;
-
-            if ($firstAuthor) {
-                $authorable = $firstAuthor->authorable;
-                if ($authorable instanceof Person) {
-                    $firstAuthorData = [
-                        'givenName' => $authorable->first_name,
-                        'familyName' => $authorable->last_name,
-                    ];
-                } elseif ($authorable instanceof Institution) {
-                    $firstAuthorData = [
-                        'name' => $authorable->name,
-                    ];
-                }
-            }
-
-            return [
-                'id' => $resource->id,
-                'doi' => $resource->doi,
-                'year' => $resource->year,
-                'version' => $resource->version,
-                'created_at' => $resource->created_at?->toIso8601String(),
-                'updated_at' => $resource->updated_at?->toIso8601String(),
-                'curator' => $resource->createdBy?->name,
-                'publicstatus' => 'curation', // Dummy status for all new resources
-                'resourcetypegeneral' => $resource->resourceType?->name,
-                'resource_type' => $resource->resourceType ? [
-                    'name' => $resource->resourceType->name,
-                    'slug' => $resource->resourceType->slug,
-                ] : null,
-                'language' => $resource->language ? [
-                    'code' => $resource->language->code,
-                    'name' => $resource->language->name,
-                ] : null,
-                'title' => $resource->titles->first()?->title,
-                'titles' => $resource->titles
-                    ->map(static function (ResourceTitle $title): array {
-                        return [
-                            'title' => $title->title,
-                            'title_type' => $title->titleType ? [
-                                'name' => $title->titleType->name,
-                                'slug' => $title->titleType->slug,
-                            ] : null,
-                        ];
-                    })
-                    ->values()
-                    ->all(),
-                'licenses' => $resource->licenses
-                    ->map(static function (License $license): array {
-                        return [
-                            'identifier' => $license->identifier,
-                            'name' => $license->name,
-                        ];
-                    })
-                    ->values()
-                    ->all(),
-                'first_author' => $firstAuthorData,
-            ];
-        })->all();
+        $resourcesData = collect($resources->items())
+            ->map(fn (Resource $resource): array => $this->serializeResource($resource))
+            ->all();
 
         return Inertia::render('resources', [
             'resources' => $resourcesData,
@@ -531,68 +472,9 @@ class ResourceController extends Controller
         $resources = $query
             ->paginate($perPage, ['*'], 'page', $page);
 
-        $resourcesData = collect($resources->items())->map(function (Resource $resource): array {
-            // Get first author
-            $firstAuthor = $resource->authors->first();
-            $firstAuthorData = null;
-
-            if ($firstAuthor) {
-                $authorable = $firstAuthor->authorable;
-                if ($authorable instanceof Person) {
-                    $firstAuthorData = [
-                        'givenName' => $authorable->first_name,
-                        'familyName' => $authorable->last_name,
-                    ];
-                } elseif ($authorable instanceof Institution) {
-                    $firstAuthorData = [
-                        'name' => $authorable->name,
-                    ];
-                }
-            }
-
-            return [
-                'id' => $resource->id,
-                'doi' => $resource->doi,
-                'year' => $resource->year,
-                'version' => $resource->version,
-                'created_at' => $resource->created_at?->toIso8601String(),
-                'updated_at' => $resource->updated_at?->toIso8601String(),
-                'curator' => $resource->createdBy?->name,
-                'publicstatus' => 'curation',
-                'resourcetypegeneral' => $resource->resourceType?->name,
-                'resource_type' => $resource->resourceType ? [
-                    'name' => $resource->resourceType->name,
-                    'slug' => $resource->resourceType->slug,
-                ] : null,
-                'language' => $resource->language ? [
-                    'code' => $resource->language->code,
-                    'name' => $resource->language->name,
-                ] : null,
-                'title' => $resource->titles->first()?->title,
-                'titles' => $resource->titles
-                    ->map(static function (ResourceTitle $title): array {
-                        return [
-                            'title' => $title->title,
-                            'title_type' => $title->titleType ? [
-                                'name' => $title->titleType->name,
-                                'slug' => $title->titleType->slug,
-                            ] : null,
-                        ];
-                    })
-                    ->values()
-                    ->all(),
-                'licenses' => $resource->licenses
-                    ->map(static function (License $license): array {
-                        return [
-                            'identifier' => $license->identifier,
-                            'name' => $license->name,
-                        ];
-                    })
-                    ->values()
-                    ->all(),
-                'first_author' => $firstAuthorData,
-            ];
-        })->all();
+        $resourcesData = collect($resources->items())
+            ->map(fn (Resource $resource): array => $this->serializeResource($resource))
+            ->all();
 
         return response()->json([
             'resources' => $resourcesData,
@@ -1343,5 +1225,75 @@ class ResourceController extends Controller
                 $query->orderBy($sortKey, $sortDirection);
                 break;
         }
+    }
+
+    /**
+     * Serialize a Resource model to an array for API responses.
+     *
+     * @param  Resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
+     * @return array<string, mixed> The serialized resource data
+     */
+    private function serializeResource(Resource $resource): array
+    {
+        // Get first author
+        $firstAuthor = $resource->authors->first();
+        $firstAuthorData = null;
+
+        if ($firstAuthor) {
+            $authorable = $firstAuthor->authorable;
+            if ($authorable instanceof Person) {
+                $firstAuthorData = [
+                    'givenName' => $authorable->first_name,
+                    'familyName' => $authorable->last_name,
+                ];
+            } elseif ($authorable instanceof Institution) {
+                $firstAuthorData = [
+                    'name' => $authorable->name,
+                ];
+            }
+        }
+
+        return [
+            'id' => $resource->id,
+            'doi' => $resource->doi,
+            'year' => $resource->year,
+            'version' => $resource->version,
+            'created_at' => $resource->created_at?->toIso8601String(),
+            'updated_at' => $resource->updated_at?->toIso8601String(),
+            'curator' => $resource->createdBy?->name,
+            'publicstatus' => 'curation', // Dummy status for all new resources
+            'resourcetypegeneral' => $resource->resourceType?->name,
+            'resource_type' => $resource->resourceType ? [
+                'name' => $resource->resourceType->name,
+                'slug' => $resource->resourceType->slug,
+            ] : null,
+            'language' => $resource->language ? [
+                'code' => $resource->language->code,
+                'name' => $resource->language->name,
+            ] : null,
+            'title' => $resource->titles->first()?->title,
+            'titles' => $resource->titles
+                ->map(static function (ResourceTitle $title): array {
+                    return [
+                        'title' => $title->title,
+                        'title_type' => $title->titleType ? [
+                            'name' => $title->titleType->name,
+                            'slug' => $title->titleType->slug,
+                        ] : null,
+                    ];
+                })
+                ->values()
+                ->all(),
+            'licenses' => $resource->licenses
+                ->map(static function (License $license): array {
+                    return [
+                        'identifier' => $license->identifier,
+                        'name' => $license->name,
+                    ];
+                })
+                ->values()
+                ->all(),
+            'first_author' => $firstAuthorData,
+        ];
     }
 }

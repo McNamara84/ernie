@@ -91,7 +91,7 @@ describe('AuthorItem Component', () => {
         // Clean up all components
         cleanup();
         // Flush microtasks to ensure all pending promises are resolved
-        await vi.waitFor(() => {
+        await waitFor(() => {
             // Wait for any Tagify events to be processed
             return Promise.resolve();
         });
