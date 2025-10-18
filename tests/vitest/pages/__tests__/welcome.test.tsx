@@ -52,7 +52,7 @@ describe('Welcome', () => {
         render(<Welcome />);
         expect(
             screen.getByRole('heading', {
-                name: /ERNIE - Earth Research Notary for Information & Editing/i,
+                name: /ERNIE - Earth Research Notary for Information Editing/i,
             }),
         ).toBeInTheDocument();
     });
