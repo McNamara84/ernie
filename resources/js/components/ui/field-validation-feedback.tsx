@@ -73,7 +73,7 @@ export function FieldValidationFeedback({
     compact = false,
     id,
 }: FieldValidationFeedbackProps) {
-    // Filtere Nachrichten basierend auf showSuccess
+    // Filter messages based on showSuccess
     const filteredMessages = showSuccess
         ? messages
         : messages.filter((m) => m.severity !== 'success');

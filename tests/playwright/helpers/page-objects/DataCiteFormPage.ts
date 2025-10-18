@@ -1,6 +1,18 @@
 import { type Locator, type Page } from '@playwright/test';
 
 /**
+ * Helper function to locate an accordion trigger button by its text
+ * Reduces duplication when accessing multiple accordion sections
+ * 
+ * @param page - Playwright Page instance
+ * @param textPattern - RegExp pattern to match accordion text
+ * @returns Locator for the accordion trigger button
+ */
+function getAccordionTrigger(page: Page, textPattern: RegExp): Locator {
+  return page.locator('[data-slot="accordion-trigger"]', { hasText: textPattern });
+}
+
+/**
  * Page Object Model for DataCite Metadata Form
  * Handles interactions with the curation/editor form including validation feedback
  */
@@ -44,18 +56,18 @@ export class DataCiteFormPage {
     this.page = page;
     
     // Accordion triggers - use data-slot to ensure we get accordion triggers only
-    this.resourceInfoAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Resource Information/i });
-    this.licensesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Licenses.*Rights/i });
-    this.authorsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Authors/i });
-    this.contributorsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Contributors/i });
-    this.descriptionsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Descriptions/i });
-    this.controlledVocabulariesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Controlled Vocabularies/i });
-    this.freeKeywordsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Free Keywords/i });
-    this.mslLaboratoriesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /MSL Laboratories/i });
-    this.spatialTemporalCoverageAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Spatial.*Temporal Coverage/i });
-    this.datesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Dates/i });
-    this.relatedWorkAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Related Work/i });
-    this.fundingAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Funding/i });
+    this.resourceInfoAccordion = getAccordionTrigger(page, /Resource Information/i);
+    this.licensesAccordion = getAccordionTrigger(page, /Licenses.*Rights/i);
+    this.authorsAccordion = getAccordionTrigger(page, /Authors/i);
+    this.contributorsAccordion = getAccordionTrigger(page, /Contributors/i);
+    this.descriptionsAccordion = getAccordionTrigger(page, /Descriptions/i);
+    this.controlledVocabulariesAccordion = getAccordionTrigger(page, /Controlled Vocabularies/i);
+    this.freeKeywordsAccordion = getAccordionTrigger(page, /Free Keywords/i);
+    this.mslLaboratoriesAccordion = getAccordionTrigger(page, /MSL Laboratories/i);
+    this.spatialTemporalCoverageAccordion = getAccordionTrigger(page, /Spatial.*Temporal Coverage/i);
+    this.datesAccordion = getAccordionTrigger(page, /Dates/i);
+    this.relatedWorkAccordion = getAccordionTrigger(page, /Related Work/i);
+    this.fundingAccordion = getAccordionTrigger(page, /Funding/i);
     
     // Resource Info Fields
     this.doiInput = page.locator('#doi');

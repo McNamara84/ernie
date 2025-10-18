@@ -101,7 +101,7 @@ export function useFormValidation(): UseFormValidationReturn {
         invalidCount: 0,
     });
 
-    // Debounce-Timer-Referenzen
+    // Debounce timer references
     const debounceTimers = useState<Record<string, NodeJS.Timeout>>(() => ({}))[0];
 
     /**
