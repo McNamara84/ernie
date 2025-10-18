@@ -245,16 +245,35 @@ test.describe('DataCite Form Validation UX', () => {
       // Note: Language has a default value and is not in the missing fields list
     });
     
-    test('enables Save button when all required fields are filled', async () => {
+    test('enables Save button when all required fields are filled', async ({ page }) => {
       // Fill all required fields
       await formPage.fillAllRequiredFields();
       
       // Debug: Check what's in the tooltip if button is still disabled
       const isDisabled = await formPage.isSaveButtonDisabled();
       if (isDisabled) {
+        // Take a screenshot for debugging
+        await page.screenshot({ path: 'test-results/save-button-disabled.png', fullPage: true });
+        
+        // Get tooltip text
         await formPage.hoverSaveButton();
         const tooltipText = await formPage.getSaveButtonTooltipText();
         console.log('Save button is still disabled. Tooltip text:', tooltipText);
+        
+        // Check actual field values
+        const mainTitle = await formPage.mainTitleInput.inputValue();
+        const year = await formPage.yearInput.inputValue();
+        const abstract = await formPage.abstractTextarea.inputValue();
+        const dateInput = await page.locator('input[type="date"]').first().inputValue();
+        
+        console.log('Field values:');
+        console.log('- Main Title:', mainTitle);
+        console.log('- Year:', year);
+        console.log('- Abstract length:', abstract.length);
+        console.log('- Date:', dateInput);
+        
+        // Fail with detailed message
+        throw new Error(`Save button is still disabled. Tooltip: ${tooltipText}`);
       }
       
       // Save button should be enabled

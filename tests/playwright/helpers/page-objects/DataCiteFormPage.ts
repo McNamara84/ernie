@@ -317,11 +317,21 @@ export class DataCiteFormPage {
       await firstDateInput.scrollIntoViewIfNeeded();
       await firstDateInput.fill('2024-01-01');
       await firstDateInput.blur();
-      await this.page.waitForTimeout(300);
+      await this.page.waitForTimeout(500);
     }
     
-    // Wait for all validations to complete
-    await this.page.waitForTimeout(1000);
+    // Wait for all validations to complete and form state to update
+    // The areRequiredFieldsFilled memo needs time to recompute
+    await this.page.waitForTimeout(2000);
+    
+    // Wait for Save button to become enabled (with timeout)
+    try {
+      await this.saveButton.waitFor({ state: 'attached', timeout: 3000 });
+      // Give React time to update the disabled state
+      await this.page.waitForTimeout(500);
+    } catch {
+      // Button might already be attached, that's fine
+    }
   }
   
   /**
