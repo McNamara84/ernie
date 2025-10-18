@@ -459,7 +459,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 observerRef.current.disconnect();
             }
         };
-    }, [pagination.has_more, loading, loadMore]);
+    }, [pagination.has_more, loading, loadMore, resources.length]);
 
     const handleRetry = useCallback(() => {
         void loadMore();

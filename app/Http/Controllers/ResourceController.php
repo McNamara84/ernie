@@ -59,27 +59,7 @@ class ResourceController extends Controller
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
         $filters = $this->extractFilters($request);
 
-        $query = Resource::query()
-            ->with([
-                'resourceType:id,name,slug',
-                'language:id,code,name',
-                'createdBy:id,name',
-                'updatedBy:id,name',
-                'titles' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'title', 'title_type_id'])
-                        ->with(['titleType:id,name,slug'])
-                        ->orderBy('id');
-                },
-                'licenses:id,identifier,name',
-                'authors' => function ($query): void {
-                    $query
-                        ->with([
-                            'authorable',
-                            'roles:id,name,slug,applies_to',
-                        ])
-                        ->orderBy('position');
-                },
-            ]);
+        $query = $this->baseQuery();
 
         // Apply filters
         $this->applyFilters($query, $filters);
@@ -441,27 +421,7 @@ class ResourceController extends Controller
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
         $filters = $this->extractFilters($request);
 
-        $query = Resource::query()
-            ->with([
-                'resourceType:id,name,slug',
-                'language:id,code,name',
-                'createdBy:id,name',
-                'updatedBy:id,name',
-                'titles' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'title', 'title_type_id'])
-                        ->with(['titleType:id,name,slug'])
-                        ->orderBy('id');
-                },
-                'licenses:id,identifier,name',
-                'authors' => function ($query): void {
-                    $query
-                        ->with([
-                            'authorable',
-                            'roles:id,name,slug,applies_to',
-                        ])
-                        ->orderBy('position');
-                },
-            ]);
+        $query = $this->baseQuery();
 
         // Apply filters
         $this->applyFilters($query, $filters);
@@ -996,6 +956,38 @@ class ResourceController extends Controller
 
         return [$sortKey, $sortDirection];
     }
+
+    /**
+     * Build the base query with eager-loaded relationships.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     */
+    protected function baseQuery()
+    {
+        return Resource::query()
+            ->with([
+                'resourceType:id,name,slug',
+                'language:id,code,name',
+                'createdBy:id,name',
+                'updatedBy:id,name',
+                'titles' => function ($query): void {
+                    $query->select(['id', 'resource_id', 'title', 'title_type_id'])
+                        ->with(['titleType:id,name,slug'])
+                        ->orderBy('id');
+                },
+                'licenses:id,identifier,name',
+                'authors' => function ($query): void {
+                    $query
+                        ->with([
+                            'authorable',
+                            'roles:id,name,slug,applies_to',
+                        ])
+                        ->orderBy('position');
+                },
+            ]);
+    }
+
+    /**
 
     /**
      * Extract filters from the request.
