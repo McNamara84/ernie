@@ -257,18 +257,25 @@ export class DataCiteFormPage {
     await this.expandAccordion(this.resourceInfoAccordion);
     await this.mainTitleInput.fill('Test Dataset for Validation E2E');
     await this.yearInput.fill('2024');
+    
+    // Resource Type Select
     await this.resourceTypeSelect.click();
-    await this.page.waitForTimeout(100); // Wait for dropdown to open
-    await this.page.getByRole('option', { name: /Dataset/i }).first().click();
+    const datasetOption = this.page.getByRole('option', { name: /Dataset/i }).first();
+    await datasetOption.waitFor({ state: 'visible', timeout: 5000 });
+    await datasetOption.click();
+    
+    // Language Select
     await this.languageSelect.click();
-    await this.page.waitForTimeout(100); // Wait for dropdown to open
-    await this.page.getByRole('option', { name: /English/i }).first().click();
+    const englishOption = this.page.getByRole('option', { name: /English/i }).first();
+    await englishOption.waitFor({ state: 'visible', timeout: 5000 });
+    await englishOption.click();
     
     // License
     await this.expandAccordion(this.licensesAccordion);
     await this.primaryLicenseSelect.click();
-    await this.page.waitForTimeout(100); // Wait for dropdown to open
-    await this.page.getByRole('option', { name: /CC BY 4.0/i }).first().click();
+    const ccByOption = this.page.getByRole('option', { name: /CC BY 4\.0/i }).first();
+    await ccByOption.waitFor({ state: 'visible', timeout: 5000 });
+    await ccByOption.click();
     
     // Abstract (50+ characters required)
     await this.expandAccordion(this.descriptionsAccordion);
