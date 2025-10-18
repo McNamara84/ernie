@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import AuthorItem from '@/components/curation/fields/author/author-item';
 import type { AuthorEntry } from '@/components/curation/fields/author/types';
@@ -85,6 +85,13 @@ describe('AuthorItem Component', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    afterEach(async () => {
+        // Clean up all components and wait for pending timers
+        cleanup();
+        // Wait a bit for any pending Tagify timers to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
     });
 
     it('renders person author correctly', () => {
