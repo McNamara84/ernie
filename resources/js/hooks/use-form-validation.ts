@@ -1,17 +1,17 @@
 import { useCallback, useState } from 'react';
 
 /**
- * Status eines Validierungsprozesses
+ * Status of a validation process
  */
 export type ValidationStatus = 'idle' | 'validating' | 'valid' | 'invalid';
 
 /**
- * Schweregrad einer Validierungsnachricht
+ * Severity level of a validation message
  */
 export type ValidationSeverity = 'error' | 'warning' | 'success' | 'info';
 
 /**
- * Eine einzelne Validierungsnachricht
+ * A single validation message
  */
 export interface ValidationMessage {
     severity: ValidationSeverity;
@@ -20,7 +20,7 @@ export interface ValidationMessage {
 }
 
 /**
- * Validierungszustand eines einzelnen Feldes
+ * Validation state of a single field
  */
 export interface FieldValidationState {
     status: ValidationStatus;
@@ -30,7 +30,7 @@ export interface FieldValidationState {
 }
 
 /**
- * Gesamter Validierungszustand des Formulars
+ * Overall validation state of the form
  */
 export interface FormValidationState {
     fields: Record<string, FieldValidationState>;
@@ -259,7 +259,7 @@ export function useFormValidation(): UseFormValidationReturn {
             const wasInvalid = oldFieldState.status === 'invalid';
             const wasTouched = oldFieldState.touched;
 
-            // Entferne Feld aus State
+            // Remove field from state
             const newFields = { ...prev.fields };
             delete newFields[fieldId];
 
@@ -323,7 +323,7 @@ export function useFormValidation(): UseFormValidationReturn {
 }
 
 /**
- * Helper-Funktion: Erstellt eine einfache Validierungsregel
+ * Helper function: Creates a simple validation rule
  */
 export function createValidationRule<T = unknown>(
     validate: (value: T, formData?: unknown) => ValidationMessage | null,
@@ -336,7 +336,7 @@ export function createValidationRule<T = unknown>(
 }
 
 /**
- * Helper-Funktion: Kombiniert mehrere Validierungsregeln
+ * Helper function: Combines multiple validation rules
  */
 export function combineValidationRules<T = unknown>(
     ...rules: ValidationRule<T>[]
