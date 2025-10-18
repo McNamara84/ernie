@@ -121,6 +121,9 @@ export function useFormValidation(): UseFormValidationReturn {
 
             // Funktion zum Ausführen der Validierung
             const executeValidation = () => {
+                // Merke den alten Status VOR dem Validating-Update
+                const oldStatusBeforeValidating = validationState.fields[fieldId]?.status;
+                
                 // Setze Status auf "validating"
                 setValidationState((prev) => ({
                     ...prev,
@@ -150,7 +153,8 @@ export function useFormValidation(): UseFormValidationReturn {
                 // Update Validierungszustand
                 setValidationState((prev) => {
                     const oldFieldState = prev.fields[fieldId];
-                    const wasInvalid = oldFieldState?.status === 'invalid';
+                    // Verwende den gespeicherten Status vor 'validating', um korrekte Counter-Berechnung zu ermöglichen
+                    const wasInvalid = oldStatusBeforeValidating === 'invalid';
                     const isNowInvalid = finalStatus === 'invalid';
 
                     // Berechne neue Zähler
@@ -187,7 +191,7 @@ export function useFormValidation(): UseFormValidationReturn {
                 executeValidation();
             }
         },
-        [debounceTimers],
+        [debounceTimers, validationState.fields],
     );
 
     /**
