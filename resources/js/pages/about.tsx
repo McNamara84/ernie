@@ -7,7 +7,7 @@ export default function About() {
         <PublicLayout>
             <Head title="About" />
             <h1 className="mb-4 text-2xl font-semibold">About ERNIE</h1>
-                        <p className="text-lg text-muted-foreground">
+            <p className="text-lg text-muted-foreground">
                 ERNIE (Earth Research Notary for Information Editing) is a metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.
             </p>
             <p className="mb-4">This project is currently under active development; features and interfaces may change.</p>
