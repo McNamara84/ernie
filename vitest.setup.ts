@@ -10,6 +10,19 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
     value: ResizeObserver,
 });
 
+// Mock IntersectionObserver for infinite scrolling tests
+class IntersectionObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+}
+
+Object.defineProperty(globalThis, 'IntersectionObserver', {
+    writable: true,
+    configurable: true,
+    value: IntersectionObserver,
+});
+
 // Mock matchMedia for accessibility tests (prefers-reduced-motion)
 Object.defineProperty(window, 'matchMedia', {
     writable: true,

@@ -19,6 +19,8 @@ class Resource extends Model
         'resource_type_id',
         'version',
         'language_id',
+        'created_by_user_id',
+        'updated_by_user_id',
     ];
 
     protected $casts = [
@@ -138,6 +140,24 @@ class Resource extends Model
     {
         /** @var HasMany<ResourceFundingReference, static> $relation */
         $relation = $this->hasMany(ResourceFundingReference::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return BelongsTo<User, static> */
+    public function createdBy(): BelongsTo
+    {
+        /** @var BelongsTo<User, static> $relation */
+        $relation = $this->belongsTo(User::class, 'created_by_user_id');
+
+        return $relation;
+    }
+
+    /** @return BelongsTo<User, static> */
+    public function updatedBy(): BelongsTo
+    {
+        /** @var BelongsTo<User, static> $relation */
+        $relation = $this->belongsTo(User::class, 'updated_by_user_id');
 
         return $relation;
     }

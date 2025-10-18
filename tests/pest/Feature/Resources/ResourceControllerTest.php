@@ -180,65 +180,23 @@ it('renders the resources index with paginated data', function (): void {
             ->where('resources.0.doi', $resource->doi)
             ->where('resources.0.year', 2024)
             ->where('resources.0.version', '1.2.0')
-            ->where('resources.0.resource_type.name', 'Dataset')
-            ->where('resources.0.language.code', 'en')
-            ->where('resources.0.titles', fn ($titles) => count($titles) === 2)
-            ->where('resources.0.licenses', fn ($licenses) => count($licenses) === 1)
-            ->where('resources.0.authors', function ($authors) use ($person, $institution): bool {
-                if ($authors instanceof Collection) {
-                    $authors = $authors->toArray();
-                }
-
-                expect($authors)->toBeArray()->toHaveCount(2);
-
-                expect($authors[0])->toEqual([
-                    'type' => 'person',
-                    'position' => 0,
-                    'orcid' => $person->orcid,
-                    'firstName' => $person->first_name,
-                    'lastName' => $person->last_name,
-                    'email' => 'avery.taylor@example.org',
-                    'website' => 'https://avery.example.org',
-                    'isContact' => true,
-                    'affiliations' => [
-                        [
-                            'value' => 'Metadata Lab',
-                            'rorId' => 'https://ror.org/05d7xk087',
-                        ],
-                    ],
-                ]);
-
-                expect($authors[1])->toEqual([
-                    'type' => 'institution',
-                    'position' => 1,
-                    'institutionName' => $institution->name,
-                    'rorId' => $institution->ror_id,
-                    'affiliations' => [
-                        [
-                            'value' => 'Consortium for Research',
-                            'rorId' => null,
-                        ],
-                    ],
-                ]);
-
-                return true;
-            })
+            ->where('resources.0.resourcetypegeneral', 'Dataset')
+            ->where('resources.0.title', 'Exploring metadata interoperability')
+            ->where('resources.0.first_author.familyName', 'Taylor')
+            ->where('resources.0.first_author.givenName', 'Avery')
             ->where('resources.0.created_at', $resource->created_at?->toIso8601String())
             ->where('resources.0.updated_at', $resource->updated_at?->toIso8601String())
             ->where('resources.1.id', $secondaryResource->id)
             ->where('resources.1.doi', null)
             ->where('resources.1.year', 2023)
-            ->where('resources.1.resource_type.name', 'Text')
-            ->where('resources.1.titles', fn ($titles) => count($titles) === 1)
-            ->where('resources.1.licenses', fn ($licenses) => count($licenses) === 0)
-            ->where('resources.1.language', null)
-            ->where('resources.1.authors', [])
+            ->where('resources.1.resourcetypegeneral', 'Text')
+            ->where('resources.1.title', 'Second resource title')
             ->where('resources.1.created_at', $secondaryResource->created_at?->toIso8601String())
             ->where('resources.1.updated_at', $secondaryResource->updated_at?->toIso8601String())
             ->where('pagination', [
                 'current_page' => 1,
                 'last_page' => 1,
-                'per_page' => 25,
+                'per_page' => 50,
                 'total' => 2,
                 'from' => 1,
                 'to' => 2,
@@ -260,7 +218,7 @@ it('caps the per page parameter to protect performance', function (): void {
 
     $startDate = Carbon::parse('2024-01-01 00:00:00');
 
-    for ($index = 0; $index < 105; $index++) {
+    for ($index = 0; $index < 150; $index++) {
         $resource = Resource::query()->create([
             'doi' => sprintf('10.5555/example-%03d', $index),
             'year' => 2020 + ($index % 5),
@@ -281,14 +239,30 @@ it('caps the per page parameter to protect performance', function (): void {
         ]);
     }
 
-    get(route('resources', ['per_page' => 500, 'page' => -3]))
+    // Test that requesting 500 per page gets capped to MAX_PER_PAGE (100)
+    $response = get(route('resources', ['per_page' => 500, 'page' => 1]));
+    
+    $response
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
             ->component('resources')
-            ->has('resources', 100)
             ->where('pagination.per_page', 100)
             ->where('pagination.current_page', 1)
+            ->where('pagination.total', 150)
             ->where('pagination.has_more', true)
+        );
+    
+    // Debug: Check actual count
+    $resourcesCount = count($response->viewData('page')['props']['resources']);
+    expect($resourcesCount)->toBe(100, "Expected 100 resources but got {$resourcesCount}");
+    
+    // Test that negative page numbers are corrected to 1
+    get(route('resources', ['per_page' => 50, 'page' => -3]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 50)
+            ->where('pagination.current_page', 1)
         );
 });
 
@@ -1054,4 +1028,715 @@ it('updates descriptions and dates when updating a resource', function (): void 
     // Verify new dates
     $created = $resource->dates->firstWhere('date_type', 'created');
     expect($created?->start_date?->toDateString())->toBe('2024-02-15');
+});
+
+// ============================================================================
+// Sorting and Filtering Tests
+// ============================================================================
+
+it('sorts resources by id in ascending order', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $resource1 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $resource1->titles()->create([
+        'title' => 'Resource 1',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $resource2 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2023,
+    ]);
+    $resource2->titles()->create([
+        'title' => 'Resource 2',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['sort_key' => 'id', 'sort_direction' => 'asc']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 2)
+            ->where('resources.0.id', $resource1->id)
+            ->where('resources.1.id', $resource2->id)
+        );
+});
+
+it('sorts resources by id in descending order', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $resource1 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $resource1->titles()->create([
+        'title' => 'Resource 1',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $resource2 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2023,
+    ]);
+    $resource2->titles()->create([
+        'title' => 'Resource 2',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['sort_key' => 'id', 'sort_direction' => 'desc']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 2)
+            ->where('resources.0.id', $resource2->id)
+            ->where('resources.1.id', $resource1->id)
+        );
+});
+
+it('sorts resources by year', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $resource1 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2020,
+    ]);
+    $resource1->titles()->create([
+        'title' => 'Old Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $resource2 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $resource2->titles()->create([
+        'title' => 'New Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['sort_key' => 'year', 'sort_direction' => 'desc']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 2)
+            ->where('resources.0.year', 2024)
+            ->where('resources.1.year', 2020)
+        );
+});
+
+it('sorts resources by title', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $resource1 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $resource1->titles()->create([
+        'title' => 'Zebra Research',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $resource2 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $resource2->titles()->create([
+        'title' => 'Alpha Study',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['sort_key' => 'title', 'sort_direction' => 'asc']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 2)
+            ->where('resources.0.title', 'Alpha Study')
+            ->where('resources.1.title', 'Zebra Research')
+        );
+});
+
+it('sorts resources by curator name', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $userAlice = User::factory()->create(['name' => 'Alice Smith']);
+    $userBob = User::factory()->create(['name' => 'Bob Jones']);
+    
+    $resource1 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'created_by_user_id' => $userBob->id,
+    ]);
+    $resource1->titles()->create([
+        'title' => 'Resource by Bob',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $resource2 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'created_by_user_id' => $userAlice->id,
+    ]);
+    $resource2->titles()->create([
+        'title' => 'Resource by Alice',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['sort_key' => 'curator', 'sort_direction' => 'asc']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 2)
+            ->where('resources.0.curator', 'Alice Smith')
+            ->where('resources.1.curator', 'Bob Jones')
+        );
+});
+
+it('filters resources by resource type', function (): void {
+    $datasetType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $textType = ResourceType::factory()->create(['name' => 'Text', 'slug' => 'text']);
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $dataset = Resource::factory()->create([
+        'resource_type_id' => $datasetType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $dataset->titles()->create([
+        'title' => 'Dataset Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $text = Resource::factory()->create([
+        'resource_type_id' => $textType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $text->titles()->create([
+        'title' => 'Text Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['resource_type' => ['dataset']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.resourcetypegeneral', 'Dataset')
+        );
+});
+
+it('filters resources by language', function (): void {
+    $english = Language::factory()->create(['code' => 'en', 'name' => 'English']);
+    $german = Language::factory()->create(['code' => 'de', 'name' => 'German']);
+    $resourceType = ResourceType::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $englishResource = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $english->id,
+        'year' => 2024,
+    ]);
+    $englishResource->titles()->create([
+        'title' => 'English Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $germanResource = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $german->id,
+        'year' => 2024,
+    ]);
+    $germanResource->titles()->create([
+        'title' => 'German Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['language' => ['de']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.title', 'German Resource')
+        );
+});
+
+it('filters resources by curator', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $alice = User::factory()->create(['name' => 'Alice Smith']);
+    $bob = User::factory()->create(['name' => 'Bob Jones']);
+    
+    $aliceResource = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'created_by_user_id' => $alice->id,
+    ]);
+    $aliceResource->titles()->create([
+        'title' => 'Alice Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $bobResource = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'created_by_user_id' => $bob->id,
+    ]);
+    $bobResource->titles()->create([
+        'title' => 'Bob Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['curator' => ['Alice Smith']]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.curator', 'Alice Smith')
+        );
+});
+
+it('filters resources by year range', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $old = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2020,
+    ]);
+    $old->titles()->create([
+        'title' => 'Old Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $recent = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $recent->titles()->create([
+        'title' => 'Recent Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['year_from' => 2023, 'year_to' => 2025]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.year', 2024)
+        );
+});
+
+it('filters resources by text search in title', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $metadata = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $metadata->titles()->create([
+        'title' => 'Exploring Metadata Standards',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $data = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+    ]);
+    $data->titles()->create([
+        'title' => 'Data Analysis Methods',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['search' => 'Metadata']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.title', 'Exploring Metadata Standards')
+        );
+});
+
+it('filters resources by text search in DOI', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $resource1 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'doi' => '10.1234/example-abc',
+    ]);
+    $resource1->titles()->create([
+        'title' => 'Resource 1',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    $resource2 = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'doi' => '10.5678/example-xyz',
+    ]);
+    $resource2->titles()->create([
+        'title' => 'Resource 2',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', ['search' => 'xyz']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.doi', '10.5678/example-xyz')
+        );
+});
+
+it('combines multiple filters correctly', function (): void {
+    $datasetType = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $textType = ResourceType::factory()->create(['name' => 'Text', 'slug' => 'text']);
+    $english = Language::factory()->create(['code' => 'en', 'name' => 'English']);
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    $user = User::factory()->create(['name' => 'Test Curator']);
+    
+    // This matches all criteria
+    $match = Resource::factory()->create([
+        'resource_type_id' => $datasetType->id,
+        'language_id' => $english->id,
+        'year' => 2024,
+        'created_by_user_id' => $user->id,
+    ]);
+    $match->titles()->create([
+        'title' => 'Matching Dataset',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    // Wrong type
+    $wrongType = Resource::factory()->create([
+        'resource_type_id' => $textType->id,
+        'language_id' => $english->id,
+        'year' => 2024,
+        'created_by_user_id' => $user->id,
+    ]);
+    $wrongType->titles()->create([
+        'title' => 'Text Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+    
+    // Wrong year
+    $wrongYear = Resource::factory()->create([
+        'resource_type_id' => $datasetType->id,
+        'language_id' => $english->id,
+        'year' => 2020,
+        'created_by_user_id' => $user->id,
+    ]);
+    $wrongYear->titles()->create([
+        'title' => 'Old Dataset',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources', [
+        'resource_type' => ['dataset'],
+        'language' => ['en'],
+        'year_from' => 2023,
+        'curator' => ['Test Curator'],
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.title', 'Matching Dataset')
+        );
+});
+
+// ============================================================================
+// API Endpoint Tests
+// ============================================================================
+
+it('provides filter options endpoint', function (): void {
+    $dataset = ResourceType::factory()->create(['name' => 'Dataset', 'slug' => 'dataset']);
+    $english = Language::factory()->create(['code' => 'en', 'name' => 'English']);
+    $user = User::factory()->create(['name' => 'Alice Curator']);
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    $resource = Resource::factory()->create([
+        'resource_type_id' => $dataset->id,
+        'language_id' => $english->id,
+        'year' => 2024,
+        'created_by_user_id' => $user->id,
+    ]);
+    $resource->titles()->create([
+        'title' => 'Test Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources.filter-options'))
+        ->assertOk()
+        ->assertJson([
+            'resource_types' => [
+                ['name' => 'Dataset', 'slug' => 'dataset'],
+            ],
+            'languages' => [
+                ['code' => 'en', 'name' => 'English'],
+            ],
+            'curators' => ['Alice Curator'],
+            'statuses' => ['curation'],
+        ])
+        ->assertJsonStructure([
+            'year_range' => ['min', 'max'],
+        ]);
+});
+
+it('loads more resources with pagination', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    
+    // Create 60 resources to test pagination (default per_page is 50)
+    for ($i = 1; $i <= 60; $i++) {
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $resourceType->id,
+            'language_id' => $language->id,
+            'year' => 2024,
+        ]);
+        $resource->titles()->create([
+            'title' => "Resource {$i}",
+            'title_type_id' => $titleType->id,
+        ]);
+    }
+
+    // First page should have 50 resources
+    get(route('resources', ['per_page' => 50]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 50)
+            ->where('pagination.current_page', 1)
+            ->where('pagination.total', 60)
+            ->where('pagination.has_more', true)
+        );
+
+    // Load more (page 2) should have remaining 10
+    get(route('resources.load-more', ['page' => 2, 'per_page' => 50]))
+        ->assertOk()
+        ->assertJsonStructure([
+            'resources',
+            'pagination' => ['current_page', 'total', 'has_more'],
+        ])
+        ->assertJsonPath('pagination.current_page', 2)
+        ->assertJsonPath('pagination.has_more', false)
+        ->assertJsonCount(10, 'resources');
+});
+
+// ============================================================================
+// User Tracking Tests
+// ============================================================================
+
+it('tracks the creating user when storing a new resource', function (): void {
+    $user = User::factory()->create(['name' => 'Creator User']);
+    actingAs($user);
+
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    $license = License::factory()->create();
+    $authorRole = Role::factory()->create([
+        'slug' => 'author',
+        'applies_to' => Role::APPLIES_TO_AUTHOR,
+    ]);
+
+    $payload = [
+        'resourceTypeGeneral' => $resourceType->slug,
+        'language' => $language->code,
+        'publicationYear' => 2024,
+        'year' => 2024,
+        'resourceType' => $resourceType->id, // Use ID not slug
+        'titles' => [
+            [
+                'title' => 'New Resource',
+                'titleType' => $titleType->slug,
+            ],
+        ],
+        'descriptions' => [
+            [
+                'description' => 'This is an abstract description for testing user tracking.',
+                'descriptionType' => 'abstract',
+            ],
+        ],
+        'licenses' => [$license->identifier],
+        'authors' => [
+            [
+                'position' => 0,
+                'type' => 'person',
+                'firstName' => 'John',
+                'lastName' => 'Doe',
+                'roles' => [$authorRole->slug],
+            ],
+        ],
+    ];
+
+    postJson(route('editor.resources.store'), $payload)
+        ->assertCreated(); // Expecting 201 for resource creation
+
+    $resource = Resource::query()->latest('id')->first();
+    
+    expect($resource->created_by_user_id)->toBe($user->id);
+    expect($resource->updated_by_user_id)->toBeNull();
+});
+
+it('tracks the updating user when updating an existing resource', function (): void {
+    $creator = User::factory()->create(['name' => 'Creator']);
+    $updater = User::factory()->create(['name' => 'Updater']);
+
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+    $license = License::factory()->create();
+    $authorRole = Role::factory()->create([
+        'slug' => 'author',
+        'applies_to' => Role::APPLIES_TO_AUTHOR,
+    ]);
+
+    // Create resource as creator
+    actingAs($creator);
+    
+    $resource = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'created_by_user_id' => $creator->id,
+    ]);
+    $resource->titles()->create([
+        'title' => 'Original Title',
+        'title_type_id' => $titleType->id,
+    ]);
+    $resource->licenses()->attach($license->id);
+
+    // Update as different user
+    actingAs($updater);
+
+    $payload = [
+        'resourceId' => $resource->id,
+        'resourceTypeGeneral' => $resourceType->slug,
+        'language' => $language->code,
+        'publicationYear' => 2024,
+        'year' => 2024,
+        'resourceType' => $resourceType->id, // Use ID not slug
+        'titles' => [
+            [
+                'title' => 'Updated Title',
+                'titleType' => $titleType->slug,
+            ],
+        ],
+        'descriptions' => [
+            [
+                'description' => 'Updated abstract description.',
+                'descriptionType' => 'abstract',
+            ],
+        ],
+        'licenses' => [$license->identifier],
+        'authors' => [
+            [
+                'position' => 0,
+                'type' => 'person',
+                'firstName' => 'Jane',
+                'lastName' => 'Smith',
+                'roles' => [$authorRole->slug],
+            ],
+        ],
+    ];
+
+    postJson(route('editor.resources.store'), $payload)
+        ->assertOk();
+
+    $resource->refresh();
+    
+    expect($resource->created_by_user_id)->toBe($creator->id);
+    expect($resource->updated_by_user_id)->toBe($updater->id);
+});
+
+it('displays curator name in resources index', function (): void {
+    $user = User::factory()->create(['name' => 'John Curator']);
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+
+    $resource = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'created_by_user_id' => $user->id,
+    ]);
+    $resource->titles()->create([
+        'title' => 'Test Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.curator', 'John Curator')
+        );
+});
+
+it('handles resources without curator gracefully', function (): void {
+    $resourceType = ResourceType::factory()->create();
+    $language = Language::factory()->create();
+    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
+
+    $resource = Resource::factory()->create([
+        'resource_type_id' => $resourceType->id,
+        'language_id' => $language->id,
+        'year' => 2024,
+        'created_by_user_id' => null,
+    ]);
+    $resource->titles()->create([
+        'title' => 'Legacy Resource',
+        'title_type_id' => $titleType->id,
+    ]);
+
+    get(route('resources'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page): Assert => $page
+            ->component('resources')
+            ->has('resources', 1)
+            ->where('resources.0.curator', null)
+        );
 });

@@ -17,7 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import type { FilterOptions, FilterState } from '@/types/old-datasets';
+import type { ResourceFilterOptions, ResourceFilterState } from '@/types/resources';
 
 /**
  * Minimum number of characters required for search query.
@@ -25,26 +25,26 @@ import type { FilterOptions, FilterState } from '@/types/old-datasets';
  */
 const MIN_SEARCH_LENGTH = 3;
 
-interface OldDatasetsFiltersProps {
-    filters: FilterState;
-    onFilterChange: (filters: FilterState) => void;
-    filterOptions: FilterOptions | null;
+interface ResourcesFiltersProps {
+    filters: ResourceFilterState;
+    onFilterChange: (filters: ResourceFilterState) => void;
+    filterOptions: ResourceFilterOptions | null;
     resultCount: number;
     totalCount: number;
     isLoading?: boolean;
 }
 
-export function OldDatasetsFilters({
+export function ResourcesFilters({
     filters,
     onFilterChange,
     filterOptions,
     resultCount,
     totalCount,
     isLoading = false,
-}: OldDatasetsFiltersProps) {
+}: ResourcesFiltersProps) {
     const activeFilterCount = Object.keys(filters).filter(
         key => {
-            const value = filters[key as keyof FilterState];
+            const value = filters[key as keyof ResourceFilterState];
             if (Array.isArray(value)) {
                 return value.length > 0;
             }
@@ -59,7 +59,7 @@ export function OldDatasetsFilters({
         onFilterChange({});
     }, [onFilterChange]);
 
-    const removeFilter = useCallback((key: keyof FilterState) => {
+    const removeFilter = useCallback((key: keyof ResourceFilterState) => {
         const newFilters = { ...filters };
         delete newFilters[key];
         onFilterChange(newFilters);
@@ -121,6 +121,16 @@ export function OldDatasetsFilters({
             newFilters.resource_type = [value];
         } else {
             delete newFilters.resource_type;
+        }
+        onFilterChange(newFilters);
+    }, [filters, onFilterChange]);
+
+    const handleLanguageChange = useCallback((value: string) => {
+        const newFilters = { ...filters };
+        if (value && value !== 'all') {
+            newFilters.language = [value];
+        } else {
+            delete newFilters.language;
         }
         onFilterChange(newFilters);
     }, [filters, onFilterChange]);
@@ -207,9 +217,10 @@ export function OldDatasetsFilters({
         onFilterChange(newFilters);
     }, [filters, onFilterChange]);
 
-    const formatFilterLabel = useCallback((key: keyof FilterState, value: unknown): string => {
+    const formatFilterLabel = useCallback((key: keyof ResourceFilterState, value: unknown): string => {
         const labelMap: Record<string, string> = {
             resource_type: 'Type',
+            language: 'Language',
             status: 'Status',
             curator: 'Curator',
             search: 'Search',
@@ -224,11 +235,27 @@ export function OldDatasetsFilters({
         const label = labelMap[key] || key;
 
         if (Array.isArray(value)) {
+            // For resource types, show the name instead of slug
+            if (key === 'resource_type' && filterOptions?.resource_types) {
+                const names = value.map(slug => {
+                    const type = filterOptions.resource_types.find(t => t.slug === slug);
+                    return type?.name || slug;
+                });
+                return `${label}: ${names.join(', ')}`;
+            }
+            // For languages, show the name instead of code
+            if (key === 'language' && filterOptions?.languages) {
+                const names = value.map(code => {
+                    const lang = filterOptions.languages.find(l => l.code === code);
+                    return lang?.name || code;
+                });
+                return `${label}: ${names.join(', ')}`;
+            }
             return `${label}: ${value.join(', ')}`;
         }
 
         return `${label}: ${String(value)}`;
-    }, []);
+    }, [filterOptions]);
 
     return (
         <div className="space-y-4 mb-4">
@@ -244,7 +271,7 @@ export function OldDatasetsFilters({
                         onChange={(e) => handleSearchChange(e.target.value)}
                         className="pl-9"
                         disabled={isLoading}
-                        aria-label="Search datasets by title or DOI"
+                        aria-label="Search resources by title or DOI"
                     />
                 </div>
 
@@ -260,8 +287,27 @@ export function OldDatasetsFilters({
                     <SelectContent>
                         <SelectItem value="all">All Types</SelectItem>
                         {filterOptions?.resource_types?.map(type => (
-                            <SelectItem key={type} value={type}>
-                                {type}
+                            <SelectItem key={type.slug} value={type.slug}>
+                                {type.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                {/* Language Select */}
+                <Select
+                    value={filters.language?.[0] || 'all'}
+                    onValueChange={handleLanguageChange}
+                    disabled={isLoading || !filterOptions}
+                >
+                    <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by language">
+                        <SelectValue placeholder="Language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Languages</SelectItem>
+                        {filterOptions?.languages?.map(lang => (
+                            <SelectItem key={lang.code} value={lang.code}>
+                                {lang.name}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -332,7 +378,7 @@ export function OldDatasetsFilters({
                             <div className="space-y-2">
                                 <h4 className="font-medium text-sm">Publication Year Range</h4>
                                 <p className="text-xs text-muted-foreground">
-                                    Filter datasets by their publication year
+                                    Filter resources by their publication year
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -407,7 +453,7 @@ export function OldDatasetsFilters({
                             <div className="space-y-2">
                                 <h4 className="font-medium text-sm">Created Date Range</h4>
                                 <p className="text-xs text-muted-foreground">
-                                    Filter datasets by when they were created in the system
+                                    Filter resources by when they were created in the system
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -476,7 +522,7 @@ export function OldDatasetsFilters({
                             <div className="space-y-2">
                                 <h4 className="font-medium text-sm">Updated Date Range</h4>
                                 <p className="text-xs text-muted-foreground">
-                                    Filter datasets by when they were last updated
+                                    Filter resources by when they were last updated
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -555,12 +601,12 @@ export function OldDatasetsFilters({
                                         variant="secondary"
                                         className="gap-1 pr-1"
                                     >
-                                        <span>{formatFilterLabel(key as keyof FilterState, value)}</span>
+                                        <span>{formatFilterLabel(key as keyof ResourceFilterState, value)}</span>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             className="h-auto p-0.5 hover:bg-transparent"
-                                            onClick={() => removeFilter(key as keyof FilterState)}
+                                            onClick={() => removeFilter(key as keyof ResourceFilterState)}
                                             aria-label={`Remove ${key} filter`}
                                         >
                                             <X className="h-3 w-3" />
@@ -576,11 +622,11 @@ export function OldDatasetsFilters({
                         {isFiltered ? (
                             <span>
                                 Showing <span className="font-semibold text-foreground">{resultCount}</span> of{' '}
-                                <span className="font-semibold text-foreground">{totalCount}</span> datasets
+                                <span className="font-semibold text-foreground">{totalCount}</span> resources
                             </span>
                         ) : (
                             <span>
-                                <span className="font-semibold text-foreground">{totalCount}</span> datasets total
+                                <span className="font-semibold text-foreground">{totalCount}</span> resources total
                             </span>
                         )}
                     </div>

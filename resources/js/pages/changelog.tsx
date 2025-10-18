@@ -232,9 +232,9 @@ export default function Changelog() {
         });
 
         // Additional scroll listener for better reliability  
-        let scrollTimeout: NodeJS.Timeout;
+        let scrollTimeout: ReturnType<typeof setTimeout>;
         const handleScroll = () => {
-            clearTimeout(scrollTimeout);
+            window.clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(updateActiveRelease, 50);
         };
 
@@ -243,7 +243,7 @@ export default function Changelog() {
         return () => {
             observer.disconnect();
             window.removeEventListener('scroll', handleScroll);
-            clearTimeout(scrollTimeout);
+            window.clearTimeout(scrollTimeout);
             clearTimeout(intersectionTimeout); // Cleanup intersection debounce too
         };
     }, [releases, updateActiveRelease]);

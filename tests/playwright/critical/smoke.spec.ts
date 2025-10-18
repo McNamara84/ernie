@@ -50,7 +50,7 @@ test.describe('Critical Smoke Tests', () => {
     await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
     
     const fileInput = page.locator('input[type="file"][accept=".xml"]');
-    const xmlFilePath = resolveDatasetExample('datacite-example-full-v4.xml');
+    const xmlFilePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
     
     // Verify redirect to editor with URL params
