@@ -9,6 +9,7 @@ helpers/
 ├── page-objects/          # Page Object Models (POM)
 │   ├── LoginPage.ts       # Login page interactions
 │   ├── DashboardPage.ts   # Dashboard page interactions
+│   ├── DataCiteFormPage.ts # DataCite metadata form with validation
 │   ├── OldDatasetsPage.ts # Old datasets page interactions
 │   ├── CurationPage.ts    # Curation form interactions
 │   ├── ResourcesPage.ts   # Resources management interactions
@@ -109,6 +110,25 @@ Handles user settings:
 - `changeLanguage(language)` - Change language
 - `verifySuccess(message?)` - Check for success message
 - `verifyError(message?)` - Check for error message
+
+### DataCiteFormPage
+Handles DataCite metadata form with validation (350+ lines):
+- `goto()` - Navigate to editor
+- `waitForFormLoad()` - Wait for form to be fully loaded
+- `expandAccordion(accordion)` / `collapseAccordion(accordion)` - Manage accordion state
+- `getAccordionStatusBadge(accordion)` - Get status badge (complete/incomplete/optional)
+- `getFieldValidationMessages(field)` - Get validation messages for a field
+- `hasValidationError(field)` / `hasValidationSuccess(field)` - Check field validation state
+- `fillMainTitle(title)` / `fillYear(year)` / `fillAbstract(text)` - Fill specific fields
+- `getAbstractCharacterCount()` - Get displayed character count
+- `isSaveButtonDisabled()` - Check if Save button is disabled
+- `hoverSaveButton()` / `getSaveButtonTooltipText()` - Interact with Save button tooltip
+- `fillAllRequiredFields()` / `clearAllFields()` - Bulk operations
+- `clickSave()` - Submit the form
+
+**12 Accordion Locators**: resourceInfo, licenses, authors, contributors, descriptions, controlledVocabularies, freeKeywords, mslLaboratories, spatialTemporalCoverage, dates, relatedWork, funding
+
+**Field Locators**: doiInput, yearInput, resourceTypeSelect, languageSelect, versionInput, mainTitleInput, primaryLicenseSelect, abstractTextarea, abstractCharacterCount, saveButton, saveButtonTooltip
 
 ## Test Helper Functions
 

@@ -1,6 +1,7 @@
-import { Minus,Plus } from 'lucide-react';
+import { Minus, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
 
 import InputField from './input-field';
@@ -23,6 +24,10 @@ interface TitleFieldProps {
     isFirst: boolean;
     canAdd?: boolean;
     className?: string;
+    validationMessages?: ValidationMessage[];
+    touched?: boolean;
+    onValidationBlur?: () => void;
+    'data-testid'?: string;
 }
 
 export function TitleField({
@@ -37,7 +42,14 @@ export function TitleField({
     isFirst,
     canAdd = true,
     className,
+    validationMessages,
+    touched,
+    onValidationBlur,
+    'data-testid': dataTestId,
 }: TitleFieldProps) {
+    // Determine if this is the main title for adding test-id
+    const isMainTitle = titleType === 'main-title';
+    
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
             <InputField
@@ -45,9 +57,14 @@ export function TitleField({
                 label="Title"
                 value={title}
                 onChange={(e) => onTitleChange(e.target.value)}
+                onValidationBlur={onValidationBlur}
+                validationMessages={validationMessages}
+                touched={touched}
                 hideLabel={!isFirst}
                 className="md:col-span-8"
                 required={titleType === 'main-title'}
+                labelTooltip="Enter a title between 1 and 325 characters"
+                data-testid={isMainTitle ? 'main-title-input' : dataTestId}
             />
             <SelectField
                 id={`${id}-titleType`}
