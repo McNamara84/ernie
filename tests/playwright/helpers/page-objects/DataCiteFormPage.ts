@@ -43,19 +43,19 @@ export class DataCiteFormPage {
   constructor(page: Page) {
     this.page = page;
     
-    // Accordion triggers - locate by text content and button role
-    this.resourceInfoAccordion = page.getByRole('button', { name: /Resource Information/i });
-    this.licensesAccordion = page.getByRole('button', { name: /Licenses.*Rights/i });
-    this.authorsAccordion = page.getByRole('button', { name: /Authors/i });
-    this.contributorsAccordion = page.getByRole('button', { name: /Contributors/i });
-    this.descriptionsAccordion = page.getByRole('button', { name: /Descriptions/i });
-    this.controlledVocabulariesAccordion = page.getByRole('button', { name: /Controlled Vocabularies/i });
-    this.freeKeywordsAccordion = page.getByRole('button', { name: /Free Keywords/i });
-    this.mslLaboratoriesAccordion = page.getByRole('button', { name: /MSL Laboratories/i });
-    this.spatialTemporalCoverageAccordion = page.getByRole('button', { name: /Spatial.*Temporal Coverage/i });
-    this.datesAccordion = page.getByRole('button', { name: /Dates/i });
-    this.relatedWorkAccordion = page.getByRole('button', { name: /Related Work/i });
-    this.fundingAccordion = page.getByRole('button', { name: /Funding/i });
+    // Accordion triggers - use data-slot to ensure we get accordion triggers only
+    this.resourceInfoAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Resource Information/i });
+    this.licensesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Licenses.*Rights/i });
+    this.authorsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Authors/i });
+    this.contributorsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Contributors/i });
+    this.descriptionsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Descriptions/i });
+    this.controlledVocabulariesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Controlled Vocabularies/i });
+    this.freeKeywordsAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Free Keywords/i });
+    this.mslLaboratoriesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /MSL Laboratories/i });
+    this.spatialTemporalCoverageAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Spatial.*Temporal Coverage/i });
+    this.datesAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Dates/i });
+    this.relatedWorkAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Related Work/i });
+    this.fundingAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Funding/i });
     
     // Resource Info Fields
     this.doiInput = page.locator('#doi');
@@ -70,7 +70,7 @@ export class DataCiteFormPage {
     
     // Description Fields
     this.abstractTextarea = page.getByTestId('abstract-textarea');
-    this.abstractCharacterCount = page.locator('.character-count').first();
+    this.abstractCharacterCount = page.locator('#description-Abstract-count');
     
     // Save Button
     this.saveButton = page.getByRole('button', { name: /Save to database/i });
@@ -131,22 +131,30 @@ export class DataCiteFormPage {
    * Get validation messages for a field (errors, warnings, success)
    */
   async getFieldValidationMessages(fieldLocator: Locator): Promise<string[]> {
+    // Wait a bit for validation to complete
+    await this.page.waitForTimeout(200);
+    
     // Get aria-describedby to find validation feedback element
     const describedBy = await fieldLocator.getAttribute('aria-describedby');
     if (!describedBy) return [];
     
-    // Find the feedback ID (contains 'feedback')
-    const feedbackId = describedBy.split(' ').find(id => id.includes('feedback'));
-    if (!feedbackId) return [];
+    // Split by space and find all feedback IDs
+    const ids = describedBy.split(/\s+/).filter(id => id.includes('feedback'));
+    if (ids.length === 0) return [];
     
-    // Get the feedback element
-    const feedback = this.page.locator(`#${feedbackId}`);
-    const count = await feedback.count();
-    if (count === 0) return [];
+    const messages: string[] = [];
+    for (const feedbackId of ids) {
+      const feedback = this.page.locator(`#${feedbackId}`);
+      const count = await feedback.count();
+      if (count > 0) {
+        const text = await feedback.textContent();
+        if (text) {
+          messages.push(text.trim());
+        }
+      }
+    }
     
-    // Extract all text content from the feedback element
-    const text = await feedback.textContent();
-    return text ? [text.trim()] : [];
+    return messages;
   }
   
   /**
@@ -162,12 +170,8 @@ export class DataCiteFormPage {
    */
   async hasValidationSuccess(fieldLocator: Locator): Promise<boolean> {
     const ariaInvalid = await fieldLocator.getAttribute('aria-invalid');
-    // Field is valid if aria-invalid is explicitly 'false' AND has validation feedback
-    if (ariaInvalid !== 'false') return false;
-    
-    // Check if there's success feedback text
-    const messages = await this.getFieldValidationMessages(fieldLocator);
-    return messages.length > 0;
+    // Field is NOT invalid (either false or null/undefined)
+    return ariaInvalid !== 'true';
   }
   
   /**

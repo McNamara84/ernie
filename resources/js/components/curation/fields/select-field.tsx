@@ -30,6 +30,7 @@ interface SelectFieldProps {
     required?: boolean;
     containerProps?: HTMLAttributes<HTMLDivElement> & { 'data-testid'?: string };
     triggerClassName?: string;
+    'data-testid'?: string;
 
     // Validation props
     validationMessages?: ValidationMessage[];
@@ -52,6 +53,7 @@ export function SelectField({
     required = false,
     containerProps,
     triggerClassName,
+    'data-testid': dataTestId,
     validationMessages = [],
     touched = false,
     onValidationBlur,
@@ -144,6 +146,7 @@ export function SelectField({
                     aria-invalid={isInvalid}
                     aria-describedby={ariaDescribedBy}
                     className={triggerClassName}
+                    data-testid={dataTestId}
                     {...ariaProps}
                 >
                     <SelectValue placeholder={placeholder} />

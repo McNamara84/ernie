@@ -2206,7 +2206,6 @@ export default function DataCiteForm({
                                     validationMessages={getFieldState(`title-${index}`).messages}
                                     touched={getFieldState(`title-${index}`).touched}
                                     onValidationBlur={() => markFieldTouched(`title-${index}`)}
-                                    data-testid={entry.titleType === 'main-title' ? 'main-title-input' : undefined}
                                 />
                             ))}
                         </div>
