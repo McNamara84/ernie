@@ -88,10 +88,13 @@ describe('AuthorItem Component', () => {
     });
 
     afterEach(async () => {
-        // Clean up all components and wait for pending timers
+        // Clean up all components
         cleanup();
-        // Wait a bit for any pending Tagify timers to complete
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Flush microtasks to ensure all pending promises are resolved
+        await vi.waitFor(() => {
+            // Wait for any Tagify events to be processed
+            return Promise.resolve();
+        });
     });
 
     it('renders person author correctly', () => {

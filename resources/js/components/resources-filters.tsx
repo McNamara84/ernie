@@ -67,7 +67,7 @@ export function ResourcesFilters({
 
     // Local state for search input (for immediate UI feedback)
     const [searchInput, setSearchInput] = useState(filters.search || '');
-    const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // Debounced search handler
     const handleSearchChange = useCallback((value: string) => {
@@ -75,7 +75,7 @@ export function ResourcesFilters({
 
         // Clear existing timeout
         if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
+            window.clearTimeout(searchTimeoutRef.current);
         }
 
         // Only trigger search if:

@@ -68,7 +68,7 @@ class ResourceController extends Controller
                 'titles' => function ($query): void {
                     $query->select(['id', 'resource_id', 'title', 'title_type_id'])
                         ->with(['titleType:id,name,slug'])
-                        ->limit(1);
+                        ->orderBy('id');
                 },
                 'licenses:id,identifier,name',
                 'authors' => function ($query): void {
@@ -77,7 +77,7 @@ class ResourceController extends Controller
                             'authorable',
                             'roles:id,name,slug,applies_to',
                         ])
-                        ->limit(1);
+                        ->orderBy('position');
                 },
             ]);
 
@@ -509,7 +509,7 @@ class ResourceController extends Controller
                 'titles' => function ($query): void {
                     $query->select(['id', 'resource_id', 'title', 'title_type_id'])
                         ->with(['titleType:id,name,slug'])
-                        ->limit(1);
+                        ->orderBy('id');
                 },
                 'licenses:id,identifier,name',
                 'authors' => function ($query): void {
@@ -518,7 +518,7 @@ class ResourceController extends Controller
                             'authorable',
                             'roles:id,name,slug,applies_to',
                         ])
-                        ->limit(1);
+                        ->orderBy('position');
                 },
             ]);
 
@@ -1314,15 +1314,15 @@ class ResourceController extends Controller
                     $join->on('resources.id', '=', 'resource_authors.resource_id')
                          ->whereRaw('resource_authors.position = (SELECT MIN(position) FROM resource_authors WHERE resource_id = resources.id)');
                 })
-                ->leftJoin('people', function ($join) {
-                    $join->on('resource_authors.authorable_id', '=', 'people.id')
+                ->leftJoin('persons', function ($join) {
+                    $join->on('resource_authors.authorable_id', '=', 'persons.id')
                          ->where('resource_authors.authorable_type', '=', Person::class);
                 })
                 ->leftJoin('institutions', function ($join) {
                     $join->on('resource_authors.authorable_id', '=', 'institutions.id')
                          ->where('resource_authors.authorable_type', '=', Institution::class);
                 })
-                ->orderByRaw("COALESCE(people.last_name, institutions.name) {$sortDirection}")
+                ->orderByRaw("COALESCE(persons.last_name, institutions.name) {$sortDirection}")
                 ->select('resources.*');
                 break;
 
