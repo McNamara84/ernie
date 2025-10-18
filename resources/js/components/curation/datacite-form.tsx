@@ -782,6 +782,17 @@ export default function DataCiteForm({
     // Form validation hook
     const { validateField, markFieldTouched, getFieldState, getFieldMessages } = useFormValidation();
 
+    // Helper to handle field blur: mark as touched AND trigger validation
+    const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
+        markFieldTouched(fieldId);
+        validateField({
+            fieldId,
+            value,
+            rules,
+            formData: form,
+        });
+    };
+
     // DOI validation rules
     const doiValidationRules: ValidationRule[] = [
         {
@@ -2126,7 +2137,7 @@ export default function DataCiteForm({
                                 label="Year"
                                 value={form.year || ''}
                                 onChange={(e) => handleChange('year', e.target.value)}
-                                onValidationBlur={() => markFieldTouched('year')}
+                                onValidationBlur={() => handleFieldBlur('year', form.year, yearValidationRules)}
                                 validationMessages={getFieldState('year').messages}
                                 touched={getFieldState('year').touched}
                                 placeholder="2024"
@@ -2205,7 +2216,7 @@ export default function DataCiteForm({
                                     canAdd={canAddTitle(titles, MAX_TITLES)}
                                     validationMessages={getFieldState(`title-${index}`).messages}
                                     touched={getFieldState(`title-${index}`).touched}
-                                    onValidationBlur={() => markFieldTouched(`title-${index}`)}
+                                    onValidationBlur={() => handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))}
                                 />
                             ))}
                         </div>
@@ -2243,6 +2254,7 @@ export default function DataCiteForm({
                                     validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
                                     touched={index === 0 ? getFieldState('license-0').touched : undefined}
                                     onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
+                                    data-testid={`license-select-${index}`}
                                 />
                             ))}
                         </div>

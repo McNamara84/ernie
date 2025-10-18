@@ -131,9 +131,6 @@ export class DataCiteFormPage {
    * Get validation messages for a field (errors, warnings, success)
    */
   async getFieldValidationMessages(fieldLocator: Locator): Promise<string[]> {
-    // Wait a bit for validation to complete
-    await this.page.waitForTimeout(200);
-    
     // Get aria-describedby to find validation feedback element
     const describedBy = await fieldLocator.getAttribute('aria-describedby');
     if (!describedBy) return [];
@@ -145,12 +142,17 @@ export class DataCiteFormPage {
     const messages: string[] = [];
     for (const feedbackId of ids) {
       const feedback = this.page.locator(`#${feedbackId}`);
-      const count = await feedback.count();
-      if (count > 0) {
+      
+      try {
+        // Wait for feedback element to be visible (with short timeout)
+        await feedback.waitFor({ state: 'visible', timeout: 1000 });
         const text = await feedback.textContent();
         if (text) {
           messages.push(text.trim());
         }
+      } catch {
+        // Feedback element doesn't exist or isn't visible, skip it
+        continue;
       }
     }
     
@@ -224,7 +226,9 @@ export class DataCiteFormPage {
    * Hover over Save button to show tooltip
    */
   async hoverSaveButton() {
-    await this.saveButton.hover();
+    // The button is wrapped in a tooltip trigger, hover over the trigger span
+    const tooltipTrigger = this.page.locator('[data-slot="tooltip-trigger"]', { has: this.saveButton });
+    await tooltipTrigger.hover({ force: true });
     await this.page.waitForTimeout(300);
   }
   

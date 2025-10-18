@@ -25,6 +25,7 @@ interface LicenseFieldProps {
     validationMessages?: ValidationMessage[];
     touched?: boolean;
     onValidationBlur?: () => void;
+    'data-testid'?: string;
 }
 
 export function LicenseField({
@@ -41,6 +42,7 @@ export function LicenseField({
     validationMessages,
     touched,
     onValidationBlur,
+    'data-testid': dataTestId,
 }: LicenseFieldProps) {
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
@@ -56,6 +58,7 @@ export function LicenseField({
                 hideLabel={!isFirst}
                 className="md:col-span-11"
                 required={required}
+                data-testid={dataTestId}
             />
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
