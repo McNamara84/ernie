@@ -57,8 +57,9 @@ test.describe('Critical Smoke Tests', () => {
     await page.waitForURL(/\/editor/, { timeout: 10000 });
     
     const currentUrl = page.url();
-    expect(currentUrl).toMatch(/doi=/);
+    // Test XML doesn't have DOI, but should have year and authors
     expect(currentUrl).toMatch(/year=/);
+    expect(currentUrl).toMatch(/authors%5B/);
   });
 
   test('navigation between dashboard and settings works', async ({ page }) => {
