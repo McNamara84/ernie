@@ -28,11 +28,9 @@ test.describe('DataCite JSON Export', () => {
     await page.goto('/dashboard');
     await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
     
-    const filePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
-    const fileChooserPromise = page.waitForEvent('filechooser');
-    await page.locator('text=Dropzone for XML files').click();
-    const fileChooser = await fileChooserPromise;
-    await fileChooser.setFiles([filePath]);
+    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    const xmlFilePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
+    await fileInput.setInputFiles(xmlFilePath);
     
     // Wait for redirect to editor
     await page.waitForURL(/\/editor/, { timeout: 30000 });
