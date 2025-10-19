@@ -109,7 +109,7 @@
             "contributors": [
                 {
                     "nameType": "Personal",
-                    "contributorType": "Other",
+                    "contributorType": "ContactPerson",
                     "name": "Ehrmann, Holger",
                     "givenName": "Holger",
                     "familyName": "Ehrmann",
@@ -146,7 +146,7 @@
                 },
                 {
                     "nameType": "Personal",
-                    "contributorType": "Other",
+                    "contributorType": "DataCollector",
                     "name": "Mohammed, Ali",
                     "givenName": "Ali",
                     "familyName": "Mohammed",
@@ -177,7 +177,7 @@
                 },
                 {
                     "nameType": "Personal",
-                    "contributorType": "Other",
+                    "contributorType": "DataManager",
                     "name": "Test, Testerin",
                     "givenName": "Testerin",
                     "familyName": "Test"
@@ -185,7 +185,7 @@
                 {
                     "name": "Westminster Bibliothek",
                     "nameType": "Organizational",
-                    "contributorType": "Other",
+                    "contributorType": "RegistrationAgency",
                     "affiliation": [
                         {
                             "name": "University of Westminster",
@@ -305,6 +305,10 @@
             "rightsList": [
                 {
                     "rights": "GNU General Public License v3.0 or later",
+                    "rightsURI": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+                    "rightsIdentifier": "GPL-3.0-or-later",
+                    "rightsIdentifierScheme": "SPDX",
+                    "schemeURI": "https://spdx.org/licenses/",
                     "lang": "en"
                 }
             ],
