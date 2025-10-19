@@ -466,28 +466,30 @@ class DataCiteJsonExporter
         }
 
         // Map ERNIE roles to DataCite contributor types
+        // Note: Role names in DB have spaces, DataCite uses CamelCase
         $roleMapping = [
-            'ContactPerson' => 'ContactPerson',
-            'DataCollector' => 'DataCollector',
-            'DataCurator' => 'DataCurator',
-            'DataManager' => 'DataManager',
+            'Contact Person' => 'ContactPerson',
+            'Data Collector' => 'DataCollector',
+            'Data Curator' => 'DataCurator',
+            'Data Manager' => 'DataManager',
             'Distributor' => 'Distributor',
             'Editor' => 'Editor',
-            'HostingInstitution' => 'HostingInstitution',
+            'Hosting Institution' => 'HostingInstitution',
             'Producer' => 'Producer',
-            'ProjectLeader' => 'ProjectLeader',
-            'ProjectManager' => 'ProjectManager',
-            'ProjectMember' => 'ProjectMember',
-            'RegistrationAgency' => 'RegistrationAgency',
-            'RegistrationAuthority' => 'RegistrationAuthority',
-            'RelatedPerson' => 'RelatedPerson',
+            'Project Leader' => 'ProjectLeader',
+            'Project Manager' => 'ProjectManager',
+            'Project Member' => 'ProjectMember',
+            'Registration Agency' => 'RegistrationAgency',
+            'Registration Authority' => 'RegistrationAuthority',
+            'Related Person' => 'RelatedPerson',
             'Researcher' => 'Researcher',
-            'ResearchGroup' => 'ResearchGroup',
-            'RightsHolder' => 'RightsHolder',
+            'Research Group' => 'ResearchGroup',
+            'Rights Holder' => 'RightsHolder',
             'Sponsor' => 'Sponsor',
             'Supervisor' => 'Supervisor',
-            'WorkPackageLeader' => 'WorkPackageLeader',
-            'Translator' => 'Translator', // DataCite 4.6 addition
+            'Work Package Leader' => 'WorkPackageLeader',
+            'Translator' => 'Translator',
+            'Other' => 'Other',
         ];
 
         return $roleMapping[$role->name] ?? 'Other';

@@ -2,24 +2,14 @@
     "data": {
         "type": "dois",
         "attributes": {
-            "doi": "10.82433/B09Z-4K37",
+            "doi": null,
             "titles": [
                 {
-                    "title": "Example Title",
+                    "title": "Test Dataset Software",
                     "lang": "en"
                 },
                 {
-                    "title": "Example Subtitle",
-                    "titleType": "Subtitle",
-                    "lang": "en"
-                },
-                {
-                    "title": "Example TranslatedTitle",
-                    "titleType": "TranslatedTitle",
-                    "lang": "en"
-                },
-                {
-                    "title": "Example AlternativeTitle",
+                    "title": "Test Dataset Software Alternative Title",
                     "titleType": "AlternativeTitle",
                     "lang": "en"
                 }
@@ -30,12 +20,48 @@
                 "publisherIdentifierScheme": "ROR",
                 "schemeUri": "https://ror.org/"
             },
-            "publicationYear": 2024,
+            "publicationYear": 2009,
             "types": {
-                "resourceTypeGeneral": "Other",
-                "resourceType": "Dataset"
+                "resourceTypeGeneral": "Software",
+                "resourceType": "Software"
             },
             "creators": [
+                {
+                    "nameType": "Personal",
+                    "name": "Ehrmann, Holger",
+                    "givenName": "Holger",
+                    "familyName": "Ehrmann",
+                    "nameIdentifiers": [
+                        {
+                            "nameIdentifier": "0009-0000-1235-6950",
+                            "nameIdentifierScheme": "ORCID",
+                            "schemeUri": "https://orcid.org"
+                        }
+                    ],
+                    "affiliation": [
+                        {
+                            "name": "GFZ Helmholtz Centre for Geosciences",
+                            "affiliationIdentifier": "https://ror.org/04z8jg394",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "University of Applied Sciences Potsdam",
+                            "affiliationIdentifier": "https://ror.org/012m9bp23",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "Bundeswehr",
+                            "affiliationIdentifier": "https://ror.org/00nmgny79",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences"
+                        }
+                    ]
+                },
                 {
                     "nameType": "Personal",
                     "name": "Garcia, Sofia",
@@ -50,8 +76,8 @@
                     ],
                     "affiliation": [
                         {
-                            "name": "DataCite",
-                            "affiliationIdentifier": "https://ror.org/04wxnsj81",
+                            "name": "ORCID",
+                            "affiliationIdentifier": "https://ror.org/04fa4r544",
                             "affiliationIdentifierScheme": "ROR",
                             "schemeUri": "https://ror.org"
                         },
@@ -61,186 +87,241 @@
                     ]
                 },
                 {
-                    "name": "ExampleOrganization",
-                    "nameType": "Organizational"
+                    "name": "Library and Information Services",
+                    "nameType": "Organizational",
+                    "nameIdentifiers": [
+                        {
+                            "nameIdentifier": "https://ror.org/04z8jg394",
+                            "nameIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        }
+                    ],
+                    "affiliation": [
+                        {
+                            "name": "GFZ Helmholtz Centre for Geosciences",
+                            "affiliationIdentifier": "https://ror.org/04z8jg394",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        }
+                    ]
                 }
             ],
             "contributors": [
                 {
                     "nameType": "Personal",
                     "contributorType": "Other",
-                    "name": "Garcia, Sofia",
-                    "givenName": "Sofia",
-                    "familyName": "Garcia",
+                    "name": "Ehrmann, Holger",
+                    "givenName": "Holger",
+                    "familyName": "Ehrmann",
                     "nameIdentifiers": [
                         {
-                            "nameIdentifier": "0000-0001-5727-2427",
+                            "nameIdentifier": "0009-0000-1235-6950",
                             "nameIdentifierScheme": "ORCID",
                             "schemeUri": "https://orcid.org"
                         }
                     ],
                     "affiliation": [
                         {
-                            "name": "DataCite",
-                            "affiliationIdentifier": "https://ror.org/04wxnsj81",
+                            "name": "GFZ Helmholtz Centre for Geosciences",
+                            "affiliationIdentifier": "https://ror.org/04z8jg394",
                             "affiliationIdentifierScheme": "ROR",
                             "schemeUri": "https://ror.org"
                         },
                         {
-                            "name": "New Arizona State University"
-                        }
-                    ]
-                },
-                {
-                    "name": "ExampleOrganizationD",
-                    "nameType": "Organizational",
-                    "contributorType": "Distributor",
-                    "affiliation": [
-                        {
-                            "name": "California Digital Library",
-                            "affiliationIdentifier": "https://ror.org/03yrm5c26",
+                            "name": "University of Applied Sciences Potsdam",
+                            "affiliationIdentifier": "https://ror.org/012m9bp23",
                             "affiliationIdentifierScheme": "ROR",
                             "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "Bundeswehr",
+                            "affiliationIdentifier": "https://ror.org/00nmgny79",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences"
                         }
                     ]
                 },
                 {
-                    "name": "DataCiteRA",
+                    "nameType": "Personal",
+                    "contributorType": "Other",
+                    "name": "Mohammed, Ali",
+                    "givenName": "Ali",
+                    "familyName": "Mohammed",
+                    "nameIdentifiers": [
+                        {
+                            "nameIdentifier": "0009-0007-2910-0469",
+                            "nameIdentifierScheme": "ORCID",
+                            "schemeUri": "https://orcid.org"
+                        }
+                    ],
+                    "affiliation": [
+                        {
+                            "name": "GFZ Helmholtz Centre for Geosciences",
+                            "affiliationIdentifier": "https://ror.org/04z8jg394",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "University of Applied Sciences Potsdam",
+                            "affiliationIdentifier": "https://ror.org/012m9bp23",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "Helmholtz Centre Potsdam - GFZ German Research Centre for Geosciences"
+                        }
+                    ]
+                },
+                {
+                    "nameType": "Personal",
+                    "contributorType": "Other",
+                    "name": "Test, Testerin",
+                    "givenName": "Testerin",
+                    "familyName": "Test"
+                },
+                {
+                    "name": "Westminster Bibliothek",
                     "nameType": "Organizational",
                     "contributorType": "Other",
                     "affiliation": [
                         {
-                            "name": "DataCite",
-                            "affiliationIdentifier": "https://ror.org/04wxnsj81",
+                            "name": "University of Westminster",
+                            "affiliationIdentifier": "https://ror.org/04ycpbx82",
                             "affiliationIdentifierScheme": "ROR",
                             "schemeUri": "https://ror.org"
                         }
                     ]
                 },
                 {
-                    "name": "International DOI FoundationRA",
+                    "name": "Sektion 3.2",
                     "nameType": "Organizational",
-                    "contributorType": "Other"
+                    "contributorType": "Producer",
+                    "affiliation": [
+                        {
+                            "name": "GFZ Helmholtz Centre for Geosciences",
+                            "affiliationIdentifier": "https://ror.org/04z8jg394",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        }
+                    ]
                 }
             ],
             "subjects": [
                 {
-                    "subject": "Example Subject"
+                    "subject": "Test Keyword 1"
+                },
+                {
+                    "subject": "Test Keyword 2"
+                },
+                {
+                    "subject": "Test Keyword 3"
+                },
+                {
+                    "subject": "BIODIVERSITY FUNCTIONS",
+                    "subjectScheme": "Science Keywords",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/4e366444-01ea-4517-9d93-56f55ddf41b7"
+                },
+                {
+                    "subject": "HYDROGEN GAS VERTICAL/GEOGRAPHIC DISTRIBUTION",
+                    "subjectScheme": "Science Keywords",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/833b6958-fc93-473c-aadb-bb65da7578e5"
+                },
+                {
+                    "subject": "Rockets",
+                    "subjectScheme": "Platforms",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/812304fb-2eaf-4ce8-ac49-2de68c025927"
+                },
+                {
+                    "subject": "Titan 34D",
+                    "subjectScheme": "Platforms",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/9e9e86b0-d613-4069-abe2-8291a6fac3ef"
+                },
+                {
+                    "subject": "Titan IIID",
+                    "subjectScheme": "Platforms",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/a044e8ff-8225-4bba-85c4-80ea394e007b"
+                },
+                {
+                    "subject": "ICE AUGERS",
+                    "subjectScheme": "Instruments",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/d8480746-ff39-4de8-ba2e-b5de47890c78"
+                },
+                {
+                    "subject": "DREDGING DEVICES",
+                    "subjectScheme": "Instruments",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/96471be4-6078-477d-8e66-c02b92f594d4"
+                },
+                {
+                    "subject": "EDDY CORRELATION DEVICES",
+                    "subjectScheme": "Instruments",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/f5a3c5f6-b575-48f4-8479-2bc4092c8f99"
+                },
+                {
+                    "subject": "Charged Coupled Devices",
+                    "subjectScheme": "Instruments",
+                    "valueUri": "https://gcmd.earthdata.nasa.gov/kms/concept/b867df1d-a9dd-4c68-89db-1290217890a4"
                 }
             ],
             "descriptions": [
                 {
-                    "description": "Example Abstract",
+                    "description": "Test Abstract that describes the data with a few words. This should be a longer text with at least 50 characters length or even more text.",
                     "descriptionType": "Abstract",
                     "lang": "en"
                 },
                 {
-                    "description": "Example Methods",
+                    "description": "Testmethods with at least 50 characters in the text.",
                     "descriptionType": "Methods",
                     "lang": "en"
                 },
                 {
-                    "description": "Example Other",
+                    "description": "Test Other Informations with at least 50 characters.",
                     "descriptionType": "Other",
-                    "lang": "en"
-                },
-                {
-                    "description": "Example SeriesInformation",
-                    "descriptionType": "SeriesInformation",
-                    "lang": "en"
-                },
-                {
-                    "description": "Example TableOfContents",
-                    "descriptionType": "TableOfContents",
-                    "lang": "en"
-                },
-                {
-                    "description": "Example TechnicalInfo",
-                    "descriptionType": "TechnicalInfo",
                     "lang": "en"
                 }
             ],
             "dates": [
                 {
-                    "dateType": "Accepted",
-                    "date": "2024-01-01T00:00:00.000000Z"
-                },
-                {
                     "dateType": "Available",
-                    "date": "2024-01-01T00:00:00.000000Z"
+                    "date": "2025-10-19T00:00:00.000000Z"
                 },
                 {
                     "dateType": "Collected",
-                    "date": "2024-01-01 00:00:00/2024-12-31 00:00:00"
+                    "date": "2025-10-01 00:00:00/2025-10-05 00:00:00"
                 },
                 {
-                    "dateType": "Copyrighted",
-                    "date": "2024-01-01T00:00:00.000000Z"
+                    "dateType": "Collected",
+                    "date": "2025-09-01 00:00:00/2025-09-21 00:00:00"
                 },
                 {
                     "dateType": "Created",
-                    "date": "2024-01-01T00:00:00.000000Z"
-                },
-                {
-                    "dateType": "Issued",
-                    "date": "2024-01-01T00:00:00.000000Z"
-                },
-                {
-                    "dateType": "Other",
-                    "date": "2024-01-01T00:00:00.000000Z"
-                },
-                {
-                    "dateType": "Submitted",
-                    "date": "2024-01-01T00:00:00.000000Z"
-                },
-                {
-                    "dateType": "Updated",
-                    "date": "2024-01-01T00:00:00.000000Z"
-                },
-                {
-                    "dateType": "Valid",
-                    "date": "2024-01-01T00:00:00.000000Z"
-                },
-                {
-                    "dateType": "Withdrawn",
-                    "date": "2024-01-01T00:00:00.000000Z"
+                    "date": "2025-10-18T00:00:00.000000Z"
                 }
             ],
             "language": "en",
             "version": "1",
             "rightsList": [
                 {
-                    "rights": "Creative Commons Attribution 4.0 International",
+                    "rights": "GNU General Public License v3.0 or later",
                     "lang": "en"
-                }
-            ],
-            "geoLocations": [
-                {
-                    "geoLocationBox": {
-                        "westBoundLongitude": "-123.270000",
-                        "eastBoundLongitude": "-123.020000",
-                        "southBoundLatitude": "49.195000",
-                        "northBoundLatitude": "49.315000"
-                    },
-                    "geoLocationPlace": "Vancouver, British Columbia, Canada"
                 }
             ],
             "fundingReferences": [
                 {
-                    "funderName": "Example Funder",
-                    "funderIdentifier": "https://doi.org/10.13039/501100000780",
-                    "funderIdentifierType": "Crossref Funder ID",
+                    "funderName": "Testfunder 1",
                     "awardNumber": "12345",
-                    "awardTitle": "Example AwardTitle",
-                    "awardUri": "https://example.com/example-award-uri"
+                    "awardTitle": "Test Grant Name 1",
+                    "awardUri": "https://example.com/example-award-uri1"
                 },
                 {
-                    "funderName": "Example Funder2",
-                    "funderIdentifier": "https://doi.org/10.13039/501100000782",
+                    "funderName": "Helmholtz-Zentrum Berlin für Materialien und Energie",
+                    "funderIdentifier": "https://doi.org/10.13039/100013110",
                     "funderIdentifierType": "Crossref Funder ID",
-                    "awardNumber": "23456",
-                    "awardTitle": "Example AwardTitle2",
-                    "awardUri": "https://example.com/example-award-uri"
+                    "awardNumber": "54321",
+                    "awardTitle": "Test Grant Name 2",
+                    "awardUri": "https://example.com/example-award-uri2"
                 }
             ]
         }
