@@ -770,8 +770,17 @@ class DataCiteJsonExporter
                 'rights' => $license->name,
             ];
 
-            // Note: License model doesn't have url or spdx_identifier fields
-            // If needed in the future, add these fields to the licenses table
+            // Add rightsURI (license reference URL)
+            if ($license->reference) {
+                $rightsData['rightsURI'] = $license->reference;
+            }
+
+            // Add SPDX identifier
+            if ($license->spdx_id) {
+                $rightsData['rightsIdentifier'] = $license->spdx_id;
+                $rightsData['rightsIdentifierScheme'] = 'SPDX';
+                $rightsData['schemeURI'] = 'https://spdx.org/licenses/';
+            }
 
             // Add language if available
             if ($resource->language) {
