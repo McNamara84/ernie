@@ -67,7 +67,11 @@ class Resource extends Model
     public function authors(): HasMany
     {
         /** @var HasMany<ResourceAuthor, static> $relation */
-        $relation = $this->hasMany(ResourceAuthor::class)->orderBy('position');
+        $relation = $this->hasMany(ResourceAuthor::class)
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'Author');
+            })
+            ->orderBy('position');
 
         return $relation;
     }
@@ -76,7 +80,11 @@ class Resource extends Model
     public function contributors(): HasMany
     {
         /** @var HasMany<ResourceAuthor, static> $relation */
-        $relation = $this->hasMany(ResourceAuthor::class)->orderBy('position');
+        $relation = $this->hasMany(ResourceAuthor::class)
+            ->whereDoesntHave('roles', function ($query) {
+                $query->where('name', 'Author');
+            })
+            ->orderBy('position');
 
         return $relation;
     }

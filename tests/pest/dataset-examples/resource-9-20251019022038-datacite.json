@@ -1,0 +1,248 @@
+{
+    "data": {
+        "type": "dois",
+        "attributes": {
+            "doi": "10.82433/B09Z-4K37",
+            "titles": [
+                {
+                    "title": "Example Title",
+                    "lang": "en"
+                },
+                {
+                    "title": "Example Subtitle",
+                    "titleType": "Subtitle",
+                    "lang": "en"
+                },
+                {
+                    "title": "Example TranslatedTitle",
+                    "titleType": "TranslatedTitle",
+                    "lang": "en"
+                },
+                {
+                    "title": "Example AlternativeTitle",
+                    "titleType": "AlternativeTitle",
+                    "lang": "en"
+                }
+            ],
+            "publisher": {
+                "name": "GFZ Helmholtz Centre for Geosciences",
+                "publisherIdentifier": "https://ror.org/04z8jg394",
+                "publisherIdentifierScheme": "ROR",
+                "schemeUri": "https://ror.org/"
+            },
+            "publicationYear": 2024,
+            "types": {
+                "resourceTypeGeneral": "Other",
+                "resourceType": "Dataset"
+            },
+            "creators": [
+                {
+                    "nameType": "Personal",
+                    "name": "Garcia, Sofia",
+                    "givenName": "Sofia",
+                    "familyName": "Garcia",
+                    "nameIdentifiers": [
+                        {
+                            "nameIdentifier": "0000-0001-5727-2427",
+                            "nameIdentifierScheme": "ORCID",
+                            "schemeUri": "https://orcid.org"
+                        }
+                    ],
+                    "affiliation": [
+                        {
+                            "name": "DataCite",
+                            "affiliationIdentifier": "https://ror.org/04wxnsj81",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "New Arizona State University"
+                        }
+                    ]
+                },
+                {
+                    "name": "ExampleOrganization",
+                    "nameType": "Organizational"
+                }
+            ],
+            "contributors": [
+                {
+                    "nameType": "Personal",
+                    "contributorType": "Other",
+                    "name": "Garcia, Sofia",
+                    "givenName": "Sofia",
+                    "familyName": "Garcia",
+                    "nameIdentifiers": [
+                        {
+                            "nameIdentifier": "0000-0001-5727-2427",
+                            "nameIdentifierScheme": "ORCID",
+                            "schemeUri": "https://orcid.org"
+                        }
+                    ],
+                    "affiliation": [
+                        {
+                            "name": "DataCite",
+                            "affiliationIdentifier": "https://ror.org/04wxnsj81",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        },
+                        {
+                            "name": "New Arizona State University"
+                        }
+                    ]
+                },
+                {
+                    "name": "ExampleOrganizationD",
+                    "nameType": "Organizational",
+                    "contributorType": "Distributor",
+                    "affiliation": [
+                        {
+                            "name": "California Digital Library",
+                            "affiliationIdentifier": "https://ror.org/03yrm5c26",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        }
+                    ]
+                },
+                {
+                    "name": "DataCiteRA",
+                    "nameType": "Organizational",
+                    "contributorType": "Other",
+                    "affiliation": [
+                        {
+                            "name": "DataCite",
+                            "affiliationIdentifier": "https://ror.org/04wxnsj81",
+                            "affiliationIdentifierScheme": "ROR",
+                            "schemeUri": "https://ror.org"
+                        }
+                    ]
+                },
+                {
+                    "name": "International DOI FoundationRA",
+                    "nameType": "Organizational",
+                    "contributorType": "Other"
+                }
+            ],
+            "subjects": [
+                {
+                    "subject": "Example Subject"
+                }
+            ],
+            "descriptions": [
+                {
+                    "description": "Example Abstract",
+                    "descriptionType": "Abstract",
+                    "lang": "en"
+                },
+                {
+                    "description": "Example Methods",
+                    "descriptionType": "Methods",
+                    "lang": "en"
+                },
+                {
+                    "description": "Example Other",
+                    "descriptionType": "Other",
+                    "lang": "en"
+                },
+                {
+                    "description": "Example SeriesInformation",
+                    "descriptionType": "SeriesInformation",
+                    "lang": "en"
+                },
+                {
+                    "description": "Example TableOfContents",
+                    "descriptionType": "TableOfContents",
+                    "lang": "en"
+                },
+                {
+                    "description": "Example TechnicalInfo",
+                    "descriptionType": "TechnicalInfo",
+                    "lang": "en"
+                }
+            ],
+            "dates": [
+                {
+                    "dateType": "Accepted",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Available",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Collected",
+                    "date": "2024-01-01 00:00:00/2024-12-31 00:00:00"
+                },
+                {
+                    "dateType": "Copyrighted",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Created",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Issued",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Other",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Submitted",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Updated",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Valid",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                },
+                {
+                    "dateType": "Withdrawn",
+                    "date": "2024-01-01T00:00:00.000000Z"
+                }
+            ],
+            "language": "en",
+            "version": "1",
+            "rightsList": [
+                {
+                    "rights": "Creative Commons Attribution 4.0 International",
+                    "lang": "en"
+                }
+            ],
+            "geoLocations": [
+                {
+                    "geoLocationBox": {
+                        "westBoundLongitude": "-123.270000",
+                        "eastBoundLongitude": "-123.020000",
+                        "southBoundLatitude": "49.195000",
+                        "northBoundLatitude": "49.315000"
+                    },
+                    "geoLocationPlace": "Vancouver, British Columbia, Canada"
+                }
+            ],
+            "fundingReferences": [
+                {
+                    "funderName": "Example Funder",
+                    "funderIdentifier": "https://doi.org/10.13039/501100000780",
+                    "funderIdentifierType": "Crossref Funder ID",
+                    "awardNumber": "12345",
+                    "awardTitle": "Example AwardTitle",
+                    "awardUri": "https://example.com/example-award-uri"
+                },
+                {
+                    "funderName": "Example Funder2",
+                    "funderIdentifier": "https://doi.org/10.13039/501100000782",
+                    "funderIdentifierType": "Crossref Funder ID",
+                    "awardNumber": "23456",
+                    "awardTitle": "Example AwardTitle2",
+                    "awardUri": "https://example.com/example-award-uri"
+                }
+            ]
+        }
+    }
+}

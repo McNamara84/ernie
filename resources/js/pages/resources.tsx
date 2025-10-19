@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, FileJson, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -91,7 +91,7 @@ const IDENTIFIER_COLUMN_HEADER_LABEL = (
         <span>DOI</span>
     </span>
 );
-const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-32 min-w-[8rem]';
+const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-40 min-w-[10rem]';
 
 const DEFAULT_SORT: ResourceSortState = { key: 'updated_at', direction: 'desc' };
 const SORT_PREFERENCE_STORAGE_KEY = 'resources.sort-preference';
@@ -475,6 +475,78 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         }
     }, []);
 
+    const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
+
+    const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
+        if (!resource.id) {
+            toast.error('Cannot export resource without ID');
+            return;
+        }
+
+        // Mark resource as exporting
+        setExportingResources(prev => new Set(prev).add(resource.id!));
+
+        try {
+            const response = await axios.get(
+                withBasePath(`/resources/${resource.id}/export-datacite-json`),
+                {
+                    responseType: 'blob', // Important for file download
+                }
+            );
+
+            // Create blob from response
+            const blob = new Blob([response.data], { type: 'application/json' });
+            
+            // Get filename from Content-Disposition header or generate it
+            const contentDisposition = response.headers['content-disposition'] as string | undefined;
+            let filename = `resource-${resource.id}-datacite.json`;
+            
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            // Create download link and trigger download
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('DataCite JSON exported successfully');
+        } catch (error) {
+            console.error('Failed to export DataCite JSON:', error);
+            
+            let errorMessage = 'Failed to export DataCite JSON';
+            if (isAxiosError(error) && error.response?.data) {
+                try {
+                    const errorBlob = error.response.data as Blob;
+                    const errorText = await errorBlob.text();
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch {
+                    // Ignore parsing errors
+                }
+            }
+            
+            toast.error(errorMessage);
+        } finally {
+            // Remove resource from exporting set
+            setExportingResources(prev => {
+                const next = new Set(prev);
+                next.delete(resource.id!);
+                return next;
+            });
+        }
+    }, []);
+
     const sortedResources = resources;
 
     const resourceColumns: ResourceColumn[] = [
@@ -711,6 +783,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                         <div className="flex items-center gap-1">
                             <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
                             <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
                         </div>
                     </td>
                 </tr>
@@ -894,6 +967,17 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                     title={`Open resource ${resourceLabel} in editor form`}
                                                                 >
                                                                     <PencilLine aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleExportDataCiteJson(resource)}
+                                                                    disabled={exportingResources.has(resource.id ?? 0)}
+                                                                    aria-label={`Export resource ${resourceLabel} as DataCite JSON`}
+                                                                    title={`Export resource ${resourceLabel} as DataCite JSON`}
+                                                                >
+                                                                    <FileJson aria-hidden="true" className="size-4" />
                                                                 </Button>
                                                                 <Button
                                                                     type="button"

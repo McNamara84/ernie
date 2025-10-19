@@ -97,6 +97,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('resources/load-more', [ResourceController::class, 'loadMore'])
         ->name('resources.load-more');
 
+    Route::get('resources/{resource}/export-datacite-json', [ResourceController::class, 'exportDataCiteJson'])
+        ->name('resources.export-datacite-json');
+
     // DOI validation endpoint (proxy to avoid CORS issues)
     Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
         ->name('api.validate-doi');
