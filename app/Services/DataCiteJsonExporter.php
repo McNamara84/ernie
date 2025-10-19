@@ -42,12 +42,12 @@ class DataCiteJsonExporter
             'resourceType',
             'language',
             'titles.titleType',
-            'authors.authorable',
-            'authors.roles',
-            'authors.affiliations',
-            'contributors.authorable',
-            'contributors.roles',
-            'contributors.affiliations',
+            'dataciteCreators.authorable',
+            'dataciteCreators.roles',
+            'dataciteCreators.affiliations',
+            'dataciteContributors.authorable',
+            'dataciteContributors.roles',
+            'dataciteContributors.affiliations',
             'descriptions',
             'dates',
             'keywords',
@@ -219,7 +219,7 @@ class DataCiteJsonExporter
     {
         $creators = [];
 
-        foreach ($resource->authors as $author) {
+        foreach ($resource->dataciteCreators as $author) {
             if ($author->authorable_type === Person::class) {
                 $creators[] = $this->buildPersonCreator($author);
             } elseif ($author->authorable_type === Institution::class) {
@@ -382,7 +382,7 @@ class DataCiteJsonExporter
     {
         $contributors = [];
 
-        foreach ($resource->contributors as $contributor) {
+        foreach ($resource->dataciteContributors as $contributor) {
             // Check if this is an MSL Laboratory
             if ($contributor->authorable_type === Institution::class) {
                 /** @var Institution|null $institution */

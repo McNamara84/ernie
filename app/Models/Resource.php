@@ -67,6 +67,19 @@ class Resource extends Model
     public function authors(): HasMany
     {
         /** @var HasMany<ResourceAuthor, static> $relation */
+        $relation = $this->hasMany(ResourceAuthor::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /**
+     * Get authors for DataCite export (only ResourceAuthors with 'Author' role).
+     *
+     * @return HasMany<ResourceAuthor, static>
+     */
+    public function dataciteCreators(): HasMany
+    {
+        /** @var HasMany<ResourceAuthor, static> $relation */
         $relation = $this->hasMany(ResourceAuthor::class)
             ->whereHas('roles', function ($query) {
                 $query->where('name', 'Author');
@@ -76,8 +89,12 @@ class Resource extends Model
         return $relation;
     }
 
-    /** @return HasMany<ResourceAuthor, static> */
-    public function contributors(): HasMany
+    /**
+     * Get contributors for DataCite export (ResourceAuthors without 'Author' role).
+     *
+     * @return HasMany<ResourceAuthor, static>
+     */
+    public function dataciteContributors(): HasMany
     {
         /** @var HasMany<ResourceAuthor, static> $relation */
         $relation = $this->hasMany(ResourceAuthor::class)
