@@ -25,153 +25,149 @@
     <publicationYear>2024</publicationYear>
     <resourceType resourceTypeGeneral="Dataset">Example ResourceType</resourceType>
     <subjects>
-        <subject>EPOS</subject>
         <subject subjectScheme="Fields of Science and Technology (FOS)" schemeURI="http://www.oecd.org/science/inno" valueURI="http://www.oecd.org/science/inno/38235147.pdf">FOS: Computer and information sciences</subject>
         <subject subjectScheme="Australian and New Zealand Standard Research Classification (ANZSRC), 2020" schemeURI="https://www.abs.gov.au/statistics/classifications/australian-and-new-zealand-standard-research-classification-anzsrc" classificationCode="461001">Digital curation and preservation</subject>
         <subject>Example Subject</subject>
     </subjects>
     <contributors>
         <contributor contributorType="ContactPerson">
-            <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <contributorName nameType="Personal">ExampleFamilyNameCP, ExampleGivenNameCP</contributorName>
+            <givenName>ExampleGivenNameCP</givenName>
+            <familyName>ExampleFamilyNameCP</familyName>
+            <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
+            <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
+        </contributor>
+        <contributor contributorType="DataCurator">
+            <contributorName nameType="Personal">ExampleFamilyNameCP, ExampleGivenNameCP</contributorName>
+            <givenName>ExampleGivenNameCP</givenName>
+            <familyName>ExampleFamilyNameCP</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="DataCollector">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameDCo</givenName>
+            <familyName>ExampleFamilyNameDCo</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="DataCurator">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameDCu</givenName>
+            <familyName>ExampleFamilyNameDCu</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="DataManager">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameDM</givenName>
+            <familyName>ExampleFamilyNameDM</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="Distributor">
-            <contributorName nameType="Organizational">ExampleOrganization</contributorName>
+            <contributorName nameType="Organizational">ExampleOrganizationD</contributorName>
             <nameIdentifier nameIdentifierScheme="ROR" schemeURI="https://ror.org">https://ror.org/03yrm5c26</nameIdentifier>
         </contributor>
         <contributor contributorType="Editor">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameE</givenName>
+            <familyName>ExampleFamilyNameE</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="HostingInstitution">
-            <contributorName nameType="Organizational">ExampleOrganization</contributorName>
+            <contributorName nameType="Organizational">ExampleOrganizationHI</contributorName>
             <nameIdentifier nameIdentifierScheme="ROR" schemeURI="https://ror.org">https://ror.org/03yrm5c26</nameIdentifier>
         </contributor>
         <contributor contributorType="Producer">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameP</givenName>
+            <familyName>ExampleFamilyNameP</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="ProjectLeader">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNamePL</givenName>
+            <familyName>ExampleFamilyNamePL</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="ProjectManager">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNamePMa</givenName>
+            <familyName>ExampleFamilyNamePMa</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="ProjectMember">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNamePMe</givenName>
+            <familyName>ExampleFamilyNamePMe</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="RegistrationAgency">
-            <contributorName nameType="Organizational">DataCite</contributorName>
+            <contributorName nameType="Organizational">DataCiteRA</contributorName>
             <nameIdentifier nameIdentifierScheme="ROR" schemeURI="https://ror.org">https://ror.org/04wxnsj81</nameIdentifier>
         </contributor>
         <contributor contributorType="RegistrationAuthority">
-            <contributorName nameType="Organizational">International DOI Foundation</contributorName>
+            <contributorName nameType="Organizational">International DOI FoundationRA</contributorName>
         </contributor>
         <contributor contributorType="RelatedPerson">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameRP</givenName>
+            <familyName>ExampleFamilyNameRP</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="Researcher">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameR</givenName>
+            <familyName>ExampleFamilyNameR</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="ResearchGroup">
-            <contributorName>ExampleContributor</contributorName>
+            <contributorName>ExampleContributorRG</contributorName>
             <affiliation affiliationIdentifier="https://ror.org/03yrm5c26" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleOrganization</affiliation>
         </contributor>
         <contributor contributorType="RightsHolder">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameRH</givenName>
+            <familyName>ExampleFamilyNameRH</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="Sponsor">
-            <contributorName>ExampleContributor</contributorName>
+            <contributorName>ExampleContributorSp</contributorName>
             <affiliation affiliationIdentifier="https://ror.org/03yrm5c26" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">https://ror.org/03yrm5c26</affiliation>
         </contributor>
         <contributor contributorType="Supervisor">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameSU</givenName>
+            <familyName>ExampleFamilyNameSU</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="Translator">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameT</givenName>
+            <familyName>ExampleFamilyNameT</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
         </contributor>
         <contributor contributorType="WorkPackageLeader">
-            <contributorName nameType="Organizational">ExampleOrganization</contributorName>
+            <contributorName nameType="Organizational">ExampleOrganizationWPL</contributorName>
             <nameIdentifier nameIdentifierScheme="ROR" schemeURI="https://ror.org">https://ror.org/03yrm5c26</nameIdentifier>
         </contributor>
         <contributor contributorType="Other">
             <contributorName nameType="Personal">ExampleFamilyName, ExampleGivenName</contributorName>
-            <givenName>ExampleGivenName</givenName>
-            <familyName>ExampleFamilyName</familyName>
+            <givenName>ExampleGivenNameO</givenName>
+            <familyName>ExampleFamilyNameO</familyName>
             <nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">https://orcid.org/0000-0001-5727-2427</nameIdentifier>
             <affiliation affiliationIdentifier="https://ror.org/04wxnsj81" affiliationIdentifierScheme="ROR" schemeURI="https://ror.org">ExampleAffiliation</affiliation>
-        </contributor>
-            <contributor contributorType="HostingInstitution">
-            <contributorName>Geomagnetism Laboratory</contributorName>
-            <nameIdentifier nameIdentifierScheme="labid">e369853df766fa44e1ed0ff613f563bd</nameIdentifier>
-            <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/04xs57h96">University of Liverpool</affiliation>
-        </contributor>
-        <contributor contributorType="HostingInstitution">
-            <contributorName>Andalchron</contributorName>
-            <nameIdentifier nameIdentifierScheme="labid">a1d0c6e83f027327d8461063f4ac58a6</nameIdentifier>
-            <affiliation affiliationIdentifierScheme="ROR" schemeURI="https://ror.org" affiliationIdentifier="https://ror.org/00v0g9w49">Instituto Andaluz de Ciencias de la Tierra</affiliation>
         </contributor>
     </contributors>
     <dates>
@@ -179,7 +175,6 @@
         <date dateType="Available">2024-01-01</date>
         <date dateType="Copyrighted">2024-01-01</date>
         <date dateType="Collected">2024-01-01/2024-12-31</date>
-        <date dateType="Coverage">2024-01-01/2024-12-31</date>
         <date dateType="Created">2024-01-01</date>
         <date dateType="Issued">2024-01-01</date>
         <date dateType="Submitted">2024-01-01</date>
@@ -295,6 +290,12 @@
             <funderIdentifier funderIdentifierType="Crossref Funder ID">https://doi.org/10.13039/501100000780</funderIdentifier>
             <awardNumber awardURI="https://example.com/example-award-uri">12345</awardNumber>
             <awardTitle>Example AwardTitle</awardTitle>
+        </fundingReference>
+        <fundingReference>
+            <funderName>Example Funder2</funderName>
+            <funderIdentifier funderIdentifierType="Crossref Funder ID">https://doi.org/10.13039/501100000782</funderIdentifier>
+            <awardNumber awardURI="https://example.com/example-award-uri">23456</awardNumber>
+            <awardTitle>Example AwardTitle2</awardTitle>
         </fundingReference>
     </fundingReferences>
     <relatedItems>
