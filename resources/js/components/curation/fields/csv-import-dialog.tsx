@@ -181,7 +181,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
             skipEmptyLines: true,
             complete: (results) => {
                 if (results.data.length === 0) {
-                    alert('CSV-Datei ist leer oder konnte nicht gelesen werden.');
+                    alert('CSV file is empty or could not be read.');
                     return;
                 }
 

@@ -81,7 +81,7 @@ describe('FieldValidationFeedback', () => {
         it('should have aria-label on icons', () => {
             render(<FieldValidationFeedback messages={mockMessages} />);
 
-            // Prüfe dass Icons aria-labels haben
+            // Verify that icons have aria-labels
             const icons = screen.getAllByLabelText(/Error|Warning|Success|Information/);
             expect(icons.length).toBeGreaterThan(0);
         });

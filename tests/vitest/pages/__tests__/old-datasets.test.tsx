@@ -61,7 +61,7 @@ class GlobalMockIntersectionObserver implements IntersectionObserver {
     readonly thresholds: ReadonlyArray<number> = [];
 
     constructor() {
-        // Callback nicht benötigt, da wir keine IntersectionObserver-Tests mehr haben
+        // Callback not needed since we removed the IntersectionObserver tests
     }
 
     observe(target: Element): void {

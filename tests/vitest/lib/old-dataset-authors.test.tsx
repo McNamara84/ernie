@@ -139,39 +139,39 @@ describe('OldDataset Authors Loading', () => {
         // Klick auf den Button
         await user.click(button!);
 
-        // Warte darauf, dass router.get aufgerufen wurde
+        // Wait for router.get to be called
         await waitFor(() => {
             expect(routerGetMock).toHaveBeenCalled();
         });
 
-        // Prüfe, dass router.get mit einer URL aufgerufen wurde
+        // Verify that router.get was called with a URL
         const routerCall = routerGetMock.mock.calls[0];
         expect(routerCall).toBeDefined();
         
-        const url = routerCall[0]; // Erste Parameter ist die URL
+        const url = routerCall[0]; // First parameter is the URL
         expect(url).toContain('/editor');
         
-        // Prüfe, dass die URL Charlotte Läuchli als Autorin enthält
+        // Verify that the URL contains Charlotte Läuchli as author
         expect(url).toContain('authors%5B0%5D%5BfirstName%5D=Charlotte');
         expect(url).toContain('authors%5B0%5D%5BlastName%5D=L%C3%A4uchli');
         expect(url).toContain('authors%5B0%5D%5BisContact%5D=true');
         expect(url).toContain('authors%5B0%5D%5Bemail%5D=charlotte.laeuchli%40example.org');
         expect(url).toContain('authors%5B0%5D%5Bwebsite%5D=https%3A%2F%2Flaeuchli.example.org');
         expect(url).toContain('authors%5B0%5D%5Borcid%5D=0000-0002-1234-5678');
-        // Leerzeichen können als + oder %20 kodiert werden
+        // Spaces can be encoded as + or %20
         expect(url).toMatch(/authors%5B0%5D%5Baffiliations%5D%5B0%5D%5Bvalue%5D=Universit%C3%A4t(\+|%20)Z%C3%BCrich/);
         expect(url).toContain('authors%5B0%5D%5Baffiliations%5D%5B0%5D%5BrorId%5D=https%3A%2F%2Fror.org%2F03yrm5c26');
 
-        // Prüfe Max Mustermann (Index 1, aber isContact sollte nicht gesetzt sein)
+        // Verify Max Mustermann (Index 1, but isContact should not be set)
         expect(url).toContain('authors%5B1%5D%5BfirstName%5D=Max');
         expect(url).toContain('authors%5B1%5D%5BlastName%5D=Mustermann');
         expect(url).not.toContain('authors%5B1%5D%5Borcid%5D');
     });
 
-    it('behandelt Autoren ohne Kontaktinfo korrekt', async () => {
+    it('handles authors without contact info correctly', async () => {
         const user = userEvent.setup();
 
-        // Mock axios.get für Autoren ohne Kontaktinfo
+        // Mock axios.get for authors without contact info
         vi.spyOn(axios, 'get').mockResolvedValue({
             data: {
                 authors: [
@@ -323,25 +323,25 @@ describe('OldDataset Authors Loading', () => {
 
         const url = routerGetMock.mock.calls[0][0];
 
-        // Prüfe Bjarne Almqvist mit ORCID
+        // Verify Bjarne Almqvist with ORCID
         expect(url).toContain('authors%5B0%5D%5BfirstName%5D=Bjarne');
         expect(url).toContain('authors%5B0%5D%5BlastName%5D=Almquist');
         expect(url).toContain('authors%5B0%5D%5Borcid%5D=0000-0002-9385-7614');
 
-        // Prüfe Ronald Conze mit ORCID
+        // Verify Ronald Conze with ORCID
         expect(url).toContain('authors%5B1%5D%5Borcid%5D=0000-0002-8209-6290');
 
-        // Prüfe Jane Smith ohne ORCID (hat ScopusID, aber das wird nicht in orcid-Feld übernommen)
+        // Verify Jane Smith without ORCID (has ScopusID, but it's not included in orcid field)
         expect(url).toContain('authors%5B2%5D%5BfirstName%5D=Jane');
         expect(url).toContain('authors%5B2%5D%5BlastName%5D=Smith');
         expect(url).not.toContain('authors%5B2%5D%5Borcid%5D');
     });
 
-    it('behandelt Fehler beim Laden von Autoren gracefully', async () => {
+    it('handles errors when loading authors gracefully', async () => {
         const user = userEvent.setup();
         const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-        // Mock axios.get mit Fehler
+        // Mock axios.get with error
         vi.spyOn(axios, 'get').mockRejectedValue(new Error('Network error'));
 
         const dataset = {
@@ -379,13 +379,13 @@ describe('OldDataset Authors Loading', () => {
             expect(routerGetMock).toHaveBeenCalled();
         });
 
-        // Prüfe, dass Fehler geloggt wurde
+        // Verify that error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
             'Error loading authors for dataset:',
             expect.any(Error)
         );
 
-        // Prüfe, dass Query trotzdem erstellt wurde (ohne Autoren)
+        // Verify that query was still created (without authors)
         const url = routerGetMock.mock.calls[0][0];
         expect(url).toContain('doi=10.1234%2Ferror');
         expect(url).not.toContain('authors%5B0%5D');

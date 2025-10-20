@@ -27,7 +27,7 @@ test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', ()
     });
 
     test('should have correct ARIA attributes (WCAG 4.1.2 Level A)', async ({ page }) => {
-        // Name, Role, Value - alle UI-Komponenten müssen korrekte ARIA-Attribute haben
+        // Name, Role, Value - all UI components must have correct ARIA attributes
         const firstButton = page.locator('#release-trigger-0');
         await expect(firstButton).toHaveAttribute('aria-expanded', 'true');
         await expect(firstButton).toHaveAttribute('aria-controls', 'release-0');
@@ -39,11 +39,11 @@ test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', ()
     });
 
     test('should have logical heading structure (WCAG 1.3.1 Level A)', async ({ page }) => {
-        // Info and Relationships - Überschriften-Hierarchie muss logisch sein
+        // Info and Relationships - heading hierarchy must be logical
         const h1 = page.getByRole('heading', { level: 1, name: 'Changelog' });
         await expect(h1).toBeVisible();
 
-        // Erste Version erweitern falls nötig
+        // Expand first version if needed
         const firstButton = page.locator('#release-trigger-0');
         const isExpanded = await firstButton.getAttribute('aria-expanded');
         
@@ -52,21 +52,21 @@ test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', ()
             await page.waitForTimeout(400);
         }
 
-        // Section headings prüfen
+        // Check section headings
         const sectionHeadings = page.locator('h3');
         const count = await sectionHeadings.count();
         expect(count).toBeGreaterThan(0);
     });
 
     test('should announce status changes to screen readers (WCAG 4.1.3 Level AA)', async ({ page }) => {
-        // Status Messages - dynamische Inhaltsänderungen müssen angekündigt werden
+        // Status Messages - dynamic content changes must be announced
         const liveRegion = page.locator('[role="status"][aria-live="polite"]');
         await expect(liveRegion).toBeAttached();
         await expect(liveRegion).toHaveAttribute('aria-atomic', 'true');
 
         const secondButton = page.locator('#release-trigger-1');
 
-        // Erweitern
+        // Expand
         await secondButton.click();
         await page.waitForTimeout(100);
 
@@ -82,7 +82,7 @@ test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', ()
     });
 
     test('should be fully keyboard accessible (WCAG 2.1.1 Level A)', async ({ page }) => {
-        // Keyboard - alle Funktionen müssen per Tastatur erreichbar sein
+        // Keyboard - all functions must be accessible via keyboard
         const firstButton = page.locator('#release-trigger-0');
         
         await firstButton.focus();
@@ -103,16 +103,16 @@ test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', ()
     });
 
     test('should have visible focus indicators (WCAG 2.4.7 Level AA)', async ({ page }) => {
-        // Focus Visible - Fokus muss immer sichtbar sein
+        // Focus Visible - focus must always be visible
         const firstButton = page.locator('#release-trigger-0');
         await firstButton.focus();
         
         await expect(firstButton).toBeFocused();
-        // Focus ring ist via CSS vorhanden (focus:ring-2)
+        // Focus ring is present via CSS (focus:ring-2)
     });
 
     test('should identify errors clearly (WCAG 3.3.1 Level A)', async ({ page }) => {
-        // Error Identification - Fehler müssen klar erkennbar sein
+        // Error Identification - errors must be clearly recognizable
         await page.route('**/api/changelog', (route) => {
             route.abort('failed');
         });
@@ -124,7 +124,7 @@ test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', ()
         await expect(errorAlert).toBeVisible();
         await expect(errorAlert).toHaveAttribute('aria-atomic', 'true');
 
-        // Überschrift für Fehler
+        // Heading for error
         const errorHeading = errorAlert.locator('h2');
         await expect(errorHeading).toBeVisible();
 
