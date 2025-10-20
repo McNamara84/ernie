@@ -86,10 +86,10 @@ export default function AuthorField({
         if (totalAfterAdd > MAX_AUTHORS) {
             const remaining = MAX_AUTHORS - authors.length;
             if (remaining > 0) {
-                alert(`Nur ${remaining} von ${newAuthors.length} Authors können hinzugefügt werden (Maximum: ${MAX_AUTHORS})`);
+                alert(`Only ${remaining} of ${newAuthors.length} authors can be added (Maximum: ${MAX_AUTHORS})`);
                 onChange([...authors, ...newAuthors.slice(0, remaining)]);
             } else {
-                alert(`Maximum von ${MAX_AUTHORS} Authors bereits erreicht.`);
+                alert(`Maximum of ${MAX_AUTHORS} authors already reached.`);
             }
         } else {
             onChange([...authors, ...newAuthors]);

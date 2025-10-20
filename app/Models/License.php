@@ -14,11 +14,20 @@ class License extends Model
     protected $fillable = [
         'identifier',
         'name',
+        'spdx_id',
+        'reference',
+        'details_url',
+        'is_deprecated_license_id',
+        'is_osi_approved',
+        'is_fsf_libre',
         'active',
         'elmo_active',
     ];
 
     protected $casts = [
+        'is_deprecated_license_id' => 'boolean',
+        'is_osi_approved' => 'boolean',
+        'is_fsf_libre' => 'boolean',
         'active' => 'boolean',
         'elmo_active' => 'boolean',
     ];

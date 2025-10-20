@@ -37,18 +37,21 @@ test.describe('XML Upload', () => {
     await page.waitForURL(/\/editor/, { timeout: 10000 });
 
     const currentUrl = page.url();
-    expect(currentUrl).toMatch(/doi=/);
+    // Test XML doesn't have DOI value, but should have year and authors
     expect(currentUrl).toMatch(/year=/);
+    expect(currentUrl).toMatch(/authors%5B/);
 
     // Validate URL parameters contain XML data
     const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
     
-    expect(urlParams.get('doi')).toMatch(/10\.82433/);
-    expect(urlParams.get('year')).toBe('2024');
+    expect(urlParams.get('year')).toBe('2009'); // Year from test XML
     expect(urlParams.get('resourceType')).toBeTruthy();
     
     const hasTitle = Array.from(urlParams.keys()).some(key => key.includes('titles'));
     expect(hasTitle).toBeTruthy();
+    
+    const hasAuthors = Array.from(urlParams.keys()).some(key => key.includes('authors'));
+    expect(hasAuthors).toBeTruthy();
   });
 
   test('handles invalid XML files gracefully', async ({ page }) => {

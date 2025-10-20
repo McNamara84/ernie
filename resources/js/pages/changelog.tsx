@@ -326,14 +326,14 @@ export default function Changelog() {
                     className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-950/20"
                 >
                     <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">
-                        Changelog konnte nicht geladen werden
+                        Failed to load changelog
                     </h2>
                     <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
                     <button 
                         onClick={() => window.location.reload()}
                         className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:bg-red-700 dark:hover:bg-red-800"
                     >
-                        Seite neu laden
+                        Reload page
                     </button>
                 </div>
             ) : (

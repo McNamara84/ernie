@@ -40,7 +40,15 @@ class SyncSpdxLicenses extends Command
         foreach ($licenses as $license) {
             License::updateOrCreate(
                 ['identifier' => $license['licenseId']],
-                ['name' => $license['name']]
+                [
+                    'name' => $license['name'],
+                    'spdx_id' => $license['licenseId'],
+                    'reference' => $license['reference'] ?? null,
+                    'details_url' => $license['detailsUrl'] ?? null,
+                    'is_deprecated_license_id' => $license['isDeprecatedLicenseId'] ?? false,
+                    'is_osi_approved' => $license['isOsiApproved'] ?? false,
+                    'is_fsf_libre' => $license['isFsfLibre'] ?? false,
+                ]
             );
         }
 

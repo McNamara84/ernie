@@ -138,11 +138,11 @@ describe('useFormValidation', () => {
                 });
             });
 
-            // Sofort nach dem Aufruf sollte der Status noch "idle" oder "validating" sein
+            // Immediately after call, status should still be "idle" or "validating"
             let fieldState = result.current.getFieldState('test');
             expect(fieldState.status).not.toBe('valid');
 
-            // Nach dem Debounce sollte die Validierung durchgeführt sein
+            // After debounce, validation should be completed
             act(() => {
                 vi.advanceTimersByTime(500);
             });

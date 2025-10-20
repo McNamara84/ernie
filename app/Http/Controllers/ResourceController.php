@@ -13,6 +13,7 @@ use App\Models\ResourceTitle;
 use App\Models\Role;
 use App\Models\TitleType;
 use App\Models\User;
+use App\Services\DataCiteJsonExporter;
 use App\Support\BooleanNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 
 class ResourceController extends Controller
@@ -524,13 +526,16 @@ class ResourceController extends Controller
 
         $person = Person::query()->firstOrNew($search);
 
-        $person->fill([
-            'first_name' => $data['firstName'] ?? $person->first_name,
-            'last_name' => $data['lastName'] ?? $person->last_name,
-        ]);
+        // Only update names if this is a new person (not yet saved to database)
+        if (! $person->exists) {
+            $person->fill([
+                'first_name' => $data['firstName'] ?? $person->first_name,
+                'last_name' => $data['lastName'] ?? $person->last_name,
+            ]);
 
-        if (! empty($data['orcid'])) {
-            $person->orcid = $data['orcid'];
+            if (! empty($data['orcid'])) {
+                $person->orcid = $data['orcid'];
+            }
         }
 
         $person->save();
@@ -688,13 +693,16 @@ class ResourceController extends Controller
 
         $person = Person::query()->firstOrNew($search);
 
-        $person->fill([
-            'first_name' => $data['firstName'] ?? $person->first_name,
-            'last_name' => $data['lastName'] ?? $person->last_name,
-        ]);
+        // Only update names if this is a new person (not yet saved to database)
+        if (! $person->exists) {
+            $person->fill([
+                'first_name' => $data['firstName'] ?? $person->first_name,
+                'last_name' => $data['lastName'] ?? $person->last_name,
+            ]);
 
-        if (! empty($data['orcid'])) {
-            $person->orcid = $data['orcid'];
+            if (! empty($data['orcid'])) {
+                $person->orcid = $data['orcid'];
+            }
         }
 
         $person->save();
@@ -1286,5 +1294,26 @@ class ResourceController extends Controller
                 ->all(),
             'first_author' => $firstAuthorData,
         ];
+    }
+
+    /**
+     * Export a resource as DataCite JSON
+     *
+     * @param Resource $resource
+     * @return SymfonyResponse
+     */
+    public function exportDataCiteJson(Resource $resource): SymfonyResponse
+    {
+        $exporter = new DataCiteJsonExporter();
+        $dataCiteJson = $exporter->export($resource);
+
+        // Generate filename with timestamp
+        $timestamp = now()->format('YmdHis');
+        $filename = "resource-{$resource->id}-{$timestamp}-datacite.json";
+
+        return response()->json($dataCiteJson, 200, [
+            'Content-Type' => 'application/json',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
 }
