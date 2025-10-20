@@ -1,9 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, FileJson, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+
+import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -91,7 +93,7 @@ const IDENTIFIER_COLUMN_HEADER_LABEL = (
         <span>DOI</span>
     </span>
 );
-const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-40 min-w-[10rem]';
+const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-48 min-w-[12rem]';
 
 const DEFAULT_SORT: ResourceSortState = { key: 'updated_at', direction: 'desc' };
 const SORT_PREFERENCE_STORAGE_KEY = 'resources.sort-preference';
@@ -476,6 +478,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     }, []);
 
     const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
+    const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -547,6 +550,98 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         }
     }, []);
 
+    const handleExportDataCiteXml = useCallback(async (resource: Resource) => {
+        if (!resource.id) {
+            toast.error('Cannot export resource without ID');
+            return;
+        }
+
+        // Mark resource as exporting
+        setExportingXmlResources(prev => new Set(prev).add(resource.id!));
+
+        try {
+            const response = await axios.get(
+                withBasePath(`/resources/${resource.id}/export-datacite-xml`),
+                {
+                    responseType: 'blob', // Important for file download
+                }
+            );
+
+            // Check for validation warning in headers
+            const validationWarning = response.headers['x-validation-warning'];
+            if (validationWarning) {
+                try {
+                    const warningMessage = atob(validationWarning);
+                    toast.warning('XML Validation Warning', {
+                        description: warningMessage,
+                        duration: 10000,
+                    });
+                } catch (e) {
+                    console.debug('Failed to decode validation warning:', e);
+                    toast.error('Backend Communication Error', {
+                        description: 'Failed to decode validation warning from server. The response format may be incorrect.',
+                        duration: 8000,
+                    });
+                }
+            }
+
+            // Create blob from response
+            const blob = new Blob([response.data], { type: 'application/xml' });
+            
+            // Get filename from Content-Disposition header or generate it
+            const contentDisposition = response.headers['content-disposition'] as string | undefined;
+            let filename = `resource-${resource.id}-datacite.xml`;
+            
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            // Create download link and trigger download
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            if (!validationWarning) {
+                toast.success('DataCite XML exported successfully');
+            } else {
+                toast.success('DataCite XML exported with validation warnings');
+            }
+        } catch (error) {
+            console.error('Failed to export DataCite XML:', error);
+            
+            let errorMessage = 'Failed to export DataCite XML';
+            if (isAxiosError(error) && error.response?.data) {
+                try {
+                    const errorBlob = error.response.data as Blob;
+                    const errorText = await errorBlob.text();
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch (e) {
+                    console.debug('Failed to parse error response:', e);
+                }
+            }
+            
+            toast.error(errorMessage);
+        } finally {
+            // Remove resource from exporting set
+            setExportingXmlResources(prev => {
+                const next = new Set(prev);
+                next.delete(resource.id!);
+                return next;
+            });
+        }
+    }, []);
+
     const sortedResources = resources;
 
     const resourceColumns: ResourceColumn[] = [
@@ -554,7 +649,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             key: 'id_doi',
             label: IDENTIFIER_COLUMN_HEADER_LABEL,
             widthClass: 'min-w-[12rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'id',
@@ -604,7 +699,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 </span>
             ),
             widthClass: TITLE_COLUMN_WIDTH_CLASSES,
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'title',
@@ -643,7 +738,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 </span>
             ),
             widthClass: 'min-w-[12rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'first_author',
@@ -690,7 +785,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 </span>
             ),
             widthClass: 'min-w-[10rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'curator',
@@ -720,7 +815,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             key: 'created_updated',
             label: DATE_COLUMN_HEADER_LABEL,
             widthClass: 'min-w-[9rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'created_at',
@@ -763,7 +858,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             {[...Array(5)].map((_, index) => (
                 <tr key={`skeleton-${index}`} className="animate-pulse">
                     {resourceColumns.map((column) => (
-                        <td key={column.key} className={`px-6 py-4 ${column.widthClass} ${column.cellClassName ?? ''}`}>
+                        <td key={column.key} className={`px-6 py-1.5 ${column.widthClass} ${column.cellClassName ?? ''}`}>
                             {column.key === 'id_doi' ? (
                                 <div className="flex flex-col gap-2">
                                     <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -779,11 +874,16 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             )}
                         </td>
                     ))}
-                    <td className={`px-6 py-4 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                        <div className="flex items-center gap-1">
-                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                    <td className={`px-6 py-1.5 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                        <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -949,47 +1049,62 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                         {resourceColumns.map((column) => (
                                                             <td
                                                                 key={column.key}
-                                                                className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                                className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
                                                             >
                                                                 {column.render
                                                                     ? column.render(resource)
                                                                     : formatValue(column.key, resource[column.key])}
                                                             </td>
                                                         ))}
-                                                        <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                                                            <div className="flex items-center gap-1">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleOpenInEditor(resource)}
-                                                                    aria-label={`Open resource ${resourceLabel} in editor form`}
-                                                                    title={`Open resource ${resourceLabel} in editor form`}
-                                                                >
-                                                                    <PencilLine aria-hidden="true" className="size-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleExportDataCiteJson(resource)}
-                                                                    disabled={exportingResources.has(resource.id ?? 0)}
-                                                                    aria-label={`Export resource ${resourceLabel} as DataCite JSON`}
-                                                                    title={`Export resource ${resourceLabel} as DataCite JSON`}
-                                                                >
-                                                                    <FileJson aria-hidden="true" className="size-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    disabled
-                                                                    aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
-                                                                    title="Delete resource (not yet implemented)"
-                                                                    className="opacity-40 cursor-not-allowed"
-                                                                >
-                                                                    <Trash2 aria-hidden="true" className="size-4" />
-                                                                </Button>
+                                                        <td className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleOpenInEditor(resource)}
+                                                                        aria-label={`Open resource ${resourceLabel} in editor form`}
+                                                                        title={`Open resource ${resourceLabel} in editor form`}
+                                                                    >
+                                                                        <PencilLine aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        disabled
+                                                                        aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
+                                                                        title="Delete resource (not yet implemented)"
+                                                                        className="opacity-40 cursor-not-allowed"
+                                                                    >
+                                                                        <Trash2 aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleExportDataCiteJson(resource)}
+                                                                        disabled={exportingResources.has(resource.id ?? 0)}
+                                                                        aria-label={`Export resource ${resourceLabel} as DataCite JSON`}
+                                                                        title={`Export as DataCite JSON`}
+                                                                    >
+                                                                        <FileJsonIcon aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleExportDataCiteXml(resource)}
+                                                                        disabled={exportingXmlResources.has(resource.id ?? 0)}
+                                                                        aria-label={`Export resource ${resourceLabel} as DataCite XML`}
+                                                                        title={`Export as DataCite XML`}
+                                                                    >
+                                                                        <FileXmlIcon aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                         </td>
                                                     </tr>

@@ -14,11 +14,14 @@ use App\Models\Role;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteXmlExporter;
+use App\Services\DataCiteXmlValidator;
 use App\Support\BooleanNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -1315,5 +1318,61 @@ class ResourceController extends Controller
             'Content-Type' => 'application/json',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Export a resource as DataCite XML
+     *
+     * @param Resource $resource
+     * @return SymfonyResponse
+     */
+    public function exportDataCiteXml(Resource $resource): SymfonyResponse
+    {
+        try {
+            // Generate XML
+            $exporter = new DataCiteXmlExporter();
+            $xml = $exporter->export($resource);
+
+            // Validate against XSD schema
+            $validator = new DataCiteXmlValidator();
+            $isValid = $validator->validate($xml);
+
+            // Generate filename with timestamp
+            $timestamp = now()->format('YmdHis');
+            $filename = "resource-{$resource->id}-{$timestamp}-datacite.xml";
+
+            $headers = [
+                'Content-Type' => 'application/xml',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ];
+
+            // Add validation warning header if validation failed
+            if (!$isValid && $validator->hasWarnings()) {
+                $warningMessage = $validator->getFormattedWarningMessage();
+                if ($warningMessage) {
+                    $headers['X-Validation-Warning'] = base64_encode($warningMessage);
+                }
+            }
+
+            return response($xml, 200, $headers);
+
+        } catch (\Exception $e) {
+            // Log full exception details for debugging
+            Log::error('DataCite XML export failed', [
+                'resource_id' => $resource->id,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Return generic error message in production, detailed in development
+            $message = config('app.debug')
+                ? $e->getMessage()
+                : 'An error occurred while generating the XML export. Please contact support if the problem persists.';
+
+            return response()->json([
+                'error' => 'Failed to export DataCite XML',
+                'message' => $message,
+            ], 500);
+        }
     }
 }
