@@ -55,6 +55,39 @@ const intersectionObserverHandlers = {
     takeRecords: () => [] as IntersectionObserverEntry[],
 };
 
+class GlobalMockIntersectionObserver implements IntersectionObserver {
+    readonly root: Element | Document | null = null;
+    readonly rootMargin = '';
+    readonly thresholds: ReadonlyArray<number> = [];
+
+    constructor(_callback: IntersectionObserverCallback) {
+        // Callback nicht verwendet, da wir keine IntersectionObserver-Tests mehr haben
+    }
+
+    observe(target: Element): void {
+        intersectionObserverHandlers.observe(target);
+    }
+
+    disconnect(): void {
+        intersectionObserverHandlers.disconnect();
+    }
+
+    unobserve(target: Element): void {
+        intersectionObserverHandlers.unobserve(target);
+    }
+
+    takeRecords(): IntersectionObserverEntry[] {
+        return intersectionObserverHandlers.takeRecords();
+    }
+}
+
+// Set the mock IntersectionObserver for this test suite
+const mockObserver = GlobalMockIntersectionObserver as unknown as typeof IntersectionObserver;
+(globalThis as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = mockObserver;
+if (typeof window !== 'undefined') {
+    (window as unknown as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = mockObserver;
+}
+
 describe('OldDatasets page', () => {
     let observeSpy: ReturnType<typeof vi.fn>;
     let disconnectSpy: ReturnType<typeof vi.fn>;
