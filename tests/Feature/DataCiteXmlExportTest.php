@@ -132,9 +132,14 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         $xml = $response->getContent();
 
         // Validate it's proper XML
+        libxml_use_internal_errors(true);
         $dom = new DOMDocument();
-        $loaded = @$dom->loadXML($xml);
-        expect($loaded)->toBeTrue();
+        $loaded = $dom->loadXML($xml);
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
+        
+        expect($loaded)->toBeTrue()
+            ->and($errors)->toBeEmpty('XML should not have parsing errors');
 
         // Check required DataCite elements
         expect($xml)->toContain('<?xml version="1.0" encoding="UTF-8"?>')
@@ -268,9 +273,14 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
             ->and($xml)->toContain('&gt;');
 
         // Should be valid XML
+        libxml_use_internal_errors(true);
         $dom = new DOMDocument();
-        $loaded = @$dom->loadXML($xml);
-        expect($loaded)->toBeTrue();
+        $loaded = $dom->loadXML($xml);
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
+        
+        expect($loaded)->toBeTrue()
+            ->and($errors)->toBeEmpty('XML should not have parsing errors');
     });
 
     test('validates against DataCite schema', function () {
@@ -307,12 +317,12 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         
         // Note: This test may fail if the online schema is not accessible
         // or if there are validation warnings (which are allowed)
-        $result = @$dom->schemaValidate('https://schema.datacite.org/meta/kernel-4.6/metadata.xsd');
+        $result = $dom->schemaValidate('https://schema.datacite.org/meta/kernel-4.6/metadata.xsd');
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
         
         // We expect either true or validation warnings (but still valid XML)
         expect($dom->documentElement)->not->toBeNull();
-        
-        libxml_clear_errors();
     });
 
     test('exports different resources with unique content', function () {

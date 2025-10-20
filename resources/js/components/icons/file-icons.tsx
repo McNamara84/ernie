@@ -1,7 +1,7 @@
 import type { SVGProps } from 'react';
 
 /**
- * Custom JSON file icon with "JSON" label
+ * Custom JSON file icon with curly braces symbol
  * Based on lucide-react File icon style
  */
 export function FileJsonIcon(props: SVGProps<SVGSVGElement>) {
@@ -22,24 +22,17 @@ export function FileJsonIcon(props: SVGProps<SVGSVGElement>) {
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
             <polyline points="14 2 14 8 20 8" />
             
-            {/* JSON text */}
-            <text
-                x="12"
-                y="16"
-                fontSize="5"
-                fontWeight="bold"
-                textAnchor="middle"
-                fill="currentColor"
-                stroke="none"
-            >
-                JSON
-            </text>
+            {/* Curly braces symbol for JSON */}
+            <path
+                d="M10 11.5c-1 0-1.5-.5-1.5-1.5V9c0-.5-.5-1-1-1M10 16.5c-1 0-1.5.5-1.5 1.5v1c0 .5-.5 1-1 1M14 11.5c1 0 1.5-.5 1.5-1.5V9c0-.5.5-1 1-1M14 16.5c1 0 1.5.5 1.5 1.5v1c0 .5.5 1 1 1"
+                strokeWidth="1.5"
+            />
         </svg>
     );
 }
 
 /**
- * Custom XML file icon with "XML" label
+ * Custom XML file icon with angle brackets symbol
  * Based on lucide-react File icon style
  */
 export function FileXmlIcon(props: SVGProps<SVGSVGElement>) {
@@ -60,18 +53,10 @@ export function FileXmlIcon(props: SVGProps<SVGSVGElement>) {
             <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
             <polyline points="14 2 14 8 20 8" />
             
-            {/* XML text */}
-            <text
-                x="12"
-                y="16"
-                fontSize="5"
-                fontWeight="bold"
-                textAnchor="middle"
-                fill="currentColor"
-                stroke="none"
-            >
-                XML
-            </text>
+            {/* Angle brackets symbol for XML */}
+            <polyline points="10 11 7.5 14 10 17" strokeWidth="1.5" />
+            <polyline points="14 11 16.5 14 14 17" strokeWidth="1.5" />
         </svg>
     );
 }
+

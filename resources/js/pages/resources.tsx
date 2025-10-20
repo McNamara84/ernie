@@ -576,8 +576,8 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                         description: warningMessage,
                         duration: 10000,
                     });
-                } catch {
-                    // Ignore base64 decode errors
+                } catch (e) {
+                    console.debug('Failed to decode validation warning:', e);
                 }
             }
 
@@ -622,8 +622,8 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     const errorText = await errorBlob.text();
                     const errorData = JSON.parse(errorText);
                     errorMessage = errorData.message || errorMessage;
-                } catch {
-                    // Ignore parsing errors
+                } catch (e) {
+                    console.debug('Failed to parse error response:', e);
                 }
             }
             
