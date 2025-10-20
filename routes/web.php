@@ -165,95 +165,140 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             $licenses = $resource->licenses->pluck('identifier')->toArray();
 
-            // Transform authors
-            $authors = $resource->authors
+            // Group ResourceAuthor entries by their authorable (Person/Institution)
+            // to handle cases where same person has multiple ResourceAuthor records
+            // (e.g., one with 'author' role and one with 'contact-person' role)
+            $authorableGroups = $resource->authors
                 ->filter(function ($author) {
-                    // Filter out MSL laboratories (institutions with identifier_type = 'labid')
+                    // Filter out MSL laboratories
                     if ($author->authorable_type === \App\Models\Institution::class) {
                         $institution = $author->authorable;
                         return $institution && $institution->identifier_type !== 'labid';
                     }
                     return true;
                 })
-                ->map(function ($author) {
-                    $data = [
-                        'position' => $author->position,
-                        'isContact' => $author->roles->contains('slug', 'contact-person'),
-                    ];
+                ->groupBy(function ($author) {
+                    return $author->authorable_type . '_' . $author->authorable_id;
+                });
 
-                    if ($author->authorable_type === \App\Models\Person::class) {
-                        $person = $author->authorable;
-                        $data['type'] = 'person';
-                        $data['firstName'] = $person->first_name ?? '';
-                        $data['lastName'] = $person->last_name ?? '';
-                        $data['orcid'] = $person->orcid ?? '';
-                        $data['email'] = $author->email ?? '';
-                        $data['website'] = $author->website ?? '';
-                    } elseif ($author->authorable_type === \App\Models\Institution::class) {
-                        $institution = $author->authorable;
-                        $data['type'] = 'institution';
-                        $data['institutionName'] = $institution->name ?? '';
-                        $data['rorId'] = $institution->ror_id ?? '';
-                    }
+            // Transform authors (those with 'author' role)
+            $authors = [];
+            $contributors = [];
 
-                    // Add affiliations
-                    $data['affiliations'] = $author->affiliations->map(function ($affiliation) {
-                        return [
-                            'value' => $affiliation->value,
-                            'rorId' => $affiliation->ror_id,
-                        ];
-                    })->toArray();
+            foreach ($authorableGroups as $group) {
+                // Check if this group has the 'author' role
+                $hasAuthorRole = $group->some(function ($author) {
+                    return $author->roles->contains('slug', 'author');
+                });
 
-                    return $data;
-                })
-                ->values()
-                ->toArray();
-
-            // Transform contributors (authors with roles other than 'Author' and 'Contact Person')
-            $contributors = $resource->authors
-                ->filter(function ($author) {
-                    // Only include authors with roles other than Author/Contact Person
+                // Check if this group has only non-author roles (contributor roles)
+                $hasOnlyContributorRoles = $group->every(function ($author) {
                     $roles = $author->roles->pluck('slug')->toArray();
-                    $hasOtherRoles = !empty(array_diff($roles, ['author', 'contact-person']));
-                    return $hasOtherRoles;
-                })
-                ->map(function ($author) {
+                    return empty(array_intersect($roles, ['author', 'contact-person']));
+                });
+
+                // Get the first entry to extract basic info
+                $firstEntry = $group->first();
+                $authorable = $firstEntry->authorable;
+
+                // Check if this is a contact person
+                $isContact = $group->some(function ($author) {
+                    return $author->roles->contains('slug', 'contact-person');
+                });
+
+                // Collect all unique affiliations from all entries of this authorable
+                $allAffiliations = $group->flatMap(function ($author) {
+                    return $author->affiliations;
+                })->unique(function ($affiliation) {
+                    // Unique by value and ror_id combination
+                    return $affiliation->value . '|' . ($affiliation->ror_id ?? 'null');
+                });
+
+                if ($hasAuthorRole) {
+                    // This is an author
                     $data = [
-                        'position' => $author->position,
+                        'position' => $firstEntry->position,
+                        'isContact' => $isContact,
                     ];
 
-                    if ($author->authorable_type === \App\Models\Person::class) {
-                        $person = $author->authorable;
+                    if ($firstEntry->authorable_type === \App\Models\Person::class) {
                         $data['type'] = 'person';
-                        $data['firstName'] = $person->first_name ?? '';
-                        $data['lastName'] = $person->last_name ?? '';
-                        $data['orcid'] = $person->orcid ?? '';
-                    } elseif ($author->authorable_type === \App\Models\Institution::class) {
-                        $institution = $author->authorable;
+                        $data['firstName'] = $authorable->first_name ?? '';
+                        $data['lastName'] = $authorable->last_name ?? '';
+                        $data['orcid'] = $authorable->orcid ?? '';
+                        $data['email'] = $firstEntry->email ?? '';
+                        $data['website'] = $firstEntry->website ?? '';
+                        
+                        // Mark ORCID as verified if it exists (to prevent re-verification)
+                        if (!empty($authorable->orcid)) {
+                            $data['orcidVerified'] = true;
+                            $data['orcidVerifiedAt'] = $authorable->updated_at?->toIso8601String() ?? now()->toIso8601String();
+                        }
+                    } elseif ($firstEntry->authorable_type === \App\Models\Institution::class) {
                         $data['type'] = 'institution';
-                        $data['institutionName'] = $institution->name ?? '';
-                        $data['identifier'] = $institution->identifier ?? '';
-                        $data['identifierType'] = $institution->identifier_type ?? '';
+                        $data['institutionName'] = $authorable->name ?? '';
+                        $data['rorId'] = $authorable->ror_id ?? '';
                     }
 
-                    // Add roles (excluding Author and Contact Person)
-                    $data['roles'] = $author->roles
-                        ->filter(fn($role) => !in_array($role->slug, ['author', 'contact-person']))
-                        ->pluck('name')
-                        ->toArray();
-
-                    // Add affiliations
-                    $data['affiliations'] = $author->affiliations->map(function ($affiliation) {
+                    // Add unique affiliations
+                    $data['affiliations'] = $allAffiliations->map(function ($affiliation) {
                         return [
                             'value' => $affiliation->value,
                             'rorId' => $affiliation->ror_id,
                         ];
-                    })->toArray();
+                    })->values()->toArray();
 
-                    return $data;
-                })
-                ->values()
-                ->toArray();
+                    $authors[] = $data;
+                } elseif ($hasOnlyContributorRoles) {
+                    // This is a contributor (no 'author' role)
+                    $data = [
+                        'position' => $firstEntry->position,
+                    ];
+
+                    if ($firstEntry->authorable_type === \App\Models\Person::class) {
+                        $data['type'] = 'person';
+                        $data['firstName'] = $authorable->first_name ?? '';
+                        $data['lastName'] = $authorable->last_name ?? '';
+                        $data['orcid'] = $authorable->orcid ?? '';
+                        
+                        // Mark ORCID as verified if it exists (to prevent re-verification)
+                        if (!empty($authorable->orcid)) {
+                            $data['orcidVerified'] = true;
+                            $data['orcidVerifiedAt'] = $authorable->updated_at?->toIso8601String() ?? now()->toIso8601String();
+                        }
+                    } elseif ($firstEntry->authorable_type === \App\Models\Institution::class) {
+                        $data['type'] = 'institution';
+                        $data['institutionName'] = $authorable->name ?? '';
+                        $data['identifier'] = $authorable->identifier ?? '';
+                        $data['identifierType'] = $authorable->identifier_type ?? '';
+                    }
+
+                    // Collect all unique roles from all entries, excluding author/contact-person
+                    $allRoles = $group->flatMap(function ($author) {
+                        return $author->roles;
+                    })->unique('id')
+                    ->filter(fn($role) => !in_array($role->slug, ['author', 'contact-person']))
+                    ->pluck('name')
+                    ->values()
+                    ->toArray();
+
+                    $data['roles'] = $allRoles;
+
+                    // Add unique affiliations
+                    $data['affiliations'] = $allAffiliations->map(function ($affiliation) {
+                        return [
+                            'value' => $affiliation->value,
+                            'rorId' => $affiliation->ror_id,
+                        ];
+                    })->values()->toArray();
+
+                    $contributors[] = $data;
+                }
+            }
+
+            // Sort by position
+            usort($authors, fn($a, $b) => $a['position'] <=> $b['position']);
+            usort($contributors, fn($a, $b) => $a['position'] <=> $b['position']);
 
             // Transform descriptions
             $descriptions = $resource->descriptions->map(function ($description) {
