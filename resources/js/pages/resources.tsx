@@ -1049,7 +1049,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                         {resourceColumns.map((column) => (
                                                             <td
                                                                 key={column.key}
-                                                                className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 align-middle ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                                className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
                                                             >
                                                                 {column.render
                                                                     ? column.render(resource)

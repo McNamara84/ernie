@@ -161,6 +161,7 @@ class DataCiteXmlValidator
             $message .= "\n- " . $warning;
         }
         
+        
         if ($count > 3) {
             $message .= "\n... and " . ($count - 3) . " more warning(s).";
         }
