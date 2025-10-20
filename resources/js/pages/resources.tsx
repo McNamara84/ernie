@@ -649,7 +649,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             key: 'id_doi',
             label: IDENTIFIER_COLUMN_HEADER_LABEL,
             widthClass: 'min-w-[12rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'id',
@@ -699,7 +699,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 </span>
             ),
             widthClass: TITLE_COLUMN_WIDTH_CLASSES,
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'title',
@@ -738,7 +738,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 </span>
             ),
             widthClass: 'min-w-[12rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'first_author',
@@ -785,7 +785,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 </span>
             ),
             widthClass: 'min-w-[10rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'curator',
@@ -815,7 +815,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             key: 'created_updated',
             label: DATE_COLUMN_HEADER_LABEL,
             widthClass: 'min-w-[9rem]',
-            cellClassName: 'whitespace-normal align-top',
+            cellClassName: 'whitespace-normal align-middle',
             sortOptions: [
                 {
                     key: 'created_at',
@@ -858,7 +858,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             {[...Array(5)].map((_, index) => (
                 <tr key={`skeleton-${index}`} className="animate-pulse">
                     {resourceColumns.map((column) => (
-                        <td key={column.key} className={`px-6 py-4 ${column.widthClass} ${column.cellClassName ?? ''}`}>
+                        <td key={column.key} className={`px-6 py-1.5 ${column.widthClass} ${column.cellClassName ?? ''}`}>
                             {column.key === 'id_doi' ? (
                                 <div className="flex flex-col gap-2">
                                     <div className="h-4 w-10 rounded bg-gray-200 dark:bg-gray-700"></div>
@@ -874,8 +874,8 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             )}
                         </td>
                     ))}
-                    <td className={`px-6 py-4 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                        <div className="flex flex-col gap-1">
+                    <td className={`px-6 py-1.5 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                        <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-1">
                                 <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
                                 <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
@@ -1049,15 +1049,15 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                         {resourceColumns.map((column) => (
                                                             <td
                                                                 key={column.key}
-                                                                className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                                className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 align-middle ${column.widthClass} ${column.cellClassName ?? ''}`}
                                                             >
                                                                 {column.render
                                                                     ? column.render(resource)
                                                                     : formatValue(column.key, resource[column.key])}
                                                             </td>
                                                         ))}
-                                                        <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                                                            <div className="flex flex-col gap-1">
+                                                        <td className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                                                            <div className="flex flex-col gap-0.5">
                                                                 <div className="flex items-center gap-1">
                                                                     <Button
                                                                         type="button"

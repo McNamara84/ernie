@@ -1,8 +1,8 @@
 import type { SVGProps } from 'react';
 
 /**
- * Custom JSON file icon with curly braces symbol
- * Based on lucide-react File icon style
+ * JSON file icon from Bootstrap Icons
+ * https://icons.getbootstrap.com/icons/filetype-json/
  */
 export function FileJsonIcon(props: SVGProps<SVGSVGElement>) {
     return (
@@ -10,30 +10,21 @@ export function FileJsonIcon(props: SVGProps<SVGSVGElement>) {
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            viewBox="0 0 16 16"
+            fill="currentColor"
             {...props}
         >
-            {/* File outline */}
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-            
-            {/* Curly braces symbol for JSON */}
             <path
-                d="M10 11.5c-1 0-1.5-.5-1.5-1.5V9c0-.5-.5-1-1-1M10 16.5c-1 0-1.5.5-1.5 1.5v1c0 .5-.5 1-1 1M14 11.5c1 0 1.5-.5 1.5-1.5V9c0-.5.5-1 1-1M14 16.5c1 0 1.5.5 1.5 1.5v1c0 .5.5 1 1 1"
-                strokeWidth="1.5"
+                fillRule="evenodd"
+                d="M14 4.5V11h-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM4.151 15.29a1.2 1.2 0 0 1-.111-.449h.764a.58.58 0 0 0 .255.384q.105.073.25.114.142.041.319.041.245 0 .413-.07a.56.56 0 0 0 .255-.193.5.5 0 0 0 .084-.29.39.39 0 0 0-.152-.326q-.152-.12-.463-.193l-.618-.143a1.7 1.7 0 0 1-.539-.214 1 1 0 0 1-.352-.367 1.1 1.1 0 0 1-.123-.524q0-.366.19-.639.192-.272.528-.422.337-.15.777-.149.456 0 .779.152.326.153.5.41.18.255.2.566h-.75a.56.56 0 0 0-.12-.258.6.6 0 0 0-.246-.181.9.9 0 0 0-.37-.068q-.324 0-.512.152a.47.47 0 0 0-.185.384q0 .18.144.3a1 1 0 0 0 .404.175l.621.143q.326.075.566.211a1 1 0 0 1 .375.358q.135.222.135.56 0 .37-.188.656a1.2 1.2 0 0 1-.539.439q-.351.158-.858.158-.381 0-.665-.09a1.4 1.4 0 0 1-.478-.252 1.1 1.1 0 0 1-.29-.375m-3.104-.033a1.3 1.3 0 0 1-.082-.466h.764a.6.6 0 0 0 .074.27.5.5 0 0 0 .454.246q.285 0 .422-.164.137-.165.137-.466v-2.745h.791v2.725q0 .66-.357 1.005-.355.345-.985.345a1.6 1.6 0 0 1-.568-.094 1.15 1.15 0 0 1-.407-.266 1.1 1.1 0 0 1-.243-.39m9.091-1.585v.522q0 .384-.117.641a.86.86 0 0 1-.322.387.9.9 0 0 1-.47.126.9.9 0 0 1-.47-.126.87.87 0 0 1-.32-.387 1.55 1.55 0 0 1-.117-.641v-.522q0-.386.117-.641a.87.87 0 0 1 .32-.387.87.87 0 0 1 .47-.129q.265 0 .47.129a.86.86 0 0 1 .322.387q.117.255.117.641m.803.519v-.513q0-.565-.205-.973a1.46 1.46 0 0 0-.59-.63q-.38-.22-.916-.22-.534 0-.92.22a1.44 1.44 0 0 0-.589.628q-.205.407-.205.975v.513q0 .562.205.973.205.407.589.626.386.217.92.217.536 0 .917-.217.384-.22.589-.626.204-.41.205-.973m1.29-.935v2.675h-.746v-3.999h.662l1.752 2.66h.032v-2.66h.75v4h-.656l-1.761-2.676z"
             />
         </svg>
     );
 }
 
 /**
- * Custom XML file icon with angle brackets symbol
- * Based on lucide-react File icon style
+ * XML file icon from Bootstrap Icons
+ * https://icons.getbootstrap.com/icons/filetype-xml/
  */
 export function FileXmlIcon(props: SVGProps<SVGSVGElement>) {
     return (
@@ -41,22 +32,16 @@ export function FileXmlIcon(props: SVGProps<SVGSVGElement>) {
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            viewBox="0 0 16 16"
+            fill="currentColor"
             {...props}
         >
-            {/* File outline */}
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-            
-            {/* Angle brackets symbol for XML */}
-            <polyline points="10 11 7.5 14 10 17" strokeWidth="1.5" />
-            <polyline points="14 11 16.5 14 14 17" strokeWidth="1.5" />
+            <path
+                fillRule="evenodd"
+                d="M14 4.5V14a2 2 0 0 1-2 2v-1a1 1 0 0 0 1-1V4.5h-2A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v9H2V2a2 2 0 0 1 2-2h5.5zM3.527 11.85h-.893l-.823 1.439h-.036L.943 11.85H.012l1.227 1.983L0 15.85h.861l.853-1.415h.035l.85 1.415h.908l-1.254-1.992zm.954 3.999v-2.66h.038l.952 2.159h.516l.946-2.16h.038v2.661h.715V11.85h-.8l-1.14 2.596h-.025L4.58 11.85h-.806v3.999zm4.71-.674h1.696v.674H8.4V11.85h.791z"
+            />
         </svg>
     );
 }
+
 
