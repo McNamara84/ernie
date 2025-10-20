@@ -113,7 +113,13 @@ class DataCiteXmlExporter
         $this->buildGeoLocations($resource);
         $this->buildFundingReferences($resource);
 
-        return $this->dom->saveXML();
+        $xml = $this->dom->saveXML();
+        
+        if ($xml === false) {
+            throw new \RuntimeException('Failed to generate XML from DOM document');
+        }
+        
+        return $xml;
     }
 
     /**
