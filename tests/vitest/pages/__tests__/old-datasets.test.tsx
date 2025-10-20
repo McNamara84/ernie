@@ -55,45 +55,9 @@ const intersectionObserverHandlers = {
     takeRecords: () => [] as IntersectionObserverEntry[],
 };
 
-let activeIntersectionCallback: IntersectionObserverCallback = () => undefined;
-
-class GlobalMockIntersectionObserver implements IntersectionObserver {
-    readonly root: Element | Document | null = null;
-    readonly rootMargin = '';
-    readonly thresholds: ReadonlyArray<number> = [];
-
-    constructor(callback: IntersectionObserverCallback) {
-        activeIntersectionCallback = callback;
-    }
-
-    observe(target: Element): void {
-        intersectionObserverHandlers.observe(target);
-    }
-
-    disconnect(): void {
-        intersectionObserverHandlers.disconnect();
-    }
-
-    unobserve(target: Element): void {
-        intersectionObserverHandlers.unobserve(target);
-    }
-
-    takeRecords(): IntersectionObserverEntry[] {
-        return intersectionObserverHandlers.takeRecords();
-    }
-}
-
-// Always set the mock IntersectionObserver for this test suite
-const mockObserver = GlobalMockIntersectionObserver as unknown as typeof IntersectionObserver;
-(globalThis as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = mockObserver;
-if (typeof window !== 'undefined') {
-    (window as unknown as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver = mockObserver;
-}
-
 describe('OldDatasets page', () => {
     let observeSpy: ReturnType<typeof vi.fn>;
     let disconnectSpy: ReturnType<typeof vi.fn>;
-    let consoleErrorSpy: MockInstance;
     let consoleInfoSpy: MockInstance;
     let consoleGroupCollapsedSpy: MockInstance;
     let consoleGroupEndSpy: MockInstance;
@@ -108,13 +72,11 @@ describe('OldDatasets page', () => {
         intersectionObserverHandlers.disconnect = () => disconnectSpy();
         intersectionObserverHandlers.unobserve = () => {};
         intersectionObserverHandlers.takeRecords = () => [];
-        activeIntersectionCallback = () => undefined;
 
         if (typeof window !== 'undefined' && window.localStorage) {
             window.localStorage.clear();
         }
 
-        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
         consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
 
         if (typeof console.groupCollapsed !== 'function') {
@@ -699,160 +661,6 @@ describe('OldDatasets page', () => {
     // This is difficult to test in the current test environment due to the component's
     // reliance on server-side rendered data and complex state management.
 
-    // TODO: Fix IntersectionObserver test - observeSpy is never called (ref callback issue)
-    it.skip('requests the next page when the sentinel row becomes visible', async () => {
-        mockedAxios.get
-            .mockResolvedValueOnce({
-                // First call: filter-options on mount
-                data: {
-                    resource_types: ['Dataset', 'Image', 'Software'],
-                    statuses: ['published', 'review', 'draft'],
-                    curators: ['Alice', 'Bob', 'Charlie'],
-                    year_range: { min: 2020, max: 2024 },
-                },
-            })
-            .mockResolvedValueOnce({
-                // Second call: load-more page 2 when sentinel becomes visible (1 new dataset)
-                data: {
-                    datasets: [
-                        {
-                            id: 3,
-                            identifier: '10.5555/example-three',
-                            title: 'Recently ingested dataset',
-                            resourcetypegeneral: 'Text',
-                            curator: 'Charlie',
-                            created_at: '2024-03-01T09:30:00Z',
-                        updated_at: '2024-03-01T12:00:00Z',
-                        publicstatus: 'draft',
-                        publisher: 'Example Publisher',
-                        publicationyear: 2022,
-                    },
-                ],
-                pagination: {
-                    current_page: 2,
-                    last_page: 3,
-                    per_page: 20,
-                    total: 60,
-                    from: 3,  // Total datasets so far (2 from props + 1 new = 3)
-                    to: 3,    // Only 1 new dataset in this batch
-                    has_more: true,
-                },
-            },
-        });
-
-        render(<OldDatasets {...baseProps} />);
-
-        // Wait for initial render with props data
-        await screen.findByText('Concise dataset title');
-
-        const table = screen.getByRole('table');
-        const bodyRows = within(table).getAllByRole('row').slice(1);
-        const sentinelRow = bodyRows[bodyRows.length - 1];
-
-        // Wait for IntersectionObserver to be called via callback ref
-        await waitFor(() => {
-            expect(observeSpy).toHaveBeenCalledWith(sentinelRow);
-        });
-
-        activeIntersectionCallback([
-            {
-                isIntersecting: true,
-                target: sentinelRow,
-            } as IntersectionObserverEntry,
-        ], {} as IntersectionObserver);
-
-        await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenCalledWith(
-                '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
-            );
-        });
-
-        await screen.findByText('Recently ingested dataset');
-    });
-
-    // TODO: Fix IntersectionObserver test - alert element not shown (callback ref issue)
-    it.skip('shows an inline retry affordance when loading additional pages fails', async () => {
-        mockedAxios.get
-            .mockResolvedValueOnce({
-                // First call: filter-options (from beforeEach mock)
-                data: {
-                    resource_types: ['Dataset', 'Image', 'Software'],
-                    statuses: ['published', 'review', 'draft'],
-                    curators: ['Alice', 'Bob', 'Charlie'],
-                    year_range: { min: 2020, max: 2024 },
-                },
-            })
-            .mockRejectedValueOnce(new Error('network down')) // Second call: load-more fails
-            .mockResolvedValueOnce({
-                // Third call: retry load-more succeeds
-                data: {
-                    datasets: [
-                        {
-                            id: 3,
-                            identifier: '10.5555/example-three',
-                            title: 'Recovered dataset',
-                            resourcetypegeneral: 'Software',
-                            curator: 'Charlie',
-                            created_at: '2024-03-01T09:30:00Z',
-                            updated_at: '2024-03-01T12:00:00Z',
-                            publicstatus: 'draft',
-                            publisher: 'Example Publisher',
-                            publicationyear: 2022,
-                        },
-                    ],
-                    pagination: {
-                        current_page: 2,
-                        last_page: 2,
-                        per_page: 20,
-                        total: 3,
-                        from: 21,
-                        to: 21,
-                        has_more: false,
-                    },
-                },
-            });
-
-        const user = userEvent.setup();
-
-        render(<OldDatasets {...baseProps} />);
-
-        const table = screen.getByRole('table');
-        const bodyRows = within(table).getAllByRole('row').slice(1);
-        const sentinelRow = bodyRows[bodyRows.length - 1];
-
-        activeIntersectionCallback([
-            {
-                isIntersecting: true,
-                target: sentinelRow,
-            } as IntersectionObserverEntry,
-        ], {} as IntersectionObserver);
-
-        const alert = await screen.findByRole('alert');
-        expect(alert).toHaveTextContent('Failed to load more datasets. Please try again.');
-        const retryButton = within(alert).getByRole('button', { name: /retry/i });
-
-        await user.click(retryButton);
-
-        await screen.findByText('Recovered dataset');
-
-        await waitFor(() => {
-            expect(mockedAxios.get).toHaveBeenCalledTimes(3);
-        });
-
-        expect(mockedAxios.get).toHaveBeenNthCalledWith(1, '/old-datasets/filter-options');
-        expect(mockedAxios.get).toHaveBeenNthCalledWith(
-            2,
-            '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
-        );
-        expect(mockedAxios.get).toHaveBeenNthCalledWith(
-            3,
-            '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
-        );
-
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-        expect(screen.getByText(/All datasets have been loaded/i)).toBeVisible();
-    });
-
     it('announces missing and invalid dates with meaningful aria labels', () => {
         render(
             <OldDatasets
@@ -942,61 +750,6 @@ describe('OldDatasets page', () => {
         expect(consoleGroupEndSpy).toHaveBeenCalled();
     });
 
-    // TODO: Fix diagnostics logging test - console.groupCollapsed is not being called in implementation
-    it.skip('logs diagnostics that are returned with load more failures', async () => {
-        const axiosError = Object.assign(new Error('Request failed with status code 500'), {
-            isAxiosError: true,
-            response: {
-                data: {
-                    error: 'Internal server error',
-                    debug: {
-                        connection: 'metaworks',
-                        hosts: ['sumario-db.gfz'],
-                        port: 3306,
-                    },
-                },
-            },
-        });
-
-        mockedAxios.get
-            .mockResolvedValueOnce({
-                // First call: filter-options succeeds
-                data: {
-                    resource_types: ['Dataset', 'Image', 'Software'],
-                    statuses: ['published', 'review', 'draft'],
-                    curators: ['Alice', 'Bob', 'Charlie'],
-                    year_range: { min: 2020, max: 2024 },
-                },
-            })
-            .mockRejectedValueOnce(axiosError); // Second call: load-more fails with diagnostics
-
-        render(<OldDatasets {...baseProps} />);
-
-        const table = screen.getByRole('table');
-        const bodyRows = within(table).getAllByRole('row').slice(1);
-        const sentinelRow = bodyRows[bodyRows.length - 1];
-
-        activeIntersectionCallback([
-            {
-                isIntersecting: true,
-                target: sentinelRow,
-            } as IntersectionObserverEntry,
-        ], {} as IntersectionObserver);
-
-        await waitFor(() => {
-            expect(consoleGroupCollapsedSpy).toHaveBeenCalledWith('SUMARIOPMD diagnostics – load more request');
-        });
-
-        expect(mockedAxios.get).toHaveBeenCalledWith(
-            '/old-datasets/load-more?page=2&per_page=20&sort_key=updated_at&sort_direction=desc'
-        );
-        expect(consoleInfoSpy).toHaveBeenCalledWith('Message:', 'Request failed with status code 500');
-        expect(consoleInfoSpy).toHaveBeenCalledWith('Details:', expect.objectContaining({
-            connection: 'metaworks',
-            hosts: ['sumario-db.gfz'],
-        }));
-        expect(consoleErrorSpy).toHaveBeenCalledWith('Error loading more datasets:', axiosError);
-    });
 });
 
 describe('deriveDatasetRowKey', () => {

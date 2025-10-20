@@ -135,27 +135,6 @@ describe('AuthorItem Component', () => {
         expect(mockProps.onRemove).toHaveBeenCalledTimes(1);
     });
 
-    it.skip('calls onTypeChange when author type is changed', async () => {
-        // Skipped: Radix UI Select interaction is difficult to test in jsdom
-        // This functionality is covered by integration tests
-        const user = userEvent.setup();
-        render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);
-        
-        // Find the select button using aria-labelledby
-        const typeSelect = screen.getByRole('combobox', { name: /Author type/i });
-        await user.click(typeSelect);
-        
-        // Wait for dropdown to open and click institution option
-        await waitFor(() => {
-            const institutionOption = screen.getByRole('option', { name: /institution/i });
-            user.click(institutionOption);
-        });
-        
-        await waitFor(() => {
-            expect(mockProps.onTypeChange).toHaveBeenCalledWith('institution');
-        });
-    });
-
     it('calls onPersonFieldChange when first name is changed', async () => {
         const user = userEvent.setup();
         render(<AuthorItem author={mockPersonAuthor} {...mockProps} />);

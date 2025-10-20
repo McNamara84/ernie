@@ -144,26 +144,6 @@ describe('ContributorItem Component', () => {
         expect(screen.getByDisplayValue('DataCollector')).toBeInTheDocument();
     });
 
-    it.skip('calls onTypeChange when contributor type is changed', async () => {
-        // Skipped: Radix UI Select interaction is difficult to test in jsdom
-        // This functionality is covered by integration tests
-        const user = userEvent.setup();
-        render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
-        
-        // Find the select button using role
-        const typeSelect = screen.getByRole('combobox', { name: /Contributor type/i });
-        await user.click(typeSelect);
-        
-        await waitFor(() => {
-            const institutionOption = screen.getByRole('option', { name: /institution/i });
-            user.click(institutionOption);
-        });
-        
-        await waitFor(() => {
-            expect(mockProps.onTypeChange).toHaveBeenCalledWith('institution');
-        });
-    });
-
     it('renders drag handle with correct aria-label', () => {
         render(<ContributorItem contributor={mockPersonContributor} {...mockProps} />);
         
