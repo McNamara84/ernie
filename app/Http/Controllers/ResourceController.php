@@ -14,6 +14,8 @@ use App\Models\Role;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteXmlExporter;
+use App\Services\DataCiteXmlValidator;
 use App\Support\BooleanNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -1315,5 +1317,49 @@ class ResourceController extends Controller
             'Content-Type' => 'application/json',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Export a resource as DataCite XML
+     *
+     * @param Resource $resource
+     * @return SymfonyResponse
+     */
+    public function exportDataCiteXml(Resource $resource): SymfonyResponse
+    {
+        try {
+            // Generate XML
+            $exporter = new DataCiteXmlExporter();
+            $xml = $exporter->export($resource);
+
+            // Validate against XSD schema
+            $validator = new DataCiteXmlValidator();
+            $isValid = $validator->validate($xml);
+
+            // Generate filename with timestamp
+            $timestamp = now()->format('YmdHis');
+            $filename = "resource-{$resource->id}-{$timestamp}-datacite.xml";
+
+            $headers = [
+                'Content-Type' => 'application/xml',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ];
+
+            // Add validation warning header if validation failed
+            if (!$isValid && $validator->hasWarnings()) {
+                $warningMessage = $validator->getFormattedWarningMessage();
+                if ($warningMessage) {
+                    $headers['X-Validation-Warning'] = base64_encode($warningMessage);
+                }
+            }
+
+            return response($xml, 200, $headers);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to export DataCite XML',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

@@ -1,9 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, FileJson, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+
+import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -91,7 +93,7 @@ const IDENTIFIER_COLUMN_HEADER_LABEL = (
         <span>DOI</span>
     </span>
 );
-const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-40 min-w-[10rem]';
+const ACTIONS_COLUMN_WIDTH_CLASSES = 'w-48 min-w-[12rem]';
 
 const DEFAULT_SORT: ResourceSortState = { key: 'updated_at', direction: 'desc' };
 const SORT_PREFERENCE_STORAGE_KEY = 'resources.sort-preference';
@@ -476,6 +478,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     }, []);
 
     const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
+    const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -540,6 +543,94 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         } finally {
             // Remove resource from exporting set
             setExportingResources(prev => {
+                const next = new Set(prev);
+                next.delete(resource.id!);
+                return next;
+            });
+        }
+    }, []);
+
+    const handleExportDataCiteXml = useCallback(async (resource: Resource) => {
+        if (!resource.id) {
+            toast.error('Cannot export resource without ID');
+            return;
+        }
+
+        // Mark resource as exporting
+        setExportingXmlResources(prev => new Set(prev).add(resource.id!));
+
+        try {
+            const response = await axios.get(
+                withBasePath(`/resources/${resource.id}/export-datacite-xml`),
+                {
+                    responseType: 'blob', // Important for file download
+                }
+            );
+
+            // Check for validation warning in headers
+            const validationWarning = response.headers['x-validation-warning'];
+            if (validationWarning) {
+                try {
+                    const warningMessage = atob(validationWarning);
+                    toast.warning('XML Validation Warning', {
+                        description: warningMessage,
+                        duration: 10000,
+                    });
+                } catch {
+                    // Ignore base64 decode errors
+                }
+            }
+
+            // Create blob from response
+            const blob = new Blob([response.data], { type: 'application/xml' });
+            
+            // Get filename from Content-Disposition header or generate it
+            const contentDisposition = response.headers['content-disposition'] as string | undefined;
+            let filename = `resource-${resource.id}-datacite.xml`;
+            
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            // Create download link and trigger download
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            
+            // Cleanup
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            if (!validationWarning) {
+                toast.success('DataCite XML exported successfully');
+            } else {
+                toast.success('DataCite XML exported with validation warnings');
+            }
+        } catch (error) {
+            console.error('Failed to export DataCite XML:', error);
+            
+            let errorMessage = 'Failed to export DataCite XML';
+            if (isAxiosError(error) && error.response?.data) {
+                try {
+                    const errorBlob = error.response.data as Blob;
+                    const errorText = await errorBlob.text();
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch {
+                    // Ignore parsing errors
+                }
+            }
+            
+            toast.error(errorMessage);
+        } finally {
+            // Remove resource from exporting set
+            setExportingXmlResources(prev => {
                 const next = new Set(prev);
                 next.delete(resource.id!);
                 return next;
@@ -975,9 +1066,20 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                     onClick={() => handleExportDataCiteJson(resource)}
                                                                     disabled={exportingResources.has(resource.id ?? 0)}
                                                                     aria-label={`Export resource ${resourceLabel} as DataCite JSON`}
-                                                                    title={`Export resource ${resourceLabel} as DataCite JSON`}
+                                                                    title={`Export as DataCite JSON`}
                                                                 >
-                                                                    <FileJson aria-hidden="true" className="size-4" />
+                                                                    <FileJsonIcon aria-hidden="true" className="size-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleExportDataCiteXml(resource)}
+                                                                    disabled={exportingXmlResources.has(resource.id ?? 0)}
+                                                                    aria-label={`Export resource ${resourceLabel} as DataCite XML`}
+                                                                    title={`Export as DataCite XML`}
+                                                                >
+                                                                    <FileXmlIcon aria-hidden="true" className="size-4" />
                                                                 </Button>
                                                                 <Button
                                                                     type="button"
