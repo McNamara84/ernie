@@ -62,7 +62,27 @@ class DataCiteXmlValidator
             }
 
             // Validate against XSD schema
-            $validationResult = @$dom->schemaValidate(self::SCHEMA_URL);
+            try {
+                // Attempt to fetch and validate against the remote schema
+                $validationResult = $dom->schemaValidate(self::SCHEMA_URL);
+            } catch (\Exception $schemaException) {
+                // Handle network/DNS errors when fetching remote schema
+                libxml_clear_errors();
+                
+                Log::error('Failed to fetch DataCite XSD schema for validation', [
+                    'schema_url' => self::SCHEMA_URL,
+                    'error' => $schemaException->getMessage(),
+                ]);
+                
+                $this->warnings[] = sprintf(
+                    'Could not validate against remote schema: %s. Network or DNS issue encountered.',
+                    $schemaException->getMessage()
+                );
+                
+                // Return false to indicate validation could not be completed
+                // Still allows download with warning
+                return false;
+            }
 
             if (!$validationResult) {
                 $errors = libxml_get_errors();

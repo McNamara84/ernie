@@ -21,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -1356,9 +1357,21 @@ class ResourceController extends Controller
             return response($xml, 200, $headers);
 
         } catch (\Exception $e) {
+            // Log full exception details for debugging
+            Log::error('DataCite XML export failed', [
+                'resource_id' => $resource->id,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Return generic error message in production, detailed in development
+            $message = config('app.debug')
+                ? $e->getMessage()
+                : 'An error occurred while generating the XML export. Please contact support if the problem persists.';
+
             return response()->json([
                 'error' => 'Failed to export DataCite XML',
-                'message' => $e->getMessage(),
+                'message' => $message,
             ], 500);
         }
     }

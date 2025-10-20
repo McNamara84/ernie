@@ -578,6 +578,10 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     });
                 } catch (e) {
                     console.debug('Failed to decode validation warning:', e);
+                    toast.error('Backend Communication Error', {
+                        description: 'Failed to decode validation warning from server. The response format may be incorrect.',
+                        duration: 8000,
+                    });
                 }
             }
 
@@ -871,10 +875,15 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                         </td>
                     ))}
                     <td className={`px-6 py-4 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                        <div className="flex items-center gap-1">
-                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1">
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -1048,50 +1057,54 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                             </td>
                                                         ))}
                                                         <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                                                            <div className="flex items-center gap-1">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleOpenInEditor(resource)}
-                                                                    aria-label={`Open resource ${resourceLabel} in editor form`}
-                                                                    title={`Open resource ${resourceLabel} in editor form`}
-                                                                >
-                                                                    <PencilLine aria-hidden="true" className="size-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleExportDataCiteJson(resource)}
-                                                                    disabled={exportingResources.has(resource.id ?? 0)}
-                                                                    aria-label={`Export resource ${resourceLabel} as DataCite JSON`}
-                                                                    title={`Export as DataCite JSON`}
-                                                                >
-                                                                    <FileJsonIcon aria-hidden="true" className="size-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleExportDataCiteXml(resource)}
-                                                                    disabled={exportingXmlResources.has(resource.id ?? 0)}
-                                                                    aria-label={`Export resource ${resourceLabel} as DataCite XML`}
-                                                                    title={`Export as DataCite XML`}
-                                                                >
-                                                                    <FileXmlIcon aria-hidden="true" className="size-4" />
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    disabled
-                                                                    aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
-                                                                    title="Delete resource (not yet implemented)"
-                                                                    className="opacity-40 cursor-not-allowed"
-                                                                >
-                                                                    <Trash2 aria-hidden="true" className="size-4" />
-                                                                </Button>
+                                                            <div className="flex flex-col gap-1">
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleOpenInEditor(resource)}
+                                                                        aria-label={`Open resource ${resourceLabel} in editor form`}
+                                                                        title={`Open resource ${resourceLabel} in editor form`}
+                                                                    >
+                                                                        <PencilLine aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        disabled
+                                                                        aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
+                                                                        title="Delete resource (not yet implemented)"
+                                                                        className="opacity-40 cursor-not-allowed"
+                                                                    >
+                                                                        <Trash2 aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleExportDataCiteJson(resource)}
+                                                                        disabled={exportingResources.has(resource.id ?? 0)}
+                                                                        aria-label={`Export resource ${resourceLabel} as DataCite JSON`}
+                                                                        title={`Export as DataCite JSON`}
+                                                                    >
+                                                                        <FileJsonIcon aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() => handleExportDataCiteXml(resource)}
+                                                                        disabled={exportingXmlResources.has(resource.id ?? 0)}
+                                                                        aria-label={`Export resource ${resourceLabel} as DataCite XML`}
+                                                                        title={`Export as DataCite XML`}
+                                                                    >
+                                                                        <FileXmlIcon aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                         </td>
                                                     </tr>
