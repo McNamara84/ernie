@@ -302,8 +302,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             // Transform descriptions
             $descriptions = $resource->descriptions->map(function ($description) {
+                // Convert database description_type (lowercase/kebab-case) to frontend format (PascalCase)
+                $typeMap = [
+                    'abstract' => 'Abstract',
+                    'methods' => 'Methods',
+                    'series-information' => 'SeriesInformation',
+                    'table-of-contents' => 'TableOfContents',
+                    'technical-info' => 'TechnicalInfo',
+                    'other' => 'Other',
+                ];
+                
+                $frontendType = $typeMap[$description->description_type] ?? 'Other';
+                
                 return [
-                    'type' => $description->description_type,
+                    'type' => $frontendType,
                     'description' => $description->description,
                 ];
             })->toArray();
