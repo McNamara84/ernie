@@ -136,6 +136,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // If resourceId is provided, load the resource from database
         if ($resourceId !== null) {
+            /** @var \App\Models\Resource $resource */
             $resource = \App\Models\Resource::query()
                 ->with([
                     'resourceType',
@@ -159,7 +160,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $titles = $resource->titles->map(function ($title) {
                 return [
                     'title' => $title->title,
-                    'titleType' => $title->titleType?->slug ?? '',
+                    'titleType' => $title->titleType->slug ?? '',
                 ];
             })->toArray();
 
@@ -172,8 +173,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->filter(function ($author) {
                     // Filter out MSL laboratories
                     if ($author->authorable_type === \App\Models\Institution::class) {
+                        /** @var \App\Models\Institution $institution */
                         $institution = $author->authorable;
-                        return $institution && $institution->identifier_type !== 'labid';
+                        return $institution->identifier_type !== 'labid';
                     }
                     return true;
                 })
@@ -198,6 +200,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 });
 
                 // Get the first entry to extract basic info
+                /** @var \App\Models\ResourceAuthor $firstEntry */
                 $firstEntry = $group->first();
                 $authorable = $firstEntry->authorable;
 
@@ -222,6 +225,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ];
 
                     if ($firstEntry->authorable_type === \App\Models\Person::class) {
+                        /** @var \App\Models\Person $authorable */
                         $data['type'] = 'person';
                         $data['firstName'] = $authorable->first_name ?? '';
                         $data['lastName'] = $authorable->last_name ?? '';
@@ -256,21 +260,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     ];
 
                     if ($firstEntry->authorable_type === \App\Models\Person::class) {
+                        /** @var \App\Models\Person $personAuthorable */
+                        $personAuthorable = $authorable;
                         $data['type'] = 'person';
-                        $data['firstName'] = $authorable->first_name ?? '';
-                        $data['lastName'] = $authorable->last_name ?? '';
-                        $data['orcid'] = $authorable->orcid ?? '';
+                        $data['firstName'] = $personAuthorable->first_name ?? '';
+                        $data['lastName'] = $personAuthorable->last_name ?? '';
+                        $data['orcid'] = $personAuthorable->orcid ?? '';
                         
                         // Mark ORCID as verified if it exists (to prevent re-verification)
-                        if (!empty($authorable->orcid)) {
+                        if (!empty($personAuthorable->orcid)) {
                             $data['orcidVerified'] = true;
-                            $data['orcidVerifiedAt'] = $authorable->updated_at?->toIso8601String() ?? now()->toIso8601String();
+                            $data['orcidVerifiedAt'] = $personAuthorable->updated_at?->toIso8601String() ?? now()->toIso8601String();
                         }
                     } elseif ($firstEntry->authorable_type === \App\Models\Institution::class) {
+                        /** @var \App\Models\Institution $institutionAuthorable */
+                        $institutionAuthorable = $authorable;
                         $data['type'] = 'institution';
-                        $data['institutionName'] = $authorable->name ?? '';
-                        $data['identifier'] = $authorable->identifier ?? '';
-                        $data['identifierType'] = $authorable->identifier_type ?? '';
+                        $data['institutionName'] = $institutionAuthorable->name ?? '';
+                        $data['identifier'] = $institutionAuthorable->identifier ?? '';
+                        $data['identifierType'] = $institutionAuthorable->identifier_type ?? '';
                     }
 
                     // Collect all unique roles from all entries, excluding author/contact-person
@@ -393,20 +401,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $mslLaboratories = $resource->authors
                 ->filter(function ($author) {
                     if ($author->authorable_type === \App\Models\Institution::class) {
+                        /** @var \App\Models\Institution $institution */
                         $institution = $author->authorable;
-                        return $institution && $institution->identifier_type === 'labid';
+                        return $institution->identifier_type === 'labid';
                     }
                     return false;
                 })
                 ->map(function ($author) {
+                    /** @var \App\Models\Institution $institution */
                     $institution = $author->authorable;
                     $affiliation = $author->affiliations->first();
                     
                     return [
                         'identifier' => $institution->identifier ?? '',
                         'name' => $institution->name ?? '',
-                        'affiliation_name' => $affiliation?->value ?? '',
-                        'affiliation_ror' => $affiliation?->ror_id ?? '',
+                        'affiliation_name' => $affiliation->value ?? '',
+                        'affiliation_ror' => $affiliation->ror_id ?? '',
                         'position' => $author->position,
                     ];
                 })
@@ -420,7 +430,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'doi' => $resource->doi ?? '',
                 'year' => (string) $resource->year,
                 'version' => $resource->version ?? '',
-                'language' => $resource->language?->code ?? '',
+                'language' => $resource->language->code ?? '',
                 'resourceType' => (string) $resource->resource_type_id,
                 'resourceId' => (string) $resource->id,
                 'titles' => $titles,
