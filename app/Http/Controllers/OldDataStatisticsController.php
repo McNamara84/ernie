@@ -40,6 +40,13 @@ class OldDataStatisticsController extends Controller
             'resourceTypes' => $this->getResourceTypeStats(),
             'languages' => $this->getLanguageStats(),
             'licenses' => $this->getLicenseStats(),
+            'identifierStats' => $this->getIdentifierStats(),
+            'currentYearStats' => $this->getCurrentYearStats(),
+            'affiliationStats' => $this->getAffiliationStats(),
+            'keywordStats' => $this->getKeywordStats(),
+            'creationTimeStats' => $this->getCreationTimeStats(),
+            'descriptionStats' => $this->getDescriptionStats(),
+            'publicationYearStats' => $this->getPublicationYearStats(),
         ];
 
         return Inertia::render('old-statistics', [
@@ -642,6 +649,344 @@ class OldDataStatisticsController extends Controller
                 return $results->map(function ($row) {
                     return [
                         'name' => $row->name,
+                        'count' => (int) $row->count,
+                    ];
+                })->toArray();
+            }
+        );
+    }
+
+    /**
+     * Get identifier statistics (ROR, ORCID).
+     *
+     * @return array<string, mixed>
+     */
+    private function getIdentifierStats(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . 'identifiers',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                // Count affiliations with ROR
+                $rorCount = $db->table('affiliation')
+                    ->whereNotNull('ror')
+                    ->where('ror', '!=', '')
+                    ->count();
+
+                $totalAffiliations = $db->table('affiliation')->count();
+
+                // Count resourceagents with ORCID
+                $orcidCount = $db->table('resourceagent')
+                    ->whereNotNull('orcid')
+                    ->where('orcid', '!=', '')
+                    ->count();
+
+                $totalAgents = $db->table('resourceagent')->count();
+
+                return [
+                    'ror' => [
+                        'count' => $rorCount,
+                        'total' => $totalAffiliations,
+                        'percentage' => $totalAffiliations > 0 ? round(($rorCount / $totalAffiliations) * 100, 2) : 0,
+                    ],
+                    'orcid' => [
+                        'count' => $orcidCount,
+                        'total' => $totalAgents,
+                        'percentage' => $totalAgents > 0 ? round(($orcidCount / $totalAgents) * 100, 2) : 0,
+                    ],
+                ];
+            }
+        );
+    }
+
+    /**
+     * Get statistics for current year publications.
+     *
+     * @return array<string, mixed>
+     */
+    private function getCurrentYearStats(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . 'current_year',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+                $currentYear = (int) date('Y');
+
+                // Monthly breakdown for current year
+                $monthlyData = $db->table('resource')
+                    ->select([
+                        DB::raw('MONTH(publication_date) as month'),
+                        DB::raw('COUNT(*) as count'),
+                    ])
+                    ->whereRaw('YEAR(publication_date) = ?', [$currentYear])
+                    ->whereNotNull('publication_date')
+                    ->groupBy(DB::raw('MONTH(publication_date)'))
+                    ->orderBy('month')
+                    ->get();
+
+                $totalCurrentYear = $db->table('resource')
+                    ->whereRaw('YEAR(publication_date) = ?', [$currentYear])
+                    ->count();
+
+                return [
+                    'year' => $currentYear,
+                    'total' => $totalCurrentYear,
+                    'monthly' => $monthlyData->map(function ($row) {
+                        return [
+                            'month' => (int) $row->month,
+                            'count' => (int) $row->count,
+                        ];
+                    })->toArray(),
+                ];
+            }
+        );
+    }
+
+    /**
+     * Get affiliation statistics.
+     *
+     * @return array<string, mixed>
+     */
+    private function getAffiliationStats(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . 'affiliations',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                // Max affiliations per author/contributor
+                $results = $db->select("
+                    SELECT 
+                        ra.resource_id,
+                        ra.`order`,
+                        COUNT(DISTINCT a.id) as affiliation_count
+                    FROM resourceagent ra
+                    LEFT JOIN affiliation a ON ra.resource_id = a.resource_id 
+                        AND ra.`order` = a.`order`
+                    GROUP BY ra.resource_id, ra.`order`
+                    ORDER BY affiliation_count DESC
+                    LIMIT 1
+                ");
+
+                $maxAffiliations = !empty($results) ? (int) $results[0]->affiliation_count : 0;
+
+                // Average affiliations per agent
+                $avgResults = $db->select("
+                    SELECT AVG(affiliation_count) as avg_affiliations
+                    FROM (
+                        SELECT 
+                            ra.resource_id,
+                            ra.`order`,
+                            COUNT(DISTINCT a.id) as affiliation_count
+                        FROM resourceagent ra
+                        LEFT JOIN affiliation a ON ra.resource_id = a.resource_id 
+                            AND ra.`order` = a.`order`
+                        GROUP BY ra.resource_id, ra.`order`
+                    ) as sub
+                ");
+
+                $avgAffiliations = !empty($avgResults) && $avgResults[0]->avg_affiliations !== null 
+                    ? round((float) $avgResults[0]->avg_affiliations, 2) 
+                    : 0;
+
+                return [
+                    'max_per_agent' => $maxAffiliations,
+                    'avg_per_agent' => $avgAffiliations,
+                ];
+            }
+        );
+    }
+
+    /**
+     * Get keyword statistics.
+     *
+     * @return array<string, mixed>
+     */
+    private function getKeywordStats(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . 'keywords',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                // Top 20 free keywords (from title table where type_id = 6)
+                $freeKeywords = $db->table('title')
+                    ->select([
+                        'value',
+                        DB::raw('COUNT(DISTINCT resource_id) as count'),
+                    ])
+                    ->where('type_id', 6)
+                    ->whereNotNull('value')
+                    ->where('value', '!=', '')
+                    ->groupBy('value')
+                    ->orderBy('count', 'desc')
+                    ->limit(20)
+                    ->get();
+
+                // Top 20 controlled keywords (from thesauruskeyword table)
+                $controlledKeywords = $db->table('thesauruskeyword')
+                    ->select([
+                        'value',
+                        DB::raw('COUNT(DISTINCT resource_id) as count'),
+                    ])
+                    ->whereNotNull('value')
+                    ->where('value', '!=', '')
+                    ->groupBy('value')
+                    ->orderBy('count', 'desc')
+                    ->limit(20)
+                    ->get();
+
+                return [
+                    'free' => $freeKeywords->map(function ($row) {
+                        return [
+                            'keyword' => $row->value,
+                            'count' => (int) $row->count,
+                        ];
+                    })->toArray(),
+                    'controlled' => $controlledKeywords->map(function ($row) {
+                        return [
+                            'keyword' => $row->value,
+                            'count' => (int) $row->count,
+                        ];
+                    })->toArray(),
+                ];
+            }
+        );
+    }
+
+    /**
+     * Get creation time statistics (by hour of day).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function getCreationTimeStats(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . 'creation_time',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                $results = $db->table('resource')
+                    ->select([
+                        DB::raw('HOUR(created_at) as hour'),
+                        DB::raw('COUNT(*) as count'),
+                    ])
+                    ->whereNotNull('created_at')
+                    ->groupBy(DB::raw('HOUR(created_at)'))
+                    ->orderBy('hour')
+                    ->get();
+
+                return $results->map(function ($row) {
+                    return [
+                        'hour' => (int) $row->hour,
+                        'count' => (int) $row->count,
+                    ];
+                })->toArray();
+            }
+        );
+    }
+
+    /**
+     * Get description statistics.
+     *
+     * @return array<string, mixed>
+     */
+    private function getDescriptionStats(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . 'descriptions',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                // Count by type
+                $byType = $db->table('description')
+                    ->select([
+                        'type_id',
+                        DB::raw('COUNT(DISTINCT resource_id) as count'),
+                    ])
+                    ->whereNotNull('type_id')
+                    ->groupBy('type_id')
+                    ->get();
+
+                // Longest and shortest abstract (type_id = 1)
+                /** @var object{value: string, length: int}|null $longestResult */
+                $longestResult = $db->table('description')
+                    ->select([
+                        'value',
+                        DB::raw('LENGTH(value) as length'),
+                    ])
+                    ->where('type_id', 1)
+                    ->whereNotNull('value')
+                    ->orderBy(DB::raw('LENGTH(value)'), 'desc')
+                    ->limit(1)
+                    ->first();
+
+                /** @var object{value: string, length: int}|null $shortestResult */
+                $shortestResult = $db->table('description')
+                    ->select([
+                        'value',
+                        DB::raw('LENGTH(value) as length'),
+                    ])
+                    ->where('type_id', 1)
+                    ->whereNotNull('value')
+                    ->where('value', '!=', '')
+                    ->orderBy(DB::raw('LENGTH(value)'), 'asc')
+                    ->limit(1)
+                    ->first();
+
+                return [
+                    'by_type' => $byType->map(function ($row) {
+                        return [
+                            'type_id' => (int) $row->type_id,
+                            'count' => (int) $row->count,
+                        ];
+                    })->toArray(),
+                    'longest_abstract' => $longestResult !== null ? [
+                        'length' => (int) $longestResult->length,
+                        'preview' => mb_substr($longestResult->value, 0, 200),
+                    ] : null,
+                    'shortest_abstract' => $shortestResult !== null ? [
+                        'length' => (int) $shortestResult->length,
+                        'preview' => mb_substr($shortestResult->value, 0, 200),
+                    ] : null,
+                ];
+            }
+        );
+    }
+
+    /**
+     * Get publication year distribution.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function getPublicationYearStats(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX . 'publication_years',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                $results = $db->table('resource')
+                    ->select([
+                        DB::raw('YEAR(publication_date) as year'),
+                        DB::raw('COUNT(*) as count'),
+                    ])
+                    ->whereNotNull('publication_date')
+                    ->groupBy(DB::raw('YEAR(publication_date)'))
+                    ->orderBy('year')
+                    ->get();
+
+                return $results->map(function ($row) {
+                    return [
+                        'year' => (int) $row->year,
                         'count' => (int) $row->count,
                     ];
                 })->toArray();
