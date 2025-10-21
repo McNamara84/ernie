@@ -81,6 +81,7 @@
     "papaparse": "^5.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "recharts": "^3.3.0",
     "sonner": "^2.0.7",
     "swagger-ui-react": "^5.29.3",
     "tailwind-merge": "^3.0.1",
