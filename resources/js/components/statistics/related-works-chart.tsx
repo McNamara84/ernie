@@ -1,4 +1,13 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 type RelatedWorksData = {
     topDatasets: Array<{
@@ -17,11 +26,24 @@ type RelatedWorksChartProps = {
     data: RelatedWorksData;
 };
 
+const COLORS = [
+    '#3b82f6', // blue-500
+    '#10b981', // emerald-500
+    '#f59e0b', // amber-500
+    '#ef4444', // red-500
+    '#8b5cf6', // violet-500
+    '#ec4899', // pink-500
+    '#14b8a6', // teal-500
+    '#f97316', // orange-500
+    '#06b6d4', // cyan-500
+    '#84cc16', // lime-500
+];
+
 export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
     // Sort distribution by custom order
     const rangeOrder = ['1-10', '11-25', '26-50', '51-100', '101-200', '201-400', '400+'];
     const sortedDistribution = [...data.distribution].sort(
-        (a, b) => rangeOrder.indexOf(a.range) - rangeOrder.indexOf(b.range)
+        (a, b) => rangeOrder.indexOf(a.range) - rangeOrder.indexOf(b.range),
     );
 
     const chartData = sortedDistribution.map((item) => ({
@@ -40,11 +62,19 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
                         <XAxis
                             dataKey="range"
                             className="text-xs"
-                            label={{ value: 'Related Works Range', position: 'insideBottom', offset: -5 }}
+                            label={{
+                                value: 'Related Works Range',
+                                position: 'insideBottom',
+                                offset: -5,
+                            }}
                         />
                         <YAxis
                             className="text-xs"
-                            label={{ value: 'Number of Datasets', angle: -90, position: 'insideLeft' }}
+                            label={{
+                                value: 'Number of Datasets',
+                                angle: -90,
+                                position: 'insideLeft',
+                            }}
                         />
                         <Tooltip
                             content={({ active, payload }) => {
@@ -75,14 +105,20 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
                                 return null;
                             }}
                         />
-                        <Bar dataKey="datasets" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="datasets" radius={[4, 4, 0, 0]}>
+                            {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Bar>
                     </BarChart>
                 </ResponsiveContainer>
             </div>
 
             {/* Top Datasets Table */}
             <div>
-                <h4 className="mb-4 text-sm font-medium">Top 20 Datasets with Most Related Works</h4>
+                <h4 className="mb-4 text-sm font-medium">
+                    Top 20 Datasets with Most Related Works
+                </h4>
                 <div className="max-h-[400px] overflow-y-auto rounded-md border">
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-muted">

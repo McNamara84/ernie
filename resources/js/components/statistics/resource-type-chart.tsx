@@ -10,11 +10,21 @@ type ResourceTypeChartProps = {
 };
 
 const COLORS = [
-    'hsl(var(--chart-1))',
-    'hsl(var(--chart-2))',
-    'hsl(var(--chart-3))',
-    'hsl(var(--chart-4))',
-    'hsl(var(--chart-5))',
+    '#3b82f6', // blue-500
+    '#10b981', // emerald-500
+    '#f59e0b', // amber-500
+    '#ef4444', // red-500
+    '#8b5cf6', // violet-500
+    '#ec4899', // pink-500
+    '#14b8a6', // teal-500
+    '#f97316', // orange-500
+    '#06b6d4', // cyan-500
+    '#84cc16', // lime-500
+    '#6366f1', // indigo-500
+    '#a855f7', // purple-500
+    '#22c55e', // green-500
+    '#eab308', // yellow-500
+    '#f43f5e', // rose-500
 ];
 
 export default function ResourceTypeChart({ data }: ResourceTypeChartProps) {
@@ -79,7 +89,9 @@ export default function ResourceTypeChart({ data }: ResourceTypeChartProps) {
                                 <td className="flex items-center gap-2 p-2">
                                     <div
                                         className="h-3 w-3 rounded-sm"
-                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                        style={{
+                                            backgroundColor: COLORS[index % COLORS.length],
+                                        }}
                                     />
                                     {item.type}
                                 </td>

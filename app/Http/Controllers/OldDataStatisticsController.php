@@ -806,49 +806,48 @@ class OldDataStatisticsController extends Controller
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
 
-                // Free keywords: without scheme or schemeUri
-                $freeKeywords = $db->table('thesauruskeyword')
+                // All keywords have a thesaurus in this database
+                // Group by thesaurus to show distribution
+                $byThesaurus = $db->table('thesauruskeyword')
                     ->select([
-                        'keyword',
-                        DB::raw('COUNT(DISTINCT resource_id) as count'),
+                        'thesaurus',
+                        DB::raw('COUNT(DISTINCT keyword) as keyword_count'),
+                        DB::raw('COUNT(DISTINCT resource_id) as dataset_count'),
                     ])
-                    ->whereNotNull('keyword')
-                    ->where('keyword', '!=', '')
-                    ->where(function ($query) {
-                        $query->whereNull('thesaurus')
-                            ->orWhere('thesaurus', '=', '');
-                    })
-                    ->groupBy('keyword')
-                    ->orderBy('count', 'desc')
-                    ->limit(20)
-                    ->get();
-
-                // Controlled keywords: with scheme or schemeUri
-                $controlledKeywords = $db->table('thesauruskeyword')
-                    ->select([
-                        'keyword',
-                        DB::raw('COUNT(DISTINCT resource_id) as count'),
-                    ])
-                    ->whereNotNull('keyword')
-                    ->where('keyword', '!=', '')
                     ->whereNotNull('thesaurus')
                     ->where('thesaurus', '!=', '')
-                    ->groupBy('keyword')
+                    ->groupBy('thesaurus')
+                    ->orderBy('dataset_count', 'desc')
+                    ->get();
+
+                // Top 20 most used keywords overall
+                $topKeywords = $db->table('thesauruskeyword')
+                    ->select([
+                        'keyword',
+                        'thesaurus',
+                        DB::raw('COUNT(DISTINCT resource_id) as count'),
+                    ])
+                    ->whereNotNull('keyword')
+                    ->where('keyword', '!=', '')
+                    ->groupBy('keyword', 'thesaurus')
                     ->orderBy('count', 'desc')
                     ->limit(20)
                     ->get();
 
                 return [
-                    'free' => $freeKeywords->map(function ($row) {
+                    'free' => [], // No free keywords in this database - all have thesaurus
+                    'controlled' => $topKeywords->map(function ($row) {
                         return [
                             'keyword' => $row->keyword,
                             'count' => (int) $row->count,
+                            'thesaurus' => $row->thesaurus,
                         ];
                     })->toArray(),
-                    'controlled' => $controlledKeywords->map(function ($row) {
+                    'by_thesaurus' => $byThesaurus->map(function ($row) {
                         return [
-                            'keyword' => $row->keyword,
-                            'count' => (int) $row->count,
+                            'thesaurus' => $row->thesaurus,
+                            'keyword_count' => (int) $row->keyword_count,
+                            'dataset_count' => (int) $row->dataset_count,
                         ];
                     })->toArray(),
                 ];

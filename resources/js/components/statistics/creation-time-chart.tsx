@@ -1,4 +1,12 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+    CartesianGrid,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
 
 type CreationTimeChartProps = {
     data: Array<{
@@ -19,7 +27,7 @@ export default function CreationTimeChart({ data }: CreationTimeChartProps) {
 
     return (
         <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={hourlyData}>
+            <LineChart data={hourlyData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis
                     dataKey="hour"
@@ -37,8 +45,16 @@ export default function CreationTimeChart({ data }: CreationTimeChartProps) {
                         borderRadius: '6px',
                     }}
                 />
-                <Bar dataKey="count" fill="hsl(var(--primary))" name="Datasets Created" />
-            </BarChart>
+                <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    dot={{ fill: '#3b82f6', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="Datasets Created"
+                />
+            </LineChart>
         </ResponsiveContainer>
     );
 }

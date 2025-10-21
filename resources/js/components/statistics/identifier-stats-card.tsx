@@ -1,5 +1,3 @@
-import { Progress } from '@/components/ui/progress';
-
 type IdentifierStatsProps = {
     data: {
         ror: {
@@ -32,7 +30,15 @@ export default function IdentifierStatsCard({ data }: IdentifierStatsProps) {
                         <div className="text-2xl font-bold">{data.ror.percentage}%</div>
                     </div>
                 </div>
-                <Progress value={data.ror.percentage} className="h-3" />
+                <div className="h-3 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                        className="h-full transition-all"
+                        style={{
+                            width: `${data.ror.percentage}%`,
+                            backgroundColor: '#3b82f6', // blue-500
+                        }}
+                    />
+                </div>
             </div>
 
             {/* ORCID Statistics */}
@@ -41,15 +47,24 @@ export default function IdentifierStatsCard({ data }: IdentifierStatsProps) {
                     <div>
                         <h3 className="font-semibold">ORCIDs in Authors/Contributors</h3>
                         <p className="text-sm text-muted-foreground">
-                            {data.orcid.count.toLocaleString()} of {data.orcid.total.toLocaleString()}{' '}
-                            authors/contributors have ORCID identifiers
+                            {data.orcid.count.toLocaleString()} of{' '}
+                            {data.orcid.total.toLocaleString()} authors/contributors have ORCID
+                            identifiers
                         </p>
                     </div>
                     <div className="text-right">
                         <div className="text-2xl font-bold">{data.orcid.percentage}%</div>
                     </div>
                 </div>
-                <Progress value={data.orcid.percentage} className="h-3" />
+                <div className="h-3 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                        className="h-full transition-all"
+                        style={{
+                            width: `${data.orcid.percentage}%`,
+                            backgroundColor: '#10b981', // emerald-500
+                        }}
+                    />
+                </div>
             </div>
         </div>
     );

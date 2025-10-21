@@ -1,5 +1,3 @@
-import { Progress } from '@/components/ui/progress';
-
 type CompletenessData = {
     descriptions: number;
     geographicCoverage: number;
@@ -14,14 +12,24 @@ type CompletenessGaugeProps = {
     data: CompletenessData;
 };
 
+const COLORS = [
+    '#3b82f6', // blue-500
+    '#10b981', // emerald-500
+    '#f59e0b', // amber-500
+    '#ef4444', // red-500
+    '#8b5cf6', // violet-500
+    '#ec4899', // pink-500
+    '#14b8a6', // teal-500
+];
+
 const metrics = [
-    { key: 'descriptions', label: 'Descriptions', color: 'bg-blue-500' },
-    { key: 'geographicCoverage', label: 'Geographic Coverage', color: 'bg-green-500' },
-    { key: 'temporalCoverage', label: 'Temporal Coverage', color: 'bg-yellow-500' },
-    { key: 'funding', label: 'Funding References', color: 'bg-purple-500' },
-    { key: 'orcid', label: 'ORCID for Authors', color: 'bg-orange-500' },
-    { key: 'rorIds', label: 'ROR IDs for Affiliations', color: 'bg-pink-500' },
-    { key: 'relatedWorks', label: 'Related Works', color: 'bg-cyan-500' },
+    { key: 'descriptions', label: 'Descriptions', color: COLORS[0] },
+    { key: 'geographicCoverage', label: 'Geographic Coverage', color: COLORS[1] },
+    { key: 'temporalCoverage', label: 'Temporal Coverage', color: COLORS[2] },
+    { key: 'funding', label: 'Funding References', color: COLORS[3] },
+    { key: 'orcid', label: 'ORCID for Authors', color: COLORS[4] },
+    { key: 'rorIds', label: 'ROR IDs for Affiliations', color: COLORS[5] },
+    { key: 'relatedWorks', label: 'Related Works', color: COLORS[6] },
 ] as const;
 
 export default function CompletenessGauge({ data }: CompletenessGaugeProps) {
@@ -38,7 +46,15 @@ export default function CompletenessGauge({ data }: CompletenessGaugeProps) {
                             <span className="text-sm font-medium">{metric.label}</span>
                             <span className="text-sm font-bold">{value.toFixed(2)}%</span>
                         </div>
-                        <Progress value={value} className="h-2" />
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                            <div
+                                className="h-full transition-all"
+                                style={{
+                                    width: `${value}%`,
+                                    backgroundColor: metric.color,
+                                }}
+                            />
+                        </div>
                     </div>
                 );
             })}
