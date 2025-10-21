@@ -3,6 +3,7 @@
 use App\Http\Controllers\Settings\PasswordController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\EditorSettingsController;
+use App\Http\Controllers\Settings\FontSizeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -19,6 +20,8 @@ Route::middleware('auth')->group(function () {
     Route::put('settings/password', [PasswordController::class, 'update'])
         ->middleware('throttle:6,1')
         ->name('password.update');
+
+    Route::put('settings/font-size', [FontSizeController::class, 'update'])->name('font-size.update');
 
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');
