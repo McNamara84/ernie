@@ -15,8 +15,8 @@ class FontSizeController extends Controller
     {
         $user = $request->user();
 
-        if ($user === null) {
-            abort(401);
+        if (! $user) {
+            return redirect()->route('login');
         }
 
         $user->update([

@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent,render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Appearance from '@/pages/settings/appearance';
 
@@ -40,14 +40,16 @@ vi.mock('@/routes', () => ({
 }));
 
 describe('Appearance settings page', () => {
-    it('renders heading and updates appearance', () => {
+    beforeEach(() => {
         usePageMock.mockReturnValue({ 
             props: { 
                 fontSizePreference: 'regular',
                 auth: { user: { id: 1 } } 
             } 
         });
-        
+    });
+
+    it('renders heading and updates appearance', () => {
         render(<Appearance />);
         expect(screen.getByRole('heading', { name: /appearance settings/i })).toBeInTheDocument();
         const darkButton = screen.getByRole('button', { name: /dark/i });
