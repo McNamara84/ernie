@@ -8,12 +8,13 @@ import AppLayout from '@/layouts/app-layout';
 import { oldStatistics } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
+import AbstractAnalysis from '@/components/statistics/abstract-analysis';
 import AffiliationStatsCard from '@/components/statistics/affiliation-stats-card';
 import CompletenessGauge from '@/components/statistics/completeness-gauge';
 import CreationTimeChart from '@/components/statistics/creation-time-chart';
 import CuratorChart from '@/components/statistics/curator-chart';
 import CurrentYearChart from '@/components/statistics/current-year-chart';
-import DescriptionStatsCard from '@/components/statistics/description-stats-card';
+import DescriptionTypeStats from '@/components/statistics/description-type-stats';
 import IdentifierStatsCard from '@/components/statistics/identifier-stats-card';
 import InstitutionChart from '@/components/statistics/institution-chart';
 import KeywordTable from '@/components/statistics/keyword-table';
@@ -483,17 +484,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 </Card>
 
                 {/* Keywords */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>🏷️ Top Keywords</CardTitle>
-                        <CardDescription>
-                            Most frequently used free and controlled keywords
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <KeywordTable data={statistics.keywords} />
-                    </CardContent>
-                </Card>
+                <KeywordTable data={statistics.keywords} />
 
                 {/* Creation Time Analysis */}
                 <Card>
@@ -509,17 +500,32 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 </Card>
 
                 {/* Description Statistics */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>📝 Description Analysis</CardTitle>
-                        <CardDescription>
-                            Distribution by description type and abstract length analysis
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <DescriptionStatsCard data={statistics.descriptions} />
-                    </CardContent>
-                </Card>
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>📝 Description Types</CardTitle>
+                            <CardDescription>Distribution by description type</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <DescriptionTypeStats data={statistics.descriptions.by_type} />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>📄 Abstract Analysis</CardTitle>
+                            <CardDescription>Longest and shortest abstracts</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <AbstractAnalysis
+                                data={{
+                                    longest_abstract: statistics.descriptions.longest_abstract,
+                                    shortest_abstract: statistics.descriptions.shortest_abstract,
+                                }}
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
 
                 {/* Publication Year Distribution */}
                 <Card>

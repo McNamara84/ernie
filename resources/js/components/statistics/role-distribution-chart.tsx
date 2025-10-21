@@ -10,21 +10,26 @@ type RoleDistributionChartProps = {
 };
 
 const COLORS = [
-    'hsl(var(--chart-1))',
-    'hsl(var(--chart-2))',
-    'hsl(var(--chart-3))',
-    'hsl(var(--chart-4))',
-    'hsl(var(--chart-5))',
-    'hsl(221.2 83.2% 53.3%)',
-    'hsl(142.1 76.2% 36.3%)',
-    'hsl(24.6 95% 53.1%)',
-    'hsl(262.1 83.3% 57.8%)',
-    'hsl(346.8 77.2% 49.8%)',
-    'hsl(173 58% 39%)', // Teal
-    'hsl(43 74% 66%)', // Yellow
-    'hsl(280 65% 60%)', // Violet
-    'hsl(12 76% 61%)', // Coral
-    'hsl(198 70% 50%)', // Sky
+    '#3b82f6', // blue-500
+    '#10b981', // emerald-500
+    '#f59e0b', // amber-500
+    '#ef4444', // red-500
+    '#8b5cf6', // violet-500
+    '#ec4899', // pink-500
+    '#14b8a6', // teal-500
+    '#f97316', // orange-500
+    '#06b6d4', // cyan-500
+    '#84cc16', // lime-500
+    '#6366f1', // indigo-500
+    '#a855f7', // purple-500
+    '#22c55e', // green-500
+    '#eab308', // yellow-500
+    '#f43f5e', // rose-500
+    '#0ea5e9', // sky-500
+    '#d946ef', // fuchsia-500
+    '#64748b', // slate-500
+    '#78716c', // stone-500
+    '#fb923c', // orange-400
 ];
 
 export default function RoleDistributionChart({ data }: RoleDistributionChartProps) {
