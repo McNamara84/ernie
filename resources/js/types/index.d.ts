@@ -1,6 +1,8 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
 
+export type FontSize = 'regular' | 'large';
+
 export interface Auth {
     user: User;
 }
@@ -29,6 +31,7 @@ export interface SharedData {
     quote: { message: string; author: string };
     auth: Auth;
     sidebarOpen: boolean;
+    fontSizePreference: FontSize;
     resourceCount?: number;
     [key: string]: unknown;
 }
@@ -37,6 +40,7 @@ export interface User {
     id: number;
     name: string;
     email: string;
+    font_size_preference: FontSize;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;

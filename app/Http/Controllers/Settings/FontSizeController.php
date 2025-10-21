@@ -13,7 +13,13 @@ class FontSizeController extends Controller
      */
     public function update(UpdateFontSizeRequest $request): RedirectResponse
     {
-        $request->user()->update([
+        $user = $request->user();
+
+        if ($user === null) {
+            abort(401);
+        }
+
+        $user->update([
             'font_size_preference' => $request->validated()['font_size_preference'],
         ]);
 
