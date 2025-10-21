@@ -330,10 +330,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             // Transform dates
             $dates = $resource->dates->map(function ($date) {
+                // Convert datetime to date-only format (YYYY-MM-DD) for HTML date inputs
+                $startDate = '';
+                if ($date->start_date) {
+                    try {
+                        $startDate = \Carbon\Carbon::parse($date->start_date)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $startDate = '';
+                    }
+                }
+                
+                $endDate = '';
+                if ($date->end_date) {
+                    try {
+                        $endDate = \Carbon\Carbon::parse($date->end_date)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $endDate = '';
+                    }
+                }
+                
                 return [
                     'dateType' => $date->date_type,
-                    'startDate' => $date->start_date ?? '',
-                    'endDate' => $date->end_date ?? '',
+                    'startDate' => $startDate,
+                    'endDate' => $endDate,
                 ];
             })->toArray();
 
