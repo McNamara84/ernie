@@ -24,15 +24,15 @@ export default function Appearance() {
                 <div className="space-y-6">
                     <HeadingSmall title="Appearance settings" description="Update your account's appearance settings" />
                     
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Theme</label>
+                    <fieldset className="space-y-2">
+                        <legend className="text-sm font-medium">Theme</legend>
                         <AppearanceTabs />
-                    </div>
+                    </fieldset>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Font Size</label>
+                    <fieldset className="space-y-2">
+                        <legend className="text-sm font-medium">Font Size</legend>
                         <FontSizeToggle />
-                    </div>
+                    </fieldset>
                 </div>
             </SettingsLayout>
         </AppLayout>
