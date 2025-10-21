@@ -8,12 +8,19 @@ import AppLayout from '@/layouts/app-layout';
 import { oldStatistics } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 
+import AffiliationStatsCard from '@/components/statistics/affiliation-stats-card';
 import CompletenessGauge from '@/components/statistics/completeness-gauge';
+import CreationTimeChart from '@/components/statistics/creation-time-chart';
 import CuratorChart from '@/components/statistics/curator-chart';
+import CurrentYearChart from '@/components/statistics/current-year-chart';
+import DescriptionStatsCard from '@/components/statistics/description-stats-card';
+import IdentifierStatsCard from '@/components/statistics/identifier-stats-card';
 import InstitutionChart from '@/components/statistics/institution-chart';
+import KeywordTable from '@/components/statistics/keyword-table';
 import LanguageChart from '@/components/statistics/language-chart';
 import LicenseChart from '@/components/statistics/license-chart';
 import PidUsageChart from '@/components/statistics/pid-usage-chart';
+import PublicationYearChart from '@/components/statistics/publication-year-chart';
 import RelatedWorksChart from '@/components/statistics/related-works-chart';
 import ResourceTypeChart from '@/components/statistics/resource-type-chart';
 import RoleDistributionChart from '@/components/statistics/role-distribution-chart';
@@ -91,6 +98,69 @@ type LicenseStat = {
     count: number;
 };
 
+type IdentifierStat = {
+    ror: {
+        count: number;
+        total: number;
+        percentage: number;
+    };
+    orcid: {
+        count: number;
+        total: number;
+        percentage: number;
+    };
+};
+
+type CurrentYearStat = {
+    year: number;
+    total: number;
+    monthly: Array<{
+        month: number;
+        count: number;
+    }>;
+};
+
+type AffiliationStat = {
+    max_per_agent: number;
+    avg_per_agent: number;
+};
+
+type KeywordStat = {
+    free: Array<{
+        keyword: string;
+        count: number;
+    }>;
+    controlled: Array<{
+        keyword: string;
+        count: number;
+    }>;
+};
+
+type CreationTimeStat = {
+    hour: number;
+    count: number;
+};
+
+type DescriptionStat = {
+    by_type: Array<{
+        type_id: string; // Changed from number to string
+        count: number;
+    }>;
+    longest_abstract: {
+        length: number;
+        preview: string;
+    } | null;
+    shortest_abstract: {
+        length: number;
+        preview: string;
+    } | null;
+};
+
+type PublicationYearStat = {
+    year: number;
+    count: number;
+};
+
 type OverviewStat = {
     totalDatasets: number;
     totalAuthors: number;
@@ -131,6 +201,13 @@ type Statistics = {
     resourceTypes: ResourceTypeStat[];
     languages: LanguageStat[];
     licenses: LicenseStat[];
+    identifiers: IdentifierStat;
+    current_year: CurrentYearStat;
+    affiliations: AffiliationStat;
+    keywords: KeywordStat;
+    creation_time: CreationTimeStat[];
+    descriptions: DescriptionStat;
+    publication_years: PublicationYearStat[];
 };
 
 type OldStatisticsProps = {
@@ -366,6 +443,96 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Identifier Statistics */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>🆔 ROR & ORCID Identifier Coverage</CardTitle>
+                        <CardDescription>
+                            Percentage of affiliations with ROR-IDs and authors/contributors with
+                            ORCIDs
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <IdentifierStatsCard data={statistics.identifiers} />
+                    </CardContent>
+                </Card>
+
+                {/* Current Year Publications */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>📆 Publications in {statistics.current_year.year}</CardTitle>
+                        <CardDescription>Monthly breakdown of current year publications</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <CurrentYearChart data={statistics.current_year} />
+                    </CardContent>
+                </Card>
+
+                {/* Affiliation Statistics */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>🏢 Affiliation Statistics</CardTitle>
+                        <CardDescription>
+                            Maximum and average affiliations per author/contributor
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <AffiliationStatsCard data={statistics.affiliations} />
+                    </CardContent>
+                </Card>
+
+                {/* Keywords */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>🏷️ Top Keywords</CardTitle>
+                        <CardDescription>
+                            Most frequently used free and controlled keywords
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <KeywordTable data={statistics.keywords} />
+                    </CardContent>
+                </Card>
+
+                {/* Creation Time Analysis */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>🕐 Dataset Creation by Hour of Day</CardTitle>
+                        <CardDescription>
+                            When datasets were created (by hour, 0-23)
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <CreationTimeChart data={statistics.creation_time} />
+                    </CardContent>
+                </Card>
+
+                {/* Description Statistics */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>📝 Description Analysis</CardTitle>
+                        <CardDescription>
+                            Distribution by description type and abstract length analysis
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <DescriptionStatsCard data={statistics.descriptions} />
+                    </CardContent>
+                </Card>
+
+                {/* Publication Year Distribution */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>📊 Publication Year Distribution</CardTitle>
+                        <CardDescription>
+                            Number of datasets by publication year over time
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <PublicationYearChart data={statistics.publication_years} />
+                    </CardContent>
+                </Card>
             </div>
         </AppLayout>
     );

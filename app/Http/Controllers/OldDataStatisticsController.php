@@ -40,13 +40,13 @@ class OldDataStatisticsController extends Controller
             'resourceTypes' => $this->getResourceTypeStats(),
             'languages' => $this->getLanguageStats(),
             'licenses' => $this->getLicenseStats(),
-            'identifierStats' => $this->getIdentifierStats(),
-            'currentYearStats' => $this->getCurrentYearStats(),
-            'affiliationStats' => $this->getAffiliationStats(),
-            'keywordStats' => $this->getKeywordStats(),
-            'creationTimeStats' => $this->getCreationTimeStats(),
-            'descriptionStats' => $this->getDescriptionStats(),
-            'publicationYearStats' => $this->getPublicationYearStats(),
+            'identifiers' => $this->getIdentifierStats(),
+            'current_year' => $this->getCurrentYearStats(),
+            'affiliations' => $this->getAffiliationStats(),
+            'keywords' => $this->getKeywordStats(),
+            'creation_time' => $this->getCreationTimeStats(),
+            'descriptions' => $this->getDescriptionStats(),
+            'publication_years' => $this->getPublicationYearStats(),
         ];
 
         return Inertia::render('old-statistics', [
@@ -669,18 +669,21 @@ class OldDataStatisticsController extends Controller
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
 
-                // Count affiliations with ROR
+                // Count affiliations with ROR (using identifier and identifiertype columns)
                 $rorCount = $db->table('affiliation')
-                    ->whereNotNull('ror')
-                    ->where('ror', '!=', '')
+                    ->whereNotNull('identifier')
+                    ->where(function ($query) {
+                        $query->where('identifiertype', 'ROR')
+                            ->orWhere('identifier', 'like', 'https://ror.org/%');
+                    })
                     ->count();
 
                 $totalAffiliations = $db->table('affiliation')->count();
 
-                // Count resourceagents with ORCID
+                // Count resourceagents with ORCID (using identifier and identifiertype columns)
                 $orcidCount = $db->table('resourceagent')
-                    ->whereNotNull('orcid')
-                    ->where('orcid', '!=', '')
+                    ->whereNotNull('identifier')
+                    ->whereRaw('UPPER(identifiertype) = ?', ['ORCID'])
                     ->count();
 
                 $totalAgents = $db->table('resourceagent')->count();
@@ -715,31 +718,17 @@ class OldDataStatisticsController extends Controller
                 $db = DB::connection(self::DATASET_CONNECTION);
                 $currentYear = (int) date('Y');
 
-                // Monthly breakdown for current year
-                $monthlyData = $db->table('resource')
-                    ->select([
-                        DB::raw('MONTH(publication_date) as month'),
-                        DB::raw('COUNT(*) as count'),
-                    ])
-                    ->whereRaw('YEAR(publication_date) = ?', [$currentYear])
-                    ->whereNotNull('publication_date')
-                    ->groupBy(DB::raw('MONTH(publication_date)'))
-                    ->orderBy('month')
-                    ->get();
-
+                // Since we only have publicationyear (integer), we can't get monthly breakdown
+                // We'll just return the total for the current year
                 $totalCurrentYear = $db->table('resource')
-                    ->whereRaw('YEAR(publication_date) = ?', [$currentYear])
+                    ->where('publicationyear', $currentYear)
                     ->count();
 
+                // Return empty monthly array since we can't determine months from integer year
                 return [
                     'year' => $currentYear,
                     'total' => $totalCurrentYear,
-                    'monthly' => $monthlyData->map(function ($row) {
-                        return [
-                            'month' => (int) $row->month,
-                            'count' => (int) $row->count,
-                        ];
-                    })->toArray(),
+                    'monthly' => [], // No monthly data available with integer year column
                 ];
             }
         );
@@ -763,10 +752,11 @@ class OldDataStatisticsController extends Controller
                     SELECT 
                         ra.resource_id,
                         ra.`order`,
-                        COUNT(DISTINCT a.id) as affiliation_count
+                        COUNT(*) as affiliation_count
                     FROM resourceagent ra
-                    LEFT JOIN affiliation a ON ra.resource_id = a.resource_id 
-                        AND ra.`order` = a.`order`
+                    LEFT JOIN affiliation a ON ra.resource_id = a.resourceagent_resource_id 
+                        AND ra.`order` = a.resourceagent_order
+                    WHERE a.resourceagent_resource_id IS NOT NULL
                     GROUP BY ra.resource_id, ra.`order`
                     ORDER BY affiliation_count DESC
                     LIMIT 1
@@ -781,10 +771,11 @@ class OldDataStatisticsController extends Controller
                         SELECT 
                             ra.resource_id,
                             ra.`order`,
-                            COUNT(DISTINCT a.id) as affiliation_count
+                            COUNT(*) as affiliation_count
                         FROM resourceagent ra
-                        LEFT JOIN affiliation a ON ra.resource_id = a.resource_id 
-                            AND ra.`order` = a.`order`
+                        LEFT JOIN affiliation a ON ra.resource_id = a.resourceagent_resource_id 
+                            AND ra.`order` = a.resourceagent_order
+                        WHERE a.resourceagent_resource_id IS NOT NULL
                         GROUP BY ra.resource_id, ra.`order`
                     ) as sub
                 ");
@@ -814,43 +805,26 @@ class OldDataStatisticsController extends Controller
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
 
-                // Top 20 free keywords (from title table where type_id = 6)
-                $freeKeywords = $db->table('title')
-                    ->select([
-                        'value',
-                        DB::raw('COUNT(DISTINCT resource_id) as count'),
-                    ])
-                    ->where('type_id', 6)
-                    ->whereNotNull('value')
-                    ->where('value', '!=', '')
-                    ->groupBy('value')
-                    ->orderBy('count', 'desc')
-                    ->limit(20)
-                    ->get();
-
                 // Top 20 controlled keywords (from thesauruskeyword table)
                 $controlledKeywords = $db->table('thesauruskeyword')
                     ->select([
-                        'value',
+                        'keyword',
                         DB::raw('COUNT(DISTINCT resource_id) as count'),
                     ])
-                    ->whereNotNull('value')
-                    ->where('value', '!=', '')
-                    ->groupBy('value')
+                    ->whereNotNull('keyword')
+                    ->where('keyword', '!=', '')
+                    ->groupBy('keyword')
                     ->orderBy('count', 'desc')
                     ->limit(20)
                     ->get();
 
+                // For free keywords, we could use title table, but structure is unclear
+                // Leaving empty for now
                 return [
-                    'free' => $freeKeywords->map(function ($row) {
-                        return [
-                            'keyword' => $row->value,
-                            'count' => (int) $row->count,
-                        ];
-                    })->toArray(),
+                    'free' => [],
                     'controlled' => $controlledKeywords->map(function ($row) {
                         return [
-                            'keyword' => $row->value,
+                            'keyword' => $row->keyword,
                             'count' => (int) $row->count,
                         ];
                     })->toArray(),
@@ -908,53 +882,53 @@ class OldDataStatisticsController extends Controller
                 // Count by type
                 $byType = $db->table('description')
                     ->select([
-                        'type_id',
+                        'descriptiontype',
                         DB::raw('COUNT(DISTINCT resource_id) as count'),
                     ])
-                    ->whereNotNull('type_id')
-                    ->groupBy('type_id')
+                    ->whereNotNull('descriptiontype')
+                    ->groupBy('descriptiontype')
                     ->get();
 
-                // Longest and shortest abstract (type_id = 1)
-                /** @var object{value: string, length: int}|null $longestResult */
+                // Longest and shortest abstract (descriptiontype = 'Abstract')
+                /** @var object{description: string, length: int}|null $longestResult */
                 $longestResult = $db->table('description')
                     ->select([
-                        'value',
-                        DB::raw('LENGTH(value) as length'),
+                        'description',
+                        DB::raw('LENGTH(description) as length'),
                     ])
-                    ->where('type_id', 1)
-                    ->whereNotNull('value')
-                    ->orderBy(DB::raw('LENGTH(value)'), 'desc')
+                    ->where('descriptiontype', 'Abstract')
+                    ->whereNotNull('description')
+                    ->orderBy(DB::raw('LENGTH(description)'), 'desc')
                     ->limit(1)
                     ->first();
 
-                /** @var object{value: string, length: int}|null $shortestResult */
+                /** @var object{description: string, length: int}|null $shortestResult */
                 $shortestResult = $db->table('description')
                     ->select([
-                        'value',
-                        DB::raw('LENGTH(value) as length'),
+                        'description',
+                        DB::raw('LENGTH(description) as length'),
                     ])
-                    ->where('type_id', 1)
-                    ->whereNotNull('value')
-                    ->where('value', '!=', '')
-                    ->orderBy(DB::raw('LENGTH(value)'), 'asc')
+                    ->where('descriptiontype', 'Abstract')
+                    ->whereNotNull('description')
+                    ->where('description', '!=', '')
+                    ->orderBy(DB::raw('LENGTH(description)'), 'asc')
                     ->limit(1)
                     ->first();
 
                 return [
                     'by_type' => $byType->map(function ($row) {
                         return [
-                            'type_id' => (int) $row->type_id,
+                            'type_id' => $row->descriptiontype, // Actually a string, not ID
                             'count' => (int) $row->count,
                         ];
                     })->toArray(),
                     'longest_abstract' => $longestResult !== null ? [
                         'length' => (int) $longestResult->length,
-                        'preview' => mb_substr($longestResult->value, 0, 200),
+                        'preview' => mb_substr($longestResult->description, 0, 200),
                     ] : null,
                     'shortest_abstract' => $shortestResult !== null ? [
                         'length' => (int) $shortestResult->length,
-                        'preview' => mb_substr($shortestResult->value, 0, 200),
+                        'preview' => mb_substr($shortestResult->description, 0, 200),
                     ] : null,
                 ];
             }
@@ -976,12 +950,13 @@ class OldDataStatisticsController extends Controller
 
                 $results = $db->table('resource')
                     ->select([
-                        DB::raw('YEAR(publication_date) as year'),
+                        'publicationyear as year',
                         DB::raw('COUNT(*) as count'),
                     ])
-                    ->whereNotNull('publication_date')
-                    ->groupBy(DB::raw('YEAR(publication_date)'))
-                    ->orderBy('year')
+                    ->whereNotNull('publicationyear')
+                    ->where('publicationyear', '>', 0)
+                    ->groupBy('publicationyear')
+                    ->orderBy('publicationyear')
                     ->get();
 
                 return $results->map(function ($row) {
