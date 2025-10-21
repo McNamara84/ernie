@@ -124,6 +124,7 @@ class OldDataStatisticsController extends Controller
                     ->value('avg');
 
                 // Oldest dataset (by publication year)
+                /** @var object{id: int, identifier: string, publicationyear: int}|null $oldestDataset */
                 $oldestDataset = $db->table('resource')
                     ->whereNotNull('publicationyear')
                     ->where('publicationyear', '>', 0)
@@ -132,6 +133,7 @@ class OldDataStatisticsController extends Controller
                     ->first();
 
                 // Newest dataset (by publication year)
+                /** @var object{id: int, identifier: string, publicationyear: int}|null $newestDataset */
                 $newestDataset = $db->table('resource')
                     ->whereNotNull('publicationyear')
                     ->where('publicationyear', '>', 0)
@@ -140,6 +142,7 @@ class OldDataStatisticsController extends Controller
                     ->first();
 
                 // Oldest dataset (by created_at)
+                /** @var object{id: int, identifier: string, created_at: string}|null $oldestCreated */
                 $oldestCreated = $db->table('resource')
                     ->whereNotNull('created_at')
                     ->orderBy('created_at', 'asc')
@@ -147,6 +150,7 @@ class OldDataStatisticsController extends Controller
                     ->first();
 
                 // Newest dataset (by created_at)
+                /** @var object{id: int, identifier: string, created_at: string}|null $newestCreated */
                 $newestCreated = $db->table('resource')
                     ->whereNotNull('created_at')
                     ->orderBy('created_at', 'desc')
