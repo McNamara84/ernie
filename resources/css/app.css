@@ -154,11 +154,11 @@
 
 /* Font size adjustments for large preference */
 .font-large {
-    /* Increase font sizes < 17px by 2px */
+    /* Increase smaller font sizes by 2px for better readability */
     --font-size-xs: 14px; /* was 12px */
     --font-size-sm: 16px; /* was 14px */
     --font-size-base: 18px; /* was 16px */
-    /* Sizes >= 17px remain unchanged */
+    /* Larger font sizes (e.g., headings) remain unchanged */
 }
 
 @layer components {
