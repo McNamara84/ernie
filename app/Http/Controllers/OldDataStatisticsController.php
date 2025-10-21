@@ -89,14 +89,14 @@ class OldDataStatisticsController extends Controller
                 $totalDatasets = $db->table('resource')->count();
 
                 // Total authors (unique persons with Creator role)
+                // Count distinct resource_id + order combinations (composite primary key)
                 $totalAuthors = $db->table('resourceagent')
                     ->join('role', function ($join) {
                         $join->on('resourceagent.resource_id', '=', 'role.resourceagent_resource_id')
                             ->on('resourceagent.order', '=', 'role.resourceagent_order');
                     })
                     ->where('role.role', 'Creator')
-                    ->distinct()
-                    ->count('resourceagent.id');
+                    ->count(DB::raw('DISTINCT CONCAT(resourceagent.resource_id, "-", resourceagent.order)'));
 
                 // Average authors per dataset
                 $avgAuthorsPerDataset = $db->table('resourceagent')
@@ -255,27 +255,36 @@ class OldDataStatisticsController extends Controller
                     ->get();
 
                 // Distribution (histogram data)
-                $distribution = $db->table(DB::raw('(
+                // MySQL 5.x compatible version - use backticks for reserved keyword and simpler syntax
+                $distribution = $db->select('
                     SELECT 
-                        resource_id,
-                        COUNT(*) as count
-                    FROM relatedidentifier
-                    GROUP BY resource_id
-                ) as counts'))
-                    ->select([
-                        DB::raw('CASE 
-                            WHEN count BETWEEN 1 AND 10 THEN "1-10"
-                            WHEN count BETWEEN 11 AND 25 THEN "11-25"
-                            WHEN count BETWEEN 26 AND 50 THEN "26-50"
-                            WHEN count BETWEEN 51 AND 100 THEN "51-100"
-                            WHEN count BETWEEN 101 AND 200 THEN "101-200"
-                            WHEN count BETWEEN 201 AND 400 THEN "201-400"
-                            WHEN count > 400 THEN "400+"
-                        END as range'),
-                        DB::raw('COUNT(*) as datasets'),
-                    ])
-                    ->groupBy('range')
-                    ->get();
+                        CASE 
+                            WHEN cnt BETWEEN 1 AND 10 THEN "1-10"
+                            WHEN cnt BETWEEN 11 AND 25 THEN "11-25"
+                            WHEN cnt BETWEEN 26 AND 50 THEN "26-50"
+                            WHEN cnt BETWEEN 51 AND 100 THEN "51-100"
+                            WHEN cnt BETWEEN 101 AND 200 THEN "101-200"
+                            WHEN cnt BETWEEN 201 AND 400 THEN "201-400"
+                            WHEN cnt > 400 THEN "400+"
+                        END as `range_label`,
+                        COUNT(*) as datasets
+                    FROM (
+                        SELECT resource_id, COUNT(*) as cnt
+                        FROM relatedidentifier
+                        GROUP BY resource_id
+                    ) as counts
+                    GROUP BY `range_label`
+                    ORDER BY 
+                        CASE `range_label`
+                            WHEN "1-10" THEN 1
+                            WHEN "11-25" THEN 2
+                            WHEN "26-50" THEN 3
+                            WHEN "51-100" THEN 4
+                            WHEN "101-200" THEN 5
+                            WHEN "201-400" THEN 6
+                            WHEN "400+" THEN 7
+                        END
+                ');
 
                 return [
                     'topDatasets' => $topDatasets->map(function ($row) {
@@ -286,12 +295,12 @@ class OldDataStatisticsController extends Controller
                             'count' => (int) $row->related_count,
                         ];
                     })->toArray(),
-                    'distribution' => $distribution->map(function ($row) {
+                    'distribution' => array_map(function ($row) {
                         return [
-                            'range' => $row->range,
+                            'range' => $row->range_label,
                             'count' => (int) $row->datasets,
                         ];
-                    })->toArray(),
+                    }, $distribution),
                 ];
             }
         );
