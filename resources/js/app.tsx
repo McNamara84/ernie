@@ -6,6 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 
 import { initializeTheme } from './hooks/use-appearance';
+import { initializeFontSize } from './hooks/use-font-size';
 import { buildCsrfHeaders } from './lib/csrf-token';
 import { setupUrlTransformation } from './url-fix';
 
@@ -68,6 +69,10 @@ createInertiaApp({
     title: (title) => title ? `${title} - ${appName}` : appName,
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
     setup({ el, App, props }) {
+        // Initialize font size before rendering
+        const fontSizePreference = props.initialPage.props.fontSizePreference as 'regular' | 'large';
+        initializeFontSize(fontSizePreference);
+
         const root = createRoot(el);
         root.render(<App {...props} />);
     },

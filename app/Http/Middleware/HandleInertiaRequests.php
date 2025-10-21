@@ -51,6 +51,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
             'appUrl' => $this->getBaseUrl($request),
             'baseUrl' => $this->getBaseUrl($request),
             'pathPrefix' => $this->getPathPrefix($request),
