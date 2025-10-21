@@ -131,6 +131,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('docs.users');
 
     Route::get('editor', function (\Illuminate\Http\Request $request) {
+        // Define author/contributor exclusion roles
+        $excludedAuthorRoles = ['author', 'contact-person'];
+        
         // Check if we're loading an existing resource
         $resourceId = $request->query('resourceId');
         
@@ -194,9 +197,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 });
 
                 // Check if this group has only non-author roles (contributor roles)
-                $hasOnlyContributorRoles = $group->every(function ($author) {
+                $hasOnlyContributorRoles = $group->every(function ($author) use ($excludedAuthorRoles) {
                     $roles = $author->roles->pluck('slug')->toArray();
-                    return empty(array_intersect($roles, ['author', 'contact-person']));
+                    return empty(array_intersect($roles, $excludedAuthorRoles));
                 });
 
                 // Get the first entry to extract basic info
@@ -234,9 +237,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $data['website'] = $firstEntry->website ?? '';
                         
                         // Mark ORCID as verified if it exists (to prevent re-verification)
-                        if (!empty($authorable->orcid)) {
+                        if (!empty($authorable->orcid) && $authorable->orcid_verified_at) {
                             $data['orcidVerified'] = true;
-                            $data['orcidVerifiedAt'] = $authorable->updated_at?->toIso8601String() ?? now()->toIso8601String();
+                            $data['orcidVerifiedAt'] = $authorable->orcid_verified_at->toIso8601String();
                         }
                     } elseif ($firstEntry->authorable_type === \App\Models\Institution::class) {
                         $data['type'] = 'institution';
@@ -268,9 +271,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $data['orcid'] = $personAuthorable->orcid ?? '';
                         
                         // Mark ORCID as verified if it exists (to prevent re-verification)
-                        if (!empty($personAuthorable->orcid)) {
+                        if (!empty($personAuthorable->orcid) && $personAuthorable->orcid_verified_at) {
                             $data['orcidVerified'] = true;
-                            $data['orcidVerifiedAt'] = $personAuthorable->updated_at?->toIso8601String() ?? now()->toIso8601String();
+                            $data['orcidVerifiedAt'] = $personAuthorable->orcid_verified_at->toIso8601String();
                         }
                     } elseif ($firstEntry->authorable_type === \App\Models\Institution::class) {
                         /** @var \App\Models\Institution $institutionAuthorable */
@@ -305,22 +308,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
 
             // Sort by position
-            usort($authors, fn($a, $b) => $a['position'] <=> $b['position']);
-            usort($contributors, fn($a, $b) => $a['position'] <=> $b['position']);
+            usort($authors, fn(array $a, array $b): int => $a['position'] <=> $b['position']);
+            usort($contributors, fn(array $a, array $b): int => $a['position'] <=> $b['position']);
 
             // Transform descriptions
-            $descriptions = $resource->descriptions->map(function ($description) {
-                // Convert database description_type (lowercase/kebab-case) to frontend format (PascalCase)
-                $typeMap = [
-                    'abstract' => 'Abstract',
-                    'methods' => 'Methods',
-                    'series-information' => 'SeriesInformation',
-                    'table-of-contents' => 'TableOfContents',
-                    'technical-info' => 'TechnicalInfo',
-                    'other' => 'Other',
-                ];
-                
-                $frontendType = $typeMap[$description->description_type] ?? 'Other';
+            // Convert database description_type (lowercase/kebab-case) to frontend format (PascalCase)
+            $descriptionTypeMap = [
+                'abstract' => 'Abstract',
+                'methods' => 'Methods',
+                'series-information' => 'SeriesInformation',
+                'table-of-contents' => 'TableOfContents',
+                'technical-info' => 'TechnicalInfo',
+                'other' => 'Other',
+            ];
+            
+            $descriptions = $resource->descriptions->map(function ($description) use ($descriptionTypeMap) {
+                $frontendType = $descriptionTypeMap[$description->description_type] ?? 'Other';
                 
                 return [
                     'type' => $frontendType,
@@ -401,10 +404,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 
                 return [
                     'id' => (string) $coverage->id,
-                    'latMin' => (string) ($coverage->lat_min ?? ''),
-                    'latMax' => (string) ($coverage->lat_max ?? ''),
-                    'lonMin' => (string) ($coverage->lon_min ?? ''),
-                    'lonMax' => (string) ($coverage->lon_max ?? ''),
+                    'latMin' => $coverage->lat_min !== null ? (string) $coverage->lat_min : '',
+                    'latMax' => $coverage->lat_max !== null ? (string) $coverage->lat_max : '',
+                    'lonMin' => $coverage->lon_min !== null ? (string) $coverage->lon_min : '',
+                    'lonMax' => $coverage->lon_max !== null ? (string) $coverage->lon_max : '',
                     'startDate' => $startDate,
                     'endDate' => $endDate,
                     'startTime' => $coverage->start_time ?? '',
