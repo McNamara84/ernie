@@ -20,6 +20,11 @@ const COLORS = [
     'hsl(24.6 95% 53.1%)',
     'hsl(262.1 83.3% 57.8%)',
     'hsl(346.8 77.2% 49.8%)',
+    'hsl(173 58% 39%)', // Teal
+    'hsl(43 74% 66%)', // Yellow
+    'hsl(280 65% 60%)', // Violet
+    'hsl(12 76% 61%)', // Coral
+    'hsl(198 70% 50%)', // Sky
 ];
 
 export default function RoleDistributionChart({ data }: RoleDistributionChartProps) {

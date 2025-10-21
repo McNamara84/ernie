@@ -21,6 +21,16 @@ const COLORS = [
     'hsl(24.6 95% 53.1%)', // Orange
     'hsl(262.1 83.3% 57.8%)', // Purple
     'hsl(346.8 77.2% 49.8%)', // Red
+    'hsl(173 58% 39%)', // Teal
+    'hsl(43 74% 66%)', // Yellow
+    'hsl(280 65% 60%)', // Violet
+    'hsl(12 76% 61%)', // Coral
+    'hsl(198 70% 50%)', // Sky
+    'hsl(48 96% 53%)', // Amber
+    'hsl(339 90% 51%)', // Pink
+    'hsl(162 63% 41%)', // Emerald
+    'hsl(258 90% 66%)', // Indigo
+    'hsl(27 87% 67%)', // Peach
 ];
 
 export default function PidUsageChart({ data }: PidUsageChartProps) {

@@ -1,4 +1,4 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 type InstitutionData = {
     name: string;
@@ -10,13 +10,32 @@ type InstitutionChartProps = {
     data: InstitutionData[];
 };
 
+const COLORS = [
+    'hsl(221.2 83.2% 53.3%)', // Blue
+    'hsl(142.1 76.2% 36.3%)', // Green
+    'hsl(24.6 95% 53.1%)', // Orange
+    'hsl(262.1 83.3% 57.8%)', // Purple
+    'hsl(346.8 77.2% 49.8%)', // Red
+    'hsl(173 58% 39%)', // Teal
+    'hsl(43 74% 66%)', // Yellow
+    'hsl(280 65% 60%)', // Violet
+    'hsl(12 76% 61%)', // Coral
+    'hsl(198 70% 50%)', // Sky
+    'hsl(48 96% 53%)', // Amber
+    'hsl(339 90% 51%)', // Pink
+    'hsl(162 63% 41%)', // Emerald
+    'hsl(258 90% 66%)', // Indigo
+    'hsl(27 87% 67%)', // Peach
+];
+
 export default function InstitutionChart({ data }: InstitutionChartProps) {
     // Transform data for recharts (needs name and value)
-    const chartData = data.map((item) => ({
+    const chartData = data.map((item, index) => ({
         name: item.name.length > 40 ? item.name.substring(0, 37) + '...' : item.name,
         fullName: item.name,
         datasets: item.count,
         rorId: item.rorId,
+        color: COLORS[index % COLORS.length],
     }));
 
     return (
@@ -72,7 +91,11 @@ export default function InstitutionChart({ data }: InstitutionChartProps) {
                         return null;
                     }}
                 />
-                <Bar dataKey="datasets" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="datasets" radius={[0, 4, 4, 0]}>
+                    {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                </Bar>
             </BarChart>
         </ResponsiveContainer>
     );

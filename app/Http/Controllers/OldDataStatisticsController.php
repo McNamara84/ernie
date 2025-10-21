@@ -485,6 +485,7 @@ class OldDataStatisticsController extends Controller
                         DB::raw('COUNT(*) as count'),
                     ])
                     ->whereNotNull('role')
+                    ->where('role', '!=', 'Creator') // Exclude Creator role (that's for authors)
                     ->groupBy('role')
                     ->orderBy('count', 'desc')
                     ->limit(15)
@@ -805,7 +806,24 @@ class OldDataStatisticsController extends Controller
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
 
-                // Top 20 controlled keywords (from thesauruskeyword table)
+                // Free keywords: without scheme or schemeUri
+                $freeKeywords = $db->table('thesauruskeyword')
+                    ->select([
+                        'keyword',
+                        DB::raw('COUNT(DISTINCT resource_id) as count'),
+                    ])
+                    ->whereNotNull('keyword')
+                    ->where('keyword', '!=', '')
+                    ->where(function ($query) {
+                        $query->whereNull('thesaurus')
+                            ->orWhere('thesaurus', '=', '');
+                    })
+                    ->groupBy('keyword')
+                    ->orderBy('count', 'desc')
+                    ->limit(20)
+                    ->get();
+
+                // Controlled keywords: with scheme or schemeUri
                 $controlledKeywords = $db->table('thesauruskeyword')
                     ->select([
                         'keyword',
@@ -813,15 +831,20 @@ class OldDataStatisticsController extends Controller
                     ])
                     ->whereNotNull('keyword')
                     ->where('keyword', '!=', '')
+                    ->whereNotNull('thesaurus')
+                    ->where('thesaurus', '!=', '')
                     ->groupBy('keyword')
                     ->orderBy('count', 'desc')
                     ->limit(20)
                     ->get();
 
-                // For free keywords, we could use title table, but structure is unclear
-                // Leaving empty for now
                 return [
-                    'free' => [],
+                    'free' => $freeKeywords->map(function ($row) {
+                        return [
+                            'keyword' => $row->keyword,
+                            'count' => (int) $row->count,
+                        ];
+                    })->toArray(),
                     'controlled' => $controlledKeywords->map(function ($row) {
                         return [
                             'keyword' => $row->keyword,

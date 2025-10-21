@@ -25,9 +25,12 @@ const metrics = [
 ] as const;
 
 export default function CompletenessGauge({ data }: CompletenessGaugeProps) {
+    // Sort metrics by value (descending)
+    const sortedMetrics = [...metrics].sort((a, b) => data[b.key] - data[a.key]);
+
     return (
         <div className="space-y-4">
-            {metrics.map((metric) => {
+            {sortedMetrics.map((metric) => {
                 const value = data[metric.key];
                 return (
                     <div key={metric.key} className="space-y-2">
