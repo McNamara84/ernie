@@ -328,33 +328,39 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ];
             })->toArray();
 
-            // Transform dates
-            $dates = $resource->dates->map(function ($date) {
-                // Convert datetime to date-only format (YYYY-MM-DD) for HTML date inputs
-                $startDate = '';
-                if ($date->start_date) {
-                    try {
-                        $startDate = \Carbon\Carbon::parse($date->start_date)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $startDate = '';
+            // Transform dates (exclude 'coverage' dates as they belong to spatial-temporal coverage)
+            $dates = $resource->dates
+                ->filter(function ($date) {
+                    return $date->date_type !== 'coverage';
+                })
+                ->map(function ($date) {
+                    // Convert datetime to date-only format (YYYY-MM-DD) for HTML date inputs
+                    $startDate = '';
+                    if ($date->start_date) {
+                        try {
+                            $startDate = \Carbon\Carbon::parse($date->start_date)->format('Y-m-d');
+                        } catch (\Exception $e) {
+                            $startDate = '';
+                        }
                     }
-                }
-                
-                $endDate = '';
-                if ($date->end_date) {
-                    try {
-                        $endDate = \Carbon\Carbon::parse($date->end_date)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $endDate = '';
+                    
+                    $endDate = '';
+                    if ($date->end_date) {
+                        try {
+                            $endDate = \Carbon\Carbon::parse($date->end_date)->format('Y-m-d');
+                        } catch (\Exception $e) {
+                            $endDate = '';
+                        }
                     }
-                }
-                
-                return [
-                    'dateType' => $date->date_type,
-                    'startDate' => $startDate,
-                    'endDate' => $endDate,
-                ];
-            })->toArray();
+                    
+                    return [
+                        'dateType' => $date->date_type,
+                        'startDate' => $startDate,
+                        'endDate' => $endDate,
+                    ];
+                })
+                ->values()
+                ->toArray();
 
             // Transform free keywords
             $freeKeywords = $resource->keywords->pluck('keyword')->toArray();
@@ -372,18 +378,39 @@ Route::middleware(['auth', 'verified'])->group(function () {
             })->toArray();
 
             // Transform coverages
+            // Transform coverages with proper date formatting
             $coverages = $resource->coverages->map(function ($coverage) {
+                // Format dates for HTML date inputs (YYYY-MM-DD)
+                $startDate = '';
+                if ($coverage->start_date) {
+                    try {
+                        $startDate = \Carbon\Carbon::parse($coverage->start_date)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $startDate = '';
+                    }
+                }
+                
+                $endDate = '';
+                if ($coverage->end_date) {
+                    try {
+                        $endDate = \Carbon\Carbon::parse($coverage->end_date)->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $endDate = '';
+                    }
+                }
+                
                 return [
-                    'latMin' => $coverage->lat_min,
-                    'latMax' => $coverage->lat_max,
-                    'lonMin' => $coverage->lon_min,
-                    'lonMax' => $coverage->lon_max,
-                    'startDate' => $coverage->start_date,
-                    'endDate' => $coverage->end_date,
-                    'startTime' => $coverage->start_time,
-                    'endTime' => $coverage->end_time,
+                    'id' => (string) $coverage->id,
+                    'latMin' => (string) ($coverage->lat_min ?? ''),
+                    'latMax' => (string) ($coverage->lat_max ?? ''),
+                    'lonMin' => (string) ($coverage->lon_min ?? ''),
+                    'lonMax' => (string) ($coverage->lon_max ?? ''),
+                    'startDate' => $startDate,
+                    'endDate' => $endDate,
+                    'startTime' => $coverage->start_time ?? '',
+                    'endTime' => $coverage->end_time ?? '',
                     'timezone' => $coverage->timezone ?? 'UTC',
-                    'description' => $coverage->description,
+                    'description' => $coverage->description ?? '',
                 ];
             })->toArray();
 
