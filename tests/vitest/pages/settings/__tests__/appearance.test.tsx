@@ -6,9 +6,15 @@ import { describe, expect, it, vi } from 'vitest';
 import Appearance from '@/pages/settings/appearance';
 
 const updateAppearance = vi.fn();
+const updateFontSize = vi.fn();
+const usePageMock = vi.fn();
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    usePage: () => usePageMock(),
+    router: {
+        put: vi.fn(),
+    },
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
@@ -23,6 +29,10 @@ vi.mock('@/hooks/use-appearance', () => ({
     useAppearance: () => ({ appearance: 'system', updateAppearance }),
 }));
 
+vi.mock('@/hooks/use-font-size', () => ({
+    useFontSize: () => ({ fontSize: 'regular', updateFontSize }),
+}));
+
 vi.mock('@/routes', () => ({
     appearance: () => ({ url: '/settings/appearance' }),
     about: () => '/about',
@@ -31,6 +41,13 @@ vi.mock('@/routes', () => ({
 
 describe('Appearance settings page', () => {
     it('renders heading and updates appearance', () => {
+        usePageMock.mockReturnValue({ 
+            props: { 
+                fontSizePreference: 'regular',
+                auth: { user: { id: 1 } } 
+            } 
+        });
+        
         render(<Appearance />);
         expect(screen.getByRole('heading', { name: /appearance settings/i })).toBeInTheDocument();
         const darkButton = screen.getByRole('button', { name: /dark/i });
