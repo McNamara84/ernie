@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\OldDatasetController;
+use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\License;
@@ -50,6 +51,9 @@ Route::get('/changelog', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
         ->name('old-datasets');
+
+    Route::get('old-statistics', [OldDataStatisticsController::class, 'index'])
+        ->name('old-statistics');
 
     Route::get('old-datasets/filter-options', [OldDatasetController::class, 'getFilterOptions'])
         ->name('old-datasets.filter-options');
