@@ -1249,41 +1249,6 @@ it('filters resources by resource type', function (): void {
         );
 });
 
-it('filters resources by language', function (): void {
-    $english = Language::factory()->create(['code' => 'en', 'name' => 'English']);
-    $german = Language::factory()->create(['code' => 'de', 'name' => 'German']);
-    $resourceType = ResourceType::factory()->create();
-    $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
-    $englishResource = Resource::factory()->create([
-        'resource_type_id' => $resourceType->id,
-        'language_id' => $english->id,
-        'year' => 2024,
-    ]);
-    $englishResource->titles()->create([
-        'title' => 'English Resource',
-        'title_type_id' => $titleType->id,
-    ]);
-    
-    $germanResource = Resource::factory()->create([
-        'resource_type_id' => $resourceType->id,
-        'language_id' => $german->id,
-        'year' => 2024,
-    ]);
-    $germanResource->titles()->create([
-        'title' => 'German Resource',
-        'title_type_id' => $titleType->id,
-    ]);
-
-    get(route('resources', ['language' => ['de']]))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page): Assert => $page
-            ->component('resources')
-            ->has('resources', 1)
-            ->where('resources.0.title', 'German Resource')
-        );
-});
-
 it('filters resources by curator', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
@@ -1510,9 +1475,6 @@ it('provides filter options endpoint', function (): void {
         ->assertJson([
             'resource_types' => [
                 ['name' => 'Dataset', 'slug' => 'dataset'],
-            ],
-            'languages' => [
-                ['code' => 'en', 'name' => 'English'],
             ],
             'curators' => ['Alice Curator'],
             'statuses' => ['curation'],
