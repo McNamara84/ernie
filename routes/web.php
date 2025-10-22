@@ -5,6 +5,7 @@ use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
+use App\Http\Controllers\LandingPageController;
 use App\Models\License;
 use App\Models\Resource;
 use App\Models\Setting;
@@ -47,6 +48,11 @@ Route::get('/legal-notice', function () {
 Route::get('/changelog', function () {
     return Inertia::render('changelog');
 })->name('changelog');
+
+// Public Landing Pages (accessible without authentication)
+Route::get('datasets/{resourceId}', [LandingPageController::class, 'show'])
+    ->name('landing-page.show')
+    ->where('resourceId', '[0-9]+');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
@@ -116,6 +122,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
+
+    // Landing Page Management (Admin)
+    Route::post('resources/{resource}/landing-page', [LandingPageController::class, 'store'])
+        ->name('landing-page.store');
+
+    Route::put('resources/{resource}/landing-page', [LandingPageController::class, 'update'])
+        ->name('landing-page.update');
+
+    Route::delete('resources/{resource}/landing-page', [LandingPageController::class, 'destroy'])
+        ->name('landing-page.destroy');
+
+    Route::get('resources/{resource}/landing-page', [LandingPageController::class, 'get'])
+        ->name('landing-page.get');
 
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
