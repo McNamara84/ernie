@@ -19,8 +19,15 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 - **Authors & Contributors** – comprehensive management with ORCID support, role assignments, and ROR-affiliated institutions
 - **Descriptions** – multiple description types per resource (Abstract, Methods, Technical Info, etc.)
 - **Date Ranges** – temporal metadata with various DataCite date types (Created, Issued, Collected, etc.)
-- **Keywords** – dual system supporting NASA GCMD controlled vocabularies (Science Keywords, Platforms, Instruments) and free-form keywords
-- **Spatial & Temporal Coverage** – interactive Google Maps integration for geographic coordinates, date/time ranges with timezone support
+- **Funding References** – project funding information with funder identification and grant numbers
+### Keywords & Controlled Vocabularies
+
+- **Keywords** – comprehensive keyword system supporting:
+  - NASA GCMD controlled vocabularies (Science Keywords, Platforms, Instruments)
+  - MSL (Materials Science and Engineering) controlled vocabulary
+  - Free-form keywords for flexible tagging
+- **Spatial & Temporal Coverage** – interactive Google Maps integration for geographic coordinates with polygon/point support, date/time ranges with timezone support
+- **Related Identifiers** – link to related publications, datasets, and resources with DataCite relation types
 - **Licenses & Rights** – configurable licenses with automatic SPDX synchronization
 
 ### Data Import & Integration
@@ -28,14 +35,16 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 - **XML Upload** – automatic extraction of metadata from DataCite XML files
 - **Legacy Dataset Browser** – browse and import metadata from old datasets with intelligent field mapping
 - **ROR Integration** – automatic synchronization with Research Organization Registry for institutional affiliations
+- **ORCID Integration** – search and validate researcher identities via ORCID Public API
 - **GCMD Vocabularies** – integration with NASA's Global Change Master Directory keyword system
+- **MSL Vocabulary** – integration with Materials Science and Engineering controlled vocabulary
 
 ### User Interface
 
-- **Resources Workspace** – browse, edit, and manage curated resources with metadata badges and quick actions
-- **Interactive Curation Form** – comprehensive metadata editing with validation and auto-completion
-- **Dashboard** – statistics overview and quick access to key functions
-- **Accessible Design** – built with Radix UI and Tailwind CSS following WCAG guidelines
+- **Resources Workspace** – browse, search, and manage curated resources with metadata completeness badges, status indicators, and quick actions
+- **Interactive Curation Form** – comprehensive metadata editing with real-time validation, auto-completion, and drag-and-drop reordering
+- **Dashboard** – statistics overview with resource metrics, recent activities, and quick access to key functions
+- **Accessible Design** – built with Radix UI and Tailwind CSS following WCAG 2.1 AA guidelines, tested with Axe-core
 
 ### API & Documentation
 
@@ -43,6 +52,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
   - Interactive Swagger UI for exploring endpoints
   - Metadata types for ELMO integration (resource types, title types, licenses, languages, roles)
   - NASA GCMD controlled vocabularies (Science Keywords, Platforms, Instruments)
+  - ROR affiliations and ORCID search endpoints
   - API key authentication via `X-API-Key` header or `api_key` query parameter
 - **Changelog** – interactive version history accessible at `/changelog`
 - **User Documentation** – comprehensive guides available at `/docs`
@@ -51,13 +61,13 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 
 ### Prerequisites
 
-- PHP 8.2+ with required extensions:
-  `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `intl`, `json`,
-  `libxml`, `mbstring`, `openssl`, `pdo`, `pdo_mysql`, `simplexml`,
-  `sodium`, `tokenizer`, `xml`, `xmlwriter`, `xsl`
-- Node.js 18+ and npm
-- MySQL/MariaDB database
-- Composer 2.x
+- **PHP 8.2+** with required extensions:
+  - Core: `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `tokenizer`, `xml`, `xmlwriter`
+  - Database: `pdo`, `pdo_mysql`
+  - Additional: `intl`, `simplexml`, `sodium`, `xsl`
+- **Node.js 18+** and npm
+- **MySQL 8.0+** or **MariaDB 10.6+**
+- **Composer 2.x**
 
 ### Basic Setup
 
@@ -113,6 +123,13 @@ Add to `.env`:
 GM_API_KEY=your_api_key_here
 ```
 
+#### ORCID API Configuration
+ERNIE uses the ORCID Public API for read-only access to researcher profiles. No authentication is required:
+```env
+ORCID_API_URL=https://pub.orcid.org/v3.0
+ORCID_SEARCH_URL=https://pub.orcid.org/v3.0/search
+```
+
 #### Old Database Connection (for Legacy Data Import)
 Add to `config/database.php` and `.env`:
 ```env
@@ -144,6 +161,11 @@ php artisan get-gcmd-platforms
 php artisan get-gcmd-instruments
 ```
 
+#### Download MSL Vocabulary
+```bash
+php artisan download-msl-vocabulary
+```
+
 #### Sync ROR Affiliations
 ```bash
 php artisan get-ror-ids
@@ -151,7 +173,9 @@ php artisan get-ror-ids
 
 ## Docker Deployment
 
-The project includes Docker configuration for production deployment:
+The project includes Docker configuration for production deployment with multi-stage builds and optimized images.
+
+### Quick Start
 
 1. Build the Docker image:
    ```bash
@@ -163,16 +187,37 @@ The project includes Docker configuration for production deployment:
    docker-compose -f docker-compose.prod.yml up -d
    ```
 
-3. Run migrations inside the container:
+3. Run initial setup inside the container:
    ```bash
    docker-compose -f docker-compose.prod.yml exec app php artisan migrate
+   docker-compose -f docker-compose.prod.yml exec app php artisan spdx:sync-licenses
    ```
 
+### Docker Stack
+
 The Docker setup includes:
-- PHP-FPM with all required extensions
-- Nginx web server
-- MariaDB database
-- Persistent volumes for storage and database
+- **PHP-FPM 8.2+** with all required extensions
+- **Nginx** web server with optimized configuration
+- **MariaDB 10.6+** database server
+- **Persistent volumes** for storage and database
+- **Health checks** for all services
+
+### Container Management
+
+View logs:
+```bash
+docker-compose -f docker-compose.prod.yml logs -f
+```
+
+Stop containers:
+```bash
+docker-compose -f docker-compose.prod.yml down
+```
+
+Remove volumes (⚠️ deletes data):
+```bash
+docker-compose -f docker-compose.prod.yml down -v
+```
 
 ## Development Tools
 
@@ -180,21 +225,34 @@ The Docker setup includes:
 
 #### PHP Linting & Formatting
 ```bash
-./vendor/bin/pint          # Fix code style issues
+./vendor/bin/pint          # Fix code style issues (PSR-12 standard)
 ```
 
 #### JavaScript/TypeScript Linting & Formatting
 ```bash
 npm run lint               # Run ESLint with auto-fix
-npm run format            # Format code with Prettier
-npm run format:check      # Check formatting without changes
-npm run types             # Type check with TypeScript
+npm run format             # Format code with Prettier
+npm run format:check       # Check formatting without changes
+npm run types              # Type check with TypeScript (no emit)
 ```
 
 #### Static Analysis
 ```bash
-./vendor/bin/phpstan analyse  # Run PHPStan for static analysis
+./vendor/bin/phpstan analyse  # Run PHPStan for static analysis (Level 8)
 ```
+
+### Development Server
+
+Start the integrated development environment:
+```bash
+composer run dev           # Starts Laravel server, queue worker, and Vite
+composer run dev:ssr       # Same as above + SSR support with Inertia.js
+```
+
+The `dev` command runs three concurrent processes:
+- **Laravel server** on http://127.0.0.1:8000
+- **Queue worker** for background jobs
+- **Vite dev server** with HMR (Hot Module Replacement)
 
 ## Testing
 
@@ -263,16 +321,30 @@ npx playwright install
 Run all E2E tests:
 
 ```bash
-npx playwright test
+npm run test:e2e
 ```
+*Note: This automatically starts the Laravel server, runs tests, and stops the server.*
 
 Run tests in UI mode (interactive):
 
 ```bash
-npx playwright test --ui
+npm run test:e2e:ui
 ```
 
-Run specific test file:
+Run tests in headed mode (visible browser):
+
+```bash
+npm run test:e2e:headed
+```
+
+Run specific test suites:
+
+```bash
+npm run test:e2e:changelog    # Changelog tests
+npm run test:e2e:a11y         # Accessibility tests
+```
+
+Run specific test file manually:
 
 ```bash
 npx playwright test tests/playwright/login.spec.ts
@@ -284,8 +356,6 @@ View test report:
 npx playwright show-report
 ```
 
-**Note:** Ensure the application server is running before executing Playwright tests.
-
 ## Technology Stack
 
 ### Backend
@@ -294,6 +364,7 @@ npx playwright show-report
 - **Database:** MySQL/MariaDB
 - **Queue System:** Database-backed queues
 - **Testing:** Pest 3.x with Laravel plugin
+- **HTTP Client:** Saloon PHP for external API integrations
 
 ### Frontend
 - **Framework:** React 19.x
@@ -302,27 +373,31 @@ npx playwright show-report
 - **Styling:** Tailwind CSS 4.x
 - **UI Components:** Radix UI primitives
 - **Maps:** Google Maps via @vis.gl/react-google-maps
-- **Testing:** Vitest 3.x, Playwright 1.x
+- **Animations:** Framer Motion
+- **Charts:** Recharts
+- **Testing:** Vitest 3.x, Playwright 1.x, React Testing Library
 
 ### Development Tools
-- **Code Quality:** Laravel Pint, ESLint, Prettier
-- **Static Analysis:** PHPStan (Larastan), TypeScript
-- **Package Management:** Composer, npm
+- **Code Quality:** Laravel Pint, ESLint 9.x, Prettier 3.x
+- **Static Analysis:** PHPStan (Larastan 3.x), TypeScript 5.x
+- **Package Management:** Composer 2.x, npm
 - **Process Management:** Concurrently
+- **E2E Testing:** Playwright with Axe-core for accessibility
 
 ## API Documentation
 
-ERNIE provides a **read-only REST API** (OpenAPI 3.1.0) for integration with external systems like ELMO. The API offers access to metadata types, roles, and NASA GCMD controlled vocabularies.
+ERNIE provides a **read-only REST API** (OpenAPI 3.1.0) for integration with external systems like ELMO. The API offers access to metadata types, roles, controlled vocabularies, and researcher identification services.
 
 **📖 [View Interactive API Documentation](https://env.rz-vm182.gfz.de/ernie/api/v1/doc)**
 
 The API documentation includes:
 - All available endpoints with request/response examples
-- Authentication requirements (API key via `X-API-Key` header)
-- Complete schema definitions
+- Authentication requirements (API key via `X-API-Key` header for protected endpoints)
+- Complete schema definitions for all data types
 - Interactive Swagger UI for testing endpoints
+- Access to NASA GCMD vocabularies, ROR affiliations, and ORCID search
 
-For API access, contact the ERNIE team to obtain an API key.
+For API key access to protected endpoints, contact the ERNIE development team.
 
 ## Project Structure
 
@@ -369,12 +444,13 @@ ernie/
 - `/login` – User login
 - `/forgot-password` – Password reset request
 - `/reset-password/{token}` – Password reset with token
-- `/up` – Health check endpoint
+- `/health` – Health check endpoint (JSON status response)
 
 ### Authenticated Routes
 - `/dashboard` – Main dashboard with statistics
 - `/resources` – Browse and manage curated resources
 - `/old-datasets` – Browse legacy datasets for import
+- `/old-statistics` – Statistics overview of old datasets
 - `/curation` – Metadata curation form
 - `/docs` – Documentation overview
 - `/docs/users` – User documentation
@@ -385,25 +461,51 @@ ernie/
 
 ### API Routes
 - `/api/changelog` – Changelog data (public, no authentication required)
-- `/api/v1/doc` – [Interactive API documentation](https://env.rz-vm182.gfz.de/ernie/api/v1/doc) (ELMO integration endpoints)
+- `/api/v1/doc` – [Interactive API documentation](https://env.rz-vm182.gfz.de/ernie/api/v1/doc) (OpenAPI/Swagger UI)
+- `/api/v1/resource-types` – Resource type definitions
+- `/api/v1/title-types` – Title type definitions
+- `/api/v1/licenses` – License information
+- `/api/v1/languages` – Language codes and labels
+- `/api/v1/roles/authors` – Author role definitions
+- `/api/v1/roles/contributors` – Contributor role definitions
+- `/api/v1/ror-affiliations` – ROR organization affiliations
+- `/api/v1/orcid/search` – ORCID researcher search
+- `/api/v1/gcmd/*` – NASA GCMD controlled vocabularies
+
+*Note: Most `/elmo` endpoints require API key authentication via the `X-API-Key` header.*
 
 ## Contributing
 
 ### Workflow
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes following the code style standards
-4. Run quality checks (see below)
-5. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/)
-6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+1. **Fork the repository** and clone your fork
+2. **Create a feature branch** from `main`:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Make your changes** following the code style standards
+4. **Run quality checks** (see below) to ensure code quality
+5. **Write or update tests** for your changes
+6. **Commit your changes** using [Conventional Commits](https://www.conventionalcommits.org/):
+   ```bash
+   git commit -m "feat: add amazing feature"
+   ```
+7. **Push to your branch**:
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+8. **Open a Pull Request** with a clear description of your changes
 
 ### Code Style Standards
 
-- **PHP:** PSR-12 via Laravel Pint
-- **JavaScript/TypeScript:** ESLint + Prettier with organized imports
+- **PHP:** PSR-12 via Laravel Pint with custom Laravel preset
+- **JavaScript/TypeScript:** ESLint 9.x + Prettier 3.x with:
+  - Simple Import Sort plugin for organized imports
+  - React and React Hooks plugins
+  - Prettier plugin for Tailwind CSS class sorting
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) specification
+  - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+  - Example: `feat(curation): add funding reference support`
 
 ### Quality Checks
 
@@ -411,19 +513,28 @@ Before committing, ensure all quality checks pass:
 
 ```bash
 # PHP Code Style & Analysis
-./vendor/bin/pint                    # Fix code style
-./vendor/bin/phpstan analyse         # Static analysis
+./vendor/bin/pint                    # Fix code style (PSR-12)
+./vendor/bin/phpstan analyse         # Static analysis (Level 8)
 
 # JavaScript/TypeScript
-npm run lint                         # Lint & fix
-npm run format                       # Format code
-npm run types                        # Type check
+npm run lint                         # Lint & fix with ESLint
+npm run format                       # Format code with Prettier
+npm run types                        # Type check with TypeScript
 
 # Tests
-composer run test                    # PHP tests
-npm test                             # JavaScript tests
-npx playwright test                  # E2E tests (server must be running)
+composer run test                    # PHP tests (Pest + Laravel)
+npm test                             # JavaScript tests (Vitest)
+npm run test:e2e                     # E2E tests (Playwright with server)
 ```
+
+### Continuous Integration
+
+All pull requests are automatically checked for:
+- Code style compliance (Pint, ESLint, Prettier)
+- Static analysis (PHPStan, TypeScript)
+- Test coverage (Pest, Vitest, Playwright)
+- Type safety (TypeScript strict mode)
+- Accessibility (Axe-core in E2E tests)
 
 ## License
 
@@ -434,8 +545,10 @@ This project is licensed under the GNU General Public License v3.0 or later (GPL
 Developed at **GFZ German Research Centre for Geosciences** – Helmholtz Centre Potsdam.
 
 This project integrates with:
-- [DataCite](https://datacite.org/) metadata schema
-- [NASA GCMD](https://earthdata.nasa.gov/earth-observation-data/find-data/gcmd) vocabularies
-- [Research Organization Registry (ROR)](https://ror.org/)
-- [SPDX License List](https://spdx.org/licenses/)
+- [DataCite](https://datacite.org/) metadata schema v4.5
+- [NASA GCMD](https://earthdata.nasa.gov/earth-observation-data/find-data/gcmd) controlled vocabularies
+- [Research Organization Registry (ROR)](https://ror.org/) for institutional identifiers
+- [ORCID](https://orcid.org/) Public API for researcher identification
+- [SPDX License List](https://spdx.org/licenses/) for standardized license identifiers
+- [MSL](https://msl-vocabularies.tib.eu/) Materials Science and Engineering vocabulary
 
