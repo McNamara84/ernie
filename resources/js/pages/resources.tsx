@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
-
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';

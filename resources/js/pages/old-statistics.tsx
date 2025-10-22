@@ -2,12 +2,6 @@ import { Head, router } from '@inertiajs/react';
 import { RefreshCcw } from 'lucide-react';
 import { useState } from 'react';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import AppLayout from '@/layouts/app-layout';
-import { oldStatistics } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-
 import AbstractAnalysis from '@/components/statistics/abstract-analysis';
 import AffiliationStatsCard from '@/components/statistics/affiliation-stats-card';
 import CompletenessGauge from '@/components/statistics/completeness-gauge';
@@ -27,6 +21,11 @@ import ResourceTypeChart from '@/components/statistics/resource-type-chart';
 import RoleDistributionChart from '@/components/statistics/role-distribution-chart';
 import StatsCard from '@/components/statistics/stats-card';
 import TimelineChart from '@/components/statistics/timeline-chart';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AppLayout from '@/layouts/app-layout';
+import { oldStatistics } from '@/routes';
+import { type BreadcrumbItem } from '@/types';
 
 type InstitutionStat = {
     name: string;
