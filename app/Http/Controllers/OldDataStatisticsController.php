@@ -12,7 +12,7 @@ class OldDataStatisticsController extends Controller
 {
     private const DATASET_CONNECTION = 'metaworks';
     private const CACHE_KEY_PREFIX = 'old_data_stats_';
-    private const CACHE_DURATION = 60 * 60 * 12; // 12 Stunden in Sekunden
+    private const CACHE_DURATION = 60 * 60 * 12; // 12 hours in seconds
 
     /**
      * Display statistics dashboard for old datasets.
@@ -72,6 +72,13 @@ class OldDataStatisticsController extends Controller
             'resource_types',
             'languages',
             'licenses',
+            'identifiers',
+            'current_year',
+            'affiliations',
+            'keywords',
+            'creation_time',
+            'descriptions',
+            'publication_years',
         ];
 
         foreach ($cacheKeys as $key) {
