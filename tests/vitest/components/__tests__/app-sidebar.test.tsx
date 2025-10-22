@@ -94,6 +94,7 @@ describe('AppSidebar', () => {
             'Dashboard',
             'Data Editor',
             'Old Datasets',
+            'Statistics (old)',
             'Resources',
             'IGSNs',
             'IGSN Editor',

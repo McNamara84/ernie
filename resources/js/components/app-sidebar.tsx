@@ -1,5 +1,16 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, ClipboardEdit, Database, FileText, FlaskConical, History, Layers,LayoutGrid, Settings } from 'lucide-react';
+import {
+    BarChart3,
+    BookOpen,
+    ClipboardEdit,
+    Database,
+    FileText,
+    FlaskConical,
+    History,
+    Layers,
+    LayoutGrid,
+    Settings,
+} from 'lucide-react';
 
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -27,6 +38,11 @@ const mainNavItems: NavItem[] = [
         title: 'Old Datasets',
         href: withBasePath('/old-datasets'),
         icon: Database,
+    },
+    {
+        title: 'Statistics (old)',
+        href: withBasePath('/old-statistics'),
+        icon: BarChart3,
     },
     {
         title: 'Resources',
