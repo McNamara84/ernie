@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Resource extends Model
 {
@@ -183,6 +184,15 @@ class Resource extends Model
     {
         /** @var BelongsTo<User, static> $relation */
         $relation = $this->belongsTo(User::class, 'updated_by_user_id');
+
+        return $relation;
+    }
+
+    /** @return HasOne<LandingPage, static> */
+    public function landingPage(): HasOne
+    {
+        /** @var HasOne<LandingPage, static> $relation */
+        $relation = $this->hasOne(LandingPage::class);
 
         return $relation;
     }
