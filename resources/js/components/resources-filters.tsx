@@ -125,16 +125,6 @@ export function ResourcesFilters({
         onFilterChange(newFilters);
     }, [filters, onFilterChange]);
 
-    const handleLanguageChange = useCallback((value: string) => {
-        const newFilters = { ...filters };
-        if (value && value !== 'all') {
-            newFilters.language = [value];
-        } else {
-            delete newFilters.language;
-        }
-        onFilterChange(newFilters);
-    }, [filters, onFilterChange]);
-
     const handleStatusChange = useCallback((value: string) => {
         const newFilters = { ...filters };
         if (value && value !== 'all') {
@@ -220,7 +210,6 @@ export function ResourcesFilters({
     const formatFilterLabel = useCallback((key: keyof ResourceFilterState, value: unknown): string => {
         const labelMap: Record<string, string> = {
             resource_type: 'Type',
-            language: 'Language',
             status: 'Status',
             curator: 'Curator',
             search: 'Search',
@@ -240,14 +229,6 @@ export function ResourcesFilters({
                 const names = value.map(slug => {
                     const type = filterOptions.resource_types.find(t => t.slug === slug);
                     return type?.name || slug;
-                });
-                return `${label}: ${names.join(', ')}`;
-            }
-            // For languages, show the name instead of code
-            if (key === 'language' && filterOptions?.languages) {
-                const names = value.map(code => {
-                    const lang = filterOptions.languages.find(l => l.code === code);
-                    return lang?.name || code;
                 });
                 return `${label}: ${names.join(', ')}`;
             }
@@ -289,25 +270,6 @@ export function ResourcesFilters({
                         {filterOptions?.resource_types?.map(type => (
                             <SelectItem key={type.slug} value={type.slug}>
                                 {type.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-
-                {/* Language Select */}
-                <Select
-                    value={filters.language?.[0] || 'all'}
-                    onValueChange={handleLanguageChange}
-                    disabled={isLoading || !filterOptions}
-                >
-                    <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by language">
-                        <SelectValue placeholder="Language" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Languages</SelectItem>
-                        {filterOptions?.languages?.map(lang => (
-                            <SelectItem key={lang.code} value={lang.code}>
-                                {lang.name}
                             </SelectItem>
                         ))}
                     </SelectContent>

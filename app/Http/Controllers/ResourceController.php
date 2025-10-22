@@ -485,15 +485,6 @@ class ResourceController extends Controller
         $yearMin = Resource::query()->min('year');
         $yearMax = Resource::query()->max('year');
 
-        // Get distinct languages
-        $languages = Language::query()
-            ->whereHas('resources')
-            ->orderBy('name')
-            ->get(['code', 'name'])
-            ->map(fn ($lang) => ['code' => $lang->code, 'name' => $lang->name])
-            ->values()
-            ->all();
-
         // Status is hardcoded to 'curation' for now
         $statuses = ['curation'];
 
@@ -504,7 +495,6 @@ class ResourceController extends Controller
                 'min' => $yearMin,
                 'max' => $yearMax,
             ],
-            'languages' => $languages,
             'statuses' => $statuses,
         ]);
     }
@@ -1038,16 +1028,6 @@ class ResourceController extends Controller
             }
         }
 
-        // Language filter
-        if ($request->has('language')) {
-            $language = $request->input('language');
-            if (is_array($language)) {
-                $filters['language'] = array_filter($language);
-            } elseif (!empty($language)) {
-                $filters['language'] = [$language];
-            }
-        }
-
         // Publication Year Range
         if ($request->has('year_from') && is_numeric($request->input('year_from'))) {
             $filters['year_from'] = (int) $request->input('year_from');
@@ -1109,13 +1089,6 @@ class ResourceController extends Controller
         if (!empty($filters['resource_type'])) {
             $query->whereHas('resourceType', function ($q) use ($filters) {
                 $q->whereIn('slug', $filters['resource_type']);
-            });
-        }
-
-        // Language filter
-        if (!empty($filters['language'])) {
-            $query->whereHas('language', function ($q) use ($filters) {
-                $q->whereIn('code', $filters['language']);
             });
         }
 

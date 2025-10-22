@@ -30,7 +30,6 @@ export interface ResourceFilterState {
     resource_type?: string[];
     year_from?: number;
     year_to?: number;
-    language?: string[];
     curator?: string[];
     status?: string[];
     created_from?: string;
@@ -44,7 +43,6 @@ export interface ResourceFilterState {
  */
 export interface ResourceFilterOptions {
     resource_types: Array<{ name: string; slug: string }>;
-    languages: Array<{ code: string; name: string }>;
     curators: string[];
     year_range: {
         min: number;
