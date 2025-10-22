@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-
 import axios from 'axios';
 import { AlertCircle, CheckCircle, Circle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     Accordion,
@@ -27,6 +26,13 @@ import {
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
+import { withBasePath } from '@/lib/base-path';
+import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
+import { hasValidDateValue } from '@/lib/date-utils';
+import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+import type { AffiliationTag } from '@/types/affiliations';
+import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
+import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
     validateDate,
     validateDOIFormat,
@@ -38,13 +44,6 @@ import {
     validateTitleUniqueness,
     validateYear,
 } from '@/utils/validation-rules';
-import { withBasePath } from '@/lib/base-path';
-import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
-import { hasValidDateValue } from '@/lib/date-utils';
-import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
-import type { AffiliationTag } from '@/types/affiliations';
-import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
-import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 import AuthorField, {
     type AuthorEntry,
