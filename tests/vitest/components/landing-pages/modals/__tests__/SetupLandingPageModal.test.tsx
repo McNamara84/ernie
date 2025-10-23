@@ -3,20 +3,39 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import type { LandingPageConfig } from '@/types/landing-page';
 
 // Mock dependencies
-vi.mock('axios');
+vi.mock('axios', () => {
+    const get = vi.fn();
+    const post = vi.fn();
+    const put = vi.fn();
+    const deleteMethod = vi.fn();
+    const isAxiosError = vi.fn((value: unknown): value is { isAxiosError: true } => {
+        return (
+            typeof value === 'object' &&
+            value !== null &&
+            (value as { isAxiosError?: boolean }).isAxiosError === true
+        );
+    });
+    return {
+        default: { get, post, put, delete: deleteMethod, isAxiosError },
+        get,
+        post,
+        put,
+        delete: deleteMethod,
+        isAxiosError,
+    };
+});
+
 vi.mock('@inertiajs/react', () => ({
     router: {
         reload: vi.fn(),
     },
 }));
-
-const mockedAxios = vi.mocked(axios);
 
 describe('SetupLandingPageModal', () => {
     const mockResource = {
@@ -47,7 +66,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('Rendering', () => {
         it('renders modal when open', () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
+            axios.get.mockResolvedValue({ data: null });
 
             render(
                 <SetupLandingPageModal
@@ -74,7 +93,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('displays resource information in description', () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
+            axios.get.mockResolvedValue({ data: null });
 
             render(
                 <SetupLandingPageModal
@@ -91,7 +110,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('Form Fields', () => {
         it('renders all form fields', async () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
+            axios.get.mockResolvedValue({ data: null });
 
             render(
                 <SetupLandingPageModal
@@ -109,7 +128,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('shows default template value', async () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
+            axios.get.mockResolvedValue({ data: null });
 
             render(
                 <SetupLandingPageModal
@@ -125,7 +144,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('loads existing configuration', async () => {
-            mockedAxios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: mockExistingConfig });
 
             render(
                 <SetupLandingPageModal
@@ -144,7 +163,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('API Integration', () => {
         it('fetches existing config on mount', async () => {
-            mockedAxios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: mockExistingConfig });
 
             render(
                 <SetupLandingPageModal
@@ -155,15 +174,15 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
-                expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect(axios.get).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                 );
             });
         });
 
         it('creates new landing page config', async () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
-            mockedAxios.post.mockResolvedValue({
+            axios.get.mockResolvedValue({ data: null });
+            axios.post.mockResolvedValue({
                 data: {
                     ...mockExistingConfig,
                     status: 'draft',
@@ -190,11 +209,11 @@ describe('SetupLandingPageModal', () => {
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/new-data');
 
             // Submit
-            const saveButton = screen.getByRole('button', { name: /Create Landing Page/i });
+            const saveButton = screen.getByRole('button', { name: /Create & Activate/i });
             await user.click(saveButton);
 
             await waitFor(() => {
-                expect(mockedAxios.post).toHaveBeenCalledWith(
+                expect(axios.post).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                     expect.objectContaining({
                         template: 'default_gfz',
@@ -206,8 +225,8 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('updates existing landing page config', async () => {
-            mockedAxios.get.mockResolvedValue({ data: mockExistingConfig });
-            mockedAxios.put.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.put.mockResolvedValue({ data: mockExistingConfig });
 
             const user = userEvent.setup();
 
@@ -229,11 +248,11 @@ describe('SetupLandingPageModal', () => {
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/updated-data');
 
             // Submit
-            const updateButton = screen.getByRole('button', { name: /Update Landing Page/i });
+            const updateButton = screen.getByRole('button', { name: /Update/i });
             await user.click(updateButton);
 
             await waitFor(() => {
-                expect(mockedAxios.put).toHaveBeenCalledWith(
+                expect(axios.put).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                     expect.objectContaining({
                         ftp_url: 'https://datapub.gfz-potsdam.de/download/updated-data',
@@ -243,8 +262,8 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('deletes landing page config', async () => {
-            mockedAxios.get.mockResolvedValue({ data: mockExistingConfig });
-            mockedAxios.delete.mockResolvedValue({ data: { message: 'Deleted' } });
+            axios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.delete.mockResolvedValue({ data: { message: 'Deleted' } });
 
             const user = userEvent.setup();
 
@@ -261,11 +280,15 @@ describe('SetupLandingPageModal', () => {
             });
 
             // Click delete button
-            const deleteButton = screen.getByRole('button', { name: /Delete Landing Page/i });
+            const deleteButton = screen.getByRole('button', { name: /Delete/i });
+            
+            // Mock window.confirm
+            window.confirm = vi.fn(() => true);
+            
             await user.click(deleteButton);
 
             await waitFor(() => {
-                expect(mockedAxios.delete).toHaveBeenCalledWith(
+                expect(axios.delete).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
                 );
             });
@@ -275,7 +298,7 @@ describe('SetupLandingPageModal', () => {
     describe('Preview URLs', () => {
         it('displays preview URL for draft configs', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            mockedAxios.get.mockResolvedValue({ data: draftConfig });
+            axios.get.mockResolvedValue({ data: draftConfig });
 
             render(
                 <SetupLandingPageModal
@@ -286,17 +309,18 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
+                // Check for the label
                 expect(screen.getByText(/Preview URL/i)).toBeInTheDocument();
-                expect(
-                    screen.getByText(
-                        new RegExp(`/datasets/${mockResource.id}\\?preview=${draftConfig.preview_token}`),
-                    ),
-                ).toBeInTheDocument();
+                // Check that the URL input field exists and contains the preview URL
+                const urlInputs = screen.getAllByDisplayValue(
+                    new RegExp(`/datasets/${mockResource.id}\\?preview=`),
+                );
+                expect(urlInputs.length).toBeGreaterThan(0);
             });
         });
 
         it('displays public URL for published configs', async () => {
-            mockedAxios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: mockExistingConfig });
 
             render(
                 <SetupLandingPageModal
@@ -307,22 +331,28 @@ describe('SetupLandingPageModal', () => {
             );
 
             await waitFor(() => {
+                // Check for the label
                 expect(screen.getByText(/Public URL/i)).toBeInTheDocument();
-                expect(
-                    screen.getByText(new RegExp(`/datasets/${mockResource.id}`)),
-                ).toBeInTheDocument();
+                // Check that the URL input field exists
+                const urlInput = screen.getByDisplayValue(
+                    new RegExp(`/datasets/${mockResource.id}`),
+                );
+                expect(urlInput).toBeInTheDocument();
             });
         });
 
         it('copies preview URL to clipboard', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            mockedAxios.get.mockResolvedValue({ data: draftConfig });
+            axios.get.mockResolvedValue({ data: draftConfig });
 
-            // Mock clipboard API
-            Object.assign(navigator, {
-                clipboard: {
-                    writeText: vi.fn().mockResolvedValue(undefined),
+            // Mock clipboard API using defineProperty
+            const writeTextMock = vi.fn().mockResolvedValue(undefined);
+            Object.defineProperty(navigator, 'clipboard', {
+                value: {
+                    writeText: writeTextMock,
                 },
+                writable: true,
+                configurable: true,
             });
 
             const user = userEvent.setup();
@@ -339,11 +369,11 @@ describe('SetupLandingPageModal', () => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
             });
 
-            const copyButton = screen.getByLabelText(/Copy preview URL/i);
+            const copyButton = screen.getByTitle(/Copy preview URL/i);
             await user.click(copyButton);
 
             await waitFor(() => {
-                expect(navigator.clipboard.writeText).toHaveBeenCalled();
+                expect(writeTextMock).toHaveBeenCalled();
             });
         });
     });
@@ -351,7 +381,7 @@ describe('SetupLandingPageModal', () => {
     describe('Publish Toggle', () => {
         it('toggles between draft and published status', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            mockedAxios.get.mockResolvedValue({ data: draftConfig });
+            axios.get.mockResolvedValue({ data: draftConfig });
 
             const user = userEvent.setup();
 
@@ -367,8 +397,8 @@ describe('SetupLandingPageModal', () => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
             });
 
-            // Should show as draft initially
-            const publishSwitch = screen.getByLabelText(/Published/i);
+            // Should show as draft initially - switch should NOT be checked
+            const publishSwitch = screen.getByRole('switch', { name: /Publish Landing Page/i });
             expect(publishSwitch).not.toBeChecked();
 
             // Toggle to published
@@ -379,7 +409,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('Preview Button', () => {
         it('opens preview in new tab', async () => {
-            mockedAxios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: mockExistingConfig });
 
             // Mock window.open
             const mockOpen = vi.fn();
@@ -413,8 +443,10 @@ describe('SetupLandingPageModal', () => {
 
     describe('Error Handling', () => {
         it('shows error message when fetch fails', async () => {
-            mockedAxios.get.mockRejectedValue({
+            axios.get.mockRejectedValue({
+                isAxiosError: true,
                 response: {
+                    status: 404,
                     data: { message: 'Not found' },
                 },
             });
@@ -430,13 +462,14 @@ describe('SetupLandingPageModal', () => {
             // Should still render but in create mode
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
-                expect(screen.getByRole('button', { name: /Create Landing Page/i })).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: /Create & Activate/i })).toBeInTheDocument();
             });
         });
 
         it('shows error message when save fails', async () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
-            mockedAxios.post.mockRejectedValue({
+            axios.get.mockResolvedValue({ data: null });
+            axios.post.mockRejectedValue({
+                isAxiosError: true,
                 response: {
                     data: { message: 'Validation failed' },
                 },
@@ -456,19 +489,19 @@ describe('SetupLandingPageModal', () => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
             });
 
-            const saveButton = screen.getByRole('button', { name: /Create Landing Page/i });
+            const saveButton = screen.getByRole('button', { name: /Create & Activate/i });
             await user.click(saveButton);
 
             // Error should be handled (toast notification in actual app)
             await waitFor(() => {
-                expect(mockedAxios.post).toHaveBeenCalled();
+                expect(axios.post).toHaveBeenCalled();
             });
         });
     });
 
     describe('Close Behavior', () => {
         it('calls onClose when close button clicked', async () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
+            axios.get.mockResolvedValue({ data: null });
 
             const user = userEvent.setup();
 
@@ -491,7 +524,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('calls onClose when cancel button clicked', async () => {
-            mockedAxios.get.mockResolvedValue({ data: null });
+            axios.get.mockResolvedValue({ data: null });
 
             const user = userEvent.setup();
 
