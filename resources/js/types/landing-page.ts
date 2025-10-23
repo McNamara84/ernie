@@ -87,7 +87,7 @@ export const LANDING_PAGE_TEMPLATES: Record<string, TemplateMetadata> = {
     default_gfz: {
         key: 'default_gfz',
         name: 'Default GFZ Data Services',
-        description: 'Classic GFZ Data Services landing page design with citation, authors, keywords, and location map',
+        description: 'Standard template with all features',
         category: 'official',
         version: '1.0',
     },
