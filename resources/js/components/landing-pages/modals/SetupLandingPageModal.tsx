@@ -24,7 +24,11 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { withBasePath } from '@/lib/base-path';
-import { LANDING_PAGE_TEMPLATES,type LandingPageConfig } from '@/types/landing-page';
+import {
+    getDefaultTemplate,
+    getTemplateOptions,
+    type LandingPageConfig,
+} from '@/types/landing-page';
 
 interface Resource {
     id: number;
@@ -46,7 +50,9 @@ export default function SetupLandingPageModal({
     onClose,
     existingConfig,
 }: SetupLandingPageModalProps) {
-    const [template, setTemplate] = useState<string>(existingConfig?.template ?? 'default_gfz');
+    const [template, setTemplate] = useState<string>(
+        existingConfig?.template ?? getDefaultTemplate(),
+    );
     const [ftpUrl, setFtpUrl] = useState<string>(existingConfig?.ftp_url ?? '');
     const [isPublished, setIsPublished] = useState<boolean>(
         (existingConfig?.status ?? 'draft') === 'published'
@@ -227,7 +233,7 @@ export default function SetupLandingPageModal({
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {LANDING_PAGE_TEMPLATES.map((tmpl) => (
+                                    {getTemplateOptions().map((tmpl) => (
                                         <SelectItem key={tmpl.value} value={tmpl.value}>
                                             <div className="flex flex-col">
                                                 <span>{tmpl.label}</span>
