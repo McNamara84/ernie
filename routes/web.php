@@ -6,6 +6,7 @@ use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\LandingPagePublicController;
 use App\Models\License;
 use App\Models\Resource;
 use App\Models\Setting;
@@ -50,7 +51,7 @@ Route::get('/changelog', function () {
 })->name('changelog');
 
 // Public Landing Pages (accessible without authentication)
-Route::get('datasets/{resourceId}', [LandingPageController::class, 'show'])
+Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
     ->where('resourceId', '[0-9]+');
 
