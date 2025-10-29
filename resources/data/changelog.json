@@ -1,5 +1,91 @@
 [
   {
+    "version": "0.9.0",
+    "date": "2025-10-29",
+    "features": [
+      {
+        "title": "DataCite JSON Export",
+        "description": "Export resources as DataCite JSON files with full metadata support. Includes proper schema.org context, comprehensive identifier handling (DOI, ORCID, ROR), and complete metadata mapping following DataCite JSON schema specifications. Features download functionality with automatic filename generation."
+      },
+      {
+        "title": "DataCite XML Export",
+        "description": "Export resources as DataCite XML 4.5 compliant files with support for all metadata fields including creators, contributors, titles, descriptions, subjects, dates, spatial-temporal coverage, related identifiers, and funding references. Automatic validation against DataCite schema and proper namespace handling."
+      },
+      {
+        "title": "Resources Table Sorting and Filtering",
+        "description": "Advanced sorting options for resources including DOI, title, resource type, publication year, version, and language. Client-side sorting with persistent state, smooth UI transitions, and toast notifications for user feedback. Includes comprehensive loading states and skeleton displays during sort operations."
+      },
+      {
+        "title": "Old Data Statistics Dashboard",
+        "description": "New statistics page displaying comprehensive metrics from legacy datasets including total datasets, resource type distribution, publication year statistics, curator workload, and dataset status overview. Features interactive charts and data visualization for better insights into the old dataset collection."
+      },
+      {
+        "title": "Inline Validation for Mandatory Fields",
+        "description": "Real-time validation feedback for required fields in the curation form. Visual indicators (red borders, error messages) appear immediately when users interact with mandatory fields, preventing form submission with incomplete data. Improves data quality and user experience with clear, immediate feedback."
+      },
+      {
+        "title": "Improved Authors and Contributors UX",
+        "description": "Enhanced user experience with clearer visual distinction between authors and contributors, improved add/remove buttons with better positioning and styling, optimized spacing and layout for better readability, and more intuitive drag-and-drop reordering. Includes better accessibility with improved ARIA labels and keyboard navigation."
+      },
+      {
+        "title": "Timeline Navigation for Changelog",
+        "description": "Interactive timeline navigation for the changelog page with visual indicators for major/minor/patch releases, smooth scrolling to specific versions, keyboard navigation support (arrow keys, j/k, Home/End), and URL hash support for deep linking to specific versions. Features auto-expansion of the most visible release while scrolling."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Enhanced Main Menu Labels",
+        "description": "Renamed 'Curation' to 'Editor' across the entire application for clearer understanding of the metadata editing functionality. Updated all navigation elements, routes, and documentation to reflect the new terminology."
+      },
+      {
+        "title": "User Settings Enhancements",
+        "description": "Added configurable font size setting with options for small, medium, and large text. Improved settings page layout with better organization and visual hierarchy. Font size changes apply immediately across the application for better accessibility."
+      },
+      {
+        "title": "CSRF Token Handling",
+        "description": "Resolved CSRF token mismatch issues with improved token refresh mechanism, better error handling for token expiration, and automatic retry logic for failed requests. Enhanced session configuration for production environments with proper cookie settings."
+      },
+      {
+        "title": "Code Organization and Refactoring",
+        "description": "Major code refactoring to improve maintainability and consistency. Renamed components from 'Curation' to 'Editor' terminology throughout the codebase. Improved type safety with enhanced TypeScript definitions and better error handling patterns."
+      },
+      {
+        "title": "Production Docker Configuration",
+        "description": "Comprehensive Docker setup improvements including multi-stage builds for optimized image sizes, improved volume management for persistent data, health checks for all services, and better environment variable handling. Enhanced nginx configuration for better performance and security."
+      },
+      {
+        "title": "Documentation Updates",
+        "description": "Updated README with comprehensive API documentation, deployment instructions, and usage examples. Added detailed information about the DataCite export features, filtering and sorting capabilities, and MSL vocabulary integration. Improved inline code documentation throughout the application."
+      },
+      {
+        "title": "Dependency Updates",
+        "description": "Updated PHP dependencies via Composer and JavaScript dependencies via npm to their latest compatible versions. Ensures security patches, bug fixes, and performance improvements from upstream packages are incorporated. Maintains compatibility with Laravel 12 and React ecosystem."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Resource Loading in Editor",
+        "description": "Fixed critical bug where existing resources could not be loaded into the editor for editing. Resolved query parameter handling and state management issues that prevented proper hydration of form fields with existing resource data."
+      },
+      {
+        "title": "Language Filter Removal",
+        "description": "Removed language filter from old datasets and resources tables as it was causing confusion and not providing significant value. Simplified the filtering interface for better user experience."
+      },
+      {
+        "title": "DataCite Export Validation",
+        "description": "Improved validation for DataCite exports to ensure all mandatory fields are present before allowing export. Added better error messages and visual feedback when exports cannot be generated due to missing or invalid data."
+      },
+      {
+        "title": "Session Configuration for Production",
+        "description": "Fixed session handling issues in production environment by properly configuring SESSION_PATH, SESSION_DOMAIN, and cookie settings. Resolved login persistence issues and improved overall session reliability."
+      },
+      {
+        "title": "Test Reliability Improvements",
+        "description": "Enhanced test reliability across Pest, Vitest, and Playwright test suites. Fixed flaky tests, improved test isolation, and added better assertions. Increased timeouts for CI environments and improved test data setup."
+      }
+    ]
+  },
+  {
     "version": "0.8.0",
     "date": "2025-10-14",
     "features": [
