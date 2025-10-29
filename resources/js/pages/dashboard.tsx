@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -449,7 +449,139 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Easter Egg State
+    const [isEasterEggActive, setIsEasterEggActive] = useState(false);
+    const [unicornCount, setUnicornCount] = useState(0);
+    const [unicorns, setUnicorns] = useState<Array<{ id: number; x: number; y: number; size: number; rotation: number }>>([]);
+    const [showConfetti, setShowConfetti] = useState(false);
+    const easterEggTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const hoverCountRef = useRef(0);
+    const lastHoveredCardRef = useRef<'welcome' | 'environment' | null>(null);
+    const unicornIdCounterRef = useRef(0);
+
     const datasetCount = typeof resourceCount === 'number' ? resourceCount : 0;
+
+    // Easter Egg: Reset everything
+    const resetEasterEgg = useCallback(() => {
+        setIsEasterEggActive(false);
+        setUnicornCount(0);
+        setUnicorns([]);
+        hoverCountRef.current = 0;
+        lastHoveredCardRef.current = null;
+        unicornIdCounterRef.current = 0;
+        setShowConfetti(false);
+        if (easterEggTimeoutRef.current) {
+            clearTimeout(easterEggTimeoutRef.current);
+            easterEggTimeoutRef.current = null;
+        }
+    }, []);
+
+    // Easter Egg: Handle hover tracking
+    const handleCardHover = useCallback((cardName: 'welcome' | 'environment') => {
+        if (isEasterEggActive) return;
+
+        // Only count if switching between cards
+        const prevCard = lastHoveredCardRef.current;
+        if (prevCard !== null && prevCard !== cardName) {
+            hoverCountRef.current += 1;
+            
+            // Trigger easter egg after 10 switches
+            if (hoverCountRef.current >= 10) {
+                setIsEasterEggActive(true);
+                setUnicornCount(1);
+            }
+        }
+        
+        lastHoveredCardRef.current = cardName;
+    }, [isEasterEggActive]);
+
+    // Easter Egg: Generate stable confetti configuration
+    const confettiPieces = useMemo(() => {
+        return Array.from({ length: 50 }).map((_, i) => ({
+            id: i,
+            left: Math.random() * 100,
+            delay: Math.random() * 3,
+            color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+            horizontalMovement: Math.random()
+        }));
+    }, []);
+
+    // Easter Egg: Handle ESC key to cancel
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isEasterEggActive) {
+                resetEasterEgg();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isEasterEggActive, resetEasterEgg]);
+
+    // Easter Egg: Spawn unicorns exponentially
+    useEffect(() => {
+        if (!isEasterEggActive || unicornCount === 0) return;
+
+        // Capture viewport dimensions once to avoid SSR issues and ensure consistency
+        const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+        const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+
+        // Calculate how many NEW unicorns to add and generate them
+        setUnicorns((currentUnicorns) => {
+            const currentCount = currentUnicorns.length;
+            const newUnicornsToAdd = unicornCount - currentCount;
+            
+            const additionalUnicorns: typeof currentUnicorns = [];
+            
+            for (let i = 0; i < newUnicornsToAdd; i++) {
+                // Random position within viewport
+                const x = Math.random() * (viewportWidth - 100);
+                const y = Math.random() * (viewportHeight - 100);
+                
+                // Random size (80% - 120% of original)
+                const size = 0.8 + Math.random() * 0.4;
+                
+                // Random rotation (-15° to +15°)
+                const rotation = -15 + Math.random() * 30;
+                
+                // Generate unique ID using counter
+                unicornIdCounterRef.current += 1;
+                
+                additionalUnicorns.push({
+                    id: unicornIdCounterRef.current,
+                    x,
+                    y,
+                    size,
+                    rotation
+                });
+            }
+            
+            // ADD to existing unicorns instead of replacing
+            return [...currentUnicorns, ...additionalUnicorns];
+        });
+        
+        // Double the count for next iteration, max 128
+        if (unicornCount < 128) {
+            easterEggTimeoutRef.current = setTimeout(() => {
+                setUnicornCount(unicornCount * 2);
+            }, 1000);
+        } else {
+            // Show confetti when we reach max
+            setShowConfetti(true);
+            
+            // Hide everything after 5 seconds
+            easterEggTimeoutRef.current = setTimeout(() => {
+                resetEasterEgg();
+            }, 5000);
+        }
+
+        // Cleanup timeout on unmount or before re-run
+        return () => {
+            if (easterEggTimeoutRef.current) {
+                clearTimeout(easterEggTimeoutRef.current);
+            }
+        };
+    }, [unicornCount, isEasterEggActive, resetEasterEgg]);
 
     async function uploadXml(files: File[]) {
         try {
@@ -504,7 +636,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                     </Alert>
                 )}
                 <div className="grid gap-4 md:grid-cols-3">
-                    <Card>
+                    <Card onMouseEnter={() => handleCardHover('welcome')}>
                         <CardHeader>
                             <CardTitle>Hello {auth.user.name}!</CardTitle>
                         </CardHeader>
@@ -521,7 +653,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             datasets from y data centers of z institutions
                         </CardContent>
                     </Card>
-                    <Card>
+                    <Card onMouseEnter={() => handleCardHover('environment')}>
                         <CardHeader>
                             <CardTitle>Environment</CardTitle>
                         </CardHeader>
@@ -587,7 +719,44 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                     </CardContent>
                 </Card>
             </div>
+            
+            {/* Easter Egg: Unicorn overlay */}
+            {isEasterEggActive && unicorns.map((unicorn) => (
+                <img
+                    key={unicorn.id}
+                    src="/images/unicorn.png"
+                    alt="🦄"
+                    className="pointer-events-none fixed z-50 animate-in fade-in zoom-in duration-300"
+                    style={{
+                        left: `${unicorn.x}px`,
+                        top: `${unicorn.y}px`,
+                        width: `${80 * unicorn.size}px`,
+                        height: `${80 * unicorn.size}px`,
+                        transform: `rotate(${unicorn.rotation}deg)`,
+                        opacity: 0.9
+                    }}
+                />
+            ))}
+            
+            {/* Easter Egg: Confetti effect */}
+            {showConfetti && (
+                <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="confetti-container">
+                        {confettiPieces.map((piece) => (
+                            <div
+                                key={piece.id}
+                                className="confetti"
+                                style={{
+                                    left: `${piece.left}%`,
+                                    animationDelay: `${piece.delay}s`,
+                                    backgroundColor: piece.color,
+                                    '--random': piece.horizontalMovement
+                                } as React.CSSProperties & { '--random': number }}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }
-
