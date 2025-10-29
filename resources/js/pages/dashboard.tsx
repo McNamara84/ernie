@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -450,39 +450,59 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
     const [error, setError] = useState<string | null>(null);
 
     // Easter Egg State
-    const [hoverCount, setHoverCount] = useState(0);
-    const [lastHoveredCard, setLastHoveredCard] = useState<'welcome' | 'environment' | null>(null);
     const [isEasterEggActive, setIsEasterEggActive] = useState(false);
     const [unicornCount, setUnicornCount] = useState(0);
     const [unicorns, setUnicorns] = useState<Array<{ id: number; x: number; y: number; size: number; rotation: number }>>([]);
     const [showConfetti, setShowConfetti] = useState(false);
     const easterEggTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const hoverCountRef = useRef(0);
+    const lastHoveredCardRef = useRef<'welcome' | 'environment' | null>(null);
 
     const datasetCount = typeof resourceCount === 'number' ? resourceCount : 0;
 
+    // Easter Egg: Reset everything
+    const resetEasterEgg = useCallback(() => {
+        setIsEasterEggActive(false);
+        setUnicornCount(0);
+        setUnicorns([]);
+        hoverCountRef.current = 0;
+        lastHoveredCardRef.current = null;
+        setShowConfetti(false);
+        if (easterEggTimeoutRef.current) {
+            clearTimeout(easterEggTimeoutRef.current);
+            easterEggTimeoutRef.current = null;
+        }
+    }, []);
+
     // Easter Egg: Handle hover tracking
-    const handleCardHover = (cardName: 'welcome' | 'environment') => {
+    const handleCardHover = useCallback((cardName: 'welcome' | 'environment') => {
         if (isEasterEggActive) return;
 
         // Only count if switching between cards
-        if (lastHoveredCard !== null && lastHoveredCard !== cardName) {
-            const newCount = hoverCount + 1;
-            setHoverCount(newCount);
+        const prevCard = lastHoveredCardRef.current;
+        if (prevCard !== null && prevCard !== cardName) {
+            hoverCountRef.current += 1;
             
             // Trigger easter egg after 10 switches
-            if (newCount >= 10) {
-                activateEasterEgg();
+            if (hoverCountRef.current >= 10) {
+                setIsEasterEggActive(true);
+                setUnicornCount(1);
             }
         }
         
-        setLastHoveredCard(cardName);
-    };
+        lastHoveredCardRef.current = cardName;
+    }, [isEasterEggActive]);
 
-    // Easter Egg: Activate and start spawning unicorns
-    const activateEasterEgg = () => {
-        setIsEasterEggActive(true);
-        setUnicornCount(1);
-    };
+    // Easter Egg: Generate stable confetti configuration
+    const confettiPieces = useMemo(() => {
+        return Array.from({ length: 50 }).map((_, i) => ({
+            id: i,
+            left: Math.random() * 100,
+            delay: Math.random() * 3,
+            color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+            horizontalMovement: Math.random()
+        }));
+    }, []);
 
     // Easter Egg: Handle ESC key to cancel
     useEffect(() => {
@@ -494,20 +514,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isEasterEggActive]);
-
-    // Easter Egg: Reset everything
-    const resetEasterEgg = () => {
-        setIsEasterEggActive(false);
-        setUnicornCount(0);
-        setUnicorns([]);
-        setHoverCount(0);
-        setLastHoveredCard(null);
-        setShowConfetti(false);
-        if (easterEggTimeoutRef.current) {
-            clearTimeout(easterEggTimeoutRef.current);
-        }
-    };
+    }, [isEasterEggActive, resetEasterEgg]);
 
     // Easter Egg: Spawn unicorns exponentially
     useEffect(() => {
@@ -515,33 +522,35 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
 
         const spawnUnicorns = () => {
             // Calculate how many NEW unicorns to add
-            const currentCount = unicorns.length;
-            const newUnicornsToAdd = unicornCount - currentCount;
-            
-            const additionalUnicorns: typeof unicorns = [];
-            
-            for (let i = 0; i < newUnicornsToAdd; i++) {
-                // Random position within viewport
-                const x = Math.random() * (window.innerWidth - 100);
-                const y = Math.random() * (window.innerHeight - 100);
+            setUnicorns((currentUnicorns) => {
+                const currentCount = currentUnicorns.length;
+                const newUnicornsToAdd = unicornCount - currentCount;
                 
-                // Random size (80% - 120% of original)
-                const size = 0.8 + Math.random() * 0.4;
+                const additionalUnicorns: typeof currentUnicorns = [];
                 
-                // Random rotation (-15° to +15°)
-                const rotation = -15 + Math.random() * 30;
+                for (let i = 0; i < newUnicornsToAdd; i++) {
+                    // Random position within viewport
+                    const x = Math.random() * (window.innerWidth - 100);
+                    const y = Math.random() * (window.innerHeight - 100);
+                    
+                    // Random size (80% - 120% of original)
+                    const size = 0.8 + Math.random() * 0.4;
+                    
+                    // Random rotation (-15° to +15°)
+                    const rotation = -15 + Math.random() * 30;
+                    
+                    additionalUnicorns.push({
+                        id: Date.now() + i + Math.random(), // Ensure unique IDs
+                        x,
+                        y,
+                        size,
+                        rotation
+                    });
+                }
                 
-                additionalUnicorns.push({
-                    id: Date.now() + i + Math.random(), // Ensure unique IDs
-                    x,
-                    y,
-                    size,
-                    rotation
-                });
-            }
-            
-            // ADD to existing unicorns instead of replacing
-            setUnicorns(prev => [...prev, ...additionalUnicorns]);
+                // ADD to existing unicorns instead of replacing
+                return [...currentUnicorns, ...additionalUnicorns];
+            });
             
             // Double the count for next iteration, max 128
             if (unicornCount < 128) {
@@ -560,8 +569,14 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         };
 
         spawnUnicorns();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [unicornCount, isEasterEggActive]);
+
+        // Cleanup timeout on unmount or before re-run
+        return () => {
+            if (easterEggTimeoutRef.current) {
+                clearTimeout(easterEggTimeoutRef.current);
+            }
+        };
+    }, [unicornCount, isEasterEggActive, resetEasterEgg]);
 
     async function uploadXml(files: File[]) {
         try {
@@ -722,15 +737,16 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
             {showConfetti && (
                 <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
                     <div className="confetti-container">
-                        {Array.from({ length: 50 }).map((_, i) => (
+                        {confettiPieces.map((piece) => (
                             <div
-                                key={i}
+                                key={piece.id}
                                 className="confetti"
                                 style={{
-                                    left: `${Math.random() * 100}%`,
-                                    animationDelay: `${Math.random() * 3}s`,
-                                    backgroundColor: `hsl(${Math.random() * 360}, 70%, 60%)`
-                                }}
+                                    left: `${piece.left}%`,
+                                    animationDelay: `${piece.delay}s`,
+                                    backgroundColor: piece.color,
+                                    '--random': piece.horizontalMovement
+                                } as React.CSSProperties & { '--random': number }}
                             />
                         ))}
                     </div>

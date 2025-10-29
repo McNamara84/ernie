@@ -243,7 +243,7 @@
         100% {
             top: 100vh;
             opacity: 0;
-            transform: translateX(calc(100vw * (var(--random, 0.5) - 0.5))) rotateZ(360deg);
+            transform: translateX(calc(100px * (var(--random, 0.5) - 0.5) * 2)) rotateZ(360deg);
         }
     }
 }
