@@ -56,6 +56,10 @@
       {
         "title": "Documentation Updates",
         "description": "Updated README with comprehensive API documentation, deployment instructions, and usage examples. Added detailed information about the DataCite export features, filtering and sorting capabilities, and MSL vocabulary integration. Improved inline code documentation throughout the application."
+      },
+      {
+        "title": "Dependency Updates",
+        "description": "Updated PHP dependencies via Composer and JavaScript dependencies via npm to their latest compatible versions. Ensures security patches, bug fixes, and performance improvements from upstream packages are incorporated. Maintains compatibility with Laravel 12 and React ecosystem."
       }
     ],
     "fixes": [
