@@ -457,6 +457,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
     const easterEggTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const hoverCountRef = useRef(0);
     const lastHoveredCardRef = useRef<'welcome' | 'environment' | null>(null);
+    const unicornIdCounterRef = useRef(0);
 
     const datasetCount = typeof resourceCount === 'number' ? resourceCount : 0;
 
@@ -467,6 +468,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         setUnicorns([]);
         hoverCountRef.current = 0;
         lastHoveredCardRef.current = null;
+        unicornIdCounterRef.current = 0;
         setShowConfetti(false);
         if (easterEggTimeoutRef.current) {
             clearTimeout(easterEggTimeoutRef.current);
@@ -520,55 +522,58 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
     useEffect(() => {
         if (!isEasterEggActive || unicornCount === 0) return;
 
-        const spawnUnicorns = () => {
-            // Calculate how many NEW unicorns to add
-            setUnicorns((currentUnicorns) => {
-                const currentCount = currentUnicorns.length;
-                const newUnicornsToAdd = unicornCount - currentCount;
-                
-                const additionalUnicorns: typeof currentUnicorns = [];
-                
-                for (let i = 0; i < newUnicornsToAdd; i++) {
-                    // Random position within viewport
-                    const x = Math.random() * (window.innerWidth - 100);
-                    const y = Math.random() * (window.innerHeight - 100);
-                    
-                    // Random size (80% - 120% of original)
-                    const size = 0.8 + Math.random() * 0.4;
-                    
-                    // Random rotation (-15° to +15°)
-                    const rotation = -15 + Math.random() * 30;
-                    
-                    additionalUnicorns.push({
-                        id: Date.now() + i + Math.random(), // Ensure unique IDs
-                        x,
-                        y,
-                        size,
-                        rotation
-                    });
-                }
-                
-                // ADD to existing unicorns instead of replacing
-                return [...currentUnicorns, ...additionalUnicorns];
-            });
-            
-            // Double the count for next iteration, max 128
-            if (unicornCount < 128) {
-                easterEggTimeoutRef.current = setTimeout(() => {
-                    setUnicornCount(unicornCount * 2);
-                }, 1000);
-            } else {
-                // Show confetti when we reach max
-                setShowConfetti(true);
-                
-                // Hide everything after 5 seconds
-                easterEggTimeoutRef.current = setTimeout(() => {
-                    resetEasterEgg();
-                }, 5000);
-            }
-        };
+        // Capture viewport dimensions once to avoid SSR issues and ensure consistency
+        const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+        const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
 
-        spawnUnicorns();
+        // Calculate how many NEW unicorns to add and generate them
+        setUnicorns((currentUnicorns) => {
+            const currentCount = currentUnicorns.length;
+            const newUnicornsToAdd = unicornCount - currentCount;
+            
+            const additionalUnicorns: typeof currentUnicorns = [];
+            
+            for (let i = 0; i < newUnicornsToAdd; i++) {
+                // Random position within viewport
+                const x = Math.random() * (viewportWidth - 100);
+                const y = Math.random() * (viewportHeight - 100);
+                
+                // Random size (80% - 120% of original)
+                const size = 0.8 + Math.random() * 0.4;
+                
+                // Random rotation (-15° to +15°)
+                const rotation = -15 + Math.random() * 30;
+                
+                // Generate unique ID using counter
+                unicornIdCounterRef.current += 1;
+                
+                additionalUnicorns.push({
+                    id: unicornIdCounterRef.current,
+                    x,
+                    y,
+                    size,
+                    rotation
+                });
+            }
+            
+            // ADD to existing unicorns instead of replacing
+            return [...currentUnicorns, ...additionalUnicorns];
+        });
+        
+        // Double the count for next iteration, max 128
+        if (unicornCount < 128) {
+            easterEggTimeoutRef.current = setTimeout(() => {
+                setUnicornCount(unicornCount * 2);
+            }, 1000);
+        } else {
+            // Show confetti when we reach max
+            setShowConfetti(true);
+            
+            // Hide everything after 5 seconds
+            easterEggTimeoutRef.current = setTimeout(() => {
+                resetEasterEgg();
+            }, 5000);
+        }
 
         // Cleanup timeout on unmount or before re-run
         return () => {
@@ -755,4 +760,3 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         </AppLayout>
     );
 }
-
