@@ -20,10 +20,15 @@ export function ModelDescriptionSection({
     const [doi, setDoi] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
+    // Debug: Log what we receive
+    console.log('ModelDescriptionSection - relatedIdentifiers:', relatedIdentifiers);
+
     // Find the oldest "IsSupplementTo" relation
     const supplementTo = relatedIdentifiers.find(
         (rel) => rel.relation_type === 'IsSupplementTo',
     );
+
+    console.log('ModelDescriptionSection - supplementTo:', supplementTo);
 
     useEffect(() => {
         if (!supplementTo || supplementTo.identifier_type !== 'DOI') {

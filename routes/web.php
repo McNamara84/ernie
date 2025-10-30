@@ -442,19 +442,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             })->toArray();
 
             // Transform related identifiers
-            $relatedWorks = $resource->relatedIdentifiers
-                ->sortBy('position')
-                ->map(function ($relatedId) {
-                    return [
-                        'identifier' => $relatedId->identifier,
-                        'identifierType' => $relatedId->identifier_type,
-                        'relationType' => $relatedId->relation_type,
-                    ];
-                })
-                ->values()
-                ->toArray();
-
-            // Transform funding references
+    $relatedWorks = $resource->relatedIdentifiers
+        ->sortBy('position')
+        ->map(function ($relatedId) {
+            return [
+                'identifier' => $relatedId->identifier,
+                'identifier_type' => $relatedId->identifier_type,
+                'relation_type' => $relatedId->relation_type,
+            ];
+        })
+        ->values()
+        ->toArray();            // Transform funding references
             $fundingReferences = $resource->fundingReferences
                 ->sortBy('position')
                 ->map(function ($funding) {
