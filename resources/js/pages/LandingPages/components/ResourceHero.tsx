@@ -38,35 +38,35 @@ export function ResourceHero({
     return (
         <div className="mx-8 my-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             {/* Top Row: Resource Type, Title, Status */}
-            <div className="mb-6 grid grid-cols-[1fr_2fr_1fr] gap-4 items-start">
+            <div className="mb-6 flex items-start justify-between gap-4">
                 {/* Left: Resource Type */}
-                <div className="flex flex-col items-center gap-2">
-                    <ResourceTypeIcon className="h-12 w-12 text-gray-700" strokeWidth={1.5} />
-                    <span className="text-sm text-gray-600 text-center">
+                <div className="flex flex-col items-center gap-1.5">
+                    <ResourceTypeIcon className="h-8 w-8 text-gray-700" strokeWidth={1.5} />
+                    <span className="text-xs text-gray-600 text-center">
                         {resourceType}
                     </span>
                 </div>
 
                 {/* Center: Title + Subtitle */}
-                <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-bold text-gray-900 leading-tight">
+                <div className="flex-1 text-center space-y-1">
+                    <h1 className="text-xl font-bold text-gray-900 leading-tight">
                         {mainTitle}
                     </h1>
                     {subtitle && (
-                        <h2 className="text-lg italic text-gray-600 font-normal">
+                        <h2 className="text-base italic text-gray-600 font-normal">
                             {subtitle}
                         </h2>
                     )}
                 </div>
 
                 {/* Right: Status */}
-                <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center gap-1.5">
                     <StatusIcon
-                        className={`h-12 w-12 ${statusConfig.color}`}
+                        className={`h-8 w-8 ${statusConfig.color}`}
                         strokeWidth={1.5}
                     />
                     <span
-                        className={`text-sm text-center font-medium ${statusConfig.textColor}`}
+                        className={`text-xs text-center font-medium ${statusConfig.textColor}`}
                     >
                         {statusConfig.label}
                     </span>

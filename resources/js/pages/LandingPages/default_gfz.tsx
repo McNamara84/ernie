@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/react';
 
 import { withBasePath } from '@/lib/base-path';
 
+import { PlaceholderSection } from './components/PlaceholderSection';
 import { ResourceHero } from './components/ResourceHero';
 import { buildCitation } from './lib/buildCitation';
 
@@ -53,6 +54,7 @@ export default function DefaultGfzTemplate() {
                 
                 {/* Content */}
                 <div>
+                    {/* Hero Section - Full Width */}
                     <ResourceHero
                         resourceType={resourceType}
                         status={status}
@@ -60,6 +62,21 @@ export default function DefaultGfzTemplate() {
                         subtitle={subtitle}
                         citation={citation}
                     />
+
+                    {/* Two Column Layout */}
+                    <div className="mx-8 mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        {/* Left Column - 1/3 width */}
+                        <div className="space-y-6 lg:col-span-1">
+                            <PlaceholderSection title="Files" />
+                            <PlaceholderSection title="Model Description" />
+                            <PlaceholderSection title="Related Work" />
+                        </div>
+
+                        {/* Right Column - 2/3 width */}
+                        <div className="lg:col-span-2">
+                            <PlaceholderSection className="h-full" />
+                        </div>
+                    </div>
                 </div>
                 
                 {/* Footer */}
