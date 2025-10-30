@@ -3,8 +3,22 @@ import { usePage } from '@inertiajs/react';
 
 import { withBasePath } from '@/lib/base-path';
 
+import { ResourceHero } from './components/ResourceHero';
+import { buildCitation } from './lib/buildCitation';
+
 export default function DefaultGfzTemplate() {
-    const { resource, isPreview } = usePage().props as any;
+    const { resource, landingPage, isPreview } = usePage().props as any;
+
+    // Extract data for ResourceHero
+    const resourceType = resource.resource_type?.name || 'Other';
+    const status = isPreview ? 'preview' : landingPage?.status || 'published';
+    const mainTitle =
+        resource.titles?.find(
+            (t: any) => !t.title_type || t.title_type === 'MainTitle',
+        )?.title || 'Untitled';
+    const subtitle = resource.titles?.find((t: any) => t.title_type === 'Subtitle')
+        ?.title;
+    const citation = buildCitation(resource);
 
     return (
         <div className="min-h-screen pt-6" style={{ backgroundColor: '#0C2A63' }}>
@@ -38,11 +52,14 @@ export default function DefaultGfzTemplate() {
                 </header>
                 
                 {/* Content */}
-                <div className="px-4 py-8">
-                    <div className="rounded border border-gray-300 bg-gray-50 p-8 text-center">
-                        <p className="text-lg font-medium text-gray-500">Content coming soon...</p>
-                        <p className="mt-2 text-sm text-gray-400">Resource ID: {resource.id}</p>
-                    </div>
+                <div>
+                    <ResourceHero
+                        resourceType={resourceType}
+                        status={status}
+                        mainTitle={mainTitle}
+                        subtitle={subtitle}
+                        citation={citation}
+                    />
                 </div>
                 
                 {/* Footer */}
