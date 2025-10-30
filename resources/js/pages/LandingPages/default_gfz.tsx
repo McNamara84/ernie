@@ -7,7 +7,7 @@ export default function DefaultGfzTemplate() {
     const { resource, isPreview } = usePage().props as any;
 
     return (
-        <div className="min-h-screen" style={{ backgroundColor: '#0C2A63' }}>
+        <div className="min-h-screen pt-6" style={{ backgroundColor: '#0C2A63' }}>
             {isPreview && (
                 <div className="bg-yellow-400 px-4 py-2 text-center text-sm font-medium text-gray-900">
                      Preview Mode
