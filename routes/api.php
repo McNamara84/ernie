@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\DataCiteController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ResourceTypeController;
@@ -52,4 +53,5 @@ Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
+Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
 Route::get('/v1/doc', ApiDocController::class);

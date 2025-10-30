@@ -4,6 +4,7 @@ import { usePage } from '@inertiajs/react';
 import { withBasePath } from '@/lib/base-path';
 
 import { FilesSection } from './components/FilesSection';
+import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { PlaceholderSection } from './components/PlaceholderSection';
 import { ResourceHero } from './components/ResourceHero';
 import { buildCitation } from './lib/buildCitation';
@@ -72,7 +73,9 @@ export default function DefaultGfzTemplate() {
                                 downloadUrl={landingPage?.ftp_url || '#'}
                                 licenses={resource.licenses || []}
                             />
-                            <PlaceholderSection title="Model Description" />
+                            <ModelDescriptionSection
+                                relatedIdentifiers={resource.relatedIdentifiers || []}
+                            />
                             <PlaceholderSection title="Related Work" />
                         </div>
 
