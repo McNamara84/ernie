@@ -17,26 +17,23 @@ export default function DefaultGfzTemplate() {
             {/* Zentrierter Container für Header, Content und Footer */}
             <div className="mx-auto max-w-7xl rounded bg-white">
                 {/* Header */}
-                <header className="border-b border-gray-200 px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        {/* Centered Logo */}
-                        <div className="flex-1"></div>
-                        <div className="flex justify-center">
-                            <img
-                                src={withBasePath('/images/gfz-ds-logo.png')}
-                                alt="GFZ Data Services"
-                                className="h-12"
-                            />
-                        </div>
-                        {/* Legal Notice Link */}
-                        <div className="flex flex-1 justify-end">
-                            <a
-                                href={withBasePath('/legal-notice')}
-                                className="text-xs text-gray-600 hover:text-gray-900 hover:underline"
-                            >
-                                Legal Notice
-                            </a>
-                        </div>
+                <header className="px-4 py-4">
+                    {/* Legal Notice - ganz oben rechts */}
+                    <div className="mb-2 flex justify-end">
+                        <a
+                            href={withBasePath('/legal-notice')}
+                            className="text-xs text-gray-600 hover:text-gray-900 hover:underline"
+                        >
+                            Legal Notice
+                        </a>
+                    </div>
+                    {/* Logo - zentriert */}
+                    <div className="flex justify-center">
+                        <img
+                            src={withBasePath('/images/gfz-ds-logo.png')}
+                            alt="GFZ Data Services"
+                            className="h-12"
+                        />
                     </div>
                 </header>
                 
