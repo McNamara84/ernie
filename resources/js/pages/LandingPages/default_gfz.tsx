@@ -84,7 +84,10 @@ export default function DefaultGfzTemplate() {
 
                         {/* Right Column - 2/3 width */}
                         <div className="lg:col-span-2">
-                            <AbstractSection descriptions={resource.descriptions || []} />
+                            <AbstractSection 
+                                descriptions={resource.descriptions || []}
+                                authors={resource.authors || []}
+                            />
                         </div>
                     </div>
                 </div>

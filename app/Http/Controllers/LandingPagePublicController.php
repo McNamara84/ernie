@@ -104,6 +104,38 @@ class LandingPagePublicController extends Controller
             ];
         })->toArray();
 
+        // Ensure authors are properly loaded with roles and affiliations
+        $resourceData['authors'] = $resource->authors->map(function ($author) {
+            $authorData = [
+                'id' => $author->id,
+                'position' => $author->position,
+                'email' => $author->email,
+                'website' => $author->website,
+                'roles' => $author->roles->pluck('name')->toArray(),
+                'affiliations' => $author->affiliations->map(function ($affiliation) {
+                    return [
+                        'id' => $affiliation->id,
+                        'value' => $affiliation->value,
+                        'ror_id' => $affiliation->ror_id,
+                    ];
+                })->toArray(),
+            ];
+
+            // Add authorable data (Person or Institution)
+            if ($author->authorable) {
+                $authorData['authorable'] = [
+                    'type' => class_basename($author->authorable_type),
+                    'id' => $author->authorable->id,
+                    'first_name' => $author->authorable->first_name ?? null,
+                    'last_name' => $author->authorable->last_name ?? null,
+                    'orcid' => $author->authorable->orcid ?? null,
+                    'name' => $author->authorable->name ?? null,
+                ];
+            }
+
+            return $authorData;
+        })->toArray();
+
         $data = [
             'resource' => $resourceData,
             'landingPage' => $landingPage->toArray(),
