@@ -80,8 +80,23 @@ class LandingPagePublicController extends Controller
         }
 
         // Prepare data for template
+        $resourceData = $resource->toArray();
+        
+        // Ensure relatedIdentifiers are properly loaded
+        $resourceData['related_identifiers'] = $resource->relatedIdentifiers->map(function ($relatedId) {
+            return [
+                'id' => $relatedId->id,
+                'identifier' => $relatedId->identifier,
+                'identifier_type' => $relatedId->identifier_type,
+                'relation_type' => $relatedId->relation_type,
+                'position' => $relatedId->position,
+                'related_title' => $relatedId->related_title,
+                'related_metadata' => $relatedId->related_metadata,
+            ];
+        })->toArray();
+
         $data = [
-            'resource' => $resource->toArray(),
+            'resource' => $resourceData,
             'landingPage' => $landingPage->toArray(),
             'isPreview' => (bool) $previewToken,
         ];

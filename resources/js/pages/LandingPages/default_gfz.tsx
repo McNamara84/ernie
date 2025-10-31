@@ -6,6 +6,7 @@ import { withBasePath } from '@/lib/base-path';
 import { FilesSection } from './components/FilesSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { PlaceholderSection } from './components/PlaceholderSection';
+import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
 import { buildCitation } from './lib/buildCitation';
 
@@ -76,7 +77,9 @@ export default function DefaultGfzTemplate() {
                             <ModelDescriptionSection
                                 relatedIdentifiers={resource.related_identifiers || []}
                             />
-                            <PlaceholderSection title="Related Work" />
+                            <RelatedWorkSection
+                                relatedIdentifiers={resource.related_identifiers || []}
+                            />
                         </div>
 
                         {/* Right Column - 2/3 width */}
