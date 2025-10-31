@@ -22,6 +22,14 @@ interface Citation {
 }
 
 /**
+ * Wandelt CamelCase in lesbaren Text mit Leerzeichen um
+ * z.B. "IsDocumentedBy" -> "Is Documented By"
+ */
+function formatRelationType(type: string): string {
+    return type.replace(/([A-Z])/g, ' $1').trim();
+}
+
+/**
  * Related Work Section
  * 
  * Zeigt alle Related Identifiers gruppiert nach RelationType an.
@@ -119,7 +127,7 @@ export function RelatedWorkSection({
                 {sortedTypes.map((relationType) => (
                     <div key={relationType}>
                         <h4 className="mb-3 text-sm font-semibold text-gray-700">
-                            {relationType}
+                            {formatRelationType(relationType)}
                         </h4>
                         <ul className="space-y-2">
                             {groupedByType[relationType].map((rel) => {

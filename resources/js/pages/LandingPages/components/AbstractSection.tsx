@@ -161,7 +161,7 @@ export function AbstractSection({
                                             {/* ROR Icon */}
                                             {firstAffiliation.ror_id && (
                                                 <a
-                                                    href={`https://ror.org/${firstAffiliation.ror_id}`}
+                                                    href={firstAffiliation.ror_id}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="shrink-0"
@@ -202,7 +202,7 @@ export function AbstractSection({
                                 {funding.funder_identifier_type === 'ROR' &&
                                     funding.funder_identifier && (
                                         <a
-                                            href={`https://ror.org/${funding.funder_identifier}`}
+                                            href={funding.funder_identifier}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="shrink-0"

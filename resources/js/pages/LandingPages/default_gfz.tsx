@@ -103,7 +103,7 @@ export default function DefaultGfzTemplate() {
                             <img src={withBasePath('/images/gfz-logo-en.gif')} alt="GFZ" className="h-12" />
                         </a>
                         <a href="https://www.helmholtz.de" target="_blank" rel="noopener noreferrer">
-                            <img src={withBasePath('/images/helmholtz-logo-blue.png')} alt="Helmholtz" className="h-12" />
+                            <img src={withBasePath('/images/helmholtz-logo-blue.png')} alt="Helmholtz" className="h-8" />
                         </a>
                     </div>
                 </footer>
