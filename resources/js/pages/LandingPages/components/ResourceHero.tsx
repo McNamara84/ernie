@@ -30,8 +30,8 @@ export function ResourceHero({
             await navigator.clipboard.writeText(citation);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-            console.error('Failed to copy citation:', err);
+        } catch {
+            // Clipboard copy failed silently
         }
     };
 

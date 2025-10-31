@@ -46,8 +46,6 @@ export function ModelDescriptionSection({
                     setCitation(data.citation);
                     setDoi(supplementTo.identifier);
                 }
-            } catch (error) {
-                console.error('Failed to fetch DOI citation:', error);
             } finally {
                 setLoading(false);
             }

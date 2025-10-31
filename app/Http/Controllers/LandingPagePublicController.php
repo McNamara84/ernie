@@ -95,6 +95,15 @@ class LandingPagePublicController extends Controller
             ];
         })->toArray();
 
+        // Ensure descriptions are properly loaded
+        $resourceData['descriptions'] = $resource->descriptions->map(function ($desc) {
+            return [
+                'id' => $desc->id,
+                'description' => $desc->description,
+                'description_type' => $desc->description_type,
+            ];
+        })->toArray();
+
         $data = [
             'resource' => $resourceData,
             'landingPage' => $landingPage->toArray(),

@@ -3,9 +3,9 @@ import { usePage } from '@inertiajs/react';
 
 import { withBasePath } from '@/lib/base-path';
 
+import { AbstractSection } from './components/AbstractSection';
 import { FilesSection } from './components/FilesSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
-import { PlaceholderSection } from './components/PlaceholderSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
 import { buildCitation } from './lib/buildCitation';
@@ -84,7 +84,7 @@ export default function DefaultGfzTemplate() {
 
                         {/* Right Column - 2/3 width */}
                         <div className="lg:col-span-2">
-                            <PlaceholderSection className="h-full" />
+                            <AbstractSection descriptions={resource.descriptions || []} />
                         </div>
                     </div>
                 </div>
