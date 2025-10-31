@@ -1,3 +1,5 @@
+import { FileJson, FileCode } from 'lucide-react';
+
 interface Description {
     id: number;
     description: string;
@@ -21,6 +23,19 @@ interface FundingReference {
     position: number;
 }
 
+interface Keyword {
+    id: number;
+    keyword: string;
+}
+
+interface ControlledKeyword {
+    id: number;
+    text: string;
+    path: string;
+    scheme: string;
+    scheme_uri: string | null;
+}
+
 interface Author {
     id: number;
     position: number;
@@ -40,14 +55,24 @@ interface AbstractSectionProps {
     descriptions: Description[];
     authors: Author[];
     fundingReferences: FundingReference[];
+    keywords: Keyword[];
+    controlledKeywords: ControlledKeyword[];
+    resourceId: number;
 }
 
 /**
  * Abstract Section
  * 
- * Zeigt die Abstract-Description, Authors und Funders an.
+ * Zeigt die Abstract-Description, Authors, Funders, Keywords und Controlled Keywords an.
  */
-export function AbstractSection({ descriptions, authors, fundingReferences }: AbstractSectionProps) {
+export function AbstractSection({ 
+    descriptions, 
+    authors, 
+    fundingReferences, 
+    keywords,
+    controlledKeywords,
+    resourceId,
+}: AbstractSectionProps) {
     // Finde die Abstract-Description (case-insensitive)
     const abstract = descriptions.find(
         (desc) => desc.description_type?.toLowerCase() === 'abstract',
@@ -60,6 +85,20 @@ export function AbstractSection({ descriptions, authors, fundingReferences }: Ab
     // Filter authors with "Author" role
     const authorList = authors.filter((author) =>
         author.roles.includes('Author'),
+    );
+
+    // Group controlled keywords by scheme
+    const gcmdScienceKeywords = controlledKeywords.filter(
+        (kw) => kw.scheme === 'Science Keywords',
+    );
+    const gcmdPlatforms = controlledKeywords.filter(
+        (kw) => kw.scheme === 'Platforms',
+    );
+    const gcmdInstruments = controlledKeywords.filter(
+        (kw) => kw.scheme === 'Instruments',
+    );
+    const mslVocabularies = controlledKeywords.filter(
+        (kw) => kw.scheme === 'msl',
     );
 
     return (
@@ -199,6 +238,141 @@ export function AbstractSection({ descriptions, authors, fundingReferences }: Ab
                     </ul>
                 </div>
             )}
+
+            {/* Free Keywords Section */}
+            {keywords.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        Free Keywords
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {keywords.map((keyword) => (
+                            <span
+                                key={keyword.id}
+                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
+                                style={{ backgroundColor: '#0C2A63' }}
+                            >
+                                {keyword.keyword}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* GCMD Science Keywords Section */}
+            {gcmdScienceKeywords.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        GCMD Science Keywords
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {gcmdScienceKeywords.map((keyword) => (
+                            <span
+                                key={keyword.id}
+                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
+                                style={{ backgroundColor: '#0C2A63' }}
+                            >
+                                {keyword.path}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* GCMD Platforms Section */}
+            {gcmdPlatforms.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        GCMD Platforms
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {gcmdPlatforms.map((keyword) => (
+                            <span
+                                key={keyword.id}
+                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
+                                style={{ backgroundColor: '#0C2A63' }}
+                            >
+                                {keyword.path}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* GCMD Instruments Section */}
+            {gcmdInstruments.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        GCMD Instruments
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {gcmdInstruments.map((keyword) => (
+                            <span
+                                key={keyword.id}
+                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
+                                style={{ backgroundColor: '#0C2A63' }}
+                            >
+                                {keyword.path}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* MSL Vocabularies Section */}
+            {mslVocabularies.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        MSL Vocabularies
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                        {mslVocabularies.map((keyword) => (
+                            <span
+                                key={keyword.id}
+                                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
+                                style={{ backgroundColor: '#0C2A63' }}
+                            >
+                                {keyword.path}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Download Metadata Section */}
+            <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                    Download Metadata
+                </h3>
+                <div className="flex items-center gap-4">
+                    {/* DataCite Logo */}
+                    <img
+                        src="/images/datacite-logo.png"
+                        alt="DataCite"
+                        className="h-8"
+                    />
+
+                    {/* XML Download Button */}
+                    <a
+                        href={`/resources/${resourceId}/export-datacite-xml`}
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        title="Download as DataCite XML"
+                    >
+                        <FileCode className="h-5 w-5" />
+                        XML
+                    </a>
+
+                    {/* JSON Download Button */}
+                    <a
+                        href={`/resources/${resourceId}/export-datacite-json`}
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        title="Download as DataCite JSON"
+                    >
+                        <FileJson className="h-5 w-5" />
+                        JSON
+                    </a>
+                </div>
+            </div>
         </div>
     );
 }

@@ -150,6 +150,25 @@ class LandingPagePublicController extends Controller
             ];
         })->toArray();
 
+        // Ensure keywords are properly loaded
+        $resourceData['keywords'] = $resource->keywords->map(function ($keyword) {
+            return [
+                'id' => $keyword->id,
+                'keyword' => $keyword->keyword,
+            ];
+        })->toArray();
+
+        // Ensure controlled keywords are properly loaded
+        $resourceData['controlled_keywords'] = $resource->controlledKeywords->map(function ($keyword) {
+            return [
+                'id' => $keyword->id,
+                'text' => $keyword->text,
+                'path' => $keyword->path,
+                'scheme' => $keyword->scheme,
+                'scheme_uri' => $keyword->scheme_uri,
+            ];
+        })->toArray();
+
         $data = [
             'resource' => $resourceData,
             'landingPage' => $landingPage->toArray(),

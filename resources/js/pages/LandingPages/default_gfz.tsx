@@ -35,9 +35,9 @@ export default function DefaultGfzTemplate() {
             {/* Zentrierter Container für Header, Content und Footer */}
             <div className="mx-auto max-w-7xl rounded bg-white">
                 {/* Header */}
-                <header className="px-4 py-4">
+                <header className="px-4 py-2">
                     {/* Legal Notice - ganz oben rechts */}
-                    <div className="mb-2 flex justify-end">
+                    <div className="mb-1 flex justify-end">
                         <a
                             href={withBasePath('/legal-notice')}
                             className="text-xs text-gray-600 hover:text-gray-900 hover:underline"
@@ -50,7 +50,7 @@ export default function DefaultGfzTemplate() {
                         <img
                             src={withBasePath('/images/gfz-ds-logo.png')}
                             alt="GFZ Data Services"
-                            className="h-12"
+                            className="h-16"
                         />
                     </div>
                 </header>
@@ -88,6 +88,9 @@ export default function DefaultGfzTemplate() {
                                 descriptions={resource.descriptions || []}
                                 authors={resource.authors || []}
                                 fundingReferences={resource.funding_references || []}
+                                keywords={resource.keywords || []}
+                                controlledKeywords={resource.controlled_keywords || []}
+                                resourceId={resource.id}
                             />
                         </div>
                     </div>
