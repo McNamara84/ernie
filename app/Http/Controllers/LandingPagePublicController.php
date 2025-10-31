@@ -81,8 +81,8 @@ class LandingPagePublicController extends Controller
 
         // Prepare data for template
         $data = [
-            'resource' => $resource,
-            'landingPage' => $landingPage,
+            'resource' => $resource->toArray(),
+            'landingPage' => $landingPage->toArray(),
             'isPreview' => (bool) $previewToken,
         ];
 

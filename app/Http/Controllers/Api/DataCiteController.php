@@ -6,6 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Services\DataCiteApiService;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controller für DOI-Zitations-Abruf.
+ * 
+ * Verwendet die doi.org Content Negotiation API über den DataCiteApiService.
+ */
 class DataCiteController extends Controller
 {
     public function __construct(
@@ -13,10 +18,10 @@ class DataCiteController extends Controller
     ) {}
 
     /**
-     * Get citation for a DOI from DataCite API.
+     * Ruft eine formatierte Zitation für eine DOI ab.
      *
-     * @param string $doi
-     * @return JsonResponse
+     * @param string $doi Die DOI (kann von jedem Registrar sein)
+     * @return JsonResponse JSON mit citation und doi
      */
     public function getCitation(string $doi): JsonResponse
     {

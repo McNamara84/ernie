@@ -13,6 +13,11 @@ interface ModelDescriptionSectionProps {
     relatedIdentifiers: RelatedIdentifier[];
 }
 
+/**
+ * Model Description Section
+ * 
+ * Zeigt die IsSupplementTo-Relation mit Zitation von der DOI an.
+ */
 export function ModelDescriptionSection({
     relatedIdentifiers,
 }: ModelDescriptionSectionProps) {
@@ -20,15 +25,10 @@ export function ModelDescriptionSection({
     const [doi, setDoi] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // Debug: Log what we receive
-    console.log('ModelDescriptionSection - relatedIdentifiers:', relatedIdentifiers);
-
-    // Find the oldest "IsSupplementTo" relation
+    // Finde die IsSupplementTo-Relation
     const supplementTo = relatedIdentifiers.find(
         (rel) => rel.relation_type === 'IsSupplementTo',
     );
-
-    console.log('ModelDescriptionSection - supplementTo:', supplementTo);
 
     useEffect(() => {
         if (!supplementTo || supplementTo.identifier_type !== 'DOI') {
@@ -38,9 +38,8 @@ export function ModelDescriptionSection({
         const fetchCitation = async () => {
             setLoading(true);
             try {
-                const response = await fetch(
-                    `/api/datacite/citation/${encodeURIComponent(supplementTo.identifier)}`,
-                );
+                const url = `/api/datacite/citation/${encodeURIComponent(supplementTo.identifier)}`;
+                const response = await fetch(url);
 
                 if (response.ok) {
                     const data = await response.json();
@@ -48,7 +47,7 @@ export function ModelDescriptionSection({
                     setDoi(supplementTo.identifier);
                 }
             } catch (error) {
-                console.error('Failed to fetch DataCite citation:', error);
+                console.error('Failed to fetch DOI citation:', error);
             } finally {
                 setLoading(false);
             }

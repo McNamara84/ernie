@@ -6,48 +6,53 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Service for fetching metadata from the DataCite API.
+ * Service für den Abruf von DOI-Metadaten über die doi.org Content Negotiation API.
  * 
- * API Documentation: https://support.datacite.org/docs/api
+ * Funktioniert registrarunabhängig mit allen DOI-Registraren (DataCite, Crossref, mEDRA, etc.)
+ * 
+ * API-Dokumentation: https://citation.crosscite.org/docs.html
  */
 class DataCiteApiService
 {
-    private const API_BASE_URL = 'https://api.datacite.org';
-
     /**
-     * Fetch metadata for a DOI from DataCite API.
+     * Ruft Metadaten für eine DOI über Content Negotiation ab.
+     * 
+     * Funktioniert mit DOIs von allen Registraren (DataCite, Crossref, etc.)
      *
-     * @param string $doi The DOI to fetch metadata for
-     * @return array<string, mixed>|null The metadata array or null if not found
+     * @param string $doi Die DOI, für die Metadaten abgerufen werden sollen
+     * @return array<string, mixed>|null Die Metadaten als Array oder null bei Fehler
      */
     public function getMetadata(string $doi): ?array
     {
         try {
-            // Clean DOI (remove https://doi.org/ prefix if present)
-            $cleanDoi = str_replace('https://doi.org/', '', $doi);
-            $cleanDoi = str_replace('http://doi.org/', '', $cleanDoi);
+            // DOI bereinigen (https://doi.org/ Prefix entfernen falls vorhanden)
+            $cleanDoi = str_replace(['https://doi.org/', 'http://doi.org/'], '', $doi);
+            $url = "https://doi.org/{$cleanDoi}";
 
+            // JSON-LD Format anfordern (CSL JSON für Zitationsdaten)
             $response = Http::timeout(10)
-                ->get(self::API_BASE_URL . '/dois/' . urlencode($cleanDoi));
+                ->withHeaders([
+                    'Accept' => 'application/vnd.citationstyles.csl+json',
+                ])
+                ->get($url);
 
             if ($response->successful()) {
-                $data = $response->json();
-                return $data['data'] ?? null;
+                return $response->json();
             }
 
             if ($response->status() === 404) {
-                Log::info("DOI not found in DataCite: {$doi}");
+                Log::info("DOI nicht gefunden: {$doi}");
                 return null;
             }
 
-            Log::warning("DataCite API error for DOI {$doi}", [
+            Log::warning("DOI-Auflösungsfehler für {$doi}", [
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
 
             return null;
         } catch (\Exception $e) {
-            Log::error("Failed to fetch DataCite metadata for DOI {$doi}", [
+            Log::error("Fehler beim Abrufen der DOI-Metadaten für {$doi}", [
                 'error' => $e->getMessage(),
             ]);
             return null;
@@ -55,49 +60,47 @@ class DataCiteApiService
     }
 
     /**
-     * Build a citation string from DataCite metadata.
+     * Erstellt einen Zitationsstring aus CSL JSON Metadaten.
+     * 
+     * CSL JSON ist das Standardformat der doi.org Content Negotiation API.
      *
-     * @param array<string, mixed> $metadata The metadata from DataCite API
-     * @return string The formatted citation
+     * @param array<string, mixed> $metadata Die Metadaten von doi.org
+     * @return string Die formatierte Zitation
      */
     public function buildCitationFromMetadata(array $metadata): string
     {
-        $attributes = $metadata['attributes'] ?? [];
-
-        // Extract authors
-        $creators = $attributes['creators'] ?? [];
+        // Autoren aus CSL JSON Format extrahieren
+        $authors = $metadata['author'] ?? [];
         $authorStrings = [];
-        foreach ($creators as $creator) {
-            if (isset($creator['familyName']) && isset($creator['givenName'])) {
-                $authorStrings[] = $creator['familyName'] . ', ' . $creator['givenName'];
-            } elseif (isset($creator['name'])) {
-                $authorStrings[] = $creator['name'];
+        foreach ($authors as $author) {
+            if (isset($author['family']) && isset($author['given'])) {
+                $authorStrings[] = $author['family'] . ', ' . $author['given'];
+            } elseif (isset($author['literal'])) {
+                $authorStrings[] = $author['literal'];
+            } elseif (isset($author['family'])) {
+                $authorStrings[] = $author['family'];
             }
         }
-        $authors = !empty($authorStrings) ? implode('; ', $authorStrings) : 'Unknown Author';
+        $authorsString = !empty($authorStrings) ? implode('; ', $authorStrings) : 'Unknown Author';
 
-        // Extract year
-        $publicationYear = $attributes['publicationYear'] ?? 'n.d.';
+        // Jahr extrahieren - verschiedene mögliche Felder prüfen
+        $year = $metadata['issued']['date-parts'][0][0] ?? 
+                $metadata['published']['date-parts'][0][0] ?? 
+                $metadata['created']['date-parts'][0][0] ?? 
+                'n.d.';
 
-        // Extract title
-        $titles = $attributes['titles'] ?? [];
-        $mainTitle = 'Untitled';
-        foreach ($titles as $title) {
-            if (!isset($title['titleType']) || $title['titleType'] === 'MainTitle') {
-                $mainTitle = $title['title'] ?? 'Untitled';
-                break;
-            }
-        }
+        // Titel extrahieren
+        $title = $metadata['title'] ?? 'Untitled';
 
-        // Extract publisher
-        $publisher = $attributes['publisher'] ?? 'Unknown Publisher';
+        // Verlag extrahieren
+        $publisher = $metadata['publisher'] ?? 'Unknown Publisher';
 
-        // Extract DOI
-        $doi = $attributes['doi'] ?? $metadata['id'] ?? '';
+        // DOI extrahieren
+        $doi = $metadata['DOI'] ?? '';
         $doiUrl = $doi ? "https://doi.org/{$doi}" : '';
 
-        // Build citation: [Authors] ([Year]): [Title]. [Publisher]. [DOI URL]
-        return trim("{$authors} ({$publicationYear}): {$mainTitle}. {$publisher}. {$doiUrl}");
+        // Zitation aufbauen: [Autoren] ([Jahr]): [Titel]. [Verlag]. [DOI URL]
+        return trim("{$authorsString} ({$year}): {$title}. {$publisher}. {$doiUrl}");
     }
 }
 

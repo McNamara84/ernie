@@ -74,7 +74,7 @@ export default function DefaultGfzTemplate() {
                                 licenses={resource.licenses || []}
                             />
                             <ModelDescriptionSection
-                                relatedIdentifiers={resource.relatedIdentifiers || []}
+                                relatedIdentifiers={resource.related_identifiers || []}
                             />
                             <PlaceholderSection title="Related Work" />
                         </div>
