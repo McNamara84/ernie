@@ -136,6 +136,20 @@ class LandingPagePublicController extends Controller
             return $authorData;
         })->toArray();
 
+        // Ensure funding references are properly loaded
+        $resourceData['funding_references'] = $resource->fundingReferences->map(function ($funding) {
+            return [
+                'id' => $funding->id,
+                'funder_name' => $funding->funder_name,
+                'funder_identifier' => $funding->funder_identifier,
+                'funder_identifier_type' => $funding->funder_identifier_type,
+                'award_number' => $funding->award_number,
+                'award_uri' => $funding->award_uri,
+                'award_title' => $funding->award_title,
+                'position' => $funding->position,
+            ];
+        })->toArray();
+
         $data = [
             'resource' => $resourceData,
             'landingPage' => $landingPage->toArray(),

@@ -10,6 +10,17 @@ interface Affiliation {
     ror_id: string | null;
 }
 
+interface FundingReference {
+    id: number;
+    funder_name: string;
+    funder_identifier: string | null;
+    funder_identifier_type: string | null;
+    award_number: string | null;
+    award_uri: string | null;
+    award_title: string | null;
+    position: number;
+}
+
 interface Author {
     id: number;
     position: number;
@@ -28,14 +39,15 @@ interface Author {
 interface AbstractSectionProps {
     descriptions: Description[];
     authors: Author[];
+    fundingReferences: FundingReference[];
 }
 
 /**
  * Abstract Section
  * 
- * Zeigt die Abstract-Description und Authors an.
+ * Zeigt die Abstract-Description, Authors und Funders an.
  */
-export function AbstractSection({ descriptions, authors }: AbstractSectionProps) {
+export function AbstractSection({ descriptions, authors, fundingReferences }: AbstractSectionProps) {
     // Finde die Abstract-Description (case-insensitive)
     const abstract = descriptions.find(
         (desc) => desc.description_type?.toLowerCase() === 'abstract',
@@ -128,6 +140,62 @@ export function AbstractSection({ descriptions, authors }: AbstractSectionProps)
                                 </li>
                             );
                         })}
+                    </ul>
+                </div>
+            )}
+
+            {/* Funders Section */}
+            {fundingReferences.length > 0 && (
+                <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        Funders
+                    </h3>
+                    <ul className="space-y-2">
+                        {fundingReferences.map((funding) => (
+                            <li
+                                key={funding.id}
+                                className="flex items-center gap-1 text-sm text-gray-700"
+                            >
+                                {/* Funder Name */}
+                                <span>{funding.funder_name}</span>
+
+                                {/* ROR Icon */}
+                                {funding.funder_identifier_type === 'ROR' &&
+                                    funding.funder_identifier && (
+                                        <a
+                                            href={`https://ror.org/${funding.funder_identifier}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="shrink-0"
+                                            title={`ROR ID: ${funding.funder_identifier}`}
+                                        >
+                                            <img
+                                                src="/images/pid-icons/ror-icon.png"
+                                                alt="ROR"
+                                                className="h-4 w-4"
+                                            />
+                                        </a>
+                                    )}
+
+                                {/* Crossref Funder Icon */}
+                                {funding.funder_identifier_type === 'Crossref Funder ID' &&
+                                    funding.funder_identifier && (
+                                        <a
+                                            href={`https://doi.org/${funding.funder_identifier}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="shrink-0"
+                                            title={`Crossref Funder ID: ${funding.funder_identifier}`}
+                                        >
+                                            <img
+                                                src="/images/pid-icons/crossref-funder.png"
+                                                alt="Crossref Funder ID"
+                                                className="h-4 w-4"
+                                            />
+                                        </a>
+                                    )}
+                            </li>
+                        ))}
                     </ul>
                 </div>
             )}

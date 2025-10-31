@@ -87,6 +87,7 @@ export default function DefaultGfzTemplate() {
                             <AbstractSection 
                                 descriptions={resource.descriptions || []}
                                 authors={resource.authors || []}
+                                fundingReferences={resource.funding_references || []}
                             />
                         </div>
                     </div>
