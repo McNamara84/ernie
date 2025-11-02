@@ -37,6 +37,16 @@ class LandingPage extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'preview_url',
+        'public_url',
+    ];
+
+    /**
      * Template constants.
      *
      * @var string

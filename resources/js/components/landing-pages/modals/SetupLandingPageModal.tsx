@@ -152,17 +152,18 @@ export default function SetupLandingPageModal({
             toast.success(response.data.message);
 
             // Update local state with response data
-            const updatedConfig = 'landing_page' in response.data 
-                ? response.data.landing_page 
-                : null;
-            
-            if (updatedConfig) {
+            if (response.data.landing_page) {
+                const updatedConfig = response.data.landing_page;
                 setCurrentConfig(updatedConfig);
                 setPreviewUrl(updatedConfig.preview_url ?? '');
                 setIsPublished(updatedConfig.status === 'published');
-            } else if ('preview_url' in response.data) {
-                // New creation response
-                setPreviewUrl(String(response.data.preview_url ?? ''));
+                
+                console.log('Landing page saved:', {
+                    status: updatedConfig.status,
+                    preview_url: updatedConfig.preview_url,
+                    published_at: updatedConfig.published_at,
+                    currentConfig: updatedConfig,
+                });
             }
 
             // Clear session-based preview if it exists
@@ -374,7 +375,7 @@ export default function SetupLandingPageModal({
                         </div>
 
                         {/* Preview URL (if draft exists) */}
-                        {currentConfig && !currentConfig.published_at && previewUrl && (
+                        {currentConfig && currentConfig.status === 'draft' && previewUrl && (
                             <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
                                 <Label className="text-blue-900 dark:text-blue-100">
                                     Preview URL (Draft Mode)
@@ -404,7 +405,7 @@ export default function SetupLandingPageModal({
                         )}
 
                         {/* Public URL (only if actually published in database) */}
-                        {currentConfig && currentConfig.published_at && resource.id && (
+                        {currentConfig && currentConfig.status === 'published' && resource.id && (
                             <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
                                 <Label className="text-green-900 dark:text-green-100">
                                     Public URL
@@ -448,7 +449,7 @@ export default function SetupLandingPageModal({
                             disabled={isSaving}
                             className="mr-auto"
                         >
-                            {currentConfig.published_at ? 'Depublish' : 'Remove Preview'}
+                            {currentConfig.status === 'published' ? 'Depublish' : 'Remove Preview'}
                         </Button>
                     )}
 
@@ -475,9 +476,9 @@ export default function SetupLandingPageModal({
                         {isSaving
                             ? 'Saving...'
                             : currentConfig
-                              ? currentConfig.published_at && !isPublished
+                              ? currentConfig.status === 'published' && !isPublished
                                 ? 'Depublish'
-                                : !currentConfig.published_at && isPublished
+                                : currentConfig.status === 'draft' && isPublished
                                   ? 'Publish'
                                   : 'Update'
                               : isPublished
