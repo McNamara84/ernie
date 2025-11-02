@@ -5,6 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $resource_id
+ * @property string $identifier
+ * @property string $identifier_type
+ * @property string $relation_type
+ * @property int $position
+ * @property string|null $related_title
+ * @property array<string, mixed>|null $related_metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class RelatedIdentifier extends Model
 {
     /**

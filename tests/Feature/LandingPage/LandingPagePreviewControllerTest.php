@@ -11,7 +11,7 @@ uses()->group('landing-pages', 'preview');
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->actingAs($this->user);
-    
+
     $this->resource = Resource::factory()->create([
         'created_by_user_id' => $this->user->id,
     ]);
@@ -28,7 +28,7 @@ describe('Session Preview Creation', function () {
 
         $sessionKey = "landing_page_preview.{$this->resource->id}";
         expect(Session::has($sessionKey))->toBeTrue();
-        
+
         $sessionData = Session::get($sessionKey);
         expect($sessionData)
             ->toHaveKey('template', 'default_gfz')

@@ -194,4 +194,3 @@ class LandingPageController extends Controller
         // In production with Redis, you could use Cache::tags()
     }
 }
-

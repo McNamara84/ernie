@@ -12,7 +12,7 @@ uses()->group('landing-pages');
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->actingAs($this->user);
-    
+
     $this->resource = Resource::factory()->create([
         'created_by_user_id' => $this->user->id,
     ]);

@@ -22,10 +22,6 @@ class LandingPagePublicController extends Controller
 {
     /**
      * Display a public landing page for a resource
-     *
-     * @param Request $request
-     * @param int $resourceId
-     * @return Response
      */
     public function show(Request $request, int $resourceId): Response
     {
@@ -56,6 +52,7 @@ class LandingPagePublicController extends Controller
             if ($cached) {
                 // Increment view count (outside cache)
                 $landingPage->incrementViewCount();
+
                 return $cached;
             }
         }
@@ -80,7 +77,7 @@ class LandingPagePublicController extends Controller
 
         // Prepare data for template
         $resourceData = $resource->toArray();
-        
+
         // Ensure relatedIdentifiers are properly loaded
         $resourceData['related_identifiers'] = $resource->relatedIdentifiers->map(function ($relatedId) {
             return [
@@ -122,13 +119,15 @@ class LandingPagePublicController extends Controller
 
             // Add authorable data (Person or Institution)
             if ($author->authorable) {
+                /** @var \App\Models\Person|\App\Models\Institution $authorable */
+                $authorable = $author->authorable;
                 $authorData['authorable'] = [
                     'type' => class_basename($author->authorable_type),
-                    'id' => $author->authorable->id,
-                    'first_name' => $author->authorable->first_name ?? null,
-                    'last_name' => $author->authorable->last_name ?? null,
-                    'orcid' => $author->authorable->orcid ?? null,
-                    'name' => $author->authorable->name ?? null,
+                    'id' => $authorable->id,
+                    'first_name' => $authorable->first_name ?? null,
+                    'last_name' => $authorable->last_name ?? null,
+                    'orcid' => $authorable->orcid ?? null,
+                    'name' => $authorable->name ?? null,
                 ];
             }
 
@@ -180,7 +179,7 @@ class LandingPagePublicController extends Controller
         // Increment view count for published pages (not previews)
         if (! $previewToken && $landingPage->status === 'published') {
             $landingPage->incrementViewCount();
-            
+
             // Cache published pages for 24 hours
             Cache::put("landing_page.{$resourceId}", $response, now()->addDay());
         }

@@ -49,7 +49,7 @@ describe('Public Landing Page Access', function () {
             'status' => 'published',
         ]);
         $landingPage->publish();
-        
+
         // Depublish
         $landingPage->unpublish();
 
@@ -140,7 +140,7 @@ describe('Landing Page Caching', function () {
 
         // First request - populates cache
         $response1 = $this->get("/datasets/{$this->resource->id}");
-        
+
         // Modify landing page
         $landingPage->update(['ftp_url' => 'https://new-url.com']);
 

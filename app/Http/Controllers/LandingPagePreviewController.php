@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Resource;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
@@ -43,7 +44,7 @@ class LandingPagePreviewController extends Controller
         $sessionKey = "landing_page_preview.{$resource->id}";
         $previewData = Session::get($sessionKey);
 
-        if (!$previewData) {
+        if (! $previewData) {
             abort(404, 'Preview session expired. Please open preview again from the setup modal.');
         }
 
@@ -87,7 +88,7 @@ class LandingPagePreviewController extends Controller
     /**
      * Clear preview session
      */
-    public function destroy(Resource $resource)
+    public function destroy(Resource $resource): JsonResponse
     {
         $sessionKey = "landing_page_preview.{$resource->id}";
         Session::forget($sessionKey);

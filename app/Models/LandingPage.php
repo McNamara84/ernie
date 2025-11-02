@@ -11,6 +11,7 @@ class LandingPage extends Model
 {
     /** @use HasFactory<\Database\Factories\LandingPageFactory> */
     use HasFactory;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -39,7 +40,7 @@ class LandingPage extends Model
     /**
      * The accessors to append to the model's array form.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $appends = [
         'preview_url',
@@ -75,11 +76,11 @@ class LandingPage extends Model
     /**
      * Get the resource that owns this landing page.
      *
-     * @return BelongsTo<Resource, static>
+     * @return BelongsTo<resource, static>
      */
     public function resource(): BelongsTo
     {
-        /** @var BelongsTo<Resource, static> $relation */
+        /** @var BelongsTo<resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
 
         return $relation;
