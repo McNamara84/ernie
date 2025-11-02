@@ -1,4 +1,12 @@
+interface Authorable {
+    type: string;
+    first_name?: string;
+    last_name?: string;
+    name?: string;
+}
+
 interface Author {
+    authorable?: Authorable;
     first_name?: string;
     last_name?: string;
     institution_name?: string;
@@ -15,6 +23,7 @@ interface Resource {
     publisher?: string;
     doi?: string;
     publication_year?: number;
+    year?: number; // Actual database field name
 }
 
 export function buildCitation(resource: Resource): string {
@@ -22,6 +31,22 @@ export function buildCitation(resource: Resource): string {
     const authors =
         resource.authors
             ?.map((author) => {
+                // Check if authorable data exists (new structure)
+                if (author.authorable) {
+                    if (author.authorable.type === 'Institution') {
+                        return author.authorable.name;
+                    }
+                    if (author.authorable.type === 'Person') {
+                        if (author.authorable.last_name && author.authorable.first_name) {
+                            return `${author.authorable.last_name}, ${author.authorable.first_name}`;
+                        }
+                        if (author.authorable.last_name) {
+                            return author.authorable.last_name;
+                        }
+                    }
+                }
+                
+                // Fallback to old structure (for backward compatibility)
                 if (author.institution_name) {
                     return author.institution_name;
                 }
@@ -36,8 +61,8 @@ export function buildCitation(resource: Resource): string {
             .filter(Boolean)
             .join('; ') || 'Unknown Author';
 
-    // Extract year
-    const year = resource.publication_year || 'n.d.';
+    // Extract year (check both field names for compatibility)
+    const year = resource.year || resource.publication_year || 'n.d.';
 
     // Extract main title
     const mainTitle =
