@@ -127,7 +127,28 @@ export default function SetupLandingPageModal({
             };
 
             const url = withBasePath(`/resources/${resource.id}/landing-page`);
-            const response = existingConfig
+            
+            // Try to determine if we need POST or PUT
+            // First, check if landing page exists by trying to fetch it
+            let shouldUpdate = false;
+            
+            if (!existingConfig) {
+                // No config passed in props, check if one exists in DB
+                try {
+                    await axios.get(url);
+                    shouldUpdate = true; // Landing page exists, use PUT
+                } catch (error) {
+                    if (isAxiosError(error) && error.response?.status === 404) {
+                        shouldUpdate = false; // No landing page, use POST
+                    } else {
+                        throw error; // Other error, rethrow
+                    }
+                }
+            } else {
+                shouldUpdate = true; // existingConfig present, use PUT
+            }
+            
+            const response = shouldUpdate
                 ? await axios.put<{
                       message: string;
                       landing_page: LandingPageConfig;
@@ -140,20 +161,26 @@ export default function SetupLandingPageModal({
 
             toast.success(response.data.message);
 
-            if (!existingConfig) {
-                const newPreviewUrl =
-                    'preview_url' in response.data
-                        ? String(response.data.preview_url ?? '')
-                        : '';
+            // Update preview URL from response
+            const newPreviewUrl = 'preview_url' in response.data
+                ? String(response.data.preview_url ?? '')
+                : 'landing_page' in response.data &&
+                  response.data.landing_page &&
+                  'preview_url' in response.data.landing_page
+                ? String(response.data.landing_page.preview_url ?? '')
+                : '';
+            
+            if (newPreviewUrl) {
                 setPreviewUrl(newPreviewUrl);
-            } else {
-                const updatedPreviewUrl =
-                    'landing_page' in response.data &&
-                    response.data.landing_page &&
-                    'preview_url' in response.data.landing_page
-                        ? String(response.data.landing_page.preview_url ?? '')
-                        : '';
-                setPreviewUrl(updatedPreviewUrl);
+            }
+
+            // Clear session-based preview if it exists
+            try {
+                await axios.delete(
+                    withBasePath(`/resources/${resource.id}/landing-page/preview`)
+                );
+            } catch {
+                // Ignore errors from clearing preview session
             }
 
             // Reload page to update UI
@@ -230,64 +257,44 @@ export default function SetupLandingPageModal({
     };
 
     const openPreview = async () => {
-        // If preview URL exists, open it
-        if (previewUrl) {
+        // If we have an existing landing page with preview URL, open it
+        if (existingConfig && previewUrl) {
             window.open(previewUrl, '_blank');
             return;
         }
 
         // If published, use public URL
-        if (isPublished && resource.id) {
+        if (existingConfig && isPublished && resource.id) {
             window.open(withBasePath(`/datasets/${resource.id}`), '_blank');
             return;
         }
 
-        // No preview URL exists yet - save as draft first
-        if (!existingConfig && resource.id) {
-            setIsSaving(true);
+        // No saved landing page - use session-based temporary preview
+        if (resource.id) {
             try {
                 const payload = {
                     template,
                     ftp_url: ftpUrl || null,
-                    status: 'draft', // Always save as draft for preview
                 };
 
-                const url = withBasePath(`/resources/${resource.id}/landing-page`);
-                const response = await axios.post<{
-                    message: string;
-                    landing_page: LandingPageConfig;
-                    preview_url: string;
-                }>(url, payload);
-
-                const newPreviewUrl =
-                    'preview_url' in response.data
-                        ? String(response.data.preview_url ?? '')
-                        : '';
-                setPreviewUrl(newPreviewUrl);
-
-                toast.success('Draft saved for preview');
+                // Store preview in session and get preview URL
+                await axios.post(
+                    withBasePath(`/resources/${resource.id}/landing-page/preview`),
+                    payload
+                );
 
                 // Open preview in new tab
-                if (newPreviewUrl) {
-                    window.open(newPreviewUrl, '_blank');
-                }
-
-                // Reload page to update UI
-                router.reload({ only: ['resources'] });
+                const previewUrl = withBasePath(`/resources/${resource.id}/landing-page/preview`);
+                window.open(previewUrl, '_blank');
             } catch (error) {
-                console.error('Failed to save draft for preview:', error);
+                console.error('Failed to create temporary preview:', error);
                 
-                let errorMessage = 'Failed to save draft for preview';
+                let errorMessage = 'Failed to create preview';
                 if (isAxiosError(error) && error.response?.data?.message) {
                     errorMessage = error.response.data.message;
-                } else if (isAxiosError(error) && error.response?.data?.errors) {
-                    const errors = error.response.data.errors;
-                    errorMessage = Object.values(errors).flat().join(', ');
                 }
                 
                 toast.error(errorMessage);
-            } finally {
-                setIsSaving(false);
             }
         } else {
             toast.error('Unable to generate preview');

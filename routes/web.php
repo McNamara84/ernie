@@ -6,6 +6,7 @@ use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
 use App\Models\License;
 use App\Models\Resource;
@@ -136,6 +137,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('resources/{resource}/landing-page', [LandingPageController::class, 'get'])
         ->name('landing-page.get');
+
+    // Landing Page Temporary Preview (Session-based)
+    Route::post('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'store'])
+        ->name('landing-page.preview.store');
+
+    Route::get('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'show'])
+        ->name('landing-page.preview.show');
+
+    Route::delete('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'destroy'])
+        ->name('landing-page.preview.destroy');
 
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
