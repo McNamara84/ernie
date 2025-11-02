@@ -106,3 +106,15 @@ class LocalStorageMock {
 }
 
 global.localStorage = new LocalStorageMock() as Storage;
+
+// Mock Clipboard API for tests
+if (typeof navigator !== 'undefined') {
+    Object.defineProperty(navigator, 'clipboard', {
+        value: {
+            writeText: () => Promise.resolve(),
+            readText: () => Promise.resolve(''),
+        },
+        configurable: true,
+        writable: true,
+    });
+}

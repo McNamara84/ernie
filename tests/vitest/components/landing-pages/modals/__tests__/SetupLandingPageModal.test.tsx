@@ -380,23 +380,12 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
-        it.skip('copies preview URL to clipboard', async () => {
+        it('copies preview URL to clipboard', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
             axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
 
-            // Mock clipboard API
-            const writeTextMock = vi.fn().mockResolvedValue(undefined);
-            
-            // Store original clipboard
-            const originalClipboard = navigator.clipboard;
-            
-            // Mock clipboard writeText
-            Object.defineProperty(navigator, 'clipboard', {
-                value: {
-                    writeText: writeTextMock,
-                },
-                configurable: true,
-            });
+            // Spy on navigator.clipboard.writeText
+            const writeTextSpy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
 
             const user = userEvent.setup();
 
@@ -420,21 +409,19 @@ describe('SetupLandingPageModal', () => {
 
             // Find and click the copy button
             const copyButton = screen.getByTitle('Copy preview URL');
+            
             await user.click(copyButton);
+            
+            // Small delay to allow async operations
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Verify clipboard was called
-            await waitFor(() => {
-                expect(writeTextMock).toHaveBeenCalledTimes(1);
-                expect(writeTextMock).toHaveBeenCalledWith(
-                    expect.stringContaining('preview=preview-token-123')
-                );
-            });
+            // Verify clipboard was called with the preview URL
+            expect(writeTextSpy).toHaveBeenCalledTimes(1);
+            expect(writeTextSpy).toHaveBeenCalledWith(
+                expect.stringContaining('preview=preview-token-123')
+            );
 
-            // Restore original clipboard
-            Object.defineProperty(navigator, 'clipboard', {
-                value: originalClipboard,
-                configurable: true,
-            });
+            writeTextSpy.mockRestore();
         });
     });
 
