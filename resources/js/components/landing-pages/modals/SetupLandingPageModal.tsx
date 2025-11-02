@@ -60,12 +60,16 @@ export default function SetupLandingPageModal({
     const [previewUrl, setPreviewUrl] = useState<string>(existingConfig?.preview_url ?? '');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [currentConfig, setCurrentConfig] = useState<LandingPageConfig | null>(
+        existingConfig ?? null
+    );
 
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
             if (existingConfig) {
                 // Use existing config passed as prop
+                setCurrentConfig(existingConfig);
                 setTemplate(existingConfig.template);
                 setFtpUrl(existingConfig.ftp_url ?? '');
                 setIsPublished(existingConfig.status === 'published');
@@ -76,6 +80,7 @@ export default function SetupLandingPageModal({
             }
         } else if (!isOpen) {
             // Reset state when modal closes
+            setCurrentConfig(null);
             setTemplate(getDefaultTemplate());
             setFtpUrl('');
             setIsPublished(false);
@@ -91,6 +96,7 @@ export default function SetupLandingPageModal({
                 withBasePath(`/resources/${resource.id}/landing-page`)
             );
             const config = response.data.landing_page;
+            setCurrentConfig(config);
             setTemplate(config.template);
             setFtpUrl(config.ftp_url ?? '');
             setIsPublished(config.status === 'published');
@@ -98,6 +104,7 @@ export default function SetupLandingPageModal({
         } catch (error) {
             if (isAxiosError(error) && error.response?.status === 404) {
                 // No landing page exists yet, use defaults
+                setCurrentConfig(null);
                 setTemplate('default_gfz');
                 setFtpUrl('');
                 setIsPublished(false);
@@ -128,25 +135,8 @@ export default function SetupLandingPageModal({
 
             const url = withBasePath(`/resources/${resource.id}/landing-page`);
             
-            // Try to determine if we need POST or PUT
-            // First, check if landing page exists by trying to fetch it
-            let shouldUpdate = false;
-            
-            if (!existingConfig) {
-                // No config passed in props, check if one exists in DB
-                try {
-                    await axios.get(url);
-                    shouldUpdate = true; // Landing page exists, use PUT
-                } catch (error) {
-                    if (isAxiosError(error) && error.response?.status === 404) {
-                        shouldUpdate = false; // No landing page, use POST
-                    } else {
-                        throw error; // Other error, rethrow
-                    }
-                }
-            } else {
-                shouldUpdate = true; // existingConfig present, use PUT
-            }
+            // Determine if we should update or create
+            const shouldUpdate = currentConfig !== null;
             
             const response = shouldUpdate
                 ? await axios.put<{
@@ -161,17 +151,18 @@ export default function SetupLandingPageModal({
 
             toast.success(response.data.message);
 
-            // Update preview URL from response
-            const newPreviewUrl = 'preview_url' in response.data
-                ? String(response.data.preview_url ?? '')
-                : 'landing_page' in response.data &&
-                  response.data.landing_page &&
-                  'preview_url' in response.data.landing_page
-                ? String(response.data.landing_page.preview_url ?? '')
-                : '';
+            // Update local state with response data
+            const updatedConfig = 'landing_page' in response.data 
+                ? response.data.landing_page 
+                : null;
             
-            if (newPreviewUrl) {
-                setPreviewUrl(newPreviewUrl);
+            if (updatedConfig) {
+                setCurrentConfig(updatedConfig);
+                setPreviewUrl(updatedConfig.preview_url ?? '');
+                setIsPublished(updatedConfig.status === 'published');
+            } else if ('preview_url' in response.data) {
+                // New creation response
+                setPreviewUrl(String(response.data.preview_url ?? ''));
             }
 
             // Clear session-based preview if it exists
@@ -203,7 +194,7 @@ export default function SetupLandingPageModal({
     };
 
     const handleDepublish = async () => {
-        if (!resource.id || !existingConfig) return;
+        if (!resource.id || !currentConfig) return;
 
         const action = isPublished ? 'depublish' : 'remove preview';
         
@@ -234,6 +225,8 @@ export default function SetupLandingPageModal({
             } else {
                 // Draft: delete completely
                 await axios.delete(withBasePath(`/resources/${resource.id}/landing-page`));
+                setCurrentConfig(null);
+                setPreviewUrl('');
                 toast.success('Landing page preview removed successfully');
                 onClose();
                 router.reload({ only: ['resources'] });
@@ -258,13 +251,13 @@ export default function SetupLandingPageModal({
 
     const openPreview = async () => {
         // If we have an existing landing page with preview URL, open it
-        if (existingConfig && previewUrl) {
+        if (currentConfig && previewUrl) {
             window.open(previewUrl, '_blank');
             return;
         }
 
         // If published, use public URL
-        if (existingConfig && isPublished && resource.id) {
+        if (currentConfig && isPublished && resource.id) {
             window.open(withBasePath(`/datasets/${resource.id}`), '_blank');
             return;
         }
@@ -380,11 +373,11 @@ export default function SetupLandingPageModal({
                             />
                         </div>
 
-                        {/* Preview URL (if exists) */}
-                        {previewUrl && (
+                        {/* Preview URL (if draft exists) */}
+                        {currentConfig && !currentConfig.published_at && previewUrl && (
                             <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
                                 <Label className="text-blue-900 dark:text-blue-100">
-                                    Preview URL
+                                    Preview URL (Draft Mode)
                                 </Label>
                                 <div className="flex gap-2">
                                     <Input
@@ -405,15 +398,13 @@ export default function SetupLandingPageModal({
                                     </Button>
                                 </div>
                                 <p className="text-xs text-blue-700 dark:text-blue-300">
-                                    {isPublished
-                                        ? 'This is the public URL for your landing page'
-                                        : 'Share this URL with authors for review (works in draft mode)'}
+                                    Share this URL with authors for review (requires preview token)
                                 </p>
                             </div>
                         )}
 
-                        {/* Public URL (if published) */}
-                        {isPublished && resource.id && (
+                        {/* Public URL (only if actually published in database) */}
+                        {currentConfig && currentConfig.published_at && resource.id && (
                             <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
                                 <Label className="text-green-900 dark:text-green-100">
                                     Public URL
@@ -440,13 +431,16 @@ export default function SetupLandingPageModal({
                                         <Copy className="size-4" />
                                     </Button>
                                 </div>
+                                <p className="text-xs text-green-700 dark:text-green-300">
+                                    This landing page is publicly accessible
+                                </p>
                             </div>
                         )}
                     </div>
                 )}
 
                 <DialogFooter className="gap-2">
-                    {existingConfig && (
+                    {currentConfig && (
                         <Button
                             type="button"
                             variant="destructive"
@@ -454,7 +448,7 @@ export default function SetupLandingPageModal({
                             disabled={isSaving}
                             className="mr-auto"
                         >
-                            {isPublished ? 'Depublish' : 'Remove Preview'}
+                            {currentConfig.published_at ? 'Depublish' : 'Remove Preview'}
                         </Button>
                     )}
 
@@ -480,9 +474,15 @@ export default function SetupLandingPageModal({
                     <Button type="button" onClick={handleSave} disabled={isSaving || isLoading}>
                         {isSaving
                             ? 'Saving...'
-                            : existingConfig
-                              ? 'Update'
-                              : 'Create & Activate'}
+                            : currentConfig
+                              ? currentConfig.published_at && !isPublished
+                                ? 'Depublish'
+                                : !currentConfig.published_at && isPublished
+                                  ? 'Publish'
+                                  : 'Update'
+                              : isPublished
+                                ? 'Create & Publish'
+                                : 'Create Preview'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

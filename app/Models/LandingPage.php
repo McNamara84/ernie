@@ -137,6 +137,7 @@ class LandingPage extends Model
     {
         $this->update([
             'status' => self::STATUS_DRAFT,
+            'published_at' => null,
         ]);
     }
 

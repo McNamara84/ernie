@@ -31,10 +31,31 @@ class LandingPagePublicController extends Controller
     {
         $previewToken = $request->query('preview');
 
+        // Load landing page configuration first to check status
+        $landingPage = LandingPage::where('resource_id', $resourceId)->first();
+
+        // If preview token is provided, validate it
+        if ($previewToken) {
+            abort_if(
+                ! $landingPage || $landingPage->preview_token !== $previewToken,
+                HttpResponse::HTTP_FORBIDDEN,
+                'Invalid preview token'
+            );
+        } else {
+            // For public access, landing page must exist and be published
+            abort_if(
+                ! $landingPage || $landingPage->status !== 'published',
+                HttpResponse::HTTP_NOT_FOUND,
+                'Landing page not found or not published'
+            );
+        }
+
         // Try to get from cache first (only for published pages without preview token)
-        if (! $previewToken) {
+        if (! $previewToken && $landingPage->status === 'published') {
             $cached = Cache::get("landing_page.{$resourceId}");
             if ($cached) {
+                // Increment view count (outside cache)
+                $landingPage->incrementViewCount();
                 return $cached;
             }
         }
@@ -56,28 +77,6 @@ class LandingPagePublicController extends Controller
             'resourceType',
             'language',
         ])->findOrFail($resourceId);
-
-        // Load landing page configuration
-        $landingPage = LandingPage::where('resource_id', $resourceId)->first();
-
-        // If preview token is provided, validate it
-        if ($previewToken) {
-            abort_if(
-                ! $landingPage || $landingPage->preview_token !== $previewToken,
-                HttpResponse::HTTP_FORBIDDEN,
-                'Invalid preview token'
-            );
-        } else {
-            // For public access, landing page must exist and be published
-            abort_if(
-                ! $landingPage || $landingPage->status !== 'published',
-                HttpResponse::HTTP_NOT_FOUND,
-                'Landing page not found or not published'
-            );
-
-            // Increment view count for published pages
-            $landingPage->incrementViewCount();
-        }
 
         // Prepare data for template
         $resourceData = $resource->toArray();
@@ -178,8 +177,11 @@ class LandingPagePublicController extends Controller
         // Render via template system (will be implemented in Sprint 3 Step 12)
         $response = Inertia::render("LandingPages/{$landingPage->template}", $data);
 
-        // Cache published pages for 24 hours
+        // Increment view count for published pages (not previews)
         if (! $previewToken && $landingPage->status === 'published') {
+            $landingPage->incrementViewCount();
+            
+            // Cache published pages for 24 hours
             Cache::put("landing_page.{$resourceId}", $response, now()->addDay());
         }
 
