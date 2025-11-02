@@ -64,10 +64,24 @@ export default function SetupLandingPageModal({
     // Load existing config when modal opens
     useEffect(() => {
         if (isOpen && resource.id) {
-            if (!existingConfig) {
+            if (existingConfig) {
+                // Use existing config passed as prop
+                setTemplate(existingConfig.template);
+                setFtpUrl(existingConfig.ftp_url ?? '');
+                setIsPublished(existingConfig.status === 'published');
+                setPreviewUrl(existingConfig.preview_url ?? '');
+            } else {
+                // Load from server
                 loadLandingPageConfig();
             }
+        } else if (!isOpen) {
+            // Reset state when modal closes
+            setTemplate(getDefaultTemplate());
+            setFtpUrl('');
+            setIsPublished(false);
+            setPreviewUrl('');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, resource.id]);
 
     const loadLandingPageConfig = async () => {
@@ -161,23 +175,45 @@ export default function SetupLandingPageModal({
         }
     };
 
-    const handleDelete = async () => {
+    const handleDepublish = async () => {
         if (!resource.id || !existingConfig) return;
 
-        if (!confirm('Are you sure you want to delete this landing page configuration?')) {
+        const action = isPublished ? 'depublish' : 'remove preview';
+        
+        if (!confirm(`Are you sure you want to ${action} this landing page?`)) {
             return;
         }
 
         setIsSaving(true);
 
         try {
-            await axios.delete(withBasePath(`/resources/${resource.id}/landing-page`));
-            toast.success('Landing page deleted successfully');
-            onClose();
-            router.reload({ only: ['resources'] });
+            // If published, set to draft. If draft, delete it.
+            if (isPublished) {
+                // Depublish: change status to draft
+                const payload = {
+                    template,
+                    ftp_url: ftpUrl || null,
+                    status: 'draft',
+                };
+
+                await axios.put(
+                    withBasePath(`/resources/${resource.id}/landing-page`),
+                    payload
+                );
+                
+                setIsPublished(false);
+                toast.success('Landing page depublished successfully');
+                router.reload({ only: ['resources'] });
+            } else {
+                // Draft: delete completely
+                await axios.delete(withBasePath(`/resources/${resource.id}/landing-page`));
+                toast.success('Landing page preview removed successfully');
+                onClose();
+                router.reload({ only: ['resources'] });
+            }
         } catch (error) {
-            console.error('Failed to delete landing page:', error);
-            toast.error('Failed to delete landing page');
+            console.error(`Failed to ${action}:`, error);
+            toast.error(`Failed to ${action} landing page`);
         } finally {
             setIsSaving(false);
         }
@@ -193,13 +229,68 @@ export default function SetupLandingPageModal({
         }
     };
 
-    const openPreview = () => {
+    const openPreview = async () => {
+        // If preview URL exists, open it
         if (previewUrl) {
             window.open(previewUrl, '_blank');
-        } else if (isPublished && resource.id) {
+            return;
+        }
+
+        // If published, use public URL
+        if (isPublished && resource.id) {
             window.open(withBasePath(`/datasets/${resource.id}`), '_blank');
+            return;
+        }
+
+        // No preview URL exists yet - save as draft first
+        if (!existingConfig && resource.id) {
+            setIsSaving(true);
+            try {
+                const payload = {
+                    template,
+                    ftp_url: ftpUrl || null,
+                    status: 'draft', // Always save as draft for preview
+                };
+
+                const url = withBasePath(`/resources/${resource.id}/landing-page`);
+                const response = await axios.post<{
+                    message: string;
+                    landing_page: LandingPageConfig;
+                    preview_url: string;
+                }>(url, payload);
+
+                const newPreviewUrl =
+                    'preview_url' in response.data
+                        ? String(response.data.preview_url ?? '')
+                        : '';
+                setPreviewUrl(newPreviewUrl);
+
+                toast.success('Draft saved for preview');
+
+                // Open preview in new tab
+                if (newPreviewUrl) {
+                    window.open(newPreviewUrl, '_blank');
+                }
+
+                // Reload page to update UI
+                router.reload({ only: ['resources'] });
+            } catch (error) {
+                console.error('Failed to save draft for preview:', error);
+                
+                let errorMessage = 'Failed to save draft for preview';
+                if (isAxiosError(error) && error.response?.data?.message) {
+                    errorMessage = error.response.data.message;
+                } else if (isAxiosError(error) && error.response?.data?.errors) {
+                    const errors = error.response.data.errors;
+                    errorMessage = Object.values(errors).flat().join(', ');
+                }
+                
+                toast.error(errorMessage);
+            } finally {
+                setIsSaving(false);
+            }
         } else {
-            toast.error('Please save the landing page first to generate a preview');
+            toast.error('Unable to generate preview');
         }
     };
 
@@ -352,11 +443,11 @@ export default function SetupLandingPageModal({
                         <Button
                             type="button"
                             variant="destructive"
-                            onClick={handleDelete}
+                            onClick={handleDepublish}
                             disabled={isSaving}
                             className="mr-auto"
                         >
-                            Delete
+                            {isPublished ? 'Depublish' : 'Remove Preview'}
                         </Button>
                     )}
 
