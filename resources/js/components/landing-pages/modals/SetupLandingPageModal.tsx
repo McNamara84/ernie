@@ -157,13 +157,6 @@ export default function SetupLandingPageModal({
                 setCurrentConfig(updatedConfig);
                 setPreviewUrl(updatedConfig.preview_url ?? '');
                 setIsPublished(updatedConfig.status === 'published');
-                
-                console.log('Landing page saved:', {
-                    status: updatedConfig.status,
-                    preview_url: updatedConfig.preview_url,
-                    published_at: updatedConfig.published_at,
-                    currentConfig: updatedConfig,
-                });
             }
 
             // Clear session-based preview if it exists
