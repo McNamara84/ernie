@@ -195,7 +195,7 @@ class StoreResourceRequest extends FormRequest
                             continue;
                         }
 
-                        $key = $value . '|';
+                        $key = $value.'|';
 
                         if (isset($seenAffiliations[$key])) {
                             continue;
@@ -224,7 +224,7 @@ class StoreResourceRequest extends FormRequest
                     $normalizedValue = $value !== '' ? $value : $rorId;
                     $normalizedRorId = $rorId !== '' ? $rorId : null;
 
-                    $key = $normalizedValue . '|' . ($normalizedRorId ?? '');
+                    $key = $normalizedValue.'|'.($normalizedRorId ?? '');
 
                     if (isset($seenAffiliations[$key])) {
                         continue;
@@ -301,7 +301,7 @@ class StoreResourceRequest extends FormRequest
                             continue;
                         }
 
-                        $key = $value . '|';
+                        $key = $value.'|';
 
                         if (isset($seenAffiliations[$key])) {
                             continue;
@@ -330,7 +330,7 @@ class StoreResourceRequest extends FormRequest
                     $normalizedValue = $value !== '' ? $value : $rorId;
                     $normalizedRorId = $rorId !== '' ? $rorId : null;
 
-                    $key = $normalizedValue . '|' . ($normalizedRorId ?? '');
+                    $key = $normalizedValue.'|'.($normalizedRorId ?? '');
 
                     if (isset($seenAffiliations[$key])) {
                         continue;
@@ -394,11 +394,11 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
-            $descriptionType = isset($description['descriptionType']) 
-                ? trim((string) $description['descriptionType']) 
+            $descriptionType = isset($description['descriptionType'])
+                ? trim((string) $description['descriptionType'])
                 : '';
-            $descriptionText = isset($description['description']) 
-                ? trim((string) $description['description']) 
+            $descriptionText = isset($description['description'])
+                ? trim((string) $description['description'])
                 : '';
 
             if ($descriptionType === '' || $descriptionText === '') {
@@ -425,17 +425,17 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
-            $dateType = isset($date['dateType']) 
-                ? trim((string) $date['dateType']) 
+            $dateType = isset($date['dateType'])
+                ? trim((string) $date['dateType'])
                 : '';
-            $startDate = isset($date['startDate']) 
-                ? trim((string) $date['startDate']) 
+            $startDate = isset($date['startDate'])
+                ? trim((string) $date['startDate'])
                 : null;
-            $endDate = isset($date['endDate']) 
-                ? trim((string) $date['endDate']) 
+            $endDate = isset($date['endDate'])
+                ? trim((string) $date['endDate'])
                 : null;
-            $dateInformation = isset($date['dateInformation']) 
-                ? trim((string) $date['dateInformation']) 
+            $dateInformation = isset($date['dateInformation'])
+                ? trim((string) $date['dateInformation'])
                 : null;
 
             if ($dateType === '') {
@@ -534,8 +534,8 @@ class StoreResourceRequest extends FormRequest
             }
 
             $coverages[] = [
-                'placeNames' => isset($coverage['placeNames']) && is_array($coverage['placeNames']) 
-                    ? array_values(array_filter(array_map('trim', $coverage['placeNames']))) 
+                'placeNames' => isset($coverage['placeNames']) && is_array($coverage['placeNames'])
+                    ? array_values(array_filter(array_map('trim', $coverage['placeNames'])))
                     : [],
                 'geoLocationBox' => isset($coverage['geoLocationBox']) ? $coverage['geoLocationBox'] : null,
                 'startDate' => isset($coverage['startDate']) ? trim((string) $coverage['startDate']) : null,
@@ -558,16 +558,16 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
-            $identifier = isset($relatedIdentifier['identifier']) 
-                ? trim((string) $relatedIdentifier['identifier']) 
+            $identifier = isset($relatedIdentifier['identifier'])
+                ? trim((string) $relatedIdentifier['identifier'])
                 : '';
-            
-            $identifierType = isset($relatedIdentifier['identifierType']) 
-                ? trim((string) $relatedIdentifier['identifierType']) 
+
+            $identifierType = isset($relatedIdentifier['identifierType'])
+                ? trim((string) $relatedIdentifier['identifierType'])
                 : '';
-            
-            $relationType = isset($relatedIdentifier['relationType']) 
-                ? trim((string) $relatedIdentifier['relationType']) 
+
+            $relationType = isset($relatedIdentifier['relationType'])
+                ? trim((string) $relatedIdentifier['relationType'])
                 : '';
 
             // Skip empty identifiers
@@ -593,8 +593,8 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
-            $funderName = isset($funding['funderName']) 
-                ? trim((string) $funding['funderName']) 
+            $funderName = isset($funding['funderName'])
+                ? trim((string) $funding['funderName'])
                 : '';
 
             // Skip if funder name is empty (required field)
@@ -604,20 +604,20 @@ class StoreResourceRequest extends FormRequest
 
             $fundingReferences[] = [
                 'funderName' => $funderName,
-                'funderIdentifier' => isset($funding['funderIdentifier']) 
-                    ? trim((string) $funding['funderIdentifier']) 
+                'funderIdentifier' => isset($funding['funderIdentifier'])
+                    ? trim((string) $funding['funderIdentifier'])
                     : null,
-                'funderIdentifierType' => isset($funding['funderIdentifierType']) 
-                    ? trim((string) $funding['funderIdentifierType']) 
+                'funderIdentifierType' => isset($funding['funderIdentifierType'])
+                    ? trim((string) $funding['funderIdentifierType'])
                     : null,
-                'awardNumber' => isset($funding['awardNumber']) 
-                    ? trim((string) $funding['awardNumber']) 
+                'awardNumber' => isset($funding['awardNumber'])
+                    ? trim((string) $funding['awardNumber'])
                     : null,
-                'awardUri' => isset($funding['awardUri']) 
-                    ? trim((string) $funding['awardUri']) 
+                'awardUri' => isset($funding['awardUri'])
+                    ? trim((string) $funding['awardUri'])
                     : null,
-                'awardTitle' => isset($funding['awardTitle']) 
-                    ? trim((string) $funding['awardTitle']) 
+                'awardTitle' => isset($funding['awardTitle'])
+                    ? trim((string) $funding['awardTitle'])
                     : null,
             ];
         }
@@ -778,8 +778,8 @@ class StoreResourceRequest extends FormRequest
 
                 if (is_array($descriptions)) {
                     foreach ($descriptions as $description) {
-                        if (is_array($description) && 
-                            isset($description['descriptionType']) && 
+                        if (is_array($description) &&
+                            isset($description['descriptionType']) &&
                             $description['descriptionType'] === 'abstract' &&
                             isset($description['description']) &&
                             is_string($description['description']) &&

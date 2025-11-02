@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Validator;
 
 /**
  * ORCID Controller
- * 
+ *
  * Provides API endpoints for ORCID integration
  */
 class OrcidController extends Controller
@@ -25,11 +25,10 @@ class OrcidController extends Controller
 
     /**
      * Validate ORCID ID
-     * 
+     *
      * GET /api/v1/orcid/validate/{orcid}
-     * 
-     * @param string $orcid The ORCID ID to validate
-     * @return JsonResponse
+     *
+     * @param  string  $orcid  The ORCID ID to validate
      */
     public function validate(string $orcid): JsonResponse
     {
@@ -40,17 +39,16 @@ class OrcidController extends Controller
 
     /**
      * Fetch ORCID record
-     * 
+     *
      * GET /api/v1/orcid/{orcid}
-     * 
-     * @param string $orcid The ORCID ID
-     * @return JsonResponse
+     *
+     * @param  string  $orcid  The ORCID ID
      */
     public function show(string $orcid): JsonResponse
     {
         $result = $this->orcidService->fetchOrcidRecord($orcid);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'success' => false,
                 'message' => $result['error'],
@@ -65,11 +63,8 @@ class OrcidController extends Controller
 
     /**
      * Search for ORCID records
-     * 
+     *
      * GET /api/v1/orcid/search?q={query}&limit={limit}
-     * 
-     * @param Request $request
-     * @return JsonResponse
      */
     public function search(Request $request): JsonResponse
     {
@@ -91,7 +86,7 @@ class OrcidController extends Controller
 
         $result = $this->orcidService->searchOrcid($query, $limit);
 
-        if (!$result['success']) {
+        if (! $result['success']) {
             return response()->json([
                 'success' => false,
                 'message' => $result['error'],

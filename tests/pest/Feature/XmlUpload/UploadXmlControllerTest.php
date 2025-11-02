@@ -2,8 +2,8 @@
 
 use App\Models\ResourceType;
 use App\Models\User;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 
 uses(RefreshDatabase::class);
 
@@ -17,7 +17,7 @@ test('returns resource type id from uploaded XML', function () {
         'elmo_active' => true,
     ]);
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>
@@ -35,7 +35,7 @@ XML;
 test('extracts contributors from uploaded XML', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <contributors>
@@ -93,7 +93,7 @@ XML;
 test('treats research group contributors without a name type as institutions', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <contributors>
@@ -122,7 +122,7 @@ XML;
 test('deduplicates contributors that appear multiple times with different roles', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <contributors>
@@ -174,7 +174,7 @@ XML;
 test('deduplicates affiliations regardless of identifier casing', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <contributors>
@@ -205,7 +205,7 @@ XML;
 test('deduplicates institutions by normalising whitespace in names', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <contributors>
@@ -242,7 +242,7 @@ test('uploading a non-xml file returns validation errors', function () {
 test('extracts descriptions from uploaded XML', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <descriptions>
@@ -283,7 +283,7 @@ XML;
 test('handles XML without descriptions gracefully', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <titles>
@@ -303,7 +303,7 @@ XML;
 test('filters out empty descriptions from XML', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <descriptions>
@@ -331,7 +331,7 @@ XML;
 test('extracts dates from uploaded XML', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <dates>
@@ -375,7 +375,7 @@ XML;
 test('handles XML without dates gracefully', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <titles>
@@ -395,7 +395,7 @@ XML;
 test('filters out empty dates from XML', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <dates>
@@ -424,7 +424,7 @@ XML;
 test('converts date types to kebab-case', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <dates>

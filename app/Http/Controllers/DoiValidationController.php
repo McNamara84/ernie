@@ -11,7 +11,7 @@ class DoiValidationController extends Controller
 {
     /**
      * Validate and resolve a DOI
-     * 
+     *
      * Tries DataCite API first, then falls back to doi.org resolution check
      */
     public function validateDoi(Request $request): JsonResponse
@@ -28,7 +28,7 @@ class DoiValidationController extends Controller
         }
 
         // Basic DOI format validation
-        if (!preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $doi)) {
+        if (! preg_match('/^10\.\d{4,}(?:\.\d+)*\/\S+$/', $doi)) {
             return response()->json([
                 'success' => false,
                 'error' => 'Invalid DOI format',
@@ -77,7 +77,7 @@ class DoiValidationController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to validate DOI: ' . $e->getMessage(),
+                'error' => 'Failed to validate DOI: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -124,8 +124,8 @@ class DoiValidationController extends Controller
 
     /**
      * Extract creator names from DataCite format
-     * 
-     * @param array<int, array{name?: string, givenName?: string, familyName?: string}> $creators
+     *
+     * @param  array<int, array{name?: string, givenName?: string, familyName?: string}>  $creators
      * @return list<string>
      */
     private function extractCreators(array $creators): array
@@ -137,6 +137,7 @@ class DoiValidationController extends Controller
             if (isset($creator['familyName']) && isset($creator['givenName'])) {
                 return "{$creator['givenName']} {$creator['familyName']}";
             }
+
             return $creator['familyName'] ?? $creator['givenName'] ?? 'Unknown';
         }, $creators));
     }

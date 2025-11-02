@@ -47,13 +47,13 @@ abstract class BaseGcmdCommand extends Command
     public function handle(): int
     {
         $vocabularyType = $this->getVocabularyType();
-        $url = self::NASA_KMS_BASE_URL . $vocabularyType . '?format=rdf';
-        
+        $url = self::NASA_KMS_BASE_URL.$vocabularyType.'?format=rdf';
+
         $this->info("Fetching {$this->getDisplayName()} from NASA KMS API...");
-        $this->line('URL: ' . $url);
+        $this->line('URL: '.$url);
 
         try {
-            $parser = new GcmdVocabularyParser();
+            $parser = new GcmdVocabularyParser;
             $allConcepts = [];
             $pageNum = 1;
             $pageSize = 2000;
@@ -68,14 +68,15 @@ abstract class BaseGcmdCommand extends Command
                     ->accept('application/rdf+xml')
                     ->get($pageUrl);
 
-                if (!$response->successful()) {
+                if (! $response->successful()) {
                     $this->error('Failed to fetch data from NASA KMS API');
-                    $this->error('Status: ' . $response->status());
+                    $this->error('Status: '.$response->status());
+
                     return Command::FAILURE;
                 }
 
                 $rdfContent = $response->body();
-                
+
                 // Parse metadata from first page
                 if ($pageNum === 1) {
                     $totalHits = $parser->extractTotalHits($rdfContent);
@@ -85,8 +86,8 @@ abstract class BaseGcmdCommand extends Command
                 // Parse concepts from this page
                 $concepts = $parser->extractConcepts($rdfContent);
                 $allConcepts = array_merge($allConcepts, $concepts);
-                
-                $this->info("Fetched " . count($concepts) . " concepts (total: " . count($allConcepts) . ")");
+
+                $this->info('Fetched '.count($concepts).' concepts (total: '.count($allConcepts).')');
 
                 $pageNum++;
 
@@ -110,51 +111,53 @@ abstract class BaseGcmdCommand extends Command
             $outputFile = $this->getOutputFile();
             $this->info("Saving to {$outputFile}...");
             $json = json_encode($hierarchicalData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-            
+
             if ($json === false) {
                 $this->error('Failed to encode data as JSON');
+
                 return Command::FAILURE;
             }
-            
+
             Storage::put($outputFile, $json);
-            
+
             $filePath = Storage::path($outputFile);
             $fileSize = Storage::size($outputFile);
-            
+
             $this->newLine();
             $this->components->twoColumnDetail(
                 "<fg=green>✓</fg=green> Successfully saved {$this->getDisplayName()}",
                 ''
             );
             $this->components->twoColumnDetail('File', $filePath);
-            $this->components->twoColumnDetail('Size', number_format($fileSize) . ' bytes');
+            $this->components->twoColumnDetail('Size', number_format($fileSize).' bytes');
             $this->components->twoColumnDetail('Last Updated', $hierarchicalData['lastUpdated']);
             $this->components->twoColumnDetail('Total Concepts', number_format($totalConcepts));
 
             return Command::SUCCESS;
 
         } catch (\Exception $e) {
-            $this->error('Error: ' . $e->getMessage());
-            $this->error('Trace: ' . $e->getTraceAsString());
+            $this->error('Error: '.$e->getMessage());
+            $this->error('Trace: '.$e->getTraceAsString());
+
             return Command::FAILURE;
         }
     }
 
     /**
      * Recursively count all concepts in the hierarchy
-     * 
-     * @param array<int, array<string, mixed>> $data
+     *
+     * @param  array<int, array<string, mixed>>  $data
      */
     protected function countConcepts(array $data): int
     {
         $count = count($data);
-        
+
         foreach ($data as $item) {
             if (isset($item['children']) && is_array($item['children']) && count($item['children']) > 0) {
                 $count += $this->countConcepts($item['children']);
             }
         }
-        
+
         return $count;
     }
 }

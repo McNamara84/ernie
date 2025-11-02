@@ -397,7 +397,7 @@ XML;
         ]);
 
         $response->assertStatus(200);
-        
+
         $mslLabs = $response->json('mslLaboratories');
         $this->assertCount(1, $mslLabs);
         $this->assertEquals('testlab123', $mslLabs[0]['identifier']);
@@ -405,4 +405,3 @@ XML;
         $this->assertEquals('https://ror.org/04z8jg394', $mslLabs[0]['affiliation_ror']);
     }
 }
-

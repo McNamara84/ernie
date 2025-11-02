@@ -78,7 +78,7 @@ class RelatedIdentifierTest extends TestCase
     public function test_supports_all_identifier_types(): void
     {
         $resource = Resource::factory()->create();
-        
+
         $identifierTypes = [
             'ARK', 'arXiv', 'bibcode', 'DOI', 'EAN13', 'EISSN', 'Handle',
             'IGSN', 'ISBN', 'ISSN', 'ISTC', 'LISSN', 'LSID', 'PMID', 'PURL',
@@ -106,7 +106,7 @@ class RelatedIdentifierTest extends TestCase
     public function test_supports_all_relation_types(): void
     {
         $resource = Resource::factory()->create();
-        
+
         $relationTypes = [
             // Citation Relations (2)
             'Cites', 'IsCitedBy',

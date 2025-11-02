@@ -1,15 +1,15 @@
 <?php
 
 use App\Models\User;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 
 uses(RefreshDatabase::class);
 
 test('normalizes ORCID from full URL to identifier only', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <creators>
@@ -38,7 +38,7 @@ XML;
 
     // Author ORCID should be normalized (URL prefix removed)
     $response->assertJsonPath('authors.0.orcid', '0000-0001-5727-2427');
-    
+
     // Contributor ORCID should also be normalized
     $response->assertJsonPath('contributors.0.orcid', '0000-0002-9876-5432');
 });
@@ -46,7 +46,7 @@ XML;
 test('preserves already-normalized ORCID without URL prefix', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <creators>

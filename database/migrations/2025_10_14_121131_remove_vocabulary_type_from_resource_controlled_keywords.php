@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('resource_controlled_keywords', function (Blueprint $table) {
             // Drop the vocabulary_type index first
             $table->dropIndex(['vocabulary_type']);
-            
+
             // Then drop the vocabulary_type column
             $table->dropColumn('vocabulary_type');
         });
@@ -28,7 +28,7 @@ return new class extends Migration
         Schema::table('resource_controlled_keywords', function (Blueprint $table) {
             // Recreate the vocabulary_type column
             $table->enum('vocabulary_type', ['science', 'platforms', 'instruments'])->after('scheme_uri');
-            
+
             // Recreate the index
             $table->index(['vocabulary_type']);
         });

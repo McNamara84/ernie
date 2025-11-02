@@ -90,6 +90,7 @@ class HandleInertiaRequests extends Middleware
                 $appUrl = config('app.url');
                 if ($appUrl) {
                     $parsedUrl = parse_url($appUrl);
+
                     return $parsedUrl['path'] ?? '/';
                 }
             }

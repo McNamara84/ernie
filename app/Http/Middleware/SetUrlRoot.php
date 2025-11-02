@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\URL;
+use Symfony\Component\HttpFoundation\Response;
 
 class SetUrlRoot
 {
@@ -21,7 +21,7 @@ class SetUrlRoot
             $appUrl = config('app.url');
             if ($appUrl) {
                 URL::forceRootUrl($appUrl);
-                
+
                 // Force HTTPS scheme if the app URL uses HTTPS
                 if (str_starts_with($appUrl, 'https://')) {
                     URL::forceScheme('https');

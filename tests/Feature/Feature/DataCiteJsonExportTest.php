@@ -139,7 +139,7 @@ describe('DataCite JSON Export Route', function () {
         $after = now()->format('YmdHis');
 
         $contentDisposition = $response->headers->get('Content-Disposition');
-        
+
         // Extract filename from Content-Disposition header
         preg_match('/filename=(.+)/', $contentDisposition, $matches);
         $filename = $matches[1] ?? '';
@@ -165,7 +165,7 @@ describe('DataCite JSON Export Route', function () {
         $person2 = Person::factory()->create(['first_name' => 'Bob', 'last_name' => 'Jones']);
 
         $authorRole = Role::where('name', 'Author')->first();
-        
+
         $creator1 = ResourceAuthor::create([
             'resource_id' => $resource->id,
             'authorable_id' => $person1->id,
@@ -185,7 +185,7 @@ describe('DataCite JSON Export Route', function () {
         // Add contributor
         $person3 = Person::factory()->create(['first_name' => 'Charlie', 'last_name' => 'Brown']);
         $contactRole = Role::where('name', 'Contact Person')->first();
-        
+
         $contributor = ResourceAuthor::create([
             'resource_id' => $resource->id,
             'authorable_id' => $person3->id,

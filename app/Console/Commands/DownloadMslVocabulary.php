@@ -37,9 +37,9 @@ class DownloadMslVocabulary extends Command
             $vocabulary = $service->getVocabulary();
             $count = count($vocabulary);
 
-            $this->info("✓ MSL vocabulary downloaded and transformed successfully!");
+            $this->info('✓ MSL vocabulary downloaded and transformed successfully!');
             $this->info("✓ {$count} concepts extracted");
-            $this->info("✓ Saved to: storage/app/private/msl-vocabulary.json");
+            $this->info('✓ Saved to: storage/app/private/msl-vocabulary.json');
             $this->newLine();
 
             // Show sample concepts
@@ -50,7 +50,7 @@ class DownloadMslVocabulary extends Command
                     $this->line("  - {$concept['text']}");
                 }
                 if ($count > 5) {
-                    $this->line("  ... and " . ($count - 5) . " more");
+                    $this->line('  ... and '.($count - 5).' more');
                 }
             }
 

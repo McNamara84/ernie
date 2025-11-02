@@ -1,13 +1,14 @@
 <?php
 
-use App\Models\User;
-use App\Models\ResourceType;
-use App\Models\TitleType;
-use App\Models\License;
 use App\Models\Language;
+use App\Models\License;
+use App\Models\ResourceType;
 use App\Models\Setting;
+use App\Models\TitleType;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+
 use function Pest\Laravel\withoutVite;
 
 uses(RefreshDatabase::class);

@@ -13,29 +13,29 @@ return new class extends Migration
     {
         Schema::create('landing_pages', function (Blueprint $table) {
             $table->id();
-            
+
             // Foreign Key to resources
             $table->foreignId('resource_id')
                 ->unique()
                 ->constrained('resources')
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
-            
+
             // Template and configuration
             $table->string('template', 50)->default('default_gfz');
             $table->string('ftp_url', 2048)->nullable();
-            
+
             // Status and preview
             $table->enum('status', ['draft', 'published'])->default('draft');
             $table->string('preview_token', 64)->nullable()->unique();
             $table->timestamp('published_at')->nullable();
-            
+
             // Analytics
             $table->unsignedInteger('view_count')->default(0);
             $table->timestamp('last_viewed_at')->nullable();
-            
+
             $table->timestamps();
-            
+
             // Indexes for performance
             $table->index('status');
             $table->index('template');

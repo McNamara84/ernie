@@ -74,4 +74,3 @@ class LandingPageFactory extends Factory
         ]);
     }
 }
-

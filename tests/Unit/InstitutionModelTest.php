@@ -215,7 +215,7 @@ class InstitutionModelTest extends TestCase
 
     public function test_fillable_includes_new_fields(): void
     {
-        $institution = new Institution();
+        $institution = new Institution;
         $fillable = $institution->getFillable();
 
         $this->assertContains('identifier', $fillable);

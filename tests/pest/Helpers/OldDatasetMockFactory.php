@@ -4,7 +4,7 @@ namespace Tests\Helpers;
 
 /**
  * Factory class for creating mock OldDataset objects for testing.
- * 
+ *
  * This class provides a reusable way to create mock dataset objects
  * that behave like real OldDataset models without requiring database access.
  */
@@ -13,22 +13,32 @@ class OldDatasetMockFactory
     /**
      * Create a mock OldDataset object with the given attributes.
      *
-     * @param array<string, mixed> $attributes
-     * @return object
+     * @param  array<string, mixed>  $attributes
      */
     public static function make(array $attributes = []): object
     {
-        return new class($attributes) implements \JsonSerializable {
+        return new class($attributes) implements \JsonSerializable
+        {
             public int $id;
+
             public string $identifier;
+
             public string $resourcetypegeneral;
+
             public string $curator;
+
             public string $title;
+
             public string $created_at;
+
             public string $updated_at;
+
             public string $publicstatus;
+
             public string $publisher;
+
             public int $publicationyear;
+
             public ?array $licenses = null;
 
             public function __construct(array $attributes)
@@ -85,8 +95,7 @@ class OldDatasetMockFactory
     /**
      * Create multiple mock OldDataset objects.
      *
-     * @param int $count
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      * @return array<object>
      */
     public static function makeMany(int $count, array $attributes = []): array
@@ -97,6 +106,7 @@ class OldDatasetMockFactory
                 'id' => ($attributes['id'] ?? 1) + $i,
             ]));
         }
+
         return $datasets;
     }
 }

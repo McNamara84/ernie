@@ -19,8 +19,6 @@ class OldDatasetKeywordTransformer
      * Extract UUID from old GCMD URI format.
      *
      * @deprecated Use GcmdUriHelper::extractUuid() instead
-     * @param string|null $oldUri
-     * @return string|null
      */
     public static function extractUuidFromOldUri(?string $oldUri): ?string
     {
@@ -31,8 +29,6 @@ class OldDatasetKeywordTransformer
      * Construct new GCMD URI from UUID.
      *
      * @deprecated Use GcmdUriHelper::buildConceptUri() instead
-     * @param string $uuid
-     * @return string
      */
     public static function constructNewUri(string $uuid): string
     {
@@ -41,9 +37,6 @@ class OldDatasetKeywordTransformer
 
     /**
      * Map old thesaurus name to scheme name.
-     *
-     * @param string $thesaurusName
-     * @return string|null
      */
     public static function mapScheme(string $thesaurusName): ?string
     {
@@ -53,22 +46,22 @@ class OldDatasetKeywordTransformer
     /**
      * Transform a keyword from old database format to new format.
      *
-     * @param object $oldKeyword Object with properties: keyword, thesaurus, uri, description
+     * @param  object  $oldKeyword  Object with properties: keyword, thesaurus, uri, description
      * @return array<string, string|null>|null Array with keys: id, text, scheme, path, uuid, description
      */
     public static function transform(object $oldKeyword): ?array
     {
         // Extract UUID from old URI
         $uuid = self::extractUuidFromOldUri($oldKeyword->uri ?? null);
-        
-        if (!$uuid) {
+
+        if (! $uuid) {
             return null;
         }
 
         // Map to scheme name
         $scheme = self::mapScheme($oldKeyword->thesaurus ?? '');
-        
-        if (!$scheme) {
+
+        if (! $scheme) {
             return null;
         }
 
@@ -88,7 +81,7 @@ class OldDatasetKeywordTransformer
     /**
      * Transform an array of keywords from old database format to new format.
      *
-     * @param array<int, object> $oldKeywords Array of objects from old database
+     * @param  array<int, object>  $oldKeywords  Array of objects from old database
      * @return array<int, array<string, string|null>> Array of transformed keywords
      */
     public static function transformMany(array $oldKeywords): array
@@ -97,7 +90,7 @@ class OldDatasetKeywordTransformer
 
         foreach ($oldKeywords as $oldKeyword) {
             $result = self::transform($oldKeyword);
-            
+
             if ($result !== null) {
                 $transformed[] = $result;
             }

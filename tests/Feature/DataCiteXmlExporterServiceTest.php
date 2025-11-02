@@ -14,7 +14,7 @@ use App\Models\Role;
 use App\Services\DataCiteXmlExporter;
 
 beforeEach(function () {
-    $this->exporter = new DataCiteXmlExporter();
+    $this->exporter = new DataCiteXmlExporter;
 });
 
 describe('DataCiteXmlExporter - Required Fields', function () {
@@ -68,7 +68,7 @@ describe('DataCiteXmlExporter - Required Fields', function () {
         $language = Language::factory()->create(['iso_code' => 'en']);
         $resource->language()->associate($language);
         $resource->save();
-        
+
         ResourceTitle::create([
             'resource_id' => $resource->id,
             'title' => 'Test Dataset Software',
@@ -299,7 +299,7 @@ describe('DataCiteXmlExporter - XML Structure', function () {
         $xml = $this->exporter->export($resource);
 
         // Try to parse XML - should not throw exception
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         $result = $dom->loadXML($xml);
 
         expect($result)->toBeTrue()
@@ -357,7 +357,7 @@ describe('DataCiteXmlExporter - Edge Cases', function () {
 
         // Add all possible related data
         ResourceTitle::create(['resource_id' => $resource->id]);
-        
+
         $person = Person::factory()->create();
         $authorRole = Role::where('name', 'Author')->first();
         $resourceAuthor = ResourceAuthor::create([
@@ -371,7 +371,7 @@ describe('DataCiteXmlExporter - Edge Cases', function () {
         $resource->keywords()->create(['keyword' => 'test']);
         ResourceDescription::create(['resource_id' => $resource->id]);
         ResourceDate::create(['resource_id' => $resource->id]);
-        
+
         $license = License::factory()->create();
         $resource->licenses()->attach($license);
 

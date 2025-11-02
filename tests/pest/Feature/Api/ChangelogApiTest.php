@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\File;
+
 use function Pest\Laravel\getJson;
 
 it('returns changelog data grouped by release', function () {

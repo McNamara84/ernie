@@ -3,14 +3,14 @@
 use App\Http\Controllers\Api\DataCiteController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
-use App\Http\Controllers\ResourceTypeController;
-use App\Http\Controllers\TitleTypeController;
-use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\LanguageController;
-use App\Http\Controllers\RorAffiliationController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\VocabularyController;
+use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\OrcidController;
+use App\Http\Controllers\ResourceTypeController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\RorAffiliationController;
+use App\Http\Controllers\TitleTypeController;
+use App\Http\Controllers\VocabularyController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/changelog', [ChangelogController::class, 'index']);

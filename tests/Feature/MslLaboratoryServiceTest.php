@@ -19,7 +19,7 @@ class MslLaboratoryServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new MslLaboratoryService();
+        $this->service = new MslLaboratoryService;
         $this->service->clearCache();
     }
 
@@ -61,12 +61,12 @@ class MslLaboratoryServiceTest extends TestCase
 
         // Second call should use cache
         Http::assertSentCount(1);
-        
+
         $lab = $this->service->findByLabId('test123');
-        
+
         // Should still be only 1 HTTP call
         Http::assertSentCount(1);
-        
+
         $this->assertIsArray($lab);
     }
 

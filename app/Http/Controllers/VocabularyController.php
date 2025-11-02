@@ -56,25 +56,25 @@ class VocabularyController extends Controller
      */
     private function getVocabulary(string $filename, string $command): JsonResponse
     {
-        if (!Storage::exists($filename)) {
+        if (! Storage::exists($filename)) {
             return response()->json([
                 'error' => "Vocabulary file not found. Please run: {$command}",
             ], 404);
         }
 
         $content = Storage::get($filename);
-        
+
         if ($content === null) {
             return response()->json([
                 'error' => 'Failed to read vocabulary file',
             ], 500);
         }
-        
+
         $data = json_decode($content, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             return response()->json([
-                'error' => 'Failed to parse vocabulary file: ' . json_last_error_msg(),
+                'error' => 'Failed to parse vocabulary file: '.json_last_error_msg(),
             ], 500);
         }
 

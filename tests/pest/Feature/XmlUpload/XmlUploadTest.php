@@ -1,7 +1,7 @@
 <?php
 
-use App\Models\User;
 use App\Models\ResourceType;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -11,7 +11,7 @@ it('extracts doi, publication year, version, language, resource type and titles 
     $this->actingAs(User::factory()->create());
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'dataset']);
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <resource>
     <identifier identifierType="DOI">10.1234/xyz</identifier>
     <publicationYear>2024</publicationYear>
@@ -373,7 +373,7 @@ it('extracts authors and resolves affiliations from uploaded xml', function () {
         json_encode($rorData, JSON_THROW_ON_ERROR),
     );
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <resource>
     <creators>
         <creator>
@@ -674,4 +674,3 @@ XML;
         ],
     ]);
 });
-

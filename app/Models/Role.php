@@ -13,8 +13,11 @@ class Role extends Model
     use HasFactory;
 
     public const APPLIES_TO_AUTHOR = 'author';
+
     public const APPLIES_TO_CONTRIBUTOR_PERSON = 'contributor_person';
+
     public const APPLIES_TO_CONTRIBUTOR_INSTITUTION = 'contributor_institution';
+
     public const APPLIES_TO_CONTRIBUTOR_PERSON_AND_INSTITUTION = 'contributor_person_and_institution';
 
     protected $fillable = [

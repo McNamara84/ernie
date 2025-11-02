@@ -27,7 +27,9 @@ class GetRorIds extends Command
     protected $description = 'Fetch the latest ROR affiliation identifiers and cache them as JSON.';
 
     private const METADATA_URL = 'https://zenodo.org/api/records/';
+
     private const COMMUNITY = 'ror-data';
+
     private const OUTPUT_RELATIVE_PATH = 'ror/ror-affiliations.json';
 
     /**
@@ -56,7 +58,7 @@ class GetRorIds extends Command
 
         $record = Arr::get($metadataResponse->json(), 'hits.hits.0');
 
-        if (!$record || !is_array($record)) {
+        if (! $record || ! is_array($record)) {
             $this->error('No ROR data dump records were returned.');
 
             return self::FAILURE;
@@ -64,14 +66,14 @@ class GetRorIds extends Command
 
         $files = Arr::get($record, 'files', []);
 
-        if (!is_array($files)) {
+        if (! is_array($files)) {
             $files = [];
         }
 
         $dataFile = null;
 
         foreach ($files as $file) {
-            if (!is_array($file)) {
+            if (! is_array($file)) {
                 continue;
             }
 
@@ -84,7 +86,7 @@ class GetRorIds extends Command
             }
         }
 
-        if (!$dataFile) {
+        if (! $dataFile) {
             $this->error('Unable to locate a data dump within the ROR record.');
 
             return self::FAILURE;
@@ -92,7 +94,7 @@ class GetRorIds extends Command
 
         $downloadUrl = Arr::get($dataFile, 'links.self');
 
-        if (!is_string($downloadUrl) || $downloadUrl === '') {
+        if (! is_string($downloadUrl) || $downloadUrl === '') {
             $this->error('The ROR data dump is missing a download URL.');
 
             return self::FAILURE;
@@ -120,7 +122,7 @@ class GetRorIds extends Command
 
         $directory = dirname($targetPath);
 
-        if (!File::exists($directory)) {
+        if (! File::exists($directory)) {
             File::makeDirectory($directory, 0o755, true);
         }
 
@@ -169,7 +171,7 @@ class GetRorIds extends Command
 
             if (is_string($filename) && Str::endsWith($filename, '.json')) {
                 // Prefer schema v1 files (without _schema_v2 suffix) for smaller footprint
-                if (!Str::contains($filename, 'schema_v2')) {
+                if (! Str::contains($filename, 'schema_v2')) {
                     $jsonFile = $filename;
 
                     break;
@@ -215,21 +217,21 @@ class GetRorIds extends Command
     {
         $this->info('Loading JSON data into memory...');
         $jsonContent = file_get_contents($sourcePath);
-        
+
         if ($jsonContent === false) {
             throw new \RuntimeException("Failed to read file: {$sourcePath}");
         }
-        
+
         $this->info('Parsing JSON...');
         $organizations = json_decode($jsonContent, true, 512, JSON_THROW_ON_ERROR);
-        
+
         // Free memory
         unset($jsonContent);
-        
-        if (!is_array($organizations)) {
+
+        if (! is_array($organizations)) {
             throw new \RuntimeException('Invalid JSON structure in ROR data file.');
         }
-        
+
         $this->info(sprintf('Found %d organizations, processing...', count($organizations)));
 
         $outputHandle = fopen($targetPath, 'wb');
@@ -244,7 +246,7 @@ class GetRorIds extends Command
         $count = 0;
 
         foreach ($organizations as $decoded) {
-            if (!is_array($decoded)) {
+            if (! is_array($decoded)) {
                 continue;
             }
 
@@ -253,7 +255,7 @@ class GetRorIds extends Command
             if ($entry !== null) {
                 $encoded = json_encode($entry, JSON_THROW_ON_ERROR);
 
-                if (!$first) {
+                if (! $first) {
                     fwrite($outputHandle, ',');
                 } else {
                     $first = false;
@@ -261,7 +263,7 @@ class GetRorIds extends Command
 
                 fwrite($outputHandle, $encoded);
                 $count++;
-                
+
                 if ($count % 10000 === 0) {
                     $this->info(sprintf('Processed %d organizations...', $count));
                 }
@@ -277,7 +279,7 @@ class GetRorIds extends Command
     /**
      * Process a single ROR organization record.
      *
-     * @param array<string, mixed> $decoded The organization data array
+     * @param  array<string, mixed>  $decoded  The organization data array
      * @return array{prefLabel: string, rorId: string, otherLabel: array<int, string>}|null
      */
     private function processOrganization(array $decoded): ?array
@@ -285,7 +287,7 @@ class GetRorIds extends Command
         // Try schema v2 structure first
         $identifier = Arr::get($decoded, 'id');
 
-        if (!is_string($identifier) || $identifier === '') {
+        if (! is_string($identifier) || $identifier === '') {
             return null;
         }
 
@@ -295,7 +297,7 @@ class GetRorIds extends Command
 
         if (is_array($names)) {
             foreach ($names as $nameEntry) {
-                if (!is_array($nameEntry)) {
+                if (! is_array($nameEntry)) {
                     continue;
                 }
 
@@ -311,7 +313,7 @@ class GetRorIds extends Command
             // Fallback to label type
             if ($preferredName === null) {
                 foreach ($names as $nameEntry) {
-                    if (!is_array($nameEntry)) {
+                    if (! is_array($nameEntry)) {
                         continue;
                     }
 
@@ -331,7 +333,7 @@ class GetRorIds extends Command
             $preferredName = Arr::get($decoded, 'name');
         }
 
-        if (!is_string($preferredName) || $preferredName === '') {
+        if (! is_string($preferredName) || $preferredName === '') {
             return null;
         }
 
@@ -340,7 +342,7 @@ class GetRorIds extends Command
 
         if (is_array($names)) {
             foreach ($names as $nameEntry) {
-                if (!is_array($nameEntry)) {
+                if (! is_array($nameEntry)) {
                     continue;
                 }
 
@@ -377,7 +379,7 @@ class GetRorIds extends Command
 
         if (is_array($rawLabels)) {
             foreach ($rawLabels as $label) {
-                if (!is_array($label)) {
+                if (! is_array($label)) {
                     continue;
                 }
 
@@ -419,7 +421,7 @@ class GetRorIds extends Command
         $first = true;
         $count = 0;
 
-        while (!gzeof($resource)) {
+        while (! gzeof($resource)) {
             $line = gzgets($resource);
 
             if ($line === false) {
@@ -444,13 +446,13 @@ class GetRorIds extends Command
             $preferredName = Arr::get($decoded, 'name');
             $identifier = Arr::get($decoded, 'id');
 
-            if (!is_string($preferredName) || !is_string($identifier) || $preferredName === '' || $identifier === '') {
+            if (! is_string($preferredName) || ! is_string($identifier) || $preferredName === '' || $identifier === '') {
                 continue;
             }
 
             $aliases = Arr::get($decoded, 'aliases', []);
 
-            if (!is_array($aliases)) {
+            if (! is_array($aliases)) {
                 $aliases = [];
             }
 
@@ -461,7 +463,7 @@ class GetRorIds extends Command
 
             $acronyms = Arr::get($decoded, 'acronyms', []);
 
-            if (!is_array($acronyms)) {
+            if (! is_array($acronyms)) {
                 $acronyms = [];
             }
 
@@ -472,14 +474,14 @@ class GetRorIds extends Command
 
             $rawLabels = Arr::get($decoded, 'labels', []);
 
-            if (!is_array($rawLabels)) {
+            if (! is_array($rawLabels)) {
                 $rawLabels = [];
             }
 
             $labelNames = [];
 
             foreach ($rawLabels as $label) {
-                if (!is_array($label)) {
+                if (! is_array($label)) {
                     continue;
                 }
 
@@ -503,7 +505,7 @@ class GetRorIds extends Command
 
             $encoded = json_encode($entry, JSON_THROW_ON_ERROR);
 
-            if (!$first) {
+            if (! $first) {
                 fwrite($outputHandle, ',');
             } else {
                 $first = false;

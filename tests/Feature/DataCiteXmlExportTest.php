@@ -5,7 +5,6 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceAuthor;
 use App\Models\ResourceTitle;
-use App\Models\ResourceType;
 use App\Models\Role;
 use App\Models\TitleType;
 use App\Models\User;
@@ -26,7 +25,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
     test('returns XML file for valid resource', function () {
         $this->actingAs($this->user);
-        
+
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-XML',
             'year' => 2024,
@@ -56,7 +55,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
     test('exports DataCite XML with correct headers', function () {
         $this->actingAs($this->user);
-        
+
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-HEADERS',
             'year' => 2024,
@@ -86,7 +85,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         $response = $this->get(route('resources.export-datacite-xml', $resource));
 
         $response->assertStatus(200);
-        
+
         // Check headers
         $contentDisposition = $response->headers->get('Content-Disposition');
         expect($contentDisposition)->toContain('attachment')
@@ -133,11 +132,11 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
         // Validate it's proper XML
         libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         $loaded = $dom->loadXML($xml);
         $errors = libxml_get_errors();
         libxml_clear_errors();
-        
+
         expect($loaded)->toBeTrue()
             ->and($errors)->toBeEmpty('XML should not have parsing errors');
 
@@ -230,7 +229,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         $response->assertStatus(200);
 
         $contentDisposition = $response->headers->get('Content-Disposition');
-        
+
         // Check filename pattern: resource-{id}-{timestamp}-datacite.xml
         expect($contentDisposition)->toMatch('/resource-\d+-\d+-datacite\.xml/')
             ->and($contentDisposition)->toContain("resource-{$resource->id}");
@@ -274,11 +273,11 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
         // Should be valid XML
         libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         $loaded = $dom->loadXML($xml);
         $errors = libxml_get_errors();
         libxml_clear_errors();
-        
+
         expect($loaded)->toBeTrue()
             ->and($errors)->toBeEmpty('XML should not have parsing errors');
     });
@@ -312,15 +311,15 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
         // Validate against XSD schema
         libxml_use_internal_errors(true);
-        $dom = new DOMDocument();
+        $dom = new DOMDocument;
         $dom->loadXML($xml);
-        
+
         // Note: This test may fail if the online schema is not accessible
         // or if there are validation warnings (which are allowed)
         $result = $dom->schemaValidate('https://schema.datacite.org/meta/kernel-4.6/metadata.xsd');
         $errors = libxml_get_errors();
         libxml_clear_errors();
-        
+
         // We expect either true or validation warnings (but still valid XML)
         expect($dom->documentElement)->not->toBeNull();
     });

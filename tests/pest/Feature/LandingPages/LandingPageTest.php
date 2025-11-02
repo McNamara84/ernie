@@ -41,7 +41,7 @@ describe('Landing Page Creation', function () {
             ]);
 
         $landingPage = $this->resource->fresh()->landingPage;
-        
+
         expect($landingPage->preview_token)->not->toBeNull();
         expect($landingPage->preview_token)->toHaveLength(64);
     });
@@ -54,7 +54,7 @@ describe('Landing Page Creation', function () {
             ]);
 
         $landingPage = $this->resource->fresh()->landingPage;
-        
+
         expect($landingPage->published_at)->not->toBeNull();
         expect($landingPage->isPublished())->toBeTrue();
     });
@@ -327,7 +327,7 @@ describe('Public Landing Page Display', function () {
         ]);
 
         $this->get("/datasets/{$this->resource->id}");
-        
+
         expect($landingPage->fresh()->view_count)->toBe(6);
     });
 
@@ -339,7 +339,7 @@ describe('Public Landing Page Display', function () {
         ]);
 
         $this->get("/datasets/{$this->resource->id}?preview={$landingPage->preview_token}");
-        
+
         expect($landingPage->fresh()->view_count)->toBe(5);
     });
 
@@ -351,7 +351,7 @@ describe('Public Landing Page Display', function () {
         ]);
 
         $this->get("/datasets/{$this->resource->id}");
-        
+
         expect($landingPage->fresh()->last_viewed_at)->not->toBeNull();
     });
 });
@@ -366,7 +366,7 @@ describe('Preview Token Generation', function () {
 
     test('preview token is 64 characters long', function () {
         $landingPage = LandingPage::factory()->create();
-        
+
         expect($landingPage->preview_token)->toHaveLength(64);
     });
 

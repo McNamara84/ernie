@@ -122,7 +122,7 @@ class ResourceController extends Controller
                 $isUpdate = ! empty($validated['resourceId']);
 
                 if ($isUpdate) {
-                    /** @var Resource $resource */
+                    /** @var resource $resource */
                     $resource = Resource::query()
                         ->lockForUpdate()
                         ->findOrFail($validated['resourceId']);
@@ -134,7 +134,7 @@ class ResourceController extends Controller
                 } else {
                     // Track who created the resource
                     $attributes['created_by_user_id'] = $request->user()?->id;
-                    
+
                     $resource = Resource::query()->create($attributes);
                 }
 
@@ -198,13 +198,13 @@ class ResourceController extends Controller
                     // Use whereIn with subquery to avoid morph type issues
                     $mslLabIds = Institution::where('identifier_type', 'labid')
                         ->pluck('id');
-                    
+
                     $mslLabs = ResourceAuthor::query()
                         ->where('resource_id', $resource->id)
                         ->where('authorable_type', Institution::class)
                         ->whereIn('authorable_id', $mslLabIds)
                         ->get();
-                    
+
                     // Properly cleanup relationships before deleting
                     foreach ($mslLabs as $mslLab) {
                         $mslLab->roles()->detach();      // Remove pivot table entries
@@ -280,7 +280,7 @@ class ResourceController extends Controller
 
                 foreach ($freeKeywords as $keyword) {
                     // Only save non-empty keywords
-                    if (!empty(trim($keyword))) {
+                    if (! empty(trim($keyword))) {
                         $resource->keywords()->create([
                             'keyword' => trim($keyword),
                         ]);
@@ -298,7 +298,7 @@ class ResourceController extends Controller
                 $controlledKeywordsData = [];
                 foreach ($controlledKeywords as $keyword) {
                     // Validate required fields (scheme is now the discriminator instead of vocabularyType)
-                    if (!empty($keyword['id']) && !empty($keyword['text']) && !empty($keyword['scheme'])) {
+                    if (! empty($keyword['id']) && ! empty($keyword['text']) && ! empty($keyword['scheme'])) {
                         $controlledKeywordsData[] = [
                             'keyword_id' => $keyword['id'],
                             'text' => $keyword['text'],
@@ -311,7 +311,7 @@ class ResourceController extends Controller
                 }
 
                 // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
-                if (!empty($controlledKeywordsData)) {
+                if (! empty($controlledKeywordsData)) {
                     $resource->controlledKeywords()->createMany($controlledKeywordsData);
                 }
 
@@ -324,8 +324,8 @@ class ResourceController extends Controller
 
                 foreach ($coverages as $coverage) {
                     // Only save coverage if it has at least one meaningful field
-                    $hasData = !empty($coverage['latMin']) || !empty($coverage['lonMin']) ||
-                               !empty($coverage['startDate']) || !empty($coverage['description']);
+                    $hasData = ! empty($coverage['latMin']) || ! empty($coverage['lonMin']) ||
+                               ! empty($coverage['startDate']) || ! empty($coverage['description']);
 
                     if ($hasData) {
                         $resource->coverages()->create([
@@ -352,7 +352,7 @@ class ResourceController extends Controller
 
                 foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
                     // Only save if identifier is not empty
-                    if (!empty(trim($relatedIdentifier['identifier']))) {
+                    if (! empty(trim($relatedIdentifier['identifier']))) {
                         $resource->relatedIdentifiers()->create([
                             'identifier' => trim($relatedIdentifier['identifier']),
                             'identifier_type' => $relatedIdentifier['identifierType'],
@@ -371,14 +371,14 @@ class ResourceController extends Controller
 
                 foreach ($fundingReferences as $index => $fundingReference) {
                     // Only save if funder name is not empty (required field)
-                    if (!empty(trim($fundingReference['funderName']))) {
+                    if (! empty(trim($fundingReference['funderName']))) {
                         $resource->fundingReferences()->create([
                             'funder_name' => trim($fundingReference['funderName']),
-                            'funder_identifier' => !empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
-                            'funder_identifier_type' => !empty($fundingReference['funderIdentifierType']) ? trim($fundingReference['funderIdentifierType']) : null,
-                            'award_number' => !empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
-                            'award_uri' => !empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
-                            'award_title' => !empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
+                            'funder_identifier' => ! empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
+                            'funder_identifier_type' => ! empty($fundingReference['funderIdentifierType']) ? trim($fundingReference['funderIdentifierType']) : null,
+                            'award_number' => ! empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
+                            'award_uri' => ! empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
+                            'award_title' => ! empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
                             'position' => $index,
                         ]);
                     }
@@ -500,7 +500,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function storePersonAuthor(Resource $resource, array $data, int $position): ResourceAuthor
     {
@@ -544,7 +544,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function storeInstitutionAuthor(Resource $resource, array $data, int $position): ResourceAuthor
     {
@@ -572,7 +572,7 @@ class ResourceController extends Controller
         }
 
         if ($institution === null) {
-            $institution = new Institution();
+            $institution = new Institution;
         }
 
         $institution->name = $name;
@@ -594,7 +594,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function syncAuthorRoles(ResourceAuthor $resourceAuthor, array $data): void
     {
@@ -619,7 +619,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function syncAuthorAffiliations(ResourceAuthor $resourceAuthor, array $data): void
     {
@@ -667,7 +667,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function storePersonContributor(Resource $resource, array $data, int $position): ResourceAuthor
     {
@@ -711,7 +711,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceAuthor
     {
@@ -740,24 +740,24 @@ class ResourceController extends Controller
 
         // Create new institution if not found
         if ($institution === null) {
-            $institution = new Institution();
+            $institution = new Institution;
             $institution->name = $name;
-            
+
             if ($identifier !== null && $identifierType !== null) {
                 $institution->identifier = $identifier;
                 $institution->identifier_type = $identifierType;
             }
-            
+
             $institution->save();
         } else {
             // Update existing institution if identifier info is provided
             $needsUpdate = false;
-            
+
             if ($institution->name !== $name) {
                 $institution->name = $name;
                 $needsUpdate = true;
             }
-            
+
             if ($identifier !== null && $identifierType !== null) {
                 if ($institution->identifier !== $identifier || $institution->identifier_type !== $identifierType) {
                     $institution->identifier = $identifier;
@@ -765,7 +765,7 @@ class ResourceController extends Controller
                     $needsUpdate = true;
                 }
             }
-            
+
             if ($needsUpdate) {
                 $institution->save();
             }
@@ -782,7 +782,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function syncContributorRoles(ResourceAuthor $resourceContributor, array $data): void
     {
@@ -811,7 +811,7 @@ class ResourceController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function syncContributorAffiliations(ResourceAuthor $resourceContributor, array $data): void
     {
@@ -861,7 +861,7 @@ class ResourceController extends Controller
     /**
      * Store an MSL Laboratory as Institution contributor.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function storeMslLaboratory(Resource $resource, array $data, int $position): ResourceAuthor
     {
@@ -917,7 +917,7 @@ class ResourceController extends Controller
     /**
      * Sync the affiliation (host institution) for an MSL Laboratory.
      *
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function syncMslLaboratoryAffiliation(ResourceAuthor $resourceAuthor, array $data): void
     {
@@ -960,7 +960,7 @@ class ResourceController extends Controller
     /**
      * Build the base query with eager-loaded relationships.
      *
-     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     * @return \Illuminate\Database\Eloquent\Builder<resource>
      */
     protected function baseQuery()
     {
@@ -988,7 +988,6 @@ class ResourceController extends Controller
     }
 
     /**
-
     /**
      * Extract filters from the request.
      *
@@ -1003,7 +1002,7 @@ class ResourceController extends Controller
             $resourceType = $request->input('resource_type');
             if (is_array($resourceType)) {
                 $filters['resource_type'] = array_filter($resourceType);
-            } elseif (!empty($resourceType)) {
+            } elseif (! empty($resourceType)) {
                 $filters['resource_type'] = [$resourceType];
             }
         }
@@ -1013,7 +1012,7 @@ class ResourceController extends Controller
             $curator = $request->input('curator');
             if (is_array($curator)) {
                 $filters['curator'] = array_filter($curator);
-            } elseif (!empty($curator)) {
+            } elseif (! empty($curator)) {
                 $filters['curator'] = [$curator];
             }
         }
@@ -1023,7 +1022,7 @@ class ResourceController extends Controller
             $status = $request->input('status');
             if (is_array($status)) {
                 $filters['status'] = array_filter($status);
-            } elseif (!empty($status)) {
+            } elseif (! empty($status)) {
                 $filters['status'] = [$status];
             }
         }
@@ -1040,7 +1039,7 @@ class ResourceController extends Controller
         // Text Search
         if ($request->has('search')) {
             $search = trim((string) $request->input('search'));
-            if (!empty($search)) {
+            if (! empty($search)) {
                 $filters['search'] = $search;
             }
         }
@@ -1048,28 +1047,28 @@ class ResourceController extends Controller
         // Date Range filters
         if ($request->has('created_from')) {
             $createdFrom = $request->input('created_from');
-            if (!empty($createdFrom)) {
+            if (! empty($createdFrom)) {
                 $filters['created_from'] = $createdFrom;
             }
         }
 
         if ($request->has('created_to')) {
             $createdTo = $request->input('created_to');
-            if (!empty($createdTo)) {
+            if (! empty($createdTo)) {
                 $filters['created_to'] = $createdTo;
             }
         }
 
         if ($request->has('updated_from')) {
             $updatedFrom = $request->input('updated_from');
-            if (!empty($updatedFrom)) {
+            if (! empty($updatedFrom)) {
                 $filters['updated_from'] = $updatedFrom;
             }
         }
 
         if ($request->has('updated_to')) {
             $updatedTo = $request->input('updated_to');
-            if (!empty($updatedTo)) {
+            if (! empty($updatedTo)) {
                 $filters['updated_to'] = $updatedTo;
             }
         }
@@ -1080,20 +1079,20 @@ class ResourceController extends Controller
     /**
      * Apply filters to the query.
      *
-     * @param \Illuminate\Database\Eloquent\Builder<Resource> $query
-     * @param array<string, mixed> $filters
+     * @param  \Illuminate\Database\Eloquent\Builder<resource>  $query
+     * @param  array<string, mixed>  $filters
      */
     protected function applyFilters($query, array $filters): void
     {
         // Resource Type filter
-        if (!empty($filters['resource_type'])) {
+        if (! empty($filters['resource_type'])) {
             $query->whereHas('resourceType', function ($q) use ($filters) {
                 $q->whereIn('slug', $filters['resource_type']);
             });
         }
 
         // Curator filter
-        if (!empty($filters['curator'])) {
+        if (! empty($filters['curator'])) {
             $query->whereHas('createdBy', function ($q) use ($filters) {
                 $q->whereIn('name', $filters['curator']);
             });
@@ -1112,31 +1111,31 @@ class ResourceController extends Controller
         }
 
         // Text search (title, DOI)
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('doi', 'like', "%{$search}%")
-                  ->orWhereHas('titles', function ($titleQuery) use ($search) {
-                      $titleQuery->where('title', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('titles', function ($titleQuery) use ($search) {
+                        $titleQuery->where('title', 'like', "%{$search}%");
+                    });
             });
         }
 
         // Created date range
-        if (!empty($filters['created_from'])) {
+        if (! empty($filters['created_from'])) {
             $query->whereDate('created_at', '>=', $filters['created_from']);
         }
 
-        if (!empty($filters['created_to'])) {
+        if (! empty($filters['created_to'])) {
             $query->whereDate('created_at', '<=', $filters['created_to']);
         }
 
         // Updated date range
-        if (!empty($filters['updated_from'])) {
+        if (! empty($filters['updated_from'])) {
             $query->whereDate('updated_at', '>=', $filters['updated_from']);
         }
 
-        if (!empty($filters['updated_to'])) {
+        if (! empty($filters['updated_to'])) {
             $query->whereDate('updated_at', '<=', $filters['updated_to']);
         }
     }
@@ -1144,7 +1143,7 @@ class ResourceController extends Controller
     /**
      * Apply sorting to the query.
      *
-     * @param \Illuminate\Database\Eloquent\Builder<Resource> $query
+     * @param  \Illuminate\Database\Eloquent\Builder<resource>  $query
      */
     protected function applySorting($query, string $sortKey, string $sortDirection): void
     {
@@ -1153,40 +1152,40 @@ class ResourceController extends Controller
                 // Sort by first title
                 $query->leftJoin('resource_titles', function ($join) {
                     $join->on('resources.id', '=', 'resource_titles.resource_id')
-                         ->whereRaw('resource_titles.id = (SELECT MIN(id) FROM resource_titles WHERE resource_id = resources.id)');
+                        ->whereRaw('resource_titles.id = (SELECT MIN(id) FROM resource_titles WHERE resource_id = resources.id)');
                 })
-                ->orderBy('resource_titles.title', $sortDirection)
-                ->select('resources.*');
+                    ->orderBy('resource_titles.title', $sortDirection)
+                    ->select('resources.*');
                 break;
 
             case 'resourcetypegeneral':
                 $query->leftJoin('resource_types', 'resources.resource_type_id', '=', 'resource_types.id')
-                      ->orderBy('resource_types.name', $sortDirection)
-                      ->select('resources.*');
+                    ->orderBy('resource_types.name', $sortDirection)
+                    ->select('resources.*');
                 break;
 
             case 'first_author':
                 // Sort by first author's last name
                 $query->leftJoin('resource_authors', function ($join) {
                     $join->on('resources.id', '=', 'resource_authors.resource_id')
-                         ->whereRaw('resource_authors.position = (SELECT MIN(position) FROM resource_authors WHERE resource_id = resources.id)');
+                        ->whereRaw('resource_authors.position = (SELECT MIN(position) FROM resource_authors WHERE resource_id = resources.id)');
                 })
-                ->leftJoin('persons', function ($join) {
-                    $join->on('resource_authors.authorable_id', '=', 'persons.id')
-                         ->where('resource_authors.authorable_type', '=', Person::class);
-                })
-                ->leftJoin('institutions', function ($join) {
-                    $join->on('resource_authors.authorable_id', '=', 'institutions.id')
-                         ->where('resource_authors.authorable_type', '=', Institution::class);
-                })
-                ->orderByRaw("COALESCE(persons.last_name, institutions.name) {$sortDirection}")
-                ->select('resources.*');
+                    ->leftJoin('persons', function ($join) {
+                        $join->on('resource_authors.authorable_id', '=', 'persons.id')
+                            ->where('resource_authors.authorable_type', '=', Person::class);
+                    })
+                    ->leftJoin('institutions', function ($join) {
+                        $join->on('resource_authors.authorable_id', '=', 'institutions.id')
+                            ->where('resource_authors.authorable_type', '=', Institution::class);
+                    })
+                    ->orderByRaw("COALESCE(persons.last_name, institutions.name) {$sortDirection}")
+                    ->select('resources.*');
                 break;
 
             case 'curator':
                 $query->leftJoin('users as creator_users', 'resources.created_by_user_id', '=', 'creator_users.id')
-                      ->orderBy('creator_users.name', $sortDirection)
-                      ->select('resources.*');
+                    ->orderBy('creator_users.name', $sortDirection)
+                    ->select('resources.*');
                 break;
 
             case 'publicstatus':
@@ -1205,7 +1204,7 @@ class ResourceController extends Controller
     /**
      * Serialize a Resource model to an array for API responses.
      *
-     * @param  Resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
+     * @param  resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
      * @return array<string, mixed> The serialized resource data
      */
     private function serializeResource(Resource $resource): array
@@ -1274,13 +1273,10 @@ class ResourceController extends Controller
 
     /**
      * Export a resource as DataCite JSON
-     *
-     * @param Resource $resource
-     * @return SymfonyResponse
      */
     public function exportDataCiteJson(Resource $resource): SymfonyResponse
     {
-        $exporter = new DataCiteJsonExporter();
+        $exporter = new DataCiteJsonExporter;
         $dataCiteJson = $exporter->export($resource);
 
         // Generate filename with timestamp
@@ -1295,19 +1291,16 @@ class ResourceController extends Controller
 
     /**
      * Export a resource as DataCite XML
-     *
-     * @param Resource $resource
-     * @return SymfonyResponse
      */
     public function exportDataCiteXml(Resource $resource): SymfonyResponse
     {
         try {
             // Generate XML
-            $exporter = new DataCiteXmlExporter();
+            $exporter = new DataCiteXmlExporter;
             $xml = $exporter->export($resource);
 
             // Validate against XSD schema
-            $validator = new DataCiteXmlValidator();
+            $validator = new DataCiteXmlValidator;
             $isValid = $validator->validate($xml);
 
             // Generate filename with timestamp
@@ -1320,7 +1313,7 @@ class ResourceController extends Controller
             ];
 
             // Add validation warning header if validation failed
-            if (!$isValid && $validator->hasWarnings()) {
+            if (! $isValid && $validator->hasWarnings()) {
                 $warningMessage = $validator->getFormattedWarningMessage();
                 if ($warningMessage) {
                     $headers['X-Validation-Warning'] = base64_encode($warningMessage);

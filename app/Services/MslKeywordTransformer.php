@@ -6,7 +6,7 @@ class MslKeywordTransformer
 {
     /**
      * Map old MSL thesaurus names to categories in the new vocabulary.
-     * 
+     *
      * Old format: "EPOS WP16 Analogue Material", "EPOS WP16 Analogue Apparatus", etc.
      */
     private const THESAURUS_CATEGORY_MAP = [
@@ -34,12 +34,13 @@ class MslKeywordTransformer
      * MSL Vocabulary scheme constants
      */
     private const MSL_SCHEME = 'EPOS MSL vocabulary';
+
     private const MSL_SCHEME_URI = 'https://epos-msl.uu.nl/voc';
 
     /**
      * Transform an MSL keyword from old database format to new format.
      *
-     * @param object $oldKeyword Object with properties: keyword, thesaurus, uri, description
+     * @param  object  $oldKeyword  Object with properties: keyword, thesaurus, uri, description
      * @return array<string, string>|null Array with keys: id, text, path, language, scheme, schemeURI, description
      */
     public static function transform(object $oldKeyword): ?array
@@ -50,14 +51,14 @@ class MslKeywordTransformer
         $description = $oldKeyword->description ?? null;
 
         // Only process EPOS WP16 keywords
-        if (!str_starts_with($thesaurus, 'EPOS WP16')) {
+        if (! str_starts_with($thesaurus, 'EPOS WP16')) {
             return null;
         }
 
         // Extract category from thesaurus name
         $category = self::THESAURUS_CATEGORY_MAP[$thesaurus] ?? null;
-        
-        if (!$category) {
+
+        if (! $category) {
             // Unknown thesaurus, skip
             return null;
         }
@@ -70,7 +71,7 @@ class MslKeywordTransformer
         // The keyword field contains the hierarchical path with " > " separator
         // e.g., "Sand > Quartz Sand"
         $path = $keyword;
-        
+
         // Extract the last segment as text
         $text = self::extractLastPathSegment($path);
 
@@ -88,7 +89,7 @@ class MslKeywordTransformer
     /**
      * Transform an array of MSL keywords from old database format to new format.
      *
-     * @param array<int, object> $oldKeywords Array of objects from old database
+     * @param  array<int, object>  $oldKeywords  Array of objects from old database
      * @return array<int, array<string, string>> Array of transformed keywords
      */
     public static function transformMany(array $oldKeywords): array
@@ -97,7 +98,7 @@ class MslKeywordTransformer
 
         foreach ($oldKeywords as $oldKeyword) {
             $result = self::transform($oldKeyword);
-            
+
             if ($result !== null) {
                 $transformed[] = $result;
             }
@@ -108,28 +109,28 @@ class MslKeywordTransformer
 
     /**
      * Convert old MSL URI to new vocabulary URI format.
-     * 
+     *
      * This is a best-effort conversion. If the old URI is empty or cannot be converted,
      * we construct a synthetic URI based on the keyword path.
      *
-     * @param string $oldUri Old URI (e.g., "http://epos/WP16Vocabulary/AnalogueMaterial/Sand/Quartz")
-     * @param string $keyword Hierarchical path (e.g., "Sand > Quartz Sand")
-     * @param string $category Category from thesaurus mapping
+     * @param  string  $oldUri  Old URI (e.g., "http://epos/WP16Vocabulary/AnalogueMaterial/Sand/Quartz")
+     * @param  string  $keyword  Hierarchical path (e.g., "Sand > Quartz Sand")
+     * @param  string  $category  Category from thesaurus mapping
      * @return string New MSL vocabulary URI
      */
     private static function convertOldUriToNew(string $oldUri, string $keyword, string $category): string
     {
         // If we have an old URI, try to extract the path components
-        if (!empty($oldUri) && str_contains($oldUri, '/')) {
+        if (! empty($oldUri) && str_contains($oldUri, '/')) {
             // Extract path after WP16Vocabulary/
             if (preg_match('#/WP16Vocabulary/[^/]+/(.+)$#', $oldUri, $matches)) {
                 $pathSegments = explode('/', $matches[1]);
                 $slug = strtolower(implode('-', $pathSegments));
-                
+
                 // Map category to vocabulary path
                 $vocabPath = self::mapCategoryToVocabPath($category);
-                
-                return self::MSL_SCHEME_URI . '/' . $vocabPath . '/1.3/' . $slug;
+
+                return self::MSL_SCHEME_URI.'/'.$vocabPath.'/1.3/'.$slug;
             }
         }
 
@@ -138,16 +139,16 @@ class MslKeywordTransformer
         $pathSegments = array_map('trim', explode(' > ', $keyword));
         $slug = strtolower(implode('-', $pathSegments));
         $slug = str_replace(' ', '_', $slug);
-        
+
         $vocabPath = self::mapCategoryToVocabPath($category);
-        
-        return self::MSL_SCHEME_URI . '/' . $vocabPath . '/1.3/' . $slug;
+
+        return self::MSL_SCHEME_URI.'/'.$vocabPath.'/1.3/'.$slug;
     }
 
     /**
      * Map category to vocabulary path segment.
      *
-     * @param string $category Category name
+     * @param  string  $category  Category name
      * @return string Vocabulary path segment
      */
     private static function mapCategoryToVocabPath(string $category): string
@@ -170,12 +171,13 @@ class MslKeywordTransformer
     /**
      * Extract the last segment from a hierarchical path.
      *
-     * @param string $path Hierarchical path with " > " separator
+     * @param  string  $path  Hierarchical path with " > " separator
      * @return string Last segment of the path
      */
     private static function extractLastPathSegment(string $path): string
     {
         $segments = array_map('trim', explode(' > ', $path));
+
         return end($segments) ?: $path;
     }
 

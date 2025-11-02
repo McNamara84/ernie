@@ -7,15 +7,14 @@ use Illuminate\Http\Request;
 
 /**
  * Tests for OldDataset sorting logic.
- * 
+ *
  * These tests validate the sorting parameter resolution without requiring
  * a database connection, making them safe for CI environments.
  */
-
 describe('OldDatasetController Sort Parameter Resolution', function () {
-    
+
     beforeEach(function () {
-        $this->controller = new OldDatasetController();
+        $this->controller = new OldDatasetController;
         $this->reflectionMethod = new ReflectionMethod(OldDatasetController::class, 'resolveSortState');
         $this->reflectionMethod->setAccessible(true);
     });
@@ -125,11 +124,11 @@ describe('OldDatasetController Sort Parameter Resolution', function () {
 });
 
 describe('OldDataset SQL Sort Column Mapping', function () {
-    
+
     test('maps sort keys to correct SQL columns', function (string $sortKey, string $expectedColumn) {
         // This is a conceptual test - we're documenting the expected mapping
         // The actual mapping is in OldDataset::getPaginatedOrdered()
-        
+
         $mapping = [
             'id' => 'resource.id',
             'identifier' => 'resource.identifier',
@@ -159,12 +158,12 @@ describe('OldDataset SQL Sort Column Mapping', function () {
 });
 
 describe('OldDataset Sort Key Constants', function () {
-    
+
     test('controller has exactly 10 allowed sort keys', function () {
         // Using reflection to access private constant
         $reflection = new ReflectionClass(OldDatasetController::class);
         $constants = $reflection->getConstants();
-        
+
         expect($constants)->toHaveKey('ALLOWED_SORT_KEYS')
             ->and($constants['ALLOWED_SORT_KEYS'])->toHaveCount(10);
     });
@@ -172,7 +171,7 @@ describe('OldDataset Sort Key Constants', function () {
     test('controller has exactly 2 allowed sort directions', function () {
         $reflection = new ReflectionClass(OldDatasetController::class);
         $constants = $reflection->getConstants();
-        
+
         expect($constants)->toHaveKey('ALLOWED_SORT_DIRECTIONS')
             ->and($constants['ALLOWED_SORT_DIRECTIONS'])->toHaveCount(2)
             ->and($constants['ALLOWED_SORT_DIRECTIONS'])->toContain('asc', 'desc');
@@ -181,7 +180,7 @@ describe('OldDataset Sort Key Constants', function () {
     test('default sort key is updated_at', function () {
         $reflection = new ReflectionClass(OldDatasetController::class);
         $constants = $reflection->getConstants();
-        
+
         expect($constants)->toHaveKey('DEFAULT_SORT_KEY')
             ->and($constants['DEFAULT_SORT_KEY'])->toBe('updated_at');
     });
@@ -189,14 +188,14 @@ describe('OldDataset Sort Key Constants', function () {
     test('default sort direction is desc', function () {
         $reflection = new ReflectionClass(OldDatasetController::class);
         $constants = $reflection->getConstants();
-        
+
         expect($constants)->toHaveKey('DEFAULT_SORT_DIRECTION')
             ->and($constants['DEFAULT_SORT_DIRECTION'])->toBe('desc');
     });
 });
 
 describe('OldDataset Pagination Parameters', function () {
-    
+
     test('loadMore validates page parameter', function (int $input, int $expected) {
         // Page should be minimum 1
         $validated = max(1, (int) $input);
@@ -223,11 +222,11 @@ describe('OldDataset Pagination Parameters', function () {
 });
 
 describe('OldDataset Author Data Structure', function () {
-    
+
     test('first_author structure includes all required fields', function () {
         // Document the expected structure of first_author data
         $expectedFields = ['familyName', 'givenName', 'name'];
-        
+
         // This is returned by the controller after processing
         $sampleAuthor = [
             'familyName' => 'Doe',

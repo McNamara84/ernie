@@ -7,47 +7,47 @@ describe('OldDatasetKeywordTransformer', function () {
         it('extracts UUID from old GCMD science keywords URI', function () {
             $oldUri = 'http://gcmdservices.gsfc.nasa.gov/kms/concepts/concept_scheme/sciencekeywords/e9f67a66-e9fc-435c-b720-ae32a2c3d8f5';
             $uuid = OldDatasetKeywordTransformer::extractUuidFromOldUri($oldUri);
-            
+
             expect($uuid)->toBe('e9f67a66-e9fc-435c-b720-ae32a2c3d8f5');
         });
 
         it('extracts UUID from old GCMD platforms URI', function () {
             $oldUri = 'http://gcmdservices.gsfc.nasa.gov/kms/concepts/concept_scheme/sciencekeywords/227d9c3d-f631-402d-84ed-b8c5a562fc27';
             $uuid = OldDatasetKeywordTransformer::extractUuidFromOldUri($oldUri);
-            
+
             expect($uuid)->toBe('227d9c3d-f631-402d-84ed-b8c5a562fc27');
         });
 
         it('extracts UUID from old GCMD instruments URI', function () {
             $oldUri = 'http://gcmdservices.gsfc.nasa.gov/kms/concepts/concept_scheme/sciencekeywords/6015ef7b-f3bd-49e1-9193-cc23db566b69';
             $uuid = OldDatasetKeywordTransformer::extractUuidFromOldUri($oldUri);
-            
+
             expect($uuid)->toBe('6015ef7b-f3bd-49e1-9193-cc23db566b69');
         });
 
         it('handles mixed case UUIDs', function () {
             $oldUri = 'http://gcmdservices.gsfc.nasa.gov/kms/concepts/concept_scheme/sciencekeywords/E9F67A66-E9FC-435C-B720-AE32A2C3D8F5';
             $uuid = OldDatasetKeywordTransformer::extractUuidFromOldUri($oldUri);
-            
+
             expect($uuid)->toBe('E9F67A66-E9FC-435C-B720-AE32A2C3D8F5');
         });
 
         it('returns null for URIs without UUID', function () {
             $oldUri = 'http://example.com/no-uuid-here';
             $uuid = OldDatasetKeywordTransformer::extractUuidFromOldUri($oldUri);
-            
+
             expect($uuid)->toBeNull();
         });
 
         it('returns null for null input', function () {
             $uuid = OldDatasetKeywordTransformer::extractUuidFromOldUri(null);
-            
+
             expect($uuid)->toBeNull();
         });
 
         it('returns null for empty string', function () {
             $uuid = OldDatasetKeywordTransformer::extractUuidFromOldUri('');
-            
+
             expect($uuid)->toBeNull();
         });
     });
@@ -56,14 +56,14 @@ describe('OldDatasetKeywordTransformer', function () {
         it('constructs correct new URI from UUID', function () {
             $uuid = 'e9f67a66-e9fc-435c-b720-ae32a2c3d8f5';
             $newUri = OldDatasetKeywordTransformer::constructNewUri($uuid);
-            
+
             expect($newUri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/e9f67a66-e9fc-435c-b720-ae32a2c3d8f5');
         });
 
         it('handles mixed case UUIDs', function () {
             $uuid = 'E9F67A66-E9FC-435C-B720-AE32A2C3D8F5';
             $newUri = OldDatasetKeywordTransformer::constructNewUri($uuid);
-            
+
             expect($newUri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/E9F67A66-E9FC-435C-B720-AE32A2C3D8F5');
         });
     });
@@ -71,31 +71,31 @@ describe('OldDatasetKeywordTransformer', function () {
     describe('mapScheme', function () {
         it('maps NASA/GCMD Earth Science Keywords to Science Keywords', function () {
             $scheme = OldDatasetKeywordTransformer::mapScheme('NASA/GCMD Earth Science Keywords');
-            
+
             expect($scheme)->toBe('Science Keywords');
         });
 
         it('maps GCMD Platforms to Platforms', function () {
             $scheme = OldDatasetKeywordTransformer::mapScheme('GCMD Platforms');
-            
+
             expect($scheme)->toBe('Platforms');
         });
 
         it('maps GCMD Instruments to Instruments', function () {
             $scheme = OldDatasetKeywordTransformer::mapScheme('GCMD Instruments');
-            
+
             expect($scheme)->toBe('Instruments');
         });
 
         it('returns null for unsupported thesaurus', function () {
             $scheme = OldDatasetKeywordTransformer::mapScheme('Unsupported Thesaurus');
-            
+
             expect($scheme)->toBeNull();
         });
 
         it('returns null for empty string', function () {
             $scheme = OldDatasetKeywordTransformer::mapScheme('');
-            
+
             expect($scheme)->toBeNull();
         });
     });
@@ -270,7 +270,7 @@ describe('OldDatasetKeywordTransformer', function () {
 
         it('returns empty array for empty input', function () {
             $result = OldDatasetKeywordTransformer::transformMany([]);
-            
+
             expect($result)->toBe([]);
         });
     });

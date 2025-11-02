@@ -24,7 +24,7 @@ class XmlKeywordExtractor
 
     /**
      * Extract free keywords from XML DataCite metadata
-     * 
+     *
      * Free keywords are subject elements WITHOUT subjectScheme, schemeURI, or valueURI attributes.
      *
      * @return array<int, string>
@@ -49,7 +49,7 @@ class XmlKeywordExtractor
             }
 
             // Skip empty content
-            if (!$content || trim($content) === '') {
+            if (! $content || trim($content) === '') {
                 continue;
             }
 
@@ -61,7 +61,7 @@ class XmlKeywordExtractor
 
     /**
      * Extract MSL (Multi-Scale Laboratories) controlled vocabulary keywords from XML
-     * 
+     *
      * MSL keywords are subject elements with:
      * - subjectScheme="EPOS MSL vocabulary"
      * - schemeURI="https://epos-msl.uu.nl/voc"
@@ -91,12 +91,12 @@ class XmlKeywordExtractor
             }
 
             // Skip if no valueURI (required for controlled vocabulary)
-            if (!$valueUri || trim($valueUri) === '') {
+            if (! $valueUri || trim($valueUri) === '') {
                 continue;
             }
 
             // Skip empty content
-            if (!$content || trim($content) === '') {
+            if (! $content || trim($content) === '') {
                 continue;
             }
 
@@ -115,28 +115,29 @@ class XmlKeywordExtractor
 
     /**
      * Extract the last segment from a hierarchical path
-     * 
+     *
      * Example: "Material > sedimentary rock > coal" -> "coal"
      *
-     * @param string $path Hierarchical path with " > " separator
+     * @param  string  $path  Hierarchical path with " > " separator
      * @return string Last segment of the path
      */
     private function extractLastPathSegment(string $path): string
     {
         $segments = array_map('trim', explode(' > ', $path));
+
         return end($segments) ?: $path;
     }
 
     /**
      * Parse GCMD hierarchical path from DataCite subject content.
-     * 
+     *
      * Removes vocabulary type prefix (e.g., "Science Keywords > ") and splits
      * the remaining hierarchical path into an array.
-     * 
+     *
      * Example input:  "Science Keywords > EARTH SCIENCE > ATMOSPHERE > CLOUDS"
      * Example output: ["EARTH SCIENCE", "ATMOSPHERE", "CLOUDS"]
      *
-     * @param string $pathString The full path string from DataCite subject element
+     * @param  string  $pathString  The full path string from DataCite subject element
      * @return array<int, string> Array of path segments (trimmed)
      */
     public static function parseGcmdPath(string $pathString): array

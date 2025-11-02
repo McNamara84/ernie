@@ -14,7 +14,7 @@ use App\Models\Role;
 use App\Services\DataCiteJsonExporter;
 
 beforeEach(function () {
-    $this->exporter = new DataCiteJsonExporter();
+    $this->exporter = new DataCiteJsonExporter;
 });
 
 describe('DataCiteJsonExporter - Required Fields', function () {
@@ -71,7 +71,7 @@ describe('DataCiteJsonExporter - Required Fields', function () {
     test('exports required titles', function () {
         $resource = Resource::factory()->create();
         $language = Language::factory()->create(['iso_code' => 'en']);
-        
+
         ResourceTitle::factory()->create([
             'resource_id' => $resource->id,
             'title' => 'Test Dataset Software',
@@ -132,7 +132,7 @@ describe('DataCiteJsonExporter - Required Fields', function () {
 describe('DataCiteJsonExporter - Creators & Contributors', function () {
     test('distinguishes between creators and contributors by role', function () {
         $resource = Resource::factory()->create();
-        
+
         // Create person as both creator and contributor
         $person = Person::factory()->create([
             'first_name' => 'Holger',
@@ -532,7 +532,7 @@ describe('DataCiteJsonExporter - Edge Cases', function () {
         $language = Language::factory()->create(['iso_code' => 'en']);
 
         $longText = str_repeat('This is a very long description text. ', 100);
-        
+
         ResourceDescription::factory()->create([
             'resource_id' => $resource->id,
             'description' => $longText,
@@ -578,7 +578,7 @@ describe('DataCiteJsonExporter - Edge Cases', function () {
         $resource = Resource::factory()->create();
         $person = Person::factory()->create();
         $authorRole = Role::where('name', 'Author')->first();
-        
+
         $resourceAuthor = ResourceAuthor::create([
             'resource_id' => $resource->id,
             'authorable_id' => $person->id,

@@ -21,14 +21,14 @@ class TestableOldDatasetController extends OldDatasetController
 
 describe('OldDatasetController - Filter Extraction', function () {
     beforeEach(function () {
-        $this->controller = new TestableOldDatasetController();
+        $this->controller = new TestableOldDatasetController;
     });
 
     it('extracts empty filters from empty request', function () {
         $request = Request::create('/old-datasets', 'GET');
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toBeArray();
         expect($filters)->toBeEmpty();
     });
@@ -37,9 +37,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'search' => 'database',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('search');
         expect($filters['search'])->toBe('database');
     });
@@ -48,9 +48,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'status' => 'pending',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('status');
         expect($filters['status'])->toBeArray();
         expect($filters['status'])->toBe(['pending']);
@@ -60,9 +60,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'status' => ['pending', 'released'],
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('status');
         expect($filters['status'])->toBeArray();
         expect($filters['status'])->toBe(['pending', 'released']);
@@ -72,9 +72,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'curator' => 'admin',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('curator');
         expect($filters['curator'])->toBeArray();
         expect($filters['curator'])->toBe(['admin']);
@@ -84,9 +84,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'curator' => ['admin', 'kelger'],
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('curator');
         expect($filters['curator'])->toBeArray();
         expect($filters['curator'])->toBe(['admin', 'kelger']);
@@ -96,9 +96,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'resource_type' => 'Dataset',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('resource_type');
         expect($filters['resource_type'])->toBeArray();
         expect($filters['resource_type'])->toBe(['Dataset']);
@@ -108,9 +108,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'year_from' => 2020,
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('year_from');
         expect($filters['year_from'])->toBe(2020);
     });
@@ -119,9 +119,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'year_to' => 2023,
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('year_to');
         expect($filters['year_to'])->toBe(2023);
     });
@@ -130,9 +130,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'created_from' => '2024-01-01',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('created_from');
         expect($filters['created_from'])->toBe('2024-01-01');
     });
@@ -141,9 +141,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'created_to' => '2024-12-31',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('created_to');
         expect($filters['created_to'])->toBe('2024-12-31');
     });
@@ -152,9 +152,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'updated_from' => '2025-01-01',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('updated_from');
         expect($filters['updated_from'])->toBe('2025-01-01');
     });
@@ -163,9 +163,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'updated_to' => '2025-12-31',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('updated_to');
         expect($filters['updated_to'])->toBe('2025-12-31');
     });
@@ -179,16 +179,16 @@ describe('OldDatasetController - Filter Extraction', function () {
             'year_from' => 2020,
             'year_to' => 2023,
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toHaveKey('search');
         expect($filters)->toHaveKey('status');
         expect($filters)->toHaveKey('curator');
         expect($filters)->toHaveKey('resource_type');
         expect($filters)->toHaveKey('year_from');
         expect($filters)->toHaveKey('year_to');
-        
+
         expect($filters['search'])->toBe('database');
         expect($filters['status'])->toBe(['pending']);
         expect($filters['curator'])->toBe(['admin']);
@@ -202,9 +202,9 @@ describe('OldDatasetController - Filter Extraction', function () {
             'unknown_param' => 'value',
             'another_unknown' => 'test',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toBeEmpty();
     });
 
@@ -213,9 +213,9 @@ describe('OldDatasetController - Filter Extraction', function () {
             'search' => '',
             'status' => '',
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         // Empty strings should not be included
         expect($filters)->toBeEmpty();
     });
@@ -225,9 +225,9 @@ describe('OldDatasetController - Filter Extraction', function () {
             'search' => null,
             'curator' => null,
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters)->toBeEmpty();
     });
 
@@ -235,9 +235,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'year_from' => '2020', // String number
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters['year_from'])->toBeInt();
         expect($filters['year_from'])->toBe(2020);
     });
@@ -246,9 +246,9 @@ describe('OldDatasetController - Filter Extraction', function () {
         $request = Request::create('/old-datasets', 'GET', [
             'year_to' => '2023', // String number
         ]);
-        
+
         $filters = $this->controller->testExtractFilters($request);
-        
+
         expect($filters['year_to'])->toBeInt();
         expect($filters['year_to'])->toBe(2023);
     });
@@ -257,10 +257,10 @@ describe('OldDatasetController - Filter Extraction', function () {
 describe('OldDatasetController - Sort State Resolution', function () {
     it('resolves default sort state', function () {
         $request = Request::create('/old-datasets', 'GET');
-        
-        $controller = new TestableOldDatasetController();
+
+        $controller = new TestableOldDatasetController;
         [$sortKey, $sortDirection] = $controller->testResolveSortState($request);
-        
+
         expect($sortKey)->toBe('updated_at');
         expect($sortDirection)->toBe('desc');
     });
@@ -270,10 +270,10 @@ describe('OldDatasetController - Sort State Resolution', function () {
             'sort_key' => 'title',
             'sort_direction' => 'asc',
         ]);
-        
-        $controller = new TestableOldDatasetController();
+
+        $controller = new TestableOldDatasetController;
         [$sortKey, $sortDirection] = $controller->testResolveSortState($request);
-        
+
         expect($sortKey)->toBe('title');
         expect($sortDirection)->toBe('asc');
     });
@@ -283,10 +283,10 @@ describe('OldDatasetController - Sort State Resolution', function () {
             'sort_key' => 'title',
             'sort_direction' => 'invalid',
         ]);
-        
-        $controller = new TestableOldDatasetController();
+
+        $controller = new TestableOldDatasetController;
         [$sortKey, $sortDirection] = $controller->testResolveSortState($request);
-        
+
         expect($sortDirection)->toBeIn(['asc', 'desc']);
     });
 });

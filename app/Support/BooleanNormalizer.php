@@ -8,9 +8,7 @@ final class BooleanNormalizer
 {
     private const TRUE_VALUES = ['1', 'true', 'on', 'yes'];
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function isTrue(mixed $value): bool
     {

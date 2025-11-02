@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 
 class License extends Model
 {
@@ -33,7 +33,7 @@ class License extends Model
     ];
 
     /**
-     * @param Builder<License> $query
+     * @param  Builder<License>  $query
      * @return Builder<License>
      */
     public function scopeActive(Builder $query): Builder
@@ -42,7 +42,7 @@ class License extends Model
     }
 
     /**
-     * @param Builder<License> $query
+     * @param  Builder<License>  $query
      * @return Builder<License>
      */
     public function scopeElmoActive(Builder $query): Builder
@@ -51,7 +51,7 @@ class License extends Model
     }
 
     /**
-     * @param Builder<License> $query
+     * @param  Builder<License>  $query
      * @return Builder<License>
      */
     public function scopeOrderByName(Builder $query): Builder
@@ -59,4 +59,3 @@ class License extends Model
         return $query->orderBy('name');
     }
 }
-

@@ -22,7 +22,7 @@ class XmlUploadFundingReferenceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->user = User::factory()->create();
     }
 
@@ -31,7 +31,7 @@ class XmlUploadFundingReferenceTest extends TestCase
      */
     public function test_can_extract_single_funding_reference_from_xml(): void
     {
-        $xmlContent = <<<XML
+        $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
     <identifier identifierType="DOI">10.1234/test</identifier>
@@ -65,7 +65,7 @@ XML;
             ]);
 
         $response->assertOk();
-        
+
         $data = $response->json();
 
         $this->assertArrayHasKey('fundingReferences', $data);
@@ -73,7 +73,7 @@ XML;
         $this->assertCount(1, $data['fundingReferences']);
 
         $fundingRef = $data['fundingReferences'][0];
-        
+
         $this->assertEquals('European Research Council', $fundingRef['funderName']);
         $this->assertEquals('https://doi.org/10.13039/501100000780', $fundingRef['funderIdentifier']);
         $this->assertEquals('Crossref Funder ID', $fundingRef['funderIdentifierType']);
@@ -87,7 +87,7 @@ XML;
      */
     public function test_can_extract_multiple_funding_references_from_xml(): void
     {
-        $xmlContent = <<<XML
+        $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
     <identifier identifierType="DOI">10.1234/test</identifier>
@@ -130,7 +130,7 @@ XML;
             ]);
 
         $response->assertOk();
-        
+
         $data = $response->json();
 
         $this->assertArrayHasKey('fundingReferences', $data);
@@ -157,7 +157,7 @@ XML;
      */
     public function test_can_extract_minimal_funding_reference_from_xml(): void
     {
-        $xmlContent = <<<XML
+        $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
     <identifier identifierType="DOI">10.1234/test</identifier>
@@ -188,13 +188,13 @@ XML;
             ]);
 
         $response->assertOk();
-        
+
         $data = $response->json();
 
         $this->assertCount(1, $data['fundingReferences']);
-        
+
         $fundingRef = $data['fundingReferences'][0];
-        
+
         $this->assertEquals('Example Funder Without Details', $fundingRef['funderName']);
         $this->assertNull($fundingRef['funderIdentifier']);
         $this->assertNull($fundingRef['funderIdentifierType']);
@@ -208,7 +208,7 @@ XML;
      */
     public function test_xml_without_funding_references_returns_empty_array(): void
     {
-        $xmlContent = <<<XML
+        $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
     <identifier identifierType="DOI">10.1234/test</identifier>
@@ -234,7 +234,7 @@ XML;
             ]);
 
         $response->assertOk();
-        
+
         $data = $response->json();
 
         $this->assertArrayHasKey('fundingReferences', $data);
@@ -247,7 +247,7 @@ XML;
      */
     public function test_supports_all_funder_identifier_types(): void
     {
-        $xmlContent = <<<XML
+        $xmlContent = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
     <identifier identifierType="DOI">10.1234/test</identifier>
@@ -295,13 +295,13 @@ XML;
             ]);
 
         $response->assertOk();
-        
+
         $data = $response->json();
 
         $this->assertCount(5, $data['fundingReferences']);
 
         $types = array_column($data['fundingReferences'], 'funderIdentifierType');
-        
+
         $this->assertContains('ROR', $types);
         $this->assertContains('Crossref Funder ID', $types);
         $this->assertContains('ISNI', $types);

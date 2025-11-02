@@ -46,7 +46,7 @@ class OldDataStatisticsControllerTest extends TestCase
         ];
 
         foreach ($expectedKeys as $key) {
-            $fullKey = $expectedPrefix . $key;
+            $fullKey = $expectedPrefix.$key;
             $this->assertIsString($fullKey);
             $this->assertStringStartsWith($expectedPrefix, $fullKey);
         }

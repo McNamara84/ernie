@@ -27,10 +27,10 @@ class ResourceAuthor extends Model
         'position' => 'integer',
     ];
 
-    /** @return BelongsTo<Resource, static> */
+    /** @return BelongsTo<resource, static> */
     public function resource(): BelongsTo
     {
-        /** @var BelongsTo<Resource, static> $relation */
+        /** @var BelongsTo<resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
 
         return $relation;

@@ -1,20 +1,16 @@
 <?php
 
-use App\Models\Resource;
-use App\Models\ResourceType;
 use App\Models\Language;
 use App\Models\Person;
+use App\Models\Resource;
 use App\Models\ResourceAuthor;
-use App\Models\Role;
-use App\Models\ResourceTitle;
-use App\Models\TitleType;
-use App\Models\License;
-use App\Models\ResourceDescription;
-use App\Models\ResourceDate;
-use App\Models\ResourceKeyword;
 use App\Models\ResourceCoverage;
-use App\Models\RelatedIdentifier;
-use App\Models\ResourceFundingReference;
+use App\Models\ResourceDate;
+use App\Models\ResourceDescription;
+use App\Models\ResourceTitle;
+use App\Models\ResourceType;
+use App\Models\Role;
+use App\Models\TitleType;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -32,7 +28,7 @@ beforeEach(function () {
         'name' => 'Dataset',
         'slug' => 'dataset',
     ]);
-    
+
     $language = Language::create([
         'code' => 'en',
         'name' => 'English',
@@ -51,13 +47,13 @@ beforeEach(function () {
 test('editor loads resource titles correctly', function () {
     $titleType = TitleType::create(['name' => 'Title', 'slug' => 'title']);
     $subtitleType = TitleType::create(['name' => 'Subtitle', 'slug' => 'subtitle']);
-    
+
     ResourceTitle::create([
         'resource_id' => $this->resource->id,
         'title' => 'Main Title',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     ResourceTitle::create([
         'resource_id' => $this->resource->id,
         'title' => 'Subtitle Text',
@@ -65,8 +61,8 @@ test('editor loads resource titles correctly', function () {
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('editor') . '?resourceId=' . $this->resource->id)
-        ->assertInertia(fn(Assert $page) => $page
+        ->get(route('editor').'?resourceId='.$this->resource->id)
+        ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
             ->has('initialData.titles', 2)
             ->where('initialData.titles.0.title', 'Main Title')
@@ -103,8 +99,8 @@ test('editor loads authors with deduplication', function () {
     $author2->roles()->attach($contactRole);
 
     $this->actingAs($this->user)
-        ->get(route('editor') . '?resourceId=' . $this->resource->id)
-        ->assertInertia(fn(Assert $page) => $page
+        ->get(route('editor').'?resourceId='.$this->resource->id)
+        ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
             ->has('initialData.authors', 1) // Should be deduplicated to 1
             ->where('initialData.authors.0.firstName', 'John')
@@ -129,8 +125,8 @@ test('editor loads descriptions with type mapping', function () {
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('editor') . '?resourceId=' . $this->resource->id)
-        ->assertInertia(fn(Assert $page) => $page
+        ->get(route('editor').'?resourceId='.$this->resource->id)
+        ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
             ->has('initialData.descriptions', 2)
             ->where('initialData.descriptions.0.type', 'Abstract') // PascalCase
@@ -153,8 +149,8 @@ test('editor excludes coverage dates from dates array', function () {
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('editor') . '?resourceId=' . $this->resource->id)
-        ->assertInertia(fn(Assert $page) => $page
+        ->get(route('editor').'?resourceId='.$this->resource->id)
+        ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
             ->has('initialData.dates', 1) // Only non-coverage dates
             ->where('initialData.dates.0.dateType', 'created')
@@ -174,8 +170,8 @@ test('editor loads coverages with date formatting', function () {
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('editor') . '?resourceId=' . $this->resource->id)
-        ->assertInertia(fn(Assert $page) => $page
+        ->get(route('editor').'?resourceId='.$this->resource->id)
+        ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
             ->has('initialData.coverages', 1)
             ->where('initialData.coverages.0.latMin', '48.173685')
@@ -195,8 +191,8 @@ test('editor handles zero coordinates correctly', function () {
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('editor') . '?resourceId=' . $this->resource->id)
-        ->assertInertia(fn(Assert $page) => $page
+        ->get(route('editor').'?resourceId='.$this->resource->id)
+        ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
             ->has('initialData.coverages', 1)
             ->where('initialData.coverages.0.latMin', '0')
@@ -207,7 +203,7 @@ test('editor handles zero coordinates correctly', function () {
 test('editor without resource id shows empty form', function () {
     $this->actingAs($this->user)
         ->get(route('editor'))
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('editor')
             ->missing('initialData')
         );
@@ -215,6 +211,6 @@ test('editor without resource id shows empty form', function () {
 
 test('editor with invalid resource id returns 404', function () {
     $this->actingAs($this->user)
-        ->get(route('editor') . '?resourceId=99999')
+        ->get(route('editor').'?resourceId=99999')
         ->assertNotFound();
 });

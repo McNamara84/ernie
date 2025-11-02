@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 
 /**
  * Controller für DOI-Zitations-Abruf.
- * 
+ *
  * Verwendet die doi.org Content Negotiation API über den DataCiteApiService.
  */
 class DataCiteController extends Controller
@@ -20,14 +20,14 @@ class DataCiteController extends Controller
     /**
      * Ruft eine formatierte Zitation für eine DOI ab.
      *
-     * @param string $doi Die DOI (kann von jedem Registrar sein)
+     * @param  string  $doi  Die DOI (kann von jedem Registrar sein)
      * @return JsonResponse JSON mit citation und doi
      */
     public function getCitation(string $doi): JsonResponse
     {
         $metadata = $this->dataCiteService->getMetadata($doi);
 
-        if (!$metadata) {
+        if (! $metadata) {
             return response()->json([
                 'error' => 'Metadata not found for DOI',
             ], 404);
@@ -41,4 +41,3 @@ class DataCiteController extends Controller
         ]);
     }
 }
-

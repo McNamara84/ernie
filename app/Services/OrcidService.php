@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * ORCID Service
- * 
+ *
  * Handles communication with the ORCID Public API v3.0
- * 
+ *
  * @see https://info.orcid.org/documentation/api-tutorials/api-tutorial-read-data-on-a-record/
  * @see https://pub.orcid.org/v3.0/
  */
@@ -41,8 +41,8 @@ class OrcidService
 
     /**
      * Validate ORCID ID format
-     * 
-     * @param string $orcid The ORCID ID to validate
+     *
+     * @param  string  $orcid  The ORCID ID to validate
      * @return bool True if valid format
      */
     public function validateOrcidFormat(string $orcid): bool
@@ -52,14 +52,14 @@ class OrcidService
 
     /**
      * Validate ORCID ID format and check if it exists
-     * 
-     * @param string $orcid The ORCID ID to validate
+     *
+     * @param  string  $orcid  The ORCID ID to validate
      * @return array{valid: bool, exists: bool|null, message: string}
      */
     public function validateOrcid(string $orcid): array
     {
         // Check format first
-        if (!$this->validateOrcidFormat($orcid)) {
+        if (! $this->validateOrcidFormat($orcid)) {
             return [
                 'valid' => false,
                 'exists' => null,
@@ -71,7 +71,7 @@ class OrcidService
         try {
             $response = Http::timeout(5)
                 ->acceptJson()
-                ->get(self::API_BASE_URL . '/' . $orcid . '/person');
+                ->get(self::API_BASE_URL.'/'.$orcid.'/person');
 
             if ($response->successful()) {
                 return [
@@ -110,14 +110,14 @@ class OrcidService
 
     /**
      * Fetch ORCID record data
-     * 
-     * @param string $orcid The ORCID ID
+     *
+     * @param  string  $orcid  The ORCID ID
      * @return array{success: bool, data: array<string, mixed>|null, error: string|null}
      */
     public function fetchOrcidRecord(string $orcid): array
     {
         // Validate format
-        if (!$this->validateOrcidFormat($orcid)) {
+        if (! $this->validateOrcidFormat($orcid)) {
             return [
                 'success' => false,
                 'data' => null,
@@ -126,8 +126,8 @@ class OrcidService
         }
 
         // Check cache first
-        $cacheKey = 'orcid_record_' . $orcid;
-        
+        $cacheKey = 'orcid_record_'.$orcid;
+
         if (Cache::has($cacheKey)) {
             return [
                 'success' => true,
@@ -140,7 +140,7 @@ class OrcidService
             // Fetch full record (person + activities)
             $response = Http::timeout(10)
                 ->acceptJson()
-                ->get(self::API_BASE_URL . '/' . $orcid);
+                ->get(self::API_BASE_URL.'/'.$orcid);
 
             if ($response->status() === 404) {
                 return [
@@ -150,7 +150,7 @@ class OrcidService
                 ];
             }
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('ORCID API request failed', [
                     'orcid' => $orcid,
                     'status' => $response->status(),
@@ -165,7 +165,7 @@ class OrcidService
             }
 
             $fullRecord = $response->json();
-            
+
             // Extract relevant data from person and activities
             $extractedData = $this->extractPersonData($orcid, $fullRecord);
 
@@ -193,9 +193,9 @@ class OrcidService
 
     /**
      * Search for ORCID records by name
-     * 
-     * @param string $query Search query (name)
-     * @param int $limit Number of results (max 200)
+     *
+     * @param  string  $query  Search query (name)
+     * @param  int  $limit  Number of results (max 200)
      * @return array{success: bool, data: array<string, mixed>|null, error: string|null}
      */
     public function searchOrcid(string $query, int $limit = 10): array
@@ -215,7 +215,7 @@ class OrcidService
             // Build search query for ORCID Public API
             // Search in given-names, family-name, and other-names fields
             $queryParts = explode(' ', trim($query));
-            
+
             if (count($queryParts) >= 2) {
                 // If multiple words, assume first is given name, rest is family name
                 $givenName = array_shift($queryParts);
@@ -242,7 +242,7 @@ class OrcidService
                     'rows' => $limit,
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('ORCID search failed', [
                     'query' => $query,
                     'status' => $response->status(),
@@ -257,7 +257,7 @@ class OrcidService
             }
 
             $searchResults = $response->json();
-            
+
             // Extract results
             $results = $this->extractSearchResults($searchResults);
 
@@ -285,9 +285,9 @@ class OrcidService
 
     /**
      * Extract person data from ORCID API response
-     * 
-     * @param string $orcid The ORCID ID
-     * @param array<string, mixed> $fullRecord Raw API response (full record with person + activities)
+     *
+     * @param  string  $orcid  The ORCID ID
+     * @param  array<string, mixed>  $fullRecord  Raw API response (full record with person + activities)
      * @return array<string, mixed> Extracted person data
      */
     private function extractPersonData(string $orcid, array $fullRecord): array
@@ -312,7 +312,7 @@ class OrcidService
         // Extract affiliations from activities
         $affiliations = [];
         $activities = $fullRecord['activities-summary'] ?? [];
-        
+
         // Employment affiliations (current employments only - where end-date is null)
         if (isset($activities['employments']['affiliation-group'])) {
             foreach ($activities['employments']['affiliation-group'] as $group) {
@@ -321,9 +321,9 @@ class OrcidService
                     $employment = $summary['employment-summary'] ?? null;
                     if ($employment) {
                         // Only include current employments (no end-date)
-                        $hasEndDate = !empty($employment['end-date']);
-                        
-                        if (!$hasEndDate) {
+                        $hasEndDate = ! empty($employment['end-date']);
+
+                        if (! $hasEndDate) {
                             $affiliations[] = [
                                 'type' => 'employment',
                                 'name' => $employment['organization']['name'] ?? null,
@@ -344,9 +344,9 @@ class OrcidService
                     $education = $summary['education-summary'] ?? null;
                     if ($education) {
                         // Only include current education (no end-date)
-                        $hasEndDate = !empty($education['end-date']);
-                        
-                        if (!$hasEndDate) {
+                        $hasEndDate = ! empty($education['end-date']);
+
+                        if (! $hasEndDate) {
                             $affiliations[] = [
                                 'type' => 'education',
                                 'name' => $education['organization']['name'] ?? null,
@@ -372,48 +372,48 @@ class OrcidService
 
     /**
      * Extract search results from ORCID API response
-     * 
-     * @param array<string, mixed> $searchResults Raw API response
+     *
+     * @param  array<string, mixed>  $searchResults  Raw API response
      * @return array<int, array<string, mixed>> Extracted search results
      */
     private function extractSearchResults(array $searchResults): array
     {
         $results = [];
 
-        if (!isset($searchResults['result'])) {
+        if (! isset($searchResults['result'])) {
             return $results;
         }
 
         foreach ($searchResults['result'] as $result) {
             $orcidIdentifier = $result['orcid-identifier'] ?? null;
-            
-            if (!$orcidIdentifier) {
+
+            if (! $orcidIdentifier) {
                 continue;
             }
 
             $orcid = $orcidIdentifier['path'] ?? null;
-            
-            if (!$orcid) {
+
+            if (! $orcid) {
                 continue;
             }
 
             // ORCID Search API returns only the ORCID ID, not the full profile
             // We need to fetch the full record to get name and affiliations
             $personData = $this->fetchOrcidRecord($orcid);
-            
+
             if ($personData['success'] && $personData['data']) {
                 $data = $personData['data'];
-                
+
                 // Extract institution names from affiliations array
                 $institutions = [];
                 if (isset($data['affiliations']) && is_array($data['affiliations'])) {
                     foreach ($data['affiliations'] as $affiliation) {
-                        if (isset($affiliation['name']) && !empty($affiliation['name'])) {
+                        if (isset($affiliation['name']) && ! empty($affiliation['name'])) {
                             $institutions[] = $affiliation['name'];
                         }
                     }
                 }
-                
+
                 $results[] = [
                     'orcid' => $orcid,
                     'firstName' => $data['firstName'] ?? '',

@@ -11,7 +11,7 @@ test('extracts coverages from datacite-xml-example-full-v4.xml', function () {
 
     $xmlPath = base_path('tests/pest/dataset-examples/datacite-xml-example-full-v4.xml');
     $xmlContent = file_get_contents($xmlPath);
-    
+
     $file = UploadedFile::fake()->createWithContent('datacite-xml-example-full-v4.xml', $xmlContent);
 
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
@@ -20,7 +20,7 @@ test('extracts coverages from datacite-xml-example-full-v4.xml', function () {
     // Debug: Show what we got
     $coverages = $response->json('coverages');
     dump('Coverages:', $coverages);
-    
+
     $dates = $response->json('dates');
     dump('Dates:', $dates);
 

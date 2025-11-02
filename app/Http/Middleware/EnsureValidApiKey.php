@@ -16,13 +16,13 @@ abstract class EnsureValidApiKey
     {
         $configuredKey = config('services.'.$this->serviceName().'.api_key');
 
-        if (!is_string($configuredKey) || $configuredKey === '') {
+        if (! is_string($configuredKey) || $configuredKey === '') {
             return $next($request);
         }
 
         $providedKey = $this->extractApiKey($request);
 
-        if (!is_string($providedKey) || $providedKey === '' || !hash_equals($configuredKey, $providedKey)) {
+        if (! is_string($providedKey) || $providedKey === '' || ! hash_equals($configuredKey, $providedKey)) {
             return new JsonResponse([
                 'message' => 'Invalid API key.',
             ], Response::HTTP_UNAUTHORIZED);

@@ -10,7 +10,7 @@ use App\Models\ResourceType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Resource>
+ * @extends Factory<resource>
  */
 class ResourceFactory extends Factory
 {
@@ -35,7 +35,7 @@ class ResourceFactory extends Factory
         );
 
         return [
-            'doi' => '10.' . fake()->numberBetween(1000, 9999) . '/' . fake()->slug(2),
+            'doi' => '10.'.fake()->numberBetween(1000, 9999).'/'.fake()->slug(2),
             'year' => fake()->year(),
             'resource_type_id' => $resourceType->id,
             'version' => '1.0',

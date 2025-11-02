@@ -163,7 +163,7 @@ class RelatedIdentifier extends Model
 
     /**
      * Bidirectional relation type pairs.
-     * 
+     *
      * @var array<string, string>
      */
     public const BIDIRECTIONAL_PAIRS = [
@@ -214,14 +214,12 @@ class RelatedIdentifier extends Model
         foreach (self::RELATION_TYPES_GROUPED as $group) {
             $types = array_merge($types, $group);
         }
+
         return array_unique($types);
     }
 
     /**
      * Get the opposite relation type for bidirectional pairs.
-     *
-     * @param string $relationType
-     * @return string|null
      */
     public static function getOppositeRelationType(string $relationType): ?string
     {
@@ -231,7 +229,8 @@ class RelatedIdentifier extends Model
     /**
      * Get the resource that owns this related identifier.
      *
-     * @return BelongsTo<Resource, static>
+     * @return BelongsTo<resource, static>
+     *
      * @phpstan-return BelongsTo<Resource, $this>
      */
     public function resource(): BelongsTo

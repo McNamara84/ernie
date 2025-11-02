@@ -9,11 +9,11 @@ use App\Models\ResourceAuthor;
 
 /**
  * Service for exporting Resource data to DataCite JSON format (v4.5/4.6)
- * 
+ *
  * Implements the DataCite Metadata Schema v4.5 JSON format with v4.6 extensions.
  * Schema: https://github.com/inveniosoftware/datacite/blob/master/datacite/schemas/datacite-v4.5.json
  * Documentation: https://datacite-metadata-schema.readthedocs.io/en/4.6/
- * 
+ *
  * DataCite 4.6 additions over 4.5:
  * - resourceTypeGeneral: Award, Project
  * - relatedIdentifierType: CSTR, RRID
@@ -27,12 +27,13 @@ class DataCiteJsonExporter
      * Fixed publisher information for all exports
      */
     private const PUBLISHER_NAME = 'GFZ Helmholtz Centre for Geosciences';
+
     private const PUBLISHER_ROR_ID = 'https://ror.org/04z8jg394';
 
     /**
      * Export a Resource to DataCite JSON format
      *
-     * @param Resource $resource The resource to export
+     * @param  resource  $resource  The resource to export
      * @return array<string, mixed> The DataCite JSON structure
      */
     public function export(Resource $resource): array
@@ -69,7 +70,6 @@ class DataCiteJsonExporter
     /**
      * Build the attributes section of the DataCite JSON
      *
-     * @param Resource $resource
      * @return array<string, mixed>
      */
     private function buildAttributes(Resource $resource): array
@@ -130,7 +130,6 @@ class DataCiteJsonExporter
     /**
      * Build titles array
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>
      */
     private function buildTitles(Resource $resource): array
@@ -162,9 +161,6 @@ class DataCiteJsonExporter
 
     /**
      * Convert title type slug to DataCite format
-     *
-     * @param string $slug
-     * @return string
      */
     private function convertTitleType(string $slug): string
     {
@@ -196,7 +192,6 @@ class DataCiteJsonExporter
     /**
      * Build types (resource type) information
      *
-     * @param Resource $resource
      * @return array<string, string>
      */
     private function buildTypes(Resource $resource): array
@@ -212,7 +207,6 @@ class DataCiteJsonExporter
     /**
      * Build creators array from authors
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>
      */
     private function buildCreators(Resource $resource): array
@@ -241,21 +235,20 @@ class DataCiteJsonExporter
     /**
      * Build a person creator entry
      *
-     * @param ResourceAuthor $author
      * @return array<string, mixed>
      */
     private function buildPersonCreator(ResourceAuthor $author): array
     {
         /** @var Person|null $person */
         $person = $author->authorable;
-        
-        if (!$person instanceof Person) {
+
+        if (! $person instanceof Person) {
             return [
                 'name' => 'Unknown',
                 'nameType' => 'Personal',
             ];
         }
-        
+
         $creator = [
             'nameType' => 'Personal',
         ];
@@ -297,21 +290,20 @@ class DataCiteJsonExporter
     /**
      * Build an institution creator entry
      *
-     * @param ResourceAuthor $author
      * @return array<string, mixed>
      */
     private function buildInstitutionCreator(ResourceAuthor $author): array
     {
         /** @var Institution|null $institution */
         $institution = $author->authorable;
-        
-        if (!$institution instanceof Institution) {
+
+        if (! $institution instanceof Institution) {
             return [
                 'name' => 'Unknown Institution',
                 'nameType' => 'Organizational',
             ];
         }
-        
+
         $creator = [
             'name' => $institution->name ?? 'Unknown Institution',
             'nameType' => 'Organizational',
@@ -348,7 +340,6 @@ class DataCiteJsonExporter
     /**
      * Build affiliations for a person or institution
      *
-     * @param ResourceAuthor $author
      * @return array<int, array<string, mixed>>|null
      */
     private function buildAffiliations(ResourceAuthor $author): ?array
@@ -369,13 +360,12 @@ class DataCiteJsonExporter
             $affiliations[] = $affiliationData;
         }
 
-        return !empty($affiliations) ? $affiliations : null;
+        return ! empty($affiliations) ? $affiliations : null;
     }
 
     /**
      * Build contributors array (excluding authors, including MSL labs)
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>|null
      */
     private function buildContributors(Resource $resource): ?array
@@ -390,13 +380,14 @@ class DataCiteJsonExporter
                 if ($institution instanceof Institution && $institution->isLaboratory()) {
                     // MSL Laboratory - add as HostingInstitution
                     $contributors[] = $this->buildMslLaboratoryContributor($contributor);
+
                     continue;
                 }
             }
 
             // Regular contributor
             $contributorType = $this->determineContributorType($contributor);
-            
+
             if ($contributor->authorable_type === Person::class) {
                 $contributors[] = $this->buildPersonContributor($contributor, $contributorType);
             } elseif ($contributor->authorable_type === Institution::class) {
@@ -404,28 +395,27 @@ class DataCiteJsonExporter
             }
         }
 
-        return !empty($contributors) ? $contributors : null;
+        return ! empty($contributors) ? $contributors : null;
     }
 
     /**
      * Build MSL Laboratory contributor
      *
-     * @param ResourceAuthor $contributor
      * @return array<string, mixed>
      */
     private function buildMslLaboratoryContributor(ResourceAuthor $contributor): array
     {
         /** @var Institution|null $institution */
         $institution = $contributor->authorable;
-        
-        if (!$institution instanceof Institution) {
+
+        if (! $institution instanceof Institution) {
             return [
                 'name' => 'Unknown Laboratory',
                 'nameType' => 'Organizational',
                 'contributorType' => 'HostingInstitution',
             ];
         }
-        
+
         $contributorData = [
             'name' => $institution->name ?? 'Unknown Laboratory',
             'nameType' => 'Organizational',
@@ -452,16 +442,13 @@ class DataCiteJsonExporter
 
     /**
      * Determine contributor type from roles
-     *
-     * @param ResourceAuthor $contributor
-     * @return string
      */
     private function determineContributorType(ResourceAuthor $contributor): string
     {
         // Get the first role or default to 'Other'
         $role = $contributor->roles->first();
-        
-        if (!$role) {
+
+        if (! $role) {
             return 'Other';
         }
 
@@ -498,23 +485,21 @@ class DataCiteJsonExporter
     /**
      * Build a person contributor entry
      *
-     * @param ResourceAuthor $contributor
-     * @param string $contributorType
      * @return array<string, mixed>
      */
     private function buildPersonContributor(ResourceAuthor $contributor, string $contributorType): array
     {
         /** @var Person|null $person */
         $person = $contributor->authorable;
-        
-        if (!$person instanceof Person) {
+
+        if (! $person instanceof Person) {
             return [
                 'name' => 'Unknown',
                 'nameType' => 'Personal',
                 'contributorType' => $contributorType,
             ];
         }
-        
+
         $contributorData = [
             'nameType' => 'Personal',
             'contributorType' => $contributorType,
@@ -557,23 +542,21 @@ class DataCiteJsonExporter
     /**
      * Build an institution contributor entry
      *
-     * @param ResourceAuthor $contributor
-     * @param string $contributorType
      * @return array<string, mixed>
      */
     private function buildInstitutionContributor(ResourceAuthor $contributor, string $contributorType): array
     {
         /** @var Institution|null $institution */
         $institution = $contributor->authorable;
-        
-        if (!$institution instanceof Institution) {
+
+        if (! $institution instanceof Institution) {
             return [
                 'name' => 'Unknown Institution',
                 'nameType' => 'Organizational',
                 'contributorType' => $contributorType,
             ];
         }
-        
+
         $contributorData = [
             'name' => $institution->name ?? 'Unknown Institution',
             'nameType' => 'Organizational',
@@ -610,7 +593,6 @@ class DataCiteJsonExporter
     /**
      * Build subjects array from keywords
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>|null
      */
     private function buildSubjects(Resource $resource): ?array
@@ -642,13 +624,12 @@ class DataCiteJsonExporter
             $subjects[] = $subjectData;
         }
 
-        return !empty($subjects) ? $subjects : null;
+        return ! empty($subjects) ? $subjects : null;
     }
 
     /**
      * Build descriptions array
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>|null
      */
     private function buildDescriptions(Resource $resource): ?array
@@ -669,14 +650,11 @@ class DataCiteJsonExporter
             $descriptions[] = $descriptionData;
         }
 
-        return !empty($descriptions) ? $descriptions : null;
+        return ! empty($descriptions) ? $descriptions : null;
     }
 
     /**
      * Convert description type to DataCite format
-     *
-     * @param string $type
-     * @return string
      */
     private function convertDescriptionType(string $type): string
     {
@@ -695,7 +673,6 @@ class DataCiteJsonExporter
     /**
      * Build dates array
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>|null
      */
     private function buildDates(Resource $resource): ?array
@@ -726,14 +703,11 @@ class DataCiteJsonExporter
             $dates[] = $dateData;
         }
 
-        return !empty($dates) ? $dates : null;
+        return ! empty($dates) ? $dates : null;
     }
 
     /**
      * Convert date type to DataCite format
-     *
-     * @param string $type
-     * @return string
      */
     private function convertDateType(string $type): string
     {
@@ -758,7 +732,6 @@ class DataCiteJsonExporter
     /**
      * Build rights list from licenses
      *
-     * @param Resource $resource
      * @return array<int, array<string, string>>|null
      */
     private function buildRightsList(Resource $resource): ?array
@@ -790,13 +763,12 @@ class DataCiteJsonExporter
             $rightsList[] = $rightsData;
         }
 
-        return !empty($rightsList) ? $rightsList : null;
+        return ! empty($rightsList) ? $rightsList : null;
     }
 
     /**
      * Build geo locations from spatial/temporal coverages
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>|null
      */
     private function buildGeoLocations(Resource $resource): ?array
@@ -822,18 +794,17 @@ class DataCiteJsonExporter
                 $geoLocation['geoLocationPlace'] = $coverage->description;
             }
 
-            if (!empty($geoLocation)) {
+            if (! empty($geoLocation)) {
                 $geoLocations[] = $geoLocation;
             }
         }
 
-        return !empty($geoLocations) ? $geoLocations : null;
+        return ! empty($geoLocations) ? $geoLocations : null;
     }
 
     /**
      * Build related identifiers array
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>|null
      */
     private function buildRelatedIdentifiers(Resource $resource): ?array
@@ -855,13 +826,12 @@ class DataCiteJsonExporter
             $relatedIdentifiers[] = $relatedData;
         }
 
-        return !empty($relatedIdentifiers) ? $relatedIdentifiers : null;
+        return ! empty($relatedIdentifiers) ? $relatedIdentifiers : null;
     }
 
     /**
      * Build funding references array
      *
-     * @param Resource $resource
      * @return array<int, array<string, mixed>>|null
      */
     private function buildFundingReferences(Resource $resource): ?array
@@ -893,6 +863,6 @@ class DataCiteJsonExporter
             $fundingReferences[] = $fundingData;
         }
 
-        return !empty($fundingReferences) ? $fundingReferences : null;
+        return ! empty($fundingReferences) ? $fundingReferences : null;
     }
 }

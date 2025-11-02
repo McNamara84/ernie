@@ -32,4 +32,3 @@ test('returns all resource types', function () {
     ]);
     $response->assertJsonMissingPath('0.slug');
 });
-
