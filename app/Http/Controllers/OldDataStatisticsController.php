@@ -303,12 +303,11 @@ class OldDataStatisticsController extends Controller
                         END
                 ');
 
-                // IsSupplementTo Analysis
-                $withIsSupplementTo = $db->table('resource')
-                    ->join('relatedidentifier', 'resource.id', '=', 'relatedidentifier.resource_id')
-                    ->where('relatedidentifier.relationtype', 'IsSupplementTo')
-                    ->distinct('resource.id')
-                    ->count('resource.id');
+                // IsSupplementTo Analysis - count distinct resources with this relation type
+                $withIsSupplementTo = $db->table('relatedidentifier')
+                    ->where('relationtype', 'IsSupplementTo')
+                    ->selectRaw('COUNT(DISTINCT resource_id) as count')
+                    ->value('count');
 
                 $withoutIsSupplementTo = $totalDatasets - $withIsSupplementTo;
 
@@ -361,11 +360,10 @@ class OldDataStatisticsController extends Controller
 
                 $totalRelatedWorks = $db->table('relatedidentifier')->count();
 
-                // Coverage Analysis
-                $datasetsWithRelatedWorks = $db->table('resource')
-                    ->join('relatedidentifier', 'resource.id', '=', 'relatedidentifier.resource_id')
-                    ->distinct('resource.id')
-                    ->count('resource.id');
+                // Coverage Analysis - count distinct resources with related works
+                $datasetsWithRelatedWorks = $db->table('relatedidentifier')
+                    ->selectRaw('COUNT(DISTINCT resource_id) as count')
+                    ->value('count');
 
                 $withNoRelatedWorks = $totalDatasets - $datasetsWithRelatedWorks;
 
