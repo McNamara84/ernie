@@ -44,6 +44,37 @@ type RelatedWorksStat = {
         range: string;
         count: number;
     }>;
+    isSupplementTo: {
+        withIsSupplementTo: number;
+        withoutIsSupplementTo: number;
+        percentageWith: number;
+        percentageWithout: number;
+    };
+    placeholders: {
+        totalPlaceholders: number;
+        datasetsWithPlaceholders: number;
+        patterns: Array<{
+            pattern: string;
+            count: number;
+        }>;
+    };
+    relationTypes: Array<{
+        type: string;
+        count: number;
+        datasetCount: number;
+        percentage: number;
+    }>;
+    coverage: {
+        withNoRelatedWorks: number;
+        withOnlyIsSupplementTo: number;
+        withMultipleTypes: number;
+        avgTypesPerDataset: number;
+    };
+    quality: {
+        completeData: number;
+        incompleteOrPlaceholder: number;
+        percentageComplete: number;
+    };
 };
 
 type PidUsageStat = {
