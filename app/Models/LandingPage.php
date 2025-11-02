@@ -157,7 +157,8 @@ class LandingPage extends Model
     public function incrementViewCount(): void
     {
         $this->increment('view_count');
-        $this->update(['last_viewed_at' => now()]);
+        $this->last_viewed_at = now();
+        $this->save();
     }
 
     /**

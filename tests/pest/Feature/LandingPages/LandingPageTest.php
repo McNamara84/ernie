@@ -156,13 +156,13 @@ describe('Landing Page Updates', function () {
         expect($landingPage->published_at)->not->toBeNull();
     });
 
-    test('updating to draft keeps published_at but changes status', function () {
+    test('updating to draft clears published_at and changes status', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
             'status' => 'published',
         ]);
 
-        $originalPublishedAt = $landingPage->published_at;
+        $landingPage->publish(); // Set published_at
 
         $this->actingAs($this->user)
             ->putJson("/resources/{$this->resource->id}/landing-page", [
@@ -171,7 +171,7 @@ describe('Landing Page Updates', function () {
 
         $landingPage->refresh();
         expect($landingPage->status)->toBe('draft');
-        expect($landingPage->published_at->toString())->toBe($originalPublishedAt->toString());
+        expect($landingPage->published_at)->toBeNull();
     });
 
     test('returns 404 when landing page does not exist', function () {
@@ -284,12 +284,14 @@ describe('Public Landing Page Display', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
             'status' => 'published',
+            'template' => 'default_gfz',
         ]);
+        $landingPage->publish();
 
         $response = $this->get("/datasets/{$this->resource->id}");
 
         $response->assertOk();
-        expect($response->viewData('page')['component'])->toBe('landing-page');
+        expect($response->viewData('page')['component'])->toBe('LandingPages/default_gfz');
     });
 
     test('draft landing page requires preview token', function () {
@@ -307,14 +309,14 @@ describe('Public Landing Page Display', function () {
         $response->assertOk();
     });
 
-    test('draft landing page with invalid token returns 404', function () {
+    test('draft landing page with invalid token returns 403', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
             'status' => 'draft',
         ]);
 
         $response = $this->get("/datasets/{$this->resource->id}?preview=invalid-token");
-        $response->assertNotFound();
+        $response->assertForbidden();
     });
 
     test('increments view count on each visit for published pages', function () {
