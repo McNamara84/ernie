@@ -17,10 +17,10 @@ class ResourceDescription extends Model
         'description',
     ];
 
-    /** @return BelongsTo<resource, static> */
+    /** @return BelongsTo<Resource, static> */
     public function resource(): BelongsTo
     {
-        /** @var BelongsTo<resource, static> $relation */
+        /** @var BelongsTo<Resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
 
         return $relation;
