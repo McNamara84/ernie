@@ -144,7 +144,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('loads existing configuration', async () => {
-            axios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -163,7 +163,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('API Integration', () => {
         it('fetches existing config on mount', async () => {
-            axios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -208,8 +208,8 @@ describe('SetupLandingPageModal', () => {
             await user.clear(ftpInput);
             await user.type(ftpInput, 'https://datapub.gfz-potsdam.de/download/new-data');
 
-            // Submit
-            const saveButton = screen.getByRole('button', { name: /Create & Activate/i });
+            // Submit (creates preview in draft mode by default)
+            const saveButton = screen.getByRole('button', { name: /Create Preview/i });
             await user.click(saveButton);
 
             await waitFor(() => {
@@ -225,8 +225,8 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('updates existing landing page config', async () => {
-            axios.get.mockResolvedValue({ data: mockExistingConfig });
-            axios.put.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            axios.put.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             const user = userEvent.setup();
 
@@ -262,7 +262,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('deletes landing page config', async () => {
-            axios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
             axios.delete.mockResolvedValue({ data: { message: 'Deleted' } });
 
             const user = userEvent.setup();
@@ -298,7 +298,7 @@ describe('SetupLandingPageModal', () => {
     describe('Preview URLs', () => {
         it('displays preview URL for draft configs', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            axios.get.mockResolvedValue({ data: draftConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -320,7 +320,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('displays public URL for published configs', async () => {
-            axios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -343,7 +343,7 @@ describe('SetupLandingPageModal', () => {
 
         it('copies preview URL to clipboard', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            axios.get.mockResolvedValue({ data: draftConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
 
             // Mock clipboard API using defineProperty
             const writeTextMock = vi.fn().mockResolvedValue(undefined);
@@ -369,7 +369,7 @@ describe('SetupLandingPageModal', () => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
             });
 
-            const copyButton = screen.getByTitle(/Copy preview URL/i);
+            const copyButton = screen.getByRole('button', { name: /Copy preview URL/i });
             await user.click(copyButton);
 
             await waitFor(() => {
@@ -381,7 +381,7 @@ describe('SetupLandingPageModal', () => {
     describe('Publish Toggle', () => {
         it('toggles between draft and published status', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            axios.get.mockResolvedValue({ data: draftConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
 
             const user = userEvent.setup();
 
@@ -409,7 +409,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('Preview Button', () => {
         it('opens preview in new tab', async () => {
-            axios.get.mockResolvedValue({ data: mockExistingConfig });
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             // Mock window.open
             const mockOpen = vi.fn();
@@ -429,8 +429,13 @@ describe('SetupLandingPageModal', () => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
             });
 
-            const previewButton = screen.getByRole('button', { name: /Preview/i });
-            await user.click(previewButton);
+            // Get the Preview button with Eye icon (not the "Remove Preview" destructive button)
+            const previewButtons = screen.getAllByRole('button', { name: /Preview/i });
+            const previewButton = previewButtons.find(
+                (btn) => btn.className.includes('outline') || btn.textContent?.trim() === 'Preview'
+            );
+            expect(previewButton).toBeDefined();
+            await user.click(previewButton!);
 
             expect(mockOpen).toHaveBeenCalledWith(
                 expect.stringContaining(`/datasets/${mockResource.id}`),
@@ -462,7 +467,7 @@ describe('SetupLandingPageModal', () => {
             // Should still render but in create mode
             await waitFor(() => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
-                expect(screen.getByRole('button', { name: /Create & Activate/i })).toBeInTheDocument();
+                expect(screen.getByRole('button', { name: /Create Preview/i })).toBeInTheDocument();
             });
         });
 
@@ -489,7 +494,7 @@ describe('SetupLandingPageModal', () => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
             });
 
-            const saveButton = screen.getByRole('button', { name: /Create & Activate/i });
+            const saveButton = screen.getByRole('button', { name: /Create Preview/i });
             await user.click(saveButton);
 
             // Error should be handled (toast notification in actual app)
