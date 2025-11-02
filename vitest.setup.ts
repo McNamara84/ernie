@@ -64,6 +64,45 @@ if (!Element.prototype.scrollIntoView) {
     };
 }
 
+// Mock window.scrollTo
+if (typeof window.scrollTo !== 'function') {
+    window.scrollTo = function () {
+        // No-op
+    };
+}
+
 // Set environment variables for consistent URL generation in tests
 process.env.VITE_APP_URL = '';
 process.env.APP_URL = '';
+
+// Mock localStorage for tests
+class LocalStorageMock {
+    private store: Record<string, string> = {};
+
+    clear() {
+        this.store = {};
+    }
+
+    getItem(key: string) {
+        return this.store[key] || null;
+    }
+
+    setItem(key: string, value: string) {
+        this.store[key] = value.toString();
+    }
+
+    removeItem(key: string) {
+        delete this.store[key];
+    }
+
+    get length() {
+        return Object.keys(this.store).length;
+    }
+
+    key(index: number) {
+        const keys = Object.keys(this.store);
+        return keys[index] || null;
+    }
+}
+
+global.localStorage = new LocalStorageMock() as Storage;
