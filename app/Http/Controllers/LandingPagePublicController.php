@@ -30,24 +30,27 @@ class LandingPagePublicController extends Controller
         // Load landing page configuration first to check status
         $landingPage = LandingPage::where('resource_id', $resourceId)->first();
 
+        // Landing page must exist
+        abort_if(! $landingPage, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+
         // If preview token is provided, validate it
         if ($previewToken) {
             abort_if(
-                ! $landingPage || $landingPage->preview_token !== $previewToken,
+                $landingPage->preview_token !== $previewToken,
                 HttpResponse::HTTP_FORBIDDEN,
                 'Invalid preview token'
             );
-        } else {
-            // For public access, landing page must exist and be published
-            abort_if(
-                ! $landingPage || $landingPage->status !== 'published',
-                HttpResponse::HTTP_NOT_FOUND,
-                'Landing page not found or not published'
-            );
-        }
 
-        // Try to get from cache first (only for published pages without preview token)
-        if (! $previewToken && $landingPage->status === 'published') {
+            // Preview mode: skip cache and render directly
+        } else {
+            // For public access, landing page must be published
+            abort_if(
+                ! $landingPage->isPublished(),
+                HttpResponse::HTTP_NOT_FOUND,
+                'Landing page not published'
+            );
+
+            // Try to get from cache first (only for published pages)
             $cached = Cache::get("landing_page.{$resourceId}");
             if ($cached) {
                 // Increment view count (outside cache)
@@ -176,8 +179,8 @@ class LandingPagePublicController extends Controller
         // Render via template system (will be implemented in Sprint 3 Step 12)
         $response = Inertia::render("LandingPages/{$landingPage->template}", $data);
 
-        // Increment view count for published pages (not previews)
-        if (! $previewToken && $landingPage->status === 'published') {
+        // Cache and increment view count for published pages (not previews)
+        if (! $previewToken) {
             $landingPage->incrementViewCount();
 
             // Cache published pages for 24 hours

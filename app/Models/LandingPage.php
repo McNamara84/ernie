@@ -76,11 +76,11 @@ class LandingPage extends Model
     /**
      * Get the resource that owns this landing page.
      *
-     * @return BelongsTo<resource, static>
+     * @return BelongsTo<\App\Models\Resource, static>
      */
     public function resource(): BelongsTo
     {
-        /** @var BelongsTo<resource, static> $relation */
+        /** @var BelongsTo<\App\Models\Resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
 
         return $relation;
