@@ -14,12 +14,16 @@ use Inertia\Response;
 class OldDatasetController extends Controller
 {
     private const DATASET_CONNECTION = 'metaworks';
+
     private const DEFAULT_SORT_KEY = 'updated_at';
+
     private const DEFAULT_SORT_DIRECTION = 'desc';
+
     /**
      * @var list<string>
      */
     private const ALLOWED_SORT_KEYS = ['id', 'identifier', 'title', 'resourcetypegeneral', 'first_author', 'publicationyear', 'curator', 'publicstatus', 'created_at', 'updated_at'];
+
     /**
      * @var list<string>
      */
@@ -27,8 +31,6 @@ class OldDatasetController extends Controller
 
     /**
      * Display a listing of the datasets.
-     *
-     * @return \Inertia\Response
      */
     public function index(Request $request): Response
     {
@@ -36,19 +38,19 @@ class OldDatasetController extends Controller
             // Paginierungsparameter aus der Anfrage
             $page = $request->get('page', 1);
             $perPage = $request->get('per_page', 50);
-            
+
             // Validierung der Parameter
             $page = max(1, (int) $page);
             $perPage = min(200, max(10, (int) $perPage)); // Min 10, Max 200
-            
+
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
             $filters = $this->extractFilters($request);
 
             // Resources aus der SUMARIOPMD-Datenbank abrufen (paginiert mit Filtern)
             $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
-                $page, 
-                $perPage, 
-                $sortKey, 
+                $page,
+                $perPage,
+                $sortKey,
                 $sortDirection,
                 $filters
             );
@@ -57,7 +59,7 @@ class OldDatasetController extends Controller
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
-                
+
                 // Build first_author from the joined data (no additional query needed)
                 if ($dataset->first_author_lastname || $dataset->first_author_firstname || $dataset->first_author_name) {
                     $data['first_author'] = [
@@ -66,7 +68,7 @@ class OldDatasetController extends Controller
                         'name' => $dataset->first_author_name,
                     ];
                 }
-                
+
                 return $data;
             })->all();
 
@@ -105,7 +107,7 @@ class OldDatasetController extends Controller
                     'to' => 0,
                     'has_more' => false,
                 ],
-                'error' => 'SUMARIOPMD-Datenbankverbindung fehlgeschlagen: ' . $e->getMessage(),
+                'error' => 'SUMARIOPMD-Datenbankverbindung fehlgeschlagen: '.$e->getMessage(),
                 'sort' => [
                     'key' => self::DEFAULT_SORT_KEY,
                     'direction' => self::DEFAULT_SORT_DIRECTION,
@@ -131,18 +133,18 @@ class OldDatasetController extends Controller
         try {
             $page = $request->get('page', 1);
             $perPage = $request->get('per_page', 50);
-            
+
             // Validierung der Parameter
             $page = max(1, (int) $page);
             $perPage = min(200, max(10, (int) $perPage));
-            
+
             [$sortKey, $sortDirection] = $this->resolveSortState($request);
             $filters = $this->extractFilters($request);
 
             $paginatedDatasets = OldDataset::getPaginatedOrderedWithFilters(
-                $page, 
-                $perPage, 
-                $sortKey, 
+                $page,
+                $perPage,
+                $sortKey,
                 $sortDirection,
                 $filters
             );
@@ -151,7 +153,7 @@ class OldDatasetController extends Controller
             $datasetsWithLicenses = collect($paginatedDatasets->items())->map(function ($dataset) {
                 $data = $dataset->toArray();
                 $data['licenses'] = $dataset->getLicenses();
-                
+
                 // Build first_author from the joined data (no additional query needed)
                 if ($dataset->first_author_lastname || $dataset->first_author_firstname || $dataset->first_author_name) {
                     $data['first_author'] = [
@@ -160,7 +162,7 @@ class OldDatasetController extends Controller
                         'name' => $dataset->first_author_name,
                     ];
                 }
-                
+
                 return $data;
             })->all();
 
@@ -188,7 +190,7 @@ class OldDatasetController extends Controller
             ]);
 
             $response = [
-                'error' => 'Error loading datasets: ' . $e->getMessage(),
+                'error' => 'Error loading datasets: '.$e->getMessage(),
                 'sort' => [
                     'key' => self::DEFAULT_SORT_KEY,
                     'direction' => self::DEFAULT_SORT_DIRECTION,
@@ -228,8 +230,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get authors for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getAuthors(Request $request, int $id)
@@ -237,7 +237,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -251,7 +251,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading authors for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading authors for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -263,8 +263,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get contributors for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getContributors(Request $request, int $id)
@@ -272,7 +270,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -286,7 +284,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading contributors for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading contributors for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -298,8 +296,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get descriptions for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getDescriptions(Request $request, int $id)
@@ -307,7 +303,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -321,7 +317,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading descriptions for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading descriptions for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -333,8 +329,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get funding references for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getFundingReferences(Request $request, int $id)
@@ -342,7 +336,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -356,7 +350,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading funding references for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading funding references for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -368,8 +362,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get dates for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getDates(Request $request, int $id)
@@ -377,7 +369,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -391,7 +383,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading dates for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading dates for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -403,8 +395,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get controlled keywords (GCMD) for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getControlledKeywords(Request $request, int $id)
@@ -412,7 +402,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -426,7 +416,7 @@ class OldDatasetController extends Controller
                 ->table('thesauruskeyword as tk')
                 ->join('thesaurusvalue as tv', function ($join) {
                     $join->on('tk.keyword', '=', 'tv.keyword')
-                         ->on('tk.thesaurus', '=', 'tv.thesaurus');
+                        ->on('tk.thesaurus', '=', 'tv.thesaurus');
                 })
                 ->where('tk.resource_id', $id)
                 ->whereIn('tk.thesaurus', $supportedThesauri)
@@ -442,7 +432,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading controlled keywords for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading controlled keywords for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -454,8 +444,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get free keywords for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getFreeKeywords(Request $request, int $id)
@@ -463,7 +451,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -474,15 +462,15 @@ class OldDatasetController extends Controller
 
             // Parse comma-separated keywords
             $keywords = [];
-            if (!empty($keywordsString)) {
+            if (! empty($keywordsString)) {
                 $keywords = array_map(
-                    fn($keyword) => trim($keyword),
+                    fn ($keyword) => trim($keyword),
                     explode(',', $keywordsString)
                 );
-                
+
                 // Remove empty strings
-                $keywords = array_filter($keywords, fn($keyword) => $keyword !== '');
-                
+                $keywords = array_filter($keywords, fn ($keyword) => $keyword !== '');
+
                 // Re-index array to ensure sequential numeric keys
                 $keywords = array_values($keywords);
             }
@@ -493,7 +481,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading free keywords for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading free keywords for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -505,8 +493,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get spatial and temporal coverage entries for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getCoverages(Request $request, int $id)
@@ -514,7 +500,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -528,7 +514,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading coverages for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading coverages for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -540,8 +526,7 @@ class OldDatasetController extends Controller
     /**
      * Get related identifiers for a specific old dataset.
      *
-     * @param \Illuminate\Http\Request $request
-     * @param int $id The dataset ID
+     * @param  int  $id  The dataset ID
      * @return \Illuminate\Http\JsonResponse
      */
     public function getRelatedIdentifiers(Request $request, int $id)
@@ -549,7 +534,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -563,7 +548,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading related identifiers for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading related identifiers for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -575,8 +560,6 @@ class OldDatasetController extends Controller
     /**
      * API endpoint to get MSL keywords for a specific old dataset.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
      * @return \Illuminate\Http\JsonResponse
      */
     public function getMslKeywords(Request $request, int $id)
@@ -584,7 +567,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -598,7 +581,7 @@ class OldDatasetController extends Controller
                 ->table('thesauruskeyword as tk')
                 ->join('thesaurusvalue as tv', function ($join) {
                     $join->on('tk.keyword', '=', 'tv.keyword')
-                         ->on('tk.thesaurus', '=', 'tv.thesaurus');
+                        ->on('tk.thesaurus', '=', 'tv.thesaurus');
                 })
                 ->where('tk.resource_id', $id)
                 ->whereIn('tk.thesaurus', $supportedThesauri)
@@ -609,7 +592,7 @@ class OldDatasetController extends Controller
             $transformedKeywords = \App\Services\MslKeywordTransformer::transformMany($oldKeywords->all());
 
             // Load current MSL vocabulary to validate keywords
-            $vocabularyService = new \App\Services\MslVocabularyService();
+            $vocabularyService = new \App\Services\MslVocabularyService;
             $currentVocabulary = $vocabularyService->getVocabulary();
 
             // Separate keywords into validated (exist in current vocab) and legacy (don't exist)
@@ -639,7 +622,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading MSL keywords for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading MSL keywords for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -651,8 +634,8 @@ class OldDatasetController extends Controller
     /**
      * Recursively search for a keyword by ID in the vocabulary tree.
      *
-     * @param string $id Keyword ID to search for
-     * @param array<int, array<string, mixed>> $vocabulary Vocabulary tree
+     * @param  string  $id  Keyword ID to search for
+     * @param  array<int, array<string, mixed>>  $vocabulary  Vocabulary tree
      * @return bool True if keyword exists in vocabulary
      */
     private static function findKeywordInVocabulary(string $id, array $vocabulary): bool
@@ -661,14 +644,14 @@ class OldDatasetController extends Controller
             if (isset($item['id']) && $item['id'] === $id) {
                 return true;
             }
-            
+
             if (isset($item['children']) && is_array($item['children'])) {
                 if (self::findKeywordInVocabulary($id, $item['children'])) {
                     return true;
                 }
             }
         }
-        
+
         return false;
     }
 
@@ -680,7 +663,7 @@ class OldDatasetController extends Controller
         try {
             $dataset = OldDataset::find($id);
 
-            if (!$dataset) {
+            if (! $dataset) {
                 return response()->json([
                     'error' => 'Dataset not found',
                 ], 404);
@@ -694,7 +677,7 @@ class OldDatasetController extends Controller
         } catch (\Throwable $e) {
             $debugInfo = $this->buildConnectionDebugInfo($e);
 
-            Log::error('SUMARIOPMD connection failure when loading MSL laboratories for dataset ' . $id, $debugInfo + [
+            Log::error('SUMARIOPMD connection failure when loading MSL laboratories for dataset '.$id, $debugInfo + [
                 'exception' => $e,
                 'dataset_id' => $id,
             ]);
@@ -715,7 +698,6 @@ class OldDatasetController extends Controller
     /**
      * Extract filter parameters from the request.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @return array<string, mixed>
      */
     protected function extractFilters(Request $request): array
@@ -727,7 +709,7 @@ class OldDatasetController extends Controller
             $resourceType = $request->input('resource_type');
             if (is_array($resourceType)) {
                 $filters['resource_type'] = array_filter($resourceType);
-            } elseif (!empty($resourceType)) {
+            } elseif (! empty($resourceType)) {
                 $filters['resource_type'] = [$resourceType];
             }
         }
@@ -737,7 +719,7 @@ class OldDatasetController extends Controller
             $curator = $request->input('curator');
             if (is_array($curator)) {
                 $filters['curator'] = array_filter($curator);
-            } elseif (!empty($curator)) {
+            } elseif (! empty($curator)) {
                 $filters['curator'] = [$curator];
             }
         }
@@ -747,7 +729,7 @@ class OldDatasetController extends Controller
             $status = $request->input('status');
             if (is_array($status)) {
                 $filters['status'] = array_filter($status);
-            } elseif (!empty($status)) {
+            } elseif (! empty($status)) {
                 $filters['status'] = [$status];
             }
         }
@@ -764,7 +746,7 @@ class OldDatasetController extends Controller
         // Text Search
         if ($request->has('search')) {
             $search = trim((string) $request->input('search'));
-            if (!empty($search)) {
+            if (! empty($search)) {
                 $filters['search'] = $search;
             }
         }
@@ -772,28 +754,28 @@ class OldDatasetController extends Controller
         // Date Range filters
         if ($request->has('created_from')) {
             $createdFrom = $request->input('created_from');
-            if (!empty($createdFrom)) {
+            if (! empty($createdFrom)) {
                 $filters['created_from'] = $createdFrom;
             }
         }
 
         if ($request->has('created_to')) {
             $createdTo = $request->input('created_to');
-            if (!empty($createdTo)) {
+            if (! empty($createdTo)) {
                 $filters['created_to'] = $createdTo;
             }
         }
 
         if ($request->has('updated_from')) {
             $updatedFrom = $request->input('updated_from');
-            if (!empty($updatedFrom)) {
+            if (! empty($updatedFrom)) {
                 $filters['updated_from'] = $updatedFrom;
             }
         }
 
         if ($request->has('updated_to')) {
             $updatedTo = $request->input('updated_to');
-            if (!empty($updatedTo)) {
+            if (! empty($updatedTo)) {
                 $filters['updated_to'] = $updatedTo;
             }
         }
@@ -892,7 +874,7 @@ class OldDatasetController extends Controller
 
         return array_filter($debugInfo, static function ($value) {
             if (is_array($value)) {
-                return !empty($value);
+                return ! empty($value);
             }
 
             return $value !== null && $value !== '';
@@ -902,7 +884,7 @@ class OldDatasetController extends Controller
     /**
      * Extract hosts from a Laravel database connection configuration.
      *
-     * @param array<string, mixed> $connectionConfig
+     * @param  array<string, mixed>  $connectionConfig
      * @return list<string>
      */
     private function extractHosts(array $connectionConfig): array
@@ -931,10 +913,7 @@ class OldDatasetController extends Controller
     /**
      * Build error response with optional debug information.
      *
-     * @param string $message
-     * @param array<string, mixed> $debugInfo
-     * @param int $statusCode
-     * @return \Illuminate\Http\JsonResponse
+     * @param  array<string, mixed>  $debugInfo
      */
     private function errorResponse(string $message, array $debugInfo = [], int $statusCode = 500): \Illuminate\Http\JsonResponse
     {
@@ -948,4 +927,3 @@ class OldDatasetController extends Controller
         return response()->json($response, $statusCode);
     }
 }
-

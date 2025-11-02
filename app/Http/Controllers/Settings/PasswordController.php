@@ -26,9 +26,9 @@ class PasswordController extends Controller
     public function update(UpdatePasswordRequest $request): RedirectResponse
     {
         $validated = $request->validated();
-        
+
         $user = $request->user();
-        
+
         if (! $user) {
             return redirect()->route('login');
         }

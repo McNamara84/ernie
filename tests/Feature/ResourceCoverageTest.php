@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceCoverage;
 use App\Models\ResourceType;
-use App\Models\Language;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,7 +24,7 @@ class ResourceCoverageTest extends TestCase
             'name' => 'Dataset',
             'slug' => 'dataset',
         ]);
-        
+
         $language = Language::create([
             'code' => 'en',
             'name' => 'English',
@@ -77,7 +77,7 @@ class ResourceCoverageTest extends TestCase
             'start_time' => '15:01:00',
             'end_time' => '16:01:00',
         ]);
-        
+
         // Model returns Carbon instances
         $this->assertEquals('2025-10-06', $coverage->start_date->toDateString());
         $this->assertEquals('2025-10-10', $coverage->end_date->toDateString());
@@ -101,7 +101,7 @@ class ResourceCoverageTest extends TestCase
 
         // Check that all data is stored
         $freshCoverage = ResourceCoverage::find($coverage->id);
-        
+
         $this->assertEquals('48.167961', (string) $freshCoverage->lat_min);
         $this->assertEquals('48.200000', (string) $freshCoverage->lat_max);
         $this->assertEquals('11.527029', (string) $freshCoverage->lon_min);
@@ -178,6 +178,7 @@ class ResourceCoverageTest extends TestCase
     private function actingAsUser(): self
     {
         $user = \App\Models\User::factory()->create();
+
         return $this->actingAs($user);
     }
 }

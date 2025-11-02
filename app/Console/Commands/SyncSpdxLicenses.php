@@ -57,4 +57,3 @@ class SyncSpdxLicenses extends Command
         return self::SUCCESS;
     }
 }
-

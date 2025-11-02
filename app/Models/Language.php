@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Language extends Model
@@ -25,7 +25,7 @@ class Language extends Model
     ];
 
     /**
-     * @param Builder<Language> $query
+     * @param  Builder<Language>  $query
      * @return Builder<Language>
      */
     public function scopeActive(Builder $query): Builder
@@ -34,7 +34,7 @@ class Language extends Model
     }
 
     /**
-     * @param Builder<Language> $query
+     * @param  Builder<Language>  $query
      * @return Builder<Language>
      */
     public function scopeElmoActive(Builder $query): Builder
@@ -43,7 +43,7 @@ class Language extends Model
     }
 
     /**
-     * @param Builder<Language> $query
+     * @param  Builder<Language>  $query
      * @return Builder<Language>
      */
     public function scopeOrderByName(Builder $query): Builder

@@ -115,4 +115,3 @@ it('returns correct content-type header', function () {
     $response->assertOk()
         ->assertHeader('Content-Type', 'application/json');
 });
-

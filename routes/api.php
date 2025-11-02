@@ -1,15 +1,16 @@
 <?php
 
+use App\Http\Controllers\Api\DataCiteController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
-use App\Http\Controllers\ResourceTypeController;
-use App\Http\Controllers\TitleTypeController;
-use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\LanguageController;
-use App\Http\Controllers\RorAffiliationController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\VocabularyController;
+use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\OrcidController;
+use App\Http\Controllers\ResourceTypeController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\RorAffiliationController;
+use App\Http\Controllers\TitleTypeController;
+use App\Http\Controllers\VocabularyController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/changelog', [ChangelogController::class, 'index']);
@@ -52,4 +53,5 @@ Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
+Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
 Route::get('/v1/doc', ApiDocController::class);

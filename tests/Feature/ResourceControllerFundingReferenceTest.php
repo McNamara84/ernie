@@ -23,15 +23,19 @@ class ResourceControllerFundingReferenceTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private ResourceType $resourceType;
+
     private Language $language;
+
     private License $license;
+
     private TitleType $titleType;
 
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->user = User::factory()->create();
         $this->resourceType = ResourceType::create([
             'name' => 'Dataset',

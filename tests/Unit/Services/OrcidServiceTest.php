@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\OrcidService;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class OrcidServiceTest extends TestCase
@@ -16,7 +16,7 @@ class OrcidServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new OrcidService();
+        $this->service = new OrcidService;
         Cache::flush();
     }
 
@@ -121,7 +121,7 @@ class OrcidServiceTest extends TestCase
 
         $this->assertTrue($result['success']);
         $this->assertNull($result['error']);
-        
+
         $data = $result['data'];
         $this->assertEquals('0000-0001-2345-6789', $data['orcid']);
         $this->assertEquals('Albert', $data['firstName']);
@@ -221,7 +221,7 @@ class OrcidServiceTest extends TestCase
         $this->assertNull($result['error']);
         $this->assertEquals(2, $result['data']['total']);
         $this->assertCount(2, $result['data']['results']);
-        
+
         $firstResult = $result['data']['results'][0];
         $this->assertEquals('0000-0001-2345-6789', $firstResult['orcid']);
         $this->assertEquals('Albert', $firstResult['firstName']);
@@ -254,8 +254,9 @@ class OrcidServiceTest extends TestCase
             // Check if rows parameter is limited to 200
             $url = $request->url();
             parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $params);
+
             return str_contains($url, 'pub.orcid.org/v3.0/search')
-                && isset($params['rows']) 
+                && isset($params['rows'])
                 && (int) $params['rows'] === 200;
         });
     }

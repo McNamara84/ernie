@@ -11,11 +11,11 @@ use DOMElement;
 
 /**
  * Service for exporting Resource data to DataCite XML format (v4.6)
- * 
+ *
  * Implements the DataCite Metadata Schema v4.6 XML format.
  * Schema: https://schema.datacite.org/meta/kernel-4.6/metadata.xsd
  * Documentation: https://datacite-metadata-schema.readthedocs.io/en/4.6/
- * 
+ *
  * DataCite 4.6 additions over 4.5:
  * - resourceTypeGeneral: Award, Project
  * - relatedIdentifierType: CSTR, RRID
@@ -29,23 +29,28 @@ class DataCiteXmlExporter
      * Fixed publisher information for all exports
      */
     private const PUBLISHER_NAME = 'GFZ Helmholtz Centre for Geosciences';
+
     private const PUBLISHER_ROR_ID = 'https://ror.org/04z8jg394';
 
     /**
      * DataCite namespace constants
      */
     private const DATACITE_NAMESPACE = 'http://datacite.org/schema/kernel-4';
+
     private const XSI_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-instance';
+
     private const XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
+
     private const SCHEMA_LOCATION = 'http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.6/metadata.xsd';
 
     private DOMDocument $dom;
+
     private DOMElement $root;
 
     /**
      * Export a Resource to DataCite XML format
      *
-     * @param Resource $resource The resource to export
+     * @param  resource  $resource  The resource to export
      * @return string The DataCite XML string
      */
     public function export(Resource $resource): string
@@ -114,11 +119,11 @@ class DataCiteXmlExporter
         $this->buildFundingReferences($resource);
 
         $xml = $this->dom->saveXML();
-        
+
         if ($xml === false) {
             throw new \RuntimeException('Failed to generate XML from DOM document');
         }
-        
+
         return $xml;
     }
 
@@ -142,7 +147,7 @@ class DataCiteXmlExporter
         $hasCreators = false;
         foreach ($resource->dataciteCreators as $author) {
             $creator = null;
-            
+
             if ($author->authorable_type === Person::class) {
                 $creator = $this->buildPersonCreator($author);
             } elseif ($author->authorable_type === Institution::class) {
@@ -156,7 +161,7 @@ class DataCiteXmlExporter
         }
 
         // If no creators, add a default one (required by schema)
-        if (!$hasCreators) {
+        if (! $hasCreators) {
             $creator = $this->dom->createElement('creator');
             $creatorName = $this->dom->createElement('creatorName', 'Unknown');
             $creatorName->setAttribute('nameType', 'Personal');
@@ -174,8 +179,8 @@ class DataCiteXmlExporter
     {
         /** @var Person|null $person */
         $person = $author->authorable;
-        
-        if (!$person instanceof Person) {
+
+        if (! $person instanceof Person) {
             return null;
         }
 
@@ -183,7 +188,7 @@ class DataCiteXmlExporter
 
         // Creator name (required)
         $creatorName = $this->dom->createElement('creatorName');
-        
+
         if ($person->last_name && $person->first_name) {
             $creatorName->nodeValue = htmlspecialchars("{$person->last_name}, {$person->first_name}");
         } elseif ($person->last_name) {
@@ -193,7 +198,7 @@ class DataCiteXmlExporter
         } else {
             $creatorName->nodeValue = 'Unknown';
         }
-        
+
         $creatorName->setAttribute('nameType', 'Personal');
         $creator->appendChild($creatorName);
 
@@ -220,13 +225,13 @@ class DataCiteXmlExporter
         // Affiliations
         foreach ($author->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
-            
+
             if ($affiliation->ror_id) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
                 $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
             }
-            
+
             $creator->appendChild($affiliationElement);
         }
 
@@ -240,8 +245,8 @@ class DataCiteXmlExporter
     {
         /** @var Institution|null $institution */
         $institution = $author->authorable;
-        
-        if (!$institution instanceof Institution) {
+
+        if (! $institution instanceof Institution) {
             return null;
         }
 
@@ -272,13 +277,13 @@ class DataCiteXmlExporter
         // Affiliations
         foreach ($author->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
-            
+
             if ($affiliation->ror_id) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
                 $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
             }
-            
+
             $creator->appendChild($affiliationElement);
         }
 
@@ -346,7 +351,7 @@ class DataCiteXmlExporter
         $publisher->setAttribute('publisherIdentifier', self::PUBLISHER_ROR_ID);
         $publisher->setAttribute('publisherIdentifierScheme', 'ROR');
         $publisher->setAttribute('schemeURI', 'https://ror.org/');
-        
+
         if ($resource->language) {
             $publisher->setAttributeNS(
                 self::XML_NAMESPACE,
@@ -365,7 +370,7 @@ class DataCiteXmlExporter
     {
         $publicationYear = $this->dom->createElement(
             'publicationYear',
-            htmlspecialchars((string)$resource->year)
+            htmlspecialchars((string) $resource->year)
         );
         $this->root->appendChild($publicationYear);
     }
@@ -405,15 +410,15 @@ class DataCiteXmlExporter
         foreach ($resource->controlledKeywords as $keyword) {
             $subject = $this->dom->createElement('subject', htmlspecialchars($keyword->text));
             $subject->setAttribute('subjectScheme', htmlspecialchars($keyword->scheme));
-            
+
             if ($keyword->scheme_uri) {
                 $subject->setAttribute('schemeURI', htmlspecialchars($keyword->scheme_uri));
             }
-            
+
             if ($keyword->keyword_id) {
                 $subject->setAttribute('valueURI', htmlspecialchars($keyword->keyword_id));
             }
-            
+
             $subjects->appendChild($subject);
         }
 
@@ -445,13 +450,14 @@ class DataCiteXmlExporter
                         $contributors->appendChild($contributorElement);
                         $hasContributors = true;
                     }
+
                     continue;
                 }
             }
 
             // Regular contributor
             $contributorType = $this->determineContributorType($contributor);
-            
+
             if ($contributor->authorable_type === Person::class) {
                 $contributorElement = $this->buildPersonContributor($contributor, $contributorType);
             } elseif ($contributor->authorable_type === Institution::class) {
@@ -476,8 +482,8 @@ class DataCiteXmlExporter
     {
         /** @var Institution|null $institution */
         $institution = $contributor->authorable;
-        
-        if (!$institution instanceof Institution) {
+
+        if (! $institution instanceof Institution) {
             return null;
         }
 
@@ -502,13 +508,13 @@ class DataCiteXmlExporter
         // Affiliations
         foreach ($contributor->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
-            
+
             if ($affiliation->ror_id) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
                 $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
             }
-            
+
             $contributorElement->appendChild($affiliationElement);
         }
 
@@ -521,8 +527,8 @@ class DataCiteXmlExporter
     private function determineContributorType(ResourceAuthor $contributor): string
     {
         $role = $contributor->roles->first();
-        
-        if (!$role) {
+
+        if (! $role) {
             return 'Other';
         }
 
@@ -562,8 +568,8 @@ class DataCiteXmlExporter
     {
         /** @var Person|null $person */
         $person = $contributor->authorable;
-        
-        if (!$person instanceof Person) {
+
+        if (! $person instanceof Person) {
             return null;
         }
 
@@ -572,7 +578,7 @@ class DataCiteXmlExporter
 
         // Contributor name (required)
         $contributorName = $this->dom->createElement('contributorName');
-        
+
         if ($person->last_name && $person->first_name) {
             $contributorName->nodeValue = htmlspecialchars("{$person->last_name}, {$person->first_name}");
         } elseif ($person->last_name) {
@@ -582,7 +588,7 @@ class DataCiteXmlExporter
         } else {
             $contributorName->nodeValue = 'Unknown';
         }
-        
+
         $contributorName->setAttribute('nameType', 'Personal');
         $contributorElement->appendChild($contributorName);
 
@@ -609,13 +615,13 @@ class DataCiteXmlExporter
         // Affiliations
         foreach ($contributor->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
-            
+
             if ($affiliation->ror_id) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
                 $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
             }
-            
+
             $contributorElement->appendChild($affiliationElement);
         }
 
@@ -629,8 +635,8 @@ class DataCiteXmlExporter
     {
         /** @var Institution|null $institution */
         $institution = $contributor->authorable;
-        
-        if (!$institution instanceof Institution) {
+
+        if (! $institution instanceof Institution) {
             return null;
         }
 
@@ -661,13 +667,13 @@ class DataCiteXmlExporter
         // Affiliations
         foreach ($contributor->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
-            
+
             if ($affiliation->ror_id) {
                 $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
                 $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
                 $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
             }
-            
+
             $contributorElement->appendChild($affiliationElement);
         }
 
@@ -701,11 +707,11 @@ class DataCiteXmlExporter
 
             $dateElement = $this->dom->createElement('date', htmlspecialchars($dateString));
             $dateElement->setAttribute('dateType', $this->convertDateType($date->date_type));
-            
+
             if ($date->date_information) {
                 $dateElement->setAttribute('dateInformation', htmlspecialchars($date->date_information));
             }
-            
+
             $dates->appendChild($dateElement);
             $hasDates = true;
         }
@@ -779,7 +785,7 @@ class DataCiteXmlExporter
             );
             $relatedElement->setAttribute('relatedIdentifierType', htmlspecialchars($relatedIdentifier->identifier_type));
             $relatedElement->setAttribute('relationType', htmlspecialchars($relatedIdentifier->relation_type));
-            
+
             // Add resourceTypeGeneral if available
             if (isset($relatedIdentifier->related_metadata['resourceTypeGeneral'])) {
                 $relatedElement->setAttribute(
@@ -787,7 +793,7 @@ class DataCiteXmlExporter
                     htmlspecialchars($relatedIdentifier->related_metadata['resourceTypeGeneral'])
                 );
             }
-            
+
             $relatedIdentifiers->appendChild($relatedElement);
         }
 
@@ -836,17 +842,17 @@ class DataCiteXmlExporter
 
         foreach ($resource->licenses as $license) {
             $rights = $this->dom->createElement('rights', htmlspecialchars($license->name));
-            
+
             if ($license->reference) {
                 $rights->setAttribute('rightsURI', htmlspecialchars($license->reference));
             }
-            
+
             if ($license->spdx_id) {
                 $rights->setAttribute('rightsIdentifier', htmlspecialchars($license->spdx_id));
                 $rights->setAttribute('rightsIdentifierScheme', 'SPDX');
                 $rights->setAttribute('schemeURI', 'https://spdx.org/licenses/');
             }
-            
+
             if ($resource->language) {
                 $rights->setAttributeNS(
                     self::XML_NAMESPACE,
@@ -854,7 +860,7 @@ class DataCiteXmlExporter
                     $resource->language->iso_code ?? 'en'
                 );
             }
-            
+
             $rightsList->appendChild($rights);
         }
 
@@ -875,7 +881,7 @@ class DataCiteXmlExporter
         foreach ($resource->descriptions as $description) {
             $descriptionElement = $this->dom->createElement('description', htmlspecialchars($description->description));
             $descriptionElement->setAttribute('descriptionType', $this->convertDescriptionType($description->description_type));
-            
+
             if ($resource->language) {
                 $descriptionElement->setAttributeNS(
                     self::XML_NAMESPACE,
@@ -883,7 +889,7 @@ class DataCiteXmlExporter
                     $resource->language->iso_code ?? 'en'
                 );
             }
-            
+
             $descriptions->appendChild($descriptionElement);
         }
 
@@ -936,33 +942,33 @@ class DataCiteXmlExporter
             // Add bounding box if spatial data exists
             if ($coverage->lat_min !== null || $coverage->lat_max !== null ||
                 $coverage->lon_min !== null || $coverage->lon_max !== null) {
-                
+
                 $geoLocationBox = $this->dom->createElement('geoLocationBox');
-                
+
                 $westBoundLongitude = $this->dom->createElement(
                     'westBoundLongitude',
-                    htmlspecialchars((string)$coverage->lon_min)
+                    htmlspecialchars((string) $coverage->lon_min)
                 );
                 $geoLocationBox->appendChild($westBoundLongitude);
-                
+
                 $eastBoundLongitude = $this->dom->createElement(
                     'eastBoundLongitude',
-                    htmlspecialchars((string)$coverage->lon_max)
+                    htmlspecialchars((string) $coverage->lon_max)
                 );
                 $geoLocationBox->appendChild($eastBoundLongitude);
-                
+
                 $southBoundLatitude = $this->dom->createElement(
                     'southBoundLatitude',
-                    htmlspecialchars((string)$coverage->lat_min)
+                    htmlspecialchars((string) $coverage->lat_min)
                 );
                 $geoLocationBox->appendChild($southBoundLatitude);
-                
+
                 $northBoundLatitude = $this->dom->createElement(
                     'northBoundLatitude',
-                    htmlspecialchars((string)$coverage->lat_max)
+                    htmlspecialchars((string) $coverage->lat_max)
                 );
                 $geoLocationBox->appendChild($northBoundLatitude);
-                
+
                 $geoLocation->appendChild($geoLocationBox);
                 $hasContent = true;
             }
@@ -991,10 +997,10 @@ class DataCiteXmlExporter
 
         foreach ($resource->fundingReferences as $funding) {
             $fundingReference = $this->dom->createElement('fundingReference');
-            
+
             $funderName = $this->dom->createElement('funderName', htmlspecialchars($funding->funder_name));
             $fundingReference->appendChild($funderName);
-            
+
             if ($funding->funder_identifier) {
                 $funderIdentifier = $this->dom->createElement(
                     'funderIdentifier',
@@ -1006,22 +1012,22 @@ class DataCiteXmlExporter
                 );
                 $fundingReference->appendChild($funderIdentifier);
             }
-            
+
             if ($funding->award_number) {
                 $awardNumber = $this->dom->createElement('awardNumber', htmlspecialchars($funding->award_number));
                 $fundingReference->appendChild($awardNumber);
             }
-            
+
             if ($funding->award_title) {
                 $awardTitle = $this->dom->createElement('awardTitle', htmlspecialchars($funding->award_title));
                 $fundingReference->appendChild($awardTitle);
             }
-            
+
             if ($funding->award_uri) {
                 $awardURI = $this->dom->createElement('awardURI', htmlspecialchars($funding->award_uri));
                 $fundingReference->appendChild($awardURI);
             }
-            
+
             $fundingReferences->appendChild($fundingReference);
         }
 

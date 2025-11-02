@@ -1,6 +1,7 @@
 <?php
 
 use Inertia\Testing\AssertableInertia as Assert;
+
 use function Pest\Laravel\withoutVite;
 
 it('displays the welcome page', function () {

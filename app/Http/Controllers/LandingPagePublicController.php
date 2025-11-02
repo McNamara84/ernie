@@ -1,0 +1,192 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Models\LandingPage;
+use App\Models\Resource;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Inertia\Inertia;
+use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
+
+/**
+ * Public Landing Page Controller
+ *
+ * Handles public-facing landing pages for research datasets.
+ * Supports preview mode via token for draft pages.
+ */
+class LandingPagePublicController extends Controller
+{
+    /**
+     * Display a public landing page for a resource
+     */
+    public function show(Request $request, int $resourceId): Response
+    {
+        $previewToken = $request->query('preview');
+
+        // Load landing page configuration first to check status
+        $landingPage = LandingPage::where('resource_id', $resourceId)->first();
+
+        // Landing page must exist
+        abort_if(! $landingPage, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+
+        // If preview token is provided, validate it
+        if ($previewToken) {
+            abort_if(
+                $landingPage->preview_token !== $previewToken,
+                HttpResponse::HTTP_FORBIDDEN,
+                'Invalid preview token'
+            );
+
+            // Preview mode: skip cache and render directly
+        } else {
+            // For public access, landing page must be published
+            abort_if(
+                ! $landingPage->isPublished(),
+                HttpResponse::HTTP_NOT_FOUND,
+                'Landing page not published'
+            );
+
+            // Try to get from cache first (only for published pages)
+            $cached = Cache::get("landing_page.{$resourceId}");
+            if ($cached) {
+                // Increment view count (outside cache)
+                $landingPage->incrementViewCount();
+
+                return $cached;
+            }
+        }
+
+        // Load resource with all necessary relationships
+        $resource = Resource::with([
+            'authors.authorable',
+            'authors.affiliations',
+            'authors.roles',
+            'titles',
+            'descriptions',
+            'licenses',
+            'keywords',
+            'controlledKeywords',
+            'coverages',
+            'dates',
+            'relatedIdentifiers',
+            'fundingReferences',
+            'resourceType',
+            'language',
+        ])->findOrFail($resourceId);
+
+        // Prepare data for template
+        $resourceData = $resource->toArray();
+
+        // Ensure relatedIdentifiers are properly loaded
+        $resourceData['related_identifiers'] = $resource->relatedIdentifiers->map(function ($relatedId) {
+            return [
+                'id' => $relatedId->id,
+                'identifier' => $relatedId->identifier,
+                'identifier_type' => $relatedId->identifier_type,
+                'relation_type' => $relatedId->relation_type,
+                'position' => $relatedId->position,
+                'related_title' => $relatedId->related_title,
+                'related_metadata' => $relatedId->related_metadata,
+            ];
+        })->toArray();
+
+        // Ensure descriptions are properly loaded
+        $resourceData['descriptions'] = $resource->descriptions->map(function ($desc) {
+            return [
+                'id' => $desc->id,
+                'description' => $desc->description,
+                'description_type' => $desc->description_type,
+            ];
+        })->toArray();
+
+        // Ensure authors are properly loaded with roles and affiliations
+        $resourceData['authors'] = $resource->authors->map(function ($author) {
+            $authorData = [
+                'id' => $author->id,
+                'position' => $author->position,
+                'email' => $author->email,
+                'website' => $author->website,
+                'roles' => $author->roles->pluck('name')->toArray(),
+                'affiliations' => $author->affiliations->map(function ($affiliation) {
+                    return [
+                        'id' => $affiliation->id,
+                        'value' => $affiliation->value,
+                        'ror_id' => $affiliation->ror_id,
+                    ];
+                })->toArray(),
+            ];
+
+            // Add authorable data (Person or Institution)
+            if ($author->authorable) {
+                /** @var \App\Models\Person|\App\Models\Institution $authorable */
+                $authorable = $author->authorable;
+                $authorData['authorable'] = [
+                    'type' => class_basename($author->authorable_type),
+                    'id' => $authorable->id,
+                    'first_name' => $authorable->first_name ?? null,
+                    'last_name' => $authorable->last_name ?? null,
+                    'orcid' => $authorable->orcid ?? null,
+                    'name' => $authorable->name ?? null,
+                ];
+            }
+
+            return $authorData;
+        })->toArray();
+
+        // Ensure funding references are properly loaded
+        $resourceData['funding_references'] = $resource->fundingReferences->map(function ($funding) {
+            return [
+                'id' => $funding->id,
+                'funder_name' => $funding->funder_name,
+                'funder_identifier' => $funding->funder_identifier,
+                'funder_identifier_type' => $funding->funder_identifier_type,
+                'award_number' => $funding->award_number,
+                'award_uri' => $funding->award_uri,
+                'award_title' => $funding->award_title,
+                'position' => $funding->position,
+            ];
+        })->toArray();
+
+        // Ensure keywords are properly loaded
+        $resourceData['keywords'] = $resource->keywords->map(function ($keyword) {
+            return [
+                'id' => $keyword->id,
+                'keyword' => $keyword->keyword,
+            ];
+        })->toArray();
+
+        // Ensure controlled keywords are properly loaded
+        $resourceData['controlled_keywords'] = $resource->controlledKeywords->map(function ($keyword) {
+            return [
+                'id' => $keyword->id,
+                'text' => $keyword->text,
+                'path' => $keyword->path,
+                'scheme' => $keyword->scheme,
+                'scheme_uri' => $keyword->scheme_uri,
+            ];
+        })->toArray();
+
+        $data = [
+            'resource' => $resourceData,
+            'landingPage' => $landingPage->toArray(),
+            'isPreview' => (bool) $previewToken,
+        ];
+
+        // Render via template system (will be implemented in Sprint 3 Step 12)
+        $response = Inertia::render("LandingPages/{$landingPage->template}", $data);
+
+        // Cache and increment view count for published pages (not previews)
+        if (! $previewToken) {
+            $landingPage->incrementViewCount();
+
+            // Cache published pages for 24 hours
+            Cache::put("landing_page.{$resourceId}", $response, now()->addDay());
+        }
+
+        return $response;
+    }
+}

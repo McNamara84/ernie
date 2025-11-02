@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ResourceType extends Model
@@ -25,7 +25,7 @@ class ResourceType extends Model
     ];
 
     /**
-     * @param Builder<ResourceType> $query
+     * @param  Builder<ResourceType>  $query
      * @return Builder<ResourceType>
      */
     public function scopeActive(Builder $query): Builder
@@ -34,7 +34,7 @@ class ResourceType extends Model
     }
 
     /**
-     * @param Builder<ResourceType> $query
+     * @param  Builder<ResourceType>  $query
      * @return Builder<ResourceType>
      */
     public function scopeElmoActive(Builder $query): Builder
@@ -43,7 +43,7 @@ class ResourceType extends Model
     }
 
     /**
-     * @param Builder<ResourceType> $query
+     * @param  Builder<ResourceType>  $query
      * @return Builder<ResourceType>
      */
     public function scopeOrderByName(Builder $query): Builder

@@ -6,7 +6,6 @@ namespace Tests\Feature;
 
 use App\Models\RelatedIdentifier;
 use App\Models\Resource;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,7 +22,7 @@ class RelatedWorkTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->resource = Resource::factory()->create();
     }
 
@@ -183,7 +182,7 @@ class RelatedWorkTest extends TestCase
 
         // Refresh the model to load relationships
         $this->resource->refresh();
-        
+
         $relatedIdentifiers = $this->resource->relatedIdentifiers()->get();
         $this->assertCount(2, $relatedIdentifiers);
         $this->assertEquals('10.1111/first', $relatedIdentifiers[0]->identifier);

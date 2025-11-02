@@ -1,23 +1,24 @@
 <?php
 
-use App\Http\Controllers\ResourceController;
+use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\LandingPagePreviewController;
+use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
+use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
-use App\Models\License;
 use App\Models\Resource;
 use App\Models\Setting;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
         'timestamp' => now()->toISOString(),
-        'laravel' => app()->version()
+        'laravel' => app()->version(),
     ]);
 })->name('health');
 
@@ -28,7 +29,7 @@ Route::get('/debug', function () {
         'redis' => Cache::get('test') !== null ? 'Available' : 'Testing...',
         'app_key' => config('app.key') ? 'Set' : 'Missing',
         'app_url' => config('app.url'),
-        'environment' => app()->environment()
+        'environment' => app()->environment(),
     ]);
 })->name('debug');
 
@@ -47,6 +48,11 @@ Route::get('/legal-notice', function () {
 Route::get('/changelog', function () {
     return Inertia::render('changelog');
 })->name('changelog');
+
+// Public Landing Pages (accessible without authentication)
+Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'show'])
+    ->name('landing-page.show')
+    ->where('resourceId', '[0-9]+');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
@@ -117,6 +123,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
 
+    // Landing Page Management (Admin)
+    Route::post('resources/{resource}/landing-page', [LandingPageController::class, 'store'])
+        ->name('landing-page.store');
+
+    Route::put('resources/{resource}/landing-page', [LandingPageController::class, 'update'])
+        ->name('landing-page.update');
+
+    Route::delete('resources/{resource}/landing-page', [LandingPageController::class, 'destroy'])
+        ->name('landing-page.destroy');
+
+    Route::get('resources/{resource}/landing-page', [LandingPageController::class, 'get'])
+        ->name('landing-page.get');
+
+    // Landing Page Temporary Preview (Session-based)
+    Route::post('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'store'])
+        ->name('landing-page.preview.store');
+
+    Route::get('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'show'])
+        ->name('landing-page.preview.show');
+
+    Route::delete('resources/{resource}/landing-page/preview', [LandingPagePreviewController::class, 'destroy'])
+        ->name('landing-page.preview.destroy');
+
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
 
@@ -137,10 +166,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('editor', function (\Illuminate\Http\Request $request) {
         // Define author/contributor exclusion roles
         $excludedAuthorRoles = ['author', 'contact-person'];
-        
+
         // Check if we're loading an existing resource
         $resourceId = $request->query('resourceId');
-        
+
         // If resourceId is provided, load the resource from database
         if ($resourceId !== null) {
             /** @var \App\Models\Resource $resource */
@@ -182,12 +211,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     if ($author->authorable_type === \App\Models\Institution::class) {
                         /** @var \App\Models\Institution $institution */
                         $institution = $author->authorable;
+
                         return $institution->identifier_type !== 'labid';
                     }
+
                     return true;
                 })
                 ->groupBy(function ($author) {
-                    return $author->authorable_type . '_' . $author->authorable_id;
+                    return $author->authorable_type.'_'.$author->authorable_id;
                 });
 
             // Transform authors (those with 'author' role)
@@ -203,6 +234,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 // Check if this group has only non-author roles (contributor roles)
                 $hasOnlyContributorRoles = $group->every(function ($author) use ($excludedAuthorRoles) {
                     $roles = $author->roles->pluck('slug')->toArray();
+
                     return empty(array_intersect($roles, $excludedAuthorRoles));
                 });
 
@@ -221,7 +253,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     return $author->affiliations;
                 })->unique(function ($affiliation) {
                     // Unique by value and ror_id combination
-                    return $affiliation->value . '|' . ($affiliation->ror_id ?? 'null');
+                    return $affiliation->value.'|'.($affiliation->ror_id ?? 'null');
                 });
 
                 if ($hasAuthorRole) {
@@ -239,9 +271,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $data['orcid'] = $authorable->orcid ?? '';
                         $data['email'] = $firstEntry->email ?? '';
                         $data['website'] = $firstEntry->website ?? '';
-                        
+
                         // Mark ORCID as verified if it exists (to prevent re-verification)
-                        if (!empty($authorable->orcid) && $authorable->orcid_verified_at) {
+                        if (! empty($authorable->orcid) && $authorable->orcid_verified_at) {
                             $data['orcidVerified'] = true;
                             $data['orcidVerifiedAt'] = $authorable->orcid_verified_at->toIso8601String();
                         }
@@ -273,9 +305,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $data['firstName'] = $personAuthorable->first_name ?? '';
                         $data['lastName'] = $personAuthorable->last_name ?? '';
                         $data['orcid'] = $personAuthorable->orcid ?? '';
-                        
+
                         // Mark ORCID as verified if it exists (to prevent re-verification)
-                        if (!empty($personAuthorable->orcid) && $personAuthorable->orcid_verified_at) {
+                        if (! empty($personAuthorable->orcid) && $personAuthorable->orcid_verified_at) {
                             $data['orcidVerified'] = true;
                             $data['orcidVerifiedAt'] = $personAuthorable->orcid_verified_at->toIso8601String();
                         }
@@ -292,10 +324,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     $allRoles = $group->flatMap(function ($author) {
                         return $author->roles;
                     })->unique('id')
-                    ->filter(fn($role) => !in_array($role->slug, ['author', 'contact-person']))
-                    ->pluck('name')
-                    ->values()
-                    ->toArray();
+                        ->filter(fn ($role) => ! in_array($role->slug, ['author', 'contact-person']))
+                        ->pluck('name')
+                        ->values()
+                        ->toArray();
 
                     $data['roles'] = $allRoles;
 
@@ -312,8 +344,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
 
             // Sort by position
-            usort($authors, fn(array $a, array $b): int => $a['position'] <=> $b['position']);
-            usort($contributors, fn(array $a, array $b): int => $a['position'] <=> $b['position']);
+            usort($authors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
+            usort($contributors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
 
             // Transform descriptions
             // Convert database description_type (lowercase/kebab-case) to frontend format (PascalCase)
@@ -325,10 +357,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'technical-info' => 'TechnicalInfo',
                 'other' => 'Other',
             ];
-            
+
             $descriptions = $resource->descriptions->map(function ($description) use ($descriptionTypeMap) {
                 $frontendType = $descriptionTypeMap[$description->description_type] ?? 'Other';
-                
+
                 return [
                     'type' => $frontendType,
                     'description' => $description->description,
@@ -350,7 +382,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                             $startDate = '';
                         }
                     }
-                    
+
                     $endDate = '';
                     if ($date->end_date) {
                         try {
@@ -359,7 +391,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                             $endDate = '';
                         }
                     }
-                    
+
                     return [
                         'dateType' => $date->date_type,
                         'startDate' => $startDate,
@@ -396,7 +428,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $startDate = '';
                     }
                 }
-                
+
                 $endDate = '';
                 if ($coverage->end_date) {
                     try {
@@ -405,7 +437,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         $endDate = '';
                     }
                 }
-                
+
                 return [
                     'id' => (string) $coverage->id,
                     'latMin' => $coverage->lat_min !== null ? (string) $coverage->lat_min : '',
@@ -427,14 +459,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->map(function ($relatedId) {
                     return [
                         'identifier' => $relatedId->identifier,
-                        'identifierType' => $relatedId->identifier_type,
-                        'relationType' => $relatedId->relation_type,
+                        'identifier_type' => $relatedId->identifier_type,
+                        'relation_type' => $relatedId->relation_type,
                     ];
                 })
                 ->values()
-                ->toArray();
-
-            // Transform funding references
+                ->toArray();            // Transform funding references
             $fundingReferences = $resource->fundingReferences
                 ->sortBy('position')
                 ->map(function ($funding) {
@@ -456,15 +486,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     if ($author->authorable_type === \App\Models\Institution::class) {
                         /** @var \App\Models\Institution $institution */
                         $institution = $author->authorable;
+
                         return $institution->identifier_type === 'labid';
                     }
+
                     return false;
                 })
                 ->map(function ($author) {
                     /** @var \App\Models\Institution $institution */
                     $institution = $author->authorable;
                     $affiliation = $author->affiliations->first();
-                    
+
                     return [
                         'identifier' => $institution->identifier ?? '',
                         'name' => $institution->name ?? '',
@@ -520,6 +552,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $item['relation_type'] = $item['relationType'];
                 unset($item['relationType']);
             }
+
             return $item;
         }, $relatedWorks);
 

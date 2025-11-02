@@ -36,8 +36,6 @@ import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
     validateDate,
     validateDOIFormat,
-    validateEmail,
-    validateORCID,
     validateRequired,
     validateSemanticVersion,
     validateTextLength,

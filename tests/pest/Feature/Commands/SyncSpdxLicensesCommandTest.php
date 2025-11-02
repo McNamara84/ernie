@@ -1,8 +1,8 @@
 <?php
 
 use App\Models\License;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -37,4 +37,3 @@ it('reports detailed error when fetch fails', function () {
         ->expectsOutput('Failed to fetch SPDX licenses: HTTP 500 oops')
         ->assertExitCode(1);
 });
-

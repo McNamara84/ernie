@@ -93,9 +93,9 @@ class UploadXmlController extends Controller
         $dates = $this->extractDates($reader);
         $coverages = $this->extractCoverages($reader, $dates);
         $gcmdKeywords = $this->extractGcmdKeywords($reader);
-        
+
         // Use dedicated service for keyword extraction
-        $keywordExtractor = new XmlKeywordExtractor();
+        $keywordExtractor = new XmlKeywordExtractor;
         $freeKeywords = $keywordExtractor->extractFreeKeywords($reader);
         $mslKeywords = $keywordExtractor->extractMslKeywords($reader);
 
@@ -255,7 +255,7 @@ class UploadXmlController extends Controller
 
     /**
      * Extract both regular contributors and MSL laboratories
-     * 
+     *
      * @return array{contributors: array<int, array<string, mixed>>, mslLaboratories: array<int, array<string, string>>}
      */
     private function extractContributorsAndMslLaboratories(XmlReader $reader): array
@@ -287,9 +287,9 @@ class UploadXmlController extends Controller
                     'labId' => $labId,
                     'contributorType' => $contributorType,
                 ]);
-                
+
                 $mslLab = $this->extractMslLaboratory($content, $labId);
-                
+
                 if ($mslLab !== null) {
                     Log::info('MSL Laboratory extracted successfully', $mslLab);
                     $mslLaboratories[] = $mslLab;
@@ -298,6 +298,7 @@ class UploadXmlController extends Controller
                         'labId' => $labId,
                     ]);
                 }
+
                 continue; // Don't add to contributors
             }
 
@@ -434,18 +435,18 @@ class UploadXmlController extends Controller
 
     /**
      * Extract spatial and temporal coverages from DataCite XML.
-     * 
+     *
      * DataCite stores:
      * - Spatial coverage in <geoLocations> (with geoLocationPoint and geoLocationBox)
      * - Temporal coverage as <date dateType="Coverage">
-     * 
-     * @param array<int, array<string, string>> $dates Already extracted dates (to find Coverage date)
+     *
+     * @param  array<int, array<string, string>>  $dates  Already extracted dates (to find Coverage date)
      * @return array<int, array<string, string>>
      */
     private function extractCoverages(XmlReader $reader, array $dates): array
     {
         $coverages = [];
-        
+
         // Extract temporal coverage from dates with type "coverage"
         $temporalCoverage = null;
         foreach ($dates as $date) {
@@ -454,12 +455,12 @@ class UploadXmlController extends Controller
                 break;
             }
         }
-        
+
         // Extract geoLocations
         $geoLocationElements = $reader
             ->xpathElement('//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]')
             ->get();
-        
+
         if (count($geoLocationElements) === 0 && $temporalCoverage !== null) {
             // Only temporal coverage, no spatial data
             $coverages[] = [
@@ -475,14 +476,14 @@ class UploadXmlController extends Controller
                 'timezone' => 'UTC',
                 'description' => '',
             ];
-            
+
             return $coverages;
         }
-        
+
         $index = 1;
         foreach ($geoLocationElements as $geoLocationIndex => $geoLocation) {
             $coverage = [
-                'id' => 'coverage-' . $index,
+                'id' => 'coverage-'.$index,
                 'latMin' => '',
                 'latMax' => '',
                 'lonMin' => '',
@@ -494,62 +495,62 @@ class UploadXmlController extends Controller
                 'timezone' => 'UTC',
                 'description' => '',
             ];
-            
+
             // Build XPath base for this specific geoLocation element
             // Cast to int to ensure type safety for PHPStan
-            $geoLocationPath = '/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"][' . ((int) $geoLocationIndex + 1) . ']';
-            
+            $geoLocationPath = '/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]['.((int) $geoLocationIndex + 1).']';
+
             // Extract geoLocationPlace (description)
             $place = $this->extractFirstStringFromQuery(
-                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationPlace"]')
+                $reader->xpathValue($geoLocationPath.'/*[local-name()="geoLocationPlace"]')
             );
             if ($place !== null) {
                 $coverage['description'] = trim($place);
             }
-            
+
             // Extract geoLocationPoint
             $latText = $this->extractFirstStringFromQuery(
-                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationPoint"]/*[local-name()="pointLatitude"]')
+                $reader->xpathValue($geoLocationPath.'/*[local-name()="geoLocationPoint"]/*[local-name()="pointLatitude"]')
             );
             $lonText = $this->extractFirstStringFromQuery(
-                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationPoint"]/*[local-name()="pointLongitude"]')
+                $reader->xpathValue($geoLocationPath.'/*[local-name()="geoLocationPoint"]/*[local-name()="pointLongitude"]')
             );
-            
+
             if ($latText !== null && $lonText !== null) {
                 $coverage['latMin'] = $this->formatCoordinate($latText);
                 $coverage['lonMin'] = $this->formatCoordinate($lonText);
                 // For points, leave latMax and lonMax empty (ERNIE convention)
             }
-            
+
             // Extract geoLocationBox (takes precedence if both exist)
             $west = $this->extractFirstStringFromQuery(
-                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="westBoundLongitude"]')
+                $reader->xpathValue($geoLocationPath.'/*[local-name()="geoLocationBox"]/*[local-name()="westBoundLongitude"]')
             );
             $east = $this->extractFirstStringFromQuery(
-                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="eastBoundLongitude"]')
+                $reader->xpathValue($geoLocationPath.'/*[local-name()="geoLocationBox"]/*[local-name()="eastBoundLongitude"]')
             );
             $south = $this->extractFirstStringFromQuery(
-                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="southBoundLatitude"]')
+                $reader->xpathValue($geoLocationPath.'/*[local-name()="geoLocationBox"]/*[local-name()="southBoundLatitude"]')
             );
             $north = $this->extractFirstStringFromQuery(
-                $reader->xpathValue($geoLocationPath . '/*[local-name()="geoLocationBox"]/*[local-name()="northBoundLatitude"]')
+                $reader->xpathValue($geoLocationPath.'/*[local-name()="geoLocationBox"]/*[local-name()="northBoundLatitude"]')
             );
-            
+
             if ($west !== null && $east !== null && $south !== null && $north !== null) {
                 $coverage['lonMin'] = $this->formatCoordinate($west);
                 $coverage['lonMax'] = $this->formatCoordinate($east);
                 $coverage['latMin'] = $this->formatCoordinate($south);
                 $coverage['latMax'] = $this->formatCoordinate($north);
             }
-            
+
             // Only add coverage if it has at least coordinates or description
-            if ($coverage['latMin'] !== '' || $coverage['lonMin'] !== '' || 
+            if ($coverage['latMin'] !== '' || $coverage['lonMin'] !== '' ||
                 $coverage['description'] !== '' || $coverage['startDate'] !== '') {
                 $coverages[] = $coverage;
                 $index++;
             }
         }
-        
+
         return $coverages;
     }
 
@@ -562,15 +563,16 @@ class UploadXmlController extends Controller
         if ($trimmed === '') {
             return '';
         }
-        
+
         $float = (float) $trimmed;
+
         return number_format($float, 6, '.', '');
     }
 
     /**
-     * @param array<int, array<string, mixed>> $contributors
-     * @param array<string, int> $indexByKey
-     * @param array<string, mixed> $contributor
+     * @param  array<int, array<string, mixed>>  $contributors
+     * @param  array<string, int>  $indexByKey
+     * @param  array<string, mixed>  $contributor
      * @return array<int, array<string, mixed>>
      */
     private function storeContributor(
@@ -612,8 +614,8 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $primary
-     * @param array<string, mixed> $incoming
+     * @param  array<string, mixed>  $primary
+     * @param  array<string, mixed>  $incoming
      * @return array<string, mixed>
      */
     private function mergeContributorEntries(array $primary, array $incoming): array
@@ -639,8 +641,8 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<int, mixed> $existing
-     * @param array<int, mixed> $incoming
+     * @param  array<int, mixed>  $existing
+     * @param  array<int, mixed>  $incoming
      * @return array<int, string>
      */
     private function mergeContributorRoles(array $existing, array $incoming): array
@@ -659,8 +661,8 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $primary
-     * @param array<string, mixed> $incoming
+     * @param  array<string, mixed>  $primary
+     * @param  array<string, mixed>  $incoming
      * @return array<string, mixed>
      */
     private function mergePersonContributor(array $primary, array $incoming): array
@@ -689,8 +691,8 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $primary
-     * @param array<string, mixed> $incoming
+     * @param  array<string, mixed>  $primary
+     * @param  array<string, mixed>  $incoming
      * @return array<string, mixed>
      */
     private function mergeInstitutionContributor(array $primary, array $incoming): array
@@ -715,8 +717,8 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<int, mixed> $existing
-     * @param array<int, mixed> $incoming
+     * @param  array<int, mixed>  $existing
+     * @param  array<int, mixed>  $incoming
      * @return array<int, array{value: string, rorId: ?string}>
      */
     private function mergeAffiliations(array $existing, array $incoming): array
@@ -746,9 +748,9 @@ class UploadXmlController extends Controller
                 }
 
                 if ($rorId !== null) {
-                    $key = 'ror:' . Str::lower($rorId);
+                    $key = 'ror:'.Str::lower($rorId);
                 } else {
-                    $key = 'value:' . Str::lower($value);
+                    $key = 'value:'.Str::lower($value);
                 }
 
                 if (isset($seen[$key])) {
@@ -778,7 +780,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $contributor
+     * @param  array<string, mixed>  $contributor
      * @return string[]
      */
     private function buildContributorAggregationKeys(array $contributor): array
@@ -794,14 +796,14 @@ class UploadXmlController extends Controller
             $orcid = $this->normaliseIdentifier($contributor['orcid'] ?? null);
 
             if ($orcid !== null) {
-                $keys[] = 'person:orcid:' . $orcid;
+                $keys[] = 'person:orcid:'.$orcid;
             }
 
             $lastName = $this->normaliseKeyString($contributor['lastName'] ?? null);
             $firstName = $this->normaliseKeyString($contributor['firstName'] ?? null);
 
             if ($lastName !== null || $firstName !== null) {
-                $keys[] = 'person:name:' . ($lastName ?? '') . ':' . ($firstName ?? '');
+                $keys[] = 'person:name:'.($lastName ?? '').':'.($firstName ?? '');
             }
 
             return $keys;
@@ -821,14 +823,14 @@ class UploadXmlController extends Controller
                 $rorId = $this->normaliseIdentifier($affiliation['rorId'] ?? null);
 
                 if ($rorId !== null) {
-                    $keys[] = 'institution:ror:' . $rorId;
+                    $keys[] = 'institution:ror:'.$rorId;
                 }
             }
 
             $institutionName = $this->normaliseKeyString($contributor['institutionName'] ?? null);
 
             if ($institutionName !== null) {
-                $keys[] = 'institution:name:' . $institutionName;
+                $keys[] = 'institution:name:'.$institutionName;
             }
 
             return $keys;
@@ -932,7 +934,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param string[] $roles
+     * @param  string[]  $roles
      */
     private function isInstitutionContributor(?string $nameType, array $roles): bool
     {
@@ -952,7 +954,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param string[] $roles
+     * @param  string[]  $roles
      */
     private function contributorRolesRequireInstitution(array $roles): bool
     {
@@ -980,7 +982,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $content
+     * @param  array<string, mixed>  $content
      * @return array<int, array{value: string, rorId: string|null}>
      */
     private function extractInstitutionContributorAffiliations(array $content, string $fallbackLabel): array
@@ -1016,7 +1018,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $content
+     * @param  array<string, mixed>  $content
      * @return array<int, array{value: string, rorId: string|null}>
      */
     private function extractAffiliations(array $content): array
@@ -1056,7 +1058,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $content
+     * @param  array<string, mixed>  $content
      */
     private function extractOrcid(array $content): ?string
     {
@@ -1111,9 +1113,8 @@ class UploadXmlController extends Controller
 
     /**
      * Extract MSL Laboratory ID (labid) from contributor content
-     * 
-     * @param array<string, mixed> $content
-     * @return string|null
+     *
+     * @param  array<string, mixed>  $content
      */
     private function extractLabId(array $content): ?string
     {
@@ -1124,7 +1125,7 @@ class UploadXmlController extends Controller
 
             if (is_string($scheme) && Str::lower($scheme) === 'labid') {
                 $value = $this->stringValue($element);
-                
+
                 if (is_string($value) && trim($value) !== '') {
                     return trim($value);
                 }
@@ -1136,9 +1137,8 @@ class UploadXmlController extends Controller
 
     /**
      * Extract and enrich MSL Laboratory data
-     * 
-     * @param array<string, mixed> $content
-     * @param string $labId
+     *
+     * @param  array<string, mixed>  $content
      * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}|null
      */
     private function extractMslLaboratory(array $content, string $labId): ?array
@@ -1152,32 +1152,32 @@ class UploadXmlController extends Controller
         // Get affiliation info from XML
         $affiliationElement = $this->firstElement($content, 'affiliation');
         $affiliationName = $this->stringValue($affiliationElement);
-        
+
         // Extract ROR if present - check scheme first, then fallback to identifier inspection
         $affiliationRor = null;
         $affiliationIdentifier = $affiliationElement?->getAttribute('affiliationIdentifier');
         $affiliationScheme = $affiliationElement?->getAttribute('affiliationIdentifierScheme');
-        
+
         Log::debug('Extracting MSL Lab affiliation', [
             'labId' => $labId,
             'affiliationName' => $affiliationName,
             'affiliationIdentifier' => $affiliationIdentifier,
             'affiliationScheme' => $affiliationScheme,
         ]);
-        
+
         if ($affiliationIdentifier) {
             // Explicit ROR scheme OR identifier looks like a ROR
-            $isRor = ($affiliationScheme === 'ROR') || 
+            $isRor = ($affiliationScheme === 'ROR') ||
                      str_contains(strtolower($affiliationIdentifier), 'ror.org');
-            
+
             if ($isRor) {
                 // Normalize to full URL if not already
                 if (str_starts_with($affiliationIdentifier, 'http')) {
                     $affiliationRor = $affiliationIdentifier;
                 } else {
-                    $affiliationRor = 'https://ror.org/' . $affiliationIdentifier;
+                    $affiliationRor = 'https://ror.org/'.$affiliationIdentifier;
                 }
-                
+
                 Log::debug('ROR identified and normalized', [
                     'original' => $affiliationIdentifier,
                     'normalized' => $affiliationRor,
@@ -1198,6 +1198,7 @@ class UploadXmlController extends Controller
             Log::warning('MSL Laboratory extracted without name', [
                 'labId' => $labId,
             ]);
+
             return null;
         }
 
@@ -1259,19 +1260,22 @@ class UploadXmlController extends Controller
         // If already a full URL, extract and normalize
         if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
             $rorId = trim($matches[1]);
-            return $rorId !== '' ? 'https://ror.org/' . Str::lower($rorId) : null;
+
+            return $rorId !== '' ? 'https://ror.org/'.Str::lower($rorId) : null;
         }
 
         // If it contains a path structure, extract it
         $parsed = parse_url($trimmed);
         if ($parsed !== false && isset($parsed['path'])) {
             $path = trim((string) $parsed['path'], '/');
-            return $path !== '' ? 'https://ror.org/' . Str::lower($path) : null;
+
+            return $path !== '' ? 'https://ror.org/'.Str::lower($path) : null;
         }
 
         // Otherwise, treat as ROR ID and prepend URL
         $path = Str::lower(trim($trimmed, '/'));
-        return $path !== '' ? 'https://ror.org/' . $path : null;
+
+        return $path !== '' ? 'https://ror.org/'.$path : null;
     }
 
     private function loadAffiliationMap(): void
@@ -1322,7 +1326,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $content
+     * @param  array<string, mixed>  $content
      */
     private function firstElement(array $content, string $key): ?Element
     {
@@ -1332,7 +1336,7 @@ class UploadXmlController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $content
+     * @param  array<string, mixed>  $content
      * @return Element[]
      */
     private function allElements(array $content, string $key): array
@@ -1468,8 +1472,8 @@ class UploadXmlController extends Controller
 
             // Extract UUID from valueURI using shared utility
             $uuid = GcmdUriHelper::extractUuid($valueUri);
-            
-            if (!$uuid) {
+
+            if (! $uuid) {
                 continue;
             }
 

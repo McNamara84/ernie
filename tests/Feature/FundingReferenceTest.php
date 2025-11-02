@@ -22,7 +22,7 @@ class FundingReferenceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->resource = Resource::factory()->create();
     }
 
@@ -108,7 +108,7 @@ class FundingReferenceTest extends TestCase
         ]);
 
         $this->assertCount(3, $this->resource->fresh()->fundingReferences);
-        
+
         $fundingRefs = $this->resource->fresh()->fundingReferences->sortBy('position');
         $this->assertEquals('European Research Council', $fundingRefs->first()->funder_name);
         $this->assertEquals('German Research Foundation', $fundingRefs->last()->funder_name);

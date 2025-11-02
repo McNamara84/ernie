@@ -17,4 +17,3 @@ it('schedules SPDX license sync monthly', function () {
     expect($event)->not->toBeNull()
         ->and($event->expression)->toBe('0 0 1 * *');
 });
-

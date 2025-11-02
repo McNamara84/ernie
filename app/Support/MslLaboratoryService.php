@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 class MslLaboratoryService
 {
     private const CACHE_KEY = 'msl_laboratories';
-    
+
     private const CACHE_TTL = 86400; // 24 hours
 
     /**
@@ -40,6 +40,7 @@ class MslLaboratoryService
         $cached = Cache::get(self::CACHE_KEY);
         if (is_array($cached)) {
             $this->laboratoriesById = $cached;
+
             return $cached;
         }
 
@@ -54,6 +55,7 @@ class MslLaboratoryService
                     'url' => $vocabularyUrl,
                 ]);
                 $this->laboratoriesById = [];
+
                 return [];
             }
 
@@ -62,6 +64,7 @@ class MslLaboratoryService
             if (! is_array($laboratories)) {
                 Log::error('MSL laboratories JSON is not an array');
                 $this->laboratoriesById = [];
+
                 return [];
             }
 
@@ -84,6 +87,7 @@ class MslLaboratoryService
             Cache::put(self::CACHE_KEY, $indexed, self::CACHE_TTL);
 
             $this->laboratoriesById = $indexed;
+
             return $indexed;
         } catch (\Exception $e) {
             Log::error('Exception while fetching MSL laboratories', [
@@ -91,6 +95,7 @@ class MslLaboratoryService
                 'url' => $vocabularyUrl,
             ]);
             $this->laboratoriesById = [];
+
             return [];
         }
     }
@@ -98,7 +103,7 @@ class MslLaboratoryService
     /**
      * Find laboratory by identifier (labid)
      *
-     * @param string $labId The laboratory identifier
+     * @param  string  $labId  The laboratory identifier
      * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}|null
      */
     public function findByLabId(string $labId): ?array
@@ -111,8 +116,7 @@ class MslLaboratoryService
     /**
      * Validate if a labid exists
      *
-     * @param string $labId The laboratory identifier
-     * @return bool
+     * @param  string  $labId  The laboratory identifier
      */
     public function isValidLabId(string $labId): bool
     {
@@ -123,11 +127,11 @@ class MslLaboratoryService
 
     /**
      * Enrich laboratory data with information from the vocabulary
-     * 
-     * @param string $labId The laboratory identifier
-     * @param string|null $name Laboratory name from XML (fallback)
-     * @param string|null $affiliationName Affiliation name from XML (fallback)
-     * @param string|null $affiliationRor ROR URL from XML (fallback)
+     *
+     * @param  string  $labId  The laboratory identifier
+     * @param  string|null  $name  Laboratory name from XML (fallback)
+     * @param  string|null  $affiliationName  Affiliation name from XML (fallback)
+     * @param  string|null  $affiliationRor  ROR URL from XML (fallback)
      * @return array{identifier: string, name: string, affiliation_name: string, affiliation_ror: string}
      */
     public function enrichLaboratoryData(
@@ -164,8 +168,6 @@ class MslLaboratoryService
 
     /**
      * Clear the cached laboratories data
-     *
-     * @return void
      */
     public function clearCache(): void
     {

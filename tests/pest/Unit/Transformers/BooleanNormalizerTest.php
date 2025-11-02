@@ -27,7 +27,8 @@ it('detects falsey boolean values', function (mixed $value): void {
     '0',
     0,
     0.0,
-    new class {
+    new class
+    {
         public function __toString(): string
         {
             return 'false';

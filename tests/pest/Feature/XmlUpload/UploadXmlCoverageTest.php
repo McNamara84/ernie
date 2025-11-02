@@ -9,7 +9,7 @@ uses(RefreshDatabase::class);
 test('extracts spatial coverage from geoLocationPoint', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://datacite.org/schema/kernel-4"
@@ -56,7 +56,7 @@ XML;
 test('extracts spatial coverage from geoLocationBox', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://datacite.org/schema/kernel-4"
@@ -101,7 +101,7 @@ XML;
 test('extracts temporal coverage from date type coverage', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://datacite.org/schema/kernel-4"
@@ -144,7 +144,7 @@ XML;
 test('handles multiple geoLocation entries', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://datacite.org/schema/kernel-4"
@@ -195,7 +195,7 @@ XML;
 test('returns empty array when no geoLocations exist', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://datacite.org/schema/kernel-4"
@@ -226,7 +226,7 @@ XML;
 test('geoLocationBox takes precedence over geoLocationPoint when both exist', function () {
     $this->actingAs(User::factory()->create());
 
-    $xml = <<<XML
+    $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns="http://datacite.org/schema/kernel-4"

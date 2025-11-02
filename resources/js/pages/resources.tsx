@@ -1,11 +1,12 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
+import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -476,8 +477,20 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         }
     }, []);
 
+    const handleSetupLandingPage = useCallback((resource: Resource) => {
+        setSelectedResourceForLandingPage(resource);
+        setIsLandingPageModalOpen(true);
+    }, []);
+
+    const handleCloseLandingPageModal = useCallback(() => {
+        setIsLandingPageModalOpen(false);
+        setSelectedResourceForLandingPage(null);
+    }, []);
+
     const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
     const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());
+    const [selectedResourceForLandingPage, setSelectedResourceForLandingPage] = useState<Resource | null>(null);
+    const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -1072,6 +1085,16 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                         type="button"
                                                                         variant="ghost"
                                                                         size="icon"
+                                                                        onClick={() => handleSetupLandingPage(resource)}
+                                                                        aria-label={`Setup landing page for resource ${resourceLabel}`}
+                                                                        title={`Setup landing page for resource ${resourceLabel}`}
+                                                                    >
+                                                                        <Eye aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
                                                                         disabled
                                                                         aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
                                                                         title="Delete resource (not yet implemented)"
@@ -1124,6 +1147,15 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Landing Page Setup Modal */}
+            {selectedResourceForLandingPage && (
+                <SetupLandingPageModal
+                    isOpen={isLandingPageModalOpen}
+                    resource={selectedResourceForLandingPage}
+                    onClose={handleCloseLandingPageModal}
+                />
+            )}
         </AppLayout>
     );
 }

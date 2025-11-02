@@ -8,13 +8,12 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceAuthor;
 use App\Models\ResourceTitle;
-use App\Models\Role;
 use App\Models\ResourceType;
+use App\Models\Role;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -241,7 +240,7 @@ it('caps the per page parameter to protect performance', function (): void {
 
     // Test that requesting 500 per page gets capped to MAX_PER_PAGE (100)
     $response = get(route('resources', ['per_page' => 500, 'page' => 1]));
-    
+
     $response
         ->assertOk()
         ->assertInertia(fn (Assert $page): Assert => $page
@@ -251,11 +250,11 @@ it('caps the per page parameter to protect performance', function (): void {
             ->where('pagination.total', 150)
             ->where('pagination.has_more', true)
         );
-    
+
     // Debug: Check actual count
     $resourcesCount = count($response->viewData('page')['props']['resources']);
     expect($resourcesCount)->toBe(100, "Expected 100 resources but got {$resourcesCount}");
-    
+
     // Test that negative page numbers are corrected to 1
     get(route('resources', ['per_page' => 50, 'page' => -3]))
         ->assertOk()
@@ -1038,7 +1037,7 @@ it('sorts resources by id in ascending order', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $resource1 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1048,7 +1047,7 @@ it('sorts resources by id in ascending order', function (): void {
         'title' => 'Resource 1',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $resource2 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1073,7 +1072,7 @@ it('sorts resources by id in descending order', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $resource1 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1083,7 +1082,7 @@ it('sorts resources by id in descending order', function (): void {
         'title' => 'Resource 1',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $resource2 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1108,7 +1107,7 @@ it('sorts resources by year', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $resource1 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1118,7 +1117,7 @@ it('sorts resources by year', function (): void {
         'title' => 'Old Resource',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $resource2 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1143,7 +1142,7 @@ it('sorts resources by title', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $resource1 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1153,7 +1152,7 @@ it('sorts resources by title', function (): void {
         'title' => 'Zebra Research',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $resource2 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1178,10 +1177,10 @@ it('sorts resources by curator name', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $userAlice = User::factory()->create(['name' => 'Alice Smith']);
     $userBob = User::factory()->create(['name' => 'Bob Jones']);
-    
+
     $resource1 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1192,7 +1191,7 @@ it('sorts resources by curator name', function (): void {
         'title' => 'Resource by Bob',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $resource2 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1219,7 +1218,7 @@ it('filters resources by resource type', function (): void {
     $textType = ResourceType::factory()->create(['name' => 'Text', 'slug' => 'text']);
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $dataset = Resource::factory()->create([
         'resource_type_id' => $datasetType->id,
         'language_id' => $language->id,
@@ -1229,7 +1228,7 @@ it('filters resources by resource type', function (): void {
         'title' => 'Dataset Resource',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $text = Resource::factory()->create([
         'resource_type_id' => $textType->id,
         'language_id' => $language->id,
@@ -1253,10 +1252,10 @@ it('filters resources by curator', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $alice = User::factory()->create(['name' => 'Alice Smith']);
     $bob = User::factory()->create(['name' => 'Bob Jones']);
-    
+
     $aliceResource = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1267,7 +1266,7 @@ it('filters resources by curator', function (): void {
         'title' => 'Alice Resource',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $bobResource = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1292,7 +1291,7 @@ it('filters resources by year range', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $old = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1302,7 +1301,7 @@ it('filters resources by year range', function (): void {
         'title' => 'Old Resource',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $recent = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1326,7 +1325,7 @@ it('filters resources by text search in title', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $metadata = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1336,7 +1335,7 @@ it('filters resources by text search in title', function (): void {
         'title' => 'Exploring Metadata Standards',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $data = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1360,7 +1359,7 @@ it('filters resources by text search in DOI', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $resource1 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1371,7 +1370,7 @@ it('filters resources by text search in DOI', function (): void {
         'title' => 'Resource 1',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     $resource2 = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1398,7 +1397,7 @@ it('combines multiple filters correctly', function (): void {
     $english = Language::factory()->create(['code' => 'en', 'name' => 'English']);
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
     $user = User::factory()->create(['name' => 'Test Curator']);
-    
+
     // This matches all criteria
     $match = Resource::factory()->create([
         'resource_type_id' => $datasetType->id,
@@ -1410,7 +1409,7 @@ it('combines multiple filters correctly', function (): void {
         'title' => 'Matching Dataset',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     // Wrong type
     $wrongType = Resource::factory()->create([
         'resource_type_id' => $textType->id,
@@ -1422,7 +1421,7 @@ it('combines multiple filters correctly', function (): void {
         'title' => 'Text Resource',
         'title_type_id' => $titleType->id,
     ]);
-    
+
     // Wrong year
     $wrongYear = Resource::factory()->create([
         'resource_type_id' => $datasetType->id,
@@ -1458,7 +1457,7 @@ it('provides filter options endpoint', function (): void {
     $english = Language::factory()->create(['code' => 'en', 'name' => 'English']);
     $user = User::factory()->create(['name' => 'Alice Curator']);
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     $resource = Resource::factory()->create([
         'resource_type_id' => $dataset->id,
         'language_id' => $english->id,
@@ -1488,7 +1487,7 @@ it('loads more resources with pagination', function (): void {
     $resourceType = ResourceType::factory()->create();
     $language = Language::factory()->create();
     $titleType = TitleType::factory()->create(['slug' => 'main-title']);
-    
+
     // Create 60 resources to test pagination (default per_page is 50)
     for ($i = 1; $i <= 60; $i++) {
         $resource = Resource::factory()->create([
@@ -1576,7 +1575,7 @@ it('tracks the creating user when storing a new resource', function (): void {
         ->assertCreated(); // Expecting 201 for resource creation
 
     $resource = Resource::query()->latest('id')->first();
-    
+
     expect($resource->created_by_user_id)->toBe($user->id);
     expect($resource->updated_by_user_id)->toBeNull();
 });
@@ -1596,7 +1595,7 @@ it('tracks the updating user when updating an existing resource', function (): v
 
     // Create resource as creator
     actingAs($creator);
-    
+
     $resource = Resource::factory()->create([
         'resource_type_id' => $resourceType->id,
         'language_id' => $language->id,
@@ -1647,7 +1646,7 @@ it('tracks the updating user when updating an existing resource', function (): v
         ->assertOk();
 
     $resource->refresh();
-    
+
     expect($resource->created_by_user_id)->toBe($creator->id);
     expect($resource->updated_by_user_id)->toBe($updater->id);
 });

@@ -2,22 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class OldDataStatisticsController extends Controller
 {
     private const DATASET_CONNECTION = 'metaworks';
+
     private const CACHE_KEY_PREFIX = 'old_data_stats_';
+
     private const CACHE_DURATION = 60 * 60 * 12; // 12 hours in seconds
 
     /**
      * Display statistics dashboard for old datasets.
-     *
-     * @return \Inertia\Response
      */
     public function index(Request $request): Response
     {
@@ -82,7 +82,7 @@ class OldDataStatisticsController extends Controller
         ];
 
         foreach ($cacheKeys as $key) {
-            Cache::forget(self::CACHE_KEY_PREFIX . $key);
+            Cache::forget(self::CACHE_KEY_PREFIX.$key);
         }
     }
 
@@ -94,7 +94,7 @@ class OldDataStatisticsController extends Controller
     private function getOverviewStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'overview',
+            self::CACHE_KEY_PREFIX.'overview',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -210,7 +210,7 @@ class OldDataStatisticsController extends Controller
     private function getInstitutionStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'institutions',
+            self::CACHE_KEY_PREFIX.'institutions',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -247,7 +247,7 @@ class OldDataStatisticsController extends Controller
     private function getRelatedWorksStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'related_works',
+            self::CACHE_KEY_PREFIX.'related_works',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -328,7 +328,7 @@ class OldDataStatisticsController extends Controller
     private function getPidUsageStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'pid_usage',
+            self::CACHE_KEY_PREFIX.'pid_usage',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -363,7 +363,7 @@ class OldDataStatisticsController extends Controller
     private function getCompletenessStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'completeness',
+            self::CACHE_KEY_PREFIX.'completeness',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -446,7 +446,7 @@ class OldDataStatisticsController extends Controller
     private function getCuratorStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'curators',
+            self::CACHE_KEY_PREFIX.'curators',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -481,7 +481,7 @@ class OldDataStatisticsController extends Controller
     private function getRoleStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'roles',
+            self::CACHE_KEY_PREFIX.'roles',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -516,7 +516,7 @@ class OldDataStatisticsController extends Controller
     private function getTimelineStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'timeline',
+            self::CACHE_KEY_PREFIX.'timeline',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -571,7 +571,7 @@ class OldDataStatisticsController extends Controller
     private function getResourceTypeStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'resource_types',
+            self::CACHE_KEY_PREFIX.'resource_types',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -604,7 +604,7 @@ class OldDataStatisticsController extends Controller
     private function getLanguageStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'languages',
+            self::CACHE_KEY_PREFIX.'languages',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -638,7 +638,7 @@ class OldDataStatisticsController extends Controller
     private function getLicenseStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'licenses',
+            self::CACHE_KEY_PREFIX.'licenses',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -672,7 +672,7 @@ class OldDataStatisticsController extends Controller
     private function getIdentifierStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'identifiers',
+            self::CACHE_KEY_PREFIX.'identifiers',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -720,7 +720,7 @@ class OldDataStatisticsController extends Controller
     private function getCurrentYearStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'current_year',
+            self::CACHE_KEY_PREFIX.'current_year',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -750,13 +750,13 @@ class OldDataStatisticsController extends Controller
     private function getAffiliationStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'affiliations',
+            self::CACHE_KEY_PREFIX.'affiliations',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
 
                 // Max affiliations per author/contributor
-                $results = $db->select("
+                $results = $db->select('
                     SELECT 
                         ra.resource_id,
                         ra.`order`,
@@ -768,12 +768,12 @@ class OldDataStatisticsController extends Controller
                     GROUP BY ra.resource_id, ra.`order`
                     ORDER BY affiliation_count DESC
                     LIMIT 1
-                ");
+                ');
 
-                $maxAffiliations = !empty($results) ? (int) $results[0]->affiliation_count : 0;
+                $maxAffiliations = ! empty($results) ? (int) $results[0]->affiliation_count : 0;
 
                 // Average affiliations per agent
-                $avgResults = $db->select("
+                $avgResults = $db->select('
                     SELECT AVG(affiliation_count) as avg_affiliations
                     FROM (
                         SELECT 
@@ -786,10 +786,10 @@ class OldDataStatisticsController extends Controller
                         WHERE a.resourceagent_resource_id IS NOT NULL
                         GROUP BY ra.resource_id, ra.`order`
                     ) as sub
-                ");
+                ');
 
-                $avgAffiliations = !empty($avgResults) && $avgResults[0]->avg_affiliations !== null 
-                    ? round((float) $avgResults[0]->avg_affiliations, 2) 
+                $avgAffiliations = ! empty($avgResults) && $avgResults[0]->avg_affiliations !== null
+                    ? round((float) $avgResults[0]->avg_affiliations, 2)
                     : 0;
 
                 return [
@@ -808,7 +808,7 @@ class OldDataStatisticsController extends Controller
     private function getKeywordStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'keywords',
+            self::CACHE_KEY_PREFIX.'keywords',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -870,7 +870,7 @@ class OldDataStatisticsController extends Controller
     private function getCreationTimeStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'creation_time',
+            self::CACHE_KEY_PREFIX.'creation_time',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -903,7 +903,7 @@ class OldDataStatisticsController extends Controller
     private function getDescriptionStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'descriptions',
+            self::CACHE_KEY_PREFIX.'descriptions',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
@@ -972,7 +972,7 @@ class OldDataStatisticsController extends Controller
     private function getPublicationYearStats(): array
     {
         return Cache::remember(
-            self::CACHE_KEY_PREFIX . 'publication_years',
+            self::CACHE_KEY_PREFIX.'publication_years',
             self::CACHE_DURATION,
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);

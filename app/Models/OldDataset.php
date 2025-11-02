@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * @property array<string>|null $licenses
@@ -64,7 +64,7 @@ class OldDataset extends Model
     private const ROLE_MAPPING = [
         // Author roles
         'Creator' => 'author',
-        
+
         // Contributor Person roles
         'pointOfContact' => 'contact-person',
         'ContactPerson' => 'contact-person',
@@ -82,7 +82,7 @@ class OldDataset extends Model
         'Supervisor' => 'supervisor',
         'Translator' => 'translator',
         'WorkPackageLeader' => 'work-package-leader',
-        
+
         // Contributor Institution roles
         'Distributor' => 'distributor',
         'HostingInstitution' => 'hosting-institution',
@@ -90,7 +90,7 @@ class OldDataset extends Model
         'RegistrationAuthority' => 'registration-authority',
         'ResearchGroup' => 'research-group',
         'Sponsor' => 'sponsor',
-        
+
         // Common fallback
         'Other' => 'other',
     ];
@@ -98,9 +98,6 @@ class OldDataset extends Model
     /**
      * Map an old role name to a new role slug.
      * Returns 'other' if no mapping is found.
-     *
-     * @param string $oldRole
-     * @return string
      */
     private function mapRole(string $oldRole): string
     {
@@ -154,17 +151,17 @@ class OldDataset extends Model
     public static function getAllOrderedByCreatedDate(): Collection
     {
         return self::select([
-                'resource.id',
-                'resource.identifier',
-                'resource.resourcetypegeneral',
-                'resource.curator',
-                'resource.created_at',
-                'resource.updated_at',
-                'resource.publicstatus',
-                'resource.publisher',
-                'resource.publicationyear',
-                'title.title'
-            ])
+            'resource.id',
+            'resource.identifier',
+            'resource.resourcetypegeneral',
+            'resource.curator',
+            'resource.created_at',
+            'resource.updated_at',
+            'resource.publicstatus',
+            'resource.publisher',
+            'resource.publicationyear',
+            'title.title',
+        ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
             ->orderBy('resource.created_at', 'desc')
             ->get();
@@ -173,10 +170,6 @@ class OldDataset extends Model
     /**
      * Get paginated resources with their titles, ordered by the provided column and direction.
      *
-     * @param int $page
-     * @param int $perPage
-     * @param string $sortKey
-     * @param string $sortDirection
      * @return LengthAwarePaginator<int, OldDataset>
      */
     public static function getPaginatedOrdered(
@@ -201,22 +194,22 @@ class OldDataset extends Model
         };
 
         $query = self::select([
-                'resource.id',
-                'resource.identifier',
-                'resource.resourcetypegeneral',
-                'resource.curator',
-                'resource.created_at',
-                'resource.updated_at',
-                'resource.publicstatus',
-                'resource.publisher',
-                'resource.publicationyear',
-                'resource.version',
-                'resource.language',
-                'title.title',
-                'first_author.first_author_lastname',
-                'first_author.first_author_firstname',
-                'first_author.first_author_name'
-            ])
+            'resource.id',
+            'resource.identifier',
+            'resource.resourcetypegeneral',
+            'resource.curator',
+            'resource.created_at',
+            'resource.updated_at',
+            'resource.publicstatus',
+            'resource.publisher',
+            'resource.publicationyear',
+            'resource.version',
+            'resource.language',
+            'title.title',
+            'first_author.first_author_lastname',
+            'first_author.first_author_firstname',
+            'first_author.first_author_name',
+        ])
             ->leftJoin('title', 'resource.id', '=', 'title.resource_id');
 
         // Always join first author data for display
@@ -247,7 +240,7 @@ class OldDataset extends Model
             '=',
             'first_author.resource_id'
         )->addBinding(self::ROLE_CREATOR, 'join')
-         ->addBinding(self::ROLE_CREATOR, 'join');
+            ->addBinding(self::ROLE_CREATOR, 'join');
 
         // Add ORDER BY clause
         // For first_author sorting, use the name field (which contains "Lastname, Firstname" format)
@@ -275,11 +268,7 @@ class OldDataset extends Model
     /**
      * Get paginated and ordered resources from the old database with optional filters.
      *
-     * @param int $page
-     * @param int $perPage
-     * @param string $sortKey
-     * @param string $sortDirection
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, OldDataset>
      */
     public static function getPaginatedOrderedWithFilters(
@@ -305,22 +294,22 @@ class OldDataset extends Model
         };
 
         $query = self::select([
-                'resource.id',
-                'resource.identifier',
-                'resource.resourcetypegeneral',
-                'resource.curator',
-                'resource.created_at',
-                'resource.updated_at',
-                'resource.publicstatus',
-                'resource.publisher',
-                'resource.publicationyear',
-                'resource.version',
-                'resource.language',
-                'title.title',
-                'first_author.first_author_lastname',
-                'first_author.first_author_firstname',
-                'first_author.first_author_name'
-            ])
+            'resource.id',
+            'resource.identifier',
+            'resource.resourcetypegeneral',
+            'resource.curator',
+            'resource.created_at',
+            'resource.updated_at',
+            'resource.publicstatus',
+            'resource.publisher',
+            'resource.publicationyear',
+            'resource.version',
+            'resource.language',
+            'title.title',
+            'first_author.first_author_lastname',
+            'first_author.first_author_firstname',
+            'first_author.first_author_name',
+        ])
             ->leftJoin(
                 \Illuminate\Support\Facades\DB::raw('(
                     SELECT t1.resource_id, t1.title
@@ -362,26 +351,26 @@ class OldDataset extends Model
             '=',
             'first_author.resource_id'
         )->addBinding(self::ROLE_CREATOR, 'join')
-         ->addBinding(self::ROLE_CREATOR, 'join');
+            ->addBinding(self::ROLE_CREATOR, 'join');
 
         // Apply filters
-        if (!empty($filters['resource_type'])) {
-            $types = is_array($filters['resource_type']) 
-                ? $filters['resource_type'] 
+        if (! empty($filters['resource_type'])) {
+            $types = is_array($filters['resource_type'])
+                ? $filters['resource_type']
                 : [$filters['resource_type']];
             $query->whereIn('resource.resourcetypegeneral', $types);
         }
 
-        if (!empty($filters['curator'])) {
-            $curators = is_array($filters['curator']) 
-                ? $filters['curator'] 
+        if (! empty($filters['curator'])) {
+            $curators = is_array($filters['curator'])
+                ? $filters['curator']
                 : [$filters['curator']];
             $query->whereIn('resource.curator', $curators);
         }
 
-        if (!empty($filters['status'])) {
-            $statuses = is_array($filters['status']) 
-                ? $filters['status'] 
+        if (! empty($filters['status'])) {
+            $statuses = is_array($filters['status'])
+                ? $filters['status']
                 : [$filters['status']];
             $query->whereIn('resource.publicstatus', $statuses);
         }
@@ -394,27 +383,27 @@ class OldDataset extends Model
             $query->where('resource.publicationyear', '<=', (int) $filters['year_to']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title.title', 'like', "%{$search}%")
-                  ->orWhere('resource.identifier', 'like', "%{$search}%");
+                    ->orWhere('resource.identifier', 'like', "%{$search}%");
             });
         }
 
-        if (!empty($filters['created_from'])) {
+        if (! empty($filters['created_from'])) {
             $query->where('resource.created_at', '>=', $filters['created_from']);
         }
 
-        if (!empty($filters['created_to'])) {
+        if (! empty($filters['created_to'])) {
             $query->where('resource.created_at', '<=', $filters['created_to']);
         }
 
-        if (!empty($filters['updated_from'])) {
+        if (! empty($filters['updated_from'])) {
             $query->where('resource.updated_at', '>=', $filters['updated_from']);
         }
 
-        if (!empty($filters['updated_to'])) {
+        if (! empty($filters['updated_to'])) {
             $query->where('resource.updated_at', '<=', $filters['updated_to']);
         }
 
@@ -457,27 +446,27 @@ class OldDataset extends Model
      * Converts names like "Läuchli, Charlotte" to "lauchli charlotte" for comparison.
      * Removes diacritics, punctuation (commas, periods, hyphens), and normalizes whitespace.
      *
-     * @param string|null $name The name to normalize
+     * @param  string|null  $name  The name to normalize
      * @return string The normalized name
      */
     private function normalizeName(?string $name): string
     {
-        if (!$name) {
+        if (! $name) {
             return '';
         }
-        
+
         // Convert to lowercase
         $normalized = mb_strtolower($name, 'UTF-8');
-        
+
         // Transliterate to ASCII (e.g., ä -> a, ü -> u)
         $normalized = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized) ?: $normalized;
-        
+
         // Remove common punctuation (commas, periods, hyphens)
         $normalized = str_replace([',', '.', '-'], '', $normalized);
-        
+
         // Replace multiple whitespace with single space
         $normalized = preg_replace('/\s+/', ' ', $normalized) ?? '';
-        
+
         // Trim
         return trim($normalized);
     }
@@ -492,12 +481,12 @@ class OldDataset extends Model
     public function getAuthors(): array
     {
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
-        
+
         // Get all resourceagents for this resource that have the "Creator" role
         $resourceAgents = $db->table('resourceagent')
             ->join('role', function ($join) {
                 $join->on('resourceagent.resource_id', '=', 'role.resourceagent_resource_id')
-                     ->on('resourceagent.order', '=', 'role.resourceagent_order');
+                    ->on('resourceagent.order', '=', 'role.resourceagent_order');
             })
             ->where('resourceagent.resource_id', $this->id)
             ->where('role.role', 'Creator')
@@ -528,11 +517,11 @@ class OldDataset extends Model
                     $identifier = $affiliation->identifier ?? null;
 
                     // Normalize ROR identifier to full URL format
-                    if ($identifier && !empty(trim($identifier))) {
+                    if ($identifier && ! empty(trim($identifier))) {
                         // If it's already a full URL, keep it
-                        if (!str_starts_with($identifier, 'http')) {
+                        if (! str_starts_with($identifier, 'http')) {
                             // Convert short ROR ID to full URL
-                            $identifier = 'https://ror.org/' . ltrim($identifier, '/');
+                            $identifier = 'https://ror.org/'.ltrim($identifier, '/');
                         }
                     } else {
                         $identifier = null;
@@ -551,7 +540,7 @@ class OldDataset extends Model
         $allContactInfo = $db->table('contactinfo')
             ->join('resourceagent', function ($join) {
                 $join->on('contactinfo.resourceagent_resource_id', '=', 'resourceagent.resource_id')
-                     ->on('contactinfo.resourceagent_order', '=', 'resourceagent.order');
+                    ->on('contactinfo.resourceagent_order', '=', 'resourceagent.order');
             })
             ->where('resourceagent.resource_id', $this->id)
             ->select('resourceagent.name', 'resourceagent.firstname', 'resourceagent.lastname', 'contactinfo.email', 'contactinfo.website')
@@ -578,7 +567,7 @@ class OldDataset extends Model
             }
 
             if ($contactInfo->firstname && $contactInfo->lastname) {
-                $normalized['normalizedFullName'] = $this->normalizeName($contactInfo->firstname . ' ' . $contactInfo->lastname);
+                $normalized['normalizedFullName'] = $this->normalizeName($contactInfo->firstname.' '.$contactInfo->lastname);
             }
 
             return $normalized;
@@ -596,11 +585,11 @@ class OldDataset extends Model
             // Try to find contact information using fuzzy name matching
             $email = null;
             $website = null;
-            
+
             // Precompute agent's normalized values
             $agentNormalizedName = $agent->name ? $this->normalizeName($agent->name) : null;
-            $agentNormalizedFullName = ($agent->firstname && $agent->lastname) 
-                ? $this->normalizeName($agent->firstname . ' ' . $agent->lastname) 
+            $agentNormalizedFullName = ($agent->firstname && $agent->lastname)
+                ? $this->normalizeName($agent->firstname.' '.$agent->lastname)
                 : null;
             $agentNormalizedWords = null;
             if ($agentNormalizedName) {
@@ -608,41 +597,41 @@ class OldDataset extends Model
                 sort($words);
                 $agentNormalizedWords = $words;
             }
-            
+
             // Try to find matching contact info
             foreach ($normalizedContactInfo as $contactInfo) {
                 $matched = false;
-                
+
                 // Strategy 1: Normalized name match (if agent has a name)
                 if ($agentNormalizedName && $contactInfo['normalizedName']) {
                     if ($agentNormalizedName === $contactInfo['normalizedName']) {
                         $matched = true;
                     }
                 }
-                
+
                 // Strategy 2: Match by firstname + lastname if available
                 // This is checked regardless of whether $agent->name is set
-                if (!$matched && $agentNormalizedFullName && $contactInfo['normalizedFullName']) {
+                if (! $matched && $agentNormalizedFullName && $contactInfo['normalizedFullName']) {
                     if ($agentNormalizedFullName === $contactInfo['normalizedFullName']) {
                         $matched = true;
                     }
                 }
-                
+
                 // Strategy 3: Check if normalized names contain each other (partial match)
                 // This handles cases like "Läuchli, Charlotte" vs "Läuchli Charlotte"
-                if (!$matched && $agentNormalizedWords && $contactInfo['normalizedWords']) {
+                if (! $matched && $agentNormalizedWords && $contactInfo['normalizedWords']) {
                     if ($agentNormalizedWords === $contactInfo['normalizedWords']) {
                         $matched = true;
                     }
                 }
-                
+
                 if ($matched) {
-                    $email = !empty($contactInfo['email']) ? $contactInfo['email'] : null;
-                    $website = !empty($contactInfo['website']) ? $contactInfo['website'] : null;
+                    $email = ! empty($contactInfo['email']) ? $contactInfo['email'] : null;
+                    $website = ! empty($contactInfo['website']) ? $contactInfo['website'] : null;
                     break;
                 }
             }
-            
+
             // If we found contact info for this person, mark them as contact
             if ($email || $website) {
                 $isContact = true;
@@ -652,7 +641,7 @@ class OldDataset extends Model
             $affiliations = $allAffiliations[$agent->order] ?? [];
 
             // Map old role names to new role slugs
-            $mappedRoles = array_map(fn($role) => $this->mapRole($role), $roles);
+            $mappedRoles = array_map(fn ($role) => $this->mapRole($role), $roles);
 
             $authors[] = [
                 'givenName' => $agent->firstname,
@@ -663,7 +652,7 @@ class OldDataset extends Model
                 'isContact' => $isContact,
                 'email' => $email,
                 'website' => $website,
-                'orcid' => (!empty($agent->identifier) && strtoupper($agent->identifiertype ?? '') === 'ORCID') ? $agent->identifier : null,
+                'orcid' => (! empty($agent->identifier) && strtoupper($agent->identifiertype ?? '') === 'ORCID') ? $agent->identifier : null,
                 'orcidType' => $agent->identifiertype ?? null,
             ];
         }
@@ -681,7 +670,7 @@ class OldDataset extends Model
     public function getContributors(): array
     {
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
-        
+
         // Get all resourceagents for this resource
         $allResourceAgents = $db->table('resourceagent')
             ->where('resource_id', $this->id)
@@ -701,17 +690,17 @@ class OldDataset extends Model
         // Filter out resourceagents that have the "Creator" role OR are MSL Labs (labid)
         $contributorAgents = $allResourceAgents->filter(function ($agent) use ($allRoles) {
             $roles = $allRoles[$agent->order] ?? [];
-            
+
             // Exclude if has Creator role
             if (in_array('Creator', $roles)) {
                 return false;
             }
-            
+
             // Exclude if this is an MSL Laboratory (identifiertype = 'labid')
             if ($agent->identifiertype === 'labid') {
                 return false;
             }
-            
+
             return true;
         });
 
@@ -727,11 +716,11 @@ class OldDataset extends Model
                     $identifier = $affiliation->identifier ?? null;
 
                     // Normalize ROR identifier to full URL format
-                    if ($identifier && !empty(trim($identifier))) {
+                    if ($identifier && ! empty(trim($identifier))) {
                         // If it's already a full URL, keep it
-                        if (!str_starts_with($identifier, 'http')) {
+                        if (! str_starts_with($identifier, 'http')) {
                             // Convert short ROR ID to full URL
-                            $identifier = 'https://ror.org/' . ltrim($identifier, '/');
+                            $identifier = 'https://ror.org/'.ltrim($identifier, '/');
                         }
                     } else {
                         $identifier = null;
@@ -756,49 +745,49 @@ class OldDataset extends Model
 
             // Determine if this is a person or institution
             // Strategy: Use roles as primary indicator, then fallback to name analysis
-            
+
             // 1. Roles that ONLY apply to institutions (strongest indicator)
             $institutionOnlyRoles = ['HostingInstitution', 'Distributor', 'ResearchGroup', 'Sponsor'];
-            $hasInstitutionOnlyRole = !empty(array_intersect($roles, $institutionOnlyRoles));
-            
+            $hasInstitutionOnlyRole = ! empty(array_intersect($roles, $institutionOnlyRoles));
+
             // 2. Name format indicators
-            $hasCommaSeparatedName = !empty($agent->name) && str_contains($agent->name, ',');
-            
+            $hasCommaSeparatedName = ! empty($agent->name) && str_contains($agent->name, ',');
+
             // Decision logic (in priority order):
             // 1. If has HostingInstitution/Distributor/ResearchGroup/Sponsor → ALWAYS Institution
             // 2. If name contains comma → Person (format: "Lastname, Firstname")
             // 3. If has firstname OR lastname → Person
             // 4. Default → Institution
-            
+
             if ($hasInstitutionOnlyRole) {
                 $isPerson = false;
             } elseif ($hasCommaSeparatedName) {
                 $isPerson = true;
-            } elseif (!empty($agent->firstname) || !empty($agent->lastname)) {
+            } elseif (! empty($agent->firstname) || ! empty($agent->lastname)) {
                 $isPerson = true;
             } else {
                 $isPerson = false;
             }
-            
-            $isInstitution = !$isPerson;
-            
+
+            $isInstitution = ! $isPerson;
+
             // For institutions: use the name field if available, otherwise use the first affiliation
             $institutionName = null;
             if ($isInstitution) {
-                if (!empty($agent->name)) {
+                if (! empty($agent->name)) {
                     $institutionName = $agent->name;
-                } elseif (!empty($affiliations)) {
+                } elseif (! empty($affiliations)) {
                     // Use the first affiliation's value as institution name
                     $firstAffiliation = reset($affiliations);
-                    if ($firstAffiliation && isset($firstAffiliation['value']) && !empty($firstAffiliation['value'])) {
+                    if ($firstAffiliation && isset($firstAffiliation['value']) && ! empty($firstAffiliation['value'])) {
                         $institutionName = $firstAffiliation['value'];
                     }
                 }
             }
-            
+
             // Map old role names to new role slugs
-            $mappedRoles = array_map(fn($role) => $this->mapRole($role), $roles);
-            
+            $mappedRoles = array_map(fn ($role) => $this->mapRole($role), $roles);
+
             $contributors[] = [
                 'type' => $isPerson ? 'person' : 'institution',
                 'givenName' => $isPerson ? $agent->firstname : null,
@@ -807,7 +796,7 @@ class OldDataset extends Model
                 'institutionName' => $institutionName,
                 'affiliations' => $affiliations,
                 'roles' => $mappedRoles,
-                'orcid' => (!empty($agent->identifier) && strtoupper($agent->identifiertype ?? '') === 'ORCID') ? $agent->identifier : null,
+                'orcid' => (! empty($agent->identifier) && strtoupper($agent->identifiertype ?? '') === 'ORCID') ? $agent->identifier : null,
                 'orcidType' => $agent->identifiertype ?? null,
             ];
         }
@@ -826,12 +815,12 @@ class OldDataset extends Model
      */
     public function getMslLaboratories(): array
     {
-        if (!$this->exists) {
+        if (! $this->exists) {
             return [];
         }
 
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
-        
+
         // Get all resourceagents with labid identifier (case-insensitive)
         $labAgents = $db->table('resourceagent')
             ->where('resource_id', $this->id)
@@ -869,32 +858,32 @@ class OldDataset extends Model
 
         foreach ($labAgents as $agent) {
             $roles = $allRoles[$agent->order] ?? [];
-            
+
             // Only include if it has HostingInstitution role
-            if (!in_array('HostingInstitution', $roles)) {
+            if (! in_array('HostingInstitution', $roles)) {
                 continue;
             }
 
             $affiliations = $allAffiliations->get($agent->order, collect());
-            
+
             // Get first affiliation (MSL labs typically have only one)
             $affiliation = $affiliations->first();
-            
+
             $affiliationName = '';
             $affiliationRor = '';
-            
+
             if ($affiliation) {
                 $affiliationName = $affiliation->name ?? '';
                 $identifier = $affiliation->identifier ?? null;
-                
+
                 // Normalize ROR identifier to full URL format
-                if ($identifier && !empty(trim($identifier)) && $affiliation->identifiertype === 'ROR') {
+                if ($identifier && ! empty(trim($identifier)) && $affiliation->identifiertype === 'ROR') {
                     // If it's already a full URL, keep it
                     if (str_starts_with($identifier, 'http')) {
                         $affiliationRor = $identifier;
                     } else {
                         // Otherwise, prepend https://ror.org/
-                        $affiliationRor = 'https://ror.org/' . $identifier;
+                        $affiliationRor = 'https://ror.org/'.$identifier;
                     }
                 }
             }
@@ -918,12 +907,12 @@ class OldDataset extends Model
      */
     public function getDescriptions(): array
     {
-        if (!$this->exists) {
+        if (! $this->exists) {
             return [];
         }
 
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
-        
+
         // Get all descriptions for this resource
         $descriptions = $db->table('description')
             ->where('resource_id', $this->id)
@@ -949,12 +938,12 @@ class OldDataset extends Model
      */
     public function getResourceDates(): array
     {
-        if (!$this->exists) {
+        if (! $this->exists) {
             return [];
         }
 
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
-        
+
         // Get all dates for this resource
         $dates = $db->table('date')
             ->where('resource_id', $this->id)
@@ -986,12 +975,12 @@ class OldDataset extends Model
      */
     public function getCoverages(): array
     {
-        if (!$this->exists) {
+        if (! $this->exists) {
             return [];
         }
 
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
-        
+
         // Get all coverage entries for this resource
         $coverages = $db->table('coverage')
             ->where('resource_id', $this->id)
@@ -999,22 +988,22 @@ class OldDataset extends Model
 
         return $coverages->map(function ($coverage, $index) {
             // Convert coordinates to strings with max 6 decimal places
-            $latMin = $coverage->minlat !== null ? number_format((float)$coverage->minlat, 6, '.', '') : '';
-            $lonMin = $coverage->minlon !== null ? number_format((float)$coverage->minlon, 6, '.', '') : '';
-            
+            $latMin = $coverage->minlat !== null ? number_format((float) $coverage->minlat, 6, '.', '') : '';
+            $lonMin = $coverage->minlon !== null ? number_format((float) $coverage->minlon, 6, '.', '') : '';
+
             // Check if this is a point (min = max for both coordinates) or a rectangle
             // In the old database, points were stored with identical min and max values
             // In ERNIE, we represent points by leaving max coordinates empty for better UX and DataCite compliance
             $isPoint = ($coverage->minlat === $coverage->maxlat && $coverage->minlon === $coverage->maxlon);
-            
+
             if ($isPoint) {
                 // Point: Leave max coordinates empty
                 $latMax = '';
                 $lonMax = '';
             } else {
                 // Rectangle: Use max coordinates
-                $latMax = $coverage->maxlat !== null ? number_format((float)$coverage->maxlat, 6, '.', '') : '';
-                $lonMax = $coverage->maxlon !== null ? number_format((float)$coverage->maxlon, 6, '.', '') : '';
+                $latMax = $coverage->maxlat !== null ? number_format((float) $coverage->maxlat, 6, '.', '') : '';
+                $lonMax = $coverage->maxlon !== null ? number_format((float) $coverage->maxlon, 6, '.', '') : '';
             }
 
             // Parse temporal data from the old format
@@ -1026,21 +1015,21 @@ class OldDataset extends Model
 
             return [
                 // Generate unique ID for frontend (use index since old DB doesn't have unique IDs per entry)
-                'id' => 'coverage-' . ($index + 1),
-                
+                'id' => 'coverage-'.($index + 1),
+
                 // Spatial coverage (coordinates)
                 'latMin' => $latMin,
                 'latMax' => $latMax,
                 'lonMin' => $lonMin,
                 'lonMax' => $lonMax,
-                
+
                 // Temporal coverage (dates and times)
                 'startDate' => $temporal['startDate'],
                 'endDate' => $temporal['endDate'],
                 'startTime' => $temporal['startTime'],
                 'endTime' => $temporal['endTime'],
                 'timezone' => $temporal['timezone'],
-                
+
                 // Description
                 'description' => $coverage->description ?? '',
             ];
@@ -1049,7 +1038,7 @@ class OldDataset extends Model
 
     /**
      * Parse temporal coverage data from old database format.
-     * 
+     *
      * The old database stores dates/times as strings with various formats:
      * - Simple date: "2013-09-05" (format: "Y-m-d")
      * - Date with time: "2009-12-31T23:16:00+00:00" (format: "Y-m-d\TH:i:sT")
@@ -1057,9 +1046,9 @@ class OldDataset extends Model
      *
      * This method extracts separate date, time, and timezone components.
      *
-     * @param string|null $start Start date/time string
-     * @param string|null $end End date/time string
-     * @param string|null $dateformat Format pattern (e.g., "Y-m-d", "Y-m-d\TH:i:sT")
+     * @param  string|null  $start  Start date/time string
+     * @param  string|null  $end  End date/time string
+     * @param  string|null  $dateformat  Format pattern (e.g., "Y-m-d", "Y-m-d\TH:i:sT")
      * @return array{startDate: string, endDate: string, startTime: string, endTime: string, timezone: string}
      */
     private function parseTemporalCoverage(?string $start, ?string $end, ?string $dateformat): array
@@ -1082,7 +1071,7 @@ class OldDataset extends Model
             if (preg_match('/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})([+-]\d{2}:\d{2}|Z)?/', $dateTimeStr, $matches)) {
                 $date = $matches[1]; // YYYY-MM-DD
                 $time = $matches[2]; // HH:MM:SS
-                
+
                 // Extract timezone if present (group 3 is optional in regex, but if matched it's always non-empty)
                 if (isset($matches[3])) {
                     if ($matches[3] === 'Z') {
@@ -1095,7 +1084,7 @@ class OldDataset extends Model
                         $result['timezone'] = 'UTC';
                     }
                 }
-                
+
                 return ['date' => $date, 'time' => $time];
             }
 
@@ -1114,14 +1103,14 @@ class OldDataset extends Model
         };
 
         // Parse start date/time
-        if (!empty($start)) {
+        if (! empty($start)) {
             $startParsed = $parseDateTimeString($start);
             $result['startDate'] = $startParsed['date'];
             $result['startTime'] = $startParsed['time'];
         }
 
         // Parse end date/time
-        if (!empty($end)) {
+        if (! empty($end)) {
             $endParsed = $parseDateTimeString($end);
             $result['endDate'] = $endParsed['date'];
             $result['endTime'] = $endParsed['time'];
@@ -1130,9 +1119,9 @@ class OldDataset extends Model
         return $result;
     }
 
-        /**
+    /**
      * Get related identifiers for this dataset from the old database.
-     * 
+     *
      * Fetches data from the relatedidentifier table which stores relationships
      * to other resources using DataCite relation types.
      *
@@ -1140,12 +1129,12 @@ class OldDataset extends Model
      */
     public function getRelatedIdentifiers(): array
     {
-        if (!$this->exists) {
+        if (! $this->exists) {
             return [];
         }
 
         $db = \Illuminate\Support\Facades\DB::connection($this->connection);
-        
+
         // Get all related identifiers for this resource
         // Note: old database doesn't have position field, so we use id for ordering
         $relatedIds = $db->table('relatedidentifier')
@@ -1181,7 +1170,7 @@ class OldDataset extends Model
             $funderIdentifier = null;
             $funderIdentifierType = null;
             $funderName = $funding->fundername;
-            
+
             if ($funding->funderidentifier) {
                 // Check if it's a ROR URL (new format from metaworks)
                 if (str_starts_with($funding->funderidentifier, 'https://ror.org/')) {
@@ -1190,11 +1179,11 @@ class OldDataset extends Model
                 }
                 // Check if it's a ROR ID without URL (old format)
                 elseif ($funding->funderidentifiertype === 'ROR') {
-                    $funderIdentifier = 'https://ror.org/' . ltrim($funding->funderidentifier, '/');
+                    $funderIdentifier = 'https://ror.org/'.ltrim($funding->funderidentifier, '/');
                     $funderIdentifierType = 'ROR';
                 }
                 // Check if it's a Crossref Funder ID
-                elseif ($funding->funderidentifiertype === 'Crossref Funder ID' || 
+                elseif ($funding->funderidentifiertype === 'Crossref Funder ID' ||
                         str_contains($funding->funderidentifier, 'doi.org/10.13039/') ||
                         str_contains($funding->funderidentifier, 'crossref.org/fundingdata/')) {
                     $funderIdentifier = $funding->funderidentifier;
@@ -1206,7 +1195,7 @@ class OldDataset extends Model
                     $funderIdentifierType = $funding->funderidentifiertype;
                 }
             }
-            
+
             // Handle edge case: If fundername is a ROR URL, extract actual name
             if (str_starts_with($funderName, 'https://ror.org/')) {
                 // If fundername is a ROR URL, use it as identifier instead
@@ -1227,4 +1216,4 @@ class OldDataset extends Model
             ];
         })->toArray();
     }
- }
+}

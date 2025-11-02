@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 
 class TitleType extends Model
 {
@@ -24,7 +24,7 @@ class TitleType extends Model
     ];
 
     /**
-     * @param Builder<TitleType> $query
+     * @param  Builder<TitleType>  $query
      * @return Builder<TitleType>
      */
     public function scopeActive(Builder $query): Builder
@@ -33,7 +33,7 @@ class TitleType extends Model
     }
 
     /**
-     * @param Builder<TitleType> $query
+     * @param  Builder<TitleType>  $query
      * @return Builder<TitleType>
      */
     public function scopeElmoActive(Builder $query): Builder
@@ -42,7 +42,7 @@ class TitleType extends Model
     }
 
     /**
-     * @param Builder<TitleType> $query
+     * @param  Builder<TitleType>  $query
      * @return Builder<TitleType>
      */
     public function scopeOrderByName(Builder $query): Builder

@@ -5,14 +5,14 @@
  * - Available: start=NULL, end="2017-03-01" (open-ended range)
  * - Created: start="2015-03-10", end=NULL (single date)
  * - Collected: start="2013-09-05", end="2014-10-11" (full range)
- * 
+ *
  * Note: These tests use isolated mocks to avoid conflicts with other tests.
  */
 
 use App\Models\OldDataset;
 
 test('getResourceDates returns empty array for non-existent dataset', function () {
-    $dataset = new OldDataset();
+    $dataset = new OldDataset;
     $dataset->exists = false;
 
     $dates = $dataset->getResourceDates();
@@ -31,13 +31,13 @@ test('date format transformation - single date', function () {
         'start' => '2015-03-10',
         'end' => null,
     ];
-    
+
     $result = [
         'dateType' => strtolower($mockDate->datetype),
         'startDate' => $mockDate->start ?? '',
         'endDate' => $mockDate->end ?? '',
     ];
-    
+
     expect($result)->toMatchArray([
         'dateType' => 'created',
         'startDate' => '2015-03-10',
@@ -51,13 +51,13 @@ test('date format transformation - full range', function () {
         'start' => '2013-09-05',
         'end' => '2014-10-11',
     ];
-    
+
     $result = [
         'dateType' => strtolower($mockDate->datetype),
         'startDate' => $mockDate->start ?? '',
         'endDate' => $mockDate->end ?? '',
     ];
-    
+
     expect($result)->toMatchArray([
         'dateType' => 'collected',
         'startDate' => '2013-09-05',
@@ -71,13 +71,13 @@ test('date format transformation - open-ended range', function () {
         'start' => null,
         'end' => '2017-03-01',
     ];
-    
+
     $result = [
         'dateType' => strtolower($mockDate->datetype),
         'startDate' => $mockDate->start ?? '',
         'endDate' => $mockDate->end ?? '',
     ];
-    
+
     expect($result)->toMatchArray([
         'dateType' => 'available',
         'startDate' => '',
@@ -91,7 +91,7 @@ test('date format transformation - multiple dates', function () {
         (object) ['datetype' => 'Created', 'start' => '2015-03-10', 'end' => null],
         (object) ['datetype' => 'Collected', 'start' => '2013-09-05', 'end' => '2014-10-11'],
     ];
-    
+
     $results = array_map(function ($date) {
         return [
             'dateType' => strtolower($date->datetype),
@@ -99,7 +99,7 @@ test('date format transformation - multiple dates', function () {
             'endDate' => $date->end ?? '',
         ];
     }, $mockDates);
-    
+
     expect($results)->toHaveCount(3)
         ->and($results[0])->toMatchArray([
             'dateType' => 'available',
@@ -123,7 +123,7 @@ test('date type conversion to lowercase', function () {
         (object) ['datetype' => 'Available', 'start' => null, 'end' => '2017-03-01'],
         (object) ['datetype' => 'CREATED', 'start' => '2015-03-10', 'end' => null],
     ];
-    
+
     $results = array_map(function ($date) {
         return [
             'dateType' => strtolower($date->datetype),
@@ -131,11 +131,8 @@ test('date type conversion to lowercase', function () {
             'endDate' => $date->end ?? '',
         ];
     }, $mockDates);
-    
+
     expect($results)->toHaveCount(2)
         ->and($results[0]['dateType'])->toBe('available')
         ->and($results[1]['dateType'])->toBe('created');
 })->group('dates');
-
-
-

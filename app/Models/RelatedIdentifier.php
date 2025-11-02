@@ -5,6 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $resource_id
+ * @property string $identifier
+ * @property string $identifier_type
+ * @property string $relation_type
+ * @property int $position
+ * @property string|null $related_title
+ * @property array<string, mixed>|null $related_metadata
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class RelatedIdentifier extends Model
 {
     /**
@@ -151,7 +163,7 @@ class RelatedIdentifier extends Model
 
     /**
      * Bidirectional relation type pairs.
-     * 
+     *
      * @var array<string, string>
      */
     public const BIDIRECTIONAL_PAIRS = [
@@ -202,14 +214,12 @@ class RelatedIdentifier extends Model
         foreach (self::RELATION_TYPES_GROUPED as $group) {
             $types = array_merge($types, $group);
         }
+
         return array_unique($types);
     }
 
     /**
      * Get the opposite relation type for bidirectional pairs.
-     *
-     * @param string $relationType
-     * @return string|null
      */
     public static function getOppositeRelationType(string $relationType): ?string
     {
@@ -219,7 +229,8 @@ class RelatedIdentifier extends Model
     /**
      * Get the resource that owns this related identifier.
      *
-     * @return BelongsTo<Resource, static>
+     * @return BelongsTo<resource, static>
+     *
      * @phpstan-return BelongsTo<Resource, $this>
      */
     public function resource(): BelongsTo

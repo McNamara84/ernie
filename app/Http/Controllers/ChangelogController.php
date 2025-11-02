@@ -11,7 +11,7 @@ class ChangelogController extends Controller
     public function index(): JsonResponse
     {
         $path = resource_path('data/changelog.json');
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             return response()->json([]);
         }
 

@@ -402,6 +402,7 @@ class ResourceControllerMslLaboratoriesTest extends TestCase
         // Check MSL lab is attached as contributor
         $mslLab = $resource->contributors->first(function ($contributor) {
             $authorable = $contributor->authorable;
+
             return $authorable instanceof Institution && $authorable->identifier_type === 'labid';
         });
 

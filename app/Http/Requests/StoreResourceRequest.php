@@ -195,7 +195,7 @@ class StoreResourceRequest extends FormRequest
                             continue;
                         }
 
-                        $key = $value . '|';
+                        $key = $value.'|';
 
                         if (isset($seenAffiliations[$key])) {
                             continue;
@@ -224,7 +224,7 @@ class StoreResourceRequest extends FormRequest
                     $normalizedValue = $value !== '' ? $value : $rorId;
                     $normalizedRorId = $rorId !== '' ? $rorId : null;
 
-                    $key = $normalizedValue . '|' . ($normalizedRorId ?? '');
+                    $key = $normalizedValue.'|'.($normalizedRorId ?? '');
 
                     if (isset($seenAffiliations[$key])) {
                         continue;
@@ -301,7 +301,7 @@ class StoreResourceRequest extends FormRequest
                             continue;
                         }
 
-                        $key = $value . '|';
+                        $key = $value.'|';
 
                         if (isset($seenAffiliations[$key])) {
                             continue;
@@ -330,7 +330,7 @@ class StoreResourceRequest extends FormRequest
                     $normalizedValue = $value !== '' ? $value : $rorId;
                     $normalizedRorId = $rorId !== '' ? $rorId : null;
 
-                    $key = $normalizedValue . '|' . ($normalizedRorId ?? '');
+                    $key = $normalizedValue.'|'.($normalizedRorId ?? '');
 
                     if (isset($seenAffiliations[$key])) {
                         continue;
@@ -394,11 +394,11 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
-            $descriptionType = isset($description['descriptionType']) 
-                ? trim((string) $description['descriptionType']) 
+            $descriptionType = isset($description['descriptionType'])
+                ? trim((string) $description['descriptionType'])
                 : '';
-            $descriptionText = isset($description['description']) 
-                ? trim((string) $description['description']) 
+            $descriptionText = isset($description['description'])
+                ? trim((string) $description['description'])
                 : '';
 
             if ($descriptionType === '' || $descriptionText === '') {
@@ -425,17 +425,17 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
-            $dateType = isset($date['dateType']) 
-                ? trim((string) $date['dateType']) 
+            $dateType = isset($date['dateType'])
+                ? trim((string) $date['dateType'])
                 : '';
-            $startDate = isset($date['startDate']) 
-                ? trim((string) $date['startDate']) 
+            $startDate = isset($date['startDate'])
+                ? trim((string) $date['startDate'])
                 : null;
-            $endDate = isset($date['endDate']) 
-                ? trim((string) $date['endDate']) 
+            $endDate = isset($date['endDate'])
+                ? trim((string) $date['endDate'])
                 : null;
-            $dateInformation = isset($date['dateInformation']) 
-                ? trim((string) $date['dateInformation']) 
+            $dateInformation = isset($date['dateInformation'])
+                ? trim((string) $date['dateInformation'])
                 : null;
 
             if ($dateType === '') {
@@ -482,6 +482,146 @@ class StoreResourceRequest extends FormRequest
             ];
         }
 
+        // Normalize keywords
+        /** @var array<int, mixed> $rawKeywords */
+        $rawKeywords = $this->input('keywords', []);
+
+        $keywords = [];
+
+        foreach ($rawKeywords as $keyword) {
+            $normalized = trim((string) $keyword);
+
+            if ($normalized === '' || in_array($normalized, $keywords, true)) {
+                continue;
+            }
+
+            $keywords[] = $normalized;
+        }
+
+        // Normalize controlled keywords
+        /** @var array<int, mixed> $rawControlledKeywords */
+        $rawControlledKeywords = $this->input('controlledKeywords', []);
+
+        $controlledKeywords = [];
+
+        foreach ($rawControlledKeywords as $keyword) {
+            if (! is_array($keyword)) {
+                continue;
+            }
+
+            $scheme = isset($keyword['scheme']) ? trim((string) $keyword['scheme']) : '';
+            $value = isset($keyword['value']) ? trim((string) $keyword['value']) : '';
+
+            if ($scheme === '' || $value === '') {
+                continue;
+            }
+
+            $controlledKeywords[] = [
+                'scheme' => $scheme,
+                'value' => $value,
+            ];
+        }
+
+        // Normalize spatial temporal coverages
+        /** @var array<int, array<string, mixed>|mixed> $rawCoverages */
+        $rawCoverages = $this->input('spatialTemporalCoverages', []);
+
+        $coverages = [];
+
+        foreach ($rawCoverages as $coverage) {
+            if (! is_array($coverage)) {
+                continue;
+            }
+
+            $coverages[] = [
+                'placeNames' => isset($coverage['placeNames']) && is_array($coverage['placeNames'])
+                    ? array_values(array_filter(array_map('trim', $coverage['placeNames'])))
+                    : [],
+                'geoLocationBox' => isset($coverage['geoLocationBox']) ? $coverage['geoLocationBox'] : null,
+                'startDate' => isset($coverage['startDate']) ? trim((string) $coverage['startDate']) : null,
+                'endDate' => isset($coverage['endDate']) ? trim((string) $coverage['endDate']) : null,
+                'startTime' => isset($coverage['startTime']) ? trim((string) $coverage['startTime']) : null,
+                'endTime' => isset($coverage['endTime']) ? trim((string) $coverage['endTime']) : null,
+                'timezone' => isset($coverage['timezone']) ? trim((string) $coverage['timezone']) : null,
+                'description' => isset($coverage['description']) ? trim((string) $coverage['description']) : null,
+            ];
+        }
+
+        // Normalize related identifiers
+        /** @var array<int, array<string, mixed>|mixed> $rawRelatedIdentifiers */
+        $rawRelatedIdentifiers = $this->input('relatedIdentifiers', []);
+
+        $relatedIdentifiers = [];
+
+        foreach ($rawRelatedIdentifiers as $relatedIdentifier) {
+            if (! is_array($relatedIdentifier)) {
+                continue;
+            }
+
+            $identifier = isset($relatedIdentifier['identifier'])
+                ? trim((string) $relatedIdentifier['identifier'])
+                : '';
+
+            $identifierType = isset($relatedIdentifier['identifierType'])
+                ? trim((string) $relatedIdentifier['identifierType'])
+                : '';
+
+            $relationType = isset($relatedIdentifier['relationType'])
+                ? trim((string) $relatedIdentifier['relationType'])
+                : '';
+
+            // Skip empty identifiers
+            if ($identifier === '') {
+                continue;
+            }
+
+            $relatedIdentifiers[] = [
+                'identifier' => $identifier,
+                'identifierType' => $identifierType,
+                'relationType' => $relationType,
+            ];
+        }
+
+        // Normalize funding references
+        /** @var array<int, array<string, mixed>|mixed> $rawFundingReferences */
+        $rawFundingReferences = $this->input('fundingReferences', []);
+
+        $fundingReferences = [];
+
+        foreach ($rawFundingReferences as $funding) {
+            if (! is_array($funding)) {
+                continue;
+            }
+
+            $funderName = isset($funding['funderName'])
+                ? trim((string) $funding['funderName'])
+                : '';
+
+            // Skip if funder name is empty (required field)
+            if ($funderName === '') {
+                continue;
+            }
+
+            $fundingReferences[] = [
+                'funderName' => $funderName,
+                'funderIdentifier' => isset($funding['funderIdentifier'])
+                    ? trim((string) $funding['funderIdentifier'])
+                    : null,
+                'funderIdentifierType' => isset($funding['funderIdentifierType'])
+                    ? trim((string) $funding['funderIdentifierType'])
+                    : null,
+                'awardNumber' => isset($funding['awardNumber'])
+                    ? trim((string) $funding['awardNumber'])
+                    : null,
+                'awardUri' => isset($funding['awardUri'])
+                    ? trim((string) $funding['awardUri'])
+                    : null,
+                'awardTitle' => isset($funding['awardTitle'])
+                    ? trim((string) $funding['awardTitle'])
+                    : null,
+            ];
+        }
+
         $this->merge([
             'doi' => $this->filled('doi') ? trim((string) $this->input('doi')) : null,
             'year' => $this->filled('year') ? (int) $this->input('year') : null,
@@ -496,6 +636,11 @@ class StoreResourceRequest extends FormRequest
             'mslLaboratories' => $mslLaboratories,
             'descriptions' => $descriptions,
             'dates' => $dates,
+            'keywords' => $keywords,
+            'controlledKeywords' => $controlledKeywords,
+            'spatialTemporalCoverages' => $coverages,
+            'relatedIdentifiers' => $relatedIdentifiers,
+            'fundingReferences' => $fundingReferences,
         ]);
     }
 
@@ -633,8 +778,8 @@ class StoreResourceRequest extends FormRequest
 
                 if (is_array($descriptions)) {
                     foreach ($descriptions as $description) {
-                        if (is_array($description) && 
-                            isset($description['descriptionType']) && 
+                        if (is_array($description) &&
+                            isset($description['descriptionType']) &&
                             $description['descriptionType'] === 'abstract' &&
                             isset($description['description']) &&
                             is_string($description['description']) &&
