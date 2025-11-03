@@ -501,7 +501,7 @@ class OldDataStatisticsTest extends TestCase
             ->get('/old-statistics');
 
         $response->assertOk();
-
+        
         // For mocked data, percentages will be 0, but we test the structure exists
         // In real scenario, percentageWith + percentageWithout should equal 100
         $response->assertInertia(
@@ -535,7 +535,7 @@ class OldDataStatisticsTest extends TestCase
             ->get('/old-statistics');
 
         $response->assertOk();
-
+        
         $response->assertInertia(
             fn ($page) => $page
                 ->has('statistics.relatedWorks.placeholders.patterns')
@@ -550,7 +550,7 @@ class OldDataStatisticsTest extends TestCase
             ->get('/old-statistics');
 
         $response->assertOk();
-
+        
         // Verify the relation types array exists
         // With mocked data, it will be empty, but structure should be present
         $response->assertInertia(
@@ -567,7 +567,7 @@ class OldDataStatisticsTest extends TestCase
             ->get('/old-statistics');
 
         $response->assertOk();
-
+        
         // Verify that relation types array exists
         // With mocked data, percentages will be 0 or array will be empty
         $response->assertInertia(
@@ -601,7 +601,7 @@ class OldDataStatisticsTest extends TestCase
             ->get('/old-statistics');
 
         $response->assertOk();
-
+        
         // Verify average types field exists
         $response->assertInertia(
             fn ($page) => $page
@@ -633,7 +633,7 @@ class OldDataStatisticsTest extends TestCase
             ->get('/old-statistics');
 
         $response->assertOk();
-
+        
         // Verify percentage complete field exists
         $response->assertInertia(
             fn ($page) => $page
@@ -649,7 +649,7 @@ class OldDataStatisticsTest extends TestCase
             ->get('/old-statistics');
 
         $response->assertOk();
-
+        
         // Verify all quality metrics exist
         $response->assertInertia(
             fn ($page) => $page
@@ -670,7 +670,7 @@ class OldDataStatisticsTest extends TestCase
         $response = $this->actingAs($this->user)->get('/old-statistics');
 
         $response->assertOk();
-
+        
         // Verify cache was used by checking the cache has the key
         $this->assertTrue(Cache::has('old_data_stats_related_works'));
     }
@@ -689,7 +689,7 @@ class OldDataStatisticsTest extends TestCase
         $response = $this->actingAs($this->user)->get('/old-statistics?refresh=1');
 
         $response->assertOk();
-
+        
         // Cache should be repopulated
         $this->assertTrue(Cache::has('old_data_stats_related_works'));
     }
