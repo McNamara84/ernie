@@ -49,7 +49,7 @@ function MapPickerContent({
     const rectangleRef = useRef<google.maps.Rectangle | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [isDragging, setIsDragging] = useState(false);
-    const [previewRectangle, setPreviewRectangle] = useState<google.maps.Rectangle | null>(null);
+    // Store preview rectangle only in ref, not in state to avoid re-renders
     const previewRectangleRef = useRef<google.maps.Rectangle | null>(null);
     const rectangleStart = useRef<Coordinates | null>(null);
 
@@ -58,16 +58,17 @@ function MapPickerContent({
         rectangleRef.current = rectangle;
     }, [rectangle]);
 
-    // Sync preview rectangle state with ref
-    useEffect(() => {
-        previewRectangleRef.current = previewRectangle;
-    }, [previewRectangle]);
-
     const drawRectangleOnMap = useCallback(
         (bounds: CoordinateBounds, mapInstance: google.maps.Map) => {
             // Remove existing rectangle using ref to avoid dependency cycle
             if (rectangleRef.current) {
                 rectangleRef.current.setMap(null);
+            }
+
+            // Also ensure preview rectangle is removed
+            if (previewRectangleRef.current) {
+                previewRectangleRef.current.setMap(null);
+                previewRectangleRef.current = null;
             }
 
             const newRectangle = new google.maps.Rectangle({
@@ -113,6 +114,12 @@ function MapPickerContent({
 
             // Clear any existing marker
             setMarker(null);
+
+            // Clear any existing preview rectangle synchronously
+            if (previewRectangleRef.current) {
+                previewRectangleRef.current.setMap(null);
+                previewRectangleRef.current = null; // Set ref to null immediately
+            }
         },
         [drawingMode, map],
     );
@@ -134,26 +141,28 @@ function MapPickerContent({
                 west: Math.min(lng, rectangleStart.current.lng),
             };
 
-            // Remove existing preview rectangle
+            // Update existing preview rectangle or create new one
             if (previewRectangleRef.current) {
-                previewRectangleRef.current.setMap(null);
+                // Update bounds of existing rectangle
+                previewRectangleRef.current.setBounds(bounds);
+            } else {
+                // Create new preview rectangle only if it doesn't exist
+                const newPreviewRectangle = new google.maps.Rectangle({
+                    bounds,
+                    editable: false,
+                    draggable: false,
+                    strokeColor: '#3B82F6',
+                    strokeOpacity: 0.6,
+                    strokeWeight: 2,
+                    fillColor: '#3B82F6',
+                    fillOpacity: 0.1,
+                    clickable: false,
+                });
+
+                newPreviewRectangle.setMap(map);
+                // Set ref immediately to prevent race condition
+                previewRectangleRef.current = newPreviewRectangle;
             }
-
-            // Create new preview rectangle
-            const newPreviewRectangle = new google.maps.Rectangle({
-                bounds,
-                editable: false,
-                draggable: false,
-                strokeColor: '#3B82F6',
-                strokeOpacity: 0.6,
-                strokeWeight: 2,
-                fillColor: '#3B82F6',
-                fillOpacity: 0.1,
-                clickable: false,
-            });
-
-            newPreviewRectangle.setMap(map);
-            setPreviewRectangle(newPreviewRectangle);
         },
         [isDragging, map],
     );
@@ -175,23 +184,23 @@ function MapPickerContent({
                 west: Math.min(lng, rectangleStart.current.lng),
             };
 
-            // Remove preview rectangle
+            // Remove preview rectangle synchronously
             if (previewRectangleRef.current) {
                 previewRectangleRef.current.setMap(null);
-                setPreviewRectangle(null);
+                previewRectangleRef.current = null; // Set ref to null immediately
             }
 
             // Re-enable map dragging
             map.setOptions({ draggable: true });
 
-            // Draw final rectangle
-            drawRectangleOnMap(bounds, map);
-            onRectangleSelected(bounds);
-
-            // Reset drawing state
+            // Reset drawing state immediately to prevent more mousemove events
             setIsDragging(false);
             rectangleStart.current = null;
             setDrawingMode(null);
+
+            // Draw final rectangle after cleanup
+            drawRectangleOnMap(bounds, map);
+            onRectangleSelected(bounds);
         },
         [isDragging, map, drawRectangleOnMap, onRectangleSelected],
     );
@@ -253,6 +262,7 @@ function MapPickerContent({
         return () => {
             if (previewRectangleRef.current) {
                 previewRectangleRef.current.setMap(null);
+                previewRectangleRef.current = null; // Set ref to null immediately
             }
             // Re-enable map dragging on cleanup
             if (map && isDragging) {
