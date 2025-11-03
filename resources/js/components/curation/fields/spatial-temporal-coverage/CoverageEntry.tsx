@@ -180,6 +180,7 @@ export default function CoverageEntry({
                             type="button"
                             variant="ghost"
                             size="icon"
+                            aria-label={isExpanded ? 'Collapse entry' : 'Expand entry'}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsExpanded(!isExpanded);
@@ -196,6 +197,7 @@ export default function CoverageEntry({
                                 type="button"
                                 variant="destructive"
                                 size="icon"
+                                aria-label="Remove coverage entry"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onRemove();
