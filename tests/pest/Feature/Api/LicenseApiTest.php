@@ -85,3 +85,21 @@ it('allows license requests with a valid API key query parameter', function () {
         ->assertJsonCount(1)
         ->assertJsonPath('0.identifier', $enabled->identifier);
 });
+
+it('sorts ERNIE licenses by usage count descending with alphabetical fallback', function () {
+    // Create licenses with different usage counts
+    $mit = License::factory()->create(['identifier' => 'MIT', 'name' => 'MIT License', 'active' => true, 'usage_count' => 10]);
+    $apache = License::factory()->create(['identifier' => 'Apache-2.0', 'name' => 'Apache License 2.0', 'active' => true, 'usage_count' => 5]);
+    $gpl = License::factory()->create(['identifier' => 'GPL-3.0', 'name' => 'GNU General Public License v3.0', 'active' => true, 'usage_count' => 5]);
+    $bsd = License::factory()->create(['identifier' => 'BSD-3', 'name' => 'BSD 3-Clause', 'active' => true, 'usage_count' => 0]);
+
+    $response = $this->getJson('/api/v1/licenses/ernie')
+        ->assertOk()
+        ->assertJsonCount(4);
+
+    // Verify order: MIT (10), Apache (5), GPL (5 alphabetical), BSD (0)
+    expect($response->json('0.identifier'))->toBe('MIT')
+        ->and($response->json('1.identifier'))->toBe('Apache-2.0')
+        ->and($response->json('2.identifier'))->toBe('GPL-3.0')
+        ->and($response->json('3.identifier'))->toBe('BSD-3');
+});

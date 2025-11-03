@@ -36,7 +36,7 @@ class ResourceControlledKeyword extends Model
     /**
      * Get the resource that owns the controlled keyword.
      *
-     * @return BelongsTo<Resource, $this>
+     * @return BelongsTo<resource, $this>
      */
     public function resource(): BelongsTo
     {

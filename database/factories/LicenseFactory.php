@@ -39,6 +39,7 @@ class LicenseFactory extends Factory
             'name' => $license['name'],
             'active' => true,
             'elmo_active' => true,
+            'usage_count' => 0,
         ];
     }
 }

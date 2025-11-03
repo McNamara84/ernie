@@ -58,4 +58,15 @@ class License extends Model
     {
         return $query->orderBy('name');
     }
+
+    /**
+     * Order licenses by usage count (descending) with alphabetical fallback.
+     *
+     * @param  Builder<License>  $query
+     * @return Builder<License>
+     */
+    public function scopeOrderByUsageCount(Builder $query): Builder
+    {
+        return $query->orderBy('usage_count', 'desc')->orderBy('name');
+    }
 }
