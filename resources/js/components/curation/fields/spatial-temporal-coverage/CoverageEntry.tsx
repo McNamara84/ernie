@@ -38,12 +38,18 @@ const formatCoordinates = (entry: SpatialTemporalCoverageEntry): string => {
  * Formats date range for preview display
  */
 const formatDateRange = (entry: SpatialTemporalCoverageEntry): string => {
-    if (!entry.startDate || !entry.endDate) return 'No dates set';
+    if (!entry.startDate && !entry.endDate) return 'No dates set';
 
-    const start = entry.startTime
-        ? `${entry.startDate} ${entry.startTime}`
-        : entry.startDate;
-    const end = entry.endTime ? `${entry.endDate} ${entry.endTime}` : entry.endDate;
+    const start = entry.startDate
+        ? entry.startTime
+            ? `${entry.startDate} ${entry.startTime}`
+            : entry.startDate
+        : 'Not set';
+    const end = entry.endDate
+        ? entry.endTime
+            ? `${entry.endDate} ${entry.endTime}`
+            : entry.endDate
+        : 'Not set';
 
     return `${start} to ${end}`;
 };

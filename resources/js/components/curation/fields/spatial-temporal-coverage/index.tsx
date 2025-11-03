@@ -47,13 +47,11 @@ const canAddCoverage = (
 
     const lastCoverage = coverages[coverages.length - 1];
 
-    // Required fields: latMin, lonMin, startDate, endDate, timezone
+    // Required fields: latMin, lonMin
+    // Temporal fields (startDate, endDate, timezone) are now optional
     return !!(
         lastCoverage.latMin &&
-        lastCoverage.lonMin &&
-        lastCoverage.startDate &&
-        lastCoverage.endDate &&
-        lastCoverage.timezone
+        lastCoverage.lonMin
     );
 };
 
