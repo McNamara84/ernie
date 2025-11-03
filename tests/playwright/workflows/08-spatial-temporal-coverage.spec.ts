@@ -235,19 +235,17 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
-                // Click timezone dropdown - use more specific selector to avoid conflicts
-                const timezoneSelect = page.getByRole('region', { name: 'Spatial and Temporal Coverage' })
-                    .locator('select, [role="combobox"]')
-                    .filter({ hasText: /UTC|timezone/i })
-                    .first();
+                // Click timezone select trigger (Radix UI Select component)
+                const timezoneSelect = page.getByRole('combobox', { name: /timezone/i });
                 
                 if (await timezoneSelect.isVisible()) {
                     await timezoneSelect.click();
                     
-                    // Select Europe/Berlin - use option selector to avoid Radix UI span conflict
-                    await timezoneSelect.locator('option', { hasText: /Europe\/Berlin/i }).first().click();
+                    // Wait for dropdown to open and select Europe/Berlin option
+                    // Radix UI Select renders options in a portal
+                    await page.getByRole('option', { name: /Europe\/Berlin/i }).click();
                     
-                    // Verify selection in the select element
+                    // Verify selection - check the trigger's text content
                     await expect(timezoneSelect).toContainText(/Europe\/Berlin/i);
                 }
             }
