@@ -86,6 +86,10 @@ vi.mock('@/components/ui/input', () => ({
     Input: (props: ComponentProps<'input'>) => <input {...props} />,
 }));
 
+vi.mock('@/components/ui/password-input', () => ({
+    PasswordInput: (props: ComponentProps<'input'>) => <input type="password" {...props} />,
+}));
+
 vi.mock('@/components/ui/label', () => ({
     Label: ({ children, ...props }: ComponentProps<'label'>) => <label {...props}>{children}</label>,
 }));
