@@ -43,23 +43,23 @@ class UpdateLicenseUsageCount extends Command
             return Command::SUCCESS;
         }
 
-        // Build CASE statement for single UPDATE query
+        // Build CASE statement with parameter bindings for SQL injection prevention
         $cases = [];
-        $ids = [];
+        $bindings = [];
 
         foreach ($usageCounts as $licenseId => $count) {
-            $cases[] = "WHEN id = {$licenseId} THEN {$count}";
-            $ids[] = $licenseId;
+            $cases[] = 'WHEN id = ? THEN ?';
+            $bindings[] = $licenseId;
+            $bindings[] = $count;
         }
 
         $caseStatement = implode(' ', $cases);
-        $idList = implode(',', $ids);
 
-        // Single UPDATE query with CASE statement
+        // Single UPDATE query with CASE statement and parameter bindings
         DB::statement("
             UPDATE licenses
             SET usage_count = CASE {$caseStatement} ELSE 0 END
-        ");
+        ", $bindings);
 
         $this->info('Successfully updated usage counts for '.count($usageCounts).' licenses.');
 
