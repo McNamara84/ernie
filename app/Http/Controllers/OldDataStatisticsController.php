@@ -252,6 +252,9 @@ class OldDataStatisticsController extends Controller
             function () {
                 $db = DB::connection(self::DATASET_CONNECTION);
 
+                // Total datasets count
+                $totalDatasets = $db->table('resource')->count();
+
                 // Top 20 datasets with most related works
                 $topDatasets = $db->table('resource')
                     ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
@@ -300,6 +303,127 @@ class OldDataStatisticsController extends Controller
                         END
                 ');
 
+                // IsSupplementTo Analysis - count distinct resources with this relation type
+                $withIsSupplementTo = $db->table('relatedidentifier')
+                    ->where('relationtype', 'IsSupplementTo')
+                    ->selectRaw('COUNT(DISTINCT resource_id) as count')
+                    ->value('count');
+
+                $withoutIsSupplementTo = $totalDatasets - $withIsSupplementTo;
+
+                // Placeholder Detection
+                $placeholderPatterns = [
+                    'to be updated',
+                    'to be provided',
+                    'tbd',
+                    'TBD',
+                    'placeholder',
+                ];
+
+                // Optimized: Use single query with groupBy to get all pattern counts at once
+                $placeholderCounts = $db->table('relatedidentifier')
+                    ->select(['identifier', DB::raw('COUNT(*) as count')])
+                    ->whereIn('identifier', $placeholderPatterns)
+                    ->groupBy('identifier')
+                    ->get()
+                    ->keyBy('identifier');
+
+                $placeholderStats = [];
+                $totalPlaceholders = 0;
+
+                foreach ($placeholderPatterns as $pattern) {
+                    $result = $placeholderCounts->get($pattern);
+                    $count = $result ? (int) $result->count : 0;
+
+                    if ($count > 0) {
+                        $placeholderStats[] = [
+                            'pattern' => $pattern,
+                            'count' => $count,
+                        ];
+                        $totalPlaceholders += $count;
+                    }
+                }
+
+                // Count unique datasets with placeholders (only if there are placeholders)
+                $datasetsWithPlaceholders = $totalPlaceholders > 0
+                    ? $db->table('relatedidentifier')
+                        ->whereIn('identifier', $placeholderPatterns)
+                        ->selectRaw('COUNT(DISTINCT resource_id) as count')
+                        ->value('count')
+                    : 0;
+
+                // Relation Type Distribution
+                $relationTypes = $db->table('relatedidentifier')
+                    ->select([
+                        'relationtype',
+                        DB::raw('COUNT(*) as count'),
+                        DB::raw('COUNT(DISTINCT resource_id) as dataset_count'),
+                    ])
+                    ->whereNotNull('relationtype')
+                    ->groupBy('relationtype')
+                    ->orderBy('count', 'desc')
+                    ->get();
+
+                $totalRelatedWorks = $db->table('relatedidentifier')->count();
+
+                // Coverage Analysis - count distinct resources with related works
+                $datasetsWithRelatedWorks = $db->table('relatedidentifier')
+                    ->selectRaw('COUNT(DISTINCT resource_id) as count')
+                    ->value('count');
+
+                $withNoRelatedWorks = $totalDatasets - $datasetsWithRelatedWorks;
+
+                // Datasets with ONLY IsSupplementTo (no other relation types)
+                $withOnlyIsSupplementTo = $db->select('
+                    SELECT COUNT(DISTINCT r.id) as count
+                    FROM resource r
+                    WHERE EXISTS (
+                        SELECT 1 FROM relatedidentifier ri
+                        WHERE ri.resource_id = r.id
+                        AND ri.relationtype = "IsSupplementTo"
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM relatedidentifier ri2
+                        WHERE ri2.resource_id = r.id
+                        AND ri2.relationtype != "IsSupplementTo"
+                    )
+                ');
+
+                $withOnlyIsSupplementToCount = $withOnlyIsSupplementTo[0]->count ?? 0;
+
+                // Datasets with multiple relation types
+                $withMultipleTypes = $db->select('
+                    SELECT COUNT(*) as count
+                    FROM (
+                        SELECT resource_id
+                        FROM relatedidentifier
+                        WHERE relationtype IS NOT NULL
+                        GROUP BY resource_id
+                        HAVING COUNT(DISTINCT relationtype) > 1
+                    ) as multi
+                ');
+
+                $withMultipleTypesCount = $withMultipleTypes[0]->count ?? 0;
+
+                // Average relation types per dataset (for datasets that have related works)
+                $avgTypesPerDataset = $db->select('
+                    SELECT AVG(type_count) as avg_types
+                    FROM (
+                        SELECT resource_id, COUNT(DISTINCT relationtype) as type_count
+                        FROM relatedidentifier
+                        WHERE relationtype IS NOT NULL
+                        GROUP BY resource_id
+                    ) as type_counts
+                ');
+
+                $avgTypes = $avgTypesPerDataset[0]->avg_types ?? 0;
+
+                // Quality Metrics
+                $completeData = $totalRelatedWorks - $totalPlaceholders;
+                $percentageComplete = $totalRelatedWorks > 0
+                    ? round(($completeData / $totalRelatedWorks) * 100, 2)
+                    : 100;
+
                 return [
                     'topDatasets' => $topDatasets->map(function ($row) {
                         return [
@@ -315,6 +439,42 @@ class OldDataStatisticsController extends Controller
                             'count' => (int) $row->datasets,
                         ];
                     }, $distribution),
+                    'isSupplementTo' => [
+                        'withIsSupplementTo' => $withIsSupplementTo,
+                        'withoutIsSupplementTo' => $withoutIsSupplementTo,
+                        'percentageWith' => $totalDatasets > 0
+                            ? round(($withIsSupplementTo / $totalDatasets) * 100, 2)
+                            : 0,
+                        'percentageWithout' => $totalDatasets > 0
+                            ? round(($withoutIsSupplementTo / $totalDatasets) * 100, 2)
+                            : 0,
+                    ],
+                    'placeholders' => [
+                        'totalPlaceholders' => $totalPlaceholders,
+                        'datasetsWithPlaceholders' => $datasetsWithPlaceholders,
+                        'patterns' => $placeholderStats,
+                    ],
+                    'relationTypes' => $relationTypes->map(function ($row) use ($totalRelatedWorks) {
+                        return [
+                            'type' => $row->relationtype,
+                            'count' => (int) $row->count,
+                            'datasetCount' => (int) $row->dataset_count,
+                            'percentage' => $totalRelatedWorks > 0
+                                ? round(($row->count / $totalRelatedWorks) * 100, 2)
+                                : 0,
+                        ];
+                    })->toArray(),
+                    'coverage' => [
+                        'withNoRelatedWorks' => $withNoRelatedWorks,
+                        'withOnlyIsSupplementTo' => (int) $withOnlyIsSupplementToCount,
+                        'withMultipleTypes' => (int) $withMultipleTypesCount,
+                        'avgTypesPerDataset' => round((float) $avgTypes, 2),
+                    ],
+                    'quality' => [
+                        'completeData' => $completeData,
+                        'incompleteOrPlaceholder' => $totalPlaceholders,
+                        'percentageComplete' => $percentageComplete,
+                    ],
                 ];
             }
         );

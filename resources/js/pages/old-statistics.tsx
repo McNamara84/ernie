@@ -5,18 +5,22 @@ import { useState } from 'react';
 import AbstractAnalysis from '@/components/statistics/abstract-analysis';
 import AffiliationStatsCard from '@/components/statistics/affiliation-stats-card';
 import CompletenessGauge from '@/components/statistics/completeness-gauge';
+import CoverageAnalysis from '@/components/statistics/coverage-analysis';
 import CreationTimeChart from '@/components/statistics/creation-time-chart';
 import CuratorChart from '@/components/statistics/curator-chart';
 import CurrentYearChart from '@/components/statistics/current-year-chart';
+import DataQualityIndicators from '@/components/statistics/data-quality-indicators';
 import DescriptionTypeStats from '@/components/statistics/description-type-stats';
 import IdentifierStatsCard from '@/components/statistics/identifier-stats-card';
 import InstitutionChart from '@/components/statistics/institution-chart';
+import IsSupplementToChart from '@/components/statistics/is-supplement-to-chart';
 import KeywordTable from '@/components/statistics/keyword-table';
 import LanguageChart from '@/components/statistics/language-chart';
 import LicenseChart from '@/components/statistics/license-chart';
 import PidUsageChart from '@/components/statistics/pid-usage-chart';
 import PublicationYearChart from '@/components/statistics/publication-year-chart';
 import RelatedWorksChart from '@/components/statistics/related-works-chart';
+import RelationTypesChart from '@/components/statistics/relation-types-chart';
 import ResourceTypeChart from '@/components/statistics/resource-type-chart';
 import RoleDistributionChart from '@/components/statistics/role-distribution-chart';
 import StatsCard from '@/components/statistics/stats-card';
@@ -44,6 +48,37 @@ type RelatedWorksStat = {
         range: string;
         count: number;
     }>;
+    isSupplementTo: {
+        withIsSupplementTo: number;
+        withoutIsSupplementTo: number;
+        percentageWith: number;
+        percentageWithout: number;
+    };
+    placeholders: {
+        totalPlaceholders: number;
+        datasetsWithPlaceholders: number;
+        patterns: Array<{
+            pattern: string;
+            count: number;
+        }>;
+    };
+    relationTypes: Array<{
+        type: string;
+        count: number;
+        datasetCount: number;
+        percentage: number;
+    }>;
+    coverage: {
+        withNoRelatedWorks: number;
+        withOnlyIsSupplementTo: number;
+        withMultipleTypes: number;
+        avgTypesPerDataset: number;
+    };
+    quality: {
+        completeData: number;
+        incompleteOrPlaceholder: number;
+        percentageComplete: number;
+    };
 };
 
 type PidUsageStat = {
@@ -351,6 +386,79 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                         </CardHeader>
                         <CardContent>
                             <PidUsageChart data={statistics.pidUsage} />
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* NEW: Related Works Quality Analysis Section */}
+                <div className="space-y-4">
+                    <div>
+                        <h2 className="text-2xl font-bold tracking-tight">
+                            🔍 Related Works Quality Analysis
+                        </h2>
+                        <p className="text-muted-foreground">
+                            Detailed breakdown of relation types, IsSupplementTo usage, and data
+                            quality metrics
+                        </p>
+                    </div>
+
+                    {/* IsSupplementTo Analysis */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>📑 IsSupplementTo Relation Analysis</CardTitle>
+                            <CardDescription>
+                                Distribution of datasets with/without the IsSupplementTo relation
+                                type
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <IsSupplementToChart data={statistics.relatedWorks.isSupplementTo} />
+                        </CardContent>
+                    </Card>
+
+                    {/* Relation Types Distribution */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>📊 All Relation Types Distribution</CardTitle>
+                            <CardDescription>
+                                Complete breakdown of all {statistics.relatedWorks.relationTypes.length}{' '}
+                                relation types used in the legacy database
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <RelationTypesChart data={statistics.relatedWorks.relationTypes} />
+                        </CardContent>
+                    </Card>
+
+                    {/* Data Quality Indicators */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>✅ Data Quality Metrics</CardTitle>
+                            <CardDescription>
+                                Analysis of placeholder values and overall data completeness
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <DataQualityIndicators
+                                placeholders={statistics.relatedWorks.placeholders}
+                                quality={statistics.relatedWorks.quality}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    {/* Coverage Analysis */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>📈 Coverage Analysis</CardTitle>
+                            <CardDescription>
+                                Overview of datasets by related works coverage level
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <CoverageAnalysis
+                                data={statistics.relatedWorks.coverage}
+                                totalDatasets={statistics.overview.totalDatasets}
+                            />
                         </CardContent>
                     </Card>
                 </div>
