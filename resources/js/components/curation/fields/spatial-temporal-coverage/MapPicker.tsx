@@ -48,13 +48,20 @@ function MapPickerContent({
     const [rectangle, setRectangle] = useState<google.maps.Rectangle | null>(null);
     const rectangleRef = useRef<google.maps.Rectangle | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const isDrawingRectangle = useRef(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [previewRectangle, setPreviewRectangle] = useState<google.maps.Rectangle | null>(null);
+    const previewRectangleRef = useRef<google.maps.Rectangle | null>(null);
     const rectangleStart = useRef<Coordinates | null>(null);
 
     // Sync rectangle state with ref
     useEffect(() => {
         rectangleRef.current = rectangle;
     }, [rectangle]);
+
+    // Sync preview rectangle state with ref
+    useEffect(() => {
+        previewRectangleRef.current = previewRectangle;
+    }, [previewRectangle]);
 
     const drawRectangleOnMap = useCallback(
         (bounds: CoordinateBounds, mapInstance: google.maps.Map) => {
@@ -86,6 +93,101 @@ function MapPickerContent({
             mapInstance.fitBounds(newRectangle.getBounds()!);
         },
         [], // No dependencies - use rectangleRef instead to avoid infinite loop
+    );
+
+    /**
+     * Handler for mouse down event - starts rectangle drawing
+     */
+    const handleMouseDown = useCallback(
+        (event: google.maps.MapMouseEvent) => {
+            if (drawingMode !== 'rectangle' || !event.latLng) return;
+
+            const lat = event.latLng.lat();
+            const lng = event.latLng.lng();
+
+            rectangleStart.current = { lat, lng };
+            setIsDragging(true);
+
+            // Clear any existing marker
+            setMarker(null);
+        },
+        [drawingMode],
+    );
+
+    /**
+     * Handler for mouse move event - updates preview rectangle during drag
+     */
+    const handleMouseMove = useCallback(
+        (event: google.maps.MapMouseEvent) => {
+            if (!isDragging || !rectangleStart.current || !event.latLng || !map) return;
+
+            const lat = event.latLng.lat();
+            const lng = event.latLng.lng();
+
+            const bounds = {
+                north: Math.max(lat, rectangleStart.current.lat),
+                south: Math.min(lat, rectangleStart.current.lat),
+                east: Math.max(lng, rectangleStart.current.lng),
+                west: Math.min(lng, rectangleStart.current.lng),
+            };
+
+            // Remove existing preview rectangle
+            if (previewRectangleRef.current) {
+                previewRectangleRef.current.setMap(null);
+            }
+
+            // Create new preview rectangle
+            const newPreviewRectangle = new google.maps.Rectangle({
+                bounds,
+                editable: false,
+                draggable: false,
+                strokeColor: '#3B82F6',
+                strokeOpacity: 0.6,
+                strokeWeight: 2,
+                fillColor: '#3B82F6',
+                fillOpacity: 0.1,
+                clickable: false,
+            });
+
+            newPreviewRectangle.setMap(map);
+            setPreviewRectangle(newPreviewRectangle);
+        },
+        [isDragging, map],
+    );
+
+    /**
+     * Handler for mouse up event - finalizes rectangle drawing
+     */
+    const handleMouseUp = useCallback(
+        (event: google.maps.MapMouseEvent) => {
+            if (!isDragging || !rectangleStart.current || !event.latLng || !map) return;
+
+            const lat = event.latLng.lat();
+            const lng = event.latLng.lng();
+
+            const bounds: CoordinateBounds = {
+                north: Math.max(lat, rectangleStart.current.lat),
+                south: Math.min(lat, rectangleStart.current.lat),
+                east: Math.max(lng, rectangleStart.current.lng),
+                west: Math.min(lng, rectangleStart.current.lng),
+            };
+
+            // Remove preview rectangle
+            if (previewRectangleRef.current) {
+                previewRectangleRef.current.setMap(null);
+                setPreviewRectangle(null);
+            }
+
+            // Draw final rectangle
+            drawRectangleOnMap(bounds, map);
+            onRectangleSelected(bounds);
+
+            // Reset drawing state
+            setIsDragging(false);
+            rectangleStart.current = null;
+            setDrawingMode(null);
+        },
+        [isDragging, map, drawRectangleOnMap, onRectangleSelected],
     );
 
     // Initialize marker/rectangle from props
@@ -120,6 +222,35 @@ function MapPickerContent({
         }
     }, [latMin, lonMin, latMax, lonMax, map, drawRectangleOnMap]);
 
+    // Register mouse event listeners for drag & drop rectangle drawing
+    useEffect(() => {
+        if (!map || drawingMode !== 'rectangle') return;
+
+        // Set crosshair cursor during rectangle mode
+        map.setOptions({ draggableCursor: 'crosshair' });
+
+        const listeners = [
+            map.addListener('mousedown', handleMouseDown),
+            map.addListener('mousemove', handleMouseMove),
+            map.addListener('mouseup', handleMouseUp),
+        ];
+
+        return () => {
+            // Remove listeners and reset cursor
+            listeners.forEach((listener) => listener.remove());
+            map.setOptions({ draggableCursor: undefined });
+        };
+    }, [map, drawingMode, handleMouseDown, handleMouseMove, handleMouseUp]);
+
+    // Cleanup preview rectangle on mode change or unmount
+    useEffect(() => {
+        return () => {
+            if (previewRectangleRef.current) {
+                previewRectangleRef.current.setMap(null);
+            }
+        };
+    }, [drawingMode]);
+
     const handleMapClick = useCallback(
         (event: MapMouseEvent) => {
             if (!map || !event.detail.latLng) return;
@@ -136,36 +267,10 @@ function MapPickerContent({
                 setMarker({ lat, lng });
                 onPointSelected(lat, lng);
                 setDrawingMode(null);
-            } else if (drawingMode === 'rectangle') {
-                if (!isDrawingRectangle.current) {
-                    // Start drawing rectangle
-                    rectangleStart.current = { lat, lng };
-                    isDrawingRectangle.current = true;
-                } else {
-                    // Finish drawing rectangle
-                    if (rectangleStart.current) {
-                        const bounds: CoordinateBounds = {
-                            north: Math.max(lat, rectangleStart.current.lat),
-                            south: Math.min(lat, rectangleStart.current.lat),
-                            east: Math.max(lng, rectangleStart.current.lng),
-                            west: Math.min(lng, rectangleStart.current.lng),
-                        };
-
-                        // Clear marker
-                        setMarker(null);
-
-                        drawRectangleOnMap(bounds, map);
-                        onRectangleSelected(bounds);
-
-                        // Reset drawing state
-                        isDrawingRectangle.current = false;
-                        rectangleStart.current = null;
-                        setDrawingMode(null);
-                    }
-                }
             }
+            // Rectangle drawing is now handled by drag & drop (mousedown/mousemove/mouseup)
         },
-        [drawingMode, map, onPointSelected, onRectangleSelected, rectangle, drawRectangleOnMap],
+        [drawingMode, map, onPointSelected, rectangle],
     );
 
     const handleSearch = useCallback(async () => {
@@ -238,7 +343,8 @@ function MapPickerContent({
                         const newMode = drawingMode === 'rectangle' ? null : 'rectangle';
                         setDrawingMode(newMode);
                         if (newMode === null) {
-                            isDrawingRectangle.current = false;
+                            // Reset drag state when exiting rectangle mode
+                            setIsDragging(false);
                             rectangleStart.current = null;
                         }
                     }}
@@ -249,9 +355,9 @@ function MapPickerContent({
                     <span className="text-xs text-muted-foreground self-center">
                         {drawingMode === 'point'
                             ? 'Click on the map to place a marker'
-                            : isDrawingRectangle.current
-                              ? 'Click again to finish rectangle'
-                              : 'Click to start drawing rectangle'}
+                            : isDragging
+                              ? 'Release mouse to finish rectangle'
+                              : 'Click and drag to draw rectangle'}
                     </span>
                 )}
             </div>
