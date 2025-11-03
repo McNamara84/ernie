@@ -4,14 +4,32 @@ import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+/**
+ * Props for the PasswordInput component.
+ * Extends all standard HTML input element props.
+ */
 interface PasswordInputProps extends React.ComponentProps<'input'> {
+    /**
+     * Aria label for the toggle button when password is hidden.
+     * Describes the action that will be performed when clicked (showing the password).
+     * @default 'Show text'
+     */
     showPasswordLabel?: string;
+    /**
+     * Aria label for the toggle button when password is visible.
+     * Describes the action that will be performed when clicked (hiding the password).
+     * @default 'Hide text'
+     */
     hidePasswordLabel?: string;
 }
 
 const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
     ({ className, showPasswordLabel = 'Show text', hidePasswordLabel = 'Hide text', ...props }, ref) => {
         const [showPassword, setShowPassword] = React.useState(false);
+
+        const togglePasswordVisibility = () => {
+            setShowPassword((prev) => !prev);
+        };
 
         return (
             <div className="relative">
@@ -32,8 +50,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
                     variant="ghost"
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    tabIndex={-1}
+                    onClick={togglePasswordVisibility}
                     aria-label={showPassword ? hidePasswordLabel : showPasswordLabel}
                 >
                     {showPassword ? (

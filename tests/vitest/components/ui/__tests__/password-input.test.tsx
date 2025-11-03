@@ -63,10 +63,10 @@ describe('PasswordInput', () => {
         expect(input).toHaveAttribute('autocomplete', 'current-password');
     });
 
-    it('has toggle button with tabIndex -1', () => {
+    it('toggle button is keyboard accessible', () => {
         renderPasswordInput();
         const toggleButton = screen.getByRole('button', { name: /show text/i });
-        expect(toggleButton).toHaveAttribute('tabindex', '-1');
+        expect(toggleButton).not.toHaveAttribute('tabindex', '-1');
     });
 
     it('accepts custom show/hide labels', () => {
