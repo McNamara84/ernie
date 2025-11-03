@@ -363,12 +363,14 @@ function MapPickerContent({
                         const newMode = drawingMode === 'rectangle' ? null : 'rectangle';
                         setDrawingMode(newMode);
                         if (newMode === null) {
+                            // Re-enable map dragging if it was disabled during rectangle drawing
+                            const wasDragging = isDragging;
+                            
                             // Reset drag state when exiting rectangle mode
                             setIsDragging(false);
                             rectangleStart.current = null;
                             
-                            // Re-enable map dragging if it was disabled
-                            if (map && isDragging) {
+                            if (map && wasDragging) {
                                 map.setOptions({ draggable: true });
                             }
                         }

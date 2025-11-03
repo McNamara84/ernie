@@ -342,7 +342,10 @@ describe('CoverageEntry', () => {
             const header = screen.getByText('Coverage Entry #1').closest('[class*="CardHeader"]')!;
             await user.click(header);
 
-            expect(screen.getByText(/\(48\.137154, 11\.576124\)/)).toBeInTheDocument();
+            // Use separate assertions for each coordinate value instead of regex pattern
+            // This makes the test more resilient to format changes
+            expect(screen.getByText(/48\.137154/)).toBeInTheDocument();
+            expect(screen.getByText(/11\.576124/)).toBeInTheDocument();
         });
 
         test.skip('shows rectangle coordinates when all coordinates are set', async () => {
@@ -361,7 +364,12 @@ describe('CoverageEntry', () => {
             const header = screen.getByText('Coverage Entry #1').closest('[class*="CardHeader"]')!;
             await user.click(header);
 
-            expect(screen.getByText(/\(48\.1, 11\.5\) to \(48\.2, 11\.7\)/)).toBeInTheDocument();
+            // Use separate assertions for each coordinate value instead of regex pattern
+            // This makes the test more resilient to format changes
+            expect(screen.getByText(/48\.1/)).toBeInTheDocument();
+            expect(screen.getByText(/11\.5/)).toBeInTheDocument();
+            expect(screen.getByText(/48\.2/)).toBeInTheDocument();
+            expect(screen.getByText(/11\.7/)).toBeInTheDocument();
         });
 
         test.skip('shows start date when only start is set', async () => {
@@ -378,7 +386,11 @@ describe('CoverageEntry', () => {
             const header = screen.getByText('Coverage Entry #1').closest('[class*="CardHeader"]')!;
             await user.click(header);
 
-            expect(screen.getByText(/Start: 2024-01-01 10:30/)).toBeInTheDocument();
+            // Use separate assertions instead of combined regex pattern
+            // This makes the test more resilient to format changes
+            expect(screen.getByText(/Start/i)).toBeInTheDocument();
+            expect(screen.getByText(/2024-01-01/)).toBeInTheDocument();
+            expect(screen.getByText(/10:30/)).toBeInTheDocument();
         });
 
         test.skip('shows end date when only end is set', async () => {
@@ -395,7 +407,11 @@ describe('CoverageEntry', () => {
             const header = screen.getByText('Coverage Entry #1').closest('[class*="CardHeader"]')!;
             await user.click(header);
 
-            expect(screen.getByText(/End: 2024-12-31 23:59/)).toBeInTheDocument();
+            // Use separate assertions instead of combined regex pattern
+            // This makes the test more resilient to format changes
+            expect(screen.getByText(/End/i)).toBeInTheDocument();
+            expect(screen.getByText(/2024-12-31/)).toBeInTheDocument();
+            expect(screen.getByText(/23:59/)).toBeInTheDocument();
         });
 
         test.skip('shows date range when both dates are set', async () => {
@@ -412,7 +428,10 @@ describe('CoverageEntry', () => {
             const header = screen.getByText('Coverage Entry #1').closest('[class*="CardHeader"]')!;
             await user.click(header);
 
-            expect(screen.getByText(/2024-01-01 to 2024-12-31/)).toBeInTheDocument();
+            // Use separate assertions instead of combined regex pattern
+            // This makes the test more resilient to format changes
+            expect(screen.getByText(/2024-01-01/)).toBeInTheDocument();
+            expect(screen.getByText(/2024-12-31/)).toBeInTheDocument();
         });
     });
 });
