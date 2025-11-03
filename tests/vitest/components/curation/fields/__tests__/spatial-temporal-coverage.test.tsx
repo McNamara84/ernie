@@ -178,7 +178,7 @@ describe('SpatialTemporalCoverageField', () => {
         expect(screen.queryByRole('button', {
             name: /add.*coverage entry/i,
         })).not.toBeInTheDocument();
-        
+
         expect(screen.getByText(/complete the required fields/i)).toBeInTheDocument();
     });
 
@@ -208,7 +208,7 @@ describe('SpatialTemporalCoverageField', () => {
         expect(screen.getByRole('button', {
             name: /add.*coverage entry/i,
         })).toBeInTheDocument();
-        
+
         // Should NOT show the "complete required fields" message
         expect(screen.queryByText(/complete the required fields/i)).not.toBeInTheDocument();
     });
@@ -272,7 +272,7 @@ describe('SpatialTemporalCoverageField', () => {
         expect(
             screen.queryByRole('button', { name: /add.*coverage entry/i }),
         ).not.toBeInTheDocument();
-        
+
         // Instead, there should be a message about the limit
         expect(screen.getByText(/maximum.*99/i)).toBeInTheDocument();
     });
