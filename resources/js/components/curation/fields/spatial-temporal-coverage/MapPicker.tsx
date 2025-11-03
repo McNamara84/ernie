@@ -100,7 +100,7 @@ function MapPickerContent({
      */
     const handleMouseDown = useCallback(
         (event: google.maps.MapMouseEvent) => {
-            if (drawingMode !== 'rectangle' || !event.latLng) return;
+            if (drawingMode !== 'rectangle' || !event.latLng || !map) return;
 
             const lat = event.latLng.lat();
             const lng = event.latLng.lng();
@@ -108,10 +108,13 @@ function MapPickerContent({
             rectangleStart.current = { lat, lng };
             setIsDragging(true);
 
+            // Disable map dragging during rectangle drawing
+            map.setOptions({ draggable: false });
+
             // Clear any existing marker
             setMarker(null);
         },
-        [drawingMode],
+        [drawingMode, map],
     );
 
     /**
@@ -177,6 +180,9 @@ function MapPickerContent({
                 previewRectangleRef.current.setMap(null);
                 setPreviewRectangle(null);
             }
+
+            // Re-enable map dragging
+            map.setOptions({ draggable: true });
 
             // Draw final rectangle
             drawRectangleOnMap(bounds, map);
@@ -248,8 +254,12 @@ function MapPickerContent({
             if (previewRectangleRef.current) {
                 previewRectangleRef.current.setMap(null);
             }
+            // Re-enable map dragging on cleanup
+            if (map && isDragging) {
+                map.setOptions({ draggable: true });
+            }
         };
-    }, [drawingMode]);
+    }, [drawingMode, map, isDragging]);
 
     const handleMapClick = useCallback(
         (event: MapMouseEvent) => {
@@ -346,6 +356,11 @@ function MapPickerContent({
                             // Reset drag state when exiting rectangle mode
                             setIsDragging(false);
                             rectangleStart.current = null;
+                            
+                            // Re-enable map dragging if it was disabled
+                            if (map && isDragging) {
+                                map.setOptions({ draggable: true });
+                            }
                         }
                     }}
                 >
