@@ -80,11 +80,10 @@ export default function TemporalInputs({
                     <div className="space-y-2">
                         <InputField
                             id="start-date"
-                            label="Date"
+                            label="Date (optional)"
                             type="date"
                             value={startDate}
                             onChange={(e) => onChange('startDate', e.target.value)}
-                            required
                         />
                         <InputField
                             id="start-time"
@@ -115,11 +114,10 @@ export default function TemporalInputs({
                     <div className="space-y-2">
                         <InputField
                             id="end-date"
-                            label="Date"
+                            label="Date (optional)"
                             type="date"
                             value={endDate}
                             onChange={(e) => onChange('endDate', e.target.value)}
-                            required
                         />
                         <InputField
                             id="end-time"
@@ -145,11 +143,10 @@ export default function TemporalInputs({
             <div>
                 <SelectField
                     id="timezone"
-                    label="Timezone"
+                    label="Timezone (optional)"
                     value={timezone}
                     onValueChange={(value) => onChange('timezone', value)}
                     options={TIMEZONE_OPTIONS}
-                    required
                 />
             </div>
 
@@ -166,6 +163,8 @@ export default function TemporalInputs({
                 startDate === endDate &&
                 startTime &&
                 endTime &&
+                isValidTime(startTime) &&
+                isValidTime(endTime) &&
                 startTime >= endTime && (
                     <p className="text-xs text-destructive">
                         Start time must be before end time when dates are the same

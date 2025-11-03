@@ -35,17 +35,42 @@ const formatCoordinates = (entry: SpatialTemporalCoverageEntry): string => {
 };
 
 /**
+ * Helper function to format a single date/time value
+ */
+const formatDateTimeValue = (date: string, time: string): string => {
+    if (!date) return '';
+
+    if (time) {
+        return `${date} ${time}`;
+    }
+
+    return date;
+};
+
+/**
  * Formats date range for preview display
  */
 const formatDateRange = (entry: SpatialTemporalCoverageEntry): string => {
-    if (!entry.startDate || !entry.endDate) return 'No dates set';
+    const startFormatted = formatDateTimeValue(entry.startDate, entry.startTime);
+    const endFormatted = formatDateTimeValue(entry.endDate, entry.endTime);
 
-    const start = entry.startTime
-        ? `${entry.startDate} ${entry.startTime}`
-        : entry.startDate;
-    const end = entry.endTime ? `${entry.endDate} ${entry.endTime}` : entry.endDate;
+    // If neither date is set
+    if (!startFormatted && !endFormatted) {
+        return 'No dates set';
+    }
 
-    return `${start} to ${end}`;
+    // If only start date is set
+    if (startFormatted && !endFormatted) {
+        return `Start: ${startFormatted}`;
+    }
+
+    // If only end date is set
+    if (!startFormatted && endFormatted) {
+        return `End: ${endFormatted}`;
+    }
+
+    // Both dates are set
+    return `${startFormatted} to ${endFormatted}`;
 };
 
 /**

@@ -62,22 +62,22 @@ describe('TemporalInputs', () => {
         expect(mockOnChange).toHaveBeenCalledWith('startDate', '2024-06-15');
     });
 
-    test('marks start and end dates as required', () => {
+    test('start and end dates are optional', () => {
         const { container } = render(<TemporalInputs {...defaultProps} />);
 
         const startDateInput = container.querySelector('#start-date') as HTMLInputElement;
         const endDateInput = container.querySelector('#end-date') as HTMLInputElement;
 
-        expect(startDateInput).toBeRequired();
-        expect(endDateInput).toBeRequired();
+        expect(startDateInput).not.toBeRequired();
+        expect(endDateInput).not.toBeRequired();
     });
 
-    test('renders timezone selector with options', () => {
+    test('renders timezone selector as optional', () => {
         render(<TemporalInputs {...defaultProps} />);
 
         const timezoneSelect = screen.getByRole('combobox', { name: /timezone/i });
         expect(timezoneSelect).toBeInTheDocument();
-        expect(timezoneSelect).toHaveAttribute('aria-required', 'true');
+        expect(timezoneSelect).not.toHaveAttribute('aria-required', 'true');
     });
 
     test('shows validation error when start date is after end date', () => {
