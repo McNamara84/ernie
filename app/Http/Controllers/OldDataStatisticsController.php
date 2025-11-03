@@ -320,14 +320,19 @@ class OldDataStatisticsController extends Controller
                     'placeholder',
                 ];
 
+                // Optimized: Use single query with groupBy to get all pattern counts at once
+                $placeholderCounts = $db->table('relatedidentifier')
+                    ->select(['identifier', DB::raw('COUNT(*) as count')])
+                    ->whereIn('identifier', $placeholderPatterns)
+                    ->groupBy('identifier')
+                    ->get()
+                    ->keyBy('identifier');
+
                 $placeholderStats = [];
                 $totalPlaceholders = 0;
-                $datasetsWithPlaceholders = 0;
 
                 foreach ($placeholderPatterns as $pattern) {
-                    $count = $db->table('relatedidentifier')
-                        ->where('identifier', '=', $pattern)
-                        ->count();
+                    $count = $placeholderCounts->get($pattern)?->count ?? 0;
 
                     if ($count > 0) {
                         $placeholderStats[] = [
@@ -338,13 +343,13 @@ class OldDataStatisticsController extends Controller
                     }
                 }
 
-                // Count unique datasets with placeholders
-                if ($totalPlaceholders > 0) {
-                    $datasetsWithPlaceholders = $db->table('relatedidentifier')
+                // Count unique datasets with placeholders (only if there are placeholders)
+                $datasetsWithPlaceholders = $totalPlaceholders > 0
+                    ? $db->table('relatedidentifier')
                         ->whereIn('identifier', $placeholderPatterns)
-                        ->distinct('resource_id')
-                        ->count('resource_id');
-                }
+                        ->selectRaw('COUNT(DISTINCT resource_id) as count')
+                        ->value('count')
+                    : 0;
 
                 // Relation Type Distribution
                 $relationTypes = $db->table('relatedidentifier')
