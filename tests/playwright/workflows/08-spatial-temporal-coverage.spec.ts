@@ -235,17 +235,20 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
-                // Click timezone dropdown
-                const timezoneSelect = page.locator('select, [role="combobox"]').filter({ hasText: /UTC|timezone/i }).first();
+                // Click timezone dropdown - use more specific selector to avoid conflicts
+                const timezoneSelect = page.getByRole('region', { name: 'Spatial and Temporal Coverage' })
+                    .locator('select, [role="combobox"]')
+                    .filter({ hasText: /UTC|timezone/i })
+                    .first();
                 
                 if (await timezoneSelect.isVisible()) {
                     await timezoneSelect.click();
                     
-                    // Select Europe/Berlin
-                    await page.getByText(/Europe\/Berlin/i).click();
+                    // Select Europe/Berlin - use option selector to avoid Radix UI span conflict
+                    await timezoneSelect.locator('option', { hasText: /Europe\/Berlin/i }).first().click();
                     
-                    // Verify selection
-                    await expect(page.getByText(/Europe\/Berlin/i)).toBeVisible();
+                    // Verify selection in the select element
+                    await expect(timezoneSelect).toContainText(/Europe\/Berlin/i);
                 }
             }
         });
@@ -347,8 +350,8 @@ test.describe('Spatial and Temporal Coverage', () => {
                 // Add second entry
                 await page.getByRole('button', { name: /add coverage entry/i }).last().click();
                 
-                // Second entry should have a remove button
-                const removeButton = page.getByRole('button', { name: /trash/i }).last();
+                // Second entry should have a remove button with new aria-label
+                const removeButton = page.getByRole('button', { name: /remove coverage entry/i }).last();
                 await removeButton.click();
                 
                 // Should only have one entry left
