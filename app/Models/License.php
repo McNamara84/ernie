@@ -22,6 +22,7 @@ class License extends Model
         'is_fsf_libre',
         'active',
         'elmo_active',
+        'usage_count',
     ];
 
     protected $casts = [
