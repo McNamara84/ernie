@@ -223,4 +223,116 @@ describe('CoverageEntry', () => {
         // The card is expanded by default
         expect(screen.getByLabelText(/^Description \(optional\)$/i)).toBeInTheDocument();
     });
+
+    test('shows preview with both dates when collapsed', async () => {
+        const user = userEvent.setup();
+        const entry: SpatialTemporalCoverageEntry = {
+            ...defaultEntry,
+            latMin: '48.137154',
+            lonMin: '11.576124',
+            startDate: '2024-01-01',
+            endDate: '2024-12-31',
+        };
+
+        render(<CoverageEntry {...defaultProps} entry={entry} />);
+
+        // Collapse the card
+        const chevronButton = screen.getAllByRole('button').find(btn =>
+            btn.querySelector('.lucide-chevron-up')
+        );
+        await user.click(chevronButton!);
+
+        // Should show date range
+        expect(screen.getByText(/2024-01-01 to 2024-12-31/)).toBeInTheDocument();
+    });
+
+    test('shows preview with only start date when end date is missing', async () => {
+        const user = userEvent.setup();
+        const entry: SpatialTemporalCoverageEntry = {
+            ...defaultEntry,
+            latMin: '48.137154',
+            lonMin: '11.576124',
+            startDate: '2024-01-01',
+            endDate: '',
+        };
+
+        render(<CoverageEntry {...defaultProps} entry={entry} />);
+
+        // Collapse the card
+        const chevronButton = screen.getAllByRole('button').find(btn =>
+            btn.querySelector('.lucide-chevron-up')
+        );
+        await user.click(chevronButton!);
+
+        // Should show only start date with label
+        expect(screen.getByText(/Start: 2024-01-01/)).toBeInTheDocument();
+    });
+
+    test('shows preview with only end date when start date is missing', async () => {
+        const user = userEvent.setup();
+        const entry: SpatialTemporalCoverageEntry = {
+            ...defaultEntry,
+            latMin: '48.137154',
+            lonMin: '11.576124',
+            startDate: '',
+            endDate: '2024-12-31',
+        };
+
+        render(<CoverageEntry {...defaultProps} entry={entry} />);
+
+        // Collapse the card
+        const chevronButton = screen.getAllByRole('button').find(btn =>
+            btn.querySelector('.lucide-chevron-up')
+        );
+        await user.click(chevronButton!);
+
+        // Should show only end date with label
+        expect(screen.getByText(/End: 2024-12-31/)).toBeInTheDocument();
+    });
+
+    test('shows preview with date and time when time is provided', async () => {
+        const user = userEvent.setup();
+        const entry: SpatialTemporalCoverageEntry = {
+            ...defaultEntry,
+            latMin: '48.137154',
+            lonMin: '11.576124',
+            startDate: '2024-01-01',
+            startTime: '09:00',
+            endDate: '2024-12-31',
+            endTime: '17:00',
+        };
+
+        render(<CoverageEntry {...defaultProps} entry={entry} />);
+
+        // Collapse the card
+        const chevronButton = screen.getAllByRole('button').find(btn =>
+            btn.querySelector('.lucide-chevron-up')
+        );
+        await user.click(chevronButton!);
+
+        // Should show dates with times
+        expect(screen.getByText(/2024-01-01 09:00 to 2024-12-31 17:00/)).toBeInTheDocument();
+    });
+
+    test('shows "No dates set" when no dates are provided', async () => {
+        const user = userEvent.setup();
+        const entry: SpatialTemporalCoverageEntry = {
+            ...defaultEntry,
+            latMin: '48.137154',
+            lonMin: '11.576124',
+            startDate: '',
+            endDate: '',
+        };
+
+        render(<CoverageEntry {...defaultProps} entry={entry} />);
+
+        // Collapse the card
+        const chevronButton = screen.getAllByRole('button').find(btn =>
+            btn.querySelector('.lucide-chevron-up')
+        );
+        await user.click(chevronButton!);
+
+        // Should show "No dates set"
+        expect(screen.getByText(/No dates set/)).toBeInTheDocument();
+    });
 });
