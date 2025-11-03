@@ -30,6 +30,7 @@ class License extends Model
         'is_fsf_libre' => 'boolean',
         'active' => 'boolean',
         'elmo_active' => 'boolean',
+        'usage_count' => 'integer',
     ];
 
     /**

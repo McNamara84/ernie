@@ -35,18 +35,33 @@ class UpdateLicenseUsageCount extends Command
             ->groupBy('license_id')
             ->pluck('count', 'license_id');
 
-        // Reset all licenses to 0 first
-        License::query()->update(['usage_count' => 0]);
+        if ($usageCounts->isEmpty()) {
+            // If no licenses are used, reset all to 0
+            License::query()->update(['usage_count' => 0]);
+            $this->info('No license usage found. All counts reset to 0.');
 
-        $updatedCount = 0;
-
-        // Update licenses with actual usage counts
-        foreach ($usageCounts as $licenseId => $count) {
-            License::where('id', $licenseId)->update(['usage_count' => $count]);
-            $updatedCount++;
+            return Command::SUCCESS;
         }
 
-        $this->info("Successfully updated usage counts for {$updatedCount} licenses.");
+        // Build CASE statement for single UPDATE query
+        $cases = [];
+        $ids = [];
+
+        foreach ($usageCounts as $licenseId => $count) {
+            $cases[] = "WHEN id = {$licenseId} THEN {$count}";
+            $ids[] = $licenseId;
+        }
+
+        $caseStatement = implode(' ', $cases);
+        $idList = implode(',', $ids);
+
+        // Single UPDATE query with CASE statement
+        DB::statement("
+            UPDATE licenses
+            SET usage_count = CASE {$caseStatement} ELSE 0 END
+        ");
+
+        $this->info('Successfully updated usage counts for '.count($usageCounts).' licenses.');
 
         return Command::SUCCESS;
     }
