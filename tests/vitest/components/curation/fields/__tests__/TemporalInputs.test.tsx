@@ -145,9 +145,9 @@ describe('TemporalInputs', () => {
             const timezoneSelect = screen.getByRole('combobox');
             await user.click(timezoneSelect);
 
-            // Check for some common timezones
+            // Check for some common timezones (use underscores as per IANA standard)
             expect(await screen.findByText(/Europe\/Berlin/)).toBeInTheDocument();
-            expect(screen.getByText(/America\/New York/)).toBeInTheDocument();
+            expect(screen.getByText(/America\/New_York/)).toBeInTheDocument();
             expect(screen.getByText(/Asia\/Tokyo/)).toBeInTheDocument();
         });
     });

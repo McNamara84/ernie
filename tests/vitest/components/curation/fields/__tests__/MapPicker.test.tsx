@@ -15,6 +15,11 @@ const mockMap = {
     fitBounds: vi.fn(),
     setZoom: vi.fn(),
     addListener: vi.fn(() => ({ remove: vi.fn() })),
+    get: vi.fn((key: string) => {
+        // Return default values for map properties
+        if (key === 'draggable') return true;
+        return undefined;
+    }),
 };
 
 const mockRectangle = {

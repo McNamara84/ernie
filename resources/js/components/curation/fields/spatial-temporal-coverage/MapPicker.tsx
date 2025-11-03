@@ -262,14 +262,15 @@ function MapPickerContent({
         return () => {
             if (previewRectangleRef.current) {
                 previewRectangleRef.current.setMap(null);
-                previewRectangleRef.current = null; // Set ref to null immediately
+                previewRectangleRef.current = null;
             }
-            // Re-enable map dragging on cleanup
-            if (map && isDragging) {
+            // Re-enable map dragging on cleanup if it was disabled
+            // Check the actual map property instead of state to avoid stale closure
+            if (map && !map.get('draggable')) {
                 map.setOptions({ draggable: true });
             }
         };
-    }, [drawingMode, map, isDragging]);
+    }, [drawingMode, map]);
 
     const handleMapClick = useCallback(
         (event: MapMouseEvent) => {
@@ -362,15 +363,14 @@ function MapPickerContent({
                     onClick={() => {
                         const newMode = drawingMode === 'rectangle' ? null : 'rectangle';
                         setDrawingMode(newMode);
-                        if (newMode === null) {
-                            // Re-enable map dragging if it was disabled during rectangle drawing
-                            const wasDragging = isDragging;
-                            
+                        if (newMode === null && map) {
                             // Reset drag state when exiting rectangle mode
                             setIsDragging(false);
                             rectangleStart.current = null;
                             
-                            if (map && wasDragging) {
+                            // Re-enable map dragging if it was disabled
+                            // Check the actual map draggable property instead of state
+                            if (!map.get('draggable')) {
                                 map.setOptions({ draggable: true });
                             }
                         }
