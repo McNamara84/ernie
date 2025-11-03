@@ -19,14 +19,14 @@ describe('PasswordInput', () => {
 
     it('renders a toggle button', () => {
         renderPasswordInput();
-        const button = screen.getByRole('button', { name: /toggle visibility/i });
+        const button = screen.getByRole('button', { name: /show text/i });
         expect(button).toBeInTheDocument();
     });
 
     it('toggles password visibility when button is clicked', () => {
         renderPasswordInput({ placeholder: 'Enter password' });
         const input = screen.getByPlaceholderText('Enter password');
-        const toggleButton = screen.getByRole('button', { name: /toggle visibility/i });
+        const toggleButton = screen.getByRole('button', { name: /show text/i });
 
         // Initially password type
         expect(input).toHaveAttribute('type', 'password');
@@ -34,12 +34,12 @@ describe('PasswordInput', () => {
         // Click to show password
         fireEvent.click(toggleButton);
         expect(input).toHaveAttribute('type', 'text');
-        expect(screen.getByRole('button', { name: /toggle visibility/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /hide text/i })).toBeInTheDocument();
 
         // Click again to hide password
         fireEvent.click(toggleButton);
         expect(input).toHaveAttribute('type', 'password');
-        expect(screen.getByRole('button', { name: /toggle visibility/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /show text/i })).toBeInTheDocument();
     });
 
     it('applies custom className', () => {
@@ -65,7 +65,7 @@ describe('PasswordInput', () => {
 
     it('has toggle button with tabIndex -1', () => {
         renderPasswordInput();
-        const toggleButton = screen.getByRole('button', { name: /toggle visibility/i });
+        const toggleButton = screen.getByRole('button', { name: /show text/i });
         expect(toggleButton).toHaveAttribute('tabindex', '-1');
     });
 

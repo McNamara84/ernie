@@ -10,7 +10,7 @@ interface PasswordInputProps extends React.ComponentProps<'input'> {
 }
 
 const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
-    ({ className, showPasswordLabel = 'Toggle visibility', hidePasswordLabel = 'Toggle visibility', ...props }, ref) => {
+    ({ className, showPasswordLabel = 'Show text', hidePasswordLabel = 'Hide text', ...props }, ref) => {
         const [showPassword, setShowPassword] = React.useState(false);
 
         return (
