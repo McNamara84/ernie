@@ -22,6 +22,7 @@ class License extends Model
         'is_fsf_libre',
         'active',
         'elmo_active',
+        'usage_count',
     ];
 
     protected $casts = [
@@ -30,6 +31,7 @@ class License extends Model
         'is_fsf_libre' => 'boolean',
         'active' => 'boolean',
         'elmo_active' => 'boolean',
+        'usage_count' => 'integer',
     ];
 
     /**
@@ -57,5 +59,16 @@ class License extends Model
     public function scopeOrderByName(Builder $query): Builder
     {
         return $query->orderBy('name');
+    }
+
+    /**
+     * Order licenses by usage count (descending) with alphabetical fallback.
+     *
+     * @param  Builder<License>  $query
+     * @return Builder<License>
+     */
+    public function scopeOrderByUsageCount(Builder $query): Builder
+    {
+        return $query->orderBy('usage_count', 'desc')->orderBy('name');
     }
 }

@@ -40,7 +40,7 @@ class LicenseController extends Controller
     {
         $licenses = License::query()
             ->active()
-            ->orderByName()
+            ->orderByUsageCount()
             ->get(['id', 'identifier', 'name']);
 
         return response()->json($licenses);
