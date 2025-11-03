@@ -152,11 +152,11 @@ describe('SpatialTemporalCoverageField', () => {
         expect(screen.getByTestId('coverage-entry-1')).toBeInTheDocument();
     });
 
-    test('disables add button when coverage entry is incomplete', () => {
+    test('disables add button when coverage entry is incomplete (missing required spatial fields)', () => {
         const incompleteEntry: SpatialTemporalCoverageEntry = {
             id: 'test-1',
             latMin: '48.137154',
-            lonMin: '', // Missing required field
+            lonMin: '', // Missing required spatial field
             latMax: '',
             lonMax: '',
             startDate: '',
@@ -180,6 +180,37 @@ describe('SpatialTemporalCoverageField', () => {
         })).not.toBeInTheDocument();
         
         expect(screen.getByText(/complete the required fields/i)).toBeInTheDocument();
+    });
+
+    test('allows adding new entry even when temporal fields are empty (temporal fields are optional)', () => {
+        const completeEntryWithoutTemporal: SpatialTemporalCoverageEntry = {
+            id: 'test-1',
+            latMin: '48.137154',
+            lonMin: '11.576124',
+            latMax: '',
+            lonMax: '',
+            startDate: '', // Empty temporal fields are allowed
+            endDate: '',
+            startTime: '',
+            endTime: '',
+            timezone: '',
+            description: '',
+        };
+
+        render(
+            <SpatialTemporalCoverageField
+                {...defaultProps}
+                coverages={[completeEntryWithoutTemporal]}
+            />,
+        );
+
+        // Should show add button because spatial coordinates are complete
+        expect(screen.getByRole('button', {
+            name: /add.*coverage entry/i,
+        })).toBeInTheDocument();
+        
+        // Should NOT show the "complete required fields" message
+        expect(screen.queryByText(/complete the required fields/i)).not.toBeInTheDocument();
     });
 
     test('removes a coverage entry when remove is called', async () => {
