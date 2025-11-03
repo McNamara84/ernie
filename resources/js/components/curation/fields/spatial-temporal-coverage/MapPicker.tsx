@@ -264,9 +264,9 @@ function MapPickerContent({
                 previewRectangleRef.current.setMap(null);
                 previewRectangleRef.current = null;
             }
-            // Re-enable map dragging on cleanup if it was disabled
-            // Check the actual map property instead of state to avoid stale closure
-            if (map && !map.get('draggable')) {
+            // Re-enable map dragging on cleanup if it was explicitly disabled
+            // Check for explicit false value (not undefined) to avoid re-enabling when already enabled
+            if (map && map.get('draggable') === false) {
                 map.setOptions({ draggable: true });
             }
         };
@@ -368,9 +368,9 @@ function MapPickerContent({
                             setIsDragging(false);
                             rectangleStart.current = null;
                             
-                            // Re-enable map dragging if it was disabled
-                            // Check the actual map draggable property instead of state
-                            if (!map.get('draggable')) {
+                            // Re-enable map dragging if it was explicitly disabled
+                            // Check for explicit false value (not undefined) to avoid re-enabling when already enabled
+                            if (map.get('draggable') === false) {
                                 map.setOptions({ draggable: true });
                             }
                         }
