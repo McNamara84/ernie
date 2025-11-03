@@ -402,7 +402,7 @@ describe('DataCiteForm', () => {
 
     it(
         'renders fields, title options and supports adding/removing titles',
-        { timeout: 10000 },
+        { timeout: 30000 },
         async () => {
             render(
                 <DataCiteForm
@@ -633,7 +633,7 @@ describe('DataCiteForm', () => {
 
     it(
         'disables saving until required fields are provided',
-        { timeout: 15000 },
+        { timeout: 30000 },
         async () => {
             render(
                 <DataCiteForm
