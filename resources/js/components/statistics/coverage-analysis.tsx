@@ -19,25 +19,30 @@ const COLORS = {
 };
 
 export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalysisProps) {
+    // Guard against division by zero
+    const safePercentage = (value: number): string => {
+        return totalDatasets > 0 ? ((value / totalDatasets) * 100).toFixed(2) : '0.00';
+    };
+
     const datasetsWithRelatedWorks = totalDatasets - data.withNoRelatedWorks;
 
     const chartData = [
         {
             name: 'No Related Works',
             value: data.withNoRelatedWorks,
-            percentage: ((data.withNoRelatedWorks / totalDatasets) * 100).toFixed(2),
+            percentage: safePercentage(data.withNoRelatedWorks),
             color: COLORS.noRelatedWorks,
         },
         {
             name: 'Only IsSupplementTo',
             value: data.withOnlyIsSupplementTo,
-            percentage: ((data.withOnlyIsSupplementTo / totalDatasets) * 100).toFixed(2),
+            percentage: safePercentage(data.withOnlyIsSupplementTo),
             color: COLORS.onlyIsSupplementTo,
         },
         {
             name: 'Multiple Types',
             value: data.withMultipleTypes,
-            percentage: ((data.withMultipleTypes / totalDatasets) * 100).toFixed(2),
+            percentage: safePercentage(data.withMultipleTypes),
             color: COLORS.multipleTypes,
         },
     ];
@@ -118,7 +123,7 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                         {data.withNoRelatedWorks.toLocaleString()}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {((data.withNoRelatedWorks / totalDatasets) * 100).toFixed(2)}% of total
+                        {safePercentage(data.withNoRelatedWorks)}% of total
                     </p>
                 </div>
 
@@ -134,7 +139,7 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                         {data.withOnlyIsSupplementTo.toLocaleString()}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {((data.withOnlyIsSupplementTo / totalDatasets) * 100).toFixed(2)}% of total
+                        {safePercentage(data.withOnlyIsSupplementTo)}% of total
                     </p>
                 </div>
 
@@ -150,7 +155,7 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                         {data.withMultipleTypes.toLocaleString()}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                        {((data.withMultipleTypes / totalDatasets) * 100).toFixed(2)}% of total
+                        {safePercentage(data.withMultipleTypes)}% of total
                     </p>
                 </div>
 
@@ -173,9 +178,8 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                             <span className="font-semibold">
                                 {datasetsWithRelatedWorks.toLocaleString()}
                             </span>{' '}
-                            datasets (
-                            {((datasetsWithRelatedWorks / totalDatasets) * 100).toFixed(2)}%) have at
-                            least one related work entry
+                            datasets ({safePercentage(datasetsWithRelatedWorks)}%) have at least one
+                            related work entry
                         </p>
                     </div>
                     <div className="flex items-start gap-2">
