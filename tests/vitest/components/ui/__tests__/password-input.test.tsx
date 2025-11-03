@@ -69,6 +69,23 @@ describe('PasswordInput', () => {
         expect(toggleButton).not.toHaveAttribute('tabindex', '-1');
     });
 
+    it('disables autocomplete when password is visible', () => {
+        renderPasswordInput({ placeholder: 'Enter password', autoComplete: 'current-password' });
+        const input = screen.getByPlaceholderText('Enter password');
+        const toggleButton = screen.getByRole('button', { name: /show text/i });
+
+        // Initially autocomplete is set
+        expect(input).toHaveAttribute('autocomplete', 'current-password');
+
+        // Click to show password
+        fireEvent.click(toggleButton);
+        expect(input).toHaveAttribute('autocomplete', 'off');
+
+        // Click again to hide password
+        fireEvent.click(toggleButton);
+        expect(input).toHaveAttribute('autocomplete', 'current-password');
+    });
+
     it('accepts custom show/hide labels', () => {
         renderPasswordInput({
             showPasswordLabel: 'Reveal password',
