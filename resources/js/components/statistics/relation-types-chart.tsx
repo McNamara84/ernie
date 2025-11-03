@@ -39,7 +39,7 @@ const COLORS = [
     '#dc2626', // red-600
     '#0ea5e9', // sky-500
     '#d946ef', // fuchsia-500
-    '#14b8a6', // teal-500
+    '#fb923c', // orange-400
     '#f43f5e', // rose-500
     '#64748b', // slate-500
 ];

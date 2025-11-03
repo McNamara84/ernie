@@ -332,7 +332,8 @@ class OldDataStatisticsController extends Controller
                 $totalPlaceholders = 0;
 
                 foreach ($placeholderPatterns as $pattern) {
-                    $count = $placeholderCounts->get($pattern)->count ?? 0;
+                    $result = $placeholderCounts->get($pattern);
+                    $count = $result ? (int) $result->count : 0;
 
                     if ($count > 0) {
                         $placeholderStats[] = [
