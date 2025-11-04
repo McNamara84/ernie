@@ -1398,7 +1398,8 @@ class ResourceController extends Controller
                 ], 422);
             }
 
-            $service = new DataCiteRegistrationService;
+            // Resolve service from container (allows testing with fake service)
+            $service = app(DataCiteRegistrationService::class);
 
             // Check if DOI already exists - if yes, update metadata instead of registering
             if ($resource->doi) {

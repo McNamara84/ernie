@@ -89,7 +89,7 @@ test.describe('DOI Registration Workflow', () => {
 
         // Should show existing DOI (use first() to avoid strict mode violation with 2 matches)
         await expect(page.getByText(/existing doi/i).first()).toBeVisible();
-        await expect(page.getByText(/10\.\d+/)).toBeVisible();
+        await expect(page.getByText(/10\.\d+/).first()).toBeVisible();
 
         // Should NOT show prefix selection
         const prefixSelect = page.getByRole('combobox');
@@ -109,24 +109,37 @@ test.describe('DOI Registration Workflow', () => {
         await page.goto('/resources');
         await page.waitForTimeout(2000); // Wait for React rendering
 
-        // Find table and get fourth row (Curation resource WITHOUT landing page from seeder)
+        // Find table
         const resourceTable = page.locator('table').first();
         await expect(resourceTable).toBeVisible({ timeout: 10000 });
         
-        const resourceRow = resourceTable.locator('tbody tr').nth(3);
-        await expect(resourceRow).toBeVisible();
-
-        // DataCite button (3rd button) should NOT exist for resources without landing page
-        // The UI conditionally renders it only when resource.landingPage exists
-        const dataciteButton = resourceRow.locator('button').nth(2);
+        // Find a resource row that has "Not registered" badge (these don't have landing pages)
+        // We need to find all rows and check each one
+        const rows = resourceTable.locator('tbody tr');
+        const rowCount = await rows.count();
         
-        // Should not find the DataCite button (only Edit and Landing Page buttons exist)
+        let foundRow = null;
+        for (let i = 0; i < rowCount; i++) {
+            const row = rows.nth(i);
+            const notRegisteredBadge = row.getByText('Not registered');
+            if (await notRegisteredBadge.isVisible()) {
+                foundRow = row;
+                break;
+            }
+        }
+        
+        // Ensure we found a row with "Not registered" status
+        expect(foundRow).not.toBeNull();
+        const resourceRow = foundRow!;
+
+        // For resources without landing page, DataCite button should NOT exist
         // Count buttons - should be 4 (Edit, Landing Page in first row, Export JSON, Export XML in second row)
         const buttonCount = await resourceRow.locator('button').count();
         expect(buttonCount).toBe(4); // No DataCite button for resources without landing page
         
-        // Verify the DataCite button specifically doesn't exist
-        await expect(dataciteButton.locator('[data-testid="datacite-icon"]')).not.toBeVisible();
+        // Verify the DataCite icon specifically doesn't exist
+        const dataciteIcon = resourceRow.locator('[data-testid="datacite-icon"]');
+        await expect(dataciteIcon).not.toBeVisible();
     });
 
     test('displays test mode warning', async ({ page }) => {
