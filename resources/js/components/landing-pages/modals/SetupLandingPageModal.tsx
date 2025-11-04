@@ -1,4 +1,3 @@
-import { router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { Copy, Eye, Globe } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -41,6 +40,7 @@ interface SetupLandingPageModalProps {
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
+    onSuccess?: () => void;
     existingConfig?: LandingPageConfig | null;
 }
 
@@ -48,6 +48,7 @@ export default function SetupLandingPageModal({
     resource,
     isOpen,
     onClose,
+    onSuccess,
     existingConfig,
 }: SetupLandingPageModalProps) {
     const [template, setTemplate] = useState<string>(
@@ -168,8 +169,8 @@ export default function SetupLandingPageModal({
                 // Ignore errors from clearing preview session
             }
 
-            // Reload page to update UI
-            router.reload({ only: ['resources'] });
+            // Call success callback to notify parent component
+            onSuccess?.();
         } catch (error) {
             console.error('Failed to save landing page:', error);
 
@@ -215,15 +216,15 @@ export default function SetupLandingPageModal({
                 
                 setIsPublished(false);
                 toast.success('Landing page depublished successfully');
-                router.reload({ only: ['resources'] });
+                onSuccess?.();
             } else {
                 // Draft: delete completely
                 await axios.delete(withBasePath(`/resources/${resource.id}/landing-page`));
                 setCurrentConfig(null);
                 setPreviewUrl('');
                 toast.success('Landing page preview removed successfully');
+                onSuccess?.();
                 onClose();
-                router.reload({ only: ['resources'] });
             }
         } catch (error) {
             console.error(`Failed to ${action}:`, error);

@@ -494,6 +494,9 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const handleCloseLandingPageModal = useCallback(() => {
         setIsLandingPageModalOpen(false);
         setSelectedResourceForLandingPage(null);
+    }, []);
+
+    const handleLandingPageSuccess = useCallback(() => {
         // Refresh the resources list to show updated landing page status
         router.reload({ only: ['resources'] });
     }, []);
@@ -1277,6 +1280,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     isOpen={isLandingPageModalOpen}
                     resource={selectedResourceForLandingPage}
                     onClose={handleCloseLandingPageModal}
+                    onSuccess={handleLandingPageSuccess}
                 />
             )}
 

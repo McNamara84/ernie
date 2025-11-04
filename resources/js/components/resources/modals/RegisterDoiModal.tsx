@@ -166,7 +166,12 @@ export default function RegisterDoiModal({
                 try {
                     onSuccess(doi);
                 } catch (callbackError) {
-                    console.error('Error in onSuccess callback:', callbackError);
+                    // Log callback errors with warning level to make them visible
+                    // This helps debug issues in the callback implementation
+                    console.warn(
+                        'Warning: Error in DOI registration success callback. This may indicate a bug in the callback implementation.',
+                        callbackError
+                    );
                 }
             }
 

@@ -165,6 +165,16 @@ class DataCiteRegistrationService
 
             $responseData = $response->json();
 
+            if ($responseData === null) {
+                Log::error('DataCite response is not valid JSON', [
+                    'resource_id' => $resource->id,
+                    'prefix' => $prefix,
+                    'response_body' => $response->body(),
+                ]);
+
+                throw new \RuntimeException('Received invalid JSON response from DataCite API');
+            }
+
             Log::info('DOI registered successfully', [
                 'resource_id' => $resource->id,
                 'doi' => $responseData['data']['id'] ?? null,
@@ -257,6 +267,16 @@ class DataCiteRegistrationService
                 ->throw();
 
             $responseData = $response->json();
+
+            if ($responseData === null) {
+                Log::error('DataCite response is not valid JSON', [
+                    'resource_id' => $resource->id,
+                    'doi' => $resource->doi,
+                    'response_body' => $response->body(),
+                ]);
+
+                throw new \RuntimeException('Received invalid JSON response from DataCite API');
+            }
 
             Log::info('DOI metadata updated successfully', [
                 'resource_id' => $resource->id,

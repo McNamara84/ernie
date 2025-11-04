@@ -62,8 +62,10 @@ class FakeDataCiteRegistrationService
             'landing_page_id' => $resource->landingPage->id,
         ]);
 
-        // Generate a fake DOI
-        $suffix = 'test-' . Str::random(8);
+        // Generate a predictable fake DOI suffix for easier debugging in tests
+        // Format: test-{resource_id}-{timestamp}
+        $timestamp = now()->format('YmdHis');
+        $suffix = "test-{$resource->id}-{$timestamp}";
         $doi = "{$prefix}/{$suffix}";
 
         \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Returning successful response', [
