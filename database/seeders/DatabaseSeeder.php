@@ -108,6 +108,6 @@ class DatabaseSeeder extends Seeder
                 'updated_by_user_id' => $user->id,
             ]);
 
-        $this->command->info('Created 4 test resources for E2E testing (2x Curation with landing page, 1x Published, 1x Curation without landing page)');
+        $this->command->info('Created 4 test resources for E2E testing (3 with landing page: 2x Curation + 1x Published, 1x Curation without landing page)');
     }
 }

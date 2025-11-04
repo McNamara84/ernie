@@ -110,11 +110,11 @@ export default function RegisterDoiModal({
             }
         } catch (err) {
             console.error('Failed to load prefix configuration:', err);
-            // Fallback to hardcoded defaults (test mode)
-            const fallbackPrefixes = ['10.83279', '10.83186', '10.83114'];
-            setAvailablePrefixes(fallbackPrefixes);
-            setSelectedPrefix(fallbackPrefixes[0]);
+            // Don't use hardcoded fallback prefixes to avoid drift from backend config
+            // Instead, show error state - user should fix backend configuration
+            setAvailablePrefixes([]);
             setIsTestMode(true);
+            setError('Failed to load DOI prefix configuration. Please check DataCite settings.');
         } finally {
             setIsLoadingConfig(false);
         }

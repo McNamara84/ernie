@@ -57,7 +57,8 @@ class TestingServiceProvider extends ServiceProvider
         $shouldFake = empty($username) || empty($password);
 
         // Only log credential information in non-production environments for security
-        if ($app->environment('local', 'testing')) {
+        // Defense in depth: check both environment AND debug mode
+        if ($app->environment('local', 'testing') && $app['config']->get('app.debug', false)) {
             \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Credential check', [
                 'test_mode' => $testMode,
                 'has_username' => !empty($username),
