@@ -1,12 +1,14 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Eye, ExternalLink, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
+import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +32,12 @@ interface Author {
     name?: string;
 }
 
+interface LandingPage {
+    id: number;
+    status: string;
+    public_url: string;
+}
+
 interface Resource {
     id: number;
     doi?: string | null;
@@ -42,6 +50,7 @@ interface Resource {
     resourcetypegeneral?: string;
     title?: string;
     first_author?: Author | null;
+    landingPage?: LandingPage | null;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
 }
@@ -487,10 +496,66 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         setSelectedResourceForLandingPage(null);
     }, []);
 
+    const handleRegisterDoi = useCallback((resource: Resource) => {
+        setSelectedResourceForDoi(resource);
+        setIsDoiModalOpen(true);
+    }, []);
+
+    const handleCloseDoiModal = useCallback(() => {
+        setIsDoiModalOpen(false);
+        setSelectedResourceForDoi(null);
+    }, []);
+
+    const handleDoiSuccess = useCallback((doi: string, _resourceId: number) => {
+        // Refresh the resources list to show the new DOI
+        router.reload({ only: ['resources'] });
+        
+        toast.success(`DOI ${doi} successfully registered!`);
+    }, []);
+
+    const handleStatusBadgeClick = useCallback((resource: Resource, status: string) => {
+        if (status === 'published' && resource.doi) {
+            // Published: Open DOI URL and copy to clipboard
+            const doiUrl = `https://doi.org/${resource.doi}`;
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(doiUrl).then(() => {
+                toast.success('DOI URL copied to clipboard', {
+                    description: doiUrl,
+                    duration: 3000,
+                });
+            }).catch(() => {
+                toast.error('Failed to copy URL to clipboard');
+            });
+            
+            // Open in new tab
+            window.open(doiUrl, '_blank', 'noopener,noreferrer');
+            
+        } else if (status === 'review' && resource.landingPage?.public_url) {
+            // Review: Open preview landing page and copy URL to clipboard
+            const previewUrl = resource.landingPage.public_url;
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(previewUrl).then(() => {
+                toast.success('Preview URL copied to clipboard', {
+                    description: 'URL with access token copied for sharing with reviewers',
+                    duration: 3000,
+                });
+            }).catch(() => {
+                toast.error('Failed to copy URL to clipboard');
+            });
+            
+            // Open in new tab
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
+        }
+    }, []);
+
     const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
     const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());
     const [selectedResourceForLandingPage, setSelectedResourceForLandingPage] = useState<Resource | null>(null);
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
+    const [selectedResourceForDoi, setSelectedResourceForDoi] = useState<Resource | null>(null);
+    const [isDoiModalOpen, setIsDoiModalOpen] = useState(false);
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -815,10 +880,58 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 const curator = resource.curator ?? '-';
                 const status = resource.publicstatus ?? 'curation';
 
+                // Determine if badge is clickable
+                const isClickable = (status === 'published' && resource.doi) || 
+                                   (status === 'review' && resource.landingPage?.public_url);
+
+                // Determine badge style based on status
+                let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center gap-1';
+                if (status === 'published') {
+                    statusClasses += ' bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+                    if (isClickable) {
+                        statusClasses += ' cursor-pointer hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors';
+                    }
+                } else if (status === 'review') {
+                    statusClasses += ' bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+                    if (isClickable) {
+                        statusClasses += ' cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors';
+                    }
+                } else {
+                    statusClasses += ' bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+                }
+
+                const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+                const ariaLabel = isClickable
+                    ? status === 'published'
+                        ? `${statusLabel} - Click to open DOI and copy URL to clipboard`
+                        : `${statusLabel} - Click to open preview page and copy URL to clipboard`
+                    : statusLabel;
+
                 return (
                     <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
                         <span className="text-sm">{curator}</span>
-                        <span className="text-sm capitalize">{status}</span>
+                        <span
+                            className={statusClasses}
+                            onClick={isClickable ? () => handleStatusBadgeClick(resource, status) : undefined}
+                            role={isClickable ? 'button' : undefined}
+                            tabIndex={isClickable ? 0 : undefined}
+                            onKeyDown={isClickable ? (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleStatusBadgeClick(resource, status);
+                                }
+                            } : undefined}
+                            aria-label={ariaLabel}
+                            title={ariaLabel}
+                        >
+                            {statusLabel}
+                            {isClickable && (
+                                <>
+                                    <ExternalLink className="size-3" aria-hidden="true" />
+                                    <Copy className="size-3" aria-hidden="true" />
+                                </>
+                            )}
+                        </span>
                     </div>
                 );
             },
@@ -1091,17 +1204,18 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                     >
                                                                         <Eye aria-hidden="true" className="size-4" />
                                                                     </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        disabled
-                                                                        aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
-                                                                        title="Delete resource (not yet implemented)"
-                                                                        className="opacity-40 cursor-not-allowed"
-                                                                    >
-                                                                        <Trash2 aria-hidden="true" className="size-4" />
-                                                                    </Button>
+                                                                    {resource.landingPage && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={() => handleRegisterDoi(resource)}
+                                                                            aria-label={`Register DOI for resource ${resourceLabel}`}
+                                                                            title={resource.doi ? 'Update DOI metadata' : 'Register DOI with DataCite'}
+                                                                        >
+                                                                            <DataCiteIcon aria-hidden="true" className="size-4" />
+                                                                        </Button>
+                                                                    )}
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <Button
@@ -1125,6 +1239,17 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                         title={`Export as DataCite XML`}
                                                                     >
                                                                         <FileXmlIcon aria-hidden="true" className="size-4" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        disabled
+                                                                        aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
+                                                                        title="Delete resource (not yet implemented)"
+                                                                        className="opacity-40 cursor-not-allowed"
+                                                                    >
+                                                                        <Trash2 aria-hidden="true" className="size-4" />
                                                                     </Button>
                                                                 </div>
                                                             </div>
@@ -1154,6 +1279,16 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     isOpen={isLandingPageModalOpen}
                     resource={selectedResourceForLandingPage}
                     onClose={handleCloseLandingPageModal}
+                />
+            )}
+
+            {/* DOI Registration Modal */}
+            {selectedResourceForDoi && (
+                <RegisterDoiModal
+                    isOpen={isDoiModalOpen}
+                    resource={selectedResourceForDoi}
+                    onClose={handleCloseDoiModal}
+                    onSuccess={handleDoiSuccess}
                 />
             )}
         </AppLayout>

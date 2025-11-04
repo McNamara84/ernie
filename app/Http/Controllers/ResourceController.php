@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Requests\StoreResourceRequest;
 use App\Models\Institution;
 use App\Models\Language;
@@ -14,9 +15,11 @@ use App\Models\Role;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
+use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
 use App\Support\BooleanNormalizer;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -485,8 +488,8 @@ class ResourceController extends Controller
         $yearMin = Resource::query()->min('year');
         $yearMax = Resource::query()->max('year');
 
-        // Status is hardcoded to 'curation' for now
-        $statuses = ['curation'];
+        // Available publication statuses
+        $statuses = ['curation', 'review', 'published'];
 
         return response()->json([
             'resource_types' => $resourceTypes,
@@ -970,6 +973,7 @@ class ResourceController extends Controller
                 'language:id,code,name',
                 'createdBy:id,name',
                 'updatedBy:id,name',
+                'landingPage:id,resource_id,status,published_at',
                 'titles' => function ($query): void {
                     $query->select(['id', 'resource_id', 'title', 'title_type_id'])
                         ->with(['titleType:id,name,slug'])
@@ -1098,8 +1102,34 @@ class ResourceController extends Controller
             });
         }
 
-        // Status filter (dummy - all are 'curation')
-        // We don't actually filter since all new resources have the same status
+        // Status filter - filter based on DOI and landing page status
+        if (! empty($filters['status'])) {
+            $statuses = $filters['status'];
+            $query->where(function ($q) use ($statuses) {
+                foreach ($statuses as $status) {
+                    if ($status === 'curation') {
+                        // Curation: No DOI registered
+                        $q->orWhereNull('doi');
+                    } elseif ($status === 'review') {
+                        // Review: DOI registered + landing page with draft status
+                        $q->orWhere(function ($subQ) {
+                            $subQ->whereNotNull('doi')
+                                ->whereHas('landingPage', function ($lpQ) {
+                                    $lpQ->where('status', 'draft');
+                                });
+                        });
+                    } elseif ($status === 'published') {
+                        // Published: DOI registered + landing page with published status
+                        $q->orWhere(function ($subQ) {
+                            $subQ->whereNotNull('doi')
+                                ->whereHas('landingPage', function ($lpQ) {
+                                    $lpQ->where('status', 'published');
+                                });
+                        });
+                    }
+                }
+            });
+        }
 
         // Year range filter
         if (isset($filters['year_from'])) {
@@ -1227,6 +1257,12 @@ class ResourceController extends Controller
             }
         }
 
+        // Determine publication status based on DOI and landing page status
+        $publicStatus = 'curation'; // Default status
+        if ($resource->doi && $resource->landingPage) {
+            $publicStatus = $resource->landingPage->status === 'published' ? 'published' : 'review';
+        }
+
         return [
             'id' => $resource->id,
             'doi' => $resource->doi,
@@ -1235,7 +1271,7 @@ class ResourceController extends Controller
             'created_at' => $resource->created_at?->toIso8601String(),
             'updated_at' => $resource->updated_at?->toIso8601String(),
             'curator' => $resource->createdBy?->name,
-            'publicstatus' => 'curation', // Dummy status for all new resources
+            'publicstatus' => $publicStatus,
             'resourcetypegeneral' => $resource->resourceType?->name,
             'resource_type' => $resource->resourceType ? [
                 'name' => $resource->resourceType->name,
@@ -1268,6 +1304,11 @@ class ResourceController extends Controller
                 ->values()
                 ->all(),
             'first_author' => $firstAuthorData,
+            'landingPage' => $resource->landingPage ? [
+                'id' => $resource->landingPage->id,
+                'status' => $resource->landingPage->status,
+                'public_url' => $resource->landingPage->public_url,
+            ] : null,
         ];
     }
 
@@ -1340,5 +1381,165 @@ class ResourceController extends Controller
                 'message' => $message,
             ], 500);
         }
+    }
+
+    /**
+     * Register a DOI with DataCite or update metadata for existing DOI
+     */
+    public function registerDoi(RegisterDoiRequest $request, Resource $resource): JsonResponse
+    {
+        try {
+            // Check if resource has a landing page
+            $resource->load('landingPage');
+            if (! $resource->landingPage) {
+                return response()->json([
+                    'error' => 'Landing page required',
+                    'message' => 'A landing page must be created before registering a DOI. Please set up a landing page first.',
+                ], 422);
+            }
+
+            $service = new DataCiteRegistrationService;
+
+            // Check if DOI already exists - if yes, update metadata instead of registering
+            if ($resource->doi) {
+                Log::info('Updating existing DOI metadata', [
+                    'resource_id' => $resource->id,
+                    'doi' => $resource->doi,
+                ]);
+
+                $response = $service->updateMetadata($resource);
+
+                // Extract DOI from response
+                $doi = $response['data']['id'] ?? $resource->doi;
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'DOI metadata updated successfully',
+                    'doi' => $doi,
+                    'mode' => $service->isTestMode() ? 'test' : 'production',
+                    'updated' => true,
+                ]);
+            }
+
+            // Register new DOI
+            $prefix = $request->validated('prefix');
+
+            Log::info('Registering new DOI', [
+                'resource_id' => $resource->id,
+                'prefix' => $prefix,
+                'test_mode' => $service->isTestMode(),
+            ]);
+
+            $response = $service->registerDoi($resource, $prefix);
+
+            // Extract DOI from DataCite response
+            $doi = $response['data']['id'] ?? null;
+
+            if (! $doi) {
+                Log::error('DataCite response missing DOI', [
+                    'resource_id' => $resource->id,
+                    'response' => $response,
+                ]);
+
+                return response()->json([
+                    'error' => 'Registration incomplete',
+                    'message' => 'DOI was registered but the response did not contain the DOI identifier.',
+                ], 500);
+            }
+
+            // Save DOI to resource
+            $resource->doi = $doi;
+            $resource->save();
+
+            Log::info('DOI saved to resource', [
+                'resource_id' => $resource->id,
+                'doi' => $doi,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'DOI registered successfully',
+                'doi' => $doi,
+                'mode' => $service->isTestMode() ? 'test' : 'production',
+                'updated' => false,
+            ]);
+
+        } catch (\InvalidArgumentException $e) {
+            Log::warning('Invalid DOI registration request', [
+                'resource_id' => $resource->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Invalid request',
+                'message' => $e->getMessage(),
+            ], 422);
+
+        } catch (\RuntimeException $e) {
+            Log::warning('DOI registration runtime error', [
+                'resource_id' => $resource->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'error' => 'Registration failed',
+                'message' => $e->getMessage(),
+            ], 422);
+
+        } catch (RequestException $e) {
+            // DataCite API error
+            $statusCode = $e->response?->status() ?? 500;
+            $apiError = $e->response?->json();
+
+            Log::error('DataCite API error during DOI registration', [
+                'resource_id' => $resource->id,
+                'status' => $statusCode,
+                'error' => $e->getMessage(),
+                'api_response' => $apiError,
+            ]);
+
+            // Extract error message from DataCite response
+            $errorMessage = 'Failed to communicate with DataCite API.';
+            if (isset($apiError['errors']) && is_array($apiError['errors']) && count($apiError['errors']) > 0) {
+                $firstError = $apiError['errors'][0];
+                $errorMessage = $firstError['title'] ?? $firstError['detail'] ?? $errorMessage;
+            }
+
+            return response()->json([
+                'error' => 'DataCite API error',
+                'message' => $errorMessage,
+                'details' => config('app.debug') ? $apiError : null,
+            ], $statusCode >= 400 && $statusCode < 500 ? $statusCode : 500);
+
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during DOI registration', [
+                'resource_id' => $resource->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error' => 'Unexpected error',
+                'message' => config('app.debug')
+                    ? $e->getMessage()
+                    : 'An unexpected error occurred during DOI registration. Please contact support.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get available DataCite prefixes based on test mode configuration
+     */
+    public function getDataCitePrefixes(): JsonResponse
+    {
+        $testMode = (bool) config('datacite.test_mode', true);
+
+        $prefixes = [
+            'test' => config('datacite.test.prefixes', []),
+            'production' => config('datacite.production.prefixes', []),
+            'test_mode' => $testMode,
+        ];
+
+        return response()->json($prefixes);
     }
 }
