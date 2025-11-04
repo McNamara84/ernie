@@ -1,5 +1,6 @@
+import { usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, GraduationCap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -23,6 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { withBasePath } from '@/lib/base-path';
+import { type User as AuthUser } from '@/types';
 
 interface Resource {
     id: number;
@@ -65,6 +67,7 @@ export default function RegisterDoiModal({
     onClose,
     onSuccess,
 }: RegisterDoiModalProps) {
+    const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const [selectedPrefix, setSelectedPrefix] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -74,6 +77,7 @@ export default function RegisterDoiModal({
 
     const hasExistingDoi = Boolean(resource.doi);
     const hasLandingPage = Boolean(resource.landingPage);
+    const isBeginner = auth.user?.role === 'beginner';
 
     // Load available prefixes from backend config
     useEffect(() => {
@@ -238,6 +242,17 @@ export default function RegisterDoiModal({
                             <AlertDescription>
                                 You are using the DataCite test environment. DOIs registered in test
                                 mode are not permanent and should only be used for testing purposes.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {/* Beginner User Notice */}
+                    {isBeginner && hasLandingPage && (
+                        <Alert variant="default">
+                            <GraduationCap className="size-4" />
+                            <AlertTitle>Beginner Mode</AlertTitle>
+                            <AlertDescription>
+                                As a beginner user, you can only register test DOIs. Contact an admin or group leader to be promoted to curator role for production DOI registration.
                             </AlertDescription>
                         </Alert>
                     )}

@@ -48,7 +48,12 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name', 'ERNIE'),
             'quote' => ['message' => trim((string) $message), 'author' => trim((string) $author)],
             'auth' => [
-                'user' => $request->user(),
+                'user' => $request->user() ? [
+                    ...$request->user()->toArray(),
+                    'role' => $request->user()->role->value,
+                    'role_label' => $request->user()->role->label(),
+                    'can_manage_users' => $request->user()->canManageUsers(),
+                ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'fontSizePreference' => $request->user() ? $request->user()->font_size_preference : 'regular',
