@@ -25,6 +25,11 @@ class DatabaseSeeder extends Seeder
             $testUser = User::where('email', 'test@example.com')->first();
         }
 
+        // Create additional test users with different roles for development/testing
+        if (app()->environment('testing', 'local')) {
+            $this->createTestUsers();
+        }
+
         $this->call([
             RoleSeeder::class,
             ResourceTypeSeeder::class,
@@ -38,6 +43,54 @@ class DatabaseSeeder extends Seeder
         if (app()->environment('testing', 'local') && $testUser !== null) {
             $this->createTestResources($testUser);
         }
+    }
+
+    /**
+     * Create test users with different roles for development/testing
+     */
+    private function createTestUsers(): void
+    {
+        // Admin user
+        if (! User::where('email', 'admin@example.com')->exists()) {
+            User::factory()->admin()->create([
+                'name' => 'Admin User',
+                'email' => 'admin@example.com',
+            ]);
+        }
+
+        // Group Leader user
+        if (! User::where('email', 'groupleader@example.com')->exists()) {
+            User::factory()->groupLeader()->create([
+                'name' => 'Group Leader',
+                'email' => 'groupleader@example.com',
+            ]);
+        }
+
+        // Curator user
+        if (! User::where('email', 'curator@example.com')->exists()) {
+            User::factory()->curator()->create([
+                'name' => 'Curator User',
+                'email' => 'curator@example.com',
+            ]);
+        }
+
+        // Beginner user
+        if (! User::where('email', 'beginner@example.com')->exists()) {
+            User::factory()->create([
+                'name' => 'Beginner User',
+                'email' => 'beginner@example.com',
+            ]);
+        }
+
+        // Deactivated user
+        if (! User::where('email', 'deactivated@example.com')->exists()) {
+            User::factory()->deactivated()->create([
+                'name' => 'Deactivated User',
+                'email' => 'deactivated@example.com',
+            ]);
+        }
+
+        $this->command->info('Created test users: admin, group leader, curator, beginner, and deactivated user');
     }
 
     /**

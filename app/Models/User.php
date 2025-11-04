@@ -3,11 +3,19 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @property UserRole $role
+ * @property bool $is_active
+ * @property \Illuminate\Support\Carbon|null $deactivated_at
+ * @property int|null $deactivated_by
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -23,6 +31,8 @@ class User extends Authenticatable
         'email',
         'password',
         'font_size_preference',
+        'role',
+        'is_active',
     ];
 
     /**
@@ -45,6 +55,9 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
+            'is_active' => 'boolean',
+            'deactivated_at' => 'datetime',
         ];
     }
 
@@ -72,5 +85,101 @@ class User extends Authenticatable
         $relation = $this->hasMany(Resource::class, 'updated_by_user_id');
 
         return $relation;
+    }
+
+    /**
+     * Get the user who deactivated this user.
+     *
+     * @return BelongsTo<User, static>
+     */
+    public function deactivatedBy(): BelongsTo
+    {
+        /** @var BelongsTo<User, static> $relation */
+        $relation = $this->belongsTo(User::class, 'deactivated_by');
+
+        return $relation;
+    }
+
+    /**
+     * Get the users deactivated by this user.
+     *
+     * @return HasMany<User, static>
+     */
+    public function deactivatedUsers(): HasMany
+    {
+        /** @var HasMany<User, static> $relation */
+        $relation = $this->hasMany(User::class, 'deactivated_by');
+
+        return $relation;
+    }
+
+    /**
+     * Scope a query to only include active users.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope a query to filter by role.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeByRole($query, UserRole $role)
+    {
+        return $query->where('role', $role->value);
+    }
+
+    /**
+     * Check if user is an admin.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::ADMIN;
+    }
+
+    /**
+     * Check if user is a group leader.
+     */
+    public function isGroupLeader(): bool
+    {
+        return $this->role === UserRole::GROUP_LEADER;
+    }
+
+    /**
+     * Check if user is a curator.
+     */
+    public function isCurator(): bool
+    {
+        return $this->role === UserRole::CURATOR;
+    }
+
+    /**
+     * Check if user is a beginner.
+     */
+    public function isBeginner(): bool
+    {
+        return $this->role === UserRole::BEGINNER;
+    }
+
+    /**
+     * Check if user can manage other users.
+     */
+    public function canManageUsers(): bool
+    {
+        return $this->role->canManageUsers();
+    }
+
+    /**
+     * Check if user can register production DOIs.
+     */
+    public function canRegisterProductionDoi(): bool
+    {
+        return $this->role->canRegisterProductionDoi();
     }
 }
