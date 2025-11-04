@@ -1,6 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Eye, ExternalLink, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -494,6 +494,8 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const handleCloseLandingPageModal = useCallback(() => {
         setIsLandingPageModalOpen(false);
         setSelectedResourceForLandingPage(null);
+        // Refresh the resources list to show updated landing page status
+        router.reload({ only: ['resources'] });
     }, []);
 
     const handleRegisterDoi = useCallback((resource: Resource) => {
@@ -885,7 +887,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                    (status === 'review' && resource.landingPage?.public_url);
 
                 // Determine badge style based on status
-                let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center gap-1';
+                let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center justify-center';
                 if (status === 'published') {
                     statusClasses += ' bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
                     if (isClickable) {
@@ -908,7 +910,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     : statusLabel;
 
                 return (
-                    <div className="flex flex-col gap-1 text-left text-gray-600 dark:text-gray-300">
+                    <div className="flex flex-col gap-1 text-center text-gray-600 dark:text-gray-300">
                         <span className="text-sm">{curator}</span>
                         <span
                             className={statusClasses}
@@ -925,12 +927,6 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             title={ariaLabel}
                         >
                             {statusLabel}
-                            {isClickable && (
-                                <>
-                                    <ExternalLink className="size-3" aria-hidden="true" />
-                                    <Copy className="size-3" aria-hidden="true" />
-                                </>
-                            )}
                         </span>
                     </div>
                 );
