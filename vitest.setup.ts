@@ -1,5 +1,16 @@
 import '@testing-library/jest-dom/vitest';
 
+import { afterEach, vi } from 'vitest';
+
+// Global cleanup after each test to prevent Tagify timer errors
+// Tagify uses internal setTimeout that can fire after test teardown
+afterEach(() => {
+    // Use fake timers briefly to clear any pending timeouts from Tagify
+    vi.useFakeTimers();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+});
+
 class ResizeObserver {
     observe() {}
     unobserve() {}

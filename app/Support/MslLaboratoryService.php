@@ -60,6 +60,16 @@ class MslLaboratoryService
             }
 
             $laboratories = $response->json();
+            
+            if ($laboratories === null) {
+                Log::error('MSL laboratories response is not valid JSON', [
+                    'url' => $vocabularyUrl,
+                    'response_body' => $response->body(),
+                ]);
+                $this->laboratoriesById = [];
+
+                return [];
+            }
 
             if (! is_array($laboratories)) {
                 Log::error('MSL laboratories JSON is not an array');

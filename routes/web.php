@@ -113,6 +113,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('resources/{resource}/export-datacite-xml', [ResourceController::class, 'exportDataCiteXml'])
         ->name('resources.export-datacite-xml');
 
+    Route::post('resources/{resource}/register-doi', [ResourceController::class, 'registerDoi'])
+        ->name('resources.register-doi');
+
+    // DataCite prefix configuration endpoint
+    Route::get('api/datacite/prefixes', [ResourceController::class, 'getDataCitePrefixes'])
+        ->name('api.datacite.prefixes');
+
     // DOI validation endpoint (proxy to avoid CORS issues)
     Route::post('api/validate-doi', [App\Http\Controllers\DoiValidationController::class, 'validateDoi'])
         ->name('api.validate-doi');

@@ -37,9 +37,12 @@ class DoiValidationController extends Controller
 
         // Try DataCite API first
         try {
+            // URL-encode DOI to prevent potential issues with special characters
+            $encodedDoi = urlencode($doi);
+            
             $response = Http::timeout(5)
                 ->acceptJson()
-                ->get("https://api.datacite.org/dois/{$doi}");
+                ->get("https://api.datacite.org/dois/{$encodedDoi}");
 
             if ($response->successful()) {
                 $data = $response->json();
