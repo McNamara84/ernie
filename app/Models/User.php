@@ -15,6 +15,8 @@ use Illuminate\Notifications\Notifiable;
  * @property bool $is_active
  * @property \Illuminate\Support\Carbon|null $deactivated_at
  * @property int|null $deactivated_by
+ * @property \Illuminate\Support\Carbon $created_at
+ * @property \Illuminate\Support\Carbon $updated_at
  */
 class User extends Authenticatable
 {

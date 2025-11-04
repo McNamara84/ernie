@@ -48,7 +48,7 @@ class DataCiteRegistrationService
      */
     public function __construct()
     {
-        $this->testMode = (bool) Config::get('datacite.test_mode', true);
+        $this->testMode = $this->determineTestMode();
 
         // Select configuration based on test mode
         $config = $this->testMode
@@ -93,9 +93,41 @@ class DataCiteRegistrationService
     }
 
     /**
+     * Determine if test mode should be used.
+     *
+     * Test mode is enabled if:
+     * 1. The global DATACITE_TEST_MODE config is true, OR
+     * 2. The authenticated user has the BEGINNER role (restricted to test DOIs only)
+     */
+    private function determineTestMode(): bool
+    {
+        $globalTestMode = (bool) Config::get('datacite.test_mode', true);
+
+        // If global test mode is enabled, use test mode
+        if ($globalTestMode) {
+            return true;
+        }
+
+        // Check if authenticated user is a beginner
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+
+        if ($user !== null && $user->isBeginner()) {
+            Log::info('Using DataCite test mode for beginner user', [
+                'user_id' => $user->id,
+                'user_role' => $user->role->value,
+            ]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Register a new DOI with DataCite
      *
-     * @param  Resource  $resource  The resource to register
+     * @param  resource  $resource  The resource to register
      * @param  string  $prefix  The DOI prefix to use (must be in allowed list)
      * @return array<string, mixed> The DataCite API response
      *
@@ -208,7 +240,7 @@ class DataCiteRegistrationService
     /**
      * Update metadata for an existing DOI
      *
-     * @param  Resource  $resource  The resource with an existing DOI
+     * @param  resource  $resource  The resource with an existing DOI
      * @return array<string, mixed> The DataCite API response
      *
      * @throws \RuntimeException If resource doesn't have a DOI or landing page
@@ -261,7 +293,7 @@ class DataCiteRegistrationService
             // Safe because we validated $resource->doi is not null above (lines 220-224)
             assert($resource->doi !== null); // PHPStan hint: DOI is validated above
             $encodedDoi = urlencode($resource->doi);
-            
+
             // Send PUT request to DataCite API
             $response = $this->client
                 ->put("{$this->endpoint}/dois/{$encodedDoi}", $payload)
@@ -290,7 +322,7 @@ class DataCiteRegistrationService
             $response = $e->response;
             /** @phpstan-ignore notIdentical.alwaysTrue */
             $responseJson = $response !== null ? $response->json() : null;
-            
+
             Log::error('Failed to update DOI metadata with DataCite', [
                 'resource_id' => $resource->id,
                 'doi' => $resource->doi,
