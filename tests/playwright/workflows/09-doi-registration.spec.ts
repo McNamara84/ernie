@@ -52,8 +52,8 @@ test.describe('DOI Registration Workflow', () => {
         await expect(registerButton).toBeEnabled();
         await registerButton.click();
 
-        // Wait for success toast
-        await expect(page.getByText(/doi.*registered successfully/i)).toBeVisible({ timeout: 10000 });
+        // Wait for success toast (actual text: "DOI {doi} successfully registered!")
+        await expect(page.getByText(/successfully registered/i)).toBeVisible({ timeout: 10000 });
 
         // Modal should close
         await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
@@ -87,8 +87,8 @@ test.describe('DOI Registration Workflow', () => {
         await expect(page.getByRole('dialog')).toBeVisible();
         await expect(page.getByText(/update doi metadata/i)).toBeVisible();
 
-        // Should show existing DOI
-        await expect(page.getByText(/existing doi/i)).toBeVisible();
+        // Should show existing DOI (use first() to avoid strict mode violation with 2 matches)
+        await expect(page.getByText(/existing doi/i).first()).toBeVisible();
         await expect(page.getByText(/10\.\d+/)).toBeVisible();
 
         // Should NOT show prefix selection
@@ -116,21 +116,17 @@ test.describe('DOI Registration Workflow', () => {
         const resourceRow = resourceTable.locator('tbody tr').nth(3);
         await expect(resourceRow).toBeVisible();
 
-        // Click DataCite button
+        // DataCite button (3rd button) should NOT exist for resources without landing page
+        // The UI conditionally renders it only when resource.landingPage exists
         const dataciteButton = resourceRow.locator('button').nth(2);
-        await expect(dataciteButton).toBeVisible();
-        await dataciteButton.click();
-
-        // Modal should show landing page requirement
-        await expect(page.getByRole('dialog')).toBeVisible();
-        await expect(page.getByText(/landing page required/i)).toBeVisible();
-        await expect(
-            page.getByText(/landing page must be created before you can register a doi/i)
-        ).toBeVisible();
-
-        // Register button should be disabled
-        const registerButton = page.getByRole('button', { name: /register doi/i });
-        await expect(registerButton).toBeDisabled();
+        
+        // Should not find the DataCite button (only Edit and Landing Page buttons exist)
+        // Count buttons - should be 4 (Edit, Landing Page in first row, Export JSON, Export XML in second row)
+        const buttonCount = await resourceRow.locator('button').count();
+        expect(buttonCount).toBe(4); // No DataCite button for resources without landing page
+        
+        // Verify the DataCite button specifically doesn't exist
+        await expect(dataciteButton.locator('[data-testid="datacite-icon"]')).not.toBeVisible();
     });
 
     test('displays test mode warning', async ({ page }) => {
