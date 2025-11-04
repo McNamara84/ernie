@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
@@ -16,16 +17,55 @@ test.describe('DOI Registration Accessibility', () => {
         await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     });
 
-    test('doi registration modal meets accessibility standards', async ({ page }) => {
-        // Navigate to resources and open DOI modal
+    /**
+     * Helper function to setup a resource with landing page for DOI tests
+     */
+    async function setupResourceForDoi(page: Page) {
+        // Navigate to resources
         await page.goto('/resources');
-        await page.waitForLoadState('networkidle');
+        await expect(page).toHaveURL(/\/resources/);
 
-        // Open DOI registration modal
-        const dataciteButton = page.getByRole('button').filter({ 
-            hasText: /datacite/i 
-        }).or(page.locator('button').nth(2)).first();
+        // Find a resource without DOI (look for resources in curation status)
+        const curationBadges = page.getByText('Curation').first();
+        await expect(curationBadges).toBeVisible({ timeout: 10000 });
+
+        // Get the row containing this badge
+        const resourceRow = curationBadges.locator('..').locator('..');
         
+        // Check if landing page button (Eye icon) exists
+        const landingPageButton = resourceRow.getByRole('button').filter({ has: page.locator('svg') }).nth(1);
+        
+        // If no landing page exists, set one up first
+        const hasLandingPage = await landingPageButton.getAttribute('aria-label').then(
+            (label: string | null) => label?.includes('View') || label?.includes('Edit')
+        ).catch(() => false);
+        
+        if (!hasLandingPage) {
+            // Click eye icon to setup landing page
+            await landingPageButton.click();
+            
+            // Wait for modal
+            await expect(page.getByRole('dialog')).toBeVisible();
+            
+            // Save landing page (default settings should be valid)
+            const saveButton = page.getByRole('button', { name: /save|create/i });
+            await saveButton.click();
+            await page.waitForTimeout(1000); // Wait for save
+            
+            // Modal should close
+            await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+        }
+
+        // Now find and click DataCite icon
+        const dataciteButton = resourceRow.getByRole('button').filter({ 
+            has: page.locator('[data-testid="datacite-icon"]') 
+        }).or(resourceRow.getByRole('button').nth(2));
+        
+        return dataciteButton;
+    }
+
+    test('doi registration modal meets accessibility standards', async ({ page }) => {
+        const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
         // Wait for modal to be visible
@@ -40,11 +80,7 @@ test.describe('DOI Registration Accessibility', () => {
     });
 
     test('doi registration modal has proper aria labels', async ({ page }) => {
-        await page.goto('/resources');
-        await page.waitForLoadState('networkidle');
-
-        // Open modal
-        const dataciteButton = page.locator('button').nth(2);
+        const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
         const dialog = page.getByRole('dialog');
@@ -63,11 +99,7 @@ test.describe('DOI Registration Accessibility', () => {
     });
 
     test('prefix selection is keyboard accessible', async ({ page }) => {
-        await page.goto('/resources');
-        await page.waitForLoadState('networkidle');
-
-        // Open modal
-        const dataciteButton = page.locator('button').nth(2);
+        const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
         await expect(page.getByRole('dialog')).toBeVisible();
@@ -167,28 +199,25 @@ test.describe('DOI Registration Accessibility', () => {
         await page.goto('/resources');
         await page.waitForLoadState('networkidle');
 
-        // Find DataCite icon button
-        const dataciteButtons = page.locator('button').filter({ 
-            has: page.locator('svg') 
-        });
-
-        if (await dataciteButtons.count() > 0) {
-            const firstButton = dataciteButtons.first();
+        // Find a resource in curation status
+        const curationBadges = page.getByText('Curation').first();
+        
+        if (await curationBadges.isVisible()) {
+            const resourceRow = curationBadges.locator('..').locator('..');
+            
+            // Find DataCite button in this row
+            const dataciteButton = resourceRow.getByRole('button').nth(2);
             
             // Should have accessible name via aria-label or title
-            const ariaLabel = await firstButton.getAttribute('aria-label');
-            const title = await firstButton.getAttribute('title');
+            const ariaLabel = await dataciteButton.getAttribute('aria-label');
+            const title = await dataciteButton.getAttribute('title');
             
             expect(ariaLabel || title).toBeTruthy();
         }
     });
 
     test('modal can be closed with escape key', async ({ page }) => {
-        await page.goto('/resources');
-        await page.waitForLoadState('networkidle');
-
-        // Open modal
-        const dataciteButton = page.locator('button').nth(2);
+        const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
         const dialog = page.getByRole('dialog');
@@ -202,11 +231,7 @@ test.describe('DOI Registration Accessibility', () => {
     });
 
     test('focus is trapped within modal', async ({ page }) => {
-        await page.goto('/resources');
-        await page.waitForLoadState('networkidle');
-
-        // Open modal
-        const dataciteButton = page.locator('button').nth(2);
+        const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
         const dialog = page.getByRole('dialog');
@@ -251,11 +276,7 @@ test.describe('DOI Registration Accessibility', () => {
     });
 
     test('form inputs have proper labels', async ({ page }) => {
-        await page.goto('/resources');
-        await page.waitForLoadState('networkidle');
-
-        // Open modal
-        const dataciteButton = page.locator('button').nth(2);
+        const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
         const dialog = page.getByRole('dialog');
@@ -278,11 +299,7 @@ test.describe('DOI Registration Accessibility', () => {
     });
 
     test('loading states are announced', async ({ page }) => {
-        await page.goto('/resources');
-        await page.waitForLoadState('networkidle');
-
-        // Open modal
-        const dataciteButton = page.locator('button').nth(2);
+        const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
         // Check for loading message
