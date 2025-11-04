@@ -19,41 +19,18 @@ test.describe('DOI Registration Workflow', () => {
         // Navigate to resources
         await page.goto('/resources');
         await expect(page).toHaveURL(/\/resources/);
+        await page.waitForTimeout(2000); // Wait for React rendering
 
-        // Find a resource without DOI (look for resources in curation status)
-        const curationBadges = page.getByText('Curation').first();
-        await expect(curationBadges).toBeVisible({ timeout: 10000 });
+        // Find table and get first resource with landing page (first or second row)
+        const resourceTable = page.locator('table').first();
+        await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        
+        const resourceRow = resourceTable.locator('tbody tr').first();
+        await expect(resourceRow).toBeVisible();
 
-        // Get the row containing this badge
-        const resourceRow = curationBadges.locator('..').locator('..');
-        
-        // First, check if landing page button (Eye icon) exists
-        const landingPageButton = resourceRow.getByRole('button').filter({ has: page.locator('svg') }).nth(1);
-        
-        // If no landing page exists, set one up first
-        const landingPageExists = await resourceRow.getByRole('button', { name: /landing page/i }).count() > 0;
-        
-        if (!landingPageExists) {
-            // Click eye icon to setup landing page
-            await landingPageButton.click();
-            
-            // Wait for modal
-            await expect(page.getByRole('dialog')).toBeVisible();
-            await expect(page.getByText(/setup landing page/i)).toBeVisible();
-            
-            // Setup landing page (assuming basic setup)
-            const saveButton = page.getByRole('button', { name: /save/i });
-            if (await saveButton.isEnabled()) {
-                await saveButton.click();
-                await page.waitForTimeout(1000); // Wait for save
-            }
-        }
-
-        // Now click on DataCite icon to register DOI
-        const dataciteButton = resourceRow.getByRole('button').filter({ has: page.locator('[data-testid="datacite-icon"]') }).or(
-            resourceRow.getByRole('button').nth(2) // DataCite button is typically 3rd
-        );
-        
+        // Click DataCite button (3rd button in row: Edit/Landing Page/DataCite)
+        const dataciteButton = resourceRow.locator('button').nth(2);
+        await expect(dataciteButton).toBeVisible();
         await dataciteButton.click();
 
         // Verify DOI registration modal appears
@@ -91,22 +68,19 @@ test.describe('DOI Registration Workflow', () => {
     test('update metadata for existing doi', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
+        await page.waitForTimeout(2000); // Wait for React rendering
         
-        // Find a resource with Published or Review status (has DOI)
-        const publishedBadge = page.getByText('Published').first();
-        const reviewBadge = page.getByText('Review').first();
+        // Find table and get third row (Published resource from seeder)
+        const resourceTable = page.locator('table').first();
+        await expect(resourceTable).toBeVisible({ timeout: 10000 });
         
-        const statusBadge = await publishedBadge.count() > 0 ? publishedBadge : reviewBadge;
-        await expect(statusBadge).toBeVisible({ timeout: 10000 });
-
-        // Get the row
-        const resourceRow = statusBadge.locator('..').locator('..');
+        // Third row should be the Published resource
+        const resourceRow = resourceTable.locator('tbody tr').nth(2);
+        await expect(resourceRow).toBeVisible();
 
         // Click DataCite button
-        const dataciteButton = resourceRow.getByRole('button').filter({ 
-            has: page.locator('[data-testid="datacite-icon"]') 
-        }).or(resourceRow.getByRole('button').nth(2));
-        
+        const dataciteButton = resourceRow.locator('button').nth(2);
+        await expect(dataciteButton).toBeVisible();
         await dataciteButton.click();
 
         // Verify update modal
@@ -133,15 +107,18 @@ test.describe('DOI Registration Workflow', () => {
     test('cannot register doi without landing page', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
+        await page.waitForTimeout(2000); // Wait for React rendering
 
-        // Find a resource in curation status without landing page
-        const curationBadge = page.getByText('Curation').first();
-        await expect(curationBadge).toBeVisible({ timeout: 10000 });
-
-        const resourceRow = curationBadge.locator('..').locator('..');
+        // Find table and get fourth row (Curation resource WITHOUT landing page from seeder)
+        const resourceTable = page.locator('table').first();
+        await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        
+        const resourceRow = resourceTable.locator('tbody tr').nth(3);
+        await expect(resourceRow).toBeVisible();
 
         // Click DataCite button
-        const dataciteButton = resourceRow.getByRole('button').nth(2);
+        const dataciteButton = resourceRow.locator('button').nth(2);
+        await expect(dataciteButton).toBeVisible();
         await dataciteButton.click();
 
         // Modal should show landing page requirement
@@ -159,9 +136,16 @@ test.describe('DOI Registration Workflow', () => {
     test('displays test mode warning', async ({ page }) => {
         // Navigate to resources and open DOI modal
         await page.goto('/resources');
+        await page.waitForTimeout(2000); // Wait for React rendering
         
-        const resourceRow = page.locator('tr').first();
-        const dataciteButton = resourceRow.getByRole('button').nth(2);
+        const resourceTable = page.locator('table').first();
+        await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        
+        const resourceRow = resourceTable.locator('tbody tr').first();
+        await expect(resourceRow).toBeVisible();
+        
+        const dataciteButton = resourceRow.locator('button').nth(2);
+        await expect(dataciteButton).toBeVisible();
         await dataciteButton.click();
 
         // Check for test mode warning
@@ -179,9 +163,16 @@ test.describe('DOI Registration Workflow', () => {
     test('modal can be cancelled', async ({ page }) => {
         // Navigate to resources and open DOI modal
         await page.goto('/resources');
+        await page.waitForTimeout(2000); // Wait for React rendering
         
-        const resourceRow = page.locator('tr').first();
-        const dataciteButton = resourceRow.getByRole('button').nth(2);
+        const resourceTable = page.locator('table').first();
+        await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        
+        const resourceRow = resourceTable.locator('tbody tr').first();
+        await expect(resourceRow).toBeVisible();
+        
+        const dataciteButton = resourceRow.locator('button').nth(2);
+        await expect(dataciteButton).toBeVisible();
         await dataciteButton.click();
 
         // Modal should be visible
@@ -198,19 +189,22 @@ test.describe('DOI Registration Workflow', () => {
     test('status badge is clickable for published resources', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
+        await page.waitForTimeout(2000); // Wait for React rendering
         
-        // Find published resource
-        const publishedBadge = page.getByText('Published').first();
+        // Find published badge by role (it's a button span)
+        const publishedBadge = page.getByRole('button').filter({ hasText: 'Published' }).first();
         
         if (await publishedBadge.count() > 0) {
             await expect(publishedBadge).toBeVisible();
 
-            // Badge should have button role or be clickable
-            const badgeElement = publishedBadge.locator('..');
-            await expect(badgeElement).toHaveAttribute('role', 'button');
+            // Badge should have button role
+            await expect(publishedBadge).toHaveAttribute('role', 'button');
+            
+            // Should have tabindex for keyboard accessibility
+            await expect(publishedBadge).toHaveAttribute('tabIndex', '0');
             
             // Should have hover effect
-            await expect(badgeElement).toHaveCSS('cursor', 'pointer');
+            await expect(publishedBadge).toHaveCSS('cursor', 'pointer');
         }
     });
 
