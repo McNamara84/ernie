@@ -28,6 +28,28 @@ vi.mock('@/lib/base-path', () => ({
     withBasePath: (path: string) => path,
 }));
 
+// Mock Inertia usePage
+vi.mock('@inertiajs/react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@inertiajs/react')>();
+    return {
+        ...actual,
+        usePage: () => ({
+            props: {
+                auth: {
+                    user: {
+                        id: 1,
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        role: 'admin',
+                        can_manage_users: true,
+                        can_register_production_doi: true,
+                    },
+                },
+            },
+        }),
+    };
+});
+
 describe('RegisterDoiModal', () => {
     const mockResource = {
         id: 1,
