@@ -19,8 +19,11 @@ class TestingServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Only bind fake services in testing environment
-        if (! app()->environment('testing')) {
+        // Bind fake services in testing environment OR when DataCite credentials are missing
+        // This allows E2E tests to run without real API credentials
+        $shouldUseFake = app()->environment('testing') || $this->shouldUseFakeDataCiteService();
+        
+        if (! $shouldUseFake) {
             return;
         }
 
@@ -28,6 +31,25 @@ class TestingServiceProvider extends ServiceProvider
         $this->app->bind(DataCiteRegistrationService::class, function () {
             return new FakeDataCiteRegistrationService;
         });
+    }
+
+    /**
+     * Determine if fake DataCite service should be used based on missing credentials
+     */
+    private function shouldUseFakeDataCiteService(): bool
+    {
+        // Use fake service if credentials are missing (E2E test scenario)
+        $testMode = (bool) config('datacite.test_mode', true);
+        
+        if ($testMode) {
+            $username = config('datacite.test.username');
+            $password = config('datacite.test.password');
+        } else {
+            $username = config('datacite.production.username');
+            $password = config('datacite.production.password');
+        }
+        
+        return empty($username) || empty($password);
     }
 
     /**

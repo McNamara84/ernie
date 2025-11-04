@@ -124,8 +124,11 @@ test.describe('DOI Registration Workflow', () => {
             const notRegisteredBadge = row.getByText('Not registered');
             const dataciteIcon = row.locator('[data-testid="datacite-icon"]');
             
-            // Check if has "Not registered" AND no DataCite icon
-            if (await notRegisteredBadge.isVisible() && !(await dataciteIcon.isVisible())) {
+            // Check if has "Not registered" AND no DataCite icon (check count, not visibility)
+            const hasNotRegistered = await notRegisteredBadge.isVisible();
+            const dataciteIconCount = await dataciteIcon.count();
+            
+            if (hasNotRegistered && dataciteIconCount === 0) {
                 foundRow = row;
                 break;
             }
