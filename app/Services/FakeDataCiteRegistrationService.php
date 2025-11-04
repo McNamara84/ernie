@@ -32,6 +32,12 @@ class FakeDataCiteRegistrationService
      */
     public function registerDoi(Resource $resource, string $prefix): array
     {
+        // Log that fake service is being used
+        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: registerDoi called', [
+            'resource_id' => $resource->id,
+            'prefix' => $prefix,
+        ]);
+
         // Validate prefix (same as real service)
         if (! in_array($prefix, $this->prefixes, true)) {
             throw new \InvalidArgumentException(
@@ -42,14 +48,27 @@ class FakeDataCiteRegistrationService
         // Check if resource has a landing page (same as real service)
         $resource->load('landingPage');
         if (! $resource->landingPage) {
+            \Illuminate\Support\Facades\Log::error('FakeDataCiteRegistrationService: Resource has no landing page', [
+                'resource_id' => $resource->id,
+            ]);
             throw new \RuntimeException(
                 "Resource #{$resource->id} must have a landing page before registering a DOI."
             );
         }
 
+        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Generating fake DOI', [
+            'resource_id' => $resource->id,
+            'has_landing_page' => true,
+            'landing_page_id' => $resource->landingPage->id,
+        ]);
+
         // Generate a fake DOI
         $suffix = 'test-' . Str::random(8);
         $doi = "{$prefix}/{$suffix}";
+
+        \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Returning successful response', [
+            'doi' => $doi,
+        ]);
 
         // Return DataCite API response format
         return [

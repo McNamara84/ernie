@@ -57,8 +57,9 @@ test.describe('DOI Registration Workflow', () => {
         await submitButton.click();
 
         // Wait for success toast (text varies: "registered" on first run, "updated" on retry)
+        // Toast structure: Title = "DOI {action} successfully", Description = "{mode} DOI: {doi}"
         await expect(
-            page.getByText(/doi (registered|updated) successfully/i)
+            page.getByText(/(registered|updated) successfully/i)
         ).toBeVisible({ timeout: 10000 });
 
         // Modal should close
