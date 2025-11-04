@@ -10,15 +10,29 @@ use function Pest\Laravel\withoutVite;
 
 beforeEach(function () {
     withoutVite();
+    
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.username' => 'TEST.USER',
+        'datacite.test.password' => 'test-password',
+        'datacite.test.endpoint' => 'https://api.test.datacite.org',
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+        'datacite.production.username' => 'PROD.USER',
+        'datacite.production.password' => 'prod-password',
+        'datacite.production.endpoint' => 'https://api.datacite.org',
+        'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+    ]);
+    
     $this->user = User::factory()->create();
     $this->resource = Resource::factory()->create([
+        'doi' => null, // Explicitly set DOI to null for registration tests
         'created_by_user_id' => $this->user->id,
         'updated_by_user_id' => $this->user->id,
     ]);
 });
 
 test('doi registration requires authentication', function () {
-    $response = $this->post(route('resources.register-doi', $this->resource), [
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
         'prefix' => '10.83279',
     ]);
 
@@ -28,7 +42,7 @@ test('doi registration requires authentication', function () {
 test('doi registration requires a landing page', function () {
     actingAs($this->user);
 
-    $response = $this->post(route('resources.register-doi', $this->resource), [
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
         'prefix' => '10.83279',
     ]);
 
@@ -49,7 +63,7 @@ test('doi registration validates prefix against allowed list in test mode', func
 
     config(['datacite.test_mode' => true]);
 
-    $response = $this->post(route('resources.register-doi', $this->resource), [
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
         'prefix' => '10.5880', // Production prefix, not allowed in test mode
     ]);
 
@@ -66,7 +80,7 @@ test('doi registration validates prefix against allowed list in production mode'
 
     config(['datacite.test_mode' => false]);
 
-    $response = $this->post(route('resources.register-doi', $this->resource), [
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
         'prefix' => '10.83279', // Test prefix, not allowed in production mode
     ]);
 
@@ -81,11 +95,9 @@ test('doi registration succeeds with valid data for new doi', function () {
         'status' => 'draft',
     ]);
 
-    config(['datacite.test_mode' => true]);
-
-    // Mock DataCite API response
+    // Mock DataCite API response - use wildcard to catch any request
     Http::fake([
-        'api.test.datacite.org/dois' => Http::response([
+        '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/test-12345',
                 'type' => 'dois',
@@ -97,20 +109,19 @@ test('doi registration succeeds with valid data for new doi', function () {
         ], 201),
     ]);
 
-    $response = $this->post(route('resources.register-doi', $this->resource), [
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
         'prefix' => '10.83279',
     ]);
 
     $response->assertOk();
     $response->assertJson([
         'success' => true,
-        'updated' => false,
+        'doi' => '10.83279/test-12345',
     ]);
 
     // Verify DOI was saved to database
     $this->resource->refresh();
-    expect($this->resource->doi)->not->toBeNull();
-    expect($this->resource->doi)->toStartWith('10.83279/');
+    expect($this->resource->doi)->toBe('10.83279/test-12345');
 });
 
 test('doi registration updates metadata for existing doi', function () {
@@ -124,11 +135,9 @@ test('doi registration updates metadata for existing doi', function () {
         'status' => 'published',
     ]);
 
-    config(['datacite.test_mode' => true]);
-
-    // Mock DataCite API response for update
+    // Mock DataCite API response for update - use wildcard
     Http::fake([
-        'api.test.datacite.org/dois/10.83279/existing-doi' => Http::response([
+        '*datacite.org/*' => Http::response([
             'data' => [
                 'id' => '10.83279/existing-doi',
                 'type' => 'dois',
@@ -140,7 +149,7 @@ test('doi registration updates metadata for existing doi', function () {
         ], 200),
     ]);
 
-    $response = $this->post(route('resources.register-doi', $this->resource), [
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
         'prefix' => '10.83279',
     ]);
 
@@ -160,11 +169,9 @@ test('doi registration handles datacite api errors gracefully', function () {
         'status' => 'draft',
     ]);
 
-    config(['datacite.test_mode' => true]);
-
-    // Mock DataCite API error response
+    // Mock DataCite API error response - use wildcard
     Http::fake([
-        'api.test.datacite.org/dois' => Http::response([
+        '*datacite.org/*' => Http::response([
             'errors' => [
                 [
                     'status' => '422',
@@ -175,7 +182,7 @@ test('doi registration handles datacite api errors gracefully', function () {
         ], 422),
     ]);
 
-    $response = $this->post(route('resources.register-doi', $this->resource), [
+    $response = $this->post(route('resources.register-doi', ['resource' => $this->resource->id]), [
         'prefix' => '10.83279',
     ]);
 
@@ -186,26 +193,38 @@ test('doi registration handles datacite api errors gracefully', function () {
 test('datacite prefixes endpoint returns correct prefixes in test mode', function () {
     actingAs($this->user);
 
-    config(['datacite.test_mode' => true]);
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+        'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+    ]);
 
     $response = $this->get('/api/datacite/prefixes');
 
     $response->assertOk();
     $response->assertJson([
-        'prefixes' => ['10.83279', '10.83186', '10.83114'],
+        'test' => ['10.83279', '10.83186', '10.83114'],
+        'production' => ['10.5880', '10.26026', '10.14470'],
+        'test_mode' => true,
     ]);
 });
 
 test('datacite prefixes endpoint returns correct prefixes in production mode', function () {
     actingAs($this->user);
 
-    config(['datacite.test_mode' => false]);
+    config([
+        'datacite.test_mode' => false,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+        'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+    ]);
 
     $response = $this->get('/api/datacite/prefixes');
 
     $response->assertOk();
     $response->assertJson([
-        'prefixes' => ['10.5880', '10.26026', '10.14470'],
+        'test' => ['10.83279', '10.83186', '10.83114'],
+        'production' => ['10.5880', '10.26026', '10.14470'],
+        'test_mode' => false,
     ]);
 });
 

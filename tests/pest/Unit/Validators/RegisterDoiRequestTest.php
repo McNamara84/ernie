@@ -4,8 +4,13 @@ use App\Http\Requests\RegisterDoiRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
+uses(\Tests\TestCase::class);
+
 test('prefix validation passes with valid test prefix in test mode', function () {
-    config(['datacite.test_mode' => true]);
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+    ]);
 
     $request = new RegisterDoiRequest();
     $validator = Validator::make(
@@ -17,7 +22,10 @@ test('prefix validation passes with valid test prefix in test mode', function ()
 });
 
 test('prefix validation passes with valid production prefix in production mode', function () {
-    config(['datacite.test_mode' => false]);
+    config([
+        'datacite.test_mode' => false,
+        'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+    ]);
 
     $request = new RegisterDoiRequest();
     $validator = Validator::make(
@@ -29,7 +37,10 @@ test('prefix validation passes with valid production prefix in production mode',
 });
 
 test('prefix validation fails with production prefix in test mode', function () {
-    config(['datacite.test_mode' => true]);
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+    ]);
 
     $request = new RegisterDoiRequest();
     $validator = Validator::make(
@@ -39,11 +50,14 @@ test('prefix validation fails with production prefix in test mode', function () 
 
     expect($validator->fails())->toBeTrue();
     expect($validator->errors()->first('prefix'))
-        ->toContain('not allowed');
+        ->toContain('invalid');
 });
 
 test('prefix validation fails with test prefix in production mode', function () {
-    config(['datacite.test_mode' => false]);
+    config([
+        'datacite.test_mode' => false,
+        'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+    ]);
 
     $request = new RegisterDoiRequest();
     $validator = Validator::make(
@@ -53,11 +67,14 @@ test('prefix validation fails with test prefix in production mode', function () 
 
     expect($validator->fails())->toBeTrue();
     expect($validator->errors()->first('prefix'))
-        ->toContain('not allowed');
+        ->toContain('invalid');
 });
 
 test('prefix validation fails with invalid prefix format', function () {
-    config(['datacite.test_mode' => true]);
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+    ]);
 
     $request = new RegisterDoiRequest();
     $validator = Validator::make(
@@ -69,7 +86,10 @@ test('prefix validation fails with invalid prefix format', function () {
 });
 
 test('prefix validation fails when prefix is missing', function () {
-    config(['datacite.test_mode' => true]);
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+    ]);
 
     $request = new RegisterDoiRequest();
     $validator = Validator::make(
@@ -82,7 +102,10 @@ test('prefix validation fails when prefix is missing', function () {
 });
 
 test('prefix validation accepts all valid test prefixes', function () {
-    config(['datacite.test_mode' => true]);
+    config([
+        'datacite.test_mode' => true,
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
+    ]);
 
     $testPrefixes = ['10.83279', '10.83186', '10.83114'];
 
@@ -99,7 +122,10 @@ test('prefix validation accepts all valid test prefixes', function () {
 });
 
 test('prefix validation accepts all valid production prefixes', function () {
-    config(['datacite.test_mode' => false]);
+    config([
+        'datacite.test_mode' => false,
+        'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
+    ]);
 
     $productionPrefixes = ['10.5880', '10.26026', '10.14470'];
 

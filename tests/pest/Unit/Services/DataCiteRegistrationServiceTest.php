@@ -4,21 +4,25 @@ use App\Models\Resource;
 use App\Services\DataCiteRegistrationService;
 use Illuminate\Support\Facades\Http;
 
+uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
 beforeEach(function () {
-    $this->service = new DataCiteRegistrationService();
     $this->resource = Resource::factory()->create([
         'doi' => null,
     ]);
+});
 
+test('registerDoi generates new doi with correct format', function () {
     config([
         'datacite.test_mode' => true,
         'datacite.test.username' => 'TEST.USER',
         'datacite.test.password' => 'test-password',
         'datacite.test.endpoint' => 'https://api.test.datacite.org',
+        'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
     ]);
-});
 
-test('registerDoi generates new doi with correct format', function () {
+    $service = app(DataCiteRegistrationService::class);
+
     Http::fake([
         'api.test.datacite.org/*' => Http::response([
             'data' => [
@@ -32,7 +36,7 @@ test('registerDoi generates new doi with correct format', function () {
         ], 201),
     ]);
 
-    $doi = $this->service->registerDoi($this->resource, '10.83279');
+    $doi = $service->registerDoi($this->resource, '10.83279');
 
     expect($doi)->toStartWith('10.83279/');
     expect($doi)->toMatch('/^10\.83279\/[a-z0-9]+$/');
@@ -141,10 +145,10 @@ test('registerDoi retries on network failure', function () {
 test('registerDoi uses production credentials when test mode is disabled', function () {
     config([
         'datacite.test_mode' => false,
-        'datacite.production.username' => 'PROD.USER',
-        'datacite.production.password' => 'prod-password',
-        'datacite.production.endpoint' => 'https://api.datacite.org',
     ]);
+
+    // Recreate service with updated config
+    $this->service = app(DataCiteRegistrationService::class);
 
     Http::fake();
 
