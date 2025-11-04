@@ -38,6 +38,7 @@ class TestingServiceProvider extends ServiceProvider
      * Determine if fake DataCite service should be used based on missing credentials
      *
      * @param \Illuminate\Foundation\Application $app
+     * @return bool
      */
     private function shouldUseFakeDataCiteService($app): bool
     {

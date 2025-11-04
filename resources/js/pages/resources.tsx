@@ -751,6 +751,8 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 const hasId = resource.id !== undefined && resource.id !== null;
                 const idValue = hasId ? `#${resource.id}` : '-';
                 const identifierValue = resource.doi || 'Not registered';
+                // Lighter gray for "Not registered" text to de-emphasize missing DOI
+                // Dark mode uses lighter shade (400) for better readability on dark backgrounds
                 const identifierClasses = resource.doi
                     ? 'text-sm text-gray-600 dark:text-gray-300'
                     : 'text-sm text-gray-500 dark:text-gray-400 italic';
@@ -803,7 +805,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
 
                 return (
                     <div className="flex flex-col gap-1 text-left">
-                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed wrap-break-word">
                             {title}
                         </span>
                         <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">

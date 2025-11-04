@@ -100,7 +100,7 @@ class DatabaseSeeder extends Seeder
             'published_at' => now(),
         ]);
 
-        // 4. Curation resource WITHOUT landing page (for testing error case)
+        // 4. Curation resource WITHOUT landing page (for testing the landing page required error in DOI registration)
         \App\Models\Resource::factory()
             ->create([
                 'doi' => null,
