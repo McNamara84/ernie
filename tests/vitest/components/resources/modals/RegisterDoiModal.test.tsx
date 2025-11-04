@@ -219,7 +219,7 @@ describe('RegisterDoiModal', () => {
         await user.click(submitButton);
 
         await waitFor(() => {
-            expect(onSuccess).toHaveBeenCalledWith('10.83279/new-doi-123', 1);
+            expect(onSuccess).toHaveBeenCalledWith('10.83279/new-doi-123');
         });
     });
 

@@ -508,7 +508,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         setSelectedResourceForDoi(null);
     }, []);
 
-    const handleDoiSuccess = useCallback((doi: string, _resourceId: number) => {
+    const handleDoiSuccess = useCallback((doi: string) => {
         // Refresh the resources list to show the new DOI
         router.reload({ only: ['resources'] });
         

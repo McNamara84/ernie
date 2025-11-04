@@ -173,9 +173,14 @@ class DataCiteRegistrationService
             return $responseData;
         } catch (RequestException $e) {
             // Log detailed error information
-            $statusCode = $e->response?->status();
-            $responseBody = $e->response?->body();
-            $responseJson = $e->response?->json();
+            // PHPDoc indicates response is always present, but it can be null at runtime
+            $response = $e->response;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $statusCode = $response !== null ? $response->status() : null;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $responseBody = $response !== null ? $response->body() : null;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $responseJson = $response !== null ? $response->json() : null;
 
             Log::error('Failed to register DOI with DataCite', [
                 'resource_id' => $resource->id,
@@ -256,11 +261,16 @@ class DataCiteRegistrationService
 
             return $responseData;
         } catch (RequestException $e) {
+            // PHPDoc indicates response is always present, but it can be null at runtime
+            $response = $e->response;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $responseJson = $response !== null ? $response->json() : null;
+            
             Log::error('Failed to update DOI metadata with DataCite', [
                 'resource_id' => $resource->id,
                 'doi' => $resource->doi,
                 'error' => $e->getMessage(),
-                'response' => $e->response?->json(),
+                'response' => $responseJson,
             ]);
 
             throw $e;

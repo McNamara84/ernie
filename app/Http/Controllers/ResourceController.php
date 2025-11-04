@@ -1488,8 +1488,12 @@ class ResourceController extends Controller
 
         } catch (RequestException $e) {
             // DataCite API error
-            $statusCode = $e->response?->status() ?? 500;
-            $apiError = $e->response?->json();
+            // PHPDoc indicates response is always present, but it can be null at runtime
+            $response = $e->response;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $statusCode = $response !== null ? $response->status() : 500;
+            /** @phpstan-ignore notIdentical.alwaysTrue */
+            $apiError = $response !== null ? $response->json() : null;
 
             Log::error('DataCite API error during DOI registration', [
                 'resource_id' => $resource->id,

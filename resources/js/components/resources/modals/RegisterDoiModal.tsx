@@ -40,7 +40,7 @@ interface RegisterDoiModalProps {
     resource: Resource;
     isOpen: boolean;
     onClose: () => void;
-    onSuccess?: (doi: string, resourceId: number) => void;
+    onSuccess?: (doi: string) => void;
 }
 
 interface DoiRegistrationResponse {
@@ -159,7 +159,7 @@ export default function RegisterDoiModal({
 
             // Call success callback
             if (onSuccess) {
-                onSuccess(doi, resource.id);
+                onSuccess(doi);
             }
 
             // Close modal
