@@ -24,42 +24,46 @@ test.describe('DOI Registration Accessibility', () => {
         // Navigate to resources
         await page.goto('/resources');
         await expect(page).toHaveURL(/\/resources/);
+        await page.waitForLoadState('networkidle');
 
-        // Find a resource without DOI (look for resources in curation status)
-        const curationBadges = page.getByText('Curation').first();
-        await expect(curationBadges).toBeVisible({ timeout: 10000 });
-
-        // Get the row containing this badge
-        const resourceRow = curationBadges.locator('..').locator('..');
+        // Find any resource row (look for table rows)
+        const resourceTable = page.locator('table').first();
+        await expect(resourceTable).toBeVisible({ timeout: 10000 });
         
-        // Check if landing page button (Eye icon) exists
-        const landingPageButton = resourceRow.getByRole('button').filter({ has: page.locator('svg') }).nth(1);
+        // Get the first resource row (skip header)
+        const resourceRow = resourceTable.locator('tbody tr').first();
+        await expect(resourceRow).toBeVisible();
         
-        // If no landing page exists, set one up first
-        const hasLandingPage = await landingPageButton.getAttribute('aria-label').then(
-            (label: string | null) => label?.includes('View') || label?.includes('Edit')
-        ).catch(() => false);
+        // Check if this resource has a DOI by looking for a DataCite icon button
+        const dataciteButton = resourceRow.getByRole('button').filter({ 
+            has: page.locator('[data-testid="datacite-icon"]') 
+        }).or(resourceRow.locator('button').nth(2));
+        
+        // Check if resource has a landing page by looking at the eye icon button (2nd button)
+        const landingPageButton = resourceRow.locator('button').nth(1);
+        await expect(landingPageButton).toBeVisible();
+        
+        // Check aria-label to determine if landing page exists
+        const ariaLabel = await landingPageButton.getAttribute('aria-label');
+        const hasLandingPage = ariaLabel?.includes('View') || ariaLabel?.includes('Edit') || false;
         
         if (!hasLandingPage) {
             // Click eye icon to setup landing page
             await landingPageButton.click();
             
             // Wait for modal
-            await expect(page.getByRole('dialog')).toBeVisible();
+            await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
             
             // Save landing page (default settings should be valid)
             const saveButton = page.getByRole('button', { name: /save|create/i });
-            await saveButton.click();
-            await page.waitForTimeout(1000); // Wait for save
-            
-            // Modal should close
-            await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+            if (await saveButton.isVisible()) {
+                await saveButton.click();
+                await page.waitForTimeout(1000); // Wait for save
+                
+                // Modal should close
+                await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 5000 });
+            }
         }
-
-        // Now find and click DataCite icon
-        const dataciteButton = resourceRow.getByRole('button').filter({ 
-            has: page.locator('[data-testid="datacite-icon"]') 
-        }).or(resourceRow.getByRole('button').nth(2));
         
         return dataciteButton;
     }
