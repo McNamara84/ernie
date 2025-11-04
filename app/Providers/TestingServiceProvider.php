@@ -19,37 +19,56 @@ class TestingServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Bind fake services in testing environment OR when DataCite credentials are missing
-        // This allows E2E tests to run without real API credentials
-        $shouldUseFake = app()->environment('testing') || $this->shouldUseFakeDataCiteService();
-        
-        if (! $shouldUseFake) {
-            return;
-        }
-
-        // Bind fake DataCite service for E2E tests
-        $this->app->bind(DataCiteRegistrationService::class, function () {
-            return new FakeDataCiteRegistrationService;
+        // Bind fake DataCite service with deferred resolution
+        // This allows the config to be fully loaded before checking credentials
+        $this->app->bind(DataCiteRegistrationService::class, function ($app) {
+            // Check if we should use fake service
+            $shouldUseFake = $app->environment('testing') || $this->shouldUseFakeDataCiteService($app);
+            
+            if ($shouldUseFake) {
+                \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Using FakeDataCiteRegistrationService');
+                return new FakeDataCiteRegistrationService;
+            }
+            
+            \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Using real DataCiteRegistrationService');
+            return new DataCiteRegistrationService;
         });
     }
 
     /**
      * Determine if fake DataCite service should be used based on missing credentials
      */
-    private function shouldUseFakeDataCiteService(): bool
+    private function shouldUseFakeDataCiteService($app): bool
     {
-        // Use fake service if credentials are missing (E2E test scenario)
-        $testMode = (bool) config('datacite.test_mode', true);
-        
-        if ($testMode) {
-            $username = config('datacite.test.username');
-            $password = config('datacite.test.password');
-        } else {
-            $username = config('datacite.production.username');
-            $password = config('datacite.production.password');
+        try {
+            // Use fake service if credentials are missing (E2E test scenario)
+            $testMode = (bool) $app['config']->get('datacite.test_mode', true);
+            
+            if ($testMode) {
+                $username = $app['config']->get('datacite.test.username');
+                $password = $app['config']->get('datacite.test.password');
+            } else {
+                $username = $app['config']->get('datacite.production.username');
+                $password = $app['config']->get('datacite.production.password');
+            }
+            
+            $shouldFake = empty($username) || empty($password);
+            
+            \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Credential check', [
+                'test_mode' => $testMode,
+                'has_username' => !empty($username),
+                'has_password' => !empty($password),
+                'should_use_fake' => $shouldFake,
+            ]);
+            
+            return $shouldFake;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('TestingServiceProvider: Error checking credentials', [
+                'error' => $e->getMessage(),
+            ]);
+            // On error, use fake service to be safe
+            return true;
         }
-        
-        return empty($username) || empty($password);
     }
 
     /**
