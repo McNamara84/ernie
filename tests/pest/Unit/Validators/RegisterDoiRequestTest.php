@@ -2,7 +2,6 @@
 
 use App\Http\Requests\RegisterDoiRequest;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 uses(\Tests\TestCase::class);
 
@@ -12,7 +11,7 @@ test('prefix validation passes with valid test prefix in test mode', function ()
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
     ]);
 
-    $request = new RegisterDoiRequest();
+    $request = new RegisterDoiRequest;
     $validator = Validator::make(
         ['prefix' => '10.83279'],
         $request->rules()
@@ -27,7 +26,7 @@ test('prefix validation passes with valid production prefix in production mode',
         'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
     ]);
 
-    $request = new RegisterDoiRequest();
+    $request = new RegisterDoiRequest;
     $validator = Validator::make(
         ['prefix' => '10.5880'],
         $request->rules()
@@ -42,7 +41,7 @@ test('prefix validation fails with production prefix in test mode', function () 
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
     ]);
 
-    $request = new RegisterDoiRequest();
+    $request = new RegisterDoiRequest;
     $validator = Validator::make(
         ['prefix' => '10.5880'],
         $request->rules()
@@ -59,7 +58,7 @@ test('prefix validation fails with test prefix in production mode', function () 
         'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
     ]);
 
-    $request = new RegisterDoiRequest();
+    $request = new RegisterDoiRequest;
     $validator = Validator::make(
         ['prefix' => '10.83279'],
         $request->rules()
@@ -76,7 +75,7 @@ test('prefix validation fails with invalid prefix format', function () {
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
     ]);
 
-    $request = new RegisterDoiRequest();
+    $request = new RegisterDoiRequest;
     $validator = Validator::make(
         ['prefix' => 'invalid-prefix'],
         $request->rules()
@@ -91,7 +90,7 @@ test('prefix validation fails when prefix is missing', function () {
         'datacite.test.prefixes' => ['10.83279', '10.83186', '10.83114'],
     ]);
 
-    $request = new RegisterDoiRequest();
+    $request = new RegisterDoiRequest;
     $validator = Validator::make(
         [],
         $request->rules()
@@ -110,7 +109,7 @@ test('prefix validation accepts all valid test prefixes', function () {
     $testPrefixes = ['10.83279', '10.83186', '10.83114'];
 
     foreach ($testPrefixes as $prefix) {
-        $request = new RegisterDoiRequest();
+        $request = new RegisterDoiRequest;
         $validator = Validator::make(
             ['prefix' => $prefix],
             $request->rules()
@@ -130,7 +129,7 @@ test('prefix validation accepts all valid production prefixes', function () {
     $productionPrefixes = ['10.5880', '10.26026', '10.14470'];
 
     foreach ($productionPrefixes as $prefix) {
-        $request = new RegisterDoiRequest();
+        $request = new RegisterDoiRequest;
         $validator = Validator::make(
             ['prefix' => $prefix],
             $request->rules()

@@ -13,6 +13,17 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 
 ## Features
 
+### User Management
+
+- **Role-Based Access Control** – hierarchical permission system with four user roles:
+  - **Admin** – full system access including user management, DOI registration (test/production), and all curation features
+  - **Group Leader** – user management capabilities (can manage Curators and Beginners), DOI registration (test/production), full curation access
+  - **Curator** – standard curation access with test DOI registration only
+  - **Beginner** – limited curation access, restricted to test DOI registration for learning
+- **User Administration** – admins and group leaders can manage users via `/users` interface with role changes, account deactivation/reactivation, and password reset capabilities
+- **Command-Line User Creation** – secure user provisioning via `php artisan add-user {name} {email} {password}` (first user automatically becomes admin)
+- **Account Security** – deactivated users cannot login, User ID 1 is system-protected from modifications, users cannot modify their own accounts
+
 ### Metadata Management
 
 - **Resource Information** – configurable resource types, title types, and dataset languages
@@ -96,12 +107,18 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
    php artisan migrate
    ```
 
-6. Build frontend assets:
+6. Create your first admin user:
+   ```bash
+   php artisan add-user "Admin Name" admin@example.com SecurePassword123
+   ```
+   *Note: The first user created automatically becomes an admin.*
+
+7. Build frontend assets:
    ```bash
    npm run build
    ```
 
-7. Start the development server:
+8. Start the development server:
    ```bash
    composer run dev
    ```
@@ -147,6 +164,58 @@ Add to `.env`:
 ELMO_API_KEY=your_api_key_here
 ```
 
+### User Management
+
+ERNIE uses a **closed application model** – there is no public registration. Users must be created via command line by administrators.
+
+#### Create a New User
+```bash
+php artisan add-user {name} {email} {password}
+```
+
+**Examples:**
+```bash
+# Create the first user (automatically becomes admin)
+php artisan add-user "Jane Doe" jane@example.com SecurePass123
+
+# Create additional users (default role: beginner)
+php artisan add-user "John Smith" john@example.com AnotherPass456
+```
+
+**Important Notes:**
+- The **first user** created in the system automatically receives the `admin` role
+- All subsequent users receive the `beginner` role by default
+- Admins and Group Leaders can change user roles via the `/users` interface
+- User ID 1 is system-protected and cannot be modified or deactivated
+
+#### User Roles & Permissions
+
+| Permission | Admin | Group Leader | Curator | Beginner |
+|-----------|-------|--------------|---------|----------|
+| Manage users (create, edit roles, deactivate) | ✅ | ✅ (Curator/Beginner only) | ❌ | ❌ |
+| Promote to Group Leader | ✅ | ❌ | ❌ | ❌ |
+| Register production DOI | ✅ | ✅ | ❌ | ❌ |
+| Register test DOI | ✅ | ✅ | ✅ | ✅ |
+| Full curation access | ✅ | ✅ | ✅ | ⚠️ Limited |
+| Access user management page | ✅ | ✅ | ❌ | ❌ |
+
+**Role Hierarchy:** Admin > Group Leader > Curator > Beginner
+
+**Restrictions:**
+- Group Leaders **cannot** promote users to `group_leader` or `admin` roles
+- Beginners are **always** forced to use DataCite test mode (regardless of system setting)
+- Deactivated users **cannot** log in to the system
+- Users **cannot** modify their own accounts (must ask another admin/group leader)
+- User ID 1 **cannot** be modified, deactivated, or have password reset
+
+#### User Administration Interface
+
+Admins and Group Leaders can access the user management interface at `/users` to:
+- View all users with their roles and status
+- Change user roles (within permission constraints)
+- Deactivate/reactivate user accounts
+- Send password reset links via email
+
 ### Data Synchronization
 
 #### Sync SPDX Licenses
@@ -190,6 +259,7 @@ The project includes Docker configuration for production deployment with multi-s
 3. Run initial setup inside the container:
    ```bash
    docker-compose -f docker-compose.prod.yml exec app php artisan migrate
+   docker-compose -f docker-compose.prod.yml exec app php artisan add-user "Admin Name" admin@example.com SecurePassword
    docker-compose -f docker-compose.prod.yml exec app php artisan spdx:sync-licenses
    ```
 
@@ -452,6 +522,7 @@ ernie/
 - `/old-datasets` – Browse legacy datasets for import
 - `/old-statistics` – Statistics overview of old datasets
 - `/curation` – Metadata curation form
+- `/users` – User management interface (admin/group leader only)
 - `/docs` – Documentation overview
 - `/docs/users` – User documentation
 - `/settings` – User settings

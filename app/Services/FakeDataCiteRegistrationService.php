@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use App\Models\Resource;
-use Illuminate\Support\Str;
 
 /**
  * Fake DataCite Registration Service for testing
- * 
+ *
  * Returns successful responses without making actual API calls
  * Used in E2E tests where HTTP mocking is not available
  */
@@ -23,7 +22,7 @@ class FakeDataCiteRegistrationService
     /**
      * Register a new DOI with DataCite (faked for testing)
      *
-     * @param  Resource  $resource  The resource to register
+     * @param  resource  $resource  The resource to register
      * @param  string  $prefix  The DOI prefix to use
      * @return array<string, mixed> The DataCite API response format
      *
@@ -100,7 +99,7 @@ class FakeDataCiteRegistrationService
     /**
      * Update metadata for an existing DOI (faked for testing)
      *
-     * @param  Resource  $resource  The resource with an existing DOI
+     * @param  resource  $resource  The resource with an existing DOI
      * @return array<string, mixed> The DataCite API response format
      *
      * @throws \RuntimeException If resource doesn't have a DOI or landing page

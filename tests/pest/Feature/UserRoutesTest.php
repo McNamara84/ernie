@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
-use Inertia\Testing\AssertableInertia;
 
 describe('User Management Routes', function () {
     it('requires authentication to access user management pages', function () {
@@ -31,7 +29,8 @@ describe('User Management Routes', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('Users/Index')
                 ->has('users')
-                ->has('roles')
+                ->has('available_roles')
+                ->has('can_promote_to_group_leader')
             );
     });
 
@@ -44,7 +43,8 @@ describe('User Management Routes', function () {
             ->assertInertia(fn ($page) => $page
                 ->component('Users/Index')
                 ->has('users')
-                ->has('roles')
+                ->has('available_roles')
+                ->has('can_promote_to_group_leader')
             );
     });
 

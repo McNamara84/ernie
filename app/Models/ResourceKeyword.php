@@ -31,7 +31,7 @@ class ResourceKeyword extends Model
     /**
      * Get the resource that owns the keyword.
      *
-     * @return BelongsTo<Resource, $this>
+     * @return BelongsTo<resource, $this>
      */
     public function resource(): BelongsTo
     {

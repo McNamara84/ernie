@@ -12,7 +12,7 @@ Artisan::command('inspire', function () {
 Artisan::command('add-user {name} {email} {password}', function (string $name, string $email, string $password) {
     // Check if this is the first user
     $isFirstUser = User::count() === 0;
-    
+
     $user = User::create([
         'name' => $name,
         'email' => $email,

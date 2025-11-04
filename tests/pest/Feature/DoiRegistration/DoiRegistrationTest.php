@@ -10,7 +10,7 @@ use function Pest\Laravel\withoutVite;
 
 beforeEach(function () {
     withoutVite();
-    
+
     config([
         'datacite.test_mode' => true,
         'datacite.test.username' => 'TEST.USER',
@@ -22,7 +22,7 @@ beforeEach(function () {
         'datacite.production.endpoint' => 'https://api.datacite.org',
         'datacite.production.prefixes' => ['10.5880', '10.26026', '10.14470'],
     ]);
-    
+
     $this->user = User::factory()->create();
     $this->resource = Resource::factory()->create([
         'doi' => null, // Explicitly set DOI to null for registration tests

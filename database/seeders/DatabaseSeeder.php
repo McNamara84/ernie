@@ -78,7 +78,7 @@ class DatabaseSeeder extends Seeder
     private function createTestResources(User $user): void
     {
         // Create resources with different states for comprehensive testing
-        
+
         // 1. Resource in Curation status (no DOI) WITH landing page (ready for DOI registration)
         $curationResource = \App\Models\Resource::factory()
             ->create([
@@ -86,7 +86,7 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-        
+
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource->id,
             'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
@@ -102,7 +102,7 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-        
+
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource2->id,
             'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
@@ -118,7 +118,7 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-        
+
         \App\Models\LandingPage::create([
             'resource_id' => $publishedResource->id,
             'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,

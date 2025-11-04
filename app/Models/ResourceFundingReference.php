@@ -39,11 +39,11 @@ class ResourceFundingReference extends Model
     /**
      * Get the resource that owns the funding reference.
      *
-     * @return BelongsTo<Resource, static>
+     * @return BelongsTo<resource, static>
      */
     public function resource(): BelongsTo
     {
-        /** @var BelongsTo<Resource, static> $relation */
+        /** @var BelongsTo<resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
 
         return $relation;

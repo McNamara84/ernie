@@ -60,7 +60,7 @@ class MslLaboratoryService
             }
 
             $laboratories = $response->json();
-            
+
             if ($laboratories === null) {
                 Log::error('MSL laboratories response is not valid JSON', [
                     'url' => $vocabularyUrl,
