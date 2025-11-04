@@ -52,25 +52,32 @@ class DatabaseSeeder extends Seeder
 
         // Create resources with different states for comprehensive testing
         
-        // 1. Resource in Curation status (no DOI, no landing page)
-        \App\Models\Resource::factory()
+        // 1. Resource in Curation status (no DOI) WITH landing page (ready for DOI registration)
+        $curationResource = \App\Models\Resource::factory()
             ->create([
                 'doi' => null, // Critical: no DOI means Curation status
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
+        
+        \App\Models\LandingPage::create([
+            'resource_id' => $curationResource->id,
+            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
+            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
+            'preview_token' => \Illuminate\Support\Str::random(64),
+            'published_at' => now(),
+        ]);
 
-        // 2. Resource with landing page but no DOI (ready for DOI registration)
-        $resourceWithLandingPage = \App\Models\Resource::factory()
+        // 2. Another Curation resource WITH landing page
+        $curationResource2 = \App\Models\Resource::factory()
             ->create([
                 'doi' => null,
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
         
-        // Create landing page for this resource
         \App\Models\LandingPage::create([
-            'resource_id' => $resourceWithLandingPage->id,
+            'resource_id' => $curationResource2->id,
             'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
             'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
             'preview_token' => \Illuminate\Support\Str::random(64),
@@ -93,6 +100,6 @@ class DatabaseSeeder extends Seeder
             'published_at' => now(),
         ]);
 
-        $this->command->info('Created 3 test resources for E2E testing (Curation, Ready for DOI, Published)');
+        $this->command->info('Created 3 test resources for E2E testing (2x Curation with landing page, 1x Published)');
     }
 }

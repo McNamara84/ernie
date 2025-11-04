@@ -748,7 +748,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 const identifierValue = resource.doi || 'Not registered';
                 const identifierClasses = resource.doi
                     ? 'text-sm text-gray-600 dark:text-gray-300'
-                    : 'text-sm text-gray-400 dark:text-gray-500 italic';
+                    : 'text-sm text-gray-500 dark:text-gray-400 italic';
 
                 return (
                     <div
