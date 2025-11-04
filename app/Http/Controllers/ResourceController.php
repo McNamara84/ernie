@@ -1505,7 +1505,7 @@ class ResourceController extends Controller
 
             // Extract error message from DataCite response
             $errorMessage = 'Failed to communicate with DataCite API.';
-            if (isset($apiError['errors']) && is_array($apiError['errors']) && count($apiError['errors']) > 0) {
+            if (!empty($apiError['errors']) && is_array($apiError['errors'])) {
                 $firstError = $apiError['errors'][0];
                 $errorMessage = $firstError['title'] ?? $firstError['detail'] ?? $errorMessage;
             }

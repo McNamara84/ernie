@@ -165,6 +165,19 @@ class OrcidService
             }
 
             $fullRecord = $response->json();
+            
+            if ($fullRecord === null) {
+                Log::error('ORCID response is not valid JSON', [
+                    'orcid' => $orcid,
+                    'response_body' => $response->body(),
+                ]);
+
+                return [
+                    'success' => false,
+                    'data' => null,
+                    'error' => 'Received invalid JSON response from ORCID API',
+                ];
+            }
 
             // Extract relevant data from person and activities
             $extractedData = $this->extractPersonData($orcid, $fullRecord);
@@ -257,6 +270,19 @@ class OrcidService
             }
 
             $searchResults = $response->json();
+            
+            if ($searchResults === null) {
+                Log::error('ORCID search response is not valid JSON', [
+                    'query' => $query,
+                    'response_body' => $response->body(),
+                ]);
+
+                return [
+                    'success' => false,
+                    'data' => null,
+                    'error' => 'Received invalid JSON response from ORCID search API',
+                ];
+            }
 
             // Extract results
             $results = $this->extractSearchResults($searchResults);

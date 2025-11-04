@@ -247,9 +247,13 @@ class DataCiteRegistrationService
         ]);
 
         try {
+            // URL-encode DOI to prevent potential issues with special characters
+            // Safe because we validated $resource->doi is not null above
+            $encodedDoi = urlencode($resource->doi ?? '');
+            
             // Send PUT request to DataCite API
             $response = $this->client
-                ->put("{$this->endpoint}/dois/{$resource->doi}", $payload)
+                ->put("{$this->endpoint}/dois/{$encodedDoi}", $payload)
                 ->throw();
 
             $responseData = $response->json();

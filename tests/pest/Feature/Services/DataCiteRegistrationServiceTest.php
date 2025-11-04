@@ -147,7 +147,9 @@ test('updateMetadata sends put request to correct endpoint', function () {
     $service->updateMetadata($this->resource);
 
     Http::assertSent(function ($request) {
-        return str_contains($request->url(), '10.83279/existing')
+        // DOI is now URL-encoded in the path
+        $expectedEncodedDoi = urlencode('10.83279/existing');
+        return str_contains($request->url(), $expectedEncodedDoi)
             && $request->method() === 'PUT';
     });
 });

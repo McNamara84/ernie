@@ -56,12 +56,15 @@ class TestingServiceProvider extends ServiceProvider
 
         $shouldFake = empty($username) || empty($password);
 
-        \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Credential check', [
-            'test_mode' => $testMode,
-            'has_username' => !empty($username),
-            'has_password' => !empty($password),
-            'should_use_fake' => $shouldFake,
-        ]);
+        // Only log credential information in non-production environments for security
+        if ($app->environment('local', 'testing')) {
+            \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Credential check', [
+                'test_mode' => $testMode,
+                'has_username' => !empty($username),
+                'has_password' => !empty($password),
+                'should_use_fake' => $shouldFake,
+            ]);
+        }
 
         return $shouldFake;
     }

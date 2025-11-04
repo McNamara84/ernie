@@ -68,7 +68,7 @@ class DatabaseSeeder extends Seeder
             'published_at' => now(),
         ]);
 
-        // 2. Another Curation resource WITH landing page
+        // 2. Second Curation resource WITH landing page (for testing multiple resources)
         $curationResource2 = \App\Models\Resource::factory()
             ->create([
                 'doi' => null,

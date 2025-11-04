@@ -515,20 +515,26 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         toast.success(`DOI ${doi} successfully registered!`);
     }, []);
 
+    /**
+     * Copy text to clipboard with toast notification
+     */
+    const copyToClipboard = useCallback((text: string, successMessage: string, successDescription?: string) => {
+        navigator.clipboard.writeText(text).then(() => {
+            toast.success(successMessage, {
+                description: successDescription,
+                duration: 3000,
+            });
+        }).catch(() => {
+            toast.error('Failed to copy URL to clipboard');
+        });
+    }, []);
+
     const handleStatusBadgeClick = useCallback((resource: Resource, status: string) => {
         if (status === 'published' && resource.doi) {
             // Published: Open DOI URL and copy to clipboard
             const doiUrl = `https://doi.org/${resource.doi}`;
             
-            // Copy to clipboard
-            navigator.clipboard.writeText(doiUrl).then(() => {
-                toast.success('DOI URL copied to clipboard', {
-                    description: doiUrl,
-                    duration: 3000,
-                });
-            }).catch(() => {
-                toast.error('Failed to copy URL to clipboard');
-            });
+            copyToClipboard(doiUrl, 'DOI URL copied to clipboard', doiUrl);
             
             // Open in new tab
             window.open(doiUrl, '_blank', 'noopener,noreferrer');
@@ -537,20 +543,16 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             // Review: Open preview landing page and copy URL to clipboard
             const previewUrl = resource.landingPage.public_url;
             
-            // Copy to clipboard
-            navigator.clipboard.writeText(previewUrl).then(() => {
-                toast.success('Preview URL copied to clipboard', {
-                    description: 'URL with access token copied for sharing with reviewers',
-                    duration: 3000,
-                });
-            }).catch(() => {
-                toast.error('Failed to copy URL to clipboard');
-            });
+            copyToClipboard(
+                previewUrl, 
+                'Preview URL copied to clipboard',
+                'URL with access token copied for sharing with reviewers'
+            );
             
             // Open in new tab
             window.open(previewUrl, '_blank', 'noopener,noreferrer');
         }
-    }, []);
+    }, [copyToClipboard]);
 
     const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
     const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());

@@ -71,7 +71,7 @@ class FakeDataCiteRegistrationService
         ]);
 
         // Get public URL safely (may fail in test environment)
-        $publicUrl = 'http://127.0.0.1:8000/landing-page/'.$resource->id;
+        $publicUrl = route('landing-page.show', ['resource' => $resource->id]);
         if ($resource->landingPage->public_url) {
             $publicUrl = $resource->landingPage->public_url;
             \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Got public URL', [
@@ -121,7 +121,7 @@ class FakeDataCiteRegistrationService
         }
 
         // Get public URL safely (may fail in test environment)
-        $publicUrl = 'http://127.0.0.1:8000/landing-page/'.$resource->id;
+        $publicUrl = route('landing-page.show', ['resource' => $resource->id]);
         if ($resource->landingPage->public_url) {
             $publicUrl = $resource->landingPage->public_url;
         }

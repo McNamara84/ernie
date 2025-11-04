@@ -157,13 +157,18 @@ export default function RegisterDoiModal({
                 }
             );
 
-            // Call success callback
-            if (onSuccess) {
-                onSuccess(doi);
-            }
-
-            // Close modal
+            // Close modal first to ensure UI is updated
             onClose();
+
+            // Call success callback after modal closes
+            // Wrapped in try-catch to prevent callback errors from affecting modal state
+            if (onSuccess) {
+                try {
+                    onSuccess(doi);
+                } catch (callbackError) {
+                    console.error('Error in onSuccess callback:', callbackError);
+                }
+            }
 
         } catch (err) {
             console.error('DOI registration failed:', err);
@@ -271,7 +276,7 @@ export default function RegisterDoiModal({
                                 </SelectContent>
                             </Select>
                             {availablePrefixes.length === 0 && (
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-sm text-muted-foreground" role="alert">
                                     No prefixes available. Please check your DataCite configuration.
                                 </p>
                             )}
