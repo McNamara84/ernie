@@ -307,15 +307,24 @@ describe('RegisterDoiModal', () => {
         });
     });
 
-    it('falls back to default prefixes if API call fails', async () => {
+    it('displays error when API call fails and shows no prefixes', async () => {
         mockGet.mockRejectedValue(new Error('Network error'));
 
         render(<RegisterDoiModal {...defaultProps} />);
 
         await waitFor(() => {
-            const selectTrigger = screen.getByRole('combobox');
-            expect(selectTrigger).toHaveTextContent('10.83279');
+            // Should show error message
+            expect(screen.getByText('Error')).toBeInTheDocument();
+            expect(screen.getByText(/failed to load doi prefix configuration/i)).toBeInTheDocument();
         });
+
+        // Select should show "Select a prefix" (no default prefix)
+        const selectTrigger = screen.getByRole('combobox');
+        expect(selectTrigger).toHaveTextContent('Select a prefix');
+
+        // Submit button should be disabled when no prefix is available
+        const submitButton = screen.getByRole('button', { name: /register doi/i });
+        expect(submitButton).toBeDisabled();
     });
 
     it('resets state when modal closes', async () => {
