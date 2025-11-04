@@ -50,14 +50,49 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        // Create 3 resources with different statuses for testing
+        // Create resources with different states for comprehensive testing
+        
+        // 1. Resource in Curation status (no DOI, no landing page)
         \App\Models\Resource::factory()
-            ->count(3)
             ->create([
+                'doi' => null, // Critical: no DOI means Curation status
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
 
-        $this->command->info('Created 3 test resources for E2E testing');
+        // 2. Resource with landing page but no DOI (ready for DOI registration)
+        $resourceWithLandingPage = \App\Models\Resource::factory()
+            ->create([
+                'doi' => null,
+                'created_by_user_id' => $user->id,
+                'updated_by_user_id' => $user->id,
+            ]);
+        
+        // Create landing page for this resource
+        \App\Models\LandingPage::create([
+            'resource_id' => $resourceWithLandingPage->id,
+            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
+            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
+            'preview_token' => \Illuminate\Support\Str::random(64),
+            'published_at' => now(),
+        ]);
+
+        // 3. Resource with DOI and landing page (Published/Review status)
+        $publishedResource = \App\Models\Resource::factory()
+            ->create([
+                'doi' => '10.83279/test-playwright',
+                'created_by_user_id' => $user->id,
+                'updated_by_user_id' => $user->id,
+            ]);
+        
+        \App\Models\LandingPage::create([
+            'resource_id' => $publishedResource->id,
+            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
+            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
+            'preview_token' => \Illuminate\Support\Str::random(64),
+            'published_at' => now(),
+        ]);
+
+        $this->command->info('Created 3 test resources for E2E testing (Curation, Ready for DOI, Published)');
     }
 }
