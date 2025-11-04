@@ -53,23 +53,12 @@ export function AppSidebar() {
             href: withBasePath('/resources'),
             icon: Layers,
         },
-        // Users link - only visible for admins and group leaders
-        ...(auth.user?.can_manage_users
-            ? [
-                  {
-                      title: 'Users',
-                      href: withBasePath('/users'),
-                      icon: Users,
-                      separator: true,
-                  } as NavItem,
-              ]
-            : []),
         {
             title: 'IGSNs',
             href: withBasePath('/igsns'),
             icon: FlaskConical,
             disabled: true,
-            separator: !auth.user?.can_manage_users, // Add separator if Users link is not shown
+            separator: true,
         },
         {
             title: 'IGSN Editor',
@@ -80,6 +69,16 @@ export function AppSidebar() {
     ];
 
     const footerNavItems: NavItem[] = [
+        // Users link - only visible for admins and group leaders
+        ...(auth.user?.can_manage_users
+            ? [
+                  {
+                      title: 'Users',
+                      href: withBasePath('/users'),
+                      icon: Users,
+                  } as NavItem,
+              ]
+            : []),
         {
             title: 'Editor Settings',
             href: settings(),

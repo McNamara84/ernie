@@ -77,6 +77,16 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user is a beginner.
+     */
+    public function beginner(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::BEGINNER,
+        ]);
+    }
+
+    /**
      * Indicate that the user is deactivated.
      */
     public function deactivated(): static

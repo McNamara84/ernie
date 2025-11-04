@@ -22,8 +22,8 @@ return new class extends Migration
                 ->constrained('users')->nullOnDelete();
         });
 
-        // Set user ID 1 to admin role
-        DB::table('users')->where('id', 1)->update(['role' => 'admin']);
+        // Note: First user will be set to admin in RegisteredUserController
+        // We cannot set it here because the user doesn't exist yet during migration
     }
 
     /**

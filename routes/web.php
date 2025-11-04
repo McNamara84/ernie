@@ -619,6 +619,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'url' => config('msl.vocabulary_url'),
         ]);
     })->name('vocabularies.msl-vocabulary-url');
+
+    // User Management routes (Admin & Group Leader only)
+    Route::middleware(['can.manage.users'])->prefix('users')->group(function () {
+        Route::get('/', [App\Http\Controllers\UserController::class, 'index'])
+            ->name('users.index');
+        Route::patch('{user}/role', [App\Http\Controllers\UserController::class, 'updateRole'])
+            ->name('users.update-role');
+        Route::post('{user}/deactivate', [App\Http\Controllers\UserController::class, 'deactivate'])
+            ->name('users.deactivate');
+        Route::post('{user}/reactivate', [App\Http\Controllers\UserController::class, 'reactivate'])
+            ->name('users.reactivate');
+        Route::post('{user}/reset-password', [App\Http\Controllers\UserController::class, 'resetPassword'])
+            ->name('users.reset-password');
+    });
 });
 
 require __DIR__.'/settings.php';

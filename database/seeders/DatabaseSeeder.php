@@ -13,23 +13,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        $testUser = null;
-        if (! User::where('email', 'test@example.com')->exists()) {
-            $testUser = User::factory()->create([
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-            ]);
-        } else {
-            $testUser = User::where('email', 'test@example.com')->first();
-        }
-
-        // Create additional test users with different roles for development/testing
-        if (app()->environment('testing', 'local')) {
-            $this->createTestUsers();
-        }
-
+        // Seed essential data only (no test users or resources in development)
         $this->call([
             RoleSeeder::class,
             ResourceTypeSeeder::class,
@@ -38,59 +22,54 @@ class DatabaseSeeder extends Seeder
             LanguageSeeder::class,
         ]);
 
-        // Create test resources for Playwright E2E tests
-        // These are minimal resources to ensure the UI has data to display
-        if (app()->environment('testing', 'local') && $testUser !== null) {
-            $this->createTestResources($testUser);
+        // Only create test data in testing environment (for automated tests)
+        if (app()->environment('testing')) {
+            $this->createTestDataForAutomatedTests();
         }
     }
 
     /**
-     * Create test users with different roles for development/testing
+     * Create test users with different roles for automated testing only
      */
-    private function createTestUsers(): void
+    private function createTestDataForAutomatedTests(): void
     {
+        // Create test user for automated tests
+        $testUser = User::factory()->create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+        ]);
+
         // Admin user
-        if (! User::where('email', 'admin@example.com')->exists()) {
-            User::factory()->admin()->create([
-                'name' => 'Admin User',
-                'email' => 'admin@example.com',
-            ]);
-        }
+        User::factory()->admin()->create([
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+        ]);
 
         // Group Leader user
-        if (! User::where('email', 'groupleader@example.com')->exists()) {
-            User::factory()->groupLeader()->create([
-                'name' => 'Group Leader',
-                'email' => 'groupleader@example.com',
-            ]);
-        }
+        User::factory()->groupLeader()->create([
+            'name' => 'Group Leader',
+            'email' => 'groupleader@example.com',
+        ]);
 
         // Curator user
-        if (! User::where('email', 'curator@example.com')->exists()) {
-            User::factory()->curator()->create([
-                'name' => 'Curator User',
-                'email' => 'curator@example.com',
-            ]);
-        }
+        User::factory()->curator()->create([
+            'name' => 'Curator User',
+            'email' => 'curator@example.com',
+        ]);
 
         // Beginner user
-        if (! User::where('email', 'beginner@example.com')->exists()) {
-            User::factory()->create([
-                'name' => 'Beginner User',
-                'email' => 'beginner@example.com',
-            ]);
-        }
+        User::factory()->create([
+            'name' => 'Beginner User',
+            'email' => 'beginner@example.com',
+        ]);
 
         // Deactivated user
-        if (! User::where('email', 'deactivated@example.com')->exists()) {
-            User::factory()->deactivated()->create([
-                'name' => 'Deactivated User',
-                'email' => 'deactivated@example.com',
-            ]);
-        }
+        User::factory()->deactivated()->create([
+            'name' => 'Deactivated User',
+            'email' => 'deactivated@example.com',
+        ]);
 
-        $this->command->info('Created test users: admin, group leader, curator, beginner, and deactivated user');
+        $this->createTestResources($testUser);
     }
 
     /**
@@ -98,11 +77,6 @@ class DatabaseSeeder extends Seeder
      */
     private function createTestResources(User $user): void
     {
-        // Only create if no resources exist
-        if (\App\Models\Resource::count() > 0) {
-            return;
-        }
-
         // Create resources with different states for comprehensive testing
         
         // 1. Resource in Curation status (no DOI) WITH landing page (ready for DOI registration)
@@ -160,7 +134,5 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-
-        $this->command->info('Created 4 test resources for E2E testing (3 with landing page: 2x Curation + 1x Published, 1x Curation without landing page)');
     }
 }
