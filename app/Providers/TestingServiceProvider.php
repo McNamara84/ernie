@@ -22,11 +22,12 @@ class TestingServiceProvider extends ServiceProvider
         // Bind fake DataCite service with deferred resolution
         // This allows the config to be fully loaded before checking credentials
         $this->app->bind(DataCiteRegistrationService::class, function ($app) {
-            // Check if we should use fake service
-            $shouldUseFake = $app->environment('testing') || $this->shouldUseFakeDataCiteService($app);
+            // Only use fake service if credentials are missing (E2E test scenario)
+            // Pest tests set credentials explicitly and use Http::fake() instead
+            $shouldUseFake = $this->shouldUseFakeDataCiteService($app);
             
             if ($shouldUseFake) {
-                \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Using FakeDataCiteRegistrationService');
+                \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Using FakeDataCiteRegistrationService (missing credentials)');
                 return new FakeDataCiteRegistrationService;
             }
             
