@@ -115,12 +115,12 @@ describe('Status Badge Interactions', () => {
         // Badge should not be clickable for curation status
         const isClickable = curationResource.publicStatus === 'published' && curationResource.doi;
         
-        expect(isClickable).toBe(false);
+        expect(isClickable).toBeFalsy();
     });
 
     it('determines clickability correctly for published status', () => {
         const isClickable = mockResource.publicStatus === 'published' && mockResource.doi;
-        expect(isClickable).toBe(true);
+        expect(isClickable).toBeTruthy();
     });
 
     it('determines clickability correctly for review status', () => {
@@ -138,7 +138,7 @@ describe('Status Badge Interactions', () => {
             reviewResource.publicStatus === 'review' && 
             reviewResource.landingPage?.public_url;
         
-        expect(isClickable).toBe(true);
+        expect(isClickable).toBeTruthy();
     });
 
     it('handles missing DOI gracefully for published status', () => {
@@ -151,7 +151,7 @@ describe('Status Badge Interactions', () => {
             resourceWithoutDoi.publicStatus === 'published' && 
             resourceWithoutDoi.doi;
         
-        expect(isClickable).toBe(false);
+        expect(isClickable).toBeFalsy();
     });
 
     it('handles missing landing page gracefully for review status', () => {
