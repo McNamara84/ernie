@@ -127,6 +127,28 @@ class User extends Authenticatable
     }
 
     /**
+     * Scope a query to only include inactive users.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeInactive($query)
+    {
+        return $query->where('is_active', false);
+    }
+
+    /**
+     * Scope a query to filter by role.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeRole($query, UserRole $role)
+    {
+        return $query->where('role', $role->value);
+    }
+
+    /**
      * Scope a query to filter by role.
      *
      * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
@@ -175,6 +197,14 @@ class User extends Authenticatable
     public function canManageUsers(): bool
     {
         return $this->role->canManageUsers();
+    }
+
+    /**
+     * Check if user can promote others to group leader.
+     */
+    public function canPromoteToGroupLeader(): bool
+    {
+        return $this->role->canPromoteToGroupLeader();
     }
 
     /**
