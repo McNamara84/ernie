@@ -72,15 +72,10 @@ class FakeDataCiteRegistrationService
 
         // Get public URL safely (may fail in test environment)
         $publicUrl = 'http://127.0.0.1:8000/landing-page/'.$resource->id;
-        try {
+        if ($resource->landingPage->public_url) {
             $publicUrl = $resource->landingPage->public_url;
             \Illuminate\Support\Facades\Log::info('FakeDataCiteRegistrationService: Got public URL', [
                 'url' => $publicUrl,
-            ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('FakeDataCiteRegistrationService: Failed to get public_url, using fallback', [
-                'error' => $e->getMessage(),
-                'fallback_url' => $publicUrl,
             ]);
         }
 
@@ -127,13 +122,8 @@ class FakeDataCiteRegistrationService
 
         // Get public URL safely (may fail in test environment)
         $publicUrl = 'http://127.0.0.1:8000/landing-page/'.$resource->id;
-        try {
+        if ($resource->landingPage->public_url) {
             $publicUrl = $resource->landingPage->public_url;
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('FakeDataCiteRegistrationService: Failed to get public_url in updateMetadata, using fallback', [
-                'error' => $e->getMessage(),
-                'fallback_url' => $publicUrl,
-            ]);
         }
 
         // Return DataCite API response format

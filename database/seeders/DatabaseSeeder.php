@@ -35,7 +35,7 @@ class DatabaseSeeder extends Seeder
 
         // Create test resources for Playwright E2E tests
         // These are minimal resources to ensure the UI has data to display
-        if (app()->environment('testing', 'local')) {
+        if (app()->environment('testing', 'local') && $testUser !== null) {
             $this->createTestResources($testUser);
         }
     }

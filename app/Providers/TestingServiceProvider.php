@@ -38,38 +38,32 @@ class TestingServiceProvider extends ServiceProvider
 
     /**
      * Determine if fake DataCite service should be used based on missing credentials
+     *
+     * @param \Illuminate\Foundation\Application $app
      */
     private function shouldUseFakeDataCiteService($app): bool
     {
-        try {
-            // Use fake service if credentials are missing (E2E test scenario)
-            $testMode = (bool) $app['config']->get('datacite.test_mode', true);
-            
-            if ($testMode) {
-                $username = $app['config']->get('datacite.test.username');
-                $password = $app['config']->get('datacite.test.password');
-            } else {
-                $username = $app['config']->get('datacite.production.username');
-                $password = $app['config']->get('datacite.production.password');
-            }
-            
-            $shouldFake = empty($username) || empty($password);
-            
-            \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Credential check', [
-                'test_mode' => $testMode,
-                'has_username' => !empty($username),
-                'has_password' => !empty($password),
-                'should_use_fake' => $shouldFake,
-            ]);
-            
-            return $shouldFake;
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('TestingServiceProvider: Error checking credentials', [
-                'error' => $e->getMessage(),
-            ]);
-            // On error, use fake service to be safe
-            return true;
+        // Use fake service if credentials are missing (E2E test scenario)
+        $testMode = (bool) $app['config']->get('datacite.test_mode', true);
+
+        if ($testMode) {
+            $username = $app['config']->get('datacite.test.username');
+            $password = $app['config']->get('datacite.test.password');
+        } else {
+            $username = $app['config']->get('datacite.production.username');
+            $password = $app['config']->get('datacite.production.password');
         }
+
+        $shouldFake = empty($username) || empty($password);
+
+        \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Credential check', [
+            'test_mode' => $testMode,
+            'has_username' => !empty($username),
+            'has_password' => !empty($password),
+            'should_use_fake' => $shouldFake,
+        ]);
+
+        return $shouldFake;
     }
 
     /**
