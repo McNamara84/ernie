@@ -27,11 +27,9 @@ class TestingServiceProvider extends ServiceProvider
             $shouldUseFake = $this->shouldUseFakeDataCiteService($app);
             
             if ($shouldUseFake) {
-                \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Using FakeDataCiteRegistrationService (missing credentials)');
                 return new FakeDataCiteRegistrationService;
             }
             
-            \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Using real DataCiteRegistrationService');
             return new DataCiteRegistrationService;
         });
     }
@@ -54,20 +52,7 @@ class TestingServiceProvider extends ServiceProvider
             $password = $app['config']->get('datacite.production.password');
         }
 
-        $shouldFake = empty($username) || empty($password);
-
-        // Only log credential information in non-production environments for security
-        // Defense in depth: check both environment AND debug mode
-        if ($app->environment('local', 'testing') && $app['config']->get('app.debug', false)) {
-            \Illuminate\Support\Facades\Log::info('TestingServiceProvider: Credential check', [
-                'test_mode' => $testMode,
-                'has_username' => !empty($username),
-                'has_password' => !empty($password),
-                'should_use_fake' => $shouldFake,
-            ]);
-        }
-
-        return $shouldFake;
+        return empty($username) || empty($password);
     }
 
     /**

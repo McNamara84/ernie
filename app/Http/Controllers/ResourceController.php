@@ -1423,7 +1423,8 @@ class ResourceController extends Controller
             }
 
             // Register new DOI
-            $prefix = $request->validated('prefix');
+            $validated = $request->validated();
+            $prefix = $validated['prefix'];
 
             Log::info('Registering new DOI', [
                 'resource_id' => $resource->id,

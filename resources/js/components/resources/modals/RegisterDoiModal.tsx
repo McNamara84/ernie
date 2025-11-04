@@ -317,8 +317,12 @@ export default function RegisterDoiModal({
                     >
                         {isSubmitting ? (
                             <>
-                                <span className="mr-2">Processing...</span>
-                                <span className="animate-spin">⏳</span>
+                                <span className="mr-2" aria-live="polite">
+                                    Processing...
+                                </span>
+                                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status" aria-label="Loading">
+                                    <span className="sr-only">Loading</span>
+                                </span>
                             </>
                         ) : hasExistingDoi ? (
                             'Update Metadata'
