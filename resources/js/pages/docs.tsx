@@ -15,17 +15,17 @@ import { DocsSection } from '@/components/docs/docs-section';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type UserRole } from '@/types';
 
 interface DocsProps {
-    userRole: string;
+    userRole: UserRole;
 }
 
 interface DocSection {
     id: string;
     title: string;
     icon: React.ComponentType<{ className?: string }>;
-    minRole: string;
+    minRole: UserRole;
     content: React.ReactNode;
 }
 
@@ -556,14 +556,15 @@ DATACITE_PRODUCTION_ENDPOINT=https://api.datacite.org`}
     ];
 
     // Filter sections based on user role hierarchy
-    const roleHierarchy: Record<string, number> = {
+    const roleHierarchy: Record<UserRole, number> = {
         beginner: 1,
         curator: 2,
         group_leader: 3,
         admin: 4,
     };
 
-    const userRoleLevel = roleHierarchy[userRole] || 0;
+    // Use beginner level (1) as safe fallback to ensure basic documentation is always visible
+    const userRoleLevel = roleHierarchy[userRole] ?? 1;
     const visibleSections = allSections.filter(
         (section) => roleHierarchy[section.minRole] <= userRoleLevel,
     );

@@ -3,6 +3,8 @@ import { LucideIcon } from 'lucide-react';
 
 export type FontSize = 'regular' | 'large';
 
+export type UserRole = 'beginner' | 'curator' | 'group_leader' | 'admin';
+
 export interface Auth {
     user: User;
 }
@@ -41,7 +43,7 @@ export interface User {
     name: string;
     email: string;
     font_size_preference: FontSize;
-    role?: string;
+    role?: UserRole;
     role_label?: string;
     is_active?: boolean;
     can_manage_users?: boolean;
