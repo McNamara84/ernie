@@ -149,17 +149,6 @@ class User extends Authenticatable
     }
 
     /**
-     * Scope a query to filter by role.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
-     * @return \Illuminate\Database\Eloquent\Builder<User>
-     */
-    public function scopeByRole($query, UserRole $role)
-    {
-        return $query->where('role', $role->value);
-    }
-
-    /**
      * Check if user is an admin.
      */
     public function isAdmin(): bool
