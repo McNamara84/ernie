@@ -41,6 +41,15 @@ export interface User {
     name: string;
     email: string;
     font_size_preference: FontSize;
+    role?: string;
+    role_label?: string;
+    is_active?: boolean;
+    can_manage_users?: boolean;
+    deactivated_at?: string | null;
+    deactivated_by?: {
+        id: number;
+        name: string;
+    } | null;
     avatar?: string;
     email_verified_at: string | null;
     created_at: string;

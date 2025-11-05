@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Kernel as ConsoleKernel;
+use App\Http\Middleware\EnsureUserCanManageUsers;
 use App\Http\Middleware\EnsureValidElmoApiKey;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'elmo.api-key' => EnsureValidElmoApiKey::class,
+            'can.manage.users' => EnsureUserCanManageUsers::class,
         ]);
 
         // Use custom CSRF middleware for PathPrefix compatibility

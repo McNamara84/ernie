@@ -1234,7 +1234,7 @@ class ResourceController extends Controller
     /**
      * Serialize a Resource model to an array for API responses.
      *
-     * @param  resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
+     * @param  Resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
      * @return array<string, mixed> The serialized resource data
      */
     private function serializeResource(Resource $resource): array

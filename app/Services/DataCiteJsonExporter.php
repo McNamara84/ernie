@@ -33,7 +33,7 @@ class DataCiteJsonExporter
     /**
      * Export a Resource to DataCite JSON format
      *
-     * @param  resource  $resource  The resource to export
+     * @param  Resource  $resource  The resource to export
      * @return array<string, mixed> The DataCite JSON structure
      */
     public function export(Resource $resource): array

@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use App\Models\Resource;
-use Illuminate\Support\Str;
 
 /**
  * Fake DataCite Registration Service for testing
- * 
+ *
  * Returns successful responses without making actual API calls
  * Used in E2E tests where HTTP mocking is not available
  */

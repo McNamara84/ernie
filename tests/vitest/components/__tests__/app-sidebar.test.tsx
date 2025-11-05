@@ -54,11 +54,29 @@ vi.mock('@/components/ui/sidebar', () => ({
     SidebarContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     SidebarFooter: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
-vi.mock('@inertiajs/react', () => ({
-    Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
-        <a href={href}>{children}</a>
-    ),
-}));
+vi.mock('@inertiajs/react', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@inertiajs/react')>();
+    return {
+        ...actual,
+        Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
+            <a href={href}>{children}</a>
+        ),
+        usePage: () => ({
+            props: {
+                auth: {
+                    user: {
+                        id: 1,
+                        name: 'Test User',
+                        email: 'test@example.com',
+                        role: 'admin',
+                        can_manage_users: true,
+                        can_register_production_doi: true,
+                    },
+                },
+            },
+        }),
+    };
+});
 vi.mock('@/components/app-logo', () => ({
     default: () => <span>Logo</span>,
 }));
@@ -102,6 +120,7 @@ describe('AppSidebar', () => {
 
         const footerArgs = NavFooterMock.mock.calls[0][0];
         expect(footerArgs.items.map((i: NavItem) => i.title)).toEqual([
+            'Users',
             'Editor Settings',
             'Changelog',
             'Documentation',

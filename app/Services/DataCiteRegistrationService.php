@@ -48,7 +48,7 @@ class DataCiteRegistrationService
      */
     public function __construct()
     {
-        $this->testMode = (bool) Config::get('datacite.test_mode', true);
+        $this->testMode = $this->determineTestMode();
 
         // Select configuration based on test mode
         $config = $this->testMode
@@ -90,6 +90,53 @@ class DataCiteRegistrationService
             ])
             ->timeout(30)
             ->retry(3, 100);
+    }
+
+    /**
+     * Determine if DataCite test mode should be used
+     * 
+     * This method implements critical safety logic to protect against accidental DOI registration
+     * in production by users who are still in training.
+     * 
+     * Test mode is activated when:
+     * 1. Global test mode is enabled in configuration (config/datacite.php)
+     * 2. The authenticated user has the BEGINNER role (restricted to test DOIs only)
+     * 
+     * IMPORTANT: Beginner users are ALWAYS forced to use test mode, regardless of global settings.
+     * This safety mechanism cannot be overridden - even if global test_mode=false, beginners
+     * will still register test DOIs. This ensures that users in training cannot accidentally
+     * register production DOIs while learning the system.
+     * 
+     * @return bool True if test mode should be used, false for production mode
+     * 
+     * @see \App\Enums\UserRole::canRegisterProductionDoi() - Role permission check
+     * @see config/datacite.php - Global test mode configuration
+     */
+    private function determineTestMode(): bool
+    {
+        $globalTestMode = (bool) Config::get('datacite.test_mode', true);
+
+        // If global test mode is enabled, use test mode
+        if ($globalTestMode) {
+            return true;
+        }
+
+        // CRITICAL SAFETY CHECK: Force test mode for beginner users
+        // Beginners cannot register production DOIs even if global test mode is disabled
+        /** @var \App\Models\User|null $user */
+        $user = auth()->user();
+
+        if ($user !== null && $user->isBeginner()) {
+            Log::info('Forcing DataCite test mode for beginner user (safety restriction)', [
+                'user_id' => $user->id,
+                'user_role' => $user->role->value,
+                'reason' => 'Beginners are restricted to test DOIs only',
+            ]);
+
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -261,7 +308,7 @@ class DataCiteRegistrationService
             // Safe because we validated $resource->doi is not null above (lines 220-224)
             assert($resource->doi !== null); // PHPStan hint: DOI is validated above
             $encodedDoi = urlencode($resource->doi);
-            
+
             // Send PUT request to DataCite API
             $response = $this->client
                 ->put("{$this->endpoint}/dois/{$encodedDoi}", $payload)
@@ -290,7 +337,7 @@ class DataCiteRegistrationService
             $response = $e->response;
             /** @phpstan-ignore notIdentical.alwaysTrue */
             $responseJson = $response !== null ? $response->json() : null;
-            
+
             Log::error('Failed to update DOI metadata with DataCite', [
                 'resource_id' => $resource->id,
                 'doi' => $resource->doi,

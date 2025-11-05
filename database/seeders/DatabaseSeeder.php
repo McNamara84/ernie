@@ -13,18 +13,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        $testUser = null;
-        if (! User::where('email', 'test@example.com')->exists()) {
-            $testUser = User::factory()->create([
-                'name' => 'Test User',
-                'email' => 'test@example.com',
-            ]);
-        } else {
-            $testUser = User::where('email', 'test@example.com')->first();
-        }
-
+        // Seed essential data only (no test users or resources in development)
         $this->call([
             RoleSeeder::class,
             ResourceTypeSeeder::class,
@@ -33,11 +22,64 @@ class DatabaseSeeder extends Seeder
             LanguageSeeder::class,
         ]);
 
-        // Create test resources for Playwright E2E tests
-        // These are minimal resources to ensure the UI has data to display
-        if (app()->environment('testing', 'local') && $testUser !== null) {
-            $this->createTestResources($testUser);
+        // Only create test data in testing environment (for automated tests)
+        if (app()->environment('testing')) {
+            $this->createTestDataForAutomatedTests();
         }
+    }
+
+    /**
+     * Create test users with different roles for automated testing only
+     * 
+     * SECURITY WARNING: All test users use the default password 'password' defined in UserFactory.
+     * These credentials are ONLY safe in automated testing environments (APP_ENV=testing).
+     * 
+     * DO NOT use this seeder in production or with APP_ENV != testing.
+     * For production user creation, use the `add-user` Artisan command with secure passwords.
+     * 
+     * @see \Database\Factories\UserFactory::definition() - default password definition
+     * @see \App\Console\Commands\AddUserCommand - proper user creation for production
+     */
+    private function createTestDataForAutomatedTests(): void
+    {
+        // Create test user for automated tests
+        // WARNING: Uses default password 'password' - only safe in testing environment
+        $testUser = User::factory()->create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+        ]);
+
+        // Admin user
+        User::factory()->admin()->create([
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+        ]);
+
+        // Group Leader user
+        User::factory()->groupLeader()->create([
+            'name' => 'Group Leader',
+            'email' => 'groupleader@example.com',
+        ]);
+
+        // Curator user
+        User::factory()->curator()->create([
+            'name' => 'Curator User',
+            'email' => 'curator@example.com',
+        ]);
+
+        // Beginner user
+        User::factory()->create([
+            'name' => 'Beginner User',
+            'email' => 'beginner@example.com',
+        ]);
+
+        // Deactivated user
+        User::factory()->deactivated()->create([
+            'name' => 'Deactivated User',
+            'email' => 'deactivated@example.com',
+        ]);
+
+        $this->createTestResources($testUser);
     }
 
     /**
@@ -45,13 +87,8 @@ class DatabaseSeeder extends Seeder
      */
     private function createTestResources(User $user): void
     {
-        // Only create if no resources exist
-        if (\App\Models\Resource::count() > 0) {
-            return;
-        }
-
         // Create resources with different states for comprehensive testing
-        
+
         // 1. Resource in Curation status (no DOI) WITH landing page (ready for DOI registration)
         $curationResource = \App\Models\Resource::factory()
             ->create([
@@ -59,7 +96,7 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-        
+
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource->id,
             'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
@@ -75,7 +112,7 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-        
+
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource2->id,
             'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
@@ -91,7 +128,7 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-        
+
         \App\Models\LandingPage::create([
             'resource_id' => $publishedResource->id,
             'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
@@ -107,7 +144,5 @@ class DatabaseSeeder extends Seeder
                 'created_by_user_id' => $user->id,
                 'updated_by_user_id' => $user->id,
             ]);
-
-        $this->command->info('Created 4 test resources for E2E testing (3 with landing page: 2x Curation + 1x Published, 1x Curation without landing page)');
     }
 }

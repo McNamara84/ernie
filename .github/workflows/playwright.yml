@@ -68,7 +68,7 @@ jobs:
         sed -i 's/^CACHE_STORE=.*/CACHE_STORE=file/' .env
         sed -i 's/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
         sed -i 's/^BROADCAST_CONNECTION=.*/BROADCAST_CONNECTION=log/' .env
-        sed -i 's/^APP_ENV=.*/APP_ENV=local/' .env
+        sed -i 's/^APP_ENV=.*/APP_ENV=testing/' .env
         sed -i 's/^APP_DEBUG=.*/APP_DEBUG=true/' .env
         sed -i 's/^APP_URL=.*/APP_URL=http:\/\/127.0.0.1:8000/' .env
         sed -i 's/^ASSET_URL=.*/ASSET_URL=http:\/\/127.0.0.1:8000/' .env
@@ -117,7 +117,7 @@ jobs:
     - name: Start Laravel server
       run: php artisan serve --host=127.0.0.1 --port=8000 &
       env:
-        APP_ENV: local
+        APP_ENV: testing
         APP_DEBUG: true
         APP_URL: http://127.0.0.1:8000
         ASSET_URL: http://127.0.0.1:8000

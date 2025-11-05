@@ -8,7 +8,7 @@ use Illuminate\Support\ServiceProvider;
 
 /**
  * Service provider for testing environment
- * 
+ *
  * Binds fake services in testing environment to avoid external API calls
  * Used by Playwright E2E tests where HTTP mocking is not available
  */
@@ -25,11 +25,11 @@ class TestingServiceProvider extends ServiceProvider
             // Only use fake service if credentials are missing (E2E test scenario)
             // Pest tests set credentials explicitly and use Http::fake() instead
             $shouldUseFake = $this->shouldUseFakeDataCiteService($app);
-            
+
             if ($shouldUseFake) {
                 return new FakeDataCiteRegistrationService;
             }
-            
+
             return new DataCiteRegistrationService;
         });
     }
@@ -37,8 +37,7 @@ class TestingServiceProvider extends ServiceProvider
     /**
      * Determine if fake DataCite service should be used based on missing credentials
      *
-     * @param \Illuminate\Foundation\Application $app
-     * @return bool
+     * @param  \Illuminate\Foundation\Application  $app
      */
     private function shouldUseFakeDataCiteService($app): bool
     {

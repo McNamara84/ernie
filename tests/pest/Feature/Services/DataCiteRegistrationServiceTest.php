@@ -99,6 +99,7 @@ test('registerDoi includes basic auth credentials', function () {
     Http::assertSent(function ($request) {
         $auth = $request->header('Authorization')[0] ?? '';
         $expected = 'Basic '.base64_encode('TEST.USER:test-password');
+
         return $auth === $expected;
     });
 });
@@ -122,6 +123,7 @@ test('registerDoi includes event publish parameter', function () {
 
     Http::assertSent(function ($request) {
         $body = json_decode($request->body(), true);
+
         return isset($body['data']['attributes']['event'])
             && $body['data']['attributes']['event'] === 'publish';
     });
@@ -149,6 +151,7 @@ test('updateMetadata sends put request to correct endpoint', function () {
     Http::assertSent(function ($request) {
         // DOI is now URL-encoded in the path
         $expectedEncodedDoi = urlencode('10.83279/existing');
+
         return str_contains($request->url(), $expectedEncodedDoi)
             && $request->method() === 'PUT';
     });

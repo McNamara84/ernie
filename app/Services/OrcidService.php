@@ -165,7 +165,7 @@ class OrcidService
             }
 
             $fullRecord = $response->json();
-            
+
             if ($fullRecord === null) {
                 Log::error('ORCID response is not valid JSON', [
                     'orcid' => $orcid,
@@ -270,7 +270,7 @@ class OrcidService
             }
 
             $searchResults = $response->json();
-            
+
             if ($searchResults === null) {
                 Log::error('ORCID search response is not valid JSON', [
                     'query' => $query,
