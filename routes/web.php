@@ -162,9 +162,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->name('dashboard');
 
-    Route::get('docs', function (\Illuminate\Http\Request $request) {
+    Route::get('docs', function () {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
         return Inertia::render('docs', [
-            'userRole' => $request->user()->role->value,
+            'userRole' => $user->role->value,
         ]);
     })->name('docs');
 
