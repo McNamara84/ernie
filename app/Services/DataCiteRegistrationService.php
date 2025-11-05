@@ -93,11 +93,6 @@ class DataCiteRegistrationService
     }
 
     /**
-     * Determine if test mode should be used.
-     *
-     * Test mode is enabled if:
-     * 1. The global DATACITE_TEST_MODE config is true, OR
-    /**
      * Determine if DataCite test mode should be used
      * 
      * This method implements critical safety logic to protect against accidental DOI registration
