@@ -30,10 +30,20 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Create test users with different roles for automated testing only
+     * 
+     * SECURITY WARNING: All test users use the default password 'password' from UserFactory.
+     * These credentials are ONLY safe in automated testing environments (APP_ENV=testing).
+     * 
+     * DO NOT use this seeder in production or with APP_ENV != testing.
+     * For production user creation, use the `add-user` Artisan command with secure passwords.
+     * 
+     * @see \Database\Factories\UserFactory::definition() - password is defined at line 31
+     * @see \App\Console\Commands\AddUserCommand - proper user creation for production
      */
     private function createTestDataForAutomatedTests(): void
     {
         // Create test user for automated tests
+        // WARNING: Uses default password 'password' - only safe in testing environment
         $testUser = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',

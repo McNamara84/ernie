@@ -39,12 +39,15 @@ describe('Users Index Components', () => {
             expect(screen.getByText('Curator')).toBeInTheDocument();
             expect(screen.getByText('Beginner')).toBeInTheDocument();
 
-            // Verify destructive variant for admin
-            expect(container.querySelector('.bg-destructive')).toBeInTheDocument();
-            // Verify primary variant for group leader
-            expect(container.querySelector('.bg-primary')).toBeInTheDocument();
-            // Verify secondary variant for curator
-            expect(container.querySelector('.bg-secondary')).toBeInTheDocument();
+            // Verify variants by data attributes instead of CSS classes
+            const badges = container.querySelectorAll('[data-slot="badge"]');
+            const adminBadge = Array.from(badges).find(b => b.textContent === 'Admin');
+            const groupLeaderBadge = Array.from(badges).find(b => b.textContent === 'Group Leader');
+            const curatorBadge = Array.from(badges).find(b => b.textContent === 'Curator');
+
+            expect(adminBadge).toHaveAttribute('data-variant', 'destructive');
+            expect(groupLeaderBadge).toHaveAttribute('data-variant', 'default');
+            expect(curatorBadge).toHaveAttribute('data-variant', 'secondary');
         });
 
         it('displays correct visual hierarchy for roles', () => {
@@ -55,10 +58,16 @@ describe('Users Index Components', () => {
                 </div>,
             );
 
-            // Admin badge should have destructive styling (red/prominent)
-            const adminBadge = container.querySelector('.bg-destructive');
+            // Verify badges by data attributes instead of CSS classes
+            const badges = container.querySelectorAll('[data-slot="badge"]');
+            const adminBadge = Array.from(badges).find(b => b.textContent === 'Admin');
+            const beginnerBadge = Array.from(badges).find(b => b.textContent === 'Beginner');
+
             expect(adminBadge).toBeInTheDocument();
-            expect(adminBadge).toHaveTextContent('Admin');
+            expect(adminBadge).toHaveAttribute('data-variant', 'destructive');
+            
+            expect(beginnerBadge).toBeInTheDocument();
+            expect(beginnerBadge).toHaveAttribute('data-variant', 'outline');
 
             // Check both badges are rendered
             expect(screen.getByText('Admin')).toBeInTheDocument();

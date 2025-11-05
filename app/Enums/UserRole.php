@@ -77,15 +77,18 @@ enum UserRole: string
     }
 
     /**
-     * Get color variant for UI badges
+     * Get badge variant for UI components
+     * 
+     * Returns the Radix UI Badge variant used in the frontend.
+     * These values must match the roleVariants mapping in user-role-badge.tsx
      */
-    public function colorVariant(): string
+    public function badgeVariant(): string
     {
         return match ($this) {
-            self::ADMIN => 'purple',
-            self::GROUP_LEADER => 'blue',
-            self::CURATOR => 'green',
-            self::BEGINNER => 'gray',
+            self::ADMIN => 'destructive',
+            self::GROUP_LEADER => 'default',
+            self::CURATOR => 'secondary',
+            self::BEGINNER => 'outline',
         };
     }
 }

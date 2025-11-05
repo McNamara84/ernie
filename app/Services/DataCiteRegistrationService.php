@@ -97,7 +97,25 @@ class DataCiteRegistrationService
      *
      * Test mode is enabled if:
      * 1. The global DATACITE_TEST_MODE config is true, OR
+    /**
+     * Determine if DataCite test mode should be used
+     * 
+     * This method implements critical safety logic to protect against accidental DOI registration
+     * in production by users who are still in training.
+     * 
+     * Test mode is activated when:
+     * 1. Global test mode is enabled in configuration (config/datacite.php)
      * 2. The authenticated user has the BEGINNER role (restricted to test DOIs only)
+     * 
+     * IMPORTANT: Beginner users are ALWAYS forced to use test mode, regardless of global settings.
+     * This safety mechanism cannot be overridden - even if global test_mode=false, beginners
+     * will still register test DOIs. This ensures that users in training cannot accidentally
+     * register production DOIs while learning the system.
+     * 
+     * @return bool True if test mode should be used, false for production mode
+     * 
+     * @see \App\Enums\UserRole::canRegisterProductionDoi() - Role permission check
+     * @see config/datacite.php - Global test mode configuration
      */
     private function determineTestMode(): bool
     {
@@ -108,14 +126,16 @@ class DataCiteRegistrationService
             return true;
         }
 
-        // Check if authenticated user is a beginner
+        // CRITICAL SAFETY CHECK: Force test mode for beginner users
+        // Beginners cannot register production DOIs even if global test mode is disabled
         /** @var \App\Models\User|null $user */
         $user = auth()->user();
 
         if ($user !== null && $user->isBeginner()) {
-            Log::info('Using DataCite test mode for beginner user', [
+            Log::info('Forcing DataCite test mode for beginner user (safety restriction)', [
                 'user_id' => $user->id,
                 'user_role' => $user->role->value,
+                'reason' => 'Beginners are restricted to test DOIs only',
             ]);
 
             return true;

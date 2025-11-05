@@ -6,35 +6,47 @@ import { UserRoleBadge } from '@/components/user-role-badge';
 describe('UserRoleBadge', () => {
     describe('Role Display', () => {
         it('renders admin badge with destructive variant', () => {
-            render(<UserRoleBadge role="admin" label="Admin" />);
+            const { container } = render(<UserRoleBadge role="admin" label="Admin" />);
 
             const badge = screen.getByText('Admin');
             expect(badge).toBeInTheDocument();
-            expect(badge).toHaveClass('bg-destructive');
+            
+            // Test for variant data attribute instead of CSS classes
+            const badgeElement = container.querySelector('[data-slot="badge"]');
+            expect(badgeElement).toHaveAttribute('data-variant', 'destructive');
         });
 
         it('renders group leader badge with default variant', () => {
-            render(<UserRoleBadge role="group_leader" label="Group Leader" />);
+            const { container } = render(<UserRoleBadge role="group_leader" label="Group Leader" />);
 
             const badge = screen.getByText('Group Leader');
             expect(badge).toBeInTheDocument();
-            expect(badge).toHaveClass('bg-primary');
+            
+            // Test for variant data attribute instead of CSS classes
+            const badgeElement = container.querySelector('[data-slot="badge"]');
+            expect(badgeElement).toHaveAttribute('data-variant', 'default');
         });
 
         it('renders curator badge with secondary variant', () => {
-            render(<UserRoleBadge role="curator" label="Curator" />);
+            const { container } = render(<UserRoleBadge role="curator" label="Curator" />);
 
             const badge = screen.getByText('Curator');
             expect(badge).toBeInTheDocument();
-            expect(badge).toHaveClass('bg-secondary');
+            
+            // Test for variant data attribute instead of CSS classes
+            const badgeElement = container.querySelector('[data-slot="badge"]');
+            expect(badgeElement).toHaveAttribute('data-variant', 'secondary');
         });
 
         it('renders beginner badge with outline variant', () => {
-            render(<UserRoleBadge role="beginner" label="Beginner" />);
+            const { container } = render(<UserRoleBadge role="beginner" label="Beginner" />);
 
             const badge = screen.getByText('Beginner');
             expect(badge).toBeInTheDocument();
-            // Outline variant uses border classes, not bg-*
+            
+            // Test for variant data attribute instead of CSS classes
+            const badgeElement = container.querySelector('[data-slot="badge"]');
+            expect(badgeElement).toHaveAttribute('data-variant', 'outline');
         });
 
         it('falls back to role value when no label provided', () => {
@@ -46,37 +58,36 @@ describe('UserRoleBadge', () => {
     });
 
     describe('Visual Styling', () => {
-        it('applies correct Tailwind classes for admin', () => {
+        it('applies correct variant for admin', () => {
             const { container } = render(<UserRoleBadge role="admin" label="Admin" />);
-            const badge = container.querySelector('.bg-destructive');
+            const badge = container.querySelector('[data-slot="badge"]');
 
             expect(badge).toBeInTheDocument();
-            // Admin uses destructive variant with text-white
-            expect(badge).toHaveClass('text-white');
+            expect(badge).toHaveAttribute('data-variant', 'destructive');
         });
 
-        it('applies correct Tailwind classes for group leader', () => {
+        it('applies correct variant for group leader', () => {
             const { container } = render(<UserRoleBadge role="group_leader" label="Group Leader" />);
-            const badge = container.querySelector('.bg-primary');
+            const badge = container.querySelector('[data-slot="badge"]');
 
             expect(badge).toBeInTheDocument();
-            expect(badge).toHaveClass('text-primary-foreground');
+            expect(badge).toHaveAttribute('data-variant', 'default');
         });
 
-        it('applies correct Tailwind classes for curator', () => {
+        it('applies correct variant for curator', () => {
             const { container } = render(<UserRoleBadge role="curator" label="Curator" />);
-            const badge = container.querySelector('.bg-secondary');
+            const badge = container.querySelector('[data-slot="badge"]');
 
             expect(badge).toBeInTheDocument();
-            expect(badge).toHaveClass('text-secondary-foreground');
+            expect(badge).toHaveAttribute('data-variant', 'secondary');
         });
 
-        it('applies outline styling for beginner', () => {
+        it('applies outline variant for beginner', () => {
             const { container } = render(<UserRoleBadge role="beginner" label="Beginner" />);
             const badge = container.querySelector('[data-slot="badge"]');
 
             expect(badge).toBeInTheDocument();
-            expect(badge).toHaveClass('text-foreground');
+            expect(badge).toHaveAttribute('data-variant', 'outline');
         });
     });
 

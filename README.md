@@ -199,7 +199,11 @@ php artisan add-user "John Smith" john@example.com AnotherPass456
 | Full curation access | ✅ | ✅ | ✅ | ⚠️ Limited |
 | Access user management page | ✅ | ✅ | ❌ | ❌ |
 
-**Role Hierarchy:** Admin > Group Leader > Curator > Beginner
+**Role Hierarchy** (descending privilege order):
+1. Admin (highest privileges)
+2. Group Leader
+3. Curator
+4. Beginner (most restricted)
 
 **Restrictions:**
 - Group Leaders **cannot** promote users to `group_leader` or `admin` roles
