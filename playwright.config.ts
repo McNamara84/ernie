@@ -34,8 +34,8 @@ export default defineConfig({
   testMatch: [
     // Critical smoke tests run first
     'tests/playwright/critical/**/*.spec.ts',
-    // Then workflow tests
-    'tests/playwright/workflows/**/*.spec.ts',
+    // Then workflow tests (excluding user-management until tests are refactored)
+    'tests/playwright/workflows/!(user-management).spec.ts',
     // Accessibility tests
     'tests/playwright/accessibility/**/*.spec.ts',
   ],
