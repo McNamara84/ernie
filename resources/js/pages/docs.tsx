@@ -9,11 +9,9 @@ import {
     Settings,
     Users,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 import { DocsCodeBlock } from '@/components/docs/docs-code-block';
 import { DocsSection } from '@/components/docs/docs-section';
-import { DocsSidebar, type DocsSidebarItem } from '@/components/docs/docs-sidebar';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
@@ -23,9 +21,15 @@ interface DocsProps {
     userRole: string;
 }
 
-export default function Docs({ userRole }: DocsProps) {
-    const [activeSection, setActiveSection] = useState('quick-start');
+interface DocSection {
+    id: string;
+    title: string;
+    icon: React.ComponentType<{ className?: string }>;
+    minRole: string;
+    content: React.ReactNode;
+}
 
+export default function Docs({ userRole }: DocsProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Documentation',
@@ -34,9 +38,7 @@ export default function Docs({ userRole }: DocsProps) {
     ];
 
     // Define all documentation sections with role requirements
-    const allSections: Array<
-        DocsSidebarItem & { minRole: string; content: React.ReactNode }
-    > = [
+    const allSections: DocSection[] = [
         {
             id: 'quick-start',
             title: 'Quick Start Guide',
@@ -566,53 +568,61 @@ DATACITE_PRODUCTION_ENDPOINT=https://api.datacite.org`}
         (section) => roleHierarchy[section.minRole] <= userRoleLevel,
     );
 
-    const sidebarItems: DocsSidebarItem[] = visibleSections.map(({ id, title, icon }) => ({
-        id,
-        title,
-        icon,
-    }));
+    const scrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            const offset = 80;
+            const elementPosition = element.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.scrollY - offset;
 
-    // Scroll spy: Update active section based on scroll position
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        setActiveSection(entry.target.id);
-                    }
-                });
-            },
-            {
-                rootMargin: '-100px 0px -66%',
-                threshold: 0,
-            },
-        );
-
-        visibleSections.forEach(({ id }) => {
-            const element = document.getElementById(id);
-            if (element) {
-                observer.observe(element);
-            }
-        });
-
-        return () => observer.disconnect();
-    }, [visibleSections]);
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth',
+            });
+        }
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Documentation" />
-            <div className="flex gap-8">
-                {/* Sidebar Navigation */}
-                <DocsSidebar items={sidebarItems} activeSection={activeSection} />
+            <div className="mx-auto max-w-5xl space-y-8 p-6">
+                {/* Table of Contents */}
+                <div className="rounded-lg border bg-card p-6">
+                    <h1 className="mb-4 text-3xl font-bold">Documentation</h1>
+                    <p className="mb-6 text-muted-foreground">
+                        Welcome to the ERNIE documentation. Your role:{' '}
+                        <strong className="text-foreground">{userRole}</strong>
+                    </p>
 
-                {/* Main Content */}
-                <main className="flex-1 space-y-12 p-4 pb-16">
+                    <div className="space-y-2">
+                        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                            Quick Navigation
+                        </h2>
+                        <nav className="grid gap-2 sm:grid-cols-2">
+                            {visibleSections.map(({ id, title, icon: Icon }) => (
+                                <button
+                                    key={id}
+                                    onClick={() => scrollToSection(id)}
+                                    className="flex items-center gap-3 rounded-lg border bg-background px-4 py-3 text-left transition-colors hover:bg-muted hover:border-primary"
+                                >
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
+                                        <Icon className="size-4 text-primary" />
+                                    </div>
+                                    <span className="font-medium">{title}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                </div>
+
+                {/* Content Sections */}
+                <div className="space-y-12">
                     {visibleSections.map(({ id, title, icon, content }) => (
                         <DocsSection key={id} id={id} title={title} icon={icon}>
                             {content}
                         </DocsSection>
                     ))}
-                </main>
+                </div>
             </div>
         </AppLayout>
     );
