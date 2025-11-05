@@ -1,5 +1,83 @@
 [
   {
+    "version": "1.0.0a",
+    "date": "2025-11-05",
+    "features": [
+      {
+        "title": "DOI Registration Workflow",
+        "description": "Complete DOI registration integration with DataCite REST API v2. Support for both test and production DOI prefixes with automatic environment switching. Includes DOI status badges with copy-to-clipboard functionality, direct links to DataCite Fabrica, and comprehensive validation before registration. Features modal-based registration flow with prefix selection and optimistic UI updates."
+      },
+      {
+        "title": "Landing Pages System",
+        "description": "Full landing page workflow for published resources. Create, preview, and publish public landing pages with comprehensive metadata display. Landing pages are required before DOI registration and provide a permanent, citable entry point for datasets. Includes status management (draft/published) and integration with DOI registration workflow."
+      },
+      {
+        "title": "User Management Interface",
+        "description": "Comprehensive user management system with role-based access control. Admins and group leaders can manage users including role changes, account activation/deactivation, and password resets. Features hierarchical role system (admin, group_leader, curator, beginner) with appropriate permission checks. System user (ID 1) is protected from modifications. Users cannot modify their own role or deactivate themselves."
+      },
+      {
+        "title": "Unified Documentation System",
+        "description": "Complete rewrite of documentation as single-page application with role-based content filtering. Seven main sections covering quick start, curation workflow, landing pages, DOI registration, user management, system administration, and API documentation. Features interactive table of contents with clickable cards, smooth scroll navigation, copy-to-clipboard code snippets, and visual workflow guides with timeline design. Mobile-responsive with dark mode support."
+      },
+      {
+        "title": "Related Works Statistics",
+        "description": "Detailed analytics dashboard for related works showing metrics by relation type and identifier type. Includes total counts, distribution charts, and comprehensive breakdowns of all 33 DataCite relation types. Helps curators understand dataset relationships and identify common patterns."
+      },
+      {
+        "title": "Enhanced Map Drawing",
+        "description": "Improved spatial coverage editor with drag-and-drop rectangle drawing on Google Maps. Users can visually define rectangular coverage areas by clicking and dragging on the map. Automatic coordinate extraction and validation ensures data quality."
+      },
+      {
+        "title": "Show Password Toggle",
+        "description": "Added visibility toggle button on login page allowing users to reveal password input for easier verification. Improves user experience and reduces login errors from typos."
+      },
+      {
+        "title": "License Usage Sorting",
+        "description": "Sortable license statistics in editor settings showing license usage across all resources. Helps administrators understand which licenses are most commonly used and identify potential data quality issues."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "User Authorization System",
+        "description": "Implemented comprehensive authorization with UserPolicy enforcing hierarchical permissions. Role-based restrictions on DOI registration (beginners forced to test mode), user management (hierarchical promotion limits), and system protection (user ID 1 immutable). Self-modification prevention ensures users cannot change own role or deactivate themselves."
+      },
+      {
+        "title": "DOI Workflow Integration",
+        "description": "Complete integration of DOI registration with landing pages and resource metadata. Automatic validation of required fields before DOI registration, landing page requirement enforcement, and metadata synchronization with DataCite. Supports both test and production environments with appropriate restrictions based on user role."
+      },
+      {
+        "title": "Documentation Architecture",
+        "description": "Modular documentation components in resources/js/components/docs/ for maintainability. DocsSection component with icons and anchor links, DocsCodeBlock with copy functionality, WorkflowSteps for visual guides. Single route passes userRole prop for frontend role-based filtering."
+      },
+      {
+        "title": "Coverage Field Validation",
+        "description": "Made coverage date fields mandatory to ensure temporal data quality. Improved validation feedback and error messages for spatial-temporal coverage entries."
+      },
+      {
+        "title": "User Management CLI",
+        "description": "Enhanced add-user command for creating new users with automatic admin assignment for first user. Role logic properly separated from migrations for data integrity."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Resource Loading in Editor",
+        "description": "Resolved critical issue preventing existing resources from loading into editor. Fixed query parameter handling and state management for proper form hydration with existing data."
+      },
+      {
+        "title": "Language Filter Removal",
+        "description": "Removed confusing language filter from old datasets and resources tables. Simplified filtering interface for better user experience."
+      },
+      {
+        "title": "Old Data Statistics Display",
+        "description": "Fixed statistics page for legacy datasets showing comprehensive metrics including resource type distribution, publication years, curator workload, and dataset status overview."
+      },
+      {
+        "title": "User Settings Font Size",
+        "description": "Enhanced user settings with configurable font size options (small, medium, large). Font changes apply immediately across application for improved accessibility."
+      }
+    ]
+  },
+  {
     "version": "0.9.0",
     "date": "2025-10-29",
     "features": [
