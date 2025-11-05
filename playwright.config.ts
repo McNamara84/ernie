@@ -34,7 +34,10 @@ export default defineConfig({
   testMatch: [
     // Critical smoke tests run first
     'tests/playwright/critical/**/*.spec.ts',
-    // Then workflow tests (excluding user-management until tests are refactored)
+    // Then workflow tests
+    // TODO: Re-enable user-management.spec.ts after implementing proper logout mechanism (dropdown-based)
+    // Currently excluded because logout tests rely on 'button:has-text("Logout")' which doesn't exist
+    // The actual implementation uses a dropdown menu (see resources/js/components/user-menu-content.tsx)
     'tests/playwright/workflows/!(user-management).spec.ts',
     // Accessibility tests
     'tests/playwright/accessibility/**/*.spec.ts',

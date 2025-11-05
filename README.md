@@ -194,7 +194,7 @@ php artisan add-user "John Smith" john@example.com AnotherPass456
 |-----------|-------|--------------|---------|----------|
 | Manage users (create, edit roles, deactivate) | ✅ | ✅ (Curator/Beginner only) | ❌ | ❌ |
 | Promote to Group Leader | ✅ | ❌ | ❌ | ❌ |
-| Register production DOI | ✅ | ✅ | ❌ | ❌ |
+| Register production DOI | ✅ | ✅ | ✅ | ❌ |
 | Register test DOI | ✅ | ✅ | ✅ | ✅ |
 | Full curation access | ✅ | ✅ | ✅ | ⚠️ Limited |
 | Access user management page | ✅ | ✅ | ❌ | ❌ |
