@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { __testing as basePathTesting } from '@/lib/base-path';
@@ -14,51 +14,85 @@ vi.mock('@/layouts/app-layout', () => ({
     default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
+// Mock IntersectionObserver for scroll spy
+global.IntersectionObserver = class IntersectionObserver {
+    observe() {}
+    disconnect() {}
+    unobserve() {}
+    takeRecords() {
+        return [];
+    }
+    root = null;
+    rootMargin = '';
+    thresholds = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} as any;
+
 describe('Docs page', () => {
     afterEach(() => {
         document.head.innerHTML = '';
         basePathTesting.resetBasePathCache();
     });
 
-    it('renders collapsible triggers', () => {
-        render(<Docs />);
-        expect(screen.getByText('For Users')).toBeInTheDocument();
-        expect(screen.getByText('For Admins')).toBeInTheDocument();
-        expect(screen.getByText('For Developers')).toBeInTheDocument();
+    it('renders documentation for beginner role', () => {
+        render(<Docs userRole="beginner" />);
+        expect(screen.getAllByText('Quick Start Guide').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Curation Workflow').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Landing Pages').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('DOI Registration').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
     });
 
-    it('toggles admin collapsible content', () => {
-        render(<Docs />);
-        const trigger = screen.getByText('For Admins');
-        const content = screen.getByTestId('admin-collapsible-content');
-        expect(content).toHaveAttribute('data-state', 'closed');
-        fireEvent.click(trigger);
-        expect(content).toHaveAttribute('data-state', 'open');
-        expect(screen.getByText(/php artisan add-user/i)).toBeInTheDocument();
-        expect(screen.getByText(/php artisan spdx:sync-licenses/i)).toBeInTheDocument();
+    it('hides user management section for beginners', () => {
+        render(<Docs userRole="beginner" />);
+        expect(screen.queryByText('User Management')).not.toBeInTheDocument();
+        expect(screen.queryByText('System Administration')).not.toBeInTheDocument();
     });
 
-    it('links to user documentation', () => {
-        render(<Docs />);
-        fireEvent.click(screen.getByText('For Users'));
-        const link = screen.getByText('Go to the user documentation');
-        expect(link).toHaveAttribute('href', '/docs/users');
+    it('shows user management for group_leader', () => {
+        render(<Docs userRole="group_leader" />);
+        expect(screen.getAllByText('User Management').length).toBeGreaterThan(0);
+    });
+
+    it('hides system administration for group_leader', () => {
+        render(<Docs userRole="group_leader" />);
+        expect(screen.queryByText('System Administration')).not.toBeInTheDocument();
+    });
+
+    it('shows all sections for admin', () => {
+        render(<Docs userRole="admin" />);
+        expect(screen.getAllByText('Quick Start Guide').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Curation Workflow').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Landing Pages').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('DOI Registration').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('User Management').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('System Administration').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('API Documentation').length).toBeGreaterThan(0);
+    });
+
+    it('displays beginner restriction notice in DOI registration', () => {
+        render(<Docs userRole="beginner" />);
+        expect(screen.getByText(/Note for Beginners/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/test mode/i).length).toBeGreaterThan(0);
+    });
+
+    it('does not show beginner notice for curator role', () => {
+        render(<Docs userRole="curator" />);
+        expect(screen.queryByText(/Note for Beginners/i)).not.toBeInTheDocument();
     });
 
     it('links to API documentation', () => {
-        render(<Docs />);
-        fireEvent.click(screen.getByText('For Developers'));
-        const link = screen.getByText('View the API documentation');
+        render(<Docs userRole="curator" />);
+        const link = screen.getByText('View API Documentation');
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
-    it('applies the base path to documentation links when configured', () => {
+    it('applies the base path to API documentation link when configured', () => {
         basePathTesting.setMetaBasePath('/ernie');
-        render(<Docs />);
-        fireEvent.click(screen.getByText('For Users'));
-        expect(screen.getByText('Go to the user documentation')).toHaveAttribute('href', '/ernie/docs/users');
-        fireEvent.click(screen.getByText('For Developers'));
-        expect(screen.getByText('View the API documentation')).toHaveAttribute('href', '/ernie/api/v1/doc');
+        render(<Docs userRole="curator" />);
+        expect(screen.getByText('View API Documentation')).toHaveAttribute(
+            'href',
+            '/ernie/api/v1/doc',
+        );
     });
 });
-
