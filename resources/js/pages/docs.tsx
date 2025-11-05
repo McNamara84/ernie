@@ -1,16 +1,14 @@
 import { Head } from '@inertiajs/react';
-import { ChevronDown } from 'lucide-react';
 
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
 import { type BreadcrumbItem } from '@/types';
 
-export default function Docs() {
+interface DocsProps {
+    userRole: string;
+}
+
+export default function Docs({ userRole }: DocsProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Documentation',
@@ -22,83 +20,23 @@ export default function Docs() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Documentation" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <Collapsible className="w-full rounded-lg border">
-                    <CollapsibleTrigger className="group flex w-full items-center justify-between p-4 text-left font-medium">
-                        For Users
-                        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent
-                        className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert"
-                    >
-                        <p>Read guides for using the system.</p>
-                        <p>
-                            <a href={withBasePath('/docs/users')} className="underline">
-                                Go to the user documentation
-                            </a>
-                        </p>
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible className="w-full rounded-lg border">
-                    <CollapsibleTrigger className="group flex w-full items-center justify-between p-4 text-left font-medium">
-                        For Admins
-                        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent
-                        data-testid="admin-collapsible-content"
-                        className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert"
-                    >
-                        <p>To create a new user via the console, run:</p>
-                        <pre>
-                            <code>
-                                php artisan add-user &lt;name&gt; &lt;email&gt; &lt;password&gt;
-                            </code>
-                        </pre>
-                        <p>
-                            Replace the placeholders with the new user's name, email address, and
-                            password.
-                        </p>
-                        <p>
-                            To update the list of available licenses, run:
-                        </p>
-                        <pre>
-                            <code>php artisan spdx:sync-licenses</code>
-                        </pre>
-                        <p>This fetches the latest license identifiers and names from SPDX.</p>
-                        <p>
-                            To update the GCMD vocabularies from NASA's Knowledge Management System, run:
-                        </p>
-                        <pre>
-                            <code>php artisan get-gcmd-science-keywords</code>
-                        </pre>
-                        <pre>
-                            <code>php artisan get-gcmd-platforms</code>
-                        </pre>
-                        <pre>
-                            <code>php artisan get-gcmd-instruments</code>
-                        </pre>
-                        <p>
-                            These commands fetch the latest GCMD Science Keywords, Platforms, and Instruments
-                            vocabularies from the NASA KMS API and store them as hierarchical JSON files.
-                            It is recommended to run these commands monthly to keep the vocabularies up to date.
-                        </p>
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible className="w-full rounded-lg border">
-                    <CollapsibleTrigger className="group flex w-full items-center justify-between p-4 text-left font-medium">
-                        For Developers
-                        <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
-                    </CollapsibleTrigger>
-                    <CollapsibleContent
-                        className="prose max-w-none space-y-2 p-4 pt-0 dark:prose-invert"
-                    >
-                        <p>Explore the REST API for integrating with the platform.</p>
-                        <p>
+                <div className="prose max-w-none dark:prose-invert">
+                    <h1>Documentation</h1>
+                    <p>
+                        Welcome to the ERNIE documentation. This page will be updated with
+                        comprehensive guides for curators and administrators.
+                    </p>
+                    <p>Current user role: <strong>{userRole}</strong></p>
+                    
+                    <h2>Quick Links</h2>
+                    <ul>
+                        <li>
                             <a href={withBasePath('/api/v1/doc')} className="underline">
-                                View the API documentation
+                                API Documentation
                             </a>
-                        </p>
-                    </CollapsibleContent>
-                </Collapsible>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </AppLayout>
     );

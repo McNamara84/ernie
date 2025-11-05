@@ -74,7 +74,7 @@ describe('User Management Routes', function () {
         $routes = collect(Route::getRoutes())->filter(function ($route) {
             $name = $route->getName() ?? '';
 
-            return str_starts_with($name, 'users.') && $name !== 'docs.users';
+            return str_starts_with($name, 'users.');
         });
 
         foreach ($routes as $route) {

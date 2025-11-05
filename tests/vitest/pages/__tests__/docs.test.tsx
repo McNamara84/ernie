@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { __testing as basePathTesting } from '@/lib/base-path';
@@ -20,45 +20,25 @@ describe('Docs page', () => {
         basePathTesting.resetBasePathCache();
     });
 
-    it('renders collapsible triggers', () => {
-        render(<Docs />);
-        expect(screen.getByText('For Users')).toBeInTheDocument();
-        expect(screen.getByText('For Admins')).toBeInTheDocument();
-        expect(screen.getByText('For Developers')).toBeInTheDocument();
+    it('renders documentation heading', () => {
+        render(<Docs userRole="curator" />);
+        expect(screen.getByText('Documentation')).toBeInTheDocument();
     });
 
-    it('toggles admin collapsible content', () => {
-        render(<Docs />);
-        const trigger = screen.getByText('For Admins');
-        const content = screen.getByTestId('admin-collapsible-content');
-        expect(content).toHaveAttribute('data-state', 'closed');
-        fireEvent.click(trigger);
-        expect(content).toHaveAttribute('data-state', 'open');
-        expect(screen.getByText(/php artisan add-user/i)).toBeInTheDocument();
-        expect(screen.getByText(/php artisan spdx:sync-licenses/i)).toBeInTheDocument();
-    });
-
-    it('links to user documentation', () => {
-        render(<Docs />);
-        fireEvent.click(screen.getByText('For Users'));
-        const link = screen.getByText('Go to the user documentation');
-        expect(link).toHaveAttribute('href', '/docs/users');
+    it('displays user role', () => {
+        render(<Docs userRole="admin" />);
+        expect(screen.getByText('admin')).toBeInTheDocument();
     });
 
     it('links to API documentation', () => {
-        render(<Docs />);
-        fireEvent.click(screen.getByText('For Developers'));
-        const link = screen.getByText('View the API documentation');
+        render(<Docs userRole="curator" />);
+        const link = screen.getByText('API Documentation');
         expect(link).toHaveAttribute('href', '/api/v1/doc');
     });
 
-    it('applies the base path to documentation links when configured', () => {
+    it('applies the base path to API documentation link when configured', () => {
         basePathTesting.setMetaBasePath('/ernie');
-        render(<Docs />);
-        fireEvent.click(screen.getByText('For Users'));
-        expect(screen.getByText('Go to the user documentation')).toHaveAttribute('href', '/ernie/docs/users');
-        fireEvent.click(screen.getByText('For Developers'));
-        expect(screen.getByText('View the API documentation')).toHaveAttribute('href', '/ernie/api/v1/doc');
+        render(<Docs userRole="curator" />);
+        expect(screen.getByText('API Documentation')).toHaveAttribute('href', '/ernie/api/v1/doc');
     });
 });
-

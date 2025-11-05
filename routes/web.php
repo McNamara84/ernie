@@ -162,13 +162,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->name('dashboard');
 
-    Route::get('docs', function () {
-        return Inertia::render('docs');
+    Route::get('docs', function (\Illuminate\Http\Request $request) {
+        return Inertia::render('docs', [
+            'userRole' => $request->user()->role->value,
+        ]);
     })->name('docs');
-
-    Route::get('docs/users', function () {
-        return Inertia::render('docs-users');
-    })->name('docs.users');
 
     Route::get('editor', function (\Illuminate\Http\Request $request) {
         // Define author/contributor exclusion roles

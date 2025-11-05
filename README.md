@@ -527,8 +527,7 @@ ernie/
 - `/old-statistics` – Statistics overview of old datasets
 - `/curation` – Metadata curation form
 - `/users` – User management interface (admin/group leader only)
-- `/docs` – Documentation overview
-- `/docs/users` – User documentation
+- `/docs` – Documentation (role-based content)
 - `/settings` – User settings
   - `/settings/profile` – Edit profile
   - `/settings/password` – Change password
