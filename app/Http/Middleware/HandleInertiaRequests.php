@@ -53,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                     'role' => $request->user()->role->value,
                     'role_label' => $request->user()->role->label(),
                     'can_manage_users' => $request->user()->canManageUsers(),
+                    'can_register_production_doi' => $request->user()->canRegisterProductionDoi(),
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

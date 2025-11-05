@@ -127,7 +127,7 @@ class DataCiteRegistrationService
     /**
      * Register a new DOI with DataCite
      *
-     * @param  resource  $resource  The resource to register
+     * @param  Resource  $resource  The resource to register
      * @param  string  $prefix  The DOI prefix to use (must be in allowed list)
      * @return array<string, mixed> The DataCite API response
      *
@@ -240,7 +240,7 @@ class DataCiteRegistrationService
     /**
      * Update metadata for an existing DOI
      *
-     * @param  resource  $resource  The resource with an existing DOI
+     * @param  Resource  $resource  The resource with an existing DOI
      * @return array<string, mixed> The DataCite API response
      *
      * @throws \RuntimeException If resource doesn't have a DOI or landing page
