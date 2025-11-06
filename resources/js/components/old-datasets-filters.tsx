@@ -250,6 +250,7 @@ export function OldDatasetsFilters({
 
                 {/* Resource Type Select */}
                 <Select
+                    key={`resource-type-${filters.resource_type?.[0] || 'all'}`}
                     value={filters.resource_type?.[0] || 'all'}
                     onValueChange={handleResourceTypeChange}
                     disabled={isLoading || !filterOptions}
@@ -269,6 +270,7 @@ export function OldDatasetsFilters({
 
                 {/* Status Select */}
                 <Select
+                    key={`status-${filters.status?.[0] || 'all'}`}
                     value={filters.status?.[0] || 'all'}
                     onValueChange={handleStatusChange}
                     disabled={isLoading || !filterOptions}
@@ -288,6 +290,7 @@ export function OldDatasetsFilters({
 
                 {/* Curator Select */}
                 <Select
+                    key={`curator-${filters.curator?.[0] || 'all'}`}
                     value={filters.curator?.[0] || 'all'}
                     onValueChange={handleCuratorChange}
                     disabled={isLoading || !filterOptions}
