@@ -294,7 +294,7 @@ describe('OldDatasets page', () => {
         expect(titleCell).toHaveTextContent(baseProps.datasets[1].title);
         expect(titleCell).toHaveClass('whitespace-normal');
         const titleSpan = titleCell.querySelector('span:first-child');
-        expect(titleSpan).toHaveClass('break-words');
+        expect(titleSpan).toHaveClass('wrap-break-word');
 
         const createdUpdatedCell = secondRowCells[4];
         const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
@@ -470,22 +470,22 @@ describe('OldDatasets page', () => {
                             identifier: '10.9999/early-dataset',
                             title: 'Earliest dataset',
                             resourcetypegeneral: 'Dataset',
-                        curator: 'Evelyn',
-                        created_at: '2023-01-01T00:00:00Z',
-                        updated_at: '2023-01-02T00:00:00Z',
-                        publicstatus: 'published',
-                    },
-                    {
-                        id: 4,
-                        identifier: '10.9999/later-dataset',
-                        title: 'More recent dataset',
-                        resourcetypegeneral: 'Dataset',
-                        curator: 'Frank',
-                        created_at: '2024-01-01T00:00:00Z',
-                        updated_at: '2024-01-05T00:00:00Z',
-                        publicstatus: 'review',
-                    },
-                ],
+                            curator: 'Evelyn',
+                            created_at: '2023-01-01T00:00:00Z',
+                            updated_at: '2023-01-02T00:00:00Z',
+                            publicstatus: 'published',
+                        },
+                        {
+                            id: 4,
+                            identifier: '10.9999/later-dataset',
+                            title: 'More recent dataset',
+                            resourcetypegeneral: 'Dataset',
+                            curator: 'Frank',
+                            created_at: '2024-01-01T00:00:00Z',
+                            updated_at: '2024-01-05T00:00:00Z',
+                            publicstatus: 'review',
+                        },
+                    ],
                 pagination: {
                     current_page: 1,
                     last_page: 3,
