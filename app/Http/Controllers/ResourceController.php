@@ -475,9 +475,23 @@ class ResourceController extends Controller
             ->map(fn ($type) => ['name' => $type->name, 'slug' => $type->slug])
             ->all();
 
-        // Get distinct curators (users who created resources)
+        // Get distinct curators (users who updated or created resources)
+        // Prioritize updatedBy, fallback to createdBy if never updated
+        $updatedByIds = Resource::query()
+            ->whereNotNull('updated_by_user_id')
+            ->distinct()
+            ->pluck('updated_by_user_id');
+        
+        $createdByIdsWithoutUpdates = Resource::query()
+            ->whereNull('updated_by_user_id')
+            ->whereNotNull('created_by_user_id')
+            ->distinct()
+            ->pluck('created_by_user_id');
+        
+        $curatorIds = $updatedByIds->merge($createdByIdsWithoutUpdates)->unique();
+        
         $curators = User::query()
-            ->whereHas('createdResources')
+            ->whereIn('id', $curatorIds)
             ->orderBy('name')
             ->pluck('name')
             ->unique()
@@ -1095,21 +1109,36 @@ class ResourceController extends Controller
             });
         }
 
-        // Curator filter
+        // Curator filter - filter by updatedBy (last editor), fallback to createdBy if never updated
         if (! empty($filters['curator'])) {
-            $query->whereHas('createdBy', function ($q) use ($filters) {
-                $q->whereIn('name', $filters['curator']);
+            $query->where(function ($q) use ($filters) {
+                $q->whereHas('updatedBy', function ($subQ) use ($filters) {
+                    $subQ->whereIn('name', $filters['curator']);
+                })->orWhere(function ($subQ) use ($filters) {
+                    // Fallback: if never updated (updated_by_user_id is null), check creator
+                    $subQ->whereNull('updated_by_user_id')
+                        ->whereHas('createdBy', function ($creatorQ) use ($filters) {
+                            $creatorQ->whereIn('name', $filters['curator']);
+                        });
+                });
             });
         }
 
         // Status filter - filter based on DOI and landing page status
+        // Must match logic in serializeResource():
+        // - curation: no DOI OR (has DOI but no landing page)
+        // - review: has DOI AND has landing page with status 'draft'
+        // - published: has DOI AND has landing page with status 'published'
         if (! empty($filters['status'])) {
             $statuses = $filters['status'];
             $query->where(function ($q) use ($statuses) {
                 foreach ($statuses as $status) {
                     if ($status === 'curation') {
-                        // Curation: No DOI registered
-                        $q->orWhereNull('doi');
+                        // Curation: No DOI OR (has DOI but no landing page)
+                        $q->orWhere(function ($subQ) {
+                            $subQ->whereNull('doi')
+                                ->orWhereDoesntHave('landingPage');
+                        });
                     } elseif ($status === 'review') {
                         // Review: DOI registered + landing page with draft status
                         $q->orWhere(function ($subQ) {
@@ -1270,7 +1299,7 @@ class ResourceController extends Controller
             'version' => $resource->version,
             'created_at' => $resource->created_at?->toIso8601String(),
             'updated_at' => $resource->updated_at?->toIso8601String(),
-            'curator' => $resource->createdBy?->name,
+            'curator' => $resource->updatedBy?->name ?? $resource->createdBy?->name, // @phpstan-ignore nullsafe.neverNull (updatedBy can be null if updated_by_user_id is null)
             'publicstatus' => $publicStatus,
             'resourcetypegeneral' => $resource->resourceType?->name,
             'resource_type' => $resource->resourceType ? [

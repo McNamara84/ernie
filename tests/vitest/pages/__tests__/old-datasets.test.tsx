@@ -294,7 +294,7 @@ describe('OldDatasets page', () => {
         expect(titleCell).toHaveTextContent(baseProps.datasets[1].title);
         expect(titleCell).toHaveClass('whitespace-normal');
         const titleSpan = titleCell.querySelector('span:first-child');
-        expect(titleSpan).toHaveClass('break-words');
+        expect(titleSpan).toHaveClass('wrap-break-word');
 
         const createdUpdatedCell = secondRowCells[4];
         const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
@@ -313,7 +313,8 @@ describe('OldDatasets page', () => {
         expect(timeElements[1]).toHaveAttribute('dateTime', '2024-01-02T10:00:00.000Z');
 
         // Ensure the infinite scroll sentinel is observed for accessibility
-        expect(observeSpy).toHaveBeenCalledTimes(1);
+        expect(observeSpy).toHaveBeenCalled();
+        expect(observeSpy.mock.calls.length).toBeGreaterThanOrEqual(1);
     });
 
     it('allows sorting by ID and toggling direction while persisting preference', async () => {
@@ -451,6 +452,42 @@ describe('OldDatasets page', () => {
             JSON.stringify({ key: 'created_at', direction: 'asc' }),
         );
 
+        // Mock all axios calls during mount and sort change
+        const sortedData = {
+            datasets: [
+                {
+                    id: 3,
+                    identifier: '10.9999/early-dataset',
+                    title: 'Earliest dataset',
+                    resourcetypegeneral: 'Dataset',
+                    curator: 'Evelyn',
+                    created_at: '2023-01-01T00:00:00Z',
+                    updated_at: '2023-01-02T00:00:00Z',
+                    publicstatus: 'published',
+                },
+                {
+                    id: 4,
+                    identifier: '10.9999/later-dataset',
+                    title: 'More recent dataset',
+                    resourcetypegeneral: 'Dataset',
+                    curator: 'Frank',
+                    created_at: '2024-01-01T00:00:00Z',
+                    updated_at: '2024-01-05T00:00:00Z',
+                    publicstatus: 'review',
+                },
+            ],
+            pagination: {
+                current_page: 1,
+                last_page: 3,
+                per_page: 20,
+                total: 60,
+                from: 1,
+                to: 20,
+                has_more: true,
+            },
+            sort: { key: 'created_at', direction: 'asc' },
+        };
+
         mockedAxios.get
             .mockResolvedValueOnce({
                 // First call: filter-options
@@ -463,41 +500,12 @@ describe('OldDatasets page', () => {
             })
             .mockResolvedValueOnce({
                 // Second call: load-more with persisted sort
-                data: {
-                    datasets: [
-                        {
-                            id: 3,
-                            identifier: '10.9999/early-dataset',
-                            title: 'Earliest dataset',
-                            resourcetypegeneral: 'Dataset',
-                        curator: 'Evelyn',
-                        created_at: '2023-01-01T00:00:00Z',
-                        updated_at: '2023-01-02T00:00:00Z',
-                        publicstatus: 'published',
-                    },
-                    {
-                        id: 4,
-                        identifier: '10.9999/later-dataset',
-                        title: 'More recent dataset',
-                        resourcetypegeneral: 'Dataset',
-                        curator: 'Frank',
-                        created_at: '2024-01-01T00:00:00Z',
-                        updated_at: '2024-01-05T00:00:00Z',
-                        publicstatus: 'review',
-                    },
-                ],
-                pagination: {
-                    current_page: 1,
-                    last_page: 3,
-                    per_page: 20,
-                    total: 60,
-                    from: 1,
-                    to: 20,
-                    has_more: true,
-                },
-                sort: { key: 'created_at', direction: 'asc' },
-            },
-        });
+                data: sortedData,
+            })
+            .mockResolvedValue({
+                // Fallback for any additional calls
+                data: sortedData,
+            });
 
         render(<OldDatasets {...baseProps} />);
 

@@ -68,6 +68,18 @@ export function ResourcesFilters({
     // Local state for search input (for immediate UI feedback)
     const [searchInput, setSearchInput] = useState(filters.search || '');
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    
+    // Local states for Select components to ensure proper synchronization
+    const [resourceTypeValue, setResourceTypeValue] = useState(filters.resource_type?.[0] || 'all');
+    const [statusValue, setStatusValue] = useState(filters.status?.[0] || 'all');
+    const [curatorValue, setCuratorValue] = useState(filters.curator?.[0] || 'all');
+    
+    // Sync Select values when filters change externally
+    useEffect(() => {
+        setResourceTypeValue(filters.resource_type?.[0] || 'all');
+        setStatusValue(filters.status?.[0] || 'all');
+        setCuratorValue(filters.curator?.[0] || 'all');
+    }, [filters.resource_type, filters.status, filters.curator]);
 
     // Debounced search handler
     const handleSearchChange = useCallback((value: string) => {
@@ -258,7 +270,7 @@ export function ResourcesFilters({
 
                 {/* Resource Type Select */}
                 <Select
-                    value={filters.resource_type?.[0] || 'all'}
+                    value={resourceTypeValue}
                     onValueChange={handleResourceTypeChange}
                     disabled={isLoading || !filterOptions}
                 >
@@ -277,7 +289,7 @@ export function ResourcesFilters({
 
                 {/* Status Select */}
                 <Select
-                    value={filters.status?.[0] || 'all'}
+                    value={statusValue}
                     onValueChange={handleStatusChange}
                     disabled={isLoading || !filterOptions}
                 >
@@ -296,7 +308,7 @@ export function ResourcesFilters({
 
                 {/* Curator Select */}
                 <Select
-                    value={filters.curator?.[0] || 'all'}
+                    value={curatorValue}
                     onValueChange={handleCuratorChange}
                     disabled={isLoading || !filterOptions}
                 >

@@ -14,6 +14,7 @@ import AppLayout from '@/layouts/app-layout';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { type FilterOptions, type FilterState, type SortDirection, type SortKey, type SortState } from '@/types/old-datasets';
+import { parseOldDatasetFiltersFromUrl } from '@/utils/filter-parser';
 import { parseContributorName } from '@/utils/nameParser';
 
 interface Author {
@@ -1209,7 +1210,13 @@ export default function OldDatasets({
     const [loading, setLoading] = useState(false);
     const [isSorting, setIsSorting] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
-    const [filters, setFilters] = useState<FilterState>({});
+    const [filters, setFilters] = useState<FilterState>(() => {
+        // SSR-safe: Only access window.location on the client side
+        if (typeof window === 'undefined') {
+            return {};
+        }
+        return parseOldDatasetFiltersFromUrl(window.location.search);
+    });
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const observer = useRef<IntersectionObserver | null>(null);
     const pendingRequestRef = useRef(0);
@@ -1641,7 +1648,7 @@ export default function OldDatasets({
 
                 return (
                     <div className="flex flex-col gap-1 text-left">
-                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed wrap-break-word">
                             {title}
                         </span>
                         <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">

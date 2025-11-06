@@ -25,6 +25,7 @@ import {
     type ResourceSortKey, 
     type ResourceSortState 
 } from '@/types/resources';
+import { parseResourceFiltersFromUrl } from '@/utils/filter-parser';
 
 interface Author {
     givenName?: string | null;
@@ -296,7 +297,13 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
-    const [filters, setFilters] = useState<ResourceFilterState>({});
+    const [filters, setFilters] = useState<ResourceFilterState>(() => {
+        // SSR-safe: Only access window.location on the client side
+        if (typeof window === 'undefined') {
+            return {};
+        }
+        return parseResourceFiltersFromUrl(window.location.search);
+    });
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
