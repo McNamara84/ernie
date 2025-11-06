@@ -22,24 +22,30 @@ test.describe('DOI Registration Workflow', () => {
     test('update metadata for existing doi', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
-        await page.waitForTimeout(2000); // Wait for React rendering
         
-        // Find table and get third row (Published resource from seeder)
+        // Wait for table to be fully loaded instead of arbitrary timeout
         const resourceTable = page.locator('table').first();
         await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        
+        // Wait for table body to have rows
+        await expect(resourceTable.locator('tbody tr')).toHaveCount(3, { timeout: 10000 });
         
         // Third row should be the Published resource
         const resourceRow = resourceTable.locator('tbody tr').nth(2);
         await expect(resourceRow).toBeVisible();
 
-        // Click DataCite button
+        // Click DataCite button - wait for it to be ready
         const dataciteButton = resourceRow.locator('button').nth(2);
         await expect(dataciteButton).toBeVisible();
+        await expect(dataciteButton).toBeEnabled();
         await dataciteButton.click();
 
-        // Verify update modal
-        await expect(page.getByRole('dialog')).toBeVisible();
-        await expect(page.getByText(/update doi metadata/i)).toBeVisible();
+        // Wait for dialog to appear and be fully rendered
+        const dialog = page.getByRole('dialog');
+        await expect(dialog).toBeVisible({ timeout: 15000 });
+        
+        // Wait for modal content to be loaded
+        await expect(page.getByText(/update doi metadata/i)).toBeVisible({ timeout: 5000 });
 
         // Should show existing DOI (use first() to avoid strict mode violation with 2 matches)
         await expect(page.getByText(/existing doi/i).first()).toBeVisible();
@@ -61,16 +67,14 @@ test.describe('DOI Registration Workflow', () => {
     test('cannot register doi without landing page', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
-        await page.waitForTimeout(2000); // Wait for React rendering
 
-        // Find table
+        // Wait for table to be fully loaded instead of arbitrary timeout
         const resourceTable = page.locator('table').first();
         await expect(resourceTable).toBeVisible({ timeout: 10000 });
         
-        // Strategy: Find the row with the LEAST number of buttons
-        // Resources without landing page have 5 buttons (no DataCite button)
-        // Resources with landing page have 6 buttons (with DataCite button)
+        // Wait for table rows to be present
         const rows = resourceTable.locator('tbody tr');
+        await expect(rows.first()).toBeVisible({ timeout: 10000 });
         const rowCount = await rows.count();
         
         let minButtonCount = Infinity;
@@ -101,20 +105,23 @@ test.describe('DOI Registration Workflow', () => {
     test('displays test mode warning', async ({ page }) => {
         // Navigate to resources and open DOI modal
         await page.goto('/resources');
-        await page.waitForTimeout(2000); // Wait for React rendering
         
         const resourceTable = page.locator('table').first();
         await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        
+        // Wait for rows to be loaded
+        await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
         
         const resourceRow = resourceTable.locator('tbody tr').first();
         await expect(resourceRow).toBeVisible();
         
         const dataciteButton = resourceRow.locator('button').nth(2);
         await expect(dataciteButton).toBeVisible();
+        await expect(dataciteButton).toBeEnabled();
         await dataciteButton.click();
 
-        // Check for test mode warning
-        await expect(page.getByRole('dialog')).toBeVisible();
+        // Wait for dialog and check for test mode warning
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 });
         const testModeWarning = page.getByText(/test mode active/i);
         
         if (await testModeWarning.isVisible()) {
@@ -128,20 +135,23 @@ test.describe('DOI Registration Workflow', () => {
     test('modal can be cancelled', async ({ page }) => {
         // Navigate to resources and open DOI modal
         await page.goto('/resources');
-        await page.waitForTimeout(2000); // Wait for React rendering
         
         const resourceTable = page.locator('table').first();
         await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        
+        // Wait for rows to be loaded
+        await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
         
         const resourceRow = resourceTable.locator('tbody tr').first();
         await expect(resourceRow).toBeVisible();
         
         const dataciteButton = resourceRow.locator('button').nth(2);
         await expect(dataciteButton).toBeVisible();
+        await expect(dataciteButton).toBeEnabled();
         await dataciteButton.click();
 
         // Modal should be visible
-        await expect(page.getByRole('dialog')).toBeVisible();
+        await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15000 });
 
         // Click cancel
         const cancelButton = page.getByRole('button', { name: /cancel/i });
@@ -154,7 +164,11 @@ test.describe('DOI Registration Workflow', () => {
     test('status badge is clickable for published resources', async ({ page }) => {
         // Navigate to resources
         await page.goto('/resources');
-        await page.waitForTimeout(2000); // Wait for React rendering
+        
+        // Wait for page to be fully loaded
+        const resourceTable = page.locator('table').first();
+        await expect(resourceTable).toBeVisible({ timeout: 10000 });
+        await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
         
         // Find published badge by role (it's a button span)
         const publishedBadge = page.getByRole('button').filter({ hasText: 'Published' }).first();
