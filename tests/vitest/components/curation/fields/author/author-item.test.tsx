@@ -88,8 +88,14 @@ describe('AuthorItem Component', () => {
     });
 
     afterEach(async () => {
+        // Use fake timers temporarily to flush Tagify's internal timeouts
+        vi.useFakeTimers();
+        vi.runAllTimers();
+        vi.useRealTimers();
+        
         // Clean up all components
         cleanup();
+        
         // Flush microtasks to ensure all pending promises are resolved
         await waitFor(() => {
             // Wait for any Tagify events to be processed

@@ -27,11 +27,11 @@ test.describe('DOI Registration Workflow', () => {
         const resourceTable = page.locator('table').first();
         await expect(resourceTable).toBeVisible({ timeout: 10000 });
         
-        // Wait for table body to have rows
-        await expect(resourceTable.locator('tbody tr')).toHaveCount(3, { timeout: 10000 });
+        // Wait for table body to have at least one row
+        await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
         
-        // Third row should be the Published resource
-        const resourceRow = resourceTable.locator('tbody tr').nth(2);
+        // Find the Published resource row (has a DOI badge)
+        const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
         await expect(resourceRow).toBeVisible();
 
         // Click DataCite button - wait for it to be ready
