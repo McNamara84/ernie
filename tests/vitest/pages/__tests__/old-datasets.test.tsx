@@ -294,7 +294,7 @@ describe('OldDatasets page', () => {
         expect(titleCell).toHaveTextContent(baseProps.datasets[1].title);
         expect(titleCell).toHaveClass('whitespace-normal');
         const titleSpan = titleCell.querySelector('span:first-child');
-        expect(titleSpan).toHaveClass('break-words');
+        expect(titleSpan).toHaveClass('wrap-break-word');
 
         const createdUpdatedCell = secondRowCells[4];
         const createdUpdatedContainer = createdUpdatedCell.querySelector(':scope > div');
