@@ -1299,7 +1299,7 @@ class ResourceController extends Controller
             'version' => $resource->version,
             'created_at' => $resource->created_at?->toIso8601String(),
             'updated_at' => $resource->updated_at?->toIso8601String(),
-            'curator' => $resource->updatedBy?->name ?? $resource->createdBy?->name,
+            'curator' => $resource->updatedBy->name ?? $resource->createdBy?->name,
             'publicstatus' => $publicStatus,
             'resourcetypegeneral' => $resource->resourceType?->name,
             'resource_type' => $resource->resourceType ? [
