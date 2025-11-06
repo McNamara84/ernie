@@ -312,12 +312,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     // Sync filters from URL after SSR hydration
     useEffect(() => {
         const urlFilters = parseResourceFiltersFromUrl(window.location.search);
-        
-        // Only update if filters have changed
-        if (JSON.stringify(urlFilters) !== JSON.stringify(filters)) {
-            setFilters(urlFilters);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        setFilters(urlFilters);
     }, []); // Run once on mount
 
     // Load more resources for infinite scrolling

@@ -1226,11 +1226,7 @@ export default function OldDatasets({
     // Sync filters from URL on client-side mount (after SSR hydration)
     useEffect(() => {
         const urlFilters = parseOldDatasetFiltersFromUrl(window.location.search);
-        // Only update if filters are different (to avoid unnecessary re-renders)
-        if (JSON.stringify(urlFilters) !== JSON.stringify(filters)) {
-            setFilters(urlFilters);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        setFilters(urlFilters);
     }, []); // Empty dependency array = run once on mount
 
     const handleSortChange = useCallback((key: SortKey) => {
@@ -1658,7 +1654,7 @@ export default function OldDatasets({
 
                 return (
                     <div className="flex flex-col gap-1 text-left">
-                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed wrap-break-word">
                             {title}
                         </span>
                         <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">

@@ -77,15 +77,9 @@ export function ResourcesFilters({
     // Sync Select values when filters change externally
     useEffect(() => {
         setResourceTypeValue(filters.resource_type?.[0] || 'all');
-    }, [filters.resource_type]);
-    
-    useEffect(() => {
         setStatusValue(filters.status?.[0] || 'all');
-    }, [filters.status]);
-    
-    useEffect(() => {
         setCuratorValue(filters.curator?.[0] || 'all');
-    }, [filters.curator]);
+    }, [filters.resource_type, filters.status, filters.curator]);
 
     // Debounced search handler
     const handleSearchChange = useCallback((value: string) => {
