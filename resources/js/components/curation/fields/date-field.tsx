@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -48,6 +49,13 @@ export function DateField({
     // Only "valid" date type should have start and end dates (date range)
     // All other types represent a single point in time
     const isDateRange = dateType === 'valid';
+
+    // Clear endDate when switching away from 'valid' date type to prevent stale data
+    useEffect(() => {
+        if (!isDateRange && endDate) {
+            onEndDateChange('');
+        }
+    }, [isDateRange, endDate, onEndDateChange]);
 
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>

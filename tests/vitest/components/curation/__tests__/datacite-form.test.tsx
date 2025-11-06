@@ -3021,5 +3021,45 @@ describe('DataCiteForm', () => {
             const dateInputs = document.querySelectorAll('input[type="date"]');
             expect(dateInputs).toHaveLength(2);
         });
+
+        it('clears endDate when switching from "valid" to another date type', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'valid', startDate: '2024-01-01', endDate: '2024-12-31' }]}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Initially, "valid" type should have both dates filled
+            let dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(2);
+            expect(dateInputs[0]).toHaveValue('2024-01-01');
+            expect(dateInputs[1]).toHaveValue('2024-12-31');
+
+            // Open the date type selector and change to "created"
+            const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
+                el.getAttribute('id')?.includes('dateType')
+            );
+            expect(dateTypeTrigger).toBeDefined();
+            if (dateTypeTrigger) {
+                await user.click(dateTypeTrigger);
+                const createdOption = screen.getByRole('option', { name: /Created/ });
+                await user.click(createdOption);
+            }
+
+            // After changing to "created", should only have 1 date field
+            dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(1);
+            // startDate should be preserved
+            expect(dateInputs[0]).toHaveValue('2024-01-01');
+        });
     });
 });
