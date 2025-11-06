@@ -1223,6 +1223,16 @@ export default function OldDatasets({
     const lastRequestRef = useRef<{ page: number; sort: SortState; replace: boolean } | null>(null);
     const [activeSortState, setActiveSortState] = useState<SortState>(initialSort);
 
+    // Sync filters from URL on client-side mount (after SSR hydration)
+    useEffect(() => {
+        const urlFilters = parseOldDatasetFiltersFromUrl(window.location.search);
+        // Only update if filters are different (to avoid unnecessary re-renders)
+        if (JSON.stringify(urlFilters) !== JSON.stringify(filters)) {
+            setFilters(urlFilters);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty dependency array = run once on mount
+
     const handleSortChange = useCallback((key: SortKey) => {
         const nextDirection = determineNextDirection(sortState, key);
         

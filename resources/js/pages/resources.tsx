@@ -309,6 +309,16 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
 
+    // Sync filters from URL on client-side mount (after SSR hydration)
+    useEffect(() => {
+        const urlFilters = parseResourceFiltersFromUrl(window.location.search);
+        // Only update if filters are different (to avoid unnecessary re-renders)
+        if (JSON.stringify(urlFilters) !== JSON.stringify(filters)) {
+            setFilters(urlFilters);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty dependency array = run once on mount
+
     // Load more resources for infinite scrolling
     const loadMore = useCallback(async () => {
         if (loading || !pagination.has_more) {
