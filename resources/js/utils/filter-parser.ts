@@ -15,9 +15,10 @@ function parseArrayParam(params: URLSearchParams, paramName: string): string[] |
     // Then try indexed array notation: param[0], param[1], etc.
     // Collect all parameters that match the pattern param[number]
     const indexedValues: string[] = [];
+    const indexedPattern = new RegExp(`^${paramName}\\[(\\d+)\\]$`);
     for (const [key, value] of params.entries()) {
         // Match patterns like "resource_type[0]", "resource_type[1]", etc.
-        const match = key.match(new RegExp(`^${paramName}\\[(\\d+)\\]$`));
+        const match = key.match(indexedPattern);
         if (match) {
             const index = parseInt(match[1], 10);
             indexedValues[index] = value;
