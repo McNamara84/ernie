@@ -1210,9 +1210,13 @@ export default function OldDatasets({
     const [loading, setLoading] = useState(false);
     const [isSorting, setIsSorting] = useState(false);
     const [loadingError, setLoadingError] = useState<string>('');
-    const [filters, setFilters] = useState<FilterState>(() => 
-        parseOldDatasetFiltersFromUrl(window.location.search)
-    );
+    const [filters, setFilters] = useState<FilterState>(() => {
+        // SSR-safe: Only access window.location on the client side
+        if (typeof window === 'undefined') {
+            return {};
+        }
+        return parseOldDatasetFiltersFromUrl(window.location.search);
+    });
     const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
     const observer = useRef<IntersectionObserver | null>(null);
     const pendingRequestRef = useRef(0);

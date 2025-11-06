@@ -297,9 +297,13 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
-    const [filters, setFilters] = useState<ResourceFilterState>(() => 
-        parseResourceFiltersFromUrl(window.location.search)
-    );
+    const [filters, setFilters] = useState<ResourceFilterState>(() => {
+        // SSR-safe: Only access window.location on the client side
+        if (typeof window === 'undefined') {
+            return {};
+        }
+        return parseResourceFiltersFromUrl(window.location.search);
+    });
     const [filterOptions, setFilterOptions] = useState<ResourceFilterOptions | null>(null);
 
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
