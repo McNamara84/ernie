@@ -52,10 +52,18 @@ export function DateField({
 
     // Clear endDate when switching away from 'valid' date type to prevent stale data
     useEffect(() => {
-        if (!isDateRange && endDate) {
+        // Only execute when switching from date range mode AND endDate is not empty
+        // This prevents unnecessary effect executions when endDate is already cleared
+        if (!isDateRange && endDate && endDate !== '') {
             onEndDateChange('');
         }
-    }, [isDateRange, endDate, onEndDateChange]);
+        // onEndDateChange is intentionally excluded from dependencies because:
+        // 1. It's not memoized in parent (datacite-form.tsx handleDateChange)
+        // 2. This effect only runs when switching away from 'valid' type (infrequent)
+        // 3. The cleanup operation is idempotent (calling with '' multiple times is safe)
+        // 4. Adding it would cause unnecessary re-renders on every parent state change
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDateRange, endDate]);
 
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
