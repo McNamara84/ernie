@@ -45,27 +45,33 @@ export function DateField({
     canAdd = true,
     className,
 }: DateFieldProps) {
+    // Only "valid" date type should have start and end dates (date range)
+    // All other types represent a single point in time
+    const isDateRange = dateType === 'valid';
+
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
             <InputField
-                id={`${id}-startDate`}
-                label="Start Date"
+                id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
+                label={isDateRange ? 'Start Date' : 'Date'}
                 type="date"
                 value={startDate ?? ''}
                 onChange={(e) => onStartDateChange(e.target.value)}
                 hideLabel={!isFirst}
-                className="md:col-span-4"
+                className={isDateRange ? 'md:col-span-4' : 'md:col-span-8'}
                 required={dateType === 'created'}
             />
-            <InputField
-                id={`${id}-endDate`}
-                label="End Date"
-                type="date"
-                value={endDate ?? ''}
-                onChange={(e) => onEndDateChange(e.target.value)}
-                hideLabel={!isFirst}
-                className="md:col-span-4"
-            />
+            {isDateRange && (
+                <InputField
+                    id={`${id}-endDate`}
+                    label="End Date"
+                    type="date"
+                    value={endDate ?? ''}
+                    onChange={(e) => onEndDateChange(e.target.value)}
+                    hideLabel={!isFirst}
+                    className="md:col-span-4"
+                />
+            )}
             <div className="md:col-span-3">
                 <SelectField
                     id={`${id}-dateType`}
