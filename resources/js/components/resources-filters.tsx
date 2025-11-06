@@ -74,21 +74,16 @@ export function ResourcesFilters({
     const [statusValue, setStatusValue] = useState(filters.status?.[0] || 'all');
     const [curatorValue, setCuratorValue] = useState(filters.curator?.[0] || 'all');
     
-    console.log('  Local states - resourceTypeValue:', resourceTypeValue, 'statusValue:', statusValue, 'curatorValue:', curatorValue);
-    
     // Sync Select values when filters change externally
     useEffect(() => {
-        console.log('  useEffect: Syncing resourceTypeValue from', filters.resource_type?.[0] || 'all');
         setResourceTypeValue(filters.resource_type?.[0] || 'all');
     }, [filters.resource_type]);
     
     useEffect(() => {
-        console.log('  useEffect: Syncing statusValue from', filters.status?.[0] || 'all');
         setStatusValue(filters.status?.[0] || 'all');
     }, [filters.status]);
     
     useEffect(() => {
-        console.log('  useEffect: Syncing curatorValue from', filters.curator?.[0] || 'all');
         setCuratorValue(filters.curator?.[0] || 'all');
     }, [filters.curator]);
 

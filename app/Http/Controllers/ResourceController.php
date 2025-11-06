@@ -1125,13 +1125,20 @@ class ResourceController extends Controller
         }
 
         // Status filter - filter based on DOI and landing page status
+        // Must match logic in serializeResource():
+        // - curation: no DOI OR (has DOI but no landing page)
+        // - review: has DOI AND has landing page with status 'draft'
+        // - published: has DOI AND has landing page with status 'published'
         if (! empty($filters['status'])) {
             $statuses = $filters['status'];
             $query->where(function ($q) use ($statuses) {
                 foreach ($statuses as $status) {
                     if ($status === 'curation') {
-                        // Curation: No DOI registered
-                        $q->orWhereNull('doi');
+                        // Curation: No DOI OR (has DOI but no landing page)
+                        $q->orWhere(function ($subQ) {
+                            $subQ->whereNull('doi')
+                                ->orWhereDoesntHave('landingPage');
+                        });
                     } elseif ($status === 'review') {
                         // Review: DOI registered + landing page with draft status
                         $q->orWhere(function ($subQ) {
