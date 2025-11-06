@@ -1644,7 +1644,7 @@ export default function OldDatasets({
 
                 return (
                     <div className="flex flex-col gap-1 text-left">
-                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed wrap-break-word">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
                             {title}
                         </span>
                         <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
