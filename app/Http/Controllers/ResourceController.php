@@ -475,9 +475,23 @@ class ResourceController extends Controller
             ->map(fn ($type) => ['name' => $type->name, 'slug' => $type->slug])
             ->all();
 
-        // Get distinct curators (users who created resources)
+        // Get distinct curators (users who updated or created resources)
+        // Prioritize updatedBy, fallback to createdBy if never updated
+        $updatedByIds = Resource::query()
+            ->whereNotNull('updated_by_user_id')
+            ->distinct()
+            ->pluck('updated_by_user_id');
+        
+        $createdByIdsWithoutUpdates = Resource::query()
+            ->whereNull('updated_by_user_id')
+            ->whereNotNull('created_by_user_id')
+            ->distinct()
+            ->pluck('created_by_user_id');
+        
+        $curatorIds = $updatedByIds->merge($createdByIdsWithoutUpdates)->unique();
+        
         $curators = User::query()
-            ->whereHas('createdResources')
+            ->whereIn('id', $curatorIds)
             ->orderBy('name')
             ->pluck('name')
             ->unique()
@@ -1095,10 +1109,18 @@ class ResourceController extends Controller
             });
         }
 
-        // Curator filter
+        // Curator filter - filter by updatedBy (last editor), fallback to createdBy if never updated
         if (! empty($filters['curator'])) {
-            $query->whereHas('createdBy', function ($q) use ($filters) {
-                $q->whereIn('name', $filters['curator']);
+            $query->where(function ($q) use ($filters) {
+                $q->whereHas('updatedBy', function ($subQ) use ($filters) {
+                    $subQ->whereIn('name', $filters['curator']);
+                })->orWhere(function ($subQ) use ($filters) {
+                    // Fallback: if never updated (updated_by_user_id is null), check creator
+                    $subQ->whereNull('updated_by_user_id')
+                        ->whereHas('createdBy', function ($creatorQ) use ($filters) {
+                            $creatorQ->whereIn('name', $filters['curator']);
+                        });
+                });
             });
         }
 
@@ -1270,7 +1292,7 @@ class ResourceController extends Controller
             'version' => $resource->version,
             'created_at' => $resource->created_at?->toIso8601String(),
             'updated_at' => $resource->updated_at?->toIso8601String(),
-            'curator' => $resource->createdBy?->name,
+            'curator' => $resource->updatedBy?->name ?? $resource->createdBy?->name,
             'publicstatus' => $publicStatus,
             'resourcetypegeneral' => $resource->resourceType?->name,
             'resource_type' => $resource->resourceType ? [

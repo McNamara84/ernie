@@ -3,14 +3,34 @@ import type { ResourceFilterState } from '@/types/resources';
 
 /**
  * Internal helper to parse array filter parameters.
- * Handles both array notation (param[]) and single values.
+ * Handles both array notation (param[]) and indexed arrays (param[0], param[1], ...).
  */
 function parseArrayParam(params: URLSearchParams, paramName: string): string[] | undefined {
+    // First try the standard PHP array notation with empty brackets: param[]
     const arrayValues = params.getAll(`${paramName}[]`);
     if (arrayValues.length > 0) {
         return arrayValues;
     }
 
+    // Then try indexed array notation: param[0], param[1], etc.
+    // Collect all parameters that match the pattern param[number]
+    const indexedValues: string[] = [];
+    for (const [key, value] of params.entries()) {
+        // Match patterns like "resource_type[0]", "resource_type[1]", etc.
+        const match = key.match(new RegExp(`^${paramName}\\[(\\d+)\\]$`));
+        if (match) {
+            const index = parseInt(match[1], 10);
+            indexedValues[index] = value;
+        }
+    }
+    
+    // Filter out undefined values (in case of sparse arrays) and return
+    const filteredValues = indexedValues.filter(v => v !== undefined);
+    if (filteredValues.length > 0) {
+        return filteredValues;
+    }
+
+    // Finally, try single value without array notation
     const singleValue = params.get(paramName);
     if (singleValue) {
         return [singleValue];

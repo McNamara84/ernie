@@ -309,15 +309,16 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const lastResourceElementRef = useRef<HTMLTableRowElement | null>(null);
     const observerRef = useRef<IntersectionObserver | null>(null);
 
-    // Sync filters from URL on client-side mount (after SSR hydration)
+    // Sync filters from URL after SSR hydration
     useEffect(() => {
         const urlFilters = parseResourceFiltersFromUrl(window.location.search);
-        // Only update if filters are different (to avoid unnecessary re-renders)
+        
+        // Only update if filters have changed
         if (JSON.stringify(urlFilters) !== JSON.stringify(filters)) {
             setFilters(urlFilters);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty dependency array = run once on mount
+    }, []); // Run once on mount
 
     // Load more resources for infinite scrolling
     const loadMore = useCallback(async () => {
@@ -822,7 +823,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
 
                 return (
                     <div className="flex flex-col gap-1 text-left">
-                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed break-words">
+                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed wrap-break-word">
                             {title}
                         </span>
                         <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
