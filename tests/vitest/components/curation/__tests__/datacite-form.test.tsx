@@ -2914,12 +2914,11 @@ describe('DataCiteForm', () => {
             const dateInputs = screen.getAllByDisplayValue('').filter(input => 
                 input.getAttribute('type') === 'date'
             );
-            // After adding a new date: First row (created) has 1 empty, second row (default is next available) has 1 empty = 2 empty total
-            // (unless the second row is "valid" which would have 2 empty fields)
-            expect(dateInputs.length).toBeGreaterThanOrEqual(1);
+            // After adding a new date: First row (created) is filled, second row (accepted) has 1 empty = 1 empty total
+            expect(dateInputs.length).toBe(1);
             const allDateInputs = document.querySelectorAll('input[type="date"]');
-            // Total: 1 date field for "created" + 1 or 2 for second row (depending on type) = 2-3 date inputs
-            expect(allDateInputs.length).toBeGreaterThanOrEqual(2);
+            // Total: 1 date field for "created" + 1 for "accepted" = 2 date inputs
+            expect(allDateInputs.length).toBe(2);
         });
 
         it('supports removing non-required date fields', async () => {
@@ -3024,9 +3023,3 @@ describe('DataCiteForm', () => {
         });
     });
 });
-
-
-
-
-
-
