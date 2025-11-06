@@ -21,7 +21,7 @@ test.describe('Resources Page - Filter Persistence', () => {
         await page.fill('input[name="email"]', 'admin@example.com');
         await page.fill('input[name="password"]', 'password');
         await page.click('button[type="submit"]');
-        await page.waitForURL('/');
+        await page.waitForURL('/dashboard');
     });
 
     test('should initialize resource_type filter from URL parameter', async ({ page }) => {
@@ -214,7 +214,7 @@ test.describe('Old Datasets Page - Filter Persistence', () => {
         await page.fill('input[name="email"]', 'admin@example.com');
         await page.fill('input[name="password"]', 'password');
         await page.click('button[type="submit"]');
-        await page.waitForURL('/');
+        await page.waitForURL('/dashboard');
     });
 
     test('should initialize resource_type filter from URL parameter on old-datasets page', async ({ page }) => {
@@ -279,7 +279,7 @@ test.describe('Filter Persistence - Edge Cases', () => {
         await page.fill('input[name="email"]', 'admin@example.com');
         await page.fill('input[name="password"]', 'password');
         await page.click('button[type="submit"]');
-        await page.waitForURL('/');
+        await page.waitForURL('/dashboard');
     });
 
     test('should handle URL-encoded filter values correctly', async ({ page }) => {
