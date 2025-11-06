@@ -1299,7 +1299,7 @@ class ResourceController extends Controller
             'version' => $resource->version,
             'created_at' => $resource->created_at?->toIso8601String(),
             'updated_at' => $resource->updated_at?->toIso8601String(),
-            'curator' => $resource->updatedBy->name ?? $resource->createdBy?->name,
+            'curator' => $resource->updatedBy?->name ?? $resource->createdBy?->name, // @phpstan-ignore nullsafe.neverNull (updatedBy can be null if updated_by_user_id is null)
             'publicstatus' => $publicStatus,
             'resourcetypegeneral' => $resource->resourceType?->name,
             'resource_type' => $resource->resourceType ? [
