@@ -60,8 +60,8 @@ test.describe('Critical Smoke Tests', () => {
     // With session-based workflow, only xmlSession parameter is passed
     expect(currentUrl).toMatch(/xmlSession=xml_upload_/);
     
-    // Verify editor page loaded successfully
-    await expect(page.locator('h1')).toContainText('Editor');
+    // Verify editor page loaded successfully by checking for DOI field label
+    await expect(page.getByText('DOI', { exact: true })).toBeVisible();
   });
 
   test('navigation between dashboard and settings works', async ({ page }) => {

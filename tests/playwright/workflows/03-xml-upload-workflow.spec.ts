@@ -47,11 +47,12 @@ test.describe('XML Upload', () => {
     expect(sessionKey).toMatch(/^xml_upload_/);
     
     // Verify editor page loaded successfully with form fields
-    await expect(page.locator('h1')).toContainText('Editor');
+    // Check for DOI label which is always visible in the form
+    await expect(page.getByText('DOI', { exact: true })).toBeVisible();
     
     // Check that form fields are visible (data loaded from session)
     await expect(page.locator('input[name="year"]')).toBeVisible();
-    await expect(page.locator('text=Authors')).toBeVisible();
+    await expect(page.getByText('Authors')).toBeVisible();
   });
 
   test('handles invalid XML files gracefully', async ({ page }) => {
