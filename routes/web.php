@@ -175,8 +175,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Define author/contributor exclusion roles
         $excludedAuthorRoles = ['author', 'contact-person'];
 
-        // Check if we're loading an existing resource
+        // Check if we're loading an existing resource from new database
         $resourceId = $request->query('resourceId');
+        
+        // Check if we're loading from old database
+        $oldDatasetId = $request->query('oldDatasetId');
+
+        // If oldDatasetId is provided, load from old SUMARIOPMD database
+        if ($oldDatasetId !== null) {
+            try {
+                $loader = new \App\Services\OldDatasetEditorLoader;
+                $editorData = $loader->loadForEditor((int) $oldDatasetId);
+
+                return Inertia::render('editor', array_merge([
+                    'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
+                    'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
+                    'googleMapsApiKey' => config('services.google_maps.api_key'),
+                ], $editorData));
+            } catch (\Exception $e) {
+                // Log error and redirect back with error message
+                \Illuminate\Support\Facades\Log::error('Failed to load old dataset in editor', [
+                    'old_dataset_id' => $oldDatasetId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return redirect()->route('old-datasets')
+                    ->with('error', 'Failed to load dataset from legacy database: ' . $e->getMessage());
+            }
+        }
 
         // If resourceId is provided, load the resource from database
         if ($resourceId !== null) {

@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property int $id
+ * @property string|null $identifier
+ * @property int|null $publicationyear
+ * @property string|null $version
+ * @property string|null $language
+ * @property string|null $resourcetypegeneral
+ * @property string|null $title
  * @property array<string>|null $licenses
  * @property string|null $keywords
  * @property string|null $first_author_lastname First author's last name (joined from resourceagent table)
