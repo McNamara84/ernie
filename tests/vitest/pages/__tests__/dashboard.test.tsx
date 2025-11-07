@@ -172,50 +172,16 @@ describe('handleXmlFiles', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
-    it('posts xml file with csrf token and redirects to curation with DOI, Year, Version, Language, Resource Type, Titles and Licenses', async () => {
+    it('posts xml file with csrf token and redirects to editor with session key', async () => {
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const sessionKey = 'xml_upload_test123';
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
                 {
                     ok: true,
                     json: async () => ({
-                        doi: '10.1234/abc',
-                        year: '2024',
-                        version: '1.0',
-                        language: 'en',
-                        resourceType: '1',
-                        titles: [
-                            { title: 'Example Title', titleType: 'main-title' },
-                            { title: 'Example Subtitle', titleType: 'subtitle' },
-                            { title: 'Example TranslatedTitle', titleType: 'translated-title' },
-                            { title: 'Example AlternativeTitle', titleType: 'alternative-title' },
-                        ],
-                        licenses: ['CC-BY-4.0', 'MIT'],
-                        authors: [
-                            {
-                                type: 'person',
-                                firstName: 'ExampleGivenName',
-                                lastName: 'ExampleFamilyName',
-                                orcid: 'https://orcid.org/0000-0001-5727-2427',
-                                affiliations: [
-                                    {
-                                        value: 'GFZ Data Services',
-                                        rorId: 'https://ror.org/04wxnsj81',
-                                    },
-                                ],
-                            },
-                            {
-                                type: 'institution',
-                                institutionName: 'ExampleOrganization',
-                                affiliations: [
-                                    {
-                                        value: 'Independent Collaboration',
-                                        rorId: null,
-                                    },
-                                ],
-                            },
-                        ],
+                        sessionKey,
                     }),
                 } as Response,
             );
@@ -229,29 +195,7 @@ describe('handleXmlFiles', () => {
         expect(routerMock.get).toHaveBeenCalled();
         const [redirectUrl] = routerMock.get.mock.calls[0];
         expect(typeof redirectUrl).toBe('string');
-        const [path, search = ''] = (redirectUrl as string).split('?');
-        expect(path).toBe('/editor');
-        const params = new URLSearchParams(search);
-        expect(params.get('doi')).toBe('10.1234/abc');
-        expect(params.get('year')).toBe('2024');
-        expect(params.get('version')).toBe('1.0');
-        expect(params.get('language')).toBe('en');
-        expect(params.get('resourceType')).toBe('1');
-        expect(params.get('titles[0][title]')).toBe('Example Title');
-        expect(params.get('titles[0][titleType]')).toBe('main-title');
-        expect(params.get('titles[3][title]')).toBe('Example AlternativeTitle');
-        expect(params.get('licenses[0]')).toBe('CC-BY-4.0');
-        expect(params.get('licenses[1]')).toBe('MIT');
-        expect(params.get('authors[0][type]')).toBe('person');
-        expect(params.get('authors[0][firstName]')).toBe('ExampleGivenName');
-        expect(params.get('authors[0][lastName]')).toBe('ExampleFamilyName');
-        expect(params.get('authors[0][orcid]')).toBe('https://orcid.org/0000-0001-5727-2427');
-        expect(params.get('authors[0][affiliations][0][value]')).toBe('GFZ Data Services');
-        expect(params.get('authors[0][affiliations][0][rorId]')).toBe('https://ror.org/04wxnsj81');
-        expect(params.get('authors[1][type]')).toBe('institution');
-        expect(params.get('authors[1][institutionName]')).toBe('ExampleOrganization');
-        expect(params.get('authors[1][affiliations][0][value]')).toBe('Independent Collaboration');
-        expect(params.get('authors[1][affiliations][0][rorId]')).toBeNull();
+        expect(redirectUrl).toBe(`/editor?xmlSession=${sessionKey}`);
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -261,11 +205,12 @@ describe('handleXmlFiles', () => {
         document.cookie = 'XSRF-TOKEN=cookie-token';
 
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const sessionKey = 'xml_upload_fallback123';
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue({
                 ok: true,
-                json: async () => ({}),
+                json: async () => ({ sessionKey }),
             } as Response);
 
         await handleXmlFiles([file]);
@@ -274,250 +219,7 @@ describe('handleXmlFiles', () => {
         const headers = (options as RequestInit).headers as Record<string, string>;
         expect(headers['X-CSRF-TOKEN']).toBe('cookie-token');
         expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
-
-        fetchMock.mockRestore();
-    });
-
-    afterEach(() => {
-        document.head.innerHTML = '';
-        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-    });
-
-    it('redirects to curation with a single main title', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                {
-                    ok: true,
-                    json: async () => ({
-                        titles: [
-                            { title: 'A mandatory Event', titleType: 'main-title' },
-                        ],
-                    }),
-                } as Response,
-            );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/editor?titles%5B0%5D%5Btitle%5D=A+mandatory+Event&titles%5B0%5D%5BtitleType%5D=main-title');
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('redirects to curation without DOI, Year, Version, Language or Resource Type when none is returned', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: null, version: null, language: null, resourceType: null }) } as Response,
-            );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/editor');
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('redirects to curation with Year and Language when DOI and Resource Type are missing', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: '2023', language: 'en', resourceType: null }) } as Response,
-            );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/editor?year=2023&language=en');
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('redirects to curation with Version and Language when DOI, Year and Resource Type are missing', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: null, version: '2.0', language: 'en', resourceType: null }) } as Response,
-            );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/editor?version=2.0&language=en');
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('redirects to curation with Language when DOI, Year, Version and Resource Type are missing', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: null, version: null, language: 'de', resourceType: null }) } as Response,
-            );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/editor?language=de');
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('redirects to curation with Resource Type when DOI, Year, Version and Language are missing', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                { ok: true, json: async () => ({ doi: null, year: null, version: null, language: null, resourceType: '1' }) } as Response,
-            );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalledWith('/editor?resourceType=1');
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('includes contributors when upload returns contributor data', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
-            {
-                ok: true,
-                json: async () => ({
-                    contributors: [
-                        {
-                            type: 'person',
-                            roles: ['ContactPerson'],
-                            firstName: 'Ada',
-                            lastName: 'Lovelace',
-                            orcid: 'https://orcid.org/0000-0001-5727-2427',
-                            affiliations: [
-                                {
-                                    value: 'Example Affiliation',
-                                    rorId: 'https://ror.org/04wxnsj81',
-                                },
-                            ],
-                        },
-                        {
-                            type: 'institution',
-                            institutionName: 'Example Org',
-                            roles: ['Distributor'],
-                            affiliations: [
-                                {
-                                    value: 'Example Org',
-                                    rorId: 'https://ror.org/03yrm5c26',
-                                },
-                            ],
-                        },
-                    ],
-                }),
-            } as Response,
-        );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalled();
-        const [url] = routerMock.get.mock.calls[0];
-        const search = url.split('?')[1] ?? '';
-        const params = new URLSearchParams(search);
-
-        expect(params.get('contributors[0][type]')).toBe('person');
-        expect(params.get('contributors[0][roles][0]')).toBe('Contact Person');
-        expect(params.get('contributors[0][firstName]')).toBe('Ada');
-        expect(params.get('contributors[0][lastName]')).toBe('Lovelace');
-        expect(params.get('contributors[0][orcid]')).toBe('https://orcid.org/0000-0001-5727-2427');
-        expect(params.get('contributors[0][affiliations][0][value]')).toBe('Example Affiliation');
-        expect(params.get('contributors[0][affiliations][0][rorId]')).toBe(
-            'https://ror.org/04wxnsj81',
-        );
-        expect(params.get('contributors[1][type]')).toBe('institution');
-        expect(params.get('contributors[1][institutionName]')).toBe('Example Org');
-        expect(params.get('contributors[1][roles][0]')).toBe('Distributor');
-        expect(params.get('contributors[1][affiliations][0][value]')).toBe('Example Org');
-        expect(params.get('contributors[1][affiliations][0][rorId]')).toBe(
-            'https://ror.org/03yrm5c26',
-        );
-
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('serialises multiple roles for a single contributor', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
-            {
-                ok: true,
-                json: async () => ({
-                    contributors: [
-                        {
-                            type: 'person',
-                            roles: ['ContactPerson', 'DataCurator'],
-                            firstName: 'Ada',
-                            lastName: 'Lovelace',
-                        },
-                    ],
-                }),
-            } as Response,
-        );
-
-        await handleXmlFiles([file]);
-
-        expect(routerMock.get).toHaveBeenCalled();
-        const [url] = routerMock.get.mock.calls[0];
-        const params = new URLSearchParams(url.split('?')[1] ?? '');
-
-        expect(params.get('contributors[0][roles][0]')).toBe('Contact Person');
-        expect(params.get('contributors[0][roles][1]')).toBe('Data Curator');
-
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('coerces research group contributors to institutions when backend returns person type', async () => {
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue(
-            {
-                ok: true,
-                json: async () => ({
-                    contributors: [
-                        {
-                            type: 'person',
-                            roles: ['ResearchGroup'],
-                            institutionName: 'ExampleContributorRG',
-                            affiliations: [
-                                {
-                                    value: 'ExampleOrganization',
-                                    rorId: 'https://ror.org/03yrm5c26',
-                                },
-                            ],
-                        },
-                    ],
-                }),
-            } as Response,
-        );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        expect(routerMock.get).toHaveBeenCalled();
-        const [url] = routerMock.get.mock.calls[0];
-        const search = url.split('?')[1] ?? '';
-        const params = new URLSearchParams(search);
-
-        expect(params.get('contributors[0][type]')).toBe('institution');
-        expect(params.get('contributors[0][roles][0]')).toBe('Research Group');
-        expect(params.get('contributors[0][institutionName]')).toBe('ExampleContributorRG');
-        expect(params.get('contributors[0][affiliations][0][value]')).toBe('ExampleOrganization');
-        expect(params.get('contributors[0][affiliations][0][rorId]')).toBe('https://ror.org/03yrm5c26');
+        expect(routerMock.get).toHaveBeenCalledWith(`/editor?xmlSession=${sessionKey}`);
 
         fetchMock.mockRestore();
         routerMock.get.mockReset();
@@ -527,20 +229,13 @@ describe('handleXmlFiles', () => {
         basePathTesting.setMetaBasePath('/ernie');
         applyBasePathToRoutes({ uploadXml: uploadXmlRoute });
         const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
+        const sessionKey = 'xml_upload_basepath123';
         const fetchMock = vi
             .spyOn(global, 'fetch')
             .mockResolvedValue(
                 {
                     ok: true,
-                    json: async () => ({
-                        doi: null,
-                        year: null,
-                        version: null,
-                        language: null,
-                        resourceType: null,
-                        titles: [],
-                        licenses: [],
-                    }),
+                    json: async () => ({ sessionKey }),
                 } as Response,
             );
 
@@ -549,7 +244,7 @@ describe('handleXmlFiles', () => {
         expect(fetchMock).toHaveBeenCalled();
         const [url] = fetchMock.mock.calls[0];
         expect(normalizeTestUrl(url as string)).toBe('/ernie/dashboard/upload-xml');
-        expect(routerMock.get).toHaveBeenCalledWith('/ernie/editor');
+        expect(routerMock.get).toHaveBeenCalledWith(`/ernie/editor?xmlSession=${sessionKey}`);
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });
@@ -588,6 +283,11 @@ describe('handleXmlFiles', () => {
 
         fetchMock.mockRestore();
         consoleErrorMock.mockRestore();
+    });
+
+    afterEach(() => {
+        document.head.innerHTML = '';
+        document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 });
 

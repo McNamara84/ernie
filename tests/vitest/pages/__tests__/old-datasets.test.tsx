@@ -630,7 +630,10 @@ describe('OldDatasets page', () => {
 
     it('provides accessible actions for opening datasets in the curation form', async () => {
         const user = userEvent.setup();
-
+        // Mock window.location.href as writable
+        delete (window as { location?: unknown }).location;
+        (window as { location: { href: string } }).location = { href: '' };
+        
         render(<OldDatasets {...baseProps} />);
 
         const datasetOneButton = screen.getByRole('button', {
@@ -639,37 +642,23 @@ describe('OldDatasets page', () => {
 
         await user.click(datasetOneButton);
 
-        // Wait for the async mapping to complete
+        // Wait for the location change
         await waitFor(() => {
-            expect(routerGetSpy).toHaveBeenCalledTimes(1);
+            expect(window.location.href).not.toBe('');
         });
 
-        const params = new URLSearchParams();
-        params.set('doi', '10.1234/example-one');
-        params.set('year', '2024');
-        params.set('version', '1.2.0');
-        params.set('language', 'en');
-        params.set('resourceType', '10'); // Dataset maps to ID 10
-        params.append('titles[0][title]', 'Provided Main Title');
-        params.append('titles[0][titleType]', 'main-title');
-        params.append(
-            'titles[1][title]',
-            'A dataset title that is long enough to demonstrate truncation when rendered in the table body with additional descriptive context to push it well beyond the truncation threshold for the component',
-        );
-        params.append('titles[1][titleType]', 'main-title');
-        params.append('titles[2][title]', 'Subtitle Title');
-        params.append('titles[2][titleType]', 'subtitle');
-        params.append('titles[3][title]', 'Translated Title');
-        params.append('titles[3][titleType]', 'translated-title');
-        params.append('licenses[0]', 'CC-BY-4.0');
-        params.append('licenses[1]', 'MIT');
-        params.append('licenses[2]', 'GPL-3.0');
+        // With session-based workflow, only oldDatasetId is passed
+        const calledUrl = window.location.href;
+        const params = new URLSearchParams(calledUrl.split('?')[1] ?? '');
 
-        expect(routerGetSpy).toHaveBeenCalledWith(`/editor?${params.toString()}`);
+        expect(params.get('oldDatasetId')).toBe('1'); // dataset.id
     });
 
     it('omits the resource type when the identifier contains non-digit characters', async () => {
         const user = userEvent.setup();
+        // Mock window.location.href as writable
+        delete (window as { location?: unknown }).location;
+        (window as { location: { href: string } }).location = { href: '' };
 
         render(
             <OldDatasets
@@ -689,10 +678,15 @@ describe('OldDatasets page', () => {
 
         await user.click(button);
 
-        expect(routerGetSpy).toHaveBeenCalledTimes(1);
-        const [requestedUrl] = routerGetSpy.mock.calls[0] as [string];
-        const params = new URLSearchParams(requestedUrl.split('?')[1] ?? '');
+        await waitFor(() => {
+            expect(window.location.href).not.toBe('');
+        });
 
+        const calledUrl = window.location.href;
+        const params = new URLSearchParams(calledUrl.split('?')[1] ?? '');
+
+        // Only oldDatasetId is passed, validation happens backend-side
+        expect(params.get('oldDatasetId')).toBe('1');
         expect(params.has('resourceType')).toBe(false);
     });
 
