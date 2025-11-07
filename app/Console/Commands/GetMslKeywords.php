@@ -7,28 +7,28 @@ namespace App\Console\Commands;
 use App\Services\MslVocabularyService;
 use Illuminate\Console\Command;
 
-class DownloadMslVocabulary extends Command
+class GetMslKeywords extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'vocabulary:download-msl';
+    protected $signature = 'get-msl-keywords';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Download and transform MSL vocabulary from GitHub';
+    protected $description = 'Fetch MSL keywords from GitHub and save as JSON';
 
     /**
      * Execute the console command.
      */
     public function handle(MslVocabularyService $service): int
     {
-        $this->info('Downloading MSL vocabulary from GitHub...');
+        $this->info('Fetching MSL keywords from GitHub...');
         $this->newLine();
 
         $success = $service->downloadAndTransformVocabulary();
@@ -37,7 +37,7 @@ class DownloadMslVocabulary extends Command
             $vocabulary = $service->getVocabulary();
             $count = count($vocabulary);
 
-            $this->info('✓ MSL vocabulary downloaded and transformed successfully!');
+            $this->info('✓ MSL keywords downloaded and transformed successfully!');
             $this->info("✓ {$count} concepts extracted");
             $this->info('✓ Saved to: storage/app/private/msl-vocabulary.json');
             $this->newLine();
@@ -57,7 +57,7 @@ class DownloadMslVocabulary extends Command
             return Command::SUCCESS;
         }
 
-        $this->error('✗ Failed to download MSL vocabulary');
+        $this->error('✗ Failed to download MSL keywords');
         $this->error('  Check the logs for more details');
 
         return Command::FAILURE;

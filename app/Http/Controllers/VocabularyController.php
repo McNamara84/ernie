@@ -47,7 +47,7 @@ class VocabularyController extends Controller
     {
         return $this->getVocabulary(
             'msl-vocabulary.json',
-            'php artisan vocabulary:download-msl'
+            'php artisan get-msl-keywords'
         );
     }
 
