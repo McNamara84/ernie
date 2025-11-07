@@ -43,14 +43,14 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonCount(1, 'coverages');
-    $response->assertJsonPath('coverages.0.id', 'coverage-1');
-    $response->assertJsonPath('coverages.0.latMin', '49.282700');
-    $response->assertJsonPath('coverages.0.lonMin', '-123.120700');
-    $response->assertJsonPath('coverages.0.latMax', ''); // Point: max coordinates empty
-    $response->assertJsonPath('coverages.0.lonMax', ''); // Point: max coordinates empty
-    $response->assertJsonPath('coverages.0.description', 'Vancouver, British Columbia, Canada');
-    $response->assertJsonPath('coverages.0.timezone', 'UTC');
+    $response->assertSessionDataCount(1, 'coverages');
+    $response->assertSessionDataPath('coverages.0.id', 'coverage-1');
+    $response->assertSessionDataPath('coverages.0.latMin', '49.282700');
+    $response->assertSessionDataPath('coverages.0.lonMin', '-123.120700');
+    $response->assertSessionDataPath('coverages.0.latMax', ''); // Point: max coordinates empty
+    $response->assertSessionDataPath('coverages.0.lonMax', ''); // Point: max coordinates empty
+    $response->assertSessionDataPath('coverages.0.description', 'Vancouver, British Columbia, Canada');
+    $response->assertSessionDataPath('coverages.0.timezone', 'UTC');
 });
 
 test('extracts spatial coverage from geoLocationBox', function () {
@@ -91,11 +91,11 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonCount(1, 'coverages');
-    $response->assertJsonPath('coverages.0.latMin', '49.195000');
-    $response->assertJsonPath('coverages.0.latMax', '49.315000');
-    $response->assertJsonPath('coverages.0.lonMin', '-123.270000');
-    $response->assertJsonPath('coverages.0.lonMax', '-123.020000');
+    $response->assertSessionDataCount(1, 'coverages');
+    $response->assertSessionDataPath('coverages.0.latMin', '49.195000');
+    $response->assertSessionDataPath('coverages.0.latMax', '49.315000');
+    $response->assertSessionDataPath('coverages.0.lonMin', '-123.270000');
+    $response->assertSessionDataPath('coverages.0.lonMax', '-123.020000');
 });
 
 test('extracts temporal coverage from date type coverage', function () {
@@ -137,8 +137,8 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('coverages.0.startDate', '2024-01-01');
-    $response->assertJsonPath('coverages.0.endDate', '2024-12-31');
+    $response->assertSessionDataPath('coverages.0.startDate', '2024-01-01');
+    $response->assertSessionDataPath('coverages.0.endDate', '2024-12-31');
 });
 
 test('handles multiple geoLocation entries', function () {
@@ -185,11 +185,11 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonCount(2, 'coverages');
-    $response->assertJsonPath('coverages.0.id', 'coverage-1');
-    $response->assertJsonPath('coverages.0.description', 'Location 1');
-    $response->assertJsonPath('coverages.1.id', 'coverage-2');
-    $response->assertJsonPath('coverages.1.description', 'Location 2');
+    $response->assertSessionDataCount(2, 'coverages');
+    $response->assertSessionDataPath('coverages.0.id', 'coverage-1');
+    $response->assertSessionDataPath('coverages.0.description', 'Location 1');
+    $response->assertSessionDataPath('coverages.1.id', 'coverage-2');
+    $response->assertSessionDataPath('coverages.1.description', 'Location 2');
 });
 
 test('returns empty array when no geoLocations exist', function () {
@@ -220,7 +220,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('coverages', []);
+    $response->assertSessionDataPath('coverages', []);
 });
 
 test('geoLocationBox takes precedence over geoLocationPoint when both exist', function () {
@@ -266,8 +266,8 @@ XML;
         ->assertOk();
 
     // Should use box coordinates, not point
-    $response->assertJsonPath('coverages.0.latMin', '49.195000');
-    $response->assertJsonPath('coverages.0.latMax', '49.315000');
-    $response->assertJsonPath('coverages.0.lonMin', '-123.270000');
-    $response->assertJsonPath('coverages.0.lonMax', '-123.020000');
+    $response->assertSessionDataPath('coverages.0.latMin', '49.195000');
+    $response->assertSessionDataPath('coverages.0.latMax', '49.315000');
+    $response->assertSessionDataPath('coverages.0.lonMin', '-123.270000');
+    $response->assertSessionDataPath('coverages.0.lonMax', '-123.020000');
 });

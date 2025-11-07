@@ -41,6 +41,8 @@ expect()->extend('toBeOne', function () {
 |
 */
 
+require_once __DIR__.'/pest/Helpers.php';
+
 function something()
 {
     // ..

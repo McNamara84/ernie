@@ -37,10 +37,10 @@ XML;
         ->assertOk();
 
     // Author ORCID should be normalized (URL prefix removed)
-    $response->assertJsonPath('authors.0.orcid', '0000-0001-5727-2427');
+    $response->assertSessionDataPath('authors.0.orcid', '0000-0001-5727-2427');
 
     // Contributor ORCID should also be normalized
-    $response->assertJsonPath('contributors.0.orcid', '0000-0002-9876-5432');
+    $response->assertSessionDataPath('contributors.0.orcid', '0000-0002-9876-5432');
 });
 
 test('preserves already-normalized ORCID without URL prefix', function () {
@@ -66,5 +66,5 @@ XML;
         ->assertOk();
 
     // ORCID should remain as-is (already in correct format)
-    $response->assertJsonPath('authors.0.orcid', '0000-0001-5727-2427');
+    $response->assertSessionDataPath('authors.0.orcid', '0000-0001-5727-2427');
 });

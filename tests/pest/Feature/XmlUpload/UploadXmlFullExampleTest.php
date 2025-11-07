@@ -18,10 +18,10 @@ test('extracts coverages from datacite-xml-example-full-v4.xml', function () {
         ->assertOk();
 
     // Debug: Show what we got
-    $coverages = $response->json('coverages');
+    $coverages = $response->sessionData('coverages');
     dump('Coverages:', $coverages);
 
-    $dates = $response->json('dates');
+    $dates = $response->sessionData('dates');
     dump('Dates:', $dates);
 
     expect($coverages)->toBeArray();
