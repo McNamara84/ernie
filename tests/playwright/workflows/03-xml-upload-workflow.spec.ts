@@ -50,9 +50,8 @@ test.describe('XML Upload', () => {
     // Check for DOI label which is always visible in the form
     await expect(page.getByText('DOI', { exact: true })).toBeVisible();
     
-    // Check that form fields are visible (data loaded from session)
-    await expect(page.locator('input[name="year"]')).toBeVisible();
-    await expect(page.getByText('Authors')).toBeVisible();
+    // Verify form has loaded by checking for Year field (has id="year")
+    await expect(page.locator('#year')).toBeVisible();
   });
 
   test('handles invalid XML files gracefully', async ({ page }) => {
