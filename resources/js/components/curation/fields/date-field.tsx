@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -50,20 +50,22 @@ export function DateField({
     // All other types represent a single point in time
     const isDateRange = dateType === 'valid';
 
+    // Track previous dateType to detect actual transitions from 'valid' to non-'valid'
+    const prevDateTypeRef = useRef<string>(dateType);
+
     // Clear endDate when switching away from 'valid' date type to prevent stale data
     useEffect(() => {
-        // Only call onEndDateChange when switching from date range mode AND endDate has a value
-        // This prevents unnecessary state updates when endDate is already empty
-        if (!isDateRange && endDate && endDate !== '') {
+        const prevDateType = prevDateTypeRef.current;
+        
+        // Only clear endDate when transitioning FROM 'valid' TO a non-'valid' type
+        // This prevents race conditions and unnecessary calls when endDate is already empty
+        if (prevDateType === 'valid' && dateType !== 'valid' && endDate) {
             onEndDateChange('');
         }
-        // onEndDateChange is intentionally excluded from dependencies because:
-        // 1. It's not memoized in parent (datacite-form.tsx handleDateChange)
-        // 2. This effect only runs when switching away from 'valid' type (infrequent)
-        // 3. The cleanup operation is idempotent (calling with '' multiple times is safe)
-        // 4. Adding it would cause unnecessary re-renders on every parent state change
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isDateRange, endDate]);
+        
+        // Update the ref for the next render
+        prevDateTypeRef.current = dateType;
+    }, [dateType, endDate, onEndDateChange]);
 
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
