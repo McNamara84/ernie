@@ -1,6 +1,5 @@
 <?php
 
-use App\Services\MslVocabularyService;
 use Illuminate\Support\Facades\Http;
 
 it('successfully executes the get-msl-keywords command', function () {
