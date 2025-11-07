@@ -149,7 +149,7 @@ class UploadXmlController extends Controller
 
         // Store data in session to avoid 414 URI Too Long errors
         $sessionKey = 'xml_upload_'.Str::random(32);
-        
+
         session()->put($sessionKey, [
             'doi' => $doi,
             'year' => $year,

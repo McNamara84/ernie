@@ -177,17 +177,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // Check if we're loading an existing resource from new database
         $resourceId = $request->query('resourceId');
-        
+
         // Check if we're loading from old database
         $oldDatasetId = $request->query('oldDatasetId');
-        
+
         // Check if we're loading from XML upload session
         $xmlSessionKey = $request->query('xmlSession');
 
         // If xmlSession is provided, load from session
         if ($xmlSessionKey !== null && is_string($xmlSessionKey)) {
             $sessionData = session()->pull($xmlSessionKey);
-            
+
             if (is_array($sessionData)) {
                 return Inertia::render('editor', array_merge([
                     'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
@@ -237,7 +237,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ]);
 
                 return redirect()->route('old-datasets')
-                    ->with('error', 'Failed to load dataset from legacy database: ' . $e->getMessage());
+                    ->with('error', 'Failed to load dataset from legacy database: '.$e->getMessage());
             }
         }
 

@@ -105,27 +105,39 @@ class OldDatasetEditorLoader
     {
         $titles = [];
 
-        // Main title
-        if (! empty($dataset->title)) {
-            $titles[] = [
-                'title' => $dataset->title,
-                'titleType' => '', // Empty = main title
-            ];
-        }
-
-        // Additional titles from titles table (if any)
-        $additionalTitles = DB::connection(self::DATASET_CONNECTION)
+        // Load titles from title table
+        $dbTitles = DB::connection(self::DATASET_CONNECTION)
             ->table('title')
             ->where('resource_id', $dataset->id)
             ->whereNotNull('title')
             ->where('title', '!=', '')
             ->get();
 
-        foreach ($additionalTitles as $title) {
-            $titles[] = [
-                'title' => $title->title,
-                'titleType' => $this->mapTitleType($title->type ?? ''),
-            ];
+        $hasMainTitle = false;
+
+        foreach ($dbTitles as $title) {
+            // If titletype is NULL, treat it as main title
+            if (empty($title->titletype)) {
+                $titles[] = [
+                    'title' => $title->title,
+                    'titleType' => 'main-title', // Main title
+                ];
+                $hasMainTitle = true;
+            } else {
+                $mappedType = $this->mapTitleType($title->titletype);
+                $titles[] = [
+                    'title' => $title->title,
+                    'titleType' => $mappedType,
+                ];
+            }
+        }
+
+        // Fallback: If no titles in title table or no main title found, use resource.title
+        if (! $hasMainTitle && ! empty($dataset->title)) {
+            array_unshift($titles, [
+                'title' => $dataset->title,
+                'titleType' => 'main-title', // Main title
+            ]);
         }
 
         return $titles;
@@ -159,7 +171,205 @@ class OldDatasetEditorLoader
     {
         $licenses = $dataset->getLicenses();
 
-        return array_values($licenses);
+        // Map old license names to new license identifiers
+        $mappedLicenses = [];
+        foreach ($licenses as $licenseName) {
+            $identifier = $this->mapLicenseNameToIdentifier($licenseName);
+            if ($identifier) {
+                $mappedLicenses[] = $identifier;
+            } else {
+                Log::warning('OldDatasetEditorLoader: Could not map license', [
+                    'dataset_id' => $dataset->id,
+                    'license_name' => $licenseName,
+                ]);
+            }
+        }
+
+        return $mappedLicenses;
+    }
+
+    /**
+     * Map old license name to new license identifier.
+     *
+     * @param  string  $licenseName  Old license name (e.g., "CC BY 4.0")
+     * @return string|null New license identifier (e.g., "CC-BY-4.0") or null if not found
+     */
+    private function mapLicenseNameToIdentifier(string $licenseName): ?string
+    {
+        // Trim whitespace and normalize
+        $licenseName = trim($licenseName);
+
+        // Direct mappings for common licenses (sorted by frequency from analysis)
+        $mappings = [
+            // Creative Commons - Basic forms (most common: 1543 + 222 + 17 = 1782 datasets)
+            'CC BY 4.0' => 'CC-BY-4.0',
+            'CC BY-NC 4.0' => 'CC-BY-NC-4.0',
+            'CC BY-SA 4.0' => 'CC-BY-SA-4.0',
+            'CC BY 3.0' => 'CC-BY-3.0',
+            'CC BY-NC 3.0' => 'CC-BY-NC-3.0',
+            'CC BY-SA 3.0' => 'CC-BY-SA-3.0',
+            'CC BY-NC-SA 4.0' => 'CC-BY-NC-SA-4.0',
+            'CC BY-NC-SA 3.0' => 'CC-BY-NC-SA-3.0',
+            'CC BY-NC' => 'CC-BY-NC-4.0',
+            'CC BY NC 4.0' => 'CC-BY-NC-4.0',
+
+            // CC0 variants (3 datasets)
+            'CC0 1.0' => 'CC0-1.0',
+            'CC0' => 'CC0-1.0',
+            'CC0 Universal 1.0' => 'CC0-1.0',
+
+            // Creative Commons - Full names (24 datasets)
+            'Creative Commons Attribution 4.0 International' => 'CC-BY-4.0',
+            'Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)' => 'CC-BY-NC-4.0',
+            'Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)' => 'CC-BY-NC-4.0',
+            'CC Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)' => 'CC-BY-NC-4.0',
+            'CC Attribution-NonCommercial 4.0 (CC BY-NC 4.0)' => 'CC-BY-NC-4.0',
+            'CC Attribution Non-Commercial 4.0 International (CC BY NC 4.0)' => 'CC-BY-NC-4.0',
+            'CC Attribution 4.0 (CC BY 4.0)' => 'CC-BY-4.0',
+
+            // Apache License variants (5 + 4 + 4 + 2 = 15+ datasets)
+            'Apache License 2.0' => 'Apache-2.0',
+            'Apache License Version 2.0' => 'Apache-2.0',
+            'Apache License, version 2.0' => 'Apache-2.0',
+            'Apache License, Version 2.0 (ALv2)' => 'Apache-2.0',
+            'Apache Licence, Version 2.0, January 2004 (Copyright 2018 Monika Korte, Helmholtz Centre Potsdam GFZ German Research Centre for Geosciences)' => 'Apache-2.0',
+            'Apache Licence, Version 2.0, January 2004 (Copyright 2019 Monika Korte, Helmholtz Centre Potsdam GFZ German Research Centre for Geosciences)' => 'Apache-2.0',
+
+            // MIT License variants (7 + 2 + 2 + 1 = 12+ datasets)
+            'MIT License' => 'MIT',
+            'MIT Licence' => 'MIT',
+            'MIT License, Copyright (c) 2023 Philipp C. Verpoort' => 'MIT',
+            'MIT License Copyright 2023 Ngai-Ham (Erik) Chan' => 'MIT',
+            'MIT License / Copyright © 2022  Helmholtz Centre Potsdam GFZ German Research Centre for Geosciences' => 'MIT',
+            'MIT Licence Copyright (c) <2024> the authors; GFZ Helmholtz Centre for Geosciences)' => 'MIT',
+            'Software Licence: MIT License, Copyright © Copyright (C) 2012 David Kneis (david.kneis@uni-potsdam.de), 2015-2019 Tobias Pilz (tobias.pilz@pik-potsdam.de) (contributions shown by git commit history)' => 'MIT',
+
+            // GNU General Public License v3 (8 + 4 + 3 + 3 + 2 + 2 + 2 + 1 = 25+ datasets)
+            'GNU General Public License, version 3' => 'GPL-3.0-only',
+            'GNU General Public License, Version 3, 29 June 2007' => 'GPL-3.0-only',
+
+            // GNU Lesser General Public License (1 dataset)
+            'GNU Lesser General Public License v2.1' => 'LGPL-2.1-only',
+            'GNU Lesser General Public License v 2.1' => 'LGPL-2.1-only',
+            'GNU Lesser General Public License Version 3 (29 June 2007)' => 'LGPL-3.0-only',
+            'Well-Func.py: GNU Lesser General Public License, v. 3.0' => 'LGPL-3.0-only',
+
+            // GNU Affero General Public License (2 + 1 = 3 datasets)
+            'GNU Affero General Public License (AGPL) (Version 3, 19 November 2007)' => 'AGPL-3.0-only',
+            'GNU Affero General Public License, Version 3, 19 November 2007, Copyright Potsdam Institute for Climate Impact Research' => 'AGPL-3.0-only',
+            'GNU Affero General Public License, Version 3 (AGPL 3.0), 19 November 2007, Copyright Potsdam Institute for Climate Impact Research' => 'AGPL-3.0-only',
+            'GNU Affero General Public Licence (Version 3, 19 November 2007)  Copyright (C) 2021 Helmholtz Centre Potsdam GFZ German Research Centre for Geosciences' => 'AGPL-3.0-only',
+            'GNU Affero General Public License, Version 3 (19 June 2007); Copyright © 2023 Helmholtz Centre Potsdam GFZ German Research Centre for Geosciences, Potsdam, Germany (Riccardo Zaccarelli, Graeme Warherill)' => 'AGPL-3.0-only',
+
+            // BSD Licenses (1 + 2 = 3 datasets)
+            'BSD 2-clause "Simplified" License' => 'BSD-2-Clause',
+            'BSD 3-clause License' => 'BSD-3-Clause',
+            'BSD 3-Clause License' => 'BSD-3-Clause',
+            'BSD-3 Clause License' => 'BSD-3-Clause',
+
+            // EUPL Licenses (4 + 1 = 5 datasets)
+            'EUPL v1.2' => 'EUPL-1.2',
+            'EUPL-1.2' => 'EUPL-1.2',
+            'European Union Public Licence (EUPL) v. 1.2' => 'EUPL-1.2',
+            'European Union Public Licence (EUPL) v.1.2' => 'EUPL-1.2',
+            'European Union Public Licence 1.2 (C) 2022 the authors and Helmholtz Centre Potsdam GFZ German Research Centre for Geosciences' => 'EUPL-1.2',
+
+            // Open Data Commons (3 datasets)
+            'Open Data Commons Open Database License (ODbL)' => 'ODbL-1.0',
+
+            // Model data variants
+            'Model data are licensed under CC BY 4.0' => 'CC-BY-4.0',
+
+            // Data prefixed variants
+            'Data Licence: CC BY 4.0' => 'CC-BY-4.0',
+            'Data License: CC BY 4.0' => 'CC-BY-4.0',
+            'Data: CC Attribution 4.0 (CC BY 4.0)' => 'CC-BY-4.0',
+            'Data: CC BY 4.0' => 'CC-BY-4.0',
+            'Datasets: CC BY 4.0' => 'CC-BY-4.0',
+
+            // Code prefixed variants
+            'Code: Apache License, version 2.0' => 'Apache-2.0',
+            'Code: MIT Licence' => 'MIT',
+
+            // Software prefixed variants
+            'Software Licence: Apache License, Version 2.0; Copyright (C) 2022 the authors and their institutions' => 'Apache-2.0',
+
+            // Attribution variants with exclusions
+            'Attribution 4.0 International (CC BY 4.0) excluding the conventional logging data owned by HS Orka' => 'CC-BY-4.0',
+
+            // L1B2/RCCM output data
+            'L1B2.output data and manual: CC BY 4.0' => 'CC-BY-4.0',
+            'RCCM.output data and manual: CC BY 4.0' => 'CC-BY-4.0',
+
+            // MISR public domain
+            'MISR input data: public domain (CC0)' => 'CC0-1.0',
+        ];
+
+        // Check direct mapping first
+        if (isset($mappings[$licenseName])) {
+            return $mappings[$licenseName];
+        }
+
+        // Pattern matching for licenses with copyright statements
+        // Apache License with copyright
+        if (preg_match('/Apache License,?\s*Version 2\.0[^;]*(;?\s*Copyright)/i', $licenseName)) {
+            return 'Apache-2.0';
+        }
+
+        // GNU GPL v3 with copyright (most common pattern: 8+ different copyright variants)
+        if (preg_match('/GNU General Public License,?\s*Version 3[^;]*(;?\s*Copyright|29 June 2007)/i', $licenseName)) {
+            return 'GPL-3.0-only';
+        }
+
+        // BSD-3-Clause with copyright
+        if (preg_match('/BSD 3-Clause[^;]*(;?\s*Copyright)/i', $licenseName)) {
+            return 'BSD-3-Clause';
+        }
+
+        // Try pattern matching for CC licenses
+        if (preg_match('/CC\s+BY(?:-NC)?(?:-SA)?(?:-ND)?\s*(\d+\.\d+)?/i', $licenseName, $matches)) {
+            $version = $matches[1] ?? '4.0';
+            $type = '';
+
+            // Use word boundaries and more specific patterns to avoid false matches
+            if (preg_match('/\b(NC|Non-?Commercial|NonCommercial)\b/i', $licenseName)) {
+                $type .= '-NC';
+            }
+            if (preg_match('/\b(SA|Share-?Alike|ShareAlike)\b/i', $licenseName)) {
+                $type .= '-SA';
+            }
+            if (preg_match('/\b(ND|No-?Derivatives?|NoDerivs?)\b/i', $licenseName)) {
+                $type .= '-ND';
+            }
+
+            return 'CC-BY'.$type.'-'.$version;
+        }
+
+        // Try pattern for "Attribution X.0" format
+        if (preg_match('/Attribution(?:-NonCommercial)?(?:-ShareAlike)?(?:-NoDerivatives)?\s+(\d+\.\d+)\s+International/i', $licenseName, $matches)) {
+            $version = $matches[1];
+            $type = '';
+
+            // Use word boundaries to avoid false matches
+            if (preg_match('/\bNonCommercial\b/i', $licenseName)) {
+                $type .= '-NC';
+            }
+            if (preg_match('/\bShareAlike\b/i', $licenseName)) {
+                $type .= '-SA';
+            }
+            if (preg_match('/\bNoDerivatives\b/i', $licenseName)) {
+                $type .= '-ND';
+            }
+
+            return 'CC-BY'.$type.'-'.$version;
+        }
+
+        // No mapping found - log for investigation
+        Log::warning('Could not map license from old database', [
+            'license_name' => $licenseName,
+        ]);
+
+        return null;
     }
 
     /**
@@ -169,11 +379,17 @@ class OldDatasetEditorLoader
      */
     private function loadAuthors(int $id): array
     {
+        // Load authors from resourceagent table with role 'Creator'
         $authors = DB::connection(self::DATASET_CONNECTION)
-            ->table('creator')
-            ->where('resource_id', $id)
-            ->orderBy('position')
-            ->get();
+            ->select('
+                SELECT ra.*, r.role
+                FROM resourceagent ra
+                INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                    AND ra.order = r.resourceagent_order
+                WHERE ra.resource_id = ? 
+                    AND r.role = ?
+                ORDER BY ra.order ASC
+            ', [$id, 'Creator']);
 
         $result = [];
 
@@ -183,12 +399,12 @@ class OldDatasetEditorLoader
                 'position' => $index,
             ];
 
-            if (! empty($author->givenname)) {
-                $data['firstName'] = $author->givenname;
+            if (! empty($author->firstname)) {
+                $data['firstName'] = $author->firstname;
             }
 
-            if (! empty($author->familyname)) {
-                $data['lastName'] = $author->familyname;
+            if (! empty($author->lastname)) {
+                $data['lastName'] = $author->lastname;
             }
 
             // If no firstName/lastName, use full name as lastName
@@ -200,8 +416,15 @@ class OldDatasetEditorLoader
                 $data['orcid'] = $author->orcid;
             }
 
-            // Check if this is a contact person
-            $data['isContact'] = (bool) ($author->iscontact ?? false);
+            // Check if this is a contact person (check for pointOfContact role)
+            $isContact = DB::connection(self::DATASET_CONNECTION)
+                ->table('role')
+                ->where('resourceagent_resource_id', $id)
+                ->where('resourceagent_order', $author->order)
+                ->where('role', 'pointOfContact')
+                ->exists();
+
+            $data['isContact'] = $isContact;
 
             if ($data['isContact']) {
                 if (! empty($author->email)) {
@@ -214,7 +437,7 @@ class OldDatasetEditorLoader
             }
 
             // Load affiliations for this author
-            $data['affiliations'] = $this->loadAffiliations($id, $author->id ?? null, 'creator');
+            $data['affiliations'] = $this->loadResourceAgentAffiliations($author->resource_id, $author->order);
 
             $result[] = $data;
         }
@@ -223,36 +446,28 @@ class OldDatasetEditorLoader
     }
 
     /**
-     * Load affiliations for an author or contributor.
+     * Load affiliations for a resourceagent (author or contributor).
      *
      * @param  int  $resourceId  Resource ID
-     * @param  int|null  $personId  Creator or contributor ID
-     * @param  string  $type  'creator' or 'contributor'
+     * @param  int  $agentOrder  Resource agent order
      * @return list<array{value: string, rorId: string|null}>
      */
-    private function loadAffiliations(int $resourceId, ?int $personId, string $type): array
+    private function loadResourceAgentAffiliations(int $resourceId, int $agentOrder): array
     {
-        if ($personId === null) {
-            return [];
-        }
-
-        $table = $type === 'creator' ? 'creatoraffiliation' : 'contributoraffiliation';
-        $foreignKey = $type === 'creator' ? 'creator_id' : 'contributor_id';
-
         $affiliations = DB::connection(self::DATASET_CONNECTION)
-            ->table($table)
-            ->where('resource_id', $resourceId)
-            ->where($foreignKey, $personId)
-            ->whereNotNull('value')
-            ->where('value', '!=', '')
+            ->table('affiliation')
+            ->where('resourceagent_resource_id', $resourceId)
+            ->where('resourceagent_order', $agentOrder)
+            ->whereNotNull('name')
+            ->where('name', '!=', '')
             ->get();
 
         $result = [];
 
         foreach ($affiliations as $affiliation) {
             $result[] = [
-                'value' => $affiliation->value,
-                'rorId' => $affiliation->rorid ?? null,
+                'value' => $affiliation->name,
+                'rorId' => $affiliation->identifier && $affiliation->identifiertype === 'ROR' ? $affiliation->identifier : null,
             ];
         }
 
@@ -266,17 +481,25 @@ class OldDatasetEditorLoader
      */
     private function loadContributors(int $id): array
     {
+        // Load contributors from resourceagent table with any role except 'Creator'
         $contributors = DB::connection(self::DATASET_CONNECTION)
-            ->table('contributor')
-            ->where('resource_id', $id)
-            ->orderBy('position')
-            ->get();
+            ->select('
+                SELECT ra.*, GROUP_CONCAT(r.role) as roles
+                FROM resourceagent ra
+                INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                    AND ra.order = r.resourceagent_order
+                WHERE ra.resource_id = ? 
+                    AND r.role != ?
+                GROUP BY ra.resource_id, ra.order
+                ORDER BY ra.order ASC
+            ', [$id, 'Creator']);
 
         $result = [];
 
         foreach ($contributors as $index => $contributor) {
-            $contributorType = $contributor->contributortype ?? 'person';
-            $type = strtolower($contributorType) === 'person' ? 'person' : 'institution';
+            // Determine type - if name has no firstname/lastname, it's likely an institution
+            $hasPersonName = ! empty($contributor->firstname) || ! empty($contributor->lastname);
+            $type = $hasPersonName ? 'person' : 'institution';
 
             $data = [
                 'type' => $type,
@@ -284,12 +507,12 @@ class OldDatasetEditorLoader
             ];
 
             if ($type === 'person') {
-                if (! empty($contributor->givenname)) {
-                    $data['firstName'] = $contributor->givenname;
+                if (! empty($contributor->firstname)) {
+                    $data['firstName'] = $contributor->firstname;
                 }
 
-                if (! empty($contributor->familyname)) {
-                    $data['lastName'] = $contributor->familyname;
+                if (! empty($contributor->lastname)) {
+                    $data['lastName'] = $contributor->lastname;
                 }
 
                 // If no firstName/lastName, use full name as lastName
@@ -307,11 +530,14 @@ class OldDatasetEditorLoader
                 }
             }
 
-            // Load contributor roles
-            $data['roles'] = $this->loadContributorRoles($id, $contributor->id ?? null);
+            // Parse and map roles
+            $rolesList = ! empty($contributor->roles) ? explode(',', $contributor->roles) : [];
+            $data['roles'] = array_map(function ($role) {
+                return $this->mapOldRoleToNew(trim($role));
+            }, $rolesList);
 
             // Load affiliations
-            $data['affiliations'] = $this->loadAffiliations($id, $contributor->id ?? null, 'contributor');
+            $data['affiliations'] = $this->loadResourceAgentAffiliations($contributor->resource_id, $contributor->order);
 
             $result[] = $data;
         }
@@ -320,26 +546,38 @@ class OldDatasetEditorLoader
     }
 
     /**
-     * Load roles for a contributor.
-     *
-     * @return list<string>
+     * Map old database role names to new database role slugs.
      */
-    private function loadContributorRoles(int $resourceId, ?int $contributorId): array
+    private function mapOldRoleToNew(string $oldRole): string
     {
-        if ($contributorId === null) {
-            return [];
-        }
+        // Use the role mapping from OldDataset model
+        $mapping = [
+            'Creator' => 'author',
+            'pointOfContact' => 'contact-person',
+            'ContactPerson' => 'contact-person',
+            'DataCollector' => 'data-collector',
+            'DataCurator' => 'data-curator',
+            'DataManager' => 'data-manager',
+            'Editor' => 'editor',
+            'Producer' => 'producer',
+            'ProjectLeader' => 'project-leader',
+            'ProjectManager' => 'project-manager',
+            'ProjectMember' => 'project-member',
+            'RelatedPerson' => 'related-person',
+            'Researcher' => 'researcher',
+            'RightsHolder' => 'rights-holder',
+            'Supervisor' => 'supervisor',
+            'Translator' => 'translator',
+            'WorkPackageLeader' => 'work-package-leader',
+            'Distributor' => 'distributor',
+            'HostingInstitution' => 'hosting-institution',
+            'RegistrationAgency' => 'registration-agency',
+            'RegistrationAuthority' => 'registration-authority',
+            'ResearchGroup' => 'research-group',
+            'Sponsor' => 'sponsor',
+        ];
 
-        $roles = DB::connection(self::DATASET_CONNECTION)
-            ->table('contributorrole')
-            ->where('resource_id', $resourceId)
-            ->where('contributor_id', $contributorId)
-            ->whereNotNull('role')
-            ->where('role', '!=', '')
-            ->pluck('role')
-            ->toArray();
-
-        return array_values($roles);
+        return $mapping[$oldRole] ?? strtolower($oldRole);
     }
 
     /**

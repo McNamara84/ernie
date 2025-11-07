@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -560,9 +560,15 @@ export default function OldDatasets({
     const sortedDatasets = datasets;
 
     const handleOpenInCuration = useCallback((dataset: Dataset) => {
-        // Simply pass the old dataset ID to the editor route
-        // Backend will load all data from old database
-        router.get(editorRoute({ query: { oldDatasetId: dataset.id } }).url);
+        if (!dataset.id) {
+            toast.error('Dataset ID is missing');
+            return;
+        }
+
+        // Navigate to editor with oldDatasetId parameter
+        // Backend loads data via OldDatasetEditorLoader service
+        const route = editorRoute({ query: { oldDatasetId: dataset.id } });
+        window.location.href = route.url;
     }, []);
 
     const logDebugInformation = useCallback((source: string, message: string | undefined, payload?: Record<string, unknown>) => {

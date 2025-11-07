@@ -229,7 +229,7 @@ class RelatedIdentifier extends Model
     /**
      * Get the resource that owns this related identifier.
      *
-     * @return BelongsTo<Resource, static>
+     * @return BelongsTo<resource, static>
      *
      * @phpstan-return BelongsTo<Resource, $this>
      */

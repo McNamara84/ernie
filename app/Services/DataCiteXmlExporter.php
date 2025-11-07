@@ -50,7 +50,7 @@ class DataCiteXmlExporter
     /**
      * Export a Resource to DataCite XML format
      *
-     * @param  Resource  $resource  The resource to export
+     * @param  resource  $resource  The resource to export
      * @return string The DataCite XML string
      */
     public function export(Resource $resource): string
