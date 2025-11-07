@@ -239,9 +239,9 @@ php artisan get-gcmd-platforms
 php artisan get-gcmd-instruments
 ```
 
-#### Download MSL Vocabulary
+#### Fetch MSL Keywords
 ```bash
-php artisan download-msl-vocabulary
+php artisan get-msl-keywords
 ```
 
 #### Sync ROR Affiliations

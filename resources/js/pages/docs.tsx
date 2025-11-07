@@ -451,11 +451,11 @@ export default function Docs({ userRole }: DocsProps) {
                         <code>app/Console/Kernel.php</code>.
                     </p>
 
-                    <h5 className="mt-4">Update MSL Vocabulary</h5>
+                    <h5 className="mt-4">Update MSL Keywords</h5>
                     <p>
-                        Materials Science vocabulary from TIB can be updated via:
+                        Materials Science keywords from TIB can be updated via:
                     </p>
-                    <DocsCodeBlock code="php artisan download-msl-vocabulary" />
+                    <DocsCodeBlock code="php artisan get-msl-keywords" />
 
                     <h4>DataCite Configuration</h4>
                     <p>Configure DataCite API credentials in your <code>.env</code> file:</p>
