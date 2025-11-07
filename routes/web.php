@@ -180,6 +180,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Check if we're loading from old database
         $oldDatasetId = $request->query('oldDatasetId');
+        
+        // Check if we're loading from XML upload session
+        $xmlSessionKey = $request->query('xmlSession');
+
+        // If xmlSession is provided, load from session
+        if ($xmlSessionKey !== null && is_string($xmlSessionKey)) {
+            $sessionData = session()->pull($xmlSessionKey);
+            
+            if (is_array($sessionData)) {
+                return Inertia::render('editor', array_merge([
+                    'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
+                    'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
+                    'googleMapsApiKey' => config('services.google_maps.api_key'),
+                    'doi' => $sessionData['doi'] ?? '',
+                    'year' => $sessionData['year'] ?? '',
+                    'version' => $sessionData['version'] ?? '',
+                    'language' => $sessionData['language'] ?? '',
+                    'resourceType' => $sessionData['resourceType'] ?? '',
+                    'titles' => $sessionData['titles'] ?? [],
+                    'initialLicenses' => $sessionData['licenses'] ?? [],
+                    'authors' => $sessionData['authors'] ?? [],
+                    'contributors' => $sessionData['contributors'] ?? [],
+                    'descriptions' => $sessionData['descriptions'] ?? [],
+                    'dates' => $sessionData['dates'] ?? [],
+                    'gcmdKeywords' => $sessionData['gcmdKeywords'] ?? [],
+                    'freeKeywords' => $sessionData['freeKeywords'] ?? [],
+                    'coverages' => $sessionData['coverages'] ?? [],
+                    'relatedWorks' => [], // XML upload doesn't support related works yet
+                    'fundingReferences' => $sessionData['fundingReferences'] ?? [],
+                    'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
+                ]));
+            } else {
+                // Session expired or invalid
+                return redirect()->route('dashboard')
+                    ->with('error', 'XML upload session expired. Please upload the file again.');
+            }
+        }
 
         // If oldDatasetId is provided, load from old SUMARIOPMD database
         if ($oldDatasetId !== null) {

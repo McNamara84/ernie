@@ -147,7 +147,10 @@ class UploadXmlController extends Controller
 
         $fundingReferences = $this->extractFundingReferences($reader);
 
-        return response()->json([
+        // Store data in session to avoid 414 URI Too Long errors
+        $sessionKey = 'xml_upload_'.Str::random(32);
+        
+        session()->put($sessionKey, [
             'doi' => $doi,
             'year' => $year,
             'version' => $version,
@@ -165,6 +168,10 @@ class UploadXmlController extends Controller
             'mslKeywords' => $mslKeywords,
             'fundingReferences' => $fundingReferences,
             'mslLaboratories' => $mslLaboratories,
+        ]);
+
+        return response()->json([
+            'sessionKey' => $sessionKey,
         ]);
     }
 
