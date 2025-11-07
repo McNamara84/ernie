@@ -7,7 +7,7 @@ namespace App\Console\Commands;
 use App\Services\MslVocabularyService;
 use Illuminate\Console\Command;
 
-class DownloadMslVocabulary extends Command
+class GetMslKeywords extends Command
 {
     /**
      * The name and signature of the console command.
@@ -28,7 +28,7 @@ class DownloadMslVocabulary extends Command
      */
     public function handle(MslVocabularyService $service): int
     {
-        $this->info('Downloading MSL vocabulary from GitHub...');
+        $this->info('Fetching MSL keywords from GitHub...');
         $this->newLine();
 
         $success = $service->downloadAndTransformVocabulary();
