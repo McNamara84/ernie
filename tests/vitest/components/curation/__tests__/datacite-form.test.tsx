@@ -2915,10 +2915,10 @@ describe('DataCiteForm', () => {
                 input.getAttribute('type') === 'date'
             );
             // After adding a new date: First row (created) is filled, second row (accepted) has 1 empty = 1 empty total
-            expect(dateInputs.length).toBe(1);
+            expect(dateInputs).toHaveLength(1);
             const allDateInputs = document.querySelectorAll('input[type="date"]');
             // Total: 1 date field for "created" + 1 for "accepted" = 2 date inputs
-            expect(allDateInputs.length).toBe(2);
+            expect(allDateInputs).toHaveLength(2);
         });
 
         it('supports removing non-required date fields', async () => {

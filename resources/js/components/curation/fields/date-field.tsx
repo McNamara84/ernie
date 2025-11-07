@@ -52,8 +52,8 @@ export function DateField({
 
     // Clear endDate when switching away from 'valid' date type to prevent stale data
     useEffect(() => {
-        // Only execute when switching from date range mode AND endDate is not empty
-        // This prevents unnecessary effect executions when endDate is already cleared
+        // Only call onEndDateChange when switching from date range mode AND endDate has a value
+        // This prevents unnecessary state updates when endDate is already empty
         if (!isDateRange && endDate && endDate !== '') {
             onEndDateChange('');
         }
