@@ -2855,10 +2855,9 @@ describe('DataCiteForm', () => {
 
             const dateInputs = screen.getAllByDisplayValue('');
             const dateFields = dateInputs.filter(input => input.getAttribute('type') === 'date');
-            // Now we have 2 date fields: startDate and endDate
-            expect(dateFields).toHaveLength(2);
+            // Only "valid" date type has 2 fields (date range). "created" has only 1 field (single date)
+            expect(dateFields).toHaveLength(1);
             expect(dateFields[0]).toHaveAttribute('type', 'date');
-            expect(dateFields[1]).toHaveAttribute('type', 'date');
             
             const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
                 el.getAttribute('id')?.includes('dateType')
@@ -2915,11 +2914,11 @@ describe('DataCiteForm', () => {
             const dateInputs = screen.getAllByDisplayValue('').filter(input => 
                 input.getAttribute('type') === 'date'
             );
-            // After adding a new date: First row has 1 filled + 1 empty (endDate), second row has 2 empty = 3 empty total
-            expect(dateInputs).toHaveLength(3);
+            // After adding a new date: First row (created) is filled, second row (accepted) has 1 empty = 1 empty total
+            expect(dateInputs).toHaveLength(1);
             const allDateInputs = document.querySelectorAll('input[type="date"]');
-            // Total: 2 date fields per row × 2 rows = 4 date inputs
-            expect(allDateInputs).toHaveLength(4);
+            // Total: 1 date field for "created" + 1 for "accepted" = 2 date inputs
+            expect(allDateInputs).toHaveLength(2);
         });
 
         it('supports removing non-required date fields', async () => {
@@ -2949,8 +2948,8 @@ describe('DataCiteForm', () => {
             await user.click(removeButton);
 
             const dateInputs = document.querySelectorAll('input[type="date"]');
-            // After removing: back to 1 row with 2 date fields (startDate + endDate)
-            expect(dateInputs).toHaveLength(2);
+            // After removing: back to 1 row with 1 date field (created type has only single date)
+            expect(dateInputs).toHaveLength(1);
         });
 
         it('filters out already used date types from options', async () => {
@@ -3002,8 +3001,65 @@ describe('DataCiteForm', () => {
             const description = screen.getByText(/The date the resource itself was put together/);
             expect(description).toBeInTheDocument();
         });
+
+        it('shows both start and end date fields only for "valid" date type', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'valid', startDate: '', endDate: '' }]}
+                />,
+            );
+
+            // "valid" date type should have both start and end date fields (date range)
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(2);
+        });
+
+        it('clears endDate when switching from "valid" to another date type', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'valid', startDate: '2024-01-01', endDate: '2024-12-31' }]}
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Initially, "valid" type should have both dates filled
+            let dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(2);
+            expect(dateInputs[0]).toHaveValue('2024-01-01');
+            expect(dateInputs[1]).toHaveValue('2024-12-31');
+
+            // Open the date type selector and change to "created"
+            const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
+                el.getAttribute('id')?.includes('dateType')
+            );
+            expect(dateTypeTrigger).toBeDefined();
+            if (dateTypeTrigger) {
+                await user.click(dateTypeTrigger);
+                const createdOption = screen.getByRole('option', { name: /Created/ });
+                await user.click(createdOption);
+            }
+
+            // After changing to "created", should only have 1 date field
+            dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(1);
+            // startDate should be preserved
+            expect(dateInputs[0]).toHaveValue('2024-01-01');
+        });
     });
 });
-
-
-

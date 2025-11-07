@@ -898,8 +898,13 @@ const buildCurationQuery = async (dataset: Dataset): Promise<Record<string, stri
                 endDate: string;
             }, index: number) => {
                 query[`dates[${index}][dateType]`] = date.dateType;
-                query[`dates[${index}][startDate]`] = date.startDate;
-                query[`dates[${index}][endDate]`] = date.endDate;
+                // Only include date fields if they have values
+                if (date.startDate) {
+                    query[`dates[${index}][startDate]`] = date.startDate;
+                }
+                if (date.endDate) {
+                    query[`dates[${index}][endDate]`] = date.endDate;
+                }
             });
         } catch (error) {
             // Surface structured error information to aid diagnosis
