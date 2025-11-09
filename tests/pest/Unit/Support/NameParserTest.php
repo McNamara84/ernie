@@ -235,4 +235,44 @@ describe('NameParser', function () {
             ]);
         });
     });
+
+    describe('isPerson', function () {
+        it('returns true for names with firstName', function () {
+            $parsedName = ['firstName' => 'John', 'lastName' => 'Doe'];
+
+            expect(NameParser::isPerson($parsedName))->toBeTrue();
+        });
+
+        it('returns false for names without firstName (institutions)', function () {
+            $parsedName = ['firstName' => '', 'lastName' => 'UNESCO'];
+
+            expect(NameParser::isPerson($parsedName))->toBeFalse();
+        });
+
+        it('correctly identifies comma-separated person names', function () {
+            // Parse a comma-separated name and check if it's identified as person
+            $parsedName = NameParser::parsePersonName('Förste, Christoph', null, null);
+
+            expect(NameParser::isPerson($parsedName))->toBeTrue();
+        });
+
+        it('correctly identifies institution names without comma', function () {
+            // Parse an institution name and check if it's identified as institution
+            $parsedName = NameParser::parsePersonName('Centre for Early Warning System', null, null);
+
+            expect(NameParser::isPerson($parsedName))->toBeFalse();
+        });
+
+        it('correctly identifies person with explicit names', function () {
+            $parsedName = NameParser::parsePersonName('Barthelmes, Franz', 'Franz', 'Barthelmes');
+
+            expect(NameParser::isPerson($parsedName))->toBeTrue();
+        });
+
+        it('works with empty parsed name', function () {
+            $parsedName = NameParser::parsePersonName(null, null, null);
+
+            expect(NameParser::isPerson($parsedName))->toBeFalse();
+        });
+    });
 });

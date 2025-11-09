@@ -502,21 +502,17 @@ class OldDatasetEditorLoader
         $result = [];
 
         foreach ($contributors as $index => $contributor) {
-            // Parse name first to determine if it's a person or institution
+            // Parse name to handle both storage formats:
+            // 1. Separated: firstname/lastname in separate fields
+            // 2. Combined: "Lastname, Firstname" in name field
             $parsedName = NameParser::parsePersonName(
                 $contributor->name,
                 $contributor->firstname,
                 $contributor->lastname
             );
 
-            // Determine type based on parsed name and explicit fields
-            // If we have firstname OR if name was comma-separated → person
-            // Otherwise (single name without comma) → likely institution
-            $hasPersonName = ! empty($contributor->firstname) ||
-                            ! empty($contributor->lastname) ||
-                            (! empty($contributor->name) && str_contains($contributor->name, ','));
-
-            $type = $hasPersonName ? 'person' : 'institution';
+            // Determine if this is a person or institution based on parsed result
+            $type = NameParser::isPerson($parsedName) ? 'person' : 'institution';
 
             $data = [
                 'type' => $type,

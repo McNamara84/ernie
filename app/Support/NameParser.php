@@ -63,4 +63,22 @@ class NameParser
             'lastName' => $name,
         ];
     }
+
+    /**
+     * Determine if parsed name components represent a person (as opposed to an institution).
+     *
+     * A name is considered to represent a person if:
+     * - It has a firstName component (indicating comma-separated "Lastname, Firstname" format or explicit fields)
+     *
+     * This is a heuristic based on the old metaworks database structure where:
+     * - Person names: stored as "Lastname, Firstname" OR in separate firstname/lastname fields
+     * - Institution names: stored as single name without comma (e.g., "UNESCO", "Centre for Early Warning")
+     *
+     * @param  array{firstName: string, lastName: string}  $parsedName  Result from parsePersonName()
+     * @return bool True if the name represents a person, false if it likely represents an institution
+     */
+    public static function isPerson(array $parsedName): bool
+    {
+        return ! empty($parsedName['firstName']);
+    }
 }
