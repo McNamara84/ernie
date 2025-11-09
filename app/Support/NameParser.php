@@ -20,9 +20,9 @@ class NameParser
      * 3. Otherwise → use entire name as lastname
      *
      * Examples:
-     * - parsePersonName("Förste, Christoph", null, null) → ["Christoph", "Förste"]
-     * - parsePersonName("UNESCO", null, null) → ["", "UNESCO"] (institution)
-     * - parsePersonName("Barthelmes, Franz", "Franz", "Barthelmes") → ["Franz", "Barthelmes"]
+     * - parsePersonName("Förste, Christoph", null, null) → ["firstName" => "Christoph", "lastName" => "Förste"]
+     * - parsePersonName("UNESCO", null, null) → ["firstName" => "", "lastName" => "UNESCO"] (institution)
+     * - parsePersonName("Barthelmes, Franz", "Franz", "Barthelmes") → ["firstName" => "Franz", "lastName" => "Barthelmes"]
      *
      * @param  string|null  $name  Full name string (may contain comma)
      * @param  string|null  $firstName  Explicit first name (takes precedence)
