@@ -10,7 +10,9 @@ use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
 use App\Models\Setting;
+use App\Services\OldDatasetEditorLoader;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -248,7 +250,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // If oldDatasetId is provided, load from old SUMARIOPMD database
         if ($oldDatasetId !== null) {
             try {
-                $loader = new \App\Services\OldDatasetEditorLoader;
+                $loader = new OldDatasetEditorLoader;
                 $editorData = $loader->loadForEditor((int) $oldDatasetId);
 
                 return Inertia::render('editor', array_merge([
@@ -258,7 +260,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ], $editorData));
             } catch (\Exception $e) {
                 // Log error and redirect back with error message
-                \Illuminate\Support\Facades\Log::error('Failed to load old dataset in editor', [
+                Log::error('Failed to load old dataset in editor', [
                     'old_dataset_id' => $oldDatasetId,
                     'error' => $e->getMessage(),
                 ]);
@@ -271,7 +273,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // If resourceId is provided, load the resource from database
         if ($resourceId !== null) {
             /** @var \App\Models\Resource $resource */
-            $resource = \App\Models\Resource::query()
+            $resource = Resource::query()
                 ->with([
                     'resourceType',
                     'language',
