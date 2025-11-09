@@ -102,7 +102,7 @@ export default function ContributorCsvImport({ onImport, onClose }: ContributorC
                         );
                         const typeValue = typeField ? row[typeField]?.trim().toLowerCase() : 'person';
                         const type: 'person' | 'institution' = 
-                            typeValue === 'organization' || typeValue === 'institution' 
+                            typeValue === 'institution' 
                                 ? 'institution' 
                                 : 'person';
 
@@ -121,14 +121,16 @@ export default function ContributorCsvImport({ onImport, onClose }: ContributorC
                         const emailField = Object.keys(row).find(k => 
                             k.toLowerCase().includes('email') || k.toLowerCase().includes('mail')
                         );
-                        const orgNameField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('organization') || 
-                            k.toLowerCase().includes('organisation') || 
-                            k.toLowerCase().includes('institution')
-                        );
-                        const affiliationsField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('affiliation')
-                        );
+                        const institutionNameField = Object.keys(row).find(k => {
+                            const lower = k.toLowerCase();
+                            return lower === 'institution name' || 
+                                   lower === 'institution' ||
+                                   lower === 'institutionname';
+                        });
+                        const affiliationsField = Object.keys(row).find(k => {
+                            const lower = k.toLowerCase();
+                            return lower.includes('affiliation');
+                        });
                         const roleField = Object.keys(row).find(k => 
                             k.toLowerCase().includes('role') || 
                             k.toLowerCase().includes('contributor')
@@ -138,7 +140,7 @@ export default function ContributorCsvImport({ onImport, onClose }: ContributorC
                         const lastName = lastNameField ? row[lastNameField]?.trim() : '';
                         const orcid = orcidField ? row[orcidField]?.trim() : '';
                         const email = emailField ? row[emailField]?.trim() : '';
-                        const orgName = orgNameField ? row[orgNameField]?.trim() : '';
+                        const institutionName = institutionNameField ? row[institutionNameField]?.trim() : '';
                         const affiliationsRaw = affiliationsField ? row[affiliationsField]?.trim() : '';
                         const contributorRole = roleField ? row[roleField]?.trim() : '';
 
@@ -157,12 +159,12 @@ export default function ContributorCsvImport({ onImport, onClose }: ContributorC
                                 });
                             }
                         } else if (type === 'institution') {
-                            if (!orgName) {
+                            if (!institutionName) {
                                 validationErrors.push({
                                     row: rowNum,
-                                    field: 'organization name',
+                                    field: 'institution name',
                                     value: '',
-                                    message: 'Organization name required for institution type',
+                                    message: 'Institution name required for institution type',
                                 });
                             }
                         }
@@ -192,7 +194,7 @@ export default function ContributorCsvImport({ onImport, onClose }: ContributorC
                             } else {
                                 data.push({
                                     type: 'institution',
-                                    institutionName: orgName,
+                                    institutionName,
                                     affiliations,
                                     contributorRole,
                                 });
@@ -264,10 +266,10 @@ export default function ContributorCsvImport({ onImport, onClose }: ContributorC
     };
 
     const downloadExample = () => {
-        const exampleCSV = `Type,First Name,Last Name,ORCID,Email,Organization Name,Affiliations,Contributor Role
-person,Anna,Schmidt,0000-0003-1111-2222,anna.schmidt@example.de,,Technical University Munich,DataCollector
-person,Peter,Meyer,,,,University of Heidelberg,Editor
-organization,,,,,Max Planck Society,,Sponsor
+        const exampleCSV = `Type,First Name,Last Name,ORCID,Email,Institution Name,Affiliations,Contributor Role
+person,Anna,Schmidt,0000-0003-1111-2222,anna.schmidt@example.de,,Technical University of Munich,DataCollector
+person,Peter,Meyer,,,,Heidelberg University,Editor
+institution,,,,,Max Planck Society,,Sponsor
 person,Sarah,Johnson,0000-0002-3333-4444,sarah.j@example.com,,ETH Zurich,DataCurator`;
 
         const blob = new Blob([exampleCSV], { type: 'text/csv' });
@@ -333,7 +335,7 @@ person,Sarah,Johnson,0000-0002-3333-4444,sarah.j@example.com,,ETH Zurich,DataCur
                                 Drop your CSV file here or click to browse
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                Required: Type, First Name/Last Name (for persons) or Organization Name (for institutions)
+                                Required: Type, First Name/Last Name (for persons) or Institution Name (for institutions)
                             </p>
                         </div>
                     </label>

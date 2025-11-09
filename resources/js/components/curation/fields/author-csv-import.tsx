@@ -101,7 +101,7 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                         );
                         const typeValue = typeField ? row[typeField]?.trim().toLowerCase() : 'person';
                         const type: 'person' | 'institution' = 
-                            typeValue === 'organization' || typeValue === 'institution' 
+                            typeValue === 'institution' 
                                 ? 'institution' 
                                 : 'person';
 
@@ -120,22 +120,23 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                         const emailField = Object.keys(row).find(k => 
                             k.toLowerCase().includes('email') || k.toLowerCase().includes('mail')
                         );
-                        const orgNameField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('organization') || 
-                            k.toLowerCase().includes('organisation') || 
-                            k.toLowerCase().includes('institution')
-                        );
-                        const affiliationsField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('affiliation') || 
-                            k.toLowerCase().includes('institution')
-                        );
+                        const institutionNameField = Object.keys(row).find(k => {
+                            const lower = k.toLowerCase();
+                            return lower === 'institution name' || 
+                                   lower === 'institution' ||
+                                   lower === 'institutionname';
+                        });
+                        const affiliationsField = Object.keys(row).find(k => {
+                            const lower = k.toLowerCase();
+                            return lower.includes('affiliation');
+                        });
                         const contactField = Object.keys(row).find(k => k.toLowerCase().includes('contact'));
 
                         const firstName = firstNameField ? row[firstNameField]?.trim() : '';
                         const lastName = lastNameField ? row[lastNameField]?.trim() : '';
                         const orcid = orcidField ? row[orcidField]?.trim() : '';
                         const email = emailField ? row[emailField]?.trim() : '';
-                        const orgName = orgNameField ? row[orgNameField]?.trim() : '';
+                        const institutionName = institutionNameField ? row[institutionNameField]?.trim() : '';
                         const affiliationsRaw = affiliationsField ? row[affiliationsField]?.trim() : '';
                         const contactRaw = contactField ? row[contactField]?.trim().toLowerCase() : '';
 
@@ -156,12 +157,12 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                                 });
                             }
                         } else if (type === 'institution') {
-                            if (!orgName) {
+                            if (!institutionName) {
                                 validationErrors.push({
                                     row: rowNum,
-                                    field: 'organization name',
+                                    field: 'institution name',
                                     value: '',
-                                    message: 'Organization name required for institution type',
+                                    message: 'Institution name required for institution type',
                                 });
                             }
                         }
@@ -191,7 +192,7 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                             } else {
                                 data.push({
                                     type: 'institution',
-                                    institutionName: orgName,
+                                    institutionName,
                                     affiliations,
                                     isContact: false,
                                 });
@@ -206,7 +207,7 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                     setProgress(100);
                     setIsProcessing(false);
                 },
-                error: (error) => {
+                error: (error: Error) => {
                     setErrors([{
                         row: 0,
                         field: 'file',
@@ -263,11 +264,11 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
     };
 
     const downloadExample = () => {
-        const exampleCSV = `Type,First Name,Last Name,ORCID,Email,Organization Name,Affiliations,Contact Person
-person,Max,Mustermann,0000-0002-1234-5678,max.mustermann@example.com,,"Helmholtz Centre Potsdam - GFZ, University of Potsdam",yes
-person,Erika,Musterfrau,,erika.musterfrau@example.org,,Freie Universität Berlin,no
-organization,,,,,Deutsche Forschungsgemeinschaft (DFG),,
-person,John,Doe,0000-0001-9876-5432,,,"MIT, Harvard University",no`;
+        const exampleCSV = `Type,First Name,Last Name,ORCID,Email,Institution Name,Affiliations,Contact Person
+person,Max,Mustermann,0000-0002-1234-5678,max.mustermann@example.com,,"GFZ German Research Centre for Geosciences, University of Potsdam",yes
+person,Erika,Musterfrau,,erika.musterfrau@example.org,,Free University of Berlin,no
+institution,,,,,German Research Foundation,,
+person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Harvard University",no`;
 
         const blob = new Blob([exampleCSV], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
@@ -332,7 +333,7 @@ person,John,Doe,0000-0001-9876-5432,,,"MIT, Harvard University",no`;
                                 Drop your CSV file here or click to browse
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                Required: Type, First Name/Last Name (for persons) or Organization Name (for institutions)
+                                Required: Type, First Name/Last Name (for persons) or Institution Name (for institutions)
                             </p>
                         </div>
                     </label>

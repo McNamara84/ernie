@@ -82,8 +82,10 @@ describe('AuthorList Component', () => {
         vi.clearAllMocks();
     });
 
-    afterEach(() => {
+    afterEach(async () => {
         cleanup();
+        // Wait for any pending async operations
+        await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
     it('renders empty state when no authors', () => {
