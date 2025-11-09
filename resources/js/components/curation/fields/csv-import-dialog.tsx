@@ -39,7 +39,7 @@ interface MappedRow {
     email?: string;
     affiliations?: string[];
     isContact?: boolean;
-    type?: 'person' | 'organization';
+    type?: 'person' | 'institution';
     organizationName?: string;
     errors?: string[];
 }
@@ -57,8 +57,8 @@ const FIELD_OPTIONS = [
     { value: 'email', label: 'Email' },
     { value: 'affiliations', label: 'Affiliations (comma-separated)' },
     { value: 'isContact', label: 'Contact Person (yes/no)' },
-    { value: 'type', label: 'Type (person/organization)' },
-    { value: 'organizationName', label: 'Organization Name' },
+    { value: 'type', label: 'Type (person/institution)' },
+    { value: 'organizationName', label: 'Institution Name' },
     { value: 'ignore', label: '--- Ignorieren ---' },
 ];
 
@@ -81,7 +81,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                     'Last Name': 'Mustermann',
                     'ORCID': '0000-0002-1234-5678',
                     'Email': 'max.mustermann@example.com',
-                    'Affiliations': 'Helmholtz Centre Potsdam - GFZ, University of Potsdam',
+                    'Affiliations': 'GFZ German Research Centre for Geosciences, University of Potsdam',
                     'Contact Person': 'yes',
                 },
                 {
@@ -90,16 +90,16 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                     'Last Name': 'Musterfrau',
                     'ORCID': '',
                     'Email': 'erika.musterfrau@example.org',
-                    'Affiliations': 'Freie Universität Berlin',
+                    'Affiliations': 'Free University of Berlin',
                     'Contact Person': 'no',
                 },
                 {
-                    'Type': 'organization',
+                    'Type': 'institution',
                     'First Name': '',
                     'Last Name': '',
                     'ORCID': '',
                     'Email': '',
-                    'Organization Name': 'Deutsche Forschungsgemeinschaft (DFG)',
+                    'Institution Name': 'German Research Foundation',
                     'Affiliations': '',
                     'Contact Person': '',
                 },
@@ -109,7 +109,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                     'Last Name': 'Doe',
                     'ORCID': '0000-0001-9876-5432',
                     'Email': '',
-                    'Affiliations': 'MIT, Harvard University',
+                    'Affiliations': 'Massachusetts Institute of Technology, Harvard University',
                     'Contact Person': 'no',
                 },
             ]
@@ -120,7 +120,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                     'Last Name': 'Schmidt',
                     'ORCID': '0000-0003-1111-2222',
                     'Email': 'anna.schmidt@example.de',
-                    'Affiliations': 'Technical University Munich',
+                    'Affiliations': 'Technical University of Munich',
                     'Contributor Role': 'DataCollector',
                 },
                 {
@@ -129,16 +129,16 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                     'Last Name': 'Meyer',
                     'ORCID': '',
                     'Email': '',
-                    'Affiliations': 'University of Heidelberg',
+                    'Affiliations': 'Heidelberg University',
                     'Contributor Role': 'Editor',
                 },
                 {
-                    'Type': 'organization',
+                    'Type': 'institution',
                     'First Name': '',
                     'Last Name': '',
                     'ORCID': '',
                     'Email': '',
-                    'Organization Name': 'Max Planck Society',
+                    'Institution Name': 'Max Planck Society',
                     'Affiliations': '',
                     'Contributor Role': 'Sponsor',
                 },
@@ -202,14 +202,14 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                         autoMapping[header] = 'orcid';
                     } else if (lowerHeader.includes('email') || lowerHeader.includes('mail')) {
                         autoMapping[header] = 'email';
-                    } else if (lowerHeader.includes('affiliation') || lowerHeader.includes('institution')) {
+                    } else if (lowerHeader.includes('institution name')) {
+                        autoMapping[header] = 'organizationName';
+                    } else if (lowerHeader.includes('affiliation')) {
                         autoMapping[header] = 'affiliations';
                     } else if (lowerHeader.includes('contact')) {
                         autoMapping[header] = 'isContact';
                     } else if (lowerHeader.includes('type') || lowerHeader.includes('typ')) {
                         autoMapping[header] = 'type';
-                    } else if (lowerHeader.includes('organization') || lowerHeader.includes('organisation')) {
-                        autoMapping[header] = 'organizationName';
                     } else {
                         autoMapping[header] = 'ignore';
                     }
@@ -254,8 +254,8 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                 } else if (targetField === 'type') {
                     // Validate type
                     const normalizedType = value?.toLowerCase();
-                    if (normalizedType === 'person' || normalizedType === 'organization') {
-                        mappedRow.type = normalizedType as 'person' | 'organization';
+                    if (normalizedType === 'person' || normalizedType === 'institution') {
+                        mappedRow.type = normalizedType as 'person' | 'institution';
                     } else {
                         mappedRow.type = 'person'; // Default
                     }
@@ -269,9 +269,9 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                 if (!mappedRow.firstName && !mappedRow.lastName) {
                     mappedRow.errors?.push('Vorname oder Nachname erforderlich');
                 }
-            } else if (mappedRow.type === 'organization') {
+            } else if (mappedRow.type === 'institution') {
                 if (!mappedRow.organizationName) {
-                    mappedRow.errors?.push('Organization Name erforderlich');
+                    mappedRow.errors?.push('Institution Name erforderlich');
                 }
             }
 
@@ -504,7 +504,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                                             </td>
                                             <td className="p-2">{row.type || 'person'}</td>
                                             <td className="p-2">
-                                                {row.type === 'organization'
+                                                {row.type === 'institution'
                                                     ? row.organizationName
                                                     : `${row.firstName || ''} ${row.lastName || ''}`.trim() || '-'}
                                             </td>
