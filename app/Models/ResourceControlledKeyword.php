@@ -34,7 +34,7 @@ class ResourceControlledKeyword extends Model
     ];
 
     /**
-     * Get the resource that owns this controlled keyword
+     * Get the resource that owns this controlled keyword.
      *
      * @return BelongsTo<Resource, $this>
      */

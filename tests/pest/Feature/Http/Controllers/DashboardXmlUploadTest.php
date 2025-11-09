@@ -2,6 +2,7 @@
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     $this->actingAs(\App\Models\User::factory()->create(['role' => 'curator']));
@@ -212,4 +213,44 @@ it('rejects invalid oldDatasetId parameter', function () {
     // Test non-numeric string
     $response = $this->get('/editor?oldDatasetId=abc');
     $response->assertStatus(400);
+});
+
+it('rejects tampered xml session data with invalid structure', function () {
+    // Create a session with tampered data (wrong types)
+    $sessionKey = 'xml_upload_'.Str::random(40);
+
+    // Tamper with data structure - titles should be array but set as string
+    Session::put($sessionKey, [
+        'doi' => '10.1234/test',
+        'year' => '2024',
+        'titles' => 'This should be an array', // Invalid: string instead of array
+        'licenses' => [],
+        'authors' => [],
+    ]);
+
+    $response = $this->get('/editor?xmlSession='.$sessionKey);
+
+    // Should reject invalid structure
+    $response->assertStatus(400);
+    expect($response->exception->getMessage())->toContain('Invalid session data structure');
+});
+
+it('rejects tampered xml session data with invalid scalar types', function () {
+    // Create a session with tampered data (wrong types)
+    $sessionKey = 'xml_upload_'.Str::random(40);
+
+    // Tamper with data structure - year should be string/numeric but set as array
+    Session::put($sessionKey, [
+        'doi' => '10.1234/test',
+        'year' => ['invalid' => 'array'], // Invalid: array instead of string/numeric
+        'titles' => [],
+        'licenses' => [],
+        'authors' => [],
+    ]);
+
+    $response = $this->get('/editor?xmlSession='.$sessionKey);
+
+    // Should reject invalid structure
+    $response->assertStatus(400);
+    expect($response->exception->getMessage())->toContain('Invalid session data structure');
 });
