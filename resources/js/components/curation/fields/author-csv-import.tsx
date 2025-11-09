@@ -204,7 +204,7 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                     setProgress(100);
                     setIsProcessing(false);
                 },
-                error: (error) => {
+                error: (error: Error) => {
                     setErrors([{
                         row: 0,
                         field: 'file',
