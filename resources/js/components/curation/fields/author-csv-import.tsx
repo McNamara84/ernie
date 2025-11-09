@@ -120,13 +120,16 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                         const emailField = Object.keys(row).find(k => 
                             k.toLowerCase().includes('email') || k.toLowerCase().includes('mail')
                         );
-                        const institutionNameField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('institution')
-                        );
-                        const affiliationsField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('affiliation') || 
-                            k.toLowerCase().includes('institution')
-                        );
+                        const institutionNameField = Object.keys(row).find(k => {
+                            const lower = k.toLowerCase();
+                            return lower === 'institution name' || 
+                                   lower === 'institution' ||
+                                   lower === 'institutionname';
+                        });
+                        const affiliationsField = Object.keys(row).find(k => {
+                            const lower = k.toLowerCase();
+                            return lower.includes('affiliation');
+                        });
                         const contactField = Object.keys(row).find(k => k.toLowerCase().includes('contact'));
 
                         const firstName = firstNameField ? row[firstNameField]?.trim() : '';

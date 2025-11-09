@@ -202,7 +202,7 @@ export function CsvImportDialog({ onImport, type, triggerClassName }: CsvImportD
                         autoMapping[header] = 'orcid';
                     } else if (lowerHeader.includes('email') || lowerHeader.includes('mail')) {
                         autoMapping[header] = 'email';
-                    } else if (lowerHeader.includes('institution name')) {
+                    } else if (lowerHeader === 'institution name' || lowerHeader === 'institution' || lowerHeader === 'institutionname') {
                         autoMapping[header] = 'organizationName';
                     } else if (lowerHeader.includes('affiliation')) {
                         autoMapping[header] = 'affiliations';
