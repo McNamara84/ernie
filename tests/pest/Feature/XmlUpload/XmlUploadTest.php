@@ -43,7 +43,7 @@ XML;
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'doi' => '10.1234/xyz',
         'year' => '2024',
         'version' => '1.0',
@@ -71,7 +71,7 @@ it('returns null when doi, publication year, version, language and resource type
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => [], 'licenses' => [], 'authors' => []]);
+    $response->assertSessionData(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => [], 'licenses' => [], 'authors' => []]);
 });
 
 it('handles xml with a single main title', function () {
@@ -85,7 +85,7 @@ it('handles xml with a single main title', function () {
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'titles' => [
             ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
         ],
@@ -345,7 +345,7 @@ XML;
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'year' => '1956',
         'language' => 'en',
         'resourceType' => (string) $type->id,
@@ -398,7 +398,7 @@ XML;
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'authors' => [
             [
                 'type' => 'person',
@@ -453,9 +453,9 @@ it('ignores related item creators when extracting authors', function () {
 
     $response->assertOk();
 
-    expect($response->json('authors'))->toHaveCount(3);
+    expect($response->sessionData('authors'))->toHaveCount(3);
 
-    $response->assertJson([
+    $response->assertSessionData([
         'authors' => [
             [
                 'type' => 'person',
@@ -545,7 +545,7 @@ XML;
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'gcmdKeywords' => [
             [
                 'uuid' => 'b1ce822a-139b-4e11-8bbe-453f19501c36',
@@ -593,7 +593,7 @@ XML;
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'freeKeywords' => [
             'climate change',
             'temperature',
@@ -632,7 +632,7 @@ XML;
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'freeKeywords' => [
             'free keyword 1',
             'free keyword 2',
@@ -641,7 +641,7 @@ XML;
     ]);
 
     // Verify that keywords with schema attributes are NOT in freeKeywords
-    $data = $response->json();
+    $data = $response->sessionData();
     expect($data['freeKeywords'])->not->toContain('controlled keyword');
     expect($data['freeKeywords'])->not->toContain('another controlled keyword');
 });
@@ -667,7 +667,7 @@ XML;
         '_token' => csrf_token(),
     ]);
 
-    $response->assertOk()->assertJson([
+    $response->assertSessionData([
         'freeKeywords' => [
             'valid keyword',
             'another valid keyword',

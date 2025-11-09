@@ -37,21 +37,21 @@ test.describe('XML Upload', () => {
     await page.waitForURL(/\/editor/, { timeout: 10000 });
 
     const currentUrl = page.url();
-    // Test XML doesn't have DOI value, but should have year and authors
-    expect(currentUrl).toMatch(/year=/);
-    expect(currentUrl).toMatch(/authors%5B/);
+    // With session-based workflow, only xmlSession parameter is passed
+    expect(currentUrl).toMatch(/xmlSession=xml_upload_/);
 
-    // Validate URL parameters contain XML data
+    // Validate session key is present in URL
     const urlParams = new URLSearchParams(currentUrl.split('?')[1] || '');
+    const sessionKey = urlParams.get('xmlSession');
+    expect(sessionKey).toBeTruthy();
+    expect(sessionKey).toMatch(/^xml_upload_/);
     
-    expect(urlParams.get('year')).toBe('2009'); // Year from test XML
-    expect(urlParams.get('resourceType')).toBeTruthy();
+    // Verify editor page loaded successfully with form fields
+    // Check for DOI label which is always visible in the form
+    await expect(page.getByText('DOI', { exact: true })).toBeVisible();
     
-    const hasTitle = Array.from(urlParams.keys()).some(key => key.includes('titles'));
-    expect(hasTitle).toBeTruthy();
-    
-    const hasAuthors = Array.from(urlParams.keys()).some(key => key.includes('authors'));
-    expect(hasAuthors).toBeTruthy();
+    // Verify form has loaded by checking for Year field (has id="year")
+    await expect(page.locator('#year')).toBeVisible();
   });
 
   test('handles invalid XML files gracefully', async ({ page }) => {

@@ -481,15 +481,15 @@ class ResourceController extends Controller
             ->whereNotNull('updated_by_user_id')
             ->distinct()
             ->pluck('updated_by_user_id');
-        
+
         $createdByIdsWithoutUpdates = Resource::query()
             ->whereNull('updated_by_user_id')
             ->whereNotNull('created_by_user_id')
             ->distinct()
             ->pluck('created_by_user_id');
-        
+
         $curatorIds = $updatedByIds->merge($createdByIdsWithoutUpdates)->unique();
-        
+
         $curators = User::query()
             ->whereIn('id', $curatorIds)
             ->orderBy('name')
@@ -1263,7 +1263,7 @@ class ResourceController extends Controller
     /**
      * Serialize a Resource model to an array for API responses.
      *
-     * @param  Resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
+     * @param  resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
      * @return array<string, mixed> The serialized resource data
      */
     private function serializeResource(Resource $resource): array

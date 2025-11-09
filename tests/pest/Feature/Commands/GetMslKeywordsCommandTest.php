@@ -55,4 +55,3 @@ it('handles invalid JSON content gracefully', function () {
         ->expectsOutputToContain('Failed to download MSL keywords')
         ->assertExitCode(1);
 });
-

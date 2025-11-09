@@ -94,21 +94,21 @@ class DataCiteRegistrationService
 
     /**
      * Determine if DataCite test mode should be used
-     * 
+     *
      * This method implements critical safety logic to protect against accidental DOI registration
      * in production by users who are still in training.
-     * 
+     *
      * Test mode is activated when:
      * 1. Global test mode is enabled in configuration (config/datacite.php)
      * 2. The authenticated user has the BEGINNER role (restricted to test DOIs only)
-     * 
+     *
      * IMPORTANT: Beginner users are ALWAYS forced to use test mode, regardless of global settings.
      * This safety mechanism cannot be overridden - even if global test_mode=false, beginners
      * will still register test DOIs. This ensures that users in training cannot accidentally
      * register production DOIs while learning the system.
-     * 
+     *
      * @return bool True if test mode should be used, false for production mode
-     * 
+     *
      * @see \App\Enums\UserRole::canRegisterProductionDoi() - Role permission check
      * @see config/datacite.php - Global test mode configuration
      */
@@ -142,7 +142,7 @@ class DataCiteRegistrationService
     /**
      * Register a new DOI with DataCite
      *
-     * @param  Resource  $resource  The resource to register
+     * @param  resource  $resource  The resource to register
      * @param  string  $prefix  The DOI prefix to use (must be in allowed list)
      * @return array<string, mixed> The DataCite API response
      *
@@ -255,7 +255,7 @@ class DataCiteRegistrationService
     /**
      * Update metadata for an existing DOI
      *
-     * @param  Resource  $resource  The resource with an existing DOI
+     * @param  resource  $resource  The resource with an existing DOI
      * @return array<string, mixed> The DataCite API response
      *
      * @throws \RuntimeException If resource doesn't have a DOI or landing page

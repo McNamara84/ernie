@@ -78,7 +78,7 @@ enum UserRole: string
 
     /**
      * Get badge variant for UI components
-     * 
+     *
      * Returns the Radix UI Badge variant used in the frontend.
      * These values must match the roleVariants mapping in user-role-badge.tsx
      */

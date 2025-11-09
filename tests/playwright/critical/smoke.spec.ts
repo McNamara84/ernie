@@ -53,13 +53,15 @@ test.describe('Critical Smoke Tests', () => {
     const xmlFilePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
     
-    // Verify redirect to editor with URL params
+    // Verify redirect to editor with session key (session-based workflow)
     await page.waitForURL(/\/editor/, { timeout: 10000 });
     
     const currentUrl = page.url();
-    // Test XML doesn't have DOI, but should have year and authors
-    expect(currentUrl).toMatch(/year=/);
-    expect(currentUrl).toMatch(/authors%5B/);
+    // With session-based workflow, only xmlSession parameter is passed
+    expect(currentUrl).toMatch(/xmlSession=xml_upload_/);
+    
+    // Verify editor page loaded successfully by checking for DOI field label
+    await expect(page.getByText('DOI', { exact: true })).toBeVisible();
   });
 
   test('navigation between dashboard and settings works', async ({ page }) => {

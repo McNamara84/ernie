@@ -10,7 +10,9 @@ use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
 use App\Models\Setting;
+use App\Services\OldDatasetEditorLoader;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -175,13 +177,103 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Define author/contributor exclusion roles
         $excludedAuthorRoles = ['author', 'contact-person'];
 
-        // Check if we're loading an existing resource
+        // Check if we're loading an existing resource from new database
         $resourceId = $request->query('resourceId');
+
+        // Check if we're loading from old database
+        $oldDatasetId = $request->query('oldDatasetId');
+
+        // Validate oldDatasetId if provided
+        if ($oldDatasetId !== null && (! is_numeric($oldDatasetId) || (int) $oldDatasetId <= 0)) {
+            abort(400, 'Invalid dataset ID');
+        }
+
+        // Check if we're loading from XML upload session
+        $xmlSessionKey = $request->query('xmlSession');
+
+        // If xmlSession is provided, validate prefix and load from session
+        if ($xmlSessionKey !== null && is_string($xmlSessionKey)) {
+            // Security: Validate session key starts with expected prefix
+            if (! str_starts_with($xmlSessionKey, 'xml_upload_')) {
+                abort(400, 'Invalid session key format');
+            }
+
+            $sessionData = session()->pull($xmlSessionKey);
+
+            if (! is_array($sessionData)) {
+                // Session expired or invalid
+                return redirect()->route('dashboard')
+                    ->with('error', 'XML upload session expired. Please upload the file again.');
+            }
+
+            // Validate session data structure to prevent tampering
+            $requiredArrayKeys = ['titles', 'licenses', 'authors', 'contributors', 'descriptions', 'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'coverages', 'fundingReferences', 'mslLaboratories'];
+            foreach ($requiredArrayKeys as $key) {
+                if (isset($sessionData[$key]) && ! is_array($sessionData[$key])) {
+                    abort(400, 'Invalid session data structure: '.$key.' must be an array');
+                }
+            }
+
+            // Validate scalar fields are strings if present
+            $scalarKeys = ['doi', 'year', 'version', 'language', 'resourceType'];
+            foreach ($scalarKeys as $key) {
+                if (isset($sessionData[$key]) && ! is_string($sessionData[$key]) && ! is_numeric($sessionData[$key])) {
+                    abort(400, 'Invalid session data structure: '.$key.' must be a string or numeric');
+                }
+            }
+
+            return Inertia::render('editor', array_merge([
+                'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
+                'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
+                'googleMapsApiKey' => config('services.google_maps.api_key'),
+                'doi' => $sessionData['doi'] ?? '',
+                'year' => $sessionData['year'] ?? '',
+                'version' => $sessionData['version'] ?? '',
+                'language' => $sessionData['language'] ?? '',
+                'resourceType' => $sessionData['resourceType'] ?? '',
+                'titles' => $sessionData['titles'] ?? [],
+                'initialLicenses' => $sessionData['licenses'] ?? [],
+                'authors' => $sessionData['authors'] ?? [],
+                'contributors' => $sessionData['contributors'] ?? [],
+                'descriptions' => $sessionData['descriptions'] ?? [],
+                'dates' => $sessionData['dates'] ?? [],
+                'gcmdKeywords' => $sessionData['gcmdKeywords'] ?? [],
+                'freeKeywords' => $sessionData['freeKeywords'] ?? [],
+                'mslKeywords' => $sessionData['mslKeywords'] ?? [],
+                'coverages' => $sessionData['coverages'] ?? [],
+                'relatedWorks' => [], // XML upload doesn't support related works yet
+                'fundingReferences' => $sessionData['fundingReferences'] ?? [],
+                'mslLaboratories' => $sessionData['mslLaboratories'] ?? [],
+            ]));
+        }
+
+        // If oldDatasetId is provided, load from old SUMARIOPMD database
+        if ($oldDatasetId !== null) {
+            try {
+                $loader = new OldDatasetEditorLoader;
+                $editorData = $loader->loadForEditor((int) $oldDatasetId);
+
+                return Inertia::render('editor', array_merge([
+                    'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
+                    'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
+                    'googleMapsApiKey' => config('services.google_maps.api_key'),
+                ], $editorData));
+            } catch (\Exception $e) {
+                // Log error and redirect back with error message
+                Log::error('Failed to load old dataset in editor', [
+                    'old_dataset_id' => $oldDatasetId,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return redirect()->route('old-datasets')
+                    ->with('error', 'Failed to load dataset from legacy database: '.$e->getMessage());
+            }
+        }
 
         // If resourceId is provided, load the resource from database
         if ($resourceId !== null) {
             /** @var \App\Models\Resource $resource */
-            $resource = \App\Models\Resource::query()
+            $resource = Resource::query()
                 ->with([
                     'resourceType',
                     'language',

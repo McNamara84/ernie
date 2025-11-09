@@ -21,4 +21,3 @@ test('authenticated users can view the docs page', function () {
         ->component('docs')
         ->has('userRole'));
 });
-

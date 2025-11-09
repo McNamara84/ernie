@@ -29,7 +29,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('resourceType', (string) $type->id);
+    $response->assertSessionDataPath('resourceType', (string) $type->id);
 });
 
 test('extracts contributors from uploaded XML', function () {
@@ -65,29 +65,29 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('contributors.0.type', 'person');
-    $response->assertJsonPath('contributors.0.roles', ['Contact Person']);
-    $response->assertJsonPath('contributors.0.orcid', '0000-0001-5727-2427');
-    $response->assertJsonPath('contributors.0.firstName', 'ExampleGivenName');
-    $response->assertJsonPath('contributors.0.lastName', 'ExampleFamilyName');
+    $response->assertSessionDataPath('contributors.0.type', 'person');
+    $response->assertSessionDataPath('contributors.0.roles', ['Contact Person']);
+    $response->assertSessionDataPath('contributors.0.orcid', '0000-0001-5727-2427');
+    $response->assertSessionDataPath('contributors.0.firstName', 'ExampleGivenName');
+    $response->assertSessionDataPath('contributors.0.lastName', 'ExampleFamilyName');
     // Affiliation value can be either XML text or ROR-resolved name, depending on cache availability
-    expect($response->json('contributors.0.affiliations.0.value'))
+    expect($response->sessionData('contributors.0.affiliations.0.value'))
         ->toBeIn(['ExampleAffiliation', 'DataCite']);
-    $response->assertJsonPath('contributors.0.affiliations.0.rorId', 'https://ror.org/04wxnsj81');
+    $response->assertSessionDataPath('contributors.0.affiliations.0.rorId', 'https://ror.org/04wxnsj81');
 
-    $response->assertJsonPath('contributors.1.type', 'person');
-    $response->assertJsonPath('contributors.1.roles', ['Work Package Leader']);
-    $response->assertJsonPath('contributors.1.orcid', '0000-0002-5727-2427');
-    $response->assertJsonPath('contributors.1.firstName', 'ExampleLeaderGiven');
-    $response->assertJsonPath('contributors.1.lastName', 'ExampleLeaderFamily');
+    $response->assertSessionDataPath('contributors.1.type', 'person');
+    $response->assertSessionDataPath('contributors.1.roles', ['Work Package Leader']);
+    $response->assertSessionDataPath('contributors.1.orcid', '0000-0002-5727-2427');
+    $response->assertSessionDataPath('contributors.1.firstName', 'ExampleLeaderGiven');
+    $response->assertSessionDataPath('contributors.1.lastName', 'ExampleLeaderFamily');
 
-    $response->assertJsonPath('contributors.2.type', 'institution');
-    $response->assertJsonPath('contributors.2.roles', ['Distributor']);
-    $response->assertJsonPath('contributors.2.institutionName', 'ExampleOrganization');
+    $response->assertSessionDataPath('contributors.2.type', 'institution');
+    $response->assertSessionDataPath('contributors.2.roles', ['Distributor']);
+    $response->assertSessionDataPath('contributors.2.institutionName', 'ExampleOrganization');
     // Affiliation can be institution name or ROR-resolved name
-    expect($response->json('contributors.2.affiliations.0.value'))
+    expect($response->sessionData('contributors.2.affiliations.0.value'))
         ->toBeIn(['ExampleOrganization', 'California Digital Library']);
-    $response->assertJsonPath('contributors.2.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
+    $response->assertSessionDataPath('contributors.2.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
 });
 
 test('treats research group contributors without a name type as institutions', function () {
@@ -110,13 +110,13 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('contributors.0.type', 'institution');
-    $response->assertJsonPath('contributors.0.roles', ['Research Group']);
-    $response->assertJsonPath('contributors.0.institutionName', 'ExampleContributorRG');
+    $response->assertSessionDataPath('contributors.0.type', 'institution');
+    $response->assertSessionDataPath('contributors.0.roles', ['Research Group']);
+    $response->assertSessionDataPath('contributors.0.institutionName', 'ExampleContributorRG');
     // Affiliation value can be either XML text or ROR-resolved name
-    expect($response->json('contributors.0.affiliations.0.value'))
+    expect($response->sessionData('contributors.0.affiliations.0.value'))
         ->toBeIn(['ExampleOrganization', 'California Digital Library']);
-    $response->assertJsonPath('contributors.0.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
+    $response->assertSessionDataPath('contributors.0.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
 });
 
 test('deduplicates contributors that appear multiple times with different roles', function () {
@@ -156,19 +156,19 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonCount(2, 'contributors');
+    $response->assertSessionDataCount(2, 'contributors');
 
-    $response->assertJsonPath('contributors.0.type', 'person');
-    $response->assertJsonPath('contributors.0.roles', ['Contact Person', 'Data Curator']);
-    $response->assertJsonPath('contributors.0.orcid', '0000-0001-5727-2427');
-    $response->assertJsonPath('contributors.0.affiliations.0.value', 'ExampleAffiliation');
-    $response->assertJsonPath('contributors.0.affiliations.1.value', 'Additional Affiliation');
+    $response->assertSessionDataPath('contributors.0.type', 'person');
+    $response->assertSessionDataPath('contributors.0.roles', ['Contact Person', 'Data Curator']);
+    $response->assertSessionDataPath('contributors.0.orcid', '0000-0001-5727-2427');
+    $response->assertSessionDataPath('contributors.0.affiliations.0.value', 'ExampleAffiliation');
+    $response->assertSessionDataPath('contributors.0.affiliations.1.value', 'Additional Affiliation');
 
-    $response->assertJsonPath('contributors.1.type', 'institution');
-    $response->assertJsonPath('contributors.1.roles', ['Distributor', 'Work Package Leader']);
-    $response->assertJsonPath('contributors.1.institutionName', 'Example Organization');
-    $response->assertJsonPath('contributors.1.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
-    $response->assertJsonPath('contributors.1.affiliations.1.value', 'Example Organization Headquarters');
+    $response->assertSessionDataPath('contributors.1.type', 'institution');
+    $response->assertSessionDataPath('contributors.1.roles', ['Distributor', 'Work Package Leader']);
+    $response->assertSessionDataPath('contributors.1.institutionName', 'Example Organization');
+    $response->assertSessionDataPath('contributors.1.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
+    $response->assertSessionDataPath('contributors.1.affiliations.1.value', 'Example Organization Headquarters');
 });
 
 test('deduplicates affiliations regardless of identifier casing', function () {
@@ -195,11 +195,11 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonCount(1, 'contributors.0.affiliations');
+    $response->assertSessionDataCount(1, 'contributors.0.affiliations');
     // Affiliation value can be either XML text or ROR-resolved name
-    expect($response->json('contributors.0.affiliations.0.value'))
+    expect($response->sessionData('contributors.0.affiliations.0.value'))
         ->toBeIn(['Example Organization', 'California Digital Library']);
-    $response->assertJsonPath('contributors.0.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
+    $response->assertSessionDataPath('contributors.0.affiliations.0.rorId', 'https://ror.org/03yrm5c26');
 });
 
 test('deduplicates institutions by normalising whitespace in names', function () {
@@ -224,9 +224,9 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonCount(1, 'contributors');
-    $response->assertJsonPath('contributors.0.type', 'institution');
-    $response->assertJsonPath('contributors.0.institutionName', 'Example   Organization');
+    $response->assertSessionDataCount(1, 'contributors');
+    $response->assertSessionDataPath('contributors.0.type', 'institution');
+    $response->assertSessionDataPath('contributors.0.institutionName', 'Example   Organization');
 });
 
 test('uploading a non-xml file returns validation errors', function () {
@@ -261,23 +261,23 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('descriptions.0.type', 'Abstract');
-    $response->assertJsonPath('descriptions.0.description', 'This is an example abstract describing the dataset.');
+    $response->assertSessionDataPath('descriptions.0.type', 'Abstract');
+    $response->assertSessionDataPath('descriptions.0.description', 'This is an example abstract describing the dataset.');
 
-    $response->assertJsonPath('descriptions.1.type', 'Methods');
-    $response->assertJsonPath('descriptions.1.description', 'These are the methods used to collect the data.');
+    $response->assertSessionDataPath('descriptions.1.type', 'Methods');
+    $response->assertSessionDataPath('descriptions.1.description', 'These are the methods used to collect the data.');
 
-    $response->assertJsonPath('descriptions.2.type', 'TechnicalInfo');
-    $response->assertJsonPath('descriptions.2.description', 'Technical information about the dataset.');
+    $response->assertSessionDataPath('descriptions.2.type', 'TechnicalInfo');
+    $response->assertSessionDataPath('descriptions.2.description', 'Technical information about the dataset.');
 
-    $response->assertJsonPath('descriptions.3.type', 'TableOfContents');
-    $response->assertJsonPath('descriptions.3.description', 'Table of contents for the dataset.');
+    $response->assertSessionDataPath('descriptions.3.type', 'TableOfContents');
+    $response->assertSessionDataPath('descriptions.3.description', 'Table of contents for the dataset.');
 
-    $response->assertJsonPath('descriptions.4.type', 'SeriesInformation');
-    $response->assertJsonPath('descriptions.4.description', 'Series information.');
+    $response->assertSessionDataPath('descriptions.4.type', 'SeriesInformation');
+    $response->assertSessionDataPath('descriptions.4.description', 'Series information.');
 
-    $response->assertJsonPath('descriptions.5.type', 'Other');
-    $response->assertJsonPath('descriptions.5.description', 'Other relevant information.');
+    $response->assertSessionDataPath('descriptions.5.type', 'Other');
+    $response->assertSessionDataPath('descriptions.5.description', 'Other relevant information.');
 });
 
 test('handles XML without descriptions gracefully', function () {
@@ -297,7 +297,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('descriptions', []);
+    $response->assertSessionDataPath('descriptions', []);
 });
 
 test('filters out empty descriptions from XML', function () {
@@ -320,7 +320,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $data = $response->json();
+    $data = $response->sessionData();
     expect($data['descriptions'])->toHaveCount(2);
     expect($data['descriptions'][0]['type'])->toBe('Abstract');
     expect($data['descriptions'][0]['description'])->toBe('Valid abstract');
@@ -350,26 +350,26 @@ XML;
         ->assertOk();
 
     // Test single date
-    $response->assertJsonPath('dates.0.dateType', 'accepted');
-    $response->assertJsonPath('dates.0.startDate', '2024-01-15');
-    $response->assertJsonPath('dates.0.endDate', '');
+    $response->assertSessionDataPath('dates.0.dateType', 'accepted');
+    $response->assertSessionDataPath('dates.0.startDate', '2024-01-15');
+    $response->assertSessionDataPath('dates.0.endDate', '');
 
     // Test date range
-    $response->assertJsonPath('dates.1.dateType', 'collected');
-    $response->assertJsonPath('dates.1.startDate', '2024-01-01');
-    $response->assertJsonPath('dates.1.endDate', '2024-12-31');
+    $response->assertSessionDataPath('dates.1.dateType', 'collected');
+    $response->assertSessionDataPath('dates.1.startDate', '2024-01-01');
+    $response->assertSessionDataPath('dates.1.endDate', '2024-12-31');
 
     // Test open range (only endDate)
-    $response->assertJsonPath('dates.2.dateType', 'available');
-    $response->assertJsonPath('dates.2.startDate', '');
-    $response->assertJsonPath('dates.2.endDate', '2025-01-01');
+    $response->assertSessionDataPath('dates.2.dateType', 'available');
+    $response->assertSessionDataPath('dates.2.startDate', '');
+    $response->assertSessionDataPath('dates.2.endDate', '2025-01-01');
 
     // Test additional dates
-    $response->assertJsonPath('dates.3.dateType', 'created');
-    $response->assertJsonPath('dates.3.startDate', '2023-05-20');
+    $response->assertSessionDataPath('dates.3.dateType', 'created');
+    $response->assertSessionDataPath('dates.3.startDate', '2023-05-20');
 
-    $response->assertJsonPath('dates.4.dateType', 'other');
-    $response->assertJsonPath('dates.4.startDate', '2024-06-15');
+    $response->assertSessionDataPath('dates.4.dateType', 'other');
+    $response->assertSessionDataPath('dates.4.startDate', '2024-06-15');
 });
 
 test('handles XML without dates gracefully', function () {
@@ -389,7 +389,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('dates', []);
+    $response->assertSessionDataPath('dates', []);
 });
 
 test('filters out empty dates from XML', function () {
@@ -412,7 +412,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $data = $response->json();
+    $data = $response->sessionData();
     expect($data['dates'])->toHaveCount(2);
     expect($data['dates'][0]['dateType'])->toBe('accepted');
     expect($data['dates'][0]['startDate'])->toBe('2024-01-15');
@@ -440,7 +440,7 @@ XML;
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    $response->assertJsonPath('dates.0.dateType', 'accepted');
-    $response->assertJsonPath('dates.1.dateType', 'available');
-    $response->assertJsonPath('dates.2.dateType', 'copyrighted');
+    $response->assertSessionDataPath('dates.0.dateType', 'accepted');
+    $response->assertSessionDataPath('dates.1.dateType', 'available');
+    $response->assertSessionDataPath('dates.2.dateType', 'copyrighted');
 });
