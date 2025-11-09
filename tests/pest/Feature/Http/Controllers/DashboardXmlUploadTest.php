@@ -136,8 +136,9 @@ it('can load editor with xml session parameter', function () {
 it('rejects invalid xml session key format', function () {
     $response = $this->get('/editor?xmlSession=invalid_key');
 
-    // Editor rejects invalid keys with redirect (not 404)
-    $response->assertRedirect();
+    // Security: Editor must reject session keys that don't start with 'xml_upload_' prefix
+    $response->assertStatus(400);
+    expect($response->exception->getMessage())->toBe('Invalid session key format');
 });
 
 it('rejects non-existent xml session key', function () {
@@ -196,4 +197,19 @@ XML;
     // Verify session contains large data
     $sessionKey = $response->json('sessionKey');
     expect(Session::has($sessionKey))->toBeTrue();
+});
+
+it('rejects invalid oldDatasetId parameter', function () {
+    // Test negative ID
+    $response = $this->get('/editor?oldDatasetId=-1');
+    $response->assertStatus(400);
+    expect($response->exception->getMessage())->toBe('Invalid dataset ID');
+
+    // Test zero
+    $response = $this->get('/editor?oldDatasetId=0');
+    $response->assertStatus(400);
+
+    // Test non-numeric string
+    $response = $this->get('/editor?oldDatasetId=abc');
+    $response->assertStatus(400);
 });

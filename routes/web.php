@@ -181,11 +181,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Check if we're loading from old database
         $oldDatasetId = $request->query('oldDatasetId');
 
+        // Validate oldDatasetId if provided
+        if ($oldDatasetId !== null && (! is_numeric($oldDatasetId) || (int) $oldDatasetId <= 0)) {
+            abort(400, 'Invalid dataset ID');
+        }
+
         // Check if we're loading from XML upload session
         $xmlSessionKey = $request->query('xmlSession');
 
-        // If xmlSession is provided, load from session
+        // If xmlSession is provided, validate prefix and load from session
         if ($xmlSessionKey !== null && is_string($xmlSessionKey)) {
+            // Security: Validate session key starts with expected prefix
+            if (! str_starts_with($xmlSessionKey, 'xml_upload_')) {
+                abort(400, 'Invalid session key format');
+            }
+
             $sessionData = session()->pull($xmlSessionKey);
 
             if (is_array($sessionData)) {
