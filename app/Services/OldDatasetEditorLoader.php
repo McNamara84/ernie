@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\OldDataset;
+use App\Support\NameParser;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -399,17 +400,21 @@ class OldDatasetEditorLoader
                 'position' => $index,
             ];
 
-            if (! empty($author->firstname)) {
-                $data['firstName'] = $author->firstname;
+            // Parse name using NameParser to handle both storage formats:
+            // 1. Separated: firstname/lastname in separate fields
+            // 2. Combined: "Lastname, Firstname" in name field
+            $parsedName = NameParser::parsePersonName(
+                $author->name,
+                $author->firstname,
+                $author->lastname
+            );
+
+            if (! empty($parsedName['firstName'])) {
+                $data['firstName'] = $parsedName['firstName'];
             }
 
-            if (! empty($author->lastname)) {
-                $data['lastName'] = $author->lastname;
-            }
-
-            // If no firstName/lastName, use full name as lastName
-            if (empty($data['firstName']) && empty($data['lastName']) && ! empty($author->name)) {
-                $data['lastName'] = $author->name;
+            if (! empty($parsedName['lastName'])) {
+                $data['lastName'] = $parsedName['lastName'];
             }
 
             if (! empty($author->orcid)) {
@@ -497,8 +502,20 @@ class OldDatasetEditorLoader
         $result = [];
 
         foreach ($contributors as $index => $contributor) {
-            // Determine type - if name has no firstname/lastname, it's likely an institution
-            $hasPersonName = ! empty($contributor->firstname) || ! empty($contributor->lastname);
+            // Parse name first to determine if it's a person or institution
+            $parsedName = NameParser::parsePersonName(
+                $contributor->name,
+                $contributor->firstname,
+                $contributor->lastname
+            );
+
+            // Determine type based on parsed name and explicit fields
+            // If we have firstname OR if name was comma-separated → person
+            // Otherwise (single name without comma) → likely institution
+            $hasPersonName = ! empty($contributor->firstname) ||
+                            ! empty($contributor->lastname) ||
+                            (! empty($contributor->name) && str_contains($contributor->name, ','));
+
             $type = $hasPersonName ? 'person' : 'institution';
 
             $data = [
@@ -507,17 +524,12 @@ class OldDatasetEditorLoader
             ];
 
             if ($type === 'person') {
-                if (! empty($contributor->firstname)) {
-                    $data['firstName'] = $contributor->firstname;
+                if (! empty($parsedName['firstName'])) {
+                    $data['firstName'] = $parsedName['firstName'];
                 }
 
-                if (! empty($contributor->lastname)) {
-                    $data['lastName'] = $contributor->lastname;
-                }
-
-                // If no firstName/lastName, use full name as lastName
-                if (empty($data['firstName']) && empty($data['lastName']) && ! empty($contributor->name)) {
-                    $data['lastName'] = $contributor->name;
+                if (! empty($parsedName['lastName'])) {
+                    $data['lastName'] = $parsedName['lastName'];
                 }
 
                 if (! empty($contributor->orcid)) {
