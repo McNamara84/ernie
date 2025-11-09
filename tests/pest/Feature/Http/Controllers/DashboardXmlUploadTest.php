@@ -254,3 +254,23 @@ it('rejects tampered xml session data with invalid scalar types', function () {
     $response->assertStatus(400);
     expect($response->exception->getMessage())->toContain('Invalid session data structure');
 });
+
+it('rejects tampered xml session data with mslKeywords as non-array', function () {
+    // Create a session with tampered data - mslKeywords should be array
+    $sessionKey = 'xml_upload_'.Str::random(40);
+
+    Session::put($sessionKey, [
+        'doi' => '10.1234/test',
+        'year' => '2024',
+        'titles' => [],
+        'licenses' => [],
+        'authors' => [],
+        'mslKeywords' => 'should be an array', // Invalid: string instead of array
+    ]);
+
+    $response = $this->get('/editor?xmlSession='.$sessionKey);
+
+    // Should reject invalid structure
+    $response->assertStatus(400);
+    expect($response->exception->getMessage())->toContain('mslKeywords must be an array');
+});

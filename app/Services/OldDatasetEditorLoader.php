@@ -178,7 +178,7 @@ class OldDatasetEditorLoader
             if ($identifier) {
                 $mappedLicenses[] = $identifier;
             } else {
-                Log::warning('OldDatasetEditorLoader: Could not map license', [
+                Log::warning('Could not map license from old database', [
                     'dataset_id' => $dataset->id,
                     'license_name' => $licenseName,
                 ]);

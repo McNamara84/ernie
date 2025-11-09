@@ -37,7 +37,7 @@ class ResourceFundingReference extends Model
     ];
 
     /**
-     * Get the resource that owns this funding reference.
+     * Get the resource that owns the funding reference.
      *
      * @return BelongsTo<Resource, static>
      */

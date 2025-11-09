@@ -205,7 +205,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             }
 
             // Validate session data structure to prevent tampering
-            $requiredArrayKeys = ['titles', 'licenses', 'authors', 'contributors', 'descriptions', 'dates', 'gcmdKeywords', 'freeKeywords', 'coverages', 'fundingReferences', 'mslLaboratories'];
+            $requiredArrayKeys = ['titles', 'licenses', 'authors', 'contributors', 'descriptions', 'dates', 'gcmdKeywords', 'freeKeywords', 'mslKeywords', 'coverages', 'fundingReferences', 'mslLaboratories'];
             foreach ($requiredArrayKeys as $key) {
                 if (isset($sessionData[$key]) && ! is_array($sessionData[$key])) {
                     abort(400, 'Invalid session data structure: '.$key.' must be an array');
@@ -237,6 +237,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'dates' => $sessionData['dates'] ?? [],
                 'gcmdKeywords' => $sessionData['gcmdKeywords'] ?? [],
                 'freeKeywords' => $sessionData['freeKeywords'] ?? [],
+                'mslKeywords' => $sessionData['mslKeywords'] ?? [],
                 'coverages' => $sessionData['coverages'] ?? [],
                 'relatedWorks' => [], // XML upload doesn't support related works yet
                 'fundingReferences' => $sessionData['fundingReferences'] ?? [],
