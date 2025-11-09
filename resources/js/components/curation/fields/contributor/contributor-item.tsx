@@ -82,7 +82,7 @@ export default function ContributorItem({
     // Wrapper for onPersonFieldChange that marks user interaction
     const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName', value: string) => {
         setHasUserInteracted(true);
-        handlePersonFieldChange(field, value);
+        onPersonFieldChange(field, value);
     };
 
     // ORCID Auto-Fill State
