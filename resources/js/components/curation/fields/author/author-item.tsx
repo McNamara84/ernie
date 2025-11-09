@@ -10,7 +10,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
 import { CheckCircle2, ExternalLink, GripVertical, Loader2, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,9 @@ export default function AuthorItem({
         opacity: isDragging ? 0.5 : 1,
     };
     const contactLabelTextId = `${author.id}-contact-label-text`;
+    
+    // Track if this is the initial mount to prevent auto-suggest on load
+    const isInitialMount = useRef(true);
     
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
@@ -218,8 +221,17 @@ export default function AuthorItem({
     /**
      * Auto-suggest ORCIDs based on name and affiliations
      * Triggered when firstName + lastName are filled and ORCID is empty
+     * 
+     * IMPORTANT: Skip auto-suggest on initial mount to prevent unwanted searches
+     * when loading old records into the editor.
      */
     useEffect(() => {
+        // Skip auto-suggest on initial mount (e.g., when loading old datasets)
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
         const searchForOrcid = async () => {
             // Only search if person type, has name, and no ORCID yet
             if (
@@ -470,7 +482,7 @@ export default function AuthorItem({
                                     {author.type === 'person' && (
                                         <OrcidSearchDialog
                                             onSelect={handleSelectSuggestion}
-                                            triggerClassName="h-10 w-10 flex-shrink-0 p-0 hover:bg-accent"
+                                            triggerClassName="h-10 w-10 shrink-0 p-0 hover:bg-accent"
                                         />
                                     )}
                                 </div>
@@ -521,7 +533,7 @@ export default function AuthorItem({
                                                             </p>
                                                         )}
                                                     </div>
-                                                    <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                                    <ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
                                                 </div>
                                             </button>
                                         ))}
