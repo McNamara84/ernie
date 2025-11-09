@@ -10,7 +10,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { TagData, TagifySettings } from '@yaireo/tagify';
 import { CheckCircle2, ExternalLink, GripVertical, Loader2, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -78,8 +78,14 @@ export default function AuthorItem({
     };
     const contactLabelTextId = `${author.id}-contact-label-text`;
     
-    // Track if this is the initial mount to prevent auto-suggest on load
-    const isInitialMount = useRef(true);
+    // Track user interactions to prevent auto-suggest on initial load
+    const [hasUserInteracted, setHasUserInteracted] = useState(false);
+    
+    // Wrapper for onPersonFieldChange that marks user interaction
+    const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
+        setHasUserInteracted(true);
+        onPersonFieldChange(field, value);
+    };
     
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
@@ -138,15 +144,15 @@ export default function AuthorItem({
         if (author.type !== 'person') return;
         
         // Set the ORCID and clear any previous errors
-        onPersonFieldChange('orcid', orcid);
+        handlePersonFieldChange('orcid', orcid);
         setVerificationError(null);
         
         // Auto-fill name fields if empty
         if (!author.firstName && searchResult.firstName) {
-            onPersonFieldChange('firstName', searchResult.firstName);
+            handlePersonFieldChange('firstName', searchResult.firstName);
         }
         if (!author.lastName && searchResult.lastName) {
-            onPersonFieldChange('lastName', searchResult.lastName);
+            handlePersonFieldChange('lastName', searchResult.lastName);
         }
         
         // Now verify and fetch full details
@@ -222,13 +228,12 @@ export default function AuthorItem({
      * Auto-suggest ORCIDs based on name and affiliations
      * Triggered when firstName + lastName are filled and ORCID is empty
      * 
-     * IMPORTANT: Skip auto-suggest on initial mount to prevent unwanted searches
+     * IMPORTANT: Only trigger after user interaction to prevent unwanted searches
      * when loading old records into the editor.
      */
     useEffect(() => {
-        // Skip auto-suggest on initial mount (e.g., when loading old datasets)
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
+        // Skip auto-suggest if user hasn't interacted yet (prevents triggering on load)
+        if (!hasUserInteracted) {
             return;
         }
 
@@ -278,7 +283,7 @@ export default function AuthorItem({
         const timeoutId = setTimeout(searchForOrcid, 800);
 
         return () => clearTimeout(timeoutId);
-    }, [author]);
+    }, [author, hasUserInteracted]);
 
     /**
      * Auto-verify and fill when a valid ORCID is entered
@@ -472,7 +477,7 @@ export default function AuthorItem({
                                         type="text"
                                         value={author.orcid || ''}
                                         onChange={(event) =>
-                                            onPersonFieldChange('orcid', event.target.value)
+                                            handlePersonFieldChange('orcid', event.target.value)
                                         }
                                         placeholder="0000-0000-0000-0000"
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -546,7 +551,7 @@ export default function AuthorItem({
                                 label="First name"
                                 value={author.firstName || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('firstName', event.target.value)
+                                    handlePersonFieldChange('firstName', event.target.value)
                                 }
                                 containerProps={{ className: 'md:col-span-3' }}
                             />
@@ -555,7 +560,7 @@ export default function AuthorItem({
                                 label="Last name"
                                 value={author.lastName || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('lastName', event.target.value)
+                                    handlePersonFieldChange('lastName', event.target.value)
                                 }
                                 containerProps={{ className: 'md:col-span-3' }}
                                 required
@@ -646,7 +651,7 @@ export default function AuthorItem({
                                 label="Email address"
                                 value={author.email || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('email', event.target.value)
+                                    handlePersonFieldChange('email', event.target.value)
                                 }
                                 containerProps={{ className: 'md:col-span-3' }}
                                 required
@@ -657,7 +662,7 @@ export default function AuthorItem({
                                 label="Website"
                                 value={author.website || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('website', event.target.value)
+                                    handlePersonFieldChange('website', event.target.value)
                                 }
                                 placeholder="https://example.org"
                                 containerProps={{ className: 'md:col-span-3' }}
