@@ -15,6 +15,27 @@ class OldDatasetEditorLoader
     private const DATASET_CONNECTION = 'metaworks';
 
     /**
+     * Normalize a name for comparison (lowercase, trim, replace umlauts).
+     */
+    private function normalizeName(string $name): string
+    {
+        // Replace German umlauts and ß
+        $replacements = [
+            'ä' => 'ae',
+            'ö' => 'oe',
+            'ü' => 'ue',
+            'Ä' => 'Ae',
+            'Ö' => 'Oe',
+            'Ü' => 'Ue',
+            'ß' => 'ss',
+        ];
+
+        $normalized = str_replace(array_keys($replacements), array_values($replacements), $name);
+
+        return strtolower(trim($normalized));
+    }
+
+    /**
      * Load complete dataset from old database and transform for editor.
      *
      * @param  int  $id  Old dataset ID
@@ -431,8 +452,9 @@ class OldDatasetEditorLoader
                 ->where('role', 'pointOfContact')
                 ->exists();
 
-            // Method 2: Check if there's another entry with same name and pointOfContact role
-            $isContactOtherEntry = DB::connection(self::DATASET_CONNECTION)
+            // Method 2: Check if there's another entry with same normalized name and pointOfContact role
+            $normalizedAuthorName = $this->normalizeName($author->name);
+            $pointOfContactEntries = DB::connection(self::DATASET_CONNECTION)
                 ->table('resourceagent as ra')
                 ->join('role as r', function ($join) {
                     $join->on('ra.resource_id', '=', 'r.resourceagent_resource_id')
@@ -440,11 +462,51 @@ class OldDatasetEditorLoader
                 })
                 ->where('ra.resource_id', $id)
                 ->where('r.role', 'pointOfContact')
-                ->where(DB::raw('LOWER(TRIM(ra.name))'), strtolower(trim($author->name)))
                 ->where('ra.order', '!=', $author->order)  // Exclude same entry
-                ->exists();
+                ->select('ra.order', 'ra.name')
+                ->get();
+
+            $isContactOtherEntry = false;
+            $contactInfoOrder = null;
+
+            foreach ($pointOfContactEntries as $entry) {
+                if ($this->normalizeName($entry->name) === $normalizedAuthorName) {
+                    $isContactOtherEntry = true;
+                    $contactInfoOrder = $entry->order;
+                    break;
+                }
+            }
 
             $data['isContact'] = $isContactSameEntry || $isContactOtherEntry;
+
+            // If this is a contact person, load email/website from contactinfo table
+            if ($data['isContact']) {
+                // Try to load from the same entry first
+                $contactInfo = DB::connection(self::DATASET_CONNECTION)
+                    ->table('contactinfo')
+                    ->where('resourceagent_resource_id', $id)
+                    ->where('resourceagent_order', $author->order)
+                    ->first();
+
+                // If not found and we have a matching pointOfContact entry, load from there
+                if (! $contactInfo && $contactInfoOrder) {
+                    $contactInfo = DB::connection(self::DATASET_CONNECTION)
+                        ->table('contactinfo')
+                        ->where('resourceagent_resource_id', $id)
+                        ->where('resourceagent_order', $contactInfoOrder)
+                        ->first();
+                }
+
+                if ($contactInfo) {
+                    if (! empty($contactInfo->email)) {
+                        $data['email'] = $contactInfo->email;
+                    }
+
+                    if (! empty($contactInfo->website)) {
+                        $data['website'] = $contactInfo->website;
+                    }
+                }
+            }
 
             // Load affiliations for this author
             $data['affiliations'] = $this->loadResourceAgentAffiliations($author->resource_id, $author->order);
@@ -519,8 +581,8 @@ class OldDatasetEditorLoader
         // Build a set of normalized author names for comparison
         $authorNameSet = [];
         foreach ($authorNames as $author) {
-            // Normalize name for comparison (trim and lowercase)
-            $normalizedName = strtolower(trim($author->name));
+            // Normalize name for comparison (lowercase, trim, replace umlauts)
+            $normalizedName = $this->normalizeName($author->name);
             $authorNameSet[$normalizedName] = true;
         }
 
@@ -529,7 +591,7 @@ class OldDatasetEditorLoader
 
         foreach ($contributors as $contributor) {
             // Skip this contributor if they have the same name as an Author (likely duplicate with pointOfContact role)
-            $normalizedContributorName = strtolower(trim($contributor->name));
+            $normalizedContributorName = $this->normalizeName($contributor->name);
             if (isset($authorNameSet[$normalizedContributorName])) {
                 continue;
             }
