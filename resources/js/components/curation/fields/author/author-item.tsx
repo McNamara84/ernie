@@ -78,6 +78,18 @@ export default function AuthorItem({
     };
     const contactLabelTextId = `${author.id}-contact-label-text`;
     
+    // Track user interactions with name fields to prevent auto-suggest on initial load
+    const [hasUserInteracted, setHasUserInteracted] = useState(false);
+    
+    // Wrapper for onPersonFieldChange that marks user interaction for name fields only
+    // Only firstName/lastName changes should enable ORCID auto-suggest, not email/website/orcid
+    const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
+        if (field === 'firstName' || field === 'lastName') {
+            setHasUserInteracted(true);
+        }
+        onPersonFieldChange(field, value);
+    };
+    
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -135,6 +147,7 @@ export default function AuthorItem({
         if (author.type !== 'person') return;
         
         // Set the ORCID and clear any previous errors
+        // Use onPersonFieldChange directly to avoid triggering hasUserInteracted
         onPersonFieldChange('orcid', orcid);
         setVerificationError(null);
         
@@ -218,8 +231,16 @@ export default function AuthorItem({
     /**
      * Auto-suggest ORCIDs based on name and affiliations
      * Triggered when firstName + lastName are filled and ORCID is empty
+     * 
+     * IMPORTANT: Only trigger after user interaction to prevent unwanted searches
+     * when loading old records into the editor.
      */
     useEffect(() => {
+        // Skip auto-suggest if user hasn't interacted yet (prevents triggering on load)
+        if (!hasUserInteracted) {
+            return;
+        }
+
         const searchForOrcid = async () => {
             // Only search if person type, has name, and no ORCID yet
             if (
@@ -266,7 +287,7 @@ export default function AuthorItem({
         const timeoutId = setTimeout(searchForOrcid, 800);
 
         return () => clearTimeout(timeoutId);
-    }, [author]);
+    }, [author, hasUserInteracted]);
 
     /**
      * Auto-verify and fill when a valid ORCID is entered
@@ -460,7 +481,7 @@ export default function AuthorItem({
                                         type="text"
                                         value={author.orcid || ''}
                                         onChange={(event) =>
-                                            onPersonFieldChange('orcid', event.target.value)
+                                            handlePersonFieldChange('orcid', event.target.value)
                                         }
                                         placeholder="0000-0000-0000-0000"
                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -470,7 +491,7 @@ export default function AuthorItem({
                                     {author.type === 'person' && (
                                         <OrcidSearchDialog
                                             onSelect={handleSelectSuggestion}
-                                            triggerClassName="h-10 w-10 flex-shrink-0 p-0 hover:bg-accent"
+                                            triggerClassName="h-10 w-10 shrink-0 p-0 hover:bg-accent"
                                         />
                                     )}
                                 </div>
@@ -521,7 +542,7 @@ export default function AuthorItem({
                                                             </p>
                                                         )}
                                                     </div>
-                                                    <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                                    <ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
                                                 </div>
                                             </button>
                                         ))}
@@ -534,7 +555,7 @@ export default function AuthorItem({
                                 label="First name"
                                 value={author.firstName || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('firstName', event.target.value)
+                                    handlePersonFieldChange('firstName', event.target.value)
                                 }
                                 containerProps={{ className: 'md:col-span-3' }}
                             />
@@ -543,7 +564,7 @@ export default function AuthorItem({
                                 label="Last name"
                                 value={author.lastName || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('lastName', event.target.value)
+                                    handlePersonFieldChange('lastName', event.target.value)
                                 }
                                 containerProps={{ className: 'md:col-span-3' }}
                                 required
@@ -634,7 +655,7 @@ export default function AuthorItem({
                                 label="Email address"
                                 value={author.email || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('email', event.target.value)
+                                    handlePersonFieldChange('email', event.target.value)
                                 }
                                 containerProps={{ className: 'md:col-span-3' }}
                                 required
@@ -645,7 +666,7 @@ export default function AuthorItem({
                                 label="Website"
                                 value={author.website || ''}
                                 onChange={(event) =>
-                                    onPersonFieldChange('website', event.target.value)
+                                    handlePersonFieldChange('website', event.target.value)
                                 }
                                 placeholder="https://example.org"
                                 containerProps={{ className: 'md:col-span-3' }}

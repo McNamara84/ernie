@@ -15,6 +15,125 @@ class OldDatasetEditorLoader
     private const DATASET_CONNECTION = 'metaworks';
 
     /**
+     * Normalize a name for comparison (lowercase, trim, replace umlauts).
+     *
+     * This method is critical for handling German names with different spellings:
+     * - "Förste" → "foerste"
+     * - "Foerste" → "foerste"
+     * - "Müller" → "mueller"
+     * - "Mueller" → "mueller"
+     *
+     * Used in both loadAuthors() and loadContributors() for deduplication.
+     */
+    private function normalizeName(string $name): string
+    {
+        // Apply lowercase first, then replace umlauts
+        $lowercased = strtolower(trim($name));
+
+        $replacements = [
+            'ä' => 'ae',
+            'ö' => 'oe',
+            'ü' => 'ue',
+            'ß' => 'ss',
+        ];
+
+        return str_replace(array_keys($replacements), array_values($replacements), $lowercased);
+    }
+
+    /**
+     * Load all pointOfContact entries for a resource.
+     *
+     * Fetches all entries with pointOfContact role to avoid N+1 queries.
+     *
+     * @param  int  $resourceId  Resource ID
+     * @return array<int, object{order: int, name: string}> Indexed by order
+     */
+    private function loadPointOfContactEntries(int $resourceId): array
+    {
+        $entries = DB::connection(self::DATASET_CONNECTION)
+            ->table('resourceagent as ra')
+            ->join('role as r', function ($join) {
+                $join->on('ra.resource_id', '=', 'r.resourceagent_resource_id')
+                    ->on('ra.order', '=', 'r.resourceagent_order');
+            })
+            ->where('ra.resource_id', $resourceId)
+            ->where('r.role', 'pointOfContact')
+            ->select('ra.order', 'ra.name')
+            ->get();
+
+        /** @var array<int, object{order: int, name: string}> */
+        $result = [];
+        foreach ($entries as $entry) {
+            /** @var object{order: int, name: string} $entry */
+            $result[$entry->order] = $entry;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Detect if an author is a contact person and load contact info.
+     *
+     * Two detection methods:
+     * 1. Same order has pointOfContact role
+     * 2. Different order with matching normalized name has pointOfContact role
+     *
+     * @param  int  $resourceId  Resource ID
+     * @param  int  $authorOrder  Author's order
+     * @param  string  $authorName  Author's name
+     * @param  array<int, object{order: int, name: string}>  $pointOfContactEntries  All pointOfContact entries
+     * @return array{isContact: bool, email: string|null, website: string|null}
+     */
+    private function detectContactPerson(int $resourceId, int $authorOrder, string $authorName, array $pointOfContactEntries): array
+    {
+        $isContactSameEntry = isset($pointOfContactEntries[$authorOrder]);
+        $contactInfoOrder = null;
+
+        if (! $isContactSameEntry) {
+            $normalizedAuthorName = $this->normalizeName($authorName);
+            foreach ($pointOfContactEntries as $entry) {
+                if ($entry->order !== $authorOrder && $this->normalizeName($entry->name) === $normalizedAuthorName) {
+                    $contactInfoOrder = $entry->order;
+                    break;
+                }
+            }
+        }
+
+        $isContact = $isContactSameEntry || $contactInfoOrder !== null;
+        $email = null;
+        $website = null;
+
+        if ($isContact) {
+            // Try to load from the same entry first
+            $contactInfo = DB::connection(self::DATASET_CONNECTION)
+                ->table('contactinfo')
+                ->where('resourceagent_resource_id', $resourceId)
+                ->where('resourceagent_order', $authorOrder)
+                ->first();
+
+            // If not found and we have a matching pointOfContact entry, load from there
+            if (! $contactInfo && $contactInfoOrder) {
+                $contactInfo = DB::connection(self::DATASET_CONNECTION)
+                    ->table('contactinfo')
+                    ->where('resourceagent_resource_id', $resourceId)
+                    ->where('resourceagent_order', $contactInfoOrder)
+                    ->first();
+            }
+
+            if ($contactInfo) {
+                $email = ! empty($contactInfo->email) ? $contactInfo->email : null;
+                $website = ! empty($contactInfo->website) ? $contactInfo->website : null;
+            }
+        }
+
+        return [
+            'isContact' => $isContact,
+            'email' => $email,
+            'website' => $website,
+        ];
+    }
+
+    /**
      * Load complete dataset from old database and transform for editor.
      *
      * @param  int  $id  Old dataset ID
@@ -392,9 +511,13 @@ class OldDatasetEditorLoader
                 ORDER BY ra.order ASC
             ', [$id, 'Creator']);
 
+        // Pre-fetch all pointOfContact entries to avoid N+1 queries
+        $pointOfContactEntries = $this->loadPointOfContactEntries($id);
+
         $result = [];
 
         foreach ($authors as $index => $author) {
+            /** @var object{resource_id: int, order: int, name: string, firstname: string|null, lastname: string|null, identifier: string|null, identifiertype: string|null, nametype: string|null, role: string} $author */
             $data = [
                 'type' => 'person',
                 'position' => $index,
@@ -417,28 +540,21 @@ class OldDatasetEditorLoader
                 $data['lastName'] = $parsedName['lastName'];
             }
 
-            if (! empty($author->orcid)) {
-                $data['orcid'] = $author->orcid;
+            // Check if author has ORCID (stored in identifier column with identifiertype = 'ORCID')
+            if (! empty($author->identifier) && $author->identifiertype === 'ORCID') {
+                $data['orcid'] = $author->identifier;
             }
 
-            // Check if this is a contact person (check for pointOfContact role)
-            $isContact = DB::connection(self::DATASET_CONNECTION)
-                ->table('role')
-                ->where('resourceagent_resource_id', $id)
-                ->where('resourceagent_order', $author->order)
-                ->where('role', 'pointOfContact')
-                ->exists();
+            // Detect if this is a contact person and load contact info
+            $contactInfo = $this->detectContactPerson($id, $author->order, $author->name, $pointOfContactEntries);
+            $data['isContact'] = $contactInfo['isContact'];
 
-            $data['isContact'] = $isContact;
+            if ($contactInfo['email']) {
+                $data['email'] = $contactInfo['email'];
+            }
 
-            if ($data['isContact']) {
-                if (! empty($author->email)) {
-                    $data['email'] = $author->email;
-                }
-
-                if (! empty($author->website)) {
-                    $data['website'] = $author->website;
-                }
+            if ($contactInfo['website']) {
+                $data['website'] = $contactInfo['website'];
             }
 
             // Load affiliations for this author
@@ -499,9 +615,37 @@ class OldDatasetEditorLoader
                 ORDER BY ra.order ASC
             ', [$id, 'Creator']);
 
-        $result = [];
+        // Get list of Author names (from Creator role entries) to detect duplicates
+        // Authors who also have pointOfContact role (in separate entries) should NOT be loaded as Contributors
+        $authorNames = DB::connection(self::DATASET_CONNECTION)
+            ->select('
+                SELECT DISTINCT ra.name, ra.firstname, ra.lastname
+                FROM resourceagent ra
+                INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                    AND ra.order = r.resourceagent_order
+                WHERE ra.resource_id = ? 
+                    AND r.role = ?
+            ', [$id, 'Creator']);
 
-        foreach ($contributors as $index => $contributor) {
+        // Build a set of normalized author names for comparison
+        $authorNameSet = [];
+        foreach ($authorNames as $author) {
+            // Normalize name for comparison (lowercase, trim, replace umlauts)
+            $normalizedName = $this->normalizeName($author->name);
+            $authorNameSet[$normalizedName] = true;
+        }
+
+        $result = [];
+        $contributorPosition = 0;
+
+        foreach ($contributors as $contributor) {
+            /** @var object{resource_id: int, order: int, name: string, firstname: string|null, lastname: string|null, identifier: string|null, identifiertype: string|null, nametype: string|null, roles: string} $contributor */
+
+            // Skip this contributor if they have the same name as an Author (likely duplicate with pointOfContact role)
+            $normalizedContributorName = $this->normalizeName($contributor->name);
+            if (isset($authorNameSet[$normalizedContributorName])) {
+                continue;
+            }
             // Parse name to handle both storage formats:
             // 1. Separated: firstname/lastname in separate fields
             // 2. Combined: "Lastname, Firstname" in name field
@@ -516,8 +660,10 @@ class OldDatasetEditorLoader
 
             $data = [
                 'type' => $type,
-                'position' => $index,
+                'position' => $contributorPosition,
             ];
+
+            $contributorPosition++;
 
             if ($type === 'person') {
                 if (! empty($parsedName['firstName'])) {
@@ -528,8 +674,9 @@ class OldDatasetEditorLoader
                     $data['lastName'] = $parsedName['lastName'];
                 }
 
-                if (! empty($contributor->orcid)) {
-                    $data['orcid'] = $contributor->orcid;
+                // Check if contributor has ORCID (stored in identifier column with identifiertype = 'ORCID')
+                if (! empty($contributor->identifier) && $contributor->identifiertype === 'ORCID') {
+                    $data['orcid'] = $contributor->identifier;
                 }
             } else {
                 // Institution

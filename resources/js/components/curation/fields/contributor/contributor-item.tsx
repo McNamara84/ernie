@@ -76,6 +76,18 @@ export default function ContributorItem({
         opacity: isDragging ? 0.5 : 1,
     };
 
+    // Track user interactions to prevent auto-suggest on initial load
+    const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
+    // Wrapper for onPersonFieldChange that marks user interaction for name fields only
+    // Only firstName/lastName changes should enable ORCID auto-suggest, not orcid field itself
+    const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName', value: string) => {
+        if (field === 'firstName' || field === 'lastName') {
+            setHasUserInteracted(true);
+        }
+        onPersonFieldChange(field, value);
+    };
+
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
@@ -142,6 +154,7 @@ export default function ContributorItem({
         if (contributor.type !== 'person') return;
         
         // Set the ORCID and clear any previous errors
+        // Use onPersonFieldChange directly to avoid triggering hasUserInteracted
         onPersonFieldChange('orcid', orcid);
         setVerificationError(null);
         
@@ -224,8 +237,16 @@ export default function ContributorItem({
     /**
      * Auto-suggest ORCIDs based on name and affiliations
      * Triggered when firstName + lastName are filled and ORCID is empty
+     * 
+     * IMPORTANT: Only trigger after user interaction to prevent unwanted searches
+     * when loading old records into the editor.
      */
     useEffect(() => {
+        // Skip auto-suggest if user hasn't interacted yet (prevents triggering on load)
+        if (!hasUserInteracted) {
+            return;
+        }
+
         const searchForOrcid = async () => {
             // Only search if person type, has name, and no ORCID yet
             if (
@@ -272,7 +293,7 @@ export default function ContributorItem({
         const timeoutId = setTimeout(searchForOrcid, 800);
 
         return () => clearTimeout(timeoutId);
-    }, [contributor]);
+    }, [contributor, hasUserInteracted]);
 
     /**
      * Auto-verify and fill when a valid ORCID is entered
@@ -524,7 +545,7 @@ export default function ContributorItem({
                                     type="text"
                                     value={contributor.orcid || ''}
                                     onChange={(event) =>
-                                        onPersonFieldChange('orcid', event.target.value)
+                                        handlePersonFieldChange('orcid', event.target.value)
                                     }
                                     placeholder="0000-0000-0000-0000"
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -534,7 +555,7 @@ export default function ContributorItem({
                                 {contributor.type === 'person' && (
                                     <OrcidSearchDialog
                                         onSelect={handleSelectSuggestion}
-                                        triggerClassName="h-10 w-10 flex-shrink-0"
+                                        triggerClassName="h-10 w-10 shrink-0"
                                     />
                                 )}
                             </div>
@@ -585,7 +606,7 @@ export default function ContributorItem({
                                                         </p>
                                                     )}
                                                 </div>
-                                                <ExternalLink className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                                <ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
                                             </div>
                                         </button>
                                     ))}
@@ -598,7 +619,7 @@ export default function ContributorItem({
                             label="First name"
                             value={contributor.firstName || ''}
                             onChange={(event) =>
-                                onPersonFieldChange('firstName', event.target.value)
+                                handlePersonFieldChange('firstName', event.target.value)
                             }
                             containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                         />
@@ -607,7 +628,7 @@ export default function ContributorItem({
                             label="Last name"
                             value={contributor.lastName || ''}
                             onChange={(event) =>
-                                onPersonFieldChange('lastName', event.target.value)
+                                handlePersonFieldChange('lastName', event.target.value)
                             }
                             containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                             required
