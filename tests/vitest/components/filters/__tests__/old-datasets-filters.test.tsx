@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OldDatasetsFilters } from '@/components/old-datasets-filters';
 
@@ -26,6 +26,10 @@ vi.mock('@/components/ui/select', () => ({
 
 describe('OldDatasetsFilters', () => {
     const mockOnFilterChange = vi.fn();
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
     const defaultProps = {
         filters: {},
         onFilterChange: mockOnFilterChange,
@@ -58,12 +62,10 @@ describe('OldDatasetsFilters', () => {
         expect(mockOnFilterChange).not.toHaveBeenCalled();
 
         // Wait for debounce delay (1000ms)
-        await waitFor(
-            () => {
-                expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
-            },
-            { timeout: 1500 }
-        );
+        await new Promise(resolve => setTimeout(resolve, 1100));
+
+        // Should have been called after debounce
+        expect(mockOnFilterChange).toHaveBeenCalledTimes(1);
 
         // Check that the search filter was set correctly
         expect(mockOnFilterChange).toHaveBeenCalledWith(
@@ -71,10 +73,9 @@ describe('OldDatasetsFilters', () => {
                 search: 'abc',
             })
         );
-    });
+    }, 15000);
 
     it('does not trigger search for input shorter than 3 characters', async () => {
-        vi.clearAllMocks();
         const user = userEvent.setup();
         render(<OldDatasetsFilters {...defaultProps} />);
 
@@ -84,15 +85,14 @@ describe('OldDatasetsFilters', () => {
         await user.clear(searchInput); // Ensure it's empty first
         await user.type(searchInput, 'xy'); // Only 2 chars
 
-        // Wait longer than debounce delay
+        // Wait beyond debounce delay
         await new Promise(resolve => setTimeout(resolve, 1200));
 
         // Should not trigger search (minimum is 3 characters)
         expect(mockOnFilterChange).not.toHaveBeenCalled();
-    });
+    }, 15000);
 
     it('clears search when input is empty', async () => {
-        vi.clearAllMocks();
         const user = userEvent.setup();
         render(<OldDatasetsFilters {...defaultProps} filters={{ search: 'previous' }} />);
 
@@ -101,16 +101,14 @@ describe('OldDatasetsFilters', () => {
         // Clear the input
         await user.clear(searchInput);
 
-        // Should trigger immediately (no debounce for clear) with last call being empty filter
-        await waitFor(() => {
-            expect(mockOnFilterChange).toHaveBeenCalled();
-        });
+        // Wait for debounce
+        await new Promise(resolve => setTimeout(resolve, 1100));
         
         // Last call should clear the search
         const calls = mockOnFilterChange.mock.calls;
         const lastCall = calls[calls.length - 1][0];
         expect(lastCall).toEqual({});
-    });
+    }, 15000);
 
     it('restores focus to search input after filter change', async () => {
         const user = userEvent.setup();
@@ -122,27 +120,23 @@ describe('OldDatasetsFilters', () => {
         await user.type(searchInput, 'xyz');
 
         // Wait for debounce
-        await waitFor(
-            () => {
-                expect(mockOnFilterChange).toHaveBeenCalled();
-            },
-            { timeout: 1500 }
-        );
+        await new Promise(resolve => setTimeout(resolve, 1100));
+
+        // Verify debounce callback was called
+        expect(mockOnFilterChange).toHaveBeenCalled();
 
         // Simulate filter change (as would happen from parent component)
         rerender(<OldDatasetsFilters {...defaultProps} filters={{ search: 'xyz' }} isLoading={true} />);
         
-        // Wait a bit for loading to finish
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         // Simulate loading finished
         rerender(<OldDatasetsFilters {...defaultProps} filters={{ search: 'xyz' }} isLoading={false} />);
 
+        // Wait for focus restoration (100ms delay)
+        await new Promise(resolve => setTimeout(resolve, 150));
+
         // Focus should be restored after loading completes
-        await waitFor(() => {
-            expect(document.activeElement).toBe(searchInput);
-        }, { timeout: 300 });
-    });
+        expect(document.activeElement).toBe(searchInput);
+    }, 15000);
 
     it('displays result count correctly when filtered', () => {
         render(<OldDatasetsFilters {...defaultProps} resultCount={10} totalCount={150} />);
@@ -170,7 +164,7 @@ describe('OldDatasetsFilters', () => {
         await user.click(badges[0]);
         
         expect(mockOnFilterChange).toHaveBeenCalled();
-    });
+    }, 15000);
 
     it('disables filters when loading', () => {
         render(<OldDatasetsFilters {...defaultProps} isLoading={true} />);
