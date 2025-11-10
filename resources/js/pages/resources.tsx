@@ -1075,12 +1075,6 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             isLoading={loading}
                         />
 
-                        <div className="mb-4 flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="text-xs">
-                                Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
-                            </Badge>
-                        </div>
-
                         {sortedResources.length === 0 && !loading && !loadingError ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
@@ -1089,6 +1083,12 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                 }
                             </div>
                         ) : (
+                            <>
+                                <div className="mb-4 flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="text-xs">
+                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
+                                    </Badge>
+                                </div>
                             <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <caption className="sr-only">
@@ -1276,6 +1276,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                         </div>
                                     )}
                                 </div>
+                            </>
                         )}
                     </CardContent>
                 </Card>

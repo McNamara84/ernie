@@ -24,12 +24,17 @@ vi.mock('@/components/ui/select', () => ({
     SelectValue: () => null,
 }));
 
-describe('ResourcesFilters', () => {
+describe('ResourcesFilters Component', () => {
     const mockOnFilterChange = vi.fn();
 
     beforeEach(() => {
         vi.clearAllMocks();
     });
+
+    // Note: We use real timers with setTimeout instead of vi.useFakeTimers() because:
+    // 1. userEvent.type() internally uses timers that conflict with fake timers
+    // 2. Fake timers caused timeouts and "Failed to execute 'dispatchEvent'" errors
+    // 3. Real timers with increased timeout (15s) provide stable, reliable tests
     const defaultProps = {
         filters: {},
         onFilterChange: mockOnFilterChange,

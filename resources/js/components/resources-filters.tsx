@@ -117,12 +117,6 @@ export function ResourcesFilters({
             const newFilters = { ...filters };
             newFilters.search = value.trim();
             onFilterChange(newFilters);
-            
-            // Restore focus to search input after filter update
-            // Use requestAnimationFrame to ensure DOM has updated
-            requestAnimationFrame(() => {
-                searchInputRef.current?.focus();
-            });
         }, SEARCH_DEBOUNCE_MS);
     }, [filters, onFilterChange]);
 

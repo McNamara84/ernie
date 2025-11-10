@@ -1176,12 +1176,6 @@ export default function OldDatasets({
                             isLoading={loading || isSorting}
                         />
 
-                        <div className="mb-4 flex items-center gap-2 flex-wrap">
-                            <Badge variant="outline" className="text-xs">
-                                Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
-                            </Badge>
-                        </div>
-
                         {sortedDatasets.length === 0 && !isSorting && !loading && !loadingError ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
@@ -1190,6 +1184,12 @@ export default function OldDatasets({
                                 }
                             </div>
                         ) : (
+                            <>
+                                <div className="mb-4 flex items-center gap-2 flex-wrap">
+                                    <Badge variant="outline" className="text-xs">
+                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
+                                    </Badge>
+                                </div>
                             <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-50 dark:bg-gray-800">
@@ -1326,6 +1326,7 @@ export default function OldDatasets({
                                         </div>
                                     )}
                                 </div>
+                            </>
                         )}
                     </CardContent>
                 </Card>
