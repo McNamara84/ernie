@@ -417,8 +417,9 @@ class OldDatasetEditorLoader
                 $data['lastName'] = $parsedName['lastName'];
             }
 
-            if (! empty($author->orcid)) {
-                $data['orcid'] = $author->orcid;
+            // Check if author has ORCID (stored in identifier column with identifiertype = 'ORCID')
+            if (! empty($author->identifier) && $author->identifiertype === 'ORCID') {
+                $data['orcid'] = $author->identifier;
             }
 
             // Check if this is a contact person (check for pointOfContact role)
@@ -499,9 +500,33 @@ class OldDatasetEditorLoader
                 ORDER BY ra.order ASC
             ', [$id, 'Creator']);
 
-        $result = [];
+        // Get list of resource_ids that are already loaded as Authors with pointOfContact role
+        // These should NOT be loaded as Contributors (they are already Authors with isContact=true)
+        $authorsWithContactRole = DB::connection(self::DATASET_CONNECTION)
+            ->table('role')
+            ->where('resourceagent_resource_id', $id)
+            ->where('role', 'Creator')
+            ->pluck('resourceagent_order')
+            ->toArray();
 
-        foreach ($contributors as $index => $contributor) {
+        $contactPersonOrders = DB::connection(self::DATASET_CONNECTION)
+            ->table('role')
+            ->where('resourceagent_resource_id', $id)
+            ->where('role', 'pointOfContact')
+            ->pluck('resourceagent_order')
+            ->toArray();
+
+        // Find orders that have BOTH Creator and pointOfContact roles
+        $authorContactOrders = array_intersect($authorsWithContactRole, $contactPersonOrders);
+
+        $result = [];
+        $contributorPosition = 0;
+
+        foreach ($contributors as $contributor) {
+            // Skip this contributor if they are already loaded as an Author with pointOfContact role
+            if (in_array($contributor->order, $authorContactOrders, true)) {
+                continue;
+            }
             // Parse name to handle both storage formats:
             // 1. Separated: firstname/lastname in separate fields
             // 2. Combined: "Lastname, Firstname" in name field
@@ -516,8 +541,10 @@ class OldDatasetEditorLoader
 
             $data = [
                 'type' => $type,
-                'position' => $index,
+                'position' => $contributorPosition,
             ];
+
+            $contributorPosition++;
 
             if ($type === 'person') {
                 if (! empty($parsedName['firstName'])) {
@@ -528,8 +555,9 @@ class OldDatasetEditorLoader
                     $data['lastName'] = $parsedName['lastName'];
                 }
 
-                if (! empty($contributor->orcid)) {
-                    $data['orcid'] = $contributor->orcid;
+                // Check if contributor has ORCID (stored in identifier column with identifiertype = 'ORCID')
+                if (! empty($contributor->identifier) && $contributor->identifiertype === 'ORCID') {
+                    $data['orcid'] = $contributor->identifier;
                 }
             } else {
                 // Institution
