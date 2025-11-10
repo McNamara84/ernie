@@ -11,6 +11,13 @@ import type { Language, License, ResourceType, Role, TitleType } from '@/types';
 
 vi.mock('axios');
 vi.mock('@/hooks/use-ror-affiliations');
+vi.mock('sonner', () => ({
+    toast: {
+        success: vi.fn(),
+        error: vi.fn(),
+        info: vi.fn(),
+    },
+}));
 
 import {
     getTagifyInstance,
@@ -3060,6 +3067,344 @@ describe('DataCiteForm', () => {
             expect(dateInputs).toHaveLength(1);
             // startDate should be preserved
             expect(dateInputs[0]).toHaveValue('2024-01-01');
+        });
+    });
+
+    describe('MSL Vocabulary Notification', () => {
+        beforeEach(() => {
+            // Clear all mocks before each test
+            vi.clearAllMocks();
+        });
+
+        it('should show toast notification when MSL trigger keyword is added', async () => {
+            const { toast } = await import('sonner');
+            
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Open Free Keywords section
+            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
+            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+                await user.click(freeKeywordsTrigger);
+            }
+
+            // Find the free keywords input
+            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
+            
+            await waitFor(() => {
+                expect(freeKeywordsInput.tagify).toBeTruthy();
+            });
+
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            // Add EPOS keyword
+            await act(async () => {
+                tagify.addTags(['EPOS'], true, false);
+            });
+
+            // Wait for toast notification
+            await waitFor(() => {
+                expect(toast.info).toHaveBeenCalledWith(
+                    'MSL Vocabulary Available',
+                    expect.objectContaining({
+                        description: expect.stringContaining('EPOS/MSL keywords detected'),
+                    }),
+                );
+            });
+        });
+
+        it('should show toast notification when MSL keyword is added', async () => {
+            const { toast } = await import('sonner');
+            
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Open Free Keywords section
+            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
+            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+                await user.click(freeKeywordsTrigger);
+            }
+
+            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
+            
+            await waitFor(() => {
+                expect(freeKeywordsInput.tagify).toBeTruthy();
+            });
+
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            // Add MSL keyword
+            await act(async () => {
+                tagify.addTags(['MSL'], true, false);
+            });
+
+            // Wait for toast notification
+            await waitFor(() => {
+                expect(toast.info).toHaveBeenCalled();
+            });
+        });
+
+        it('should NOT show toast notification when initial data contains MSL keywords', async () => {
+            const { toast } = await import('sonner');
+            
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                    initialFreeKeywords={['EPOS', 'test keyword']}
+                />,
+            );
+
+            // Wait a bit to ensure any potential toast would have been called
+            await waitFor(() => {
+                expect(toast.info).not.toHaveBeenCalled();
+            }, { timeout: 1000 });
+        });
+
+        it('should NOT show toast notification when MSL keyword from old dataset', async () => {
+            const { toast } = await import('sonner');
+            
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                    initialFreeKeywords={['Multi-Scale Laboratories', 'research']}
+                />,
+            );
+
+            // Wait a bit to ensure any potential toast would have been called
+            await waitFor(() => {
+                expect(toast.info).not.toHaveBeenCalled();
+            }, { timeout: 1000 });
+        });
+
+        it('should show MSL Laboratories section when EPOS keyword is added', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Initially, MSL section should not exist
+            expect(screen.queryByRole('button', { name: /Originating Multi-Scale Laboratories/i })).not.toBeInTheDocument();
+
+            // Open Free Keywords section
+            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
+            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+                await user.click(freeKeywordsTrigger);
+            }
+
+            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
+            
+            await waitFor(() => {
+                expect(freeKeywordsInput.tagify).toBeTruthy();
+            });
+
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            // Add EPOS keyword
+            await act(async () => {
+                tagify.addTags(['EPOS'], true, false);
+            });
+
+            // MSL section should now appear
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Originating Multi-Scale Laboratories/i })).toBeInTheDocument();
+            });
+        });
+
+        it('should show MSL tab in Controlled Vocabularies when triggered', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Open Controlled Vocabularies section
+            const controlledVocabTrigger = screen.getByRole('button', { name: /Controlled Vocabularies/i });
+            if (controlledVocabTrigger.getAttribute('aria-expanded') === 'false') {
+                await user.click(controlledVocabTrigger);
+            }
+
+            // Initially, MSL Vocabulary tab should not exist
+            await waitFor(() => {
+                expect(screen.queryByRole('tab', { name: /MSL Vocabulary/i })).not.toBeInTheDocument();
+            });
+
+            // Open Free Keywords section and add EPOS keyword
+            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
+            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+                await user.click(freeKeywordsTrigger);
+            }
+
+            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
+            
+            await waitFor(() => {
+                expect(freeKeywordsInput.tagify).toBeTruthy();
+            });
+
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            await act(async () => {
+                tagify.addTags(['EPOS'], true, false);
+            });
+
+            // MSL Vocabulary tab should now appear
+            await waitFor(() => {
+                expect(screen.getByRole('tab', { name: /MSL Vocabulary/i })).toBeInTheDocument();
+            });
+        });
+
+        it('should only notify once when multiple MSL keywords are added', async () => {
+            const { toast } = await import('sonner');
+            
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Open Free Keywords section
+            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
+            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+                await user.click(freeKeywordsTrigger);
+            }
+
+            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
+            
+            await waitFor(() => {
+                expect(freeKeywordsInput.tagify).toBeTruthy();
+            });
+
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            // Add first MSL keyword
+            await act(async () => {
+                tagify.addTags(['EPOS'], true, false);
+            });
+
+            await waitFor(() => {
+                expect(toast.info).toHaveBeenCalledTimes(1);
+            });
+
+            // Add second MSL keyword
+            await act(async () => {
+                tagify.addTags(['MSL'], true, false);
+            });
+
+            // Toast should still only have been called once
+            await waitFor(() => {
+                expect(toast.info).toHaveBeenCalledTimes(1);
+            });
+        });
+
+        it('should hide MSL section when all MSL keywords are removed', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            // Open Free Keywords section
+            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
+            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+                await user.click(freeKeywordsTrigger);
+            }
+
+            const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
+            
+            await waitFor(() => {
+                expect(freeKeywordsInput.tagify).toBeTruthy();
+            });
+
+            const tagify = getTagifyInstance(freeKeywordsInput);
+
+            // Add EPOS keyword
+            await act(async () => {
+                tagify.addTags(['EPOS'], true, false);
+            });
+
+            // MSL section should appear
+            await waitFor(() => {
+                expect(screen.getByRole('button', { name: /Originating Multi-Scale Laboratories/i })).toBeInTheDocument();
+            });
+
+            // Remove all keywords
+            await act(async () => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (tagify as any).removeAllTags();
+            });
+
+            // MSL section should disappear
+            await waitFor(() => {
+                expect(screen.queryByRole('button', { name: /Originating Multi-Scale Laboratories/i })).not.toBeInTheDocument();
+            });
         });
     });
 });
