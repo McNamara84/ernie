@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { AlertCircle, CheckCircle, Circle } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 
 import {
     Accordion,
@@ -631,6 +632,11 @@ export default function DataCiteForm({
     const authorsRef = useRef<HTMLDivElement | null>(null);
     const descriptionsRef = useRef<HTMLDivElement | null>(null);
     const datesRef = useRef<HTMLDivElement | null>(null);
+    const controlledVocabulariesRef = useRef<HTMLDivElement | null>(null);
+    
+    // Tracking refs for MSL notification
+    const hasNotifiedMslUnlock = useRef<boolean>(false);
+    const hasInitialMslTriggers = useRef<boolean>(false);
     
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
@@ -736,6 +742,18 @@ export default function DataCiteForm({
         }
         return [];
     });
+    
+    // Check if initial free keywords contain MSL/EPOS triggers (to prevent notification on data load)
+    useEffect(() => {
+        if (initialFreeKeywords && initialFreeKeywords.length > 0) {
+            const triggers = ['epos', 'multi-scale laboratories', 'multi scale laboratories', 'msl'];
+            const hasInitialTriggers = initialFreeKeywords.some((keyword) => 
+                triggers.some((trigger) => keyword.toLowerCase().includes(trigger))
+            );
+            hasInitialMslTriggers.current = hasInitialTriggers;
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Run only once on mount - initialFreeKeywords intentionally excluded
     const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<
         SpatialTemporalCoverageEntry[]
     >(() => {
@@ -775,6 +793,9 @@ export default function DataCiteForm({
         'related-work',
         'funding-references',
     ]);
+    
+    // State to trigger auto-switch to MSL tab when it becomes available
+    const [shouldAutoSwitchToMsl, setShouldAutoSwitchToMsl] = useState<boolean>(false);
 
     // Form validation hook
     const { validateField, markFieldTouched, getFieldState, getFieldMessages } = useFormValidation();
@@ -1062,11 +1083,45 @@ export default function DataCiteForm({
     }, [shouldShowMSLSection, gcmdVocabularies.msl.length]);
 
     // Automatically open MSL section when it becomes visible
+    // Also notify user with toast, scroll to section, and switch to MSL tab
     useEffect(() => {
         if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
+            
+            // Only notify if this is NOT an initial data load and we haven't notified yet
+            if (!hasInitialMslTriggers.current && !hasNotifiedMslUnlock.current) {
+                hasNotifiedMslUnlock.current = true;
+                
+                // Show toast notification
+                toast.info('MSL Vocabulary Available', {
+                    description: 'EPOS/MSL keywords detected. The MSL Vocabulary tab is now available in Controlled Vocabularies.',
+                    duration: 5000,
+                });
+                
+                // Trigger auto-switch to MSL tab
+                setShouldAutoSwitchToMsl(true);
+                
+                // Scroll to Controlled Vocabularies section after a short delay
+                setTimeout(() => {
+                    if (!openAccordionItems.includes('controlled-vocabularies')) {
+                        // Open the controlled vocabularies accordion first
+                        setOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
+                    }
+                    
+                    // Scroll to the section
+                    controlledVocabulariesRef.current?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                    });
+                    
+                    // Reset auto-switch flag after animation completes
+                    setTimeout(() => setShouldAutoSwitchToMsl(false), 500);
+                }, 300);
+            }
         } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
+            // Reset notification flag when MSL section is hidden
+            hasNotifiedMslUnlock.current = false;
         }
     }, [shouldShowMSLSection, openAccordionItems]);
 
@@ -2332,7 +2387,7 @@ export default function DataCiteForm({
                         />
                     </AccordionContent>
                 </AccordionItem>
-                <AccordionItem value="controlled-vocabularies">
+                <AccordionItem value="controlled-vocabularies" ref={controlledVocabulariesRef}>
                     <AccordionTrigger>
                         <div className="flex items-center gap-2">
                             <span>Controlled Vocabularies</span>
@@ -2353,6 +2408,7 @@ export default function DataCiteForm({
                                 selectedKeywords={gcmdKeywords}
                                 onChange={setGcmdKeywords}
                                 showMslTab={shouldShowMSLSection}
+                                autoSwitchToMsl={shouldAutoSwitchToMsl}
                             />
                         )}
                     </AccordionContent>
