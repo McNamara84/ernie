@@ -144,15 +144,16 @@ export default function AuthorItem({
         if (author.type !== 'person') return;
         
         // Set the ORCID and clear any previous errors
-        handlePersonFieldChange('orcid', orcid);
+        // Use onPersonFieldChange directly to avoid triggering hasUserInteracted
+        onPersonFieldChange('orcid', orcid);
         setVerificationError(null);
         
         // Auto-fill name fields if empty
         if (!author.firstName && searchResult.firstName) {
-            handlePersonFieldChange('firstName', searchResult.firstName);
+            onPersonFieldChange('firstName', searchResult.firstName);
         }
         if (!author.lastName && searchResult.lastName) {
-            handlePersonFieldChange('lastName', searchResult.lastName);
+            onPersonFieldChange('lastName', searchResult.lastName);
         }
         
         // Now verify and fetch full details
