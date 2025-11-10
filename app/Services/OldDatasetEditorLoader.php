@@ -433,18 +433,18 @@ class OldDatasetEditorLoader
 
             // Method 2: Check if there's another entry with same name and pointOfContact role
             $isContactOtherEntry = DB::connection(self::DATASET_CONNECTION)
-                ->select('
-                    SELECT 1
-                    FROM resourceagent ra
-                    INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
-                        AND ra.order = r.resourceagent_order
-                    WHERE ra.resource_id = ? 
-                        AND r.role = ?
-                        AND LOWER(TRIM(ra.name)) = ?
-                    LIMIT 1
-                ', [$id, 'pointOfContact', strtolower(trim($author->name))]);
+                ->table('resourceagent as ra')
+                ->join('role as r', function ($join) {
+                    $join->on('ra.resource_id', '=', 'r.resourceagent_resource_id')
+                        ->on('ra.order', '=', 'r.resourceagent_order');
+                })
+                ->where('ra.resource_id', $id)
+                ->where('r.role', 'pointOfContact')
+                ->where(DB::raw('LOWER(TRIM(ra.name))'), strtolower(trim($author->name)))
+                ->where('ra.order', '!=', $author->order)  // Exclude same entry
+                ->exists();
 
-            $data['isContact'] = $isContactSameEntry || ! empty($isContactOtherEntry);
+            $data['isContact'] = $isContactSameEntry || $isContactOtherEntry;
 
             if ($data['isContact']) {
                 // Try to get email/website from the current entry or from the pointOfContact entry
