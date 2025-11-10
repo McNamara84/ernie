@@ -422,23 +422,59 @@ class OldDatasetEditorLoader
                 $data['orcid'] = $author->identifier;
             }
 
-            // Check if this is a contact person (check for pointOfContact role)
-            $isContact = DB::connection(self::DATASET_CONNECTION)
+            // Check if this is a contact person
+            // Method 1: Check if this specific order has pointOfContact role
+            $isContactSameEntry = DB::connection(self::DATASET_CONNECTION)
                 ->table('role')
                 ->where('resourceagent_resource_id', $id)
                 ->where('resourceagent_order', $author->order)
                 ->where('role', 'pointOfContact')
                 ->exists();
 
-            $data['isContact'] = $isContact;
+            // Method 2: Check if there's another entry with same name and pointOfContact role
+            $isContactOtherEntry = DB::connection(self::DATASET_CONNECTION)
+                ->select('
+                    SELECT 1
+                    FROM resourceagent ra
+                    INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                        AND ra.order = r.resourceagent_order
+                    WHERE ra.resource_id = ? 
+                        AND r.role = ?
+                        AND LOWER(TRIM(ra.name)) = ?
+                    LIMIT 1
+                ', [$id, 'pointOfContact', strtolower(trim($author->name))]);
+
+            $data['isContact'] = $isContactSameEntry || ! empty($isContactOtherEntry);
 
             if ($data['isContact']) {
-                if (! empty($author->email)) {
-                    $data['email'] = $author->email;
+                // Try to get email/website from the current entry or from the pointOfContact entry
+                $contactInfo = $author;
+                
+                // If this entry doesn't have email/website, try to get from pointOfContact entry
+                if ((empty($author->email) || empty($author->website)) && ! $isContactSameEntry) {
+                    $pointOfContactEntry = DB::connection(self::DATASET_CONNECTION)
+                        ->table('resourceagent as ra')
+                        ->join('role as r', function ($join) {
+                            $join->on('ra.resource_id', '=', 'r.resourceagent_resource_id')
+                                ->on('ra.order', '=', 'r.resourceagent_order');
+                        })
+                        ->where('ra.resource_id', $id)
+                        ->where('r.role', 'pointOfContact')
+                        ->where(DB::raw('LOWER(TRIM(ra.name))'), strtolower(trim($author->name)))
+                        ->select('ra.email', 'ra.website')
+                        ->first();
+
+                    if ($pointOfContactEntry) {
+                        $contactInfo = $pointOfContactEntry;
+                    }
                 }
 
-                if (! empty($author->website)) {
-                    $data['website'] = $author->website;
+                if (! empty($contactInfo->email)) {
+                    $data['email'] = $contactInfo->email;
+                }
+
+                if (! empty($contactInfo->website)) {
+                    $data['website'] = $contactInfo->website;
                 }
             }
 
@@ -500,31 +536,33 @@ class OldDatasetEditorLoader
                 ORDER BY ra.order ASC
             ', [$id, 'Creator']);
 
-        // Get list of resource_ids that are already loaded as Authors with pointOfContact role
-        // These should NOT be loaded as Contributors (they are already Authors with isContact=true)
-        $authorsWithContactRole = DB::connection(self::DATASET_CONNECTION)
-            ->table('role')
-            ->where('resourceagent_resource_id', $id)
-            ->where('role', 'Creator')
-            ->pluck('resourceagent_order')
-            ->toArray();
+        // Get list of Author names (from Creator role entries) to detect duplicates
+        // Authors who also have pointOfContact role (in separate entries) should NOT be loaded as Contributors
+        $authorNames = DB::connection(self::DATASET_CONNECTION)
+            ->select('
+                SELECT DISTINCT ra.name, ra.firstname, ra.lastname
+                FROM resourceagent ra
+                INNER JOIN role r ON ra.resource_id = r.resourceagent_resource_id 
+                    AND ra.order = r.resourceagent_order
+                WHERE ra.resource_id = ? 
+                    AND r.role = ?
+            ', [$id, 'Creator']);
 
-        $contactPersonOrders = DB::connection(self::DATASET_CONNECTION)
-            ->table('role')
-            ->where('resourceagent_resource_id', $id)
-            ->where('role', 'pointOfContact')
-            ->pluck('resourceagent_order')
-            ->toArray();
-
-        // Find orders that have BOTH Creator and pointOfContact roles
-        $authorContactOrders = array_intersect($authorsWithContactRole, $contactPersonOrders);
+        // Build a set of normalized author names for comparison
+        $authorNameSet = [];
+        foreach ($authorNames as $author) {
+            // Normalize name for comparison (trim and lowercase)
+            $normalizedName = strtolower(trim($author->name));
+            $authorNameSet[$normalizedName] = true;
+        }
 
         $result = [];
         $contributorPosition = 0;
 
         foreach ($contributors as $contributor) {
-            // Skip this contributor if they are already loaded as an Author with pointOfContact role
-            if (in_array($contributor->order, $authorContactOrders, true)) {
+            // Skip this contributor if they have the same name as an Author (likely duplicate with pointOfContact role)
+            $normalizedContributorName = strtolower(trim($contributor->name));
+            if (isset($authorNameSet[$normalizedContributorName])) {
                 continue;
             }
             // Parse name to handle both storage formats:
