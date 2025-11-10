@@ -1109,7 +1109,7 @@ export default function DataCiteForm({
                 // Handle scroll and tab-switch with promise chain for better testability
                 const scrollAndSwitchTab = async () => {
                     // Wait for accordion animation
-                    await new Promise(resolve => setTimeout(resolve, 300));
+                    await new Promise<void>(resolve => setTimeout(resolve, 300));
                     
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
@@ -1123,7 +1123,7 @@ export default function DataCiteForm({
                     });
                     
                     // Wait for scroll animation to complete
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await new Promise<void>(resolve => setTimeout(resolve, 500));
                     
                     // Reset auto-switch flag after animation completes
                     setShouldAutoSwitchToMsl(false);
