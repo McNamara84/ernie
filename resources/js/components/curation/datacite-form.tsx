@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { AlertCircle, CheckCircle, Circle } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -795,7 +795,12 @@ export default function DataCiteForm({
     ]);
     
     // State to trigger auto-switch to MSL tab when it becomes available
-    const [shouldAutoSwitchToMsl, setShouldAutoSwitchToMsl] = useState<boolean>(false);
+    const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
+    
+    // Stable callback for setting auto-switch state
+    const setShouldAutoSwitchToMsl = useCallback((value: boolean) => {
+        setAutoSwitchToMslState(value);
+    }, []);
 
     // Form validation hook
     const { validateField, markFieldTouched, getFieldState, getFieldMessages } = useFormValidation();
@@ -1101,8 +1106,11 @@ export default function DataCiteForm({
                 // Trigger auto-switch to MSL tab
                 setShouldAutoSwitchToMsl(true);
                 
-                // Scroll to Controlled Vocabularies section after a short delay
-                setTimeout(() => {
+                // Handle scroll and tab-switch with promise chain for better testability
+                const scrollAndSwitchTab = async () => {
+                    // Wait for accordion animation
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
                         setOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
@@ -1114,16 +1122,21 @@ export default function DataCiteForm({
                         block: 'start',
                     });
                     
+                    // Wait for scroll animation to complete
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
                     // Reset auto-switch flag after animation completes
-                    setTimeout(() => setShouldAutoSwitchToMsl(false), 500);
-                }, 300);
+                    setShouldAutoSwitchToMsl(false);
+                };
+                
+                void scrollAndSwitchTab();
             }
         } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
             // Reset notification flag when MSL section is hidden
             hasNotifiedMslUnlock.current = false;
         }
-    }, [shouldShowMSLSection, openAccordionItems]);
+    }, [shouldShowMSLSection, openAccordionItems, setShouldAutoSwitchToMsl]);
 
     // MSL validation info - show recommendation when section is visible but no laboratories selected
     const mslValidationInfo = useMemo(() => {

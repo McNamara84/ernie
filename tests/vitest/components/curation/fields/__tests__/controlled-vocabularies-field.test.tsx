@@ -55,7 +55,7 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
             text: 'Rock Physics',
             language: 'en',
             scheme: 'EPOS MSL vocabulary',
-            schemeURI: 'https://www.multicale-laboratories.org/',
+            schemeURI: 'https://www.multiscale-laboratories.org/',
             description: 'MSL keyword',
             children: [],
         },
@@ -188,7 +188,7 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
                 path: 'Rock Physics',
                 language: 'en',
                 scheme: 'EPOS MSL vocabulary',
-                schemeURI: 'https://www.multicale-laboratories.org/',
+                schemeURI: 'https://www.multiscale-laboratories.org/',
             },
         ];
 
@@ -218,7 +218,7 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
                 path: 'Rock Physics',
                 language: 'en',
                 scheme: 'EPOS MSL vocabulary',
-                schemeURI: 'https://www.multicale-laboratories.org/',
+                schemeURI: 'https://www.multiscale-laboratories.org/',
             },
             {
                 id: 'msl-2',
@@ -226,7 +226,7 @@ describe('ControlledVocabulariesField - MSL Tab Auto-Switch', () => {
                 path: 'Geochemistry',
                 language: 'en',
                 scheme: 'EPOS MSL vocabulary',
-                schemeURI: 'https://www.multicale-laboratories.org/',
+                schemeURI: 'https://www.multiscale-laboratories.org/',
             },
         ];
 
