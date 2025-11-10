@@ -1,5 +1,5 @@
 import { Search, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,6 +32,7 @@ interface ControlledVocabulariesFieldProps {
     selectedKeywords: SelectedKeyword[];
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
+    autoSwitchToMsl?: boolean; // Auto-switch to MSL tab when it becomes available
 }
 
 /**
@@ -74,9 +75,26 @@ export default function ControlledVocabulariesField({
     selectedKeywords,
     onChange,
     showMslTab = false,
+    autoSwitchToMsl = false,
 }: ControlledVocabulariesFieldProps) {
     const [activeTab, setActiveTab] = useState<GCMDVocabularyType>('science');
     const [searchQuery, setSearchQuery] = useState('');
+    
+    // Track if auto-switch has already occurred to prevent interference with manual tab changes
+    const hasAutoSwitched = useRef(false);
+    
+    // Auto-switch to MSL tab when it becomes available (triggered by parent notification logic)
+    useEffect(() => {
+        if (autoSwitchToMsl && showMslTab && !hasAutoSwitched.current) {
+            hasAutoSwitched.current = true;
+            setActiveTab('msl');
+        }
+        
+        // Reset flag when MSL tab is hidden
+        if (!showMslTab) {
+            hasAutoSwitched.current = false;
+        }
+    }, [autoSwitchToMsl, showMslTab]);
     
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
