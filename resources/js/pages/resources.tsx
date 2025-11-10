@@ -1065,32 +1065,31 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             </Alert>
                         )}
 
+                        {/* Filter Component - Always visible so filters can be adjusted */}
+                        <ResourcesFilters
+                            filters={filters}
+                            onFilterChange={handleFilterChange}
+                            filterOptions={filterOptions}
+                            resultCount={sortedResources.length}
+                            totalCount={pagination.total}
+                            isLoading={loading}
+                        />
+
+                        <div className="mb-4 flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="text-xs">
+                                Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
+                            </Badge>
+                        </div>
+
                         {sortedResources.length === 0 && !loading && !loadingError ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
                                     "No resources available. Please check the database connection." :
-                                    "No resources found."
+                                    "No resources found matching your filters."
                                 }
                             </div>
                         ) : (
-                            <>
-                                {/* Filter Component */}
-                                <ResourcesFilters
-                                    filters={filters}
-                                    onFilterChange={handleFilterChange}
-                                    filterOptions={filterOptions}
-                                    resultCount={sortedResources.length}
-                                    totalCount={pagination.total}
-                                    isLoading={loading}
-                                />
-
-                                <div className="mb-4 flex items-center gap-2 flex-wrap">
-                                    <Badge variant="outline" className="text-xs">
-                                        Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
-                                    </Badge>
-                                </div>
-
-                                <div className="overflow-x-auto">
+                            <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <caption className="sr-only">
                                             List of resources with metadata including title, type, DOI, contributors, language, and version
@@ -1270,14 +1269,13 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                             {loading && sortedResources.length > 0 && <LoadingSkeleton />}
                                         </tbody>
                                     </table>
-                                </div>
 
-                                {!loading && !pagination.has_more && sortedResources.length > 0 && (
-                                    <div className="text-center py-4 text-muted-foreground text-sm">
-                                        All resources have been loaded ({pagination.total} total)
-                                    </div>
-                                )}
-                            </>
+                                    {!loading && !pagination.has_more && sortedResources.length > 0 && (
+                                        <div className="text-center py-4 text-muted-foreground text-sm">
+                                            All resources have been loaded ({pagination.total} total)
+                                        </div>
+                                    )}
+                                </div>
                         )}
                     </CardContent>
                 </Card>
