@@ -446,38 +446,6 @@ class OldDatasetEditorLoader
 
             $data['isContact'] = $isContactSameEntry || $isContactOtherEntry;
 
-            if ($data['isContact']) {
-                // Try to get email/website from the current entry or from the pointOfContact entry
-                $contactInfo = $author;
-                
-                // If this entry doesn't have email/website, try to get from pointOfContact entry
-                if ((empty($author->email) || empty($author->website)) && ! $isContactSameEntry) {
-                    $pointOfContactEntry = DB::connection(self::DATASET_CONNECTION)
-                        ->table('resourceagent as ra')
-                        ->join('role as r', function ($join) {
-                            $join->on('ra.resource_id', '=', 'r.resourceagent_resource_id')
-                                ->on('ra.order', '=', 'r.resourceagent_order');
-                        })
-                        ->where('ra.resource_id', $id)
-                        ->where('r.role', 'pointOfContact')
-                        ->where(DB::raw('LOWER(TRIM(ra.name))'), strtolower(trim($author->name)))
-                        ->select('ra.email', 'ra.website')
-                        ->first();
-
-                    if ($pointOfContactEntry) {
-                        $contactInfo = $pointOfContactEntry;
-                    }
-                }
-
-                if (! empty($contactInfo->email)) {
-                    $data['email'] = $contactInfo->email;
-                }
-
-                if (! empty($contactInfo->website)) {
-                    $data['website'] = $contactInfo->website;
-                }
-            }
-
             // Load affiliations for this author
             $data['affiliations'] = $this->loadResourceAgentAffiliations($author->resource_id, $author->order);
 
