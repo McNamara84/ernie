@@ -25,6 +25,12 @@ import type { ResourceFilterOptions, ResourceFilterState } from '@/types/resourc
  */
 const MIN_SEARCH_LENGTH = 3;
 
+/**
+ * Debounce delay in milliseconds before triggering search.
+ * Increased to allow users to finish typing before search is triggered.
+ */
+const SEARCH_DEBOUNCE_MS = 1000;
+
 interface ResourcesFiltersProps {
     filters: ResourceFilterState;
     onFilterChange: (filters: ResourceFilterState) => void;
@@ -68,6 +74,7 @@ export function ResourcesFilters({
     // Local state for search input (for immediate UI feedback)
     const [searchInput, setSearchInput] = useState(filters.search || '');
     const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     
     // Local states for Select components to ensure proper synchronization
     const [resourceTypeValue, setResourceTypeValue] = useState(filters.resource_type?.[0] || 'all');
@@ -105,18 +112,36 @@ export function ResourcesFilters({
             return;
         }
 
-        // Debounce: wait 500ms after user stops typing
+        // Debounce: wait longer to allow users to finish typing
         searchTimeoutRef.current = setTimeout(() => {
             const newFilters = { ...filters };
             newFilters.search = value.trim();
             onFilterChange(newFilters);
-        }, 500);
+            
+            // Restore focus to search input after filter update
+            // Use requestAnimationFrame to ensure DOM has updated
+            requestAnimationFrame(() => {
+                searchInputRef.current?.focus();
+            });
+        }, SEARCH_DEBOUNCE_MS);
     }, [filters, onFilterChange]);
 
     // Sync search input with filters when filters change externally
     useEffect(() => {
         setSearchInput(filters.search || '');
     }, [filters.search]);
+
+    // Restore focus after loading completes
+    useEffect(() => {
+        if (!isLoading && searchInput.trim().length >= MIN_SEARCH_LENGTH) {
+            // Small delay to ensure the page has fully rendered
+            const timeoutId = setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 100);
+            
+            return () => clearTimeout(timeoutId);
+        }
+    }, [isLoading, searchInput]);
 
     // Cleanup timeout on unmount
     useEffect(() => {
@@ -258,6 +283,7 @@ export function ResourcesFilters({
                 <div className="relative w-full sm:w-auto sm:min-w-[280px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                        ref={searchInputRef}
                         type="search"
                         placeholder={`Search title or DOI (min. ${MIN_SEARCH_LENGTH} characters)...`}
                         value={searchInput}
