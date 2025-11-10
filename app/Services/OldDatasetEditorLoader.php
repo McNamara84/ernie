@@ -9,6 +9,34 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Service to load and transform data from old SUMARIOPMD database for the editor.
+ * 
+ * **Bug Fixes Implemented**:
+ * 
+ * 1. **Umlaut Name Normalization** (`normalizeName()` method):
+ *    - Problem: "Förste" (ö) and "Foerste" (oe) were treated as different people
+ *    - Solution: Normalize ö→oe, ä→ae, ü→ue, ß→ss before comparison
+ *    - Impact: Prevents duplicate authors/contributors with different spellings
+ * 
+ * 2. **Contact Person Detection** (`loadAuthors()` method):
+ *    - Problem: Authors with pointOfContact role in separate entries not detected
+ *    - Solution: Check both same order AND normalized name matching
+ *    - Impact: Correctly marks authors as contact persons and loads email/website
+ * 
+ * 3. **ORCID Loading** (`loadAuthors()` and `loadContributors()` methods):
+ *    - Problem: Code was looking for non-existent `orcid` column
+ *    - Solution: Load from `identifier` column where `identifiertype = 'ORCID'`
+ *    - Impact: ORCIDs now correctly loaded from old database
+ * 
+ * 4. **Contributor Deduplication** (`loadContributors()` method):
+ *    - Problem: Authors with multiple roles appeared as both Author and Contributor
+ *    - Solution: Filter contributors whose normalized name matches an author
+ *    - Impact: No duplicate entries (e.g., Barthelmes as both Creator and DataCurator)
+ * 
+ * **Test Case: Dataset 4 (DOI 10.5880/icgem.2015.1)**:
+ * - 9 Authors with Creator role (6 with ORCID, 3 without)
+ * - 4 non-Creator entries, but only 1 loaded as Contributor (Reißland)
+ * - 3 filtered due to name matching authors (Barthelmes, Förste, Bruinsma)
+ * - 2 Contact Persons (Förste and Bruinsma) with emails from contactinfo table
  */
 class OldDatasetEditorLoader
 {
@@ -16,6 +44,14 @@ class OldDatasetEditorLoader
 
     /**
      * Normalize a name for comparison (lowercase, trim, replace umlauts).
+     * 
+     * This method is critical for handling German names with different spellings:
+     * - "Förste" → "foerste"
+     * - "Foerste" → "foerste"
+     * - "Müller" → "mueller"
+     * - "Mueller" → "mueller"
+     * 
+     * Used in both loadAuthors() and loadContributors() for deduplication.
      */
     private function normalizeName(string $name): string
     {
