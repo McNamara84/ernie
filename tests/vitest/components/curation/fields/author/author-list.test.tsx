@@ -84,8 +84,8 @@ describe('AuthorList Component', () => {
 
     afterEach(async () => {
         cleanup();
-        // Wait for any pending async operations
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        // Wait for Tagify timers to complete (Tagify uses 50ms debounce internally)
+        await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
     it('renders empty state when no authors', () => {

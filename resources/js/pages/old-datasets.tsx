@@ -1166,31 +1166,30 @@ export default function OldDatasets({
                             </Alert>
                         )}
 
+                        {/* Filter Component - Always visible so filters can be adjusted */}
+                        <OldDatasetsFilters
+                            filters={filters}
+                            onFilterChange={setFilters}
+                            filterOptions={filterOptions}
+                            resultCount={sortedDatasets.length}
+                            totalCount={pagination.total}
+                            isLoading={loading || isSorting}
+                        />
+
                         {sortedDatasets.length === 0 && !isSorting && !loading && !loadingError ? (
                             <div className="text-center py-8 text-muted-foreground">
                                 {error ?
                                     "No datasets available. Please check the database connection." :
-                                    "No old datasets found."
+                                    "No old datasets found matching your filters."
                                 }
                             </div>
                         ) : (
                             <>
-                                {/* Filter Component */}
-                                <OldDatasetsFilters
-                                    filters={filters}
-                                    onFilterChange={setFilters}
-                                    filterOptions={filterOptions}
-                                    resultCount={sortedDatasets.length}
-                                    totalCount={pagination.total}
-                                    isLoading={loading || isSorting}
-                                />
-
                                 <div className="mb-4 flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline" className="text-xs">
                                         Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
                                     </Badge>
                                 </div>
-
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead className="bg-gray-50 dark:bg-gray-800">
@@ -1320,13 +1319,13 @@ export default function OldDatasets({
                                             {loading && sortedDatasets.length > 0 && <LoadingSkeleton />}
                                         </tbody>
                                     </table>
-                                </div>
 
-                                {!loading && !pagination.has_more && sortedDatasets.length > 0 && (
-                                    <div className="text-center py-4 text-muted-foreground text-sm">
-                                        All datasets have been loaded ({pagination.total} total)
-                                    </div>
-                                )}
+                                    {!loading && !pagination.has_more && sortedDatasets.length > 0 && (
+                                        <div className="text-center py-4 text-muted-foreground text-sm">
+                                            All datasets have been loaded ({pagination.total} total)
+                                        </div>
+                                    )}
+                                </div>
                             </>
                         )}
                     </CardContent>
