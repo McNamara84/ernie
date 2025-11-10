@@ -69,7 +69,9 @@ class OldDatasetEditorLoader
         }
 
         return $result;
-    }    /**
+    }
+
+    /**
      * Detect if an author is a contact person and load contact info.
      *
      * Two detection methods:

@@ -78,12 +78,15 @@ export default function AuthorItem({
     };
     const contactLabelTextId = `${author.id}-contact-label-text`;
     
-    // Track user interactions to prevent auto-suggest on initial load
+    // Track user interactions with name fields to prevent auto-suggest on initial load
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
     
-    // Wrapper for onPersonFieldChange that marks user interaction
+    // Wrapper for onPersonFieldChange that marks user interaction for name fields only
+    // Only firstName/lastName changes should enable ORCID auto-suggest, not email/website/orcid
     const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
-        setHasUserInteracted(true);
+        if (field === 'firstName' || field === 'lastName') {
+            setHasUserInteracted(true);
+        }
         onPersonFieldChange(field, value);
     };
     

@@ -79,9 +79,12 @@ export default function ContributorItem({
     // Track user interactions to prevent auto-suggest on initial load
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
-    // Wrapper for onPersonFieldChange that marks user interaction
+    // Wrapper for onPersonFieldChange that marks user interaction for name fields only
+    // Only firstName/lastName changes should enable ORCID auto-suggest, not orcid field itself
     const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName', value: string) => {
-        setHasUserInteracted(true);
+        if (field === 'firstName' || field === 'lastName') {
+            setHasUserInteracted(true);
+        }
         onPersonFieldChange(field, value);
     };
 
