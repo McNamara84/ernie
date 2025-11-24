@@ -44,6 +44,31 @@ function normalizeKeyword(keyword: string): string {
 }
 
 /**
+ * Validate if a file is a CSV file based on MIME type and/or file extension
+ * Accepts various CSV MIME types that differ across browsers and operating systems
+ */
+function isValidCsvFile(file: File): boolean {
+    const validMimeTypes = [
+        'text/csv',
+        'application/csv',
+        'text/x-csv',
+        'application/x-csv',
+        'text/comma-separated-values',
+        'text/x-comma-separated-values',
+        'application/vnd.ms-excel', // Some systems use this for CSV
+    ];
+
+    // Check MIME type if available
+    if (file.type && validMimeTypes.includes(file.type)) {
+        return true;
+    }
+
+    // Fallback to file extension check (some systems don't set MIME type)
+    const fileName = file.name.toLowerCase();
+    return fileName.endsWith('.csv');
+}
+
+/**
  * FreeKeywordsCsvImport Component
  */
 export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywords }: FreeKeywordsCsvImportProps) {
@@ -210,7 +235,7 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files?.[0];
-        if (selectedFile && selectedFile.type === 'text/csv') {
+        if (selectedFile && isValidCsvFile(selectedFile)) {
             setFile(selectedFile);
             parseCSV(selectedFile);
         }
@@ -230,7 +255,7 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
         setIsDragging(false);
 
         const droppedFile = event.dataTransfer.files[0];
-        if (droppedFile && droppedFile.type === 'text/csv') {
+        if (droppedFile && isValidCsvFile(droppedFile)) {
             setFile(droppedFile);
             parseCSV(droppedFile);
         }

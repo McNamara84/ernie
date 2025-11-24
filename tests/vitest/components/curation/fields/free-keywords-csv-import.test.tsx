@@ -396,6 +396,54 @@ temperature`;
                 expect(screen.getByText(/Successfully parsed 2 keywords/)).toBeInTheDocument();
             });
         });
+
+        it('accepts CSV files with various MIME types', async () => {
+            const user = userEvent.setup({ delay: null });
+            const csvContent = `Keyword
+climate change`;
+
+            // Test different MIME types that browsers/OS may use
+            const mimeTypes = ['text/csv', 'application/csv', 'text/x-csv', 'application/vnd.ms-excel'];
+
+            for (const mimeType of mimeTypes) {
+                const { unmount } = render(<FreeKeywordsCsvImport {...defaultProps} />);
+
+                const fileInput = document.querySelector('#csv-upload-free-keywords') as HTMLInputElement;
+                const file = new File([csvContent], 'keywords.csv', { type: mimeType });
+                Object.defineProperty(file, 'text', {
+                    value: vi.fn().mockResolvedValue(csvContent),
+                });
+
+                await user.upload(fileInput, file);
+
+                await waitFor(() => {
+                    expect(screen.getByText(/Successfully parsed 1 keyword/)).toBeInTheDocument();
+                });
+
+                unmount();
+            }
+        });
+
+        it('accepts CSV files with .csv extension even when MIME type is missing', async () => {
+            const user = userEvent.setup({ delay: null });
+            render(<FreeKeywordsCsvImport {...defaultProps} />);
+
+            const fileInput = document.querySelector('#csv-upload-free-keywords') as HTMLInputElement;
+            const csvContent = `Keyword
+climate change`;
+
+            // Create file with empty MIME type (some systems don't set it)
+            const file = new File([csvContent], 'keywords.csv', { type: '' });
+            Object.defineProperty(file, 'text', {
+                value: vi.fn().mockResolvedValue(csvContent),
+            });
+
+            await user.upload(fileInput, file);
+
+            await waitFor(() => {
+                expect(screen.getByText(/Successfully parsed 1 keyword/)).toBeInTheDocument();
+            });
+        });
     });
 
     describe('User Actions', () => {
