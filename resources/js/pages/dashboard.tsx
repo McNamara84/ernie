@@ -310,13 +310,31 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                     <tr>
                                         <td className="py-1">PHP Version</td>
                                         <td className="py-1 text-right">
-                                            <Badge className="w-14 bg-[#777BB4] text-white">8.4.12</Badge>
+                                            <a
+                                                href="https://www.php.net/releases/8.4/en.php"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                aria-label="View PHP 8.4 release notes"
+                                            >
+                                                <Badge className="w-14 bg-[#777BB4] text-white hover:bg-[#666BA0] transition-colors">
+                                                    8.4.12
+                                                </Badge>
+                                            </a>
                                         </td>
                                     </tr>
                                     <tr>
                                         <td className="py-1">Laravel Version</td>
                                         <td className="py-1 text-right">
-                                            <Badge className="w-14 bg-[#FF2D20] text-white">12.28.1</Badge>
+                                            <a
+                                                href="https://laravel.com/docs/12.x/releases"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                aria-label="View Laravel 12.x release notes"
+                                            >
+                                                <Badge className="w-14 bg-[#FF2D20] text-white hover:bg-[#E6291C] transition-colors">
+                                                    12.28.1
+                                                </Badge>
+                                            </a>
                                         </td>
                                     </tr>
                                 </tbody>
