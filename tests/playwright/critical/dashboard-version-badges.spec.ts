@@ -20,11 +20,9 @@ test.describe('Dashboard Version Badges', () => {
   });
 
   test('displays ERNIE version badge linked to changelog', async ({ page }) => {
-    // Find the Environment card first to scope the search
-    const environmentCard = page.locator('text=Environment').locator('..');
-    
-    // Find the ERNIE version link within the Environment card
-    const ernieVersionLink = environmentCard.getByRole('link', { name: /view changelog for version/i });
+    // Find the table row containing "ERNIE Version" and get the link from it
+    const ernieRow = page.locator('tr:has-text("ERNIE Version")');
+    const ernieVersionLink = ernieRow.getByRole('link', { name: /view changelog for version/i });
     
     // Verify link is visible and has correct href
     await expect(ernieVersionLink).toBeVisible();
@@ -118,11 +116,11 @@ test.describe('Dashboard Version Badges', () => {
   });
 
   test('ERNIE version badge navigates to changelog page', async ({ page }) => {
-    // Find the Environment card first to scope the search
-    const environmentCard = page.locator('text=Environment').locator('..');
+    // Find the table row containing "ERNIE Version" and get the link from it
+    const ernieRow = page.locator('tr:has-text("ERNIE Version")');
+    const ernieVersionLink = ernieRow.getByRole('link', { name: /view changelog for version/i });
     
-    // Click the ERNIE version link within the Environment card
-    const ernieVersionLink = environmentCard.getByRole('link', { name: /view changelog for version/i });
+    // Click the ERNIE version link
     await ernieVersionLink.click();
     
     // Verify navigation to changelog
