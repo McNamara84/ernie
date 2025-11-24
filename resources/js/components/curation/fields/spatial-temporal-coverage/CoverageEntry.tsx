@@ -4,12 +4,14 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 
-import CoordinateInputs from './CoordinateInputs';
-import MapPicker from './MapPicker';
+import BoxForm from './BoxForm';
+import PointForm from './PointForm';
+import PolygonForm from './PolygonForm';
 import TemporalInputs from './TemporalInputs';
-import type { CoordinateBounds, SpatialTemporalCoverageEntry } from './types';
+import type { CoverageType, SpatialTemporalCoverageEntry } from './types';
 
 interface CoverageEntryProps {
     entry: SpatialTemporalCoverageEntry;
@@ -25,13 +27,20 @@ interface CoverageEntryProps {
  * Formats coordinates for preview display
  */
 const formatCoordinates = (entry: SpatialTemporalCoverageEntry): string => {
-    if (!entry.latMin || !entry.lonMin) return 'No coordinates set';
-
-    if (entry.latMax && entry.lonMax) {
-        return `(${entry.latMin}, ${entry.lonMin}) to (${entry.latMax}, ${entry.lonMax})`;
+    if (entry.type === 'polygon') {
+        if (!entry.polygonPoints || entry.polygonPoints.length === 0) {
+            return 'Polygon: No points set';
+        }
+        return `Polygon: ${entry.polygonPoints.length} points`;
     }
 
-    return `(${entry.latMin}, ${entry.lonMin})`;
+    if (!entry.latMin || !entry.lonMin) return 'No coordinates set';
+
+    if (entry.type === 'box' && entry.latMax && entry.lonMax) {
+        return `Box: (${entry.latMin}, ${entry.lonMin}) to (${entry.latMax}, ${entry.lonMax})`;
+    }
+
+    return `Point: (${entry.latMin}, ${entry.lonMin})`;
 };
 
 /**
@@ -77,6 +86,12 @@ const formatDateRange = (entry: SpatialTemporalCoverageEntry): string => {
  * Checks if entry has any data
  */
 const hasData = (entry: SpatialTemporalCoverageEntry): boolean => {
+    // Check polygon points
+    if (entry.type === 'polygon' && entry.polygonPoints && entry.polygonPoints.length > 0) {
+        return true;
+    }
+
+    // Check point/box coordinates
     return !!(
         entry.latMin ||
         entry.lonMin ||
@@ -97,48 +112,31 @@ export default function CoverageEntry({
 }: CoverageEntryProps) {
     const [isExpanded, setIsExpanded] = useState(true);
 
-    const handlePointSelected = (lat: number, lng: number) => {
-        // Update all fields in one batch
-        const latMinStr = lat.toFixed(6);
-        const lonMinStr = lng.toFixed(6);
-        
-        console.log('Point selected:', { lat: latMinStr, lng: lonMinStr });
-        
-        onBatchChange({
-            latMin: latMinStr,
-            lonMin: lonMinStr,
-            latMax: '',
-            lonMax: '',
-        });
-    };
-
-    const handleRectangleSelected = (bounds: CoordinateBounds) => {
-        // Update all fields in one batch
-        const latMinStr = bounds.south.toFixed(6);
-        const latMaxStr = bounds.north.toFixed(6);
-        const lonMinStr = bounds.west.toFixed(6);
-        const lonMaxStr = bounds.east.toFixed(6);
-        
-        console.log('Rectangle selected:', { 
-            latMin: latMinStr, 
-            latMax: latMaxStr, 
-            lonMin: lonMinStr, 
-            lonMax: lonMaxStr 
-        });
-        
-        onBatchChange({
-            latMin: latMinStr,
-            latMax: latMaxStr,
-            lonMin: lonMinStr,
-            lonMax: lonMaxStr,
-        });
-    };
-
-    const handleCoordinateChange = (
-        field: 'latMin' | 'lonMin' | 'latMax' | 'lonMax',
-        value: string,
-    ) => {
-        onChange(field, value);
+    const handleTypeChange = (newType: CoverageType) => {
+        // Clear inappropriate data when switching types
+        if (newType === 'polygon') {
+            onBatchChange({
+                type: newType,
+                latMin: '',
+                latMax: '',
+                lonMin: '',
+                lonMax: '',
+                polygonPoints: [],
+            });
+        } else if (newType === 'point') {
+            onBatchChange({
+                type: newType,
+                latMax: '',
+                lonMax: '',
+                polygonPoints: undefined,
+            });
+        } else {
+            // box type
+            onBatchChange({
+                type: newType,
+                polygonPoints: undefined,
+            });
+        }
     };
 
     const handleTemporalChange = (
@@ -212,42 +210,54 @@ export default function CoverageEntry({
 
             {isExpanded && (
                 <CardContent className="space-y-6">
-                    {/* Map and Inputs in Grid Layout */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Left Column: Map */}
-                        <div className="space-y-4">
-                            <MapPicker
+                    {/* Coverage Type Tabs */}
+                    <Tabs value={entry.type} onValueChange={(value) => handleTypeChange(value as CoverageType)}>
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="point">Point</TabsTrigger>
+                            <TabsTrigger value="box">Bounding Box</TabsTrigger>
+                            <TabsTrigger value="polygon">Polygon</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="point" className="mt-4">
+                            <PointForm
+                                entry={entry}
                                 apiKey={apiKey}
-                                latMin={entry.latMin}
-                                lonMin={entry.lonMin}
-                                latMax={entry.latMax}
-                                lonMax={entry.lonMax}
-                                onPointSelected={handlePointSelected}
-                                onRectangleSelected={handleRectangleSelected}
+                                onChange={onChange}
+                                onBatchChange={onBatchChange}
                             />
-                        </div>
+                        </TabsContent>
 
-                        {/* Right Column: Coordinates and Temporal */}
-                        <div className="space-y-4">
-                            <CoordinateInputs
-                                latMin={entry.latMin}
-                                lonMin={entry.lonMin}
-                                latMax={entry.latMax}
-                                lonMax={entry.lonMax}
-                                onChange={handleCoordinateChange}
-                                showLabels={true}
+                        <TabsContent value="box" className="mt-4">
+                            <BoxForm
+                                entry={entry}
+                                apiKey={apiKey}
+                                onChange={onChange}
+                                onBatchChange={onBatchChange}
                             />
+                        </TabsContent>
 
-                            <TemporalInputs
-                                startDate={entry.startDate || ''}
-                                endDate={entry.endDate || ''}
-                                startTime={entry.startTime || ''}
-                                endTime={entry.endTime || ''}
-                                timezone={entry.timezone || 'UTC'}
-                                onChange={handleTemporalChange}
-                                showLabels={true}
+                        <TabsContent value="polygon" className="mt-4">
+                            <PolygonForm
+                                entry={entry}
+                                apiKey={apiKey}
+                                onChange={onChange}
+                                onBatchChange={onBatchChange}
                             />
-                        </div>
+                        </TabsContent>
+                    </Tabs>
+
+                    {/* Temporal Coverage (Shared across all types) */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-medium">Temporal Coverage</h4>
+                        <TemporalInputs
+                            startDate={entry.startDate || ''}
+                            endDate={entry.endDate || ''}
+                            startTime={entry.startTime || ''}
+                            endTime={entry.endTime || ''}
+                            timezone={entry.timezone || 'UTC'}
+                            onChange={handleTemporalChange}
+                            showLabels={true}
+                        />
                     </div>
 
                     {/* Description (Full Width) */}

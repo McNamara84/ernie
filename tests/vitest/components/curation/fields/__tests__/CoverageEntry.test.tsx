@@ -47,6 +47,7 @@ describe('CoverageEntry', () => {
 
     const defaultEntry: SpatialTemporalCoverageEntry = {
         id: 'test-entry-1',
+        type: 'point',
         latMin: '',
         lonMin: '',
         latMax: '',

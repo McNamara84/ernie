@@ -87,6 +87,7 @@ describe('SpatialTemporalCoverageField', () => {
         const existingEntries: SpatialTemporalCoverageEntry[] = [
             {
                 id: 'test-1',
+                type: 'point',
                 latMin: '48.137154',
                 lonMin: '11.576124',
                 latMax: '',
@@ -115,6 +116,7 @@ describe('SpatialTemporalCoverageField', () => {
         const existingEntries: SpatialTemporalCoverageEntry[] = [
             {
                 id: 'test-1',
+                type: 'point',
                 latMin: '',
                 lonMin: '',
                 latMax: '',
@@ -128,6 +130,7 @@ describe('SpatialTemporalCoverageField', () => {
             },
             {
                 id: 'test-2',
+                type: 'point',
                 latMin: '',
                 lonMin: '',
                 latMax: '',
@@ -155,6 +158,7 @@ describe('SpatialTemporalCoverageField', () => {
     test('disables add button when coverage entry is incomplete (missing required spatial fields)', () => {
         const incompleteEntry: SpatialTemporalCoverageEntry = {
             id: 'test-1',
+            type: 'point',
             latMin: '48.137154',
             lonMin: '', // Missing required spatial field
             latMax: '',
@@ -185,6 +189,7 @@ describe('SpatialTemporalCoverageField', () => {
     test('allows adding new entry even when temporal fields are empty (temporal fields are optional)', () => {
         const completeEntryWithoutTemporal: SpatialTemporalCoverageEntry = {
             id: 'test-1',
+            type: 'point',
             latMin: '48.137154',
             lonMin: '11.576124',
             latMax: '',
@@ -218,6 +223,7 @@ describe('SpatialTemporalCoverageField', () => {
         const existingEntries: SpatialTemporalCoverageEntry[] = [
             {
                 id: 'test-1',
+                type: 'point',
                 latMin: '48.137154',
                 lonMin: '11.576124',
                 latMax: '',
@@ -248,6 +254,7 @@ describe('SpatialTemporalCoverageField', () => {
     test('enforces maxCoverages limit', () => {
         const maxEntries = Array.from({ length: 99 }, (_, i) => ({
             id: `test-${i}`,
+            type: 'point' as const,
             latMin: '0',
             lonMin: '0',
             latMax: '',
@@ -281,6 +288,7 @@ describe('SpatialTemporalCoverageField', () => {
         const existingEntries: SpatialTemporalCoverageEntry[] = [
             {
                 id: 'test-1',
+                type: 'point',
                 latMin: '',
                 lonMin: '',
                 latMax: '',
