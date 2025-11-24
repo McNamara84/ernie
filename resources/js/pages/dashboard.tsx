@@ -75,10 +75,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type DashboardPageProps = SharedData & {
     resourceCount?: number;
+    phpVersion?: string;
+    laravelVersion?: string;
 };
 
 export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProps = {}) {
-    const { auth, resourceCount } = usePage<DashboardPageProps>().props;
+    const { auth, resourceCount, phpVersion = '8.4.12', laravelVersion = '12.28.1' } = usePage<DashboardPageProps>().props;
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -311,13 +313,13 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                         <td className="py-1">PHP Version</td>
                                         <td className="py-1 text-right">
                                             <a
-                                                href="https://www.php.net/releases/8.4/en.php"
+                                                href={`https://www.php.net/releases/${phpVersion.split('.').slice(0, 2).join('.')}/en.php`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                aria-label="View PHP 8.4 release notes"
+                                                aria-label={`View PHP ${phpVersion.split('.').slice(0, 2).join('.')} release notes`}
                                             >
                                                 <Badge className="w-14 bg-[#777BB4] text-white hover:bg-[#666BA0] transition-colors">
-                                                    8.4.12
+                                                    {phpVersion}
                                                 </Badge>
                                             </a>
                                         </td>
@@ -326,13 +328,13 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                         <td className="py-1">Laravel Version</td>
                                         <td className="py-1 text-right">
                                             <a
-                                                href="https://laravel.com/docs/12.x/releases"
+                                                href={`https://laravel.com/docs/${laravelVersion.split('.')[0]}.x/releases`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                aria-label="View Laravel 12.x release notes"
+                                                aria-label={`View Laravel ${laravelVersion.split('.')[0]}.x release notes`}
                                             >
                                                 <Badge className="w-14 bg-[#FF2D20] text-white hover:bg-[#E6291C] transition-colors">
-                                                    12.28.1
+                                                    {laravelVersion}
                                                 </Badge>
                                             </a>
                                         </td>

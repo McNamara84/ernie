@@ -161,6 +161,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard', [
             'resourceCount' => Resource::count(),
+            'phpVersion' => PHP_VERSION,
+            'laravelVersion' => app()->version(),
         ]);
     })->name('dashboard');
 
