@@ -116,7 +116,7 @@ test.describe('Dashboard Version Badges', () => {
     await expect(phpVersionLink).toHaveAttribute('href', /php\.net/);
   });
 
-  test('ERNIE version badge navigates to changelog page', async ({ page, context }) => {
+  test('ERNIE version badge navigates to changelog page', async ({ page }) => {
     // Click the ERNIE version link
     const ernieVersionLink = page.getByRole('link', { name: /view changelog for version/i });
     await ernieVersionLink.click();
