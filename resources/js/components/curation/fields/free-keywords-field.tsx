@@ -1,7 +1,17 @@
-import { Info } from 'lucide-react';
+import { Info, Upload } from 'lucide-react';
+import { useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
+import FreeKeywordsCsvImport from './free-keywords-csv-import';
 import TagInputField, { type TagInputChangeDetail, type TagInputItem } from './tag-input-field';
 
 interface FreeKeywordsFieldProps {
@@ -26,19 +36,51 @@ export default function FreeKeywordsField({
     keywords,
     onChange,
 }: FreeKeywordsFieldProps) {
+    const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
+
     const handleChange = (detail: TagInputChangeDetail) => {
         onChange(detail.tags);
     };
 
+    const handleCsvImport = (importedKeywords: string[]) => {
+        // Convert imported keywords to TagInputItem format
+        const newTags: TagInputItem[] = importedKeywords.map((keyword) => ({
+            value: keyword,
+        }));
+
+        // Merge with existing keywords, removing duplicates (case-insensitive)
+        const existingValues = new Set(keywords.map((k) => k.value.toLowerCase()));
+        const uniqueNewTags = newTags.filter(
+            (tag) => !existingValues.has(tag.value.toLowerCase())
+        );
+
+        // Combine and update
+        onChange([...keywords, ...uniqueNewTags]);
+        setIsCsvImportOpen(false);
+    };
+
+    // Extract keyword values for CSV import duplicate detection
+    const existingKeywordValues = keywords.map((k) => k.value);
+
     return (
         <div className="space-y-4">
-            {/* Header with title and description */}
+            {/* Header with title, description, and CSV import button */}
             <div className="space-y-2">
-                <Label className="text-base font-semibold">
-                    Free Keywords
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                    <Label className="text-base font-semibold">Free Keywords</Label>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCsvImportOpen(true)}
+                        className="gap-1.5"
+                    >
+                        <Upload className="h-3.5 w-3.5" />
+                        CSV Import
+                    </Button>
+                </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                    <Info className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
                     <p>
                         Add custom keywords to describe your dataset. Separate multiple keywords 
                         with commas. These help others discover your work through search.
@@ -75,6 +117,24 @@ export default function FreeKeywordsField({
                     {keywords.length} {keywords.length === 1 ? 'keyword' : 'keywords'} added
                 </div>
             )}
+
+            {/* CSV Import Dialog */}
+            <Dialog open={isCsvImportOpen} onOpenChange={setIsCsvImportOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Import Free Keywords from CSV</DialogTitle>
+                        <DialogDescription>
+                            Upload a CSV file to bulk import multiple keywords at once. New
+                            keywords will be added to your existing list.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <FreeKeywordsCsvImport
+                        onImport={handleCsvImport}
+                        onClose={() => setIsCsvImportOpen(false)}
+                        existingKeywords={existingKeywordValues}
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
