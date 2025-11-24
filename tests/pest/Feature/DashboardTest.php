@@ -41,3 +41,39 @@ test('dashboard view receives the resource count', function () {
             ->where('resourceCount', 2)
         );
 });
+
+test('dashboard provides PHP version from system', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('phpVersion')
+            ->where('phpVersion', PHP_VERSION)
+        );
+});
+
+test('dashboard provides Laravel version from application', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('laravelVersion')
+            ->where('laravelVersion', app()->version())
+        );
+});
+
+test('dashboard provides all version information together', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('dashboard'))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page
+            ->component('dashboard')
+            ->has('resourceCount')
+            ->has('phpVersion')
+            ->has('laravelVersion')
+            ->where('phpVersion', PHP_VERSION)
+            ->where('laravelVersion', app()->version())
+        );
+});

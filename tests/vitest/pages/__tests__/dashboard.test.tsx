@@ -64,7 +64,14 @@ vi.mock('@/routes', async () => {
 
 describe('Dashboard', () => {
     beforeEach(() => {
-        usePageMock.mockReturnValue({ props: { auth: { user: { name: 'Jane' } }, resourceCount: 17 } });
+        usePageMock.mockReturnValue({ 
+            props: { 
+                auth: { user: { name: 'Jane' } }, 
+                resourceCount: 17,
+                phpVersion: '8.4.12',
+                laravelVersion: '12.28.1'
+            } 
+        });
         handleXmlFilesSpy.mockClear();
     });
 
@@ -102,6 +109,79 @@ describe('Dashboard', () => {
         });
         expect(versionLink).toHaveAttribute('href', '/changelog');
         expect(versionLink).toHaveTextContent(latestVersion);
+    });
+
+    it('displays PHP version badge with link to PHP release notes', () => {
+        render(<Dashboard />);
+        const phpVersionLink = screen.getByRole('link', {
+            name: /view php 8\.4 release notes/i,
+        });
+        expect(phpVersionLink).toHaveAttribute('href', 'https://www.php.net/releases/8.4/en.php');
+        expect(phpVersionLink).toHaveAttribute('target', '_blank');
+        expect(phpVersionLink).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(phpVersionLink).toHaveTextContent('8.4.12');
+    });
+
+    it('displays Laravel version badge with link to Laravel release notes', () => {
+        render(<Dashboard />);
+        const laravelVersionLink = screen.getByRole('link', {
+            name: /view laravel 12\.x release notes/i,
+        });
+        expect(laravelVersionLink).toHaveAttribute('href', 'https://laravel.com/docs/12.x/releases');
+        expect(laravelVersionLink).toHaveAttribute('target', '_blank');
+        expect(laravelVersionLink).toHaveAttribute('rel', 'noopener noreferrer');
+        expect(laravelVersionLink).toHaveTextContent('12.28.1');
+    });
+
+    it('generates correct PHP release link for major.minor version', () => {
+        usePageMock.mockReturnValueOnce({ 
+            props: { 
+                auth: { user: { name: 'Jane' } }, 
+                resourceCount: 17,
+                phpVersion: '8.5.3',
+                laravelVersion: '12.28.1'
+            } 
+        });
+        render(<Dashboard />);
+        const phpVersionLink = screen.getByRole('link', {
+            name: /view php 8\.5 release notes/i,
+        });
+        expect(phpVersionLink).toHaveAttribute('href', 'https://www.php.net/releases/8.5/en.php');
+        expect(phpVersionLink).toHaveTextContent('8.5.3');
+    });
+
+    it('generates correct Laravel release link for major version', () => {
+        usePageMock.mockReturnValueOnce({ 
+            props: { 
+                auth: { user: { name: 'Jane' } }, 
+                resourceCount: 17,
+                phpVersion: '8.4.12',
+                laravelVersion: '13.5.10'
+            } 
+        });
+        render(<Dashboard />);
+        const laravelVersionLink = screen.getByRole('link', {
+            name: /view laravel 13\.x release notes/i,
+        });
+        expect(laravelVersionLink).toHaveAttribute('href', 'https://laravel.com/docs/13.x/releases');
+        expect(laravelVersionLink).toHaveTextContent('13.5.10');
+    });
+
+    it('falls back to default versions when props are missing', () => {
+        usePageMock.mockReturnValueOnce({ 
+            props: { 
+                auth: { user: { name: 'Jane' } }, 
+                resourceCount: 17
+            } 
+        });
+        render(<Dashboard />);
+        
+        // Should still display badges with fallback values
+        const phpBadge = screen.getByText('8.4.12');
+        const laravelBadge = screen.getByText('12.28.1');
+        
+        expect(phpBadge).toBeInTheDocument();
+        expect(laravelBadge).toBeInTheDocument();
     });
 
     it('toggles dropzone highlight on drag events', () => {
