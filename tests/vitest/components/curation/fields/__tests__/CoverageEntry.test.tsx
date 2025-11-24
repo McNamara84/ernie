@@ -7,38 +7,61 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import CoverageEntry from '@/components/curation/fields/spatial-temporal-coverage/CoverageEntry';
 import type { SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 
-// Mock the MapPicker component which requires Google Maps API
-vi.mock('@/components/curation/fields/spatial-temporal-coverage/MapPicker', () => ({
-    default: ({
-        onPointSelected,
-        onRectangleSelected,
-    }: {
-        onPointSelected: (lat: number, lng: number) => void;
-        onRectangleSelected: (bounds: { north: number; south: number; east: number; west: number }) => void;
-    }) => (
-        <div data-testid="map-picker">
-            <button
-                onClick={() => onPointSelected(48.137154, 11.576124)}
-                data-testid="select-point-btn"
-            >
-                Select Point
-            </button>
-            <button
-                onClick={() =>
-                    onRectangleSelected({
-                        north: 48.2,
-                        south: 48.1,
-                        east: 11.7,
-                        west: 11.5,
-                    })
-                }
-                data-testid="select-rectangle-btn"
-            >
-                Select Rectangle
-            </button>
-        </div>
-    ),
-}));
+// Mock PointForm component
+vi.mock(
+    '@/components/curation/fields/spatial-temporal-coverage/PointForm',
+    () => ({
+        default: ({ onBatchChange }: any) => (
+            <div data-testid="mock-point-form">
+                <button
+                    onClick={() =>
+                        onBatchChange({
+                            latMin: '48.137154',
+                            lonMin: '11.576124',
+                            latMax: '',
+                            lonMax: '',
+                        })
+                    }
+                    data-testid="select-point-btn"
+                >
+                    Select Point
+                </button>
+            </div>
+        ),
+    }),
+);
+
+// Mock BoxForm component
+vi.mock(
+    '@/components/curation/fields/spatial-temporal-coverage/BoxForm',
+    () => ({
+        default: ({ onBatchChange }: any) => (
+            <div data-testid="mock-box-form">
+                <button
+                    onClick={() =>
+                        onBatchChange({
+                            latMin: '48.100000',
+                            latMax: '48.200000',
+                            lonMin: '11.500000',
+                            lonMax: '11.700000',
+                        })
+                    }
+                    data-testid="select-rectangle-btn"
+                >
+                    Select Rectangle
+                </button>
+            </div>
+        ),
+    }),
+);
+
+// Mock PolygonForm component
+vi.mock(
+    '@/components/curation/fields/spatial-temporal-coverage/PolygonForm',
+    () => ({
+        default: () => <div data-testid="mock-polygon-form">Polygon Form</div>,
+    }),
+);
 
 describe('CoverageEntry', () => {
     const mockOnChange = vi.fn();
@@ -90,12 +113,12 @@ describe('CoverageEntry', () => {
         });
 
         test('is expanded by default', () => {
-            const { container } = render(<CoverageEntry {...defaultProps} />);
+            render(<CoverageEntry {...defaultProps} />);
 
-            // Map picker should be visible
-            expect(screen.getByTestId('map-picker')).toBeInTheDocument();
-            // Coordinate inputs should be visible - check by ID
-            expect(container.querySelector('#lat-min')).toBeInTheDocument();
+            // Point form should be visible (default type is 'point')
+            expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
+            // Tab content should be visible
+            expect(screen.getByRole('tabpanel')).toBeInTheDocument();
         });
 
         test('shows remove button when not first entry', () => {
@@ -112,10 +135,11 @@ describe('CoverageEntry', () => {
             expect(removeButton).not.toBeInTheDocument();
         });
 
-        test('renders MapPicker component', () => {
+        test('renders form component based on coverage type', () => {
             render(<CoverageEntry {...defaultProps} />);
 
-            expect(screen.getByTestId('map-picker')).toBeInTheDocument();
+            // Default type is 'point', so PointForm should be visible
+            expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
         });
 
         test('renders description textarea', () => {
@@ -130,8 +154,8 @@ describe('CoverageEntry', () => {
         test('entry is expanded by default', () => {
             render(<CoverageEntry {...defaultProps} />);
 
-            // Map picker should be visible in expanded state
-            expect(screen.getByTestId('map-picker')).toBeInTheDocument();
+            // Point form should be visible in expanded state (default type)
+            expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
         });
 
         test('can collapse entry by clicking header', async () => {
@@ -139,13 +163,13 @@ describe('CoverageEntry', () => {
             render(<CoverageEntry {...defaultProps} />);
 
             // Entry starts expanded
-            expect(screen.getByTestId('map-picker')).toBeInTheDocument();
+            expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
 
             const header = screen.getByText('Coverage Entry #1').closest('[class*="cursor-pointer"]')!;
             await user.click(header);
 
-            // Map picker should not be visible when collapsed
-            expect(screen.queryByTestId('map-picker')).not.toBeInTheDocument();
+            // Form should not be visible when collapsed
+            expect(screen.queryByTestId('mock-point-form')).not.toBeInTheDocument();
         });
 
         test('can toggle entry by clicking chevron button', async () => {
@@ -156,15 +180,15 @@ describe('CoverageEntry', () => {
             const collapseButton = screen.getByRole('button', { name: /collapse entry/i });
             await user.click(collapseButton);
 
-            // Map picker should not be visible
-            expect(screen.queryByTestId('map-picker')).not.toBeInTheDocument();
+            // Form should not be visible
+            expect(screen.queryByTestId('mock-point-form')).not.toBeInTheDocument();
 
             // Find expand button
             const expandButton = screen.getByRole('button', { name: /expand entry/i });
             await user.click(expandButton);
 
-            // Map picker should be visible again
-            expect(screen.getByTestId('map-picker')).toBeInTheDocument();
+            // Form should be visible again
+            expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
         });
 
         test('shows preview when collapsed and has data', async () => {
@@ -213,7 +237,11 @@ describe('CoverageEntry', () => {
 
         test('calls onBatchChange when rectangle is selected from map', async () => {
             const user = userEvent.setup();
-            render(<CoverageEntry {...defaultProps} />);
+            const boxEntry: SpatialTemporalCoverageEntry = {
+                ...defaultEntry,
+                type: 'box',
+            };
+            render(<CoverageEntry {...defaultProps} entry={boxEntry} />);
 
             const selectRectangleButton = screen.getByTestId('select-rectangle-btn');
             await user.click(selectRectangleButton);
@@ -240,7 +268,11 @@ describe('CoverageEntry', () => {
 
         test('formats coordinates to 6 decimal places when selecting rectangle', async () => {
             const user = userEvent.setup();
-            render(<CoverageEntry {...defaultProps} />);
+            const boxEntry: SpatialTemporalCoverageEntry = {
+                ...defaultEntry,
+                type: 'box',
+            };
+            render(<CoverageEntry {...defaultProps} entry={boxEntry} />);
 
             const selectRectangleButton = screen.getByTestId('select-rectangle-btn');
             await user.click(selectRectangleButton);
@@ -299,7 +331,7 @@ describe('CoverageEntry', () => {
             await user.click(removeButton);
 
             // Entry should still be expanded (click didn't propagate to header)
-            expect(screen.getByTestId('map-picker')).toBeInTheDocument();
+            expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
         });
     });
 
