@@ -2,13 +2,7 @@ import { Info, Upload } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
 import FreeKeywordsCsvImport from './free-keywords-csv-import';
@@ -21,10 +15,10 @@ interface FreeKeywordsFieldProps {
 
 /**
  * Free Keywords Field Component
- * 
+ *
  * Provides a user-friendly interface for entering free-form keywords.
  * Users can add multiple keywords separated by commas.
- * 
+ *
  * Best Practices Applied:
  * - Clear labeling with helpful description
  * - Visual feedback with info icon
@@ -32,10 +26,7 @@ interface FreeKeywordsFieldProps {
  * - Intuitive comma-separated input
  * - Clean, modern UI with consistent spacing
  */
-export default function FreeKeywordsField({
-    keywords,
-    onChange,
-}: FreeKeywordsFieldProps) {
+export default function FreeKeywordsField({ keywords, onChange }: FreeKeywordsFieldProps) {
     const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
 
     const handleChange = (detail: TagInputChangeDetail) => {
@@ -50,9 +41,7 @@ export default function FreeKeywordsField({
 
         // Merge with existing keywords, removing duplicates (case-insensitive)
         const existingValues = new Set(keywords.map((k) => k.value.toLowerCase()));
-        const uniqueNewTags = newTags.filter(
-            (tag) => !existingValues.has(tag.value.toLowerCase())
-        );
+        const uniqueNewTags = newTags.filter((tag) => !existingValues.has(tag.value.toLowerCase()));
 
         // Combine and update
         onChange([...keywords, ...uniqueNewTags]);
@@ -68,22 +57,16 @@ export default function FreeKeywordsField({
             <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                     <Label className="text-base font-semibold">Free Keywords</Label>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsCsvImportOpen(true)}
-                        className="gap-1.5"
-                    >
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCsvImportOpen(true)} className="gap-1.5">
                         <Upload className="h-3.5 w-3.5" />
                         CSV Import
                     </Button>
                 </div>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Info className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+                    <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     <p>
-                        Add custom keywords to describe your dataset. Separate multiple keywords 
-                        with commas. These help others discover your work through search.
+                        Add custom keywords to describe your dataset. Separate multiple keywords with commas. These help others discover your work
+                        through search.
                     </p>
                 </div>
             </div>
@@ -103,10 +86,7 @@ export default function FreeKeywordsField({
                     }}
                     aria-describedby="free-keywords-help"
                 />
-                <p 
-                    id="free-keywords-help" 
-                    className="text-xs text-muted-foreground"
-                >
+                <p id="free-keywords-help" className="text-xs text-muted-foreground">
                     Press Enter or type a comma after each keyword to add it.
                 </p>
             </div>
@@ -124,8 +104,7 @@ export default function FreeKeywordsField({
                     <DialogHeader>
                         <DialogTitle>Import Free Keywords from CSV</DialogTitle>
                         <DialogDescription>
-                            Upload a CSV file to bulk import multiple keywords at once. New
-                            keywords will be added to your existing list.
+                            Upload a CSV file to bulk import multiple keywords at once. New keywords will be added to your existing list.
                         </DialogDescription>
                     </DialogHeader>
                     <FreeKeywordsCsvImport

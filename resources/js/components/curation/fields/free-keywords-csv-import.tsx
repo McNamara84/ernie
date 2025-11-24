@@ -1,12 +1,12 @@
 /**
  * FreeKeywordsCsvImport Component
- * 
+ *
  * CSV bulk import for free keywords:
  * - Drag & drop or file selection
  * - Validation with detailed error reporting
  * - Preview of parsed keywords with duplicate detection
  * - Example CSV template download
- * 
+ *
  * Based on author-csv-import.tsx design pattern
  */
 
@@ -46,11 +46,7 @@ function normalizeKeyword(keyword: string): string {
 /**
  * FreeKeywordsCsvImport Component
  */
-export default function FreeKeywordsCsvImport({
-    onImport,
-    onClose,
-    existingKeywords,
-}: FreeKeywordsCsvImportProps) {
+export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywords }: FreeKeywordsCsvImportProps) {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -109,18 +105,13 @@ export default function FreeKeywordsCsvImport({
                         const seenNormalized = new Set<string>();
 
                         // Normalize existing keywords for comparison
-                        const existingNormalized = new Set(
-                            existingKeywords.map(normalizeKeyword)
-                        );
+                        const existingNormalized = new Set(existingKeywords.map(normalizeKeyword));
 
                         results.data.forEach((row, index) => {
                             const rowNum = index + 2; // +1 for header, +1 for 1-based
 
                             // Find the "Keyword" column (case-insensitive)
-                            const keywordField =
-                                Object.keys(row).find((k) =>
-                                    k.toLowerCase().includes('keyword')
-                                ) || Object.keys(row)[0]; // Fallback to first column
+                            const keywordField = Object.keys(row).find((k) => k.toLowerCase().includes('keyword')) || Object.keys(row)[0]; // Fallback to first column
 
                             if (!keywordField) {
                                 validationErrors.push({
@@ -168,9 +159,7 @@ export default function FreeKeywordsCsvImport({
                             seenNormalized.add(normalized);
                             rawKeywords.push(keyword);
 
-                            setProgress(
-                                Math.round(((index + 1) / results.data.length) * 100)
-                            );
+                            setProgress(Math.round(((index + 1) / results.data.length) * 100));
                         });
 
                         // Count how many keywords already exist
@@ -206,16 +195,13 @@ export default function FreeKeywordsCsvImport({
                         row: 0,
                         field: 'file',
                         value: '',
-                        message:
-                            error instanceof Error
-                                ? error.message
-                                : 'Failed to parse CSV file',
+                        message: error instanceof Error ? error.message : 'Failed to parse CSV file',
                     },
                 ]);
                 setIsProcessing(false);
             }
         },
-        [existingKeywords]
+        [existingKeywords],
     );
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -281,16 +267,9 @@ crustal deformation`;
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <Label className="text-base font-semibold">CSV Bulk Import</Label>
-                    <p className="text-sm text-muted-foreground">
-                        Import multiple free keywords from a CSV file
-                    </p>
+                    <p className="text-sm text-muted-foreground">Import multiple free keywords from a CSV file</p>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    aria-label="Close CSV import"
-                >
+                <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -299,9 +278,7 @@ crustal deformation`;
             <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription className="flex items-center justify-between">
-                    <span className="text-sm">
-                        Need a template? Download our example CSV file
-                    </span>
+                    <span className="text-sm">Need a template? Download our example CSV file</span>
                     <Button variant="outline" size="sm" onClick={downloadExample}>
                         <FileUp className="mr-2 h-3 w-3" />
                         Download Example
@@ -311,36 +288,19 @@ crustal deformation`;
 
             {/* File Upload Area */}
             <div
-                className={`
-                    relative rounded-lg border-2 border-dashed p-8 text-center transition-colors
-                    ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-                    ${file ? 'bg-muted/50' : ''}
-                `}
+                className={`relative rounded-lg border-2 border-dashed p-8 text-center transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'} ${file ? 'bg-muted/50' : ''} `}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                <input
-                    type="file"
-                    id="csv-upload-free-keywords"
-                    accept=".csv,text/csv"
-                    onChange={handleFileSelect}
-                    className="sr-only"
-                />
+                <input type="file" id="csv-upload-free-keywords" accept=".csv,text/csv" onChange={handleFileSelect} className="sr-only" />
 
                 {!file ? (
-                    <label
-                        htmlFor="csv-upload-free-keywords"
-                        className="flex cursor-pointer flex-col items-center gap-2"
-                    >
+                    <label htmlFor="csv-upload-free-keywords" className="flex cursor-pointer flex-col items-center gap-2">
                         <Upload className="h-10 w-10 text-muted-foreground" />
                         <div className="space-y-1">
-                            <p className="text-sm font-medium">
-                                Drop your CSV file here or click to browse
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                Required: One keyword per row with "Keyword" header
-                            </p>
+                            <p className="text-sm font-medium">Drop your CSV file here or click to browse</p>
+                            <p className="text-xs text-muted-foreground">Required: One keyword per row with "Keyword" header</p>
                         </div>
                     </label>
                 ) : (
@@ -348,16 +308,12 @@ crustal deformation`;
                         <div className="flex items-center justify-center gap-2">
                             <FileUp className="h-5 w-5 text-green-600" />
                             <span className="font-medium">{file.name}</span>
-                            <span className="text-sm text-muted-foreground">
-                                ({(file.size / 1024).toFixed(2)} KB)
-                            </span>
+                            <span className="text-sm text-muted-foreground">({(file.size / 1024).toFixed(2)} KB)</span>
                         </div>
                         {isProcessing && (
                             <div className="space-y-2">
                                 <Progress value={progress} className="h-2" />
-                                <p className="text-xs text-muted-foreground">
-                                    Processing... {progress}%
-                                </p>
+                                <p className="text-xs text-muted-foreground">Processing... {progress}%</p>
                             </div>
                         )}
                     </div>
@@ -380,11 +336,7 @@ crustal deformation`;
                                         Row {error.row}, {error.field}: {error.message}
                                     </li>
                                 ))}
-                                {errors.length > 10 && (
-                                    <li className="italic text-muted-foreground">
-                                        ... and {errors.length - 10} more errors
-                                    </li>
-                                )}
+                                {errors.length > 10 && <li className="text-muted-foreground italic">... and {errors.length - 10} more errors</li>}
                             </ul>
                         </div>
                     </AlertDescription>
@@ -399,17 +351,12 @@ crustal deformation`;
                         <p className="text-sm text-green-800">
                             ✓ Successfully parsed {parsedData.length} keyword
                             {parsedData.length > 1 ? 's' : ''}
-                            {duplicatesRemoved > 0 &&
-                                ` (${duplicatesRemoved} duplicate${duplicatesRemoved > 1 ? 's' : ''} removed)`}
-                            {alreadyExisting > 0 &&
-                                `, ${alreadyExisting} already exist${alreadyExisting > 1 ? '' : 's'}`}
-                            . Ready to import!
+                            {duplicatesRemoved > 0 && ` (${duplicatesRemoved} duplicate${duplicatesRemoved > 1 ? 's' : ''} removed)`}
+                            {alreadyExisting > 0 && `, ${alreadyExisting} already exist${alreadyExisting > 1 ? '' : 's'}`}. Ready to import!
                         </p>
                         {parsedData.length > 0 && (
                             <div className="mt-2 max-h-40 overflow-y-auto rounded border bg-white p-2">
-                                <p className="mb-1 text-xs font-semibold">
-                                    Preview (first 10):
-                                </p>
+                                <p className="mb-1 text-xs font-semibold">Preview (first 10):</p>
                                 <ul className="space-y-1 text-xs">
                                     {parsedData.slice(0, 10).map((keyword, index) => (
                                         <li key={index} className="font-mono">
@@ -417,9 +364,7 @@ crustal deformation`;
                                         </li>
                                     ))}
                                     {parsedData.length > 10 && (
-                                        <li className="italic text-muted-foreground">
-                                            ... and {parsedData.length - 10} more
-                                        </li>
+                                        <li className="text-muted-foreground italic">... and {parsedData.length - 10} more</li>
                                     )}
                                 </ul>
                             </div>
@@ -433,13 +378,8 @@ crustal deformation`;
                 <Button variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button
-                    onClick={handleImport}
-                    disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}
-                >
-                    Import{' '}
-                    {parsedData.length > 0 &&
-                        `${parsedData.length} Keyword${parsedData.length > 1 ? 's' : ''}`}
+                <Button onClick={handleImport} disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}>
+                    Import {parsedData.length > 0 && `${parsedData.length} Keyword${parsedData.length > 1 ? 's' : ''}`}
                 </Button>
             </div>
         </div>
