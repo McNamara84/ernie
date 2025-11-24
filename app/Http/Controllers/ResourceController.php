@@ -326,23 +326,46 @@ class ResourceController extends Controller
                 $coverages = $validated['spatialTemporalCoverages'] ?? [];
 
                 foreach ($coverages as $coverage) {
+                    $type = $coverage['type'] ?? 'point';
+
                     // Only save coverage if it has at least one meaningful field
                     $hasData = ! empty($coverage['latMin']) || ! empty($coverage['lonMin']) ||
+                               ! empty($coverage['polygonPoints']) ||
                                ! empty($coverage['startDate']) || ! empty($coverage['description']);
 
                     if ($hasData) {
-                        $resource->coverages()->create([
-                            'lat_min' => $coverage['latMin'] ?? null,
-                            'lat_max' => $coverage['latMax'] ?? null,
-                            'lon_min' => $coverage['lonMin'] ?? null,
-                            'lon_max' => $coverage['lonMax'] ?? null,
-                            'start_date' => $coverage['startDate'] ?? null,
-                            'end_date' => $coverage['endDate'] ?? null,
-                            'start_time' => $coverage['startTime'] ?? null,
-                            'end_time' => $coverage['endTime'] ?? null,
-                            'timezone' => $coverage['timezone'] ?? 'UTC',
-                            'description' => $coverage['description'] ?? null,
-                        ]);
+                        // For polygon type, clear lat/lon coordinates and use polygon_points
+                        if ($type === 'polygon') {
+                            $resource->coverages()->create([
+                                'type' => $type,
+                                'polygon_points' => $coverage['polygonPoints'] ?? null,
+                                'lat_min' => null,
+                                'lat_max' => null,
+                                'lon_min' => null,
+                                'lon_max' => null,
+                                'start_date' => $coverage['startDate'] ?? null,
+                                'end_date' => $coverage['endDate'] ?? null,
+                                'start_time' => $coverage['startTime'] ?? null,
+                                'end_time' => $coverage['endTime'] ?? null,
+                                'timezone' => $coverage['timezone'] ?? 'UTC',
+                                'description' => $coverage['description'] ?? null,
+                            ]);
+                        } else {
+                            $resource->coverages()->create([
+                                'type' => $type,
+                                'lat_min' => $coverage['latMin'] ?? null,
+                                'lat_max' => $coverage['latMax'] ?? null,
+                                'lon_min' => $coverage['lonMin'] ?? null,
+                                'lon_max' => $coverage['lonMax'] ?? null,
+                                'polygon_points' => null,
+                                'start_date' => $coverage['startDate'] ?? null,
+                                'end_date' => $coverage['endDate'] ?? null,
+                                'start_time' => $coverage['startTime'] ?? null,
+                                'end_time' => $coverage['endTime'] ?? null,
+                                'timezone' => $coverage['timezone'] ?? 'UTC',
+                                'description' => $coverage['description'] ?? null,
+                            ]);
+                        }
                     }
                 }
 
