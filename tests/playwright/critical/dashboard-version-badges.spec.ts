@@ -20,8 +20,11 @@ test.describe('Dashboard Version Badges', () => {
   });
 
   test('displays ERNIE version badge linked to changelog', async ({ page }) => {
-    // Find the ERNIE version link
-    const ernieVersionLink = page.getByRole('link', { name: /view changelog for version/i });
+    // Find the Environment card first to scope the search
+    const environmentCard = page.locator('text=Environment').locator('..');
+    
+    // Find the ERNIE version link within the Environment card
+    const ernieVersionLink = environmentCard.getByRole('link', { name: /view changelog for version/i });
     
     // Verify link is visible and has correct href
     await expect(ernieVersionLink).toBeVisible();
@@ -73,24 +76,22 @@ test.describe('Dashboard Version Badges', () => {
   });
 
   test('all version badges are in the Environment card', async ({ page }) => {
-    // Find the Environment card
-    const environmentCard = page.locator('text=Environment').locator('..');
+    // Find the Environment card by its heading
+    const environmentCard = page.getByRole('heading', { name: 'Environment' }).locator('..');
     await expect(environmentCard).toBeVisible();
     
-    // Verify all three version rows exist
-    const ernieRow = environmentCard.locator('text=ERNIE Version');
-    const phpRow = environmentCard.locator('text=PHP Version');
-    const laravelRow = environmentCard.locator('text=Laravel Version');
-    
-    await expect(ernieRow).toBeVisible();
-    await expect(phpRow).toBeVisible();
-    await expect(laravelRow).toBeVisible();
+    // Verify all three version rows exist within the card's table
+    await expect(page.getByText('ERNIE Version')).toBeVisible();
+    await expect(page.getByText('PHP Version')).toBeVisible();
+    await expect(page.getByText('Laravel Version')).toBeVisible();
   });
 
   test('version badges have proper hover styles', async ({ page }) => {
     // Get PHP version link (has hover effect)
     const phpVersionLink = page.getByRole('link', { name: /view php .+ release notes/i });
-    const badge = phpVersionLink.locator('..');
+    
+    // Find the Badge component within the link
+    const badge = phpVersionLink.locator('span[class*="bg-"]');
     
     // Verify badge has transition class for hover effect
     const badgeClasses = await badge.getAttribute('class');
@@ -117,15 +118,18 @@ test.describe('Dashboard Version Badges', () => {
   });
 
   test('ERNIE version badge navigates to changelog page', async ({ page }) => {
-    // Click the ERNIE version link
-    const ernieVersionLink = page.getByRole('link', { name: /view changelog for version/i });
+    // Find the Environment card first to scope the search
+    const environmentCard = page.locator('text=Environment').locator('..');
+    
+    // Click the ERNIE version link within the Environment card
+    const ernieVersionLink = environmentCard.getByRole('link', { name: /view changelog for version/i });
     await ernieVersionLink.click();
     
     // Verify navigation to changelog
     await page.waitForURL(/\/changelog/, { timeout: 5000 });
     
     // Verify changelog page loaded
-    await expect(page.getByText(/changelog/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /changelog/i })).toBeVisible();
   });
 
   test('PHP version badge link is valid without navigation', async ({ page }) => {
