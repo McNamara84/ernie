@@ -35,16 +35,13 @@ export default function FreeKeywordsField({ keywords, onChange }: FreeKeywordsFi
 
     const handleCsvImport = (importedKeywords: string[]) => {
         // Convert imported keywords to TagInputItem format
+        // No need to filter - FreeKeywordsCsvImport already excludes existing keywords
         const newTags: TagInputItem[] = importedKeywords.map((keyword) => ({
             value: keyword,
         }));
 
-        // Merge with existing keywords, removing duplicates (case-insensitive)
-        const existingValues = new Set(keywords.map((k) => k.value.toLowerCase()));
-        const uniqueNewTags = newTags.filter((tag) => !existingValues.has(tag.value.toLowerCase()));
-
-        // Combine and update
-        onChange([...keywords, ...uniqueNewTags]);
+        // Add imported keywords to existing ones
+        onChange([...keywords, ...newTags]);
         setIsCsvImportOpen(false);
     };
 

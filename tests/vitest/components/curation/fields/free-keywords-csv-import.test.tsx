@@ -359,7 +359,7 @@ temperature
     });
 
     describe('CSV Format Flexibility', () => {
-        it('accepts CSV without header using first column', async () => {
+        it('treats first row as header when no explicit header exists (PapaParse behavior)', async () => {
             const user = userEvent.setup({ delay: null });
             render(<FreeKeywordsCsvImport {...defaultProps} />);
 
