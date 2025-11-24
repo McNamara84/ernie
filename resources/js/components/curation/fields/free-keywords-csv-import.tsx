@@ -352,7 +352,7 @@ crustal deformation`;
                             ✓ Successfully parsed {parsedData.length} keyword
                             {parsedData.length > 1 ? 's' : ''}
                             {duplicatesRemoved > 0 && ` (${duplicatesRemoved} duplicate${duplicatesRemoved > 1 ? 's' : ''} removed)`}
-                            {alreadyExisting > 0 && `, ${alreadyExisting} already exist${alreadyExisting > 1 ? '' : 's'}`}. Ready to import!
+                            {alreadyExisting > 0 && `, ${alreadyExisting} already exist${alreadyExisting > 1 ? 's' : ''}`}. Ready to import!
                         </p>
                         {parsedData.length > 0 && (
                             <div className="mt-2 max-h-40 overflow-y-auto rounded border bg-white p-2">
