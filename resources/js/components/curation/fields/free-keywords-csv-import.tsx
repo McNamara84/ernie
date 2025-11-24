@@ -19,6 +19,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 
+// Constants for validation limits
+const MAX_KEYWORD_LENGTH = 255;
+const MAX_KEYWORDS_COUNT = 1000;
+const ERROR_PREVIEW_LENGTH = 50;
+
 interface CsvRow {
     [key: string]: string;
 }
@@ -80,6 +85,7 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
     const [parsedData, setParsedData] = useState<string[]>([]);
     const [duplicatesRemoved, setDuplicatesRemoved] = useState(0);
     const [alreadyExisting, setAlreadyExisting] = useState(0);
+    const [fileValidationError, setFileValidationError] = useState<string | null>(null);
 
     const parseCSV = useCallback(
         async (csvFile: File) => {
@@ -112,13 +118,13 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
                         }
 
                         // Check if we have too many keywords
-                        if (results.data.length > 1000) {
+                        if (results.data.length > MAX_KEYWORDS_COUNT) {
                             setErrors([
                                 {
                                     row: 0,
                                     field: 'file',
                                     value: '',
-                                    message: `Too many keywords. Maximum is 1000, found ${results.data.length}`,
+                                    message: `Too many keywords. Maximum is ${MAX_KEYWORDS_COUNT}, found ${results.data.length}`,
                                 },
                             ]);
                             setIsProcessing(false);
@@ -163,12 +169,12 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
                             }
 
                             // Check if keyword is too long (reasonable limit)
-                            if (keyword.length > 255) {
+                            if (keyword.length > MAX_KEYWORD_LENGTH) {
                                 validationErrors.push({
                                     row: rowNum,
                                     field: 'keyword',
-                                    value: keyword.substring(0, 50) + '...',
-                                    message: 'Keyword is too long (max 255 characters)',
+                                    value: keyword.substring(0, ERROR_PREVIEW_LENGTH) + '...',
+                                    message: `Keyword is too long (max ${MAX_KEYWORD_LENGTH} characters)`,
                                 });
                                 return;
                             }
@@ -235,9 +241,15 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFile = event.target.files?.[0];
-        if (selectedFile && isValidCsvFile(selectedFile)) {
-            setFile(selectedFile);
-            parseCSV(selectedFile);
+        if (selectedFile) {
+            if (isValidCsvFile(selectedFile)) {
+                setFileValidationError(null);
+                setFile(selectedFile);
+                parseCSV(selectedFile);
+            } else {
+                setFileValidationError('Please select a valid CSV file');
+                setFile(null);
+            }
         }
     };
 
@@ -255,9 +267,15 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
         setIsDragging(false);
 
         const droppedFile = event.dataTransfer.files[0];
-        if (droppedFile && isValidCsvFile(droppedFile)) {
-            setFile(droppedFile);
-            parseCSV(droppedFile);
+        if (droppedFile) {
+            if (isValidCsvFile(droppedFile)) {
+                setFileValidationError(null);
+                setFile(droppedFile);
+                parseCSV(droppedFile);
+            } else {
+                setFileValidationError('Please drop a valid CSV file');
+                setFile(null);
+            }
         }
     };
 
@@ -302,6 +320,13 @@ crustal deformation`;
                     <X className="h-4 w-4" />
                 </Button>
             </div>
+
+            {/* File Validation Error */}
+            {fileValidationError && (
+                <Alert variant="destructive">
+                    <AlertDescription>{fileValidationError}</AlertDescription>
+                </Alert>
+            )}
 
             {/* Example Download */}
             <Alert>
