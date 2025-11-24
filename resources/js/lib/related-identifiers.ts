@@ -43,6 +43,9 @@ export const RELATION_TYPES_GROUPED: Record<string, RelationType[]> = {
  * - IsPartOf: 0.8%
  * - IsCitedBy: 0.6%
  * - IsVariantFormOf: 0.6%
+ * 
+ * Version relations (IsNewVersionOf, IsPreviousVersionOf) added for easy access
+ * in simple mode as they are commonly needed for dataset version management.
  */
 export const MOST_USED_RELATION_TYPES: RelationType[] = [
     'Cites',
@@ -50,6 +53,8 @@ export const MOST_USED_RELATION_TYPES: RelationType[] = [
     'IsDerivedFrom',
     'IsDocumentedBy',
     'IsSupplementTo',
+    'IsNewVersionOf',
+    'IsPreviousVersionOf',
 ];
 
 /**
