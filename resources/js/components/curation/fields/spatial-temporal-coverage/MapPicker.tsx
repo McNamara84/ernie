@@ -29,6 +29,7 @@ interface MapPickerProps {
     lonMax: string;
     onPointSelected: (lat: number, lng: number) => void;
     onRectangleSelected: (bounds: CoordinateBounds) => void;
+    allowedModes?: Array<'point' | 'rectangle'>; // Restrict which drawing tools are shown
 }
 
 /**
@@ -41,6 +42,7 @@ function MapPickerContent({
     lonMax,
     onPointSelected,
     onRectangleSelected,
+    allowedModes = ['point', 'rectangle'],
 }: Omit<MapPickerProps, 'apiKey'>) {
     const map = useMap();
     const [drawingMode, setDrawingMode] = useState<'point' | 'rectangle' | null>(null);
@@ -346,38 +348,42 @@ function MapPickerContent({
 
             {/* Drawing Tools */}
             <div className="flex gap-2">
-                <Button
-                    type="button"
-                    variant={drawingMode === 'point' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() =>
-                        setDrawingMode(drawingMode === 'point' ? null : 'point')
-                    }
-                >
-                    📍 Point
-                </Button>
-                <Button
-                    type="button"
-                    variant={drawingMode === 'rectangle' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                        const newMode = drawingMode === 'rectangle' ? null : 'rectangle';
-                        setDrawingMode(newMode);
-                        if (newMode === null && map) {
-                            // Reset drag state when exiting rectangle mode
-                            setIsDragging(false);
-                            rectangleStart.current = null;
-                            
-                            // Re-enable map dragging if it was explicitly disabled
-                            // Check for explicit false value (not undefined) to avoid re-enabling when already enabled
-                            if (map.get('draggable') === false) {
-                                map.setOptions({ draggable: true });
-                            }
+                {allowedModes.includes('point') && (
+                    <Button
+                        type="button"
+                        variant={drawingMode === 'point' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() =>
+                            setDrawingMode(drawingMode === 'point' ? null : 'point')
                         }
-                    }}
-                >
-                    ▭ Rectangle
-                </Button>
+                    >
+                        📍 Point
+                    </Button>
+                )}
+                {allowedModes.includes('rectangle') && (
+                    <Button
+                        type="button"
+                        variant={drawingMode === 'rectangle' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                            const newMode = drawingMode === 'rectangle' ? null : 'rectangle';
+                            setDrawingMode(newMode);
+                            if (newMode === null && map) {
+                                // Reset drag state when exiting rectangle mode
+                                setIsDragging(false);
+                                rectangleStart.current = null;
+                                
+                                // Re-enable map dragging if it was explicitly disabled
+                                // Check for explicit false value (not undefined) to avoid re-enabling when already enabled
+                                if (map.get('draggable') === false) {
+                                    map.setOptions({ draggable: true });
+                                }
+                            }
+                        }}
+                    >
+                        ▭ Rectangle
+                    </Button>
+                )}
                 {drawingMode && (
                     <span className="text-xs text-muted-foreground self-center">
                         {drawingMode === 'point'

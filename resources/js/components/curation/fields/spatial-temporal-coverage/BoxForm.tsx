@@ -57,6 +57,7 @@ export default function BoxForm({
                     lonMax={entry.lonMax}
                     onPointSelected={() => {}}
                     onRectangleSelected={handleRectangleSelected}
+                    allowedModes={['rectangle']}
                 />
             </div>
 

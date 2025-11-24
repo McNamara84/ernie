@@ -50,6 +50,7 @@ export default function PointForm({
                     lonMax=""
                     onPointSelected={handlePointSelected}
                     onRectangleSelected={() => {}}
+                    allowedModes={['point']}
                 />
             </div>
 
