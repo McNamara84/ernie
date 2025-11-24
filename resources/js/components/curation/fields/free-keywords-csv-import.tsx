@@ -103,6 +103,7 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
                         const validationErrors: ValidationError[] = [];
                         const rawKeywords: string[] = [];
                         const seenNormalized = new Set<string>();
+                        let duplicatesCount = 0;
 
                         // Normalize existing keywords for comparison
                         const existingNormalized = new Set(existingKeywords.map(normalizeKeyword));
@@ -152,7 +153,7 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
                             // Track duplicates within CSV
                             if (seenNormalized.has(normalized)) {
                                 // Don't add to validationErrors, just skip
-                                setDuplicatesRemoved((prev) => prev + 1);
+                                duplicatesCount++;
                                 return;
                             }
 
@@ -163,17 +164,20 @@ export default function FreeKeywordsCsvImport({ onImport, onClose, existingKeywo
                         });
 
                         // Count how many keywords already exist
+                        let existingCount = 0;
                         const newKeywords = rawKeywords.filter((keyword) => {
                             const normalized = normalizeKeyword(keyword);
                             const exists = existingNormalized.has(normalized);
                             if (exists) {
-                                setAlreadyExisting((prev) => prev + 1);
+                                existingCount++;
                             }
                             return !exists;
                         });
 
                         setErrors(validationErrors);
                         setParsedData(newKeywords);
+                        setDuplicatesRemoved(duplicatesCount);
+                        setAlreadyExisting(existingCount);
                         setProgress(100);
                         setIsProcessing(false);
                     },
