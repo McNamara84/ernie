@@ -271,3 +271,348 @@ XML;
     $response->assertSessionDataPath('coverages.0.lonMin', '-123.270000');
     $response->assertSessionDataPath('coverages.0.lonMax', '-123.020000');
 });
+
+test('extracts polygon from geoLocationPolygon', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://datacite.org/schema/kernel-4"
+  xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators>
+    <creator>
+      <creatorName>Test Author</creatorName>
+    </creator>
+  </creators>
+  <titles>
+    <title>Test Dataset</title>
+  </titles>
+  <publisher>Test Publisher</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPlace>Berlin Area</geoLocationPlace>
+      <geoLocationPolygon>
+        <polygonPoint>
+          <pointLatitude>52.5</pointLatitude>
+          <pointLongitude>13.4</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>52.6</pointLatitude>
+          <pointLongitude>13.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>52.5</pointLatitude>
+          <pointLongitude>13.6</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>52.4</pointLatitude>
+          <pointLongitude>13.5</pointLongitude>
+        </polygonPoint>
+      </geoLocationPolygon>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('geolocation-polygon.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataCount(1, 'coverages');
+    $response->assertSessionDataPath('coverages.0.type', 'polygon');
+    $response->assertSessionDataPath('coverages.0.description', 'Berlin Area');
+    
+    // Verify polygon points
+    $coverages = $response->sessionData('coverages');
+    expect($coverages[0]['polygonPoints'])->toHaveCount(4);
+    expect($coverages[0]['polygonPoints'][0])->toBe(['lat' => 52.5, 'lon' => 13.4]);
+    expect($coverages[0]['polygonPoints'][1])->toBe(['lat' => 52.6, 'lon' => 13.5]);
+    expect($coverages[0]['polygonPoints'][2])->toBe(['lat' => 52.5, 'lon' => 13.6]);
+    expect($coverages[0]['polygonPoints'][3])->toBe(['lat' => 52.4, 'lon' => 13.5]);
+});
+
+test('geoLocationPolygon takes precedence over point and box', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://datacite.org/schema/kernel-4"
+  xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators>
+    <creator>
+      <creatorName>Test Author</creatorName>
+    </creator>
+  </creators>
+  <titles>
+    <title>Test Dataset</title>
+  </titles>
+  <publisher>Test Publisher</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLatitude>49.2827</pointLatitude>
+        <pointLongitude>-123.1207</pointLongitude>
+      </geoLocationPoint>
+      <geoLocationBox>
+        <westBoundLongitude>-123.27</westBoundLongitude>
+        <eastBoundLongitude>-123.02</eastBoundLongitude>
+        <southBoundLatitude>49.195</southBoundLatitude>
+        <northBoundLatitude>49.315</northBoundLatitude>
+      </geoLocationBox>
+      <geoLocationPolygon>
+        <polygonPoint>
+          <pointLatitude>52.5</pointLatitude>
+          <pointLongitude>13.4</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>52.6</pointLatitude>
+          <pointLongitude>13.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>52.5</pointLatitude>
+          <pointLongitude>13.6</pointLongitude>
+        </polygonPoint>
+      </geoLocationPolygon>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('all-three-types.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Should use polygon, not box or point
+    $response->assertSessionDataPath('coverages.0.type', 'polygon');
+    $coverages = $response->sessionData('coverages');
+    expect($coverages[0]['polygonPoints'])->toHaveCount(3);
+});
+
+test('correctly identifies coverage type as point', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://datacite.org/schema/kernel-4"
+  xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.3/metadata.xsd">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators>
+    <creator>
+      <creatorName>Test Author</creatorName>
+    </creator>
+  </creators>
+  <titles>
+    <title>Test Dataset</title>
+  </titles>
+  <publisher>Test Publisher</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPoint>
+        <pointLatitude>49.2827</pointLatitude>
+        <pointLongitude>-123.1207</pointLongitude>
+      </geoLocationPoint>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('type-point.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.type', 'point');
+});
+
+test('correctly identifies coverage type as box', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://datacite.org/schema/kernel-4"
+  xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.3/metadata.xsd">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators>
+    <creator>
+      <creatorName>Test Author</creatorName>
+    </creator>
+  </creators>
+  <titles>
+    <title>Test Dataset</title>
+  </titles>
+  <publisher>Test Publisher</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationBox>
+        <westBoundLongitude>-123.27</westBoundLongitude>
+        <eastBoundLongitude>-123.02</eastBoundLongitude>
+        <southBoundLatitude>49.195</southBoundLatitude>
+        <northBoundLatitude>49.315</northBoundLatitude>
+      </geoLocationBox>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('type-box.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.type', 'box');
+});
+
+test('handles polygon with many points', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://datacite.org/schema/kernel-4"
+  xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators>
+    <creator>
+      <creatorName>Test Author</creatorName>
+    </creator>
+  </creators>
+  <titles>
+    <title>Test Dataset</title>
+  </titles>
+  <publisher>Test Publisher</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPolygon>
+        <polygonPoint>
+          <pointLatitude>10.5</pointLatitude>
+          <pointLongitude>20.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>11.5</pointLatitude>
+          <pointLongitude>21.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>12.5</pointLatitude>
+          <pointLongitude>22.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>13.5</pointLatitude>
+          <pointLongitude>23.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>14.5</pointLatitude>
+          <pointLongitude>24.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>15.5</pointLatitude>
+          <pointLongitude>25.5</pointLongitude>
+        </polygonPoint>
+      </geoLocationPolygon>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('polygon-many-points.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataPath('coverages.0.type', 'polygon');
+    $coverages = $response->sessionData('coverages');
+    expect($coverages[0]['polygonPoints'])->toHaveCount(6);
+    expect($coverages[0]['polygonPoints'][5])->toBe(['lat' => 15.5, 'lon' => 25.5]);
+});
+
+test('handles multiple geoLocations with mixed types', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://datacite.org/schema/kernel-4"
+  xsi:schemaLocation="http://datacite.org/schema/kernel-4 http://schema.datacite.org/meta/kernel-4.6/metadata.xsd">
+  <identifier identifierType="DOI">10.5072/test</identifier>
+  <creators>
+    <creator>
+      <creatorName>Test Author</creatorName>
+    </creator>
+  </creators>
+  <titles>
+    <title>Test Dataset</title>
+  </titles>
+  <publisher>Test Publisher</publisher>
+  <publicationYear>2024</publicationYear>
+  <resourceType resourceTypeGeneral="Dataset"/>
+  <geoLocations>
+    <geoLocation>
+      <geoLocationPlace>Point Location</geoLocationPlace>
+      <geoLocationPoint>
+        <pointLatitude>49.2827</pointLatitude>
+        <pointLongitude>-123.1207</pointLongitude>
+      </geoLocationPoint>
+    </geoLocation>
+    <geoLocation>
+      <geoLocationPlace>Box Location</geoLocationPlace>
+      <geoLocationBox>
+        <westBoundLongitude>-123.27</westBoundLongitude>
+        <eastBoundLongitude>-123.02</eastBoundLongitude>
+        <southBoundLatitude>49.195</southBoundLatitude>
+        <northBoundLatitude>49.315</northBoundLatitude>
+      </geoLocationBox>
+    </geoLocation>
+    <geoLocation>
+      <geoLocationPlace>Polygon Location</geoLocationPlace>
+      <geoLocationPolygon>
+        <polygonPoint>
+          <pointLatitude>52.5</pointLatitude>
+          <pointLongitude>13.4</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>52.6</pointLatitude>
+          <pointLongitude>13.5</pointLongitude>
+        </polygonPoint>
+        <polygonPoint>
+          <pointLatitude>52.5</pointLatitude>
+          <pointLongitude>13.6</pointLongitude>
+        </polygonPoint>
+      </geoLocationPolygon>
+    </geoLocation>
+  </geoLocations>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('mixed-coverage-types.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    $response->assertSessionDataCount(3, 'coverages');
+    $response->assertSessionDataPath('coverages.0.type', 'point');
+    $response->assertSessionDataPath('coverages.0.description', 'Point Location');
+    $response->assertSessionDataPath('coverages.1.type', 'box');
+    $response->assertSessionDataPath('coverages.1.description', 'Box Location');
+    $response->assertSessionDataPath('coverages.2.type', 'polygon');
+    $response->assertSessionDataPath('coverages.2.description', 'Polygon Location');
+
+    $coverages = $response->sessionData('coverages');
+    expect($coverages[2]['polygonPoints'])->toHaveCount(3);
+});
