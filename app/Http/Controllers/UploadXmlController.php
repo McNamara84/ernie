@@ -448,7 +448,7 @@ class UploadXmlController extends Controller
      * - Temporal coverage as <date dateType="Coverage">
      *
      * @param  array<int, array<string, string>>  $dates  Already extracted dates (to find Coverage date)
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, string|array<int, array<string, float>>>>
      */
     private function extractCoverages(XmlReader $reader, array $dates): array
     {
