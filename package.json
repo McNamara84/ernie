@@ -1,4 +1,6 @@
 {
+  "name": "ernie",
+  "version": "1.0.0b",
   "private": true,
   "type": "module",
   "scripts": {

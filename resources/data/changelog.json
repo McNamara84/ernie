@@ -1,5 +1,111 @@
 [
   {
+    "version": "1.0.0b",
+    "date": "2025-11-25",
+    "features": [
+      {
+        "title": "Spatial Coverage with Polygons",
+        "description": "Draw and edit complex polygons for geographic coverage areas with interactive Google Maps integration. Enhanced coordinate handling and validation for precise spatial data representation. Supports both simple rectangles and complex multi-point polygons for flexible coverage definition."
+      },
+      {
+        "title": "CSV Upload for Free Keywords",
+        "description": "Bulk upload free-form keywords via CSV files for efficient metadata entry. Includes drag-and-drop interface, real-time validation, error reporting with line numbers, and preview before import. Automatic duplicate detection and normalization ensure data quality."
+      },
+      {
+        "title": "MSL Vocabulary Auto-Switch",
+        "description": "Automatic tab switching and notification system when MSL (Materials Science and Engineering) keywords are detected. Intelligent detection of MSL-relevant keywords triggers visual notifications and automatically switches to the MSL vocabulary tab for streamlined workflow."
+      },
+      {
+        "title": "Version Badge Links in Dashboard",
+        "description": "Quick access to release notes directly from dashboard version indicators. Clicking version badges navigates to the changelog with automatic scrolling to the relevant release section for convenient version history access."
+      },
+      {
+        "title": "Enhanced Rectangle Drawing",
+        "description": "Improved drag-and-drop interface for quickly defining rectangular coverage areas on the map. Visual feedback during drawing, automatic coordinate extraction, and validation ensure accurate spatial coverage definition."
+      },
+      {
+        "title": "Show Password Toggle on Login",
+        "description": "Toggle password visibility on login page for improved user experience. Reduces login errors from typos and improves accessibility by allowing users to verify their password input."
+      },
+      {
+        "title": "Detailed Related Works Statistics",
+        "description": "Comprehensive metrics and analytics for related publications and datasets. Enhanced statistics dashboard showing distribution by relation type, identifier type, and temporal patterns. Helps curators understand dataset relationships and identify common citation patterns."
+      },
+      {
+        "title": "Larger Font Size Setting",
+        "description": "User preference for increased text size in settings for better accessibility. Font size changes apply immediately across the application, supporting users with visual impairments or preference for larger text."
+      }
+    ],
+    "improvements": [
+      {
+        "title": "Enhanced Search Trigger Timing",
+        "description": "Fixed premature search triggering in resource lists with improved debounce handling. Search now waits for user to finish typing before executing queries, reducing unnecessary API calls and improving performance."
+      },
+      {
+        "title": "Resource Filter Persistence",
+        "description": "Filters now correctly save selected options across sessions. User filter preferences are stored and restored when returning to resource lists, improving workflow continuity."
+      },
+      {
+        "title": "Better Sorting for Old Datasets",
+        "description": "Enhanced sorting options with new author column and improved query optimization. Server-side sorting with SQL-level optimization provides faster results and consistent ordering across pagination."
+      },
+      {
+        "title": "Reorganized Test Suites",
+        "description": "Restructured test suites for better maintainability with domain-based organization. Separated unit and integration tests, improved test isolation, and added comprehensive coverage across Pest, Vitest, and Playwright test frameworks."
+      },
+      {
+        "title": "PHPStan Level 8 Compliance",
+        "description": "Increased static analysis strictness to PHPStan Level 8 for improved code quality. Enhanced type safety, eliminated potential bugs, and improved IDE support with better type inference."
+      },
+      {
+        "title": "Deployment via Portainer",
+        "description": "Production-ready Docker configuration for container orchestration with Portainer support. Multi-stage builds optimize image sizes, health checks ensure service availability, and improved session management enhances production reliability."
+      },
+      {
+        "title": "Inline Validation for Mandatory Inputs",
+        "description": "Real-time validation feedback for required fields with visual indicators. Red borders and error messages appear immediately when users interact with mandatory fields, preventing form submission with incomplete data."
+      },
+      {
+        "title": "Better Main Menu Labels",
+        "description": "Improved clarity of navigation menu items with more intuitive naming. Renamed 'Curation' to 'Editor' throughout the application for better understanding of metadata editing functionality."
+      }
+    ],
+    "fixes": [
+      {
+        "title": "Loading Old Datasets with Empty First Name",
+        "description": "Handle legacy records with missing author first names gracefully. Improved null value handling prevents errors when loading historical datasets with incomplete author information."
+      },
+      {
+        "title": "Error 414 on Old Dataset Loading",
+        "description": "Fixed URI too long errors when loading large legacy datasets. Implemented request payload optimization and chunking to handle datasets with extensive metadata without exceeding URL length limits."
+      },
+      {
+        "title": "ORCID Auto-Suggest Behavior",
+        "description": "Prevented unexpected opening of ORCID suggestion dropdown. Improved focus handling and event management ensures dropdown only appears when intended by user interaction."
+      },
+      {
+        "title": "Missing Keywords in Vocabularies",
+        "description": "Restored missing entries in controlled vocabulary lists. Fixed synchronization issues with GCMD and MSL vocabularies to ensure complete keyword coverage."
+      },
+      {
+        "title": "Wrong Naming in CSV Examples",
+        "description": "Corrected column headers in bulk upload example files. Updated documentation and example CSV files to match actual field names, preventing user confusion during bulk imports."
+      },
+      {
+        "title": "Show End Date Field Conditionally",
+        "description": "End date field now only appears for 'valid' date type. Improved form logic prevents confusion by hiding irrelevant fields based on selected date type."
+      },
+      {
+        "title": "Coverage Dates Validation",
+        "description": "Properly enforce required validation for coverage date fields. Improved validation feedback and error messages ensure temporal coverage data quality."
+      },
+      {
+        "title": "CSRF Token Mismatch",
+        "description": "Resolved session and token validation issues with improved token refresh mechanism. Enhanced session configuration for production environments with proper cookie settings and automatic retry logic."
+      }
+    ]
+  },
+  {
     "version": "1.0.0a",
     "date": "2025-11-05",
     "features": [
