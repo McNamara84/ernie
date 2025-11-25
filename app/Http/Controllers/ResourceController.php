@@ -296,8 +296,8 @@ class ResourceController extends Controller
                     ]);
                 }
 
-                // Auto-manage 'updated' date: Update timestamp on every save (when data actually changed)
-                // For updates, we check if the resource was actually modified
+                // Auto-manage 'updated' date: Update timestamp on every update operation.
+                // This reflects when the resource was last saved by a curator.
                 if ($isUpdate) {
                     // Delete existing 'updated' date entry
                     $resource->dates()->where('date_type', 'updated')->delete();
