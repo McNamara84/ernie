@@ -102,6 +102,10 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
+                // Switch to Bounding Box tab
+                await page.getByRole('tab', { name: /bounding box/i }).click();
+                await page.waitForTimeout(300); // Wait for tab switch animation
+                
                 // Enter rectangle coordinates
                 const latMinInput = page.locator('#lat-min').first();
                 const lonMinInput = page.locator('#lon-min').first();
@@ -366,11 +370,19 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
-                // Map picker should be visible
-                await expect(page.getByText(/map picker/i)).toBeVisible();
+                // Should have tabs for different coverage types
+                await expect(page.getByRole('tab', { name: /^point$/i })).toBeVisible();
+                await expect(page.getByRole('tab', { name: /bounding box/i })).toBeVisible();
+                await expect(page.getByRole('tab', { name: /polygon/i })).toBeVisible();
                 
-                // Should have drawing tool buttons
-                await expect(page.getByRole('button', { name: /point/i })).toBeVisible();
+                // Point tab is active by default - should only have point button
+                await expect(page.getByRole('button', { name: /^point$/i })).toBeVisible();
+                
+                // Switch to Bounding Box tab
+                await page.getByRole('tab', { name: /bounding box/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Now rectangle button should be visible
                 await expect(page.getByRole('button', { name: /rectangle/i })).toBeVisible();
             }
         });
@@ -417,6 +429,10 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
+                // Switch to Bounding Box tab for rectangle coordinates
+                await page.getByRole('tab', { name: /bounding box/i }).click();
+                await page.waitForTimeout(300);
+                
                 // Fill all fields
                 await page.locator('#lat-min').first().fill('48.137154');
                 await page.locator('#lon-min').first().fill('11.576124');
@@ -432,10 +448,21 @@ test.describe('Spatial and Temporal Coverage', () => {
                 
                 // Collapse to verify preview
                 await page.getByText(/coverage entry #1/i).click();
+                await page.waitForTimeout(300);
                 
-                // Verify preview shows all data
-                await expect(page.getByText(/48\.137154.*11\.576124.*48\.200000.*11\.600000/)).toBeVisible();
-                await expect(page.getByText(/2024-01-01.*10:30.*2024-12-31.*15:45/)).toBeVisible();
+                // Verify preview shows coordinate data (may be formatted separately)
+                await expect(page.locator('text=48.137154').first()).toBeVisible();
+                await expect(page.locator('text=11.576124').first()).toBeVisible();
+                await expect(page.locator('text=48.200000').first()).toBeVisible();
+                await expect(page.locator('text=11.600000').first()).toBeVisible();
+                
+                // Verify temporal data
+                await expect(page.locator('text=2024-01-01').first()).toBeVisible();
+                await expect(page.locator('text=10:30').first()).toBeVisible();
+                await expect(page.locator('text=2024-12-31').first()).toBeVisible();
+                await expect(page.locator('text=15:45').first()).toBeVisible();
+                
+                // Verify description
                 await expect(page.getByText(/Field campaign in Munich area/)).toBeVisible();
             }
         });
