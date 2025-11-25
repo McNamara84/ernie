@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AlertCircle, CheckCircle, Circle } from 'lucide-react';
+import { AlertCircle, CheckCircle, Circle, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -105,8 +105,7 @@ const normalizeWebsiteUrl = (url: string | null | undefined): string => {
     return trimmed;
 };
 
-// Constants
-const REQUIRED_DATE_TYPE = 'created' as const;
+// Constants - Note: 'created' and 'updated' date types are now automatically managed by the backend
 
 interface DataCiteFormData {
     doi: string;
@@ -563,9 +562,13 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
-    const MAX_DATES = 11;
+    const MAX_DATES = 9; // Reduced from 11, since 'created' and 'updated' are now auto-managed
+    
+    // Date types that are automatically managed by the system and not editable by users
+    const AUTO_MANAGED_DATE_TYPES = ['created', 'updated'] as const;
     
     // Available date types according to DataCite schema with descriptions
+    // Note: 'Created' and 'Updated' are excluded as they are automatically managed
     const dateTypes = [
         { 
             value: 'accepted', 
@@ -588,11 +591,6 @@ export default function DataCiteForm({
             description: 'The date or date range in which the resource content was collected. To indicate precise or particular timeframes in which research was conducted.'
         },
         { 
-            value: REQUIRED_DATE_TYPE, 
-            label: 'Created',
-            description: 'The date the resource itself was put together; this could refer to a timeframe in ancient history, a date range, or a single date for a final component. Recommended for discovery.'
-        },
-        { 
             value: 'issued', 
             label: 'Issued',
             description: 'The date that the resource is published or distributed, e.g., to a data centre.'
@@ -601,11 +599,6 @@ export default function DataCiteForm({
             value: 'submitted', 
             label: 'Submitted',
             description: 'The date the creator submits the resource to the publisher. This could be different from Accepted if the publisher then applies a selection process. Recommended for discovery. To indicate the start of an embargo period, use Submitted or Accepted.'
-        },
-        { 
-            value: 'updated', 
-            label: 'Updated',
-            description: 'The date of the last update to the resource, when the resource is being added to. May be a range.'
         },
         { 
             value: 'valid', 
@@ -704,16 +697,19 @@ export default function DataCiteForm({
     });
     const [dates, setDates] = useState<DateEntry[]>(() => {
         if (initialDates && initialDates.length > 0) {
-            return initialDates.map((date) => ({
-                id: crypto.randomUUID(),
-                dateType: date.dateType,
-                startDate: date.startDate,
-                endDate: date.endDate,
-            }));
+            // Filter out auto-managed date types ('created' and 'updated')
+            // These are now automatically handled by the backend
+            return initialDates
+                .filter((date) => !AUTO_MANAGED_DATE_TYPES.includes(date.dateType.toLowerCase() as typeof AUTO_MANAGED_DATE_TYPES[number]))
+                .map((date) => ({
+                    id: crypto.randomUUID(),
+                    dateType: date.dateType,
+                    startDate: date.startDate,
+                    endDate: date.endDate,
+                }));
         }
-        return [
-            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: REQUIRED_DATE_TYPE },
-        ];
+        // Start with empty dates array - 'created' and 'updated' are auto-managed
+        return [];
     });
 
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
@@ -1222,27 +1218,14 @@ export default function DataCiteForm({
         return issues;
     }, [authors]);
 
-    // Date validation issues (specifically for "Created" date type)
+    // Date validation issues (general validation for user-entered dates)
+    // Note: 'Created' and 'Updated' dates are now auto-managed by the backend
     const dateValidationIssues = useMemo(() => {
         const issues: string[] = [];
         
-        // Check if at least one "Created" date exists
-        const createdDates = dates.filter((date) => date.dateType === REQUIRED_DATE_TYPE);
-        
-        if (createdDates.length === 0) {
-            issues.push('At least one "Created" date is required');
-            return issues;
-        }
-        
-        // Validate each "Created" date
-        createdDates.forEach((date) => {
-            const dateIndex = dates.findIndex((d) => d === date) + 1;
-            
-            // Check if at least one date field is filled
-            if (!hasValidDateValue(date)) {
-                issues.push(`Date ${dateIndex}: Start date or end date is required for "Created" type`);
-                return;
-            }
+        // Validate each user-entered date
+        dates.forEach((date, index) => {
+            const dateIndex = index + 1;
             
             // Validate start date if provided
             if (date.startDate && date.startDate.trim() !== '') {
@@ -1304,9 +1287,7 @@ export default function DataCiteForm({
         const abstractFilled = descriptions.some(
             (desc) => desc.type === 'Abstract' && desc.value.trim() !== '',
         );
-        const dateCreatedFilled = dates.some(
-            (date) => date.dateType === REQUIRED_DATE_TYPE && hasValidDateValue(date),
-        );
+        // Note: 'Created' date is no longer required from user - it's auto-managed by the backend
 
         return (
             mainTitleFilled &&
@@ -1315,10 +1296,9 @@ export default function DataCiteForm({
             languageSelected &&
             primaryLicenseFilled &&
             authorsValid &&
-            abstractFilled &&
-            dateCreatedFilled
+            abstractFilled
         );
-    }, [authors, descriptions, dates, form.language, form.resourceType, form.year, licenseEntries, titles]);
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
 
     // Check if there are any legacy MSL keywords that need to be replaced
     const hasLegacyKeywords = useMemo(() => {
@@ -1381,16 +1361,10 @@ export default function DataCiteForm({
             missing.push('Abstract must be at least 50 characters');
         }
 
-        // Check created date
-        const createdDate = dates.find((date) => date.dateType === REQUIRED_DATE_TYPE);
-        if (!createdDate) {
-            missing.push('Created Date is required');
-        } else if (!hasValidDateValue(createdDate)) {
-            missing.push('Created Date must have a valid date value');
-        }
+        // Note: 'Created' date is no longer required from user - it's auto-managed by the backend
 
         return missing;
-    }, [authors, descriptions, dates, form.language, form.resourceType, form.year, licenseEntries, titles]);
+    }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
 
     // ===================================================================
     // Accordion Section Status Badges
@@ -1530,13 +1504,13 @@ export default function DataCiteForm({
     }, [spatialTemporalCoverages]);
 
     const datesStatus = useMemo(() => {
-        const createdDate = dates.find((date) => date.dateType === REQUIRED_DATE_TYPE);
-        if (!createdDate) {
-            return 'invalid';
+        // Dates section is now optional since 'Created' and 'Updated' are auto-managed
+        const hasAnyDate = dates.some((date) => hasValidDateValue(date));
+        
+        if (!hasAnyDate) {
+            return 'optional-empty';
         }
-        if (!hasValidDateValue(createdDate)) {
-            return 'invalid';
-        }
+        
         if (dateValidationIssues.length > 0) {
             return 'invalid';
         }
@@ -1575,6 +1549,7 @@ export default function DataCiteForm({
     // Opens the section automatically and focuses the first problematic field
     const scrollToFirstInvalidSection = () => {
         // Define priority order of sections to check
+        // Note: Dates section is excluded as it's now optional (Created/Updated are auto-managed)
         const sectionsToCheck: Array<{
             status: 'valid' | 'invalid' | 'optional-empty';
             ref: React.RefObject<HTMLDivElement | null>;
@@ -1604,12 +1579,6 @@ export default function DataCiteForm({
                 ref: descriptionsRef,
                 accordionValue: 'descriptions',
                 focusSelector: '[data-testid="abstract-textarea"]', // Focus abstract
-            },
-            {
-                status: datesStatus,
-                ref: datesRef,
-                accordionValue: 'dates',
-                // Dates is complex, just scroll to section
             },
         ];
 
@@ -2525,37 +2494,49 @@ export default function DataCiteForm({
                             </div>
                         )}
                         <div className="space-y-4">
-                            {dates.map((entry, index) => {
-                                const selectedDateType = dateTypes.find(dt => dt.value === entry.dateType);
-                                return (
-                                    <DateField
-                                        key={entry.id}
-                                        id={entry.id}
-                                        startDate={entry.startDate}
-                                        endDate={entry.endDate}
-                                        dateType={entry.dateType}
-                                        dateTypeDescription={selectedDateType?.description}
-                                        options={dateTypes.filter(
-                                            (dt) =>
-                                                dt.value === entry.dateType ||
-                                                !dates.some((d) => d.dateType === dt.value),
-                                        )}
-                                        onStartDateChange={(val) =>
-                                            handleDateChange(index, 'startDate', val)
-                                        }
-                                        onEndDateChange={(val) =>
-                                            handleDateChange(index, 'endDate', val)
-                                        }
-                                        onTypeChange={(val) =>
-                                            handleDateChange(index, 'dateType', val)
-                                        }
-                                        onAdd={addDate}
-                                        onRemove={() => removeDate(index)}
-                                        isFirst={index === 0}
-                                        canAdd={canAddDate(dates, MAX_DATES)}
-                                    />
-                                );
-                            })}
+                            {dates.length === 0 ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={addDate}
+                                    aria-label="Add date"
+                                >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Add date
+                                </Button>
+                            ) : (
+                                dates.map((entry, index) => {
+                                    const selectedDateType = dateTypes.find(dt => dt.value === entry.dateType);
+                                    return (
+                                        <DateField
+                                            key={entry.id}
+                                            id={entry.id}
+                                            startDate={entry.startDate}
+                                            endDate={entry.endDate}
+                                            dateType={entry.dateType}
+                                            dateTypeDescription={selectedDateType?.description}
+                                            options={dateTypes.filter(
+                                                (dt) =>
+                                                    dt.value === entry.dateType ||
+                                                    !dates.some((d) => d.dateType === dt.value),
+                                            )}
+                                            onStartDateChange={(val) =>
+                                                handleDateChange(index, 'startDate', val)
+                                            }
+                                            onEndDateChange={(val) =>
+                                                handleDateChange(index, 'endDate', val)
+                                            }
+                                            onTypeChange={(val) =>
+                                                handleDateChange(index, 'dateType', val)
+                                            }
+                                            onAdd={addDate}
+                                            onRemove={() => removeDate(index)}
+                                            isFirst={index === 0}
+                                            canAdd={canAddDate(dates, MAX_DATES)}
+                                        />
+                                    );
+                                })
+                            )}
                         </div>
                     </AccordionContent>
                 </AccordionItem>

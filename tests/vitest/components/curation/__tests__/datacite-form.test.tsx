@@ -172,10 +172,6 @@ vi.mock('@/hooks/use-ror-affiliations', () => ({
 describe('DataCiteForm', () => {
     const originalFetch = global.fetch;
 
-    // Constants
-    // The label for the required date type (Date Created must be filled for form submission)
-    const REQUIRED_DATE_TYPE_LABEL = 'Created';
-
     // Helper Functions
     const clearXsrfCookie = () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
@@ -296,22 +292,6 @@ describe('DataCiteForm', () => {
         if (datesTrigger.getAttribute('aria-expanded') === 'false') {
             await user.click(datesTrigger);
         }
-    };
-
-    const fillRequiredDateCreated = async (
-        user: ReturnType<typeof userEvent.setup>,
-        date = '2024-01-15',
-    ) => {
-        await ensureDatesOpen(user);
-        const dateInputs = getEmptyDateInputs();
-        if (dateInputs.length === 0) {
-            throw new Error('No date inputs found in the form');
-        }
-        const dateCreatedInput = dateInputs[0];
-        
-        // Use type() for date inputs with the correct format
-        await user.clear(dateCreatedInput);
-        await user.type(dateCreatedInput, date);
     };
 
     beforeAll(() => {
@@ -680,7 +660,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user, 'Doe');
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
-        await fillRequiredDateCreated(user);
+
 
         await waitFor(() => {
             expect(saveButton).toBeEnabled();
@@ -1291,7 +1271,7 @@ describe('DataCiteForm', () => {
 
             await user.type(emailInput, 'contact@example.org');
             await fillRequiredAbstract(user);
-            await fillRequiredDateCreated(user);
+
 
             await waitFor(
                 () => {
@@ -2224,7 +2204,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
-        await fillRequiredDateCreated(user);
+
         await user.click(saveButton);
 
         // axios.post(url, data, config) - check it was called with the URL
@@ -2311,7 +2291,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
-        await fillRequiredDateCreated(user);
+
         await user.click(saveButton);
 
         // axios.post is called once for saving (vocabularies use fetch)
@@ -2395,7 +2375,7 @@ describe('DataCiteForm', () => {
         const saveButton = screen.getByRole('button', { name: /save to database/i });
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
-        await fillRequiredDateCreated(user);
+
         await user.click(saveButton);
 
         // With initialAuthors that have ROR IDs, there may be additional fetch calls for ROR validation
@@ -2481,7 +2461,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
-        await fillRequiredDateCreated(user);
+
         await user.click(saveButton);
 
         expect(axios.post).toHaveBeenCalledWith(
@@ -2557,7 +2537,7 @@ describe('DataCiteForm', () => {
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
         await fillRequiredAbstract(user);
-        await fillRequiredDateCreated(user);
+
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
@@ -2646,7 +2626,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
-        await fillRequiredDateCreated(user);
+
 
         // Fill Abstract
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2683,7 +2663,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
-        await fillRequiredDateCreated(user);
+
 
         // Fill Abstract (required)
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2751,7 +2731,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
-        await fillRequiredDateCreated(user);
+
 
         // Fill only Abstract
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2803,7 +2783,7 @@ describe('DataCiteForm', () => {
 
         await fillRequiredAuthor(user);
         await fillRequiredContributor(user);
-        await fillRequiredDateCreated(user);
+
 
         // Fill Abstract with whitespace
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
@@ -2846,7 +2826,7 @@ describe('DataCiteForm', () => {
             expect(datesTrigger).toHaveAttribute('aria-expanded', 'true');
         });
 
-        it('renders a single Date Created field by default', () => {
+        it('starts with empty dates array (created/updated are auto-managed by backend)', () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -2860,23 +2840,46 @@ describe('DataCiteForm', () => {
             />,
             );
 
-            const dateInputs = screen.getAllByDisplayValue('');
-            const dateFields = dateInputs.filter(input => input.getAttribute('type') === 'date');
-            // Only "valid" date type has 2 fields (date range). "created" has only 1 field (single date)
-            expect(dateFields).toHaveLength(1);
-            expect(dateFields[0]).toHaveAttribute('type', 'date');
+            // No date fields should be present by default since Created/Updated are auto-managed
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(0);
+        });
+
+        it('supports adding date types (excludes created and updated)', async () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                googleMapsApiKey="test-api-key"
+            />,
+            );
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+            const addButton = screen.getByRole('button', { name: 'Add date' });
+            await user.click(addButton);
+
+            // After adding a new date: should have 1 date input
+            const allDateInputs = document.querySelectorAll('input[type="date"]');
+            expect(allDateInputs).toHaveLength(1);
             
-            const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
+            // Verify 'Created' and 'Updated' are not available in dropdown
+            const dateTypeTriggers = screen.getAllByRole('combobox').filter(el => 
                 el.getAttribute('id')?.includes('dateType')
             );
-            expect(dateTypeTrigger).toBeDefined();
-            // Check the actual value attribute which should be the required date type
-            if (dateTypeTrigger) {
-                expect(dateTypeTrigger.getAttribute('aria-activedescendant') || dateTypeTrigger.textContent).toContain(REQUIRED_DATE_TYPE_LABEL);
-            }
+            await user.click(dateTypeTriggers[0]);
+            
+            const createdOption = screen.queryByRole('option', { name: 'Created' });
+            const updatedOption = screen.queryByRole('option', { name: 'Updated' });
+            expect(createdOption).not.toBeInTheDocument();
+            expect(updatedOption).not.toBeInTheDocument();
         });
 
-        it('marks Date Created as required', () => {
+        it('supports removing date fields', async () => {
             render(
                 <DataCiteForm
                     resourceTypes={resourceTypes}
@@ -2886,76 +2889,24 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
-            );
-
-            const dateInputs = screen.getAllByDisplayValue('');
-            const dateFields = dateInputs.filter(input => input.getAttribute('type') === 'date');
-            expect(dateFields[0]).toHaveAttribute('required');
-        });
-
-        it('supports adding additional date types', async () => {
-            render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[
+                        { dateType: 'accepted', startDate: '2024-01-15', endDate: '' },
+                        { dateType: 'issued', startDate: '2024-02-01', endDate: '' },
+                    ]}
+                />,
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            const firstDateInput = screen.getAllByDisplayValue('').find(input => 
-                input.getAttribute('type') === 'date'
-            ) as HTMLInputElement;
-            await user.type(firstDateInput, '2024-01-15');
+            // Should have 2 date inputs from initialDates
+            let dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(2);
 
-            const addButton = screen.getByRole('button', { name: 'Add date' });
-            await user.click(addButton);
-
-            const dateInputs = screen.getAllByDisplayValue('').filter(input => 
-                input.getAttribute('type') === 'date'
-            );
-            // After adding a new date: First row (created) is filled, second row (accepted) has 1 empty = 1 empty total
-            expect(dateInputs).toHaveLength(1);
-            const allDateInputs = document.querySelectorAll('input[type="date"]');
-            // Total: 1 date field for "created" + 1 for "accepted" = 2 date inputs
-            expect(allDateInputs).toHaveLength(2);
-        });
-
-        it('supports removing non-required date fields', async () => {
-            render(
-                <DataCiteForm
-                    resourceTypes={resourceTypes}
-                    titleTypes={titleTypes}
-                    licenses={licenses}
-                    languages={languages}
-                    contributorPersonRoles={contributorPersonRoles}
-                    contributorInstitutionRoles={contributorInstitutionRoles}
-                    authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
-            );
-            const user = userEvent.setup({ pointerEventsCheck: 0 });
-
-            const firstDateInput = screen.getAllByDisplayValue('').find(input => 
-                input.getAttribute('type') === 'date'
-            ) as HTMLInputElement;
-            await user.type(firstDateInput, '2024-01-15');
-
-            const addButton = screen.getByRole('button', { name: 'Add date' });
-            await user.click(addButton);
-
+            // Remove button should be on the second date entry (first shows "Add")
             const removeButton = screen.getByRole('button', { name: 'Remove date' });
             await user.click(removeButton);
 
-            const dateInputs = document.querySelectorAll('input[type="date"]');
-            // After removing: back to 1 row with 1 date field (created type has only single date)
+            dateInputs = document.querySelectorAll('input[type="date"]');
             expect(dateInputs).toHaveLength(1);
         });
 
@@ -2969,15 +2920,11 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'accepted', startDate: '2024-01-15', endDate: '' }]}
+                />,
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
-
-            const firstDateInput = screen.getAllByDisplayValue('').find(input => 
-                input.getAttribute('type') === 'date'
-            ) as HTMLInputElement;
-            await user.type(firstDateInput, '2024-01-15');
 
             const addButton = screen.getByRole('button', { name: 'Add date' });
             await user.click(addButton);
@@ -2987,8 +2934,15 @@ describe('DataCiteForm', () => {
             );
             await user.click(dateTypeTriggers[1]);
 
-            const createdOption = screen.queryByRole('option', { name: REQUIRED_DATE_TYPE_LABEL });
+            // 'Accepted' should not be available since it's already used
+            const acceptedOption = screen.queryByRole('option', { name: 'Accepted' });
+            expect(acceptedOption).not.toBeInTheDocument();
+            
+            // 'Created' and 'Updated' should also not be available (auto-managed)
+            const createdOption = screen.queryByRole('option', { name: 'Created' });
+            const updatedOption = screen.queryByRole('option', { name: 'Updated' });
             expect(createdOption).not.toBeInTheDocument();
+            expect(updatedOption).not.toBeInTheDocument();
         });
 
         it('displays description for selected date type', () => {
@@ -3001,11 +2955,12 @@ describe('DataCiteForm', () => {
                     contributorPersonRoles={contributorPersonRoles}
                     contributorInstitutionRoles={contributorInstitutionRoles}
                     authorRoles={authorRoles}
-                googleMapsApiKey="test-api-key"
-            />,
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[{ dateType: 'accepted', startDate: '', endDate: '' }]}
+                />,
             );
 
-            const description = screen.getByText(/The date the resource itself was put together/);
+            const description = screen.getByText(/The date that the publisher accepted/);
             expect(description).toBeInTheDocument();
         });
 
@@ -3051,22 +3006,47 @@ describe('DataCiteForm', () => {
             expect(dateInputs[0]).toHaveValue('2024-01-01');
             expect(dateInputs[1]).toHaveValue('2024-12-31');
 
-            // Open the date type selector and change to "created"
+            // Open the date type selector and change to "accepted" (since Created is auto-managed)
             const dateTypeTrigger = screen.getAllByRole('combobox').find(el => 
                 el.getAttribute('id')?.includes('dateType')
             );
             expect(dateTypeTrigger).toBeDefined();
             if (dateTypeTrigger) {
                 await user.click(dateTypeTrigger);
-                const createdOption = screen.getByRole('option', { name: /Created/ });
-                await user.click(createdOption);
+                const acceptedOption = screen.getByRole('option', { name: /Accepted/ });
+                await user.click(acceptedOption);
             }
 
-            // After changing to "created", should only have 1 date field
+            // After changing to "accepted", should only have 1 date field
             dateInputs = document.querySelectorAll('input[type="date"]');
             expect(dateInputs).toHaveLength(1);
             // startDate should be preserved
             expect(dateInputs[0]).toHaveValue('2024-01-01');
+        });
+
+        it('filters out created and updated dates from initialDates', () => {
+            render(
+                <DataCiteForm
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    licenses={licenses}
+                    languages={languages}
+                    contributorPersonRoles={contributorPersonRoles}
+                    contributorInstitutionRoles={contributorInstitutionRoles}
+                    authorRoles={authorRoles}
+                    googleMapsApiKey="test-api-key"
+                    initialDates={[
+                        { dateType: 'created', startDate: '2024-01-01', endDate: '' },
+                        { dateType: 'updated', startDate: '2024-06-15', endDate: '' },
+                        { dateType: 'accepted', startDate: '2024-01-10', endDate: '' },
+                    ]}
+                />,
+            );
+
+            // Only 'accepted' should be shown, 'created' and 'updated' are auto-managed
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            expect(dateInputs).toHaveLength(1);
+            expect(dateInputs[0]).toHaveValue('2024-01-10');
         });
     });
 
