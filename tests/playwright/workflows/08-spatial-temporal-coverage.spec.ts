@@ -203,31 +203,27 @@ test.describe('Spatial and Temporal Coverage', () => {
                 // Add three points for a valid polygon (minimum required)
                 for (let i = 0; i < 3; i++) {
                     await addPointButton.click();
-                    await page.waitForTimeout(100);
+                    await page.waitForTimeout(200);
                 }
                 
-                // Fill coordinates for all three points
-                const latInputs = await page.locator('input[type="number"][step="0.000001"]').filter({ hasText: /lat/i }).or(
-                    page.locator('input[type="number"][step="0.000001"]').nth(0)
-                ).all();
-                const lonInputs = await page.locator('input[type="number"][step="0.000001"]').filter({ hasText: /lon/i }).or(
-                    page.locator('input[type="number"][step="0.000001"]').nth(1)
-                ).all();
+                // Fill coordinates for all three points using table row locators
+                // The polygon form has a table with rows for each point
+                const allNumberInputs = page.locator('input[type="number"][step="0.000001"]');
                 
-                // Point 1: Munich center
-                if (latInputs[0]) await latInputs[0].fill('48.137154');
-                if (lonInputs[0]) await lonInputs[0].fill('11.576124');
+                // Point 1: Munich center (inputs 0 and 1)
+                await allNumberInputs.nth(0).fill('48.137154');
+                await allNumberInputs.nth(1).fill('11.576124');
                 
-                // Point 2: North
-                if (latInputs[1]) await latInputs[1].fill('48.200000');
-                if (lonInputs[1]) await lonInputs[1].fill('11.576124');
+                // Point 2: North (inputs 2 and 3)
+                await allNumberInputs.nth(2).fill('48.200000');
+                await allNumberInputs.nth(3).fill('11.576124');
                 
-                // Point 3: East
-                if (latInputs[2]) await latInputs[2].fill('48.137154');
-                if (lonInputs[2]) await lonInputs[2].fill('11.650000');
+                // Point 3: East (inputs 4 and 5)
+                await allNumberInputs.nth(4).fill('48.137154');
+                await allNumberInputs.nth(5).fill('11.650000');
                 
                 // Should show point count
-                await expect(page.getByText(/3 points/i)).toBeVisible();
+                await expect(page.getByText(/Polygon Points \(3\)/i)).toBeVisible();
                 
                 // Should show "Clear Polygon" button when points exist
                 await expect(page.getByRole('button', { name: /clear polygon/i })).toBeVisible();
@@ -259,7 +255,7 @@ test.describe('Spatial and Temporal Coverage', () => {
                 await expect(page.getByText(/minimum 3 points/i)).toBeVisible();
                 
                 // Should show point count
-                await expect(page.getByText(/2 points/i)).toBeVisible();
+                await expect(page.getByText(/Polygon Points \(2\)/i)).toBeVisible();
             }
         });
 
@@ -282,7 +278,7 @@ test.describe('Spatial and Temporal Coverage', () => {
                 }
                 
                 // Should show 4 points
-                await expect(page.getByText(/4 points/i)).toBeVisible();
+                await expect(page.getByText(/Polygon Points \(4\)/i)).toBeVisible();
                 
                 // Remove one point using delete button (trash icon)
                 const deleteButtons = page.getByRole('button').filter({ has: page.locator('svg') });
@@ -293,7 +289,7 @@ test.describe('Spatial and Temporal Coverage', () => {
                 }
                 
                 // Should now show 3 points
-                await expect(page.getByText(/3 points/i)).toBeVisible();
+                await expect(page.getByText(/Polygon Points \(3\)/i)).toBeVisible();
             }
         });
     });
@@ -490,8 +486,8 @@ test.describe('Spatial and Temporal Coverage', () => {
                 await expect(page.getByRole('tab', { name: /bounding box/i })).toBeVisible();
                 await expect(page.getByRole('tab', { name: /polygon/i })).toBeVisible();
                 
-                // Point tab is active by default - should only have point button
-                await expect(page.getByRole('button', { name: /^point$/i })).toBeVisible();
+                // Point tab is active by default - should only have point button (with emoji)
+                await expect(page.getByRole('button', { name: /point/i })).toBeVisible();
                 
                 // Switch to Bounding Box tab
                 await page.getByRole('tab', { name: /bounding box/i }).click();
