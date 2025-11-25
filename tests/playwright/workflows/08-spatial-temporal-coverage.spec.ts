@@ -181,6 +181,121 @@ test.describe('Spatial and Temporal Coverage', () => {
                 expect(decimals?.length || 0).toBeLessThanOrEqual(6);
             }
         });
+
+        test('should allow entering polygon coordinates manually', async ({ page }) => {
+            // Add a coverage entry
+            const addButton = page.getByRole('button', { name: /add.*coverage entry/i }).first();
+            
+            if (await addButton.isVisible()) {
+                await addButton.click();
+                
+                // Switch to Polygon tab
+                await page.getByRole('tab', { name: /polygon/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Should show empty state message
+                await expect(page.getByText(/no points yet/i)).toBeVisible();
+                
+                // Should show "Add Point" button
+                const addPointButton = page.getByRole('button', { name: /add point/i });
+                await expect(addPointButton).toBeVisible();
+                
+                // Add three points for a valid polygon (minimum required)
+                for (let i = 0; i < 3; i++) {
+                    await addPointButton.click();
+                    await page.waitForTimeout(100);
+                }
+                
+                // Fill coordinates for all three points
+                const latInputs = await page.locator('input[type="number"][step="0.000001"]').filter({ hasText: /lat/i }).or(
+                    page.locator('input[type="number"][step="0.000001"]').nth(0)
+                ).all();
+                const lonInputs = await page.locator('input[type="number"][step="0.000001"]').filter({ hasText: /lon/i }).or(
+                    page.locator('input[type="number"][step="0.000001"]').nth(1)
+                ).all();
+                
+                // Point 1: Munich center
+                if (latInputs[0]) await latInputs[0].fill('48.137154');
+                if (lonInputs[0]) await lonInputs[0].fill('11.576124');
+                
+                // Point 2: North
+                if (latInputs[1]) await latInputs[1].fill('48.200000');
+                if (lonInputs[1]) await lonInputs[1].fill('11.576124');
+                
+                // Point 3: East
+                if (latInputs[2]) await latInputs[2].fill('48.137154');
+                if (lonInputs[2]) await lonInputs[2].fill('11.650000');
+                
+                // Should show point count
+                await expect(page.getByText(/3 points/i)).toBeVisible();
+                
+                // Should show "Clear Polygon" button when points exist
+                await expect(page.getByRole('button', { name: /clear polygon/i })).toBeVisible();
+                
+                // Minimum 3 points warning should NOT be visible with 3 or more points
+                await expect(page.getByText(/minimum 3 points required/i)).not.toBeVisible();
+            }
+        });
+
+        test('should show validation warning for polygons with less than 3 points', async ({ page }) => {
+            // Add a coverage entry
+            const addButton = page.getByRole('button', { name: /add.*coverage entry/i }).first();
+            
+            if (await addButton.isVisible()) {
+                await addButton.click();
+                
+                // Switch to Polygon tab
+                await page.getByRole('tab', { name: /polygon/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Add only 2 points (insufficient for polygon)
+                const addPointButton = page.getByRole('button', { name: /add point/i });
+                await addPointButton.click();
+                await page.waitForTimeout(100);
+                await addPointButton.click();
+                await page.waitForTimeout(100);
+                
+                // Should show warning about minimum points
+                await expect(page.getByText(/minimum 3 points/i)).toBeVisible();
+                
+                // Should show point count
+                await expect(page.getByText(/2 points/i)).toBeVisible();
+            }
+        });
+
+        test('should allow removing polygon points', async ({ page }) => {
+            // Add a coverage entry
+            const addButton = page.getByRole('button', { name: /add.*coverage entry/i }).first();
+            
+            if (await addButton.isVisible()) {
+                await addButton.click();
+                
+                // Switch to Polygon tab
+                await page.getByRole('tab', { name: /polygon/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Add 4 points
+                const addPointButton = page.getByRole('button', { name: /add point/i });
+                for (let i = 0; i < 4; i++) {
+                    await addPointButton.click();
+                    await page.waitForTimeout(100);
+                }
+                
+                // Should show 4 points
+                await expect(page.getByText(/4 points/i)).toBeVisible();
+                
+                // Remove one point using delete button (trash icon)
+                const deleteButtons = page.getByRole('button').filter({ has: page.locator('svg') });
+                const firstDeleteButton = deleteButtons.first();
+                if (await firstDeleteButton.isVisible()) {
+                    await firstDeleteButton.click();
+                    await page.waitForTimeout(100);
+                }
+                
+                // Should now show 3 points
+                await expect(page.getByText(/3 points/i)).toBeVisible();
+            }
+        });
     });
 
     test.describe('Temporal Input', () => {
