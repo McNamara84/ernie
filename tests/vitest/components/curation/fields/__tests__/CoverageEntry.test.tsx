@@ -11,7 +11,7 @@ import type { SpatialTemporalCoverageEntry } from '@/components/curation/fields/
 vi.mock(
     '@/components/curation/fields/spatial-temporal-coverage/PointForm',
     () => ({
-        default: ({ onBatchChange }: any) => (
+        default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
             <div data-testid="mock-point-form">
                 <button
                     onClick={() =>
@@ -35,7 +35,7 @@ vi.mock(
 vi.mock(
     '@/components/curation/fields/spatial-temporal-coverage/BoxForm',
     () => ({
-        default: ({ onBatchChange }: any) => (
+        default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
             <div data-testid="mock-box-form">
                 <button
                     onClick={() =>

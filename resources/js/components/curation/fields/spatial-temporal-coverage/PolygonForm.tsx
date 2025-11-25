@@ -120,7 +120,7 @@ function PolygonMapContent({
             google.maps.event.addListener(
                 polygon.getPath(),
                 'set_at',
-                (index: number) => {
+                () => {
                     const path = polygon.getPath();
                     const newPoints: PolygonPoint[] = [];
                     for (let i = 0; i < path.getLength(); i++) {
@@ -336,10 +336,10 @@ export default function PolygonForm({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {points.map((point, index) => (
-                                        <TableRow key={index}>
+                                    {points.map((point, idx) => (
+                                        <TableRow key={idx}>
                                             <TableCell className="font-medium">
-                                                {index + 1}
+                                                {idx + 1}
                                             </TableCell>
                                             <TableCell>
                                                 <Input
@@ -348,7 +348,7 @@ export default function PolygonForm({
                                                     value={point.lat}
                                                     onChange={(e) =>
                                                         handlePointChange(
-                                                            index,
+                                                            idx,
                                                             'lat',
                                                             e.target.value,
                                                         )
@@ -363,7 +363,7 @@ export default function PolygonForm({
                                                     value={point.lon}
                                                     onChange={(e) =>
                                                         handlePointChange(
-                                                            index,
+                                                            idx,
                                                             'lon',
                                                             e.target.value,
                                                         )
@@ -377,7 +377,7 @@ export default function PolygonForm({
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() =>
-                                                        handleRemovePoint(index)
+                                                        handleRemovePoint(idx)
                                                     }
                                                     className="h-8 w-8 p-0"
                                                 >
