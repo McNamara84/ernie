@@ -96,20 +96,12 @@
         "description": "End date field now only appears for 'valid' date type. Improved form logic prevents confusion by hiding irrelevant fields based on selected date type."
       },
       {
-        "title": "Resource Filter Saving",
-        "description": "Fixed filters not saving selected options across page reloads. Proper state persistence ensures user filter preferences are maintained throughout browsing session."
-      },
-      {
         "title": "Coverage Dates Validation",
         "description": "Properly enforce required validation for coverage date fields. Improved validation feedback and error messages ensure temporal coverage data quality."
       },
       {
         "title": "CSRF Token Mismatch",
         "description": "Resolved session and token validation issues with improved token refresh mechanism. Enhanced session configuration for production environments with proper cookie settings and automatic retry logic."
-      },
-      {
-        "title": "Language Filter Removal",
-        "description": "Removed problematic language filter causing UI issues in resource and old dataset tables. Simplified filtering interface improves user experience and reduces confusion."
       }
     ]
   },
