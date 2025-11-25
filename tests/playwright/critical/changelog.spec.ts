@@ -186,7 +186,7 @@ test.describe('Changelog Page', () => {
         // Wait a bit for hash processing (100ms setTimeout in code + React render)
         await page.waitForTimeout(200);
         
-        // The version 0.7.0 should be expanded (now at index 4 after adding 1.0.0b and 1.0.0a)
+        // The version 0.7.0 should be expanded (array index 4 = 5th position after 1.0.0-beta, 1.0.0a, 0.9.0, 0.8.0)
         const targetButton = page.locator('#release-trigger-4');
         await expect(targetButton).toHaveAttribute('aria-expanded', 'true', { timeout: 3000 });
         
