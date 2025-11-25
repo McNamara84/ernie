@@ -100,6 +100,7 @@ export default function SpatialTemporalCoverageField({
     maxCoverages = 99,
 }: SpatialTemporalCoverageFieldProps) {
     // Normalize coverages on mount if they don't have type field
+    // This runs only once with the initial coverages prop value to handle legacy data
     useEffect(() => {
         const needsNormalization = coverages.some(c => !c.type);
         if (needsNormalization) {
@@ -107,7 +108,7 @@ export default function SpatialTemporalCoverageField({
             onChange(normalized);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only run once on mount
+    }, []); // Intentionally empty: only normalize initial prop value on mount
 
     const handleEntryChange = (
         index: number,
