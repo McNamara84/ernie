@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 
@@ -14,6 +14,31 @@ interface SpatialTemporalCoverageFieldProps {
 }
 
 /**
+ * Normalizes coverage entries to ensure they have a type field
+ * Handles legacy data from backend that may not have type set
+ */
+const normalizeCoverage = (coverage: SpatialTemporalCoverageEntry): SpatialTemporalCoverageEntry => {
+    // If type is already set, return as-is
+    if (coverage.type) {
+        return coverage;
+    }
+
+    // Detect type based on existing data
+    let detectedType: 'point' | 'box' | 'polygon' = 'point';
+
+    if (coverage.polygonPoints && coverage.polygonPoints.length > 0) {
+        detectedType = 'polygon';
+    } else if (coverage.latMax && coverage.lonMax) {
+        detectedType = 'box';
+    }
+
+    return {
+        ...coverage,
+        type: detectedType,
+    };
+};
+
+/**
  * Creates an empty coverage entry with default values
  */
 const createEmptyCoverage = (): SpatialTemporalCoverageEntry => {
@@ -22,10 +47,12 @@ const createEmptyCoverage = (): SpatialTemporalCoverageEntry => {
 
     return {
         id: crypto.randomUUID(),
+        type: 'point', // Default to point coverage
         latMin: '',
         lonMin: '',
         latMax: '',
         lonMax: '',
+        polygonPoints: undefined,
         startDate: '',
         endDate: '',
         startTime: '',
@@ -47,7 +74,15 @@ const canAddCoverage = (
 
     const lastCoverage = coverages[coverages.length - 1];
 
-    // Required fields: latMin, lonMin
+    // For polygon type: require at least 3 points
+    if (lastCoverage.type === 'polygon') {
+        return !!(
+            lastCoverage.polygonPoints &&
+            lastCoverage.polygonPoints.length >= 3
+        );
+    }
+
+    // For point/box type: require latMin and lonMin
     // Temporal fields (startDate, endDate, timezone) are now optional
     return !!(
         lastCoverage.latMin &&
@@ -64,6 +99,17 @@ export default function SpatialTemporalCoverageField({
     onChange,
     maxCoverages = 99,
 }: SpatialTemporalCoverageFieldProps) {
+    // Normalize coverages on mount if they don't have type field
+    // This runs only once with the initial coverages prop value to handle legacy data
+    useEffect(() => {
+        const needsNormalization = coverages.some(c => !c.type);
+        if (needsNormalization) {
+            const normalized = coverages.map(normalizeCoverage);
+            onChange(normalized);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Intentionally empty: only normalize initial prop value on mount
+
     const handleEntryChange = (
         index: number,
         field: keyof SpatialTemporalCoverageEntry,

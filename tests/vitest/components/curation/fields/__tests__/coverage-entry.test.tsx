@@ -7,35 +7,42 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import CoverageEntry from '@/components/curation/fields/spatial-temporal-coverage/CoverageEntry';
 import type { SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 
-// Mock the MapPicker component to avoid Google Maps API dependency
+// Mock PointForm component
 vi.mock(
-    '@/components/curation/fields/spatial-temporal-coverage/MapPicker',
+    '@/components/curation/fields/spatial-temporal-coverage/PointForm',
     () => ({
-        default: ({
-            onPointSelected,
-            onRectangleSelected,
-        }: {
-            onPointSelected: (lat: number, lon: number) => void;
-            onRectangleSelected: (bounds: {
-                north: number;
-                south: number;
-                east: number;
-                west: number;
-            }) => void;
-        }) => (
-            <div data-testid="mock-map-picker">
+        default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
+            <div data-testid="mock-point-form">
                 <button
-                    onClick={() => onPointSelected?.(48.137154, 11.576124)}
+                    onClick={() =>
+                        onBatchChange({
+                            latMin: '48.137154',
+                            lonMin: '11.576124',
+                            latMax: '',
+                            lonMax: '',
+                        })
+                    }
                 >
                     Select Point
                 </button>
+            </div>
+        ),
+    }),
+);
+
+// Mock BoxForm component
+vi.mock(
+    '@/components/curation/fields/spatial-temporal-coverage/BoxForm',
+    () => ({
+        default: ({ onBatchChange }: { onBatchChange: (updates: Record<string, unknown>) => void }) => (
+            <div data-testid="mock-box-form">
                 <button
                     onClick={() =>
-                        onRectangleSelected?.({
-                            north: 48.15,
-                            south: 48.13,
-                            east: 11.6,
-                            west: 11.55,
+                        onBatchChange({
+                            latMin: '48.130000',
+                            lonMin: '11.550000',
+                            latMax: '48.150000',
+                            lonMax: '11.600000',
                         })
                     }
                 >
@@ -46,12 +53,21 @@ vi.mock(
     }),
 );
 
+// Mock PolygonForm component
+vi.mock(
+    '@/components/curation/fields/spatial-temporal-coverage/PolygonForm',
+    () => ({
+        default: () => <div data-testid="mock-polygon-form">Polygon Form</div>,
+    }),
+);
+
 describe('CoverageEntry', () => {
     const mockOnChange = vi.fn();
     const mockOnRemove = vi.fn();
 
     const defaultEntry: SpatialTemporalCoverageEntry = {
         id: 'test-1',
+        type: 'point',
         latMin: '',
         lonMin: '',
         latMax: '',
@@ -101,15 +117,14 @@ describe('CoverageEntry', () => {
         );
         expect(chevronButton).toBeDefined();
 
-        // Initially expanded - map should be visible
-        expect(screen.getByTestId('mock-map-picker')).toBeInTheDocument();
+        // Initially expanded - point form should be visible
+        expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
 
         // Click to collapse
         await user.click(chevronButton!);
 
-        // Map should not be visible (would be hidden by CSS, but in tests it's still in DOM)
-        // Just verify the chevron is still there
-        expect(chevronButton).toBeInTheDocument();
+        // Form should not be visible when collapsed
+        expect(screen.queryByTestId('mock-point-form')).not.toBeInTheDocument();
     });
 
     test('calls onBatchChange when point is selected on map', async () => {
@@ -130,9 +145,15 @@ describe('CoverageEntry', () => {
 
     test('calls onBatchChange when rectangle is selected on map', async () => {
         const user = userEvent.setup();
-        render(<CoverageEntry {...defaultProps} />);
+        const entryWithBox: SpatialTemporalCoverageEntry = {
+            ...defaultEntry,
+            type: 'box',
+        };
+        
+        render(<CoverageEntry {...defaultProps} entry={entryWithBox} />);
 
-        // Card is expanded by default, click the Select Rectangle button in the mocked map
+        // Card is expanded by default, should show Box tab content
+        // Click the Select Rectangle button in the mocked BoxForm
         await user.click(screen.getByText('Select Rectangle'));
 
         // Should call onBatchChange with all coordinate fields updated at once
@@ -203,11 +224,12 @@ describe('CoverageEntry', () => {
         expect(descriptionCalls.length).toBeGreaterThan(0);
     });
 
-    test('renders coordinate inputs section', () => {
+    test('renders form components based on type', () => {
         render(<CoverageEntry {...defaultProps} />);
 
-        // The card is expanded by default, so we don't need to click
-        expect(screen.getByText(/^Coordinates$/i)).toBeInTheDocument();
+        // The card is expanded by default, should show point form (default type)\n        expect(screen.getByTestId('mock-point-form')).toBeInTheDocument();
+        // Tabs should be present
+        expect(screen.getByRole('tablist')).toBeInTheDocument();
     });
 
     test('renders temporal inputs section', () => {

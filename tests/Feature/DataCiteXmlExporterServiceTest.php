@@ -290,6 +290,126 @@ describe('DataCiteXmlExporter - Optional Fields', function () {
             ->and($xml)->toContain('<westBoundLongitude>13</westBoundLongitude>')
             ->and($xml)->toContain('<eastBoundLongitude>13.8</eastBoundLongitude>');
     });
+
+    test('exports geo locations with polygon', function () {
+        $resource = Resource::factory()->create();
+        $resource->coverages()->create([
+            'type' => 'polygon',
+            'description' => 'Berlin Area',
+            'polygon_points' => [
+                ['lat' => 52.5, 'lon' => 13.4],
+                ['lat' => 52.6, 'lon' => 13.5],
+                ['lat' => 52.5, 'lon' => 13.6],
+                ['lat' => 52.4, 'lon' => 13.5],
+            ],
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        expect($xml)->toContain('<geoLocations>')
+            ->and($xml)->toContain('<geoLocation>')
+            ->and($xml)->toContain('<geoLocationPlace>Berlin Area</geoLocationPlace>')
+            ->and($xml)->toContain('<geoLocationPolygon>')
+            ->and($xml)->toContain('<polygonPoint>')
+            ->and($xml)->toContain('<pointLatitude>52.5</pointLatitude>')
+            ->and($xml)->toContain('<pointLongitude>13.4</pointLongitude>')
+            ->and($xml)->toContain('<pointLatitude>52.6</pointLatitude>')
+            ->and($xml)->toContain('<pointLongitude>13.5</pointLongitude>');
+    });
+
+    test('exports polygon with correct point order', function () {
+        $resource = Resource::factory()->create();
+        $resource->coverages()->create([
+            'type' => 'polygon',
+            'description' => 'Triangle',
+            'polygon_points' => [
+                ['lat' => 10.0, 'lon' => 20.0],
+                ['lat' => 15.0, 'lon' => 25.0],
+                ['lat' => 12.5, 'lon' => 30.0],
+            ],
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        // Parse XML to verify order
+        $dom = new DOMDocument;
+        $dom->loadXML($xml);
+
+        $xpath = new DOMXPath($dom);
+        $xpath->registerNamespace('dc', 'http://datacite.org/schema/kernel-4');
+
+        $points = $xpath->query('//dc:geoLocationPolygon/dc:polygonPoint');
+        expect($points->length)->toBe(3);
+
+        // First point
+        $firstLat = $xpath->query('.//dc:pointLatitude', $points->item(0))->item(0)->nodeValue;
+        $firstLon = $xpath->query('.//dc:pointLongitude', $points->item(0))->item(0)->nodeValue;
+        expect($firstLat)->toBe('10')
+            ->and($firstLon)->toBe('20');
+
+        // Second point
+        $secondLat = $xpath->query('.//dc:pointLatitude', $points->item(1))->item(0)->nodeValue;
+        $secondLon = $xpath->query('.//dc:pointLongitude', $points->item(1))->item(0)->nodeValue;
+        expect($secondLat)->toBe('15')
+            ->and($secondLon)->toBe('25');
+    });
+
+    test('exports multiple coverages with mixed types', function () {
+        $resource = Resource::factory()->create();
+
+        // Box coverage
+        $resource->coverages()->create([
+            'type' => 'box',
+            'description' => 'Study Area',
+            'lat_min' => 50.0,
+            'lat_max' => 55.0,
+            'lon_min' => 10.0,
+            'lon_max' => 15.0,
+        ]);
+
+        // Polygon coverage
+        $resource->coverages()->create([
+            'type' => 'polygon',
+            'description' => 'Sample Site',
+            'polygon_points' => [
+                ['lat' => 52.0, 'lon' => 12.0],
+                ['lat' => 52.1, 'lon' => 12.1],
+                ['lat' => 52.0, 'lon' => 12.2],
+            ],
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        // Should contain both box and polygon
+        expect($xml)->toContain('<geoLocationBox>')
+            ->and($xml)->toContain('<geoLocationPolygon>')
+            ->and($xml)->toContain('Study Area')
+            ->and($xml)->toContain('Sample Site');
+    });
+
+    test('does not export polygon for non-polygon type coverage', function () {
+        $resource = Resource::factory()->create();
+        $resource->coverages()->create([
+            'type' => 'box',
+            'description' => 'Box Coverage',
+            'lat_min' => 50.0,
+            'lat_max' => 55.0,
+            'lon_min' => 10.0,
+            'lon_max' => 15.0,
+            // polygon_points should be ignored for box type
+            'polygon_points' => [
+                ['lat' => 52.0, 'lon' => 12.0],
+                ['lat' => 52.1, 'lon' => 12.1],
+                ['lat' => 52.0, 'lon' => 12.2],
+            ],
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        // Should export box, not polygon
+        expect($xml)->toContain('<geoLocationBox>')
+            ->and($xml)->not->toContain('<geoLocationPolygon>');
+    });
 });
 
 describe('DataCiteXmlExporter - XML Structure', function () {

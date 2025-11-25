@@ -2,14 +2,27 @@
  * Types for Spatial and Temporal Coverage
  */
 
+export type CoverageType = 'point' | 'box' | 'polygon';
+
+export interface PolygonPoint {
+    lat: number;
+    lon: number;
+}
+
 export interface SpatialTemporalCoverageEntry {
     id: string;
 
-    // Spatial Information
-    latMin: string; // Required, -90 to +90, max 6 decimals
-    lonMin: string; // Required, -180 to +180, max 6 decimals
-    latMax: string; // Optional (only for rectangle), -90 to +90, max 6 decimals
-    lonMax: string; // Optional (only for rectangle), -180 to +180, max 6 decimals
+    // Coverage Type
+    type: CoverageType; // Required, determines which spatial data is used
+
+    // Spatial Information (Point/Box)
+    latMin: string; // Required for point/box, -90 to +90, max 6 decimals
+    lonMin: string; // Required for point/box, -180 to +180, max 6 decimals
+    latMax: string; // Optional (only for box), -90 to +90, max 6 decimals
+    lonMax: string; // Optional (only for box), -180 to +180, max 6 decimals
+
+    // Spatial Information (Polygon)
+    polygonPoints?: PolygonPoint[]; // Optional (only for polygon), min 3 points
 
     // Temporal Information
     startDate: string; // Required, format: YYYY-MM-DD
@@ -34,4 +47,4 @@ export interface CoordinateBounds {
     west: number;
 }
 
-export type DrawingMode = 'point' | 'rectangle' | null;
+export type DrawingMode = 'point' | 'rectangle' | 'polygon' | null;

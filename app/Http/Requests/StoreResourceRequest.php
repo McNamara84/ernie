@@ -86,10 +86,14 @@ class StoreResourceRequest extends FormRequest
             'gcmdKeywords.*.scheme' => ['required', 'string', 'max:255'],
             'gcmdKeywords.*.schemeURI' => ['nullable', 'string', 'max:512'],
             'spatialTemporalCoverages' => ['nullable', 'array'],
+            'spatialTemporalCoverages.*.type' => ['required', Rule::in(['point', 'box', 'polygon'])],
             'spatialTemporalCoverages.*.latMin' => ['nullable', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.latMax' => ['nullable', 'numeric', 'between:-90,90'],
             'spatialTemporalCoverages.*.lonMin' => ['nullable', 'numeric', 'between:-180,180'],
             'spatialTemporalCoverages.*.lonMax' => ['nullable', 'numeric', 'between:-180,180'],
+            'spatialTemporalCoverages.*.polygonPoints' => ['nullable', 'array'],
+            'spatialTemporalCoverages.*.polygonPoints.*.lat' => ['required', 'numeric', 'between:-90,90'],
+            'spatialTemporalCoverages.*.polygonPoints.*.lon' => ['required', 'numeric', 'between:-180,180'],
             'spatialTemporalCoverages.*.startDate' => ['nullable', 'date'],
             'spatialTemporalCoverages.*.endDate' => ['nullable', 'date'],
             'spatialTemporalCoverages.*.startTime' => ['nullable', 'date_format:H:i:s,H:i'],
@@ -533,11 +537,42 @@ class StoreResourceRequest extends FormRequest
                 continue;
             }
 
+            $type = isset($coverage['type']) ? trim((string) $coverage['type']) : 'point';
+            if (! in_array($type, ['point', 'box', 'polygon'], true)) {
+                $type = 'point';
+            }
+
+            $polygonPoints = null;
+            if ($type === 'polygon' && isset($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
+                $polygonPoints = [];
+                foreach ($coverage['polygonPoints'] as $point) {
+                    if (! is_array($point)) {
+                        continue;
+                    }
+
+                    $lat = isset($point['lat']) ? $point['lat'] : null;
+                    $lon = isset($point['lon']) ? $point['lon'] : null;
+
+                    if ($lat !== null && $lon !== null) {
+                        $polygonPoints[] = [
+                            'lat' => is_numeric($lat) ? (float) $lat : null,
+                            'lon' => is_numeric($lon) ? (float) $lon : null,
+                        ];
+                    }
+                }
+            }
+
             $coverages[] = [
+                'type' => $type,
                 'placeNames' => isset($coverage['placeNames']) && is_array($coverage['placeNames'])
                     ? array_values(array_filter(array_map('trim', $coverage['placeNames'])))
                     : [],
                 'geoLocationBox' => isset($coverage['geoLocationBox']) ? $coverage['geoLocationBox'] : null,
+                'latMin' => $coverage['latMin'] ?? null,
+                'latMax' => $coverage['latMax'] ?? null,
+                'lonMin' => $coverage['lonMin'] ?? null,
+                'lonMax' => $coverage['lonMax'] ?? null,
+                'polygonPoints' => $polygonPoints,
                 'startDate' => isset($coverage['startDate']) ? trim((string) $coverage['startDate']) : null,
                 'endDate' => isset($coverage['endDate']) ? trim((string) $coverage['endDate']) : null,
                 'startTime' => isset($coverage['startTime']) ? trim((string) $coverage['startTime']) : null,
@@ -795,6 +830,33 @@ class StoreResourceRequest extends FormRequest
                         'descriptions',
                         'An Abstract description is required.',
                     );
+                }
+            },
+            function (Validator $validator): void {
+                // Validate polygon coverages have at least 3 points
+                $coverages = $this->input('spatialTemporalCoverages', []);
+
+                if (! is_array($coverages)) {
+                    return;
+                }
+
+                foreach ($coverages as $index => $coverage) {
+                    if (! is_array($coverage)) {
+                        continue;
+                    }
+
+                    $type = $coverage['type'] ?? 'point';
+
+                    if ($type === 'polygon') {
+                        $polygonPoints = $coverage['polygonPoints'] ?? [];
+
+                        if (! is_array($polygonPoints) || count($polygonPoints) < 3) {
+                            $validator->errors()->add(
+                                "spatialTemporalCoverages.$index.polygonPoints",
+                                'A polygon must have at least 3 points.',
+                            );
+                        }
+                    }
                 }
             },
         ];

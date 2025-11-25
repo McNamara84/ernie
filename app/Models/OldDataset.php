@@ -1007,10 +1007,12 @@ class OldDataset extends Model
                 // Point: Leave max coordinates empty
                 $latMax = '';
                 $lonMax = '';
+                $type = 'point';
             } else {
                 // Rectangle: Use max coordinates
                 $latMax = $coverage->maxlat !== null ? number_format((float) $coverage->maxlat, 6, '.', '') : '';
                 $lonMax = $coverage->maxlon !== null ? number_format((float) $coverage->maxlon, 6, '.', '') : '';
+                $type = 'box';
             }
 
             // Parse temporal data from the old format
@@ -1023,6 +1025,9 @@ class OldDataset extends Model
             return [
                 // Generate unique ID for frontend (use index since old DB doesn't have unique IDs per entry)
                 'id' => 'coverage-'.($index + 1),
+
+                // Coverage type (point, box, or polygon - old DB only has point and box)
+                'type' => $type,
 
                 // Spatial coverage (coordinates)
                 'latMin' => $latMin,

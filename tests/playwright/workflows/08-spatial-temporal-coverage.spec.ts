@@ -102,6 +102,10 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
+                // Switch to Bounding Box tab
+                await page.getByRole('tab', { name: /bounding box/i }).click();
+                await page.waitForTimeout(300); // Wait for tab switch animation
+                
                 // Enter rectangle coordinates
                 const latMinInput = page.locator('#lat-min').first();
                 const lonMinInput = page.locator('#lon-min').first();
@@ -175,6 +179,118 @@ test.describe('Spatial and Temporal Coverage', () => {
                 const value = await latMinInput.inputValue();
                 const decimals = value.split('.')[1];
                 expect(decimals?.length || 0).toBeLessThanOrEqual(6);
+            }
+        });
+
+        test('should allow entering polygon coordinates manually', async ({ page }) => {
+            // Add a coverage entry
+            const addButton = page.getByRole('button', { name: /add.*coverage entry/i }).first();
+            
+            if (await addButton.isVisible()) {
+                await addButton.click();
+                
+                // Switch to Polygon tab
+                await page.getByRole('tab', { name: /polygon/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Should show empty state message
+                await expect(page.getByText(/no points yet/i)).toBeVisible();
+                
+                // Should show "Add Point" button
+                const addPointButton = page.getByRole('button', { name: /add point/i });
+                await expect(addPointButton).toBeVisible();
+                
+                // Add three points for a valid polygon (minimum required)
+                for (let i = 0; i < 3; i++) {
+                    await addPointButton.click();
+                    await page.waitForTimeout(200);
+                }
+                
+                // Fill coordinates for all three points using table row locators
+                // The polygon form has a table with rows for each point
+                const allNumberInputs = page.locator('input[type="number"][step="0.000001"]');
+                
+                // Point 1: Munich center (inputs 0 and 1)
+                await allNumberInputs.nth(0).fill('48.137154');
+                await allNumberInputs.nth(1).fill('11.576124');
+                
+                // Point 2: North (inputs 2 and 3)
+                await allNumberInputs.nth(2).fill('48.200000');
+                await allNumberInputs.nth(3).fill('11.576124');
+                
+                // Point 3: East (inputs 4 and 5)
+                await allNumberInputs.nth(4).fill('48.137154');
+                await allNumberInputs.nth(5).fill('11.650000');
+                
+                // Should show point count
+                await expect(page.getByText(/Polygon Points \(3\)/i)).toBeVisible();
+                
+                // Should show "Clear Polygon" button when points exist
+                await expect(page.getByRole('button', { name: /clear polygon/i })).toBeVisible();
+                
+                // Minimum 3 points warning should NOT be visible with 3 or more points
+                await expect(page.getByText(/minimum 3 points required/i)).not.toBeVisible();
+            }
+        });
+
+        test('should show validation warning for polygons with less than 3 points', async ({ page }) => {
+            // Add a coverage entry
+            const addButton = page.getByRole('button', { name: /add.*coverage entry/i }).first();
+            
+            if (await addButton.isVisible()) {
+                await addButton.click();
+                
+                // Switch to Polygon tab
+                await page.getByRole('tab', { name: /polygon/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Add only 2 points (insufficient for polygon)
+                const addPointButton = page.getByRole('button', { name: /add point/i });
+                await addPointButton.click();
+                await page.waitForTimeout(100);
+                await addPointButton.click();
+                await page.waitForTimeout(100);
+                
+                // Should show warning about minimum points
+                await expect(page.getByText(/minimum 3 points/i)).toBeVisible();
+                
+                // Should show point count
+                await expect(page.getByText(/Polygon Points \(2\)/i)).toBeVisible();
+            }
+        });
+
+        test('should display polygon table with correct number of rows', async ({ page }) => {
+            // Add a coverage entry
+            const addButton = page.getByRole('button', { name: /add.*coverage entry/i }).first();
+            
+            if (await addButton.isVisible()) {
+                await addButton.click();
+                
+                // Switch to Polygon tab
+                await page.getByRole('tab', { name: /polygon/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Add 4 points
+                const addPointButton = page.getByRole('button', { name: /add point/i });
+                for (let i = 0; i < 4; i++) {
+                    await addPointButton.click();
+                    await page.waitForTimeout(200);
+                }
+                
+                // Should show 4 points in header
+                await expect(page.getByText(/Polygon Points \(4\)/i)).toBeVisible();
+                
+                // Should have table with 4 rows (one per point) - scope to the polygon table specifically by finding the table with "Latitude" header
+                const polygonTable = page.locator('table:has(th:has-text("Latitude"))');
+                const tableRows = polygonTable.locator('tbody tr');
+                await expect(tableRows).toHaveCount(4);
+                
+                // Each row should have coordinate inputs (lat/lon)
+                const firstRow = tableRows.first();
+                await expect(firstRow.locator('input[type="number"]')).toHaveCount(2);
+                
+                // Should show Clear Polygon button when points exist
+                await expect(page.getByRole('button', { name: /clear polygon/i })).toBeVisible();
             }
         });
     });
@@ -366,11 +482,19 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
-                // Map picker should be visible
-                await expect(page.getByText(/map picker/i)).toBeVisible();
+                // Should have tabs for different coverage types
+                await expect(page.getByRole('tab', { name: /^point$/i })).toBeVisible();
+                await expect(page.getByRole('tab', { name: /bounding box/i })).toBeVisible();
+                await expect(page.getByRole('tab', { name: /polygon/i })).toBeVisible();
                 
-                // Should have drawing tool buttons
+                // Point tab is active by default - should only have point button (with emoji)
                 await expect(page.getByRole('button', { name: /point/i })).toBeVisible();
+                
+                // Switch to Bounding Box tab
+                await page.getByRole('tab', { name: /bounding box/i }).click();
+                await page.waitForTimeout(300);
+                
+                // Now rectangle button should be visible
                 await expect(page.getByRole('button', { name: /rectangle/i })).toBeVisible();
             }
         });
@@ -417,6 +541,10 @@ test.describe('Spatial and Temporal Coverage', () => {
             if (await addButton.isVisible()) {
                 await addButton.click();
                 
+                // Switch to Bounding Box tab for rectangle coordinates
+                await page.getByRole('tab', { name: /bounding box/i }).click();
+                await page.waitForTimeout(300);
+                
                 // Fill all fields
                 await page.locator('#lat-min').first().fill('48.137154');
                 await page.locator('#lon-min').first().fill('11.576124');
@@ -432,10 +560,21 @@ test.describe('Spatial and Temporal Coverage', () => {
                 
                 // Collapse to verify preview
                 await page.getByText(/coverage entry #1/i).click();
+                await page.waitForTimeout(300);
                 
-                // Verify preview shows all data
-                await expect(page.getByText(/48\.137154.*11\.576124.*48\.200000.*11\.600000/)).toBeVisible();
-                await expect(page.getByText(/2024-01-01.*10:30.*2024-12-31.*15:45/)).toBeVisible();
+                // Verify preview shows coordinate data (may be formatted separately)
+                await expect(page.locator('text=48.137154').first()).toBeVisible();
+                await expect(page.locator('text=11.576124').first()).toBeVisible();
+                await expect(page.locator('text=48.200000').first()).toBeVisible();
+                await expect(page.locator('text=11.600000').first()).toBeVisible();
+                
+                // Verify temporal data
+                await expect(page.locator('text=2024-01-01').first()).toBeVisible();
+                await expect(page.locator('text=10:30').first()).toBeVisible();
+                await expect(page.locator('text=2024-12-31').first()).toBeVisible();
+                await expect(page.locator('text=15:45').first()).toBeVisible();
+                
+                // Verify description
                 await expect(page.getByText(/Field campaign in Munich area/)).toBeVisible();
             }
         });

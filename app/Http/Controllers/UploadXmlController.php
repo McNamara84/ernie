@@ -448,7 +448,7 @@ class UploadXmlController extends Controller
      * - Temporal coverage as <date dateType="Coverage">
      *
      * @param  array<int, array<string, string>>  $dates  Already extracted dates (to find Coverage date)
-     * @return array<int, array<string, string>>
+     * @return array<int, array<string, string|array<int, array<string, float>>>>
      */
     private function extractCoverages(XmlReader $reader, array $dates): array
     {
@@ -472,10 +472,12 @@ class UploadXmlController extends Controller
             // Only temporal coverage, no spatial data
             $coverages[] = [
                 'id' => 'coverage-1',
+                'type' => 'point',
                 'latMin' => '',
                 'latMax' => '',
                 'lonMin' => '',
                 'lonMax' => '',
+                'polygonPoints' => [],
                 'startDate' => $temporalCoverage['startDate'] ?? '',
                 'endDate' => $temporalCoverage['endDate'] ?? '',
                 'startTime' => '',
@@ -491,10 +493,12 @@ class UploadXmlController extends Controller
         foreach ($geoLocationElements as $geoLocationIndex => $geoLocation) {
             $coverage = [
                 'id' => 'coverage-'.$index,
+                'type' => 'point',
                 'latMin' => '',
                 'latMax' => '',
                 'lonMin' => '',
                 'lonMax' => '',
+                'polygonPoints' => [],
                 'startDate' => $temporalCoverage['startDate'] ?? '',
                 'endDate' => $temporalCoverage['endDate'] ?? '',
                 'startTime' => '',
@@ -550,8 +554,18 @@ class UploadXmlController extends Controller
                 $coverage['latMax'] = $this->formatCoordinate($north);
             }
 
+            // Extract geoLocationPolygon (highest precedence)
+            $polygonPoints = $this->extractPolygonPoints($reader, $geoLocationPath);
+            if (count($polygonPoints) > 0) {
+                $coverage['polygonPoints'] = $polygonPoints;
+            }
+
+            // Determine coverage type based on what was extracted
+            $coverage['type'] = $this->determineCoverageType($coverage);
+
             // Only add coverage if it has at least coordinates or description
             if ($coverage['latMin'] !== '' || $coverage['lonMin'] !== '' ||
+                ! empty($coverage['polygonPoints']) ||
                 $coverage['description'] !== '' || $coverage['startDate'] !== '') {
                 $coverages[] = $coverage;
                 $index++;
@@ -574,6 +588,85 @@ class UploadXmlController extends Controller
         $float = (float) $trimmed;
 
         return number_format($float, 6, '.', '');
+    }
+
+    /**
+     * Extract polygon points from geoLocationPolygon element.
+     *
+     * DataCite format:
+     * <geoLocationPolygon>
+     *   <polygonPoint>
+     *     <pointLatitude>52.5</pointLatitude>
+     *     <pointLongitude>13.4</pointLongitude>
+     *   </polygonPoint>
+     *   ...
+     * </geoLocationPolygon>
+     *
+     * @return array<int, array{lat: float, lon: float}>
+     */
+    private function extractPolygonPoints(XmlReader $reader, string $geoLocationPath): array
+    {
+        $points = [];
+
+        // Get all polygonPoint elements within this geoLocationPolygon
+        $polygonPointElements = $reader
+            ->xpathElement($geoLocationPath.'/*[local-name()="geoLocationPolygon"]/*[local-name()="polygonPoint"]')
+            ->get();
+
+        foreach ($polygonPointElements as $pointElement) {
+            $content = $pointElement->getContent();
+
+            if (! is_array($content)) {
+                continue;
+            }
+
+            $latElement = $this->firstElement($content, 'pointLatitude');
+            $lonElement = $this->firstElement($content, 'pointLongitude');
+
+            $latText = $this->stringValue($latElement);
+            $lonText = $this->stringValue($lonElement);
+
+            if ($latText !== null && $lonText !== null) {
+                $lat = (float) $this->formatCoordinate($latText);
+                $lon = (float) $this->formatCoordinate($lonText);
+
+                $points[] = [
+                    'lat' => $lat,
+                    'lon' => $lon,
+                ];
+            }
+        }
+
+        return $points;
+    }
+
+    /**
+     * Determine coverage type based on extracted data.
+     *
+     * Priority:
+     * 1. Polygon if polygonPoints exist
+     * 2. Box if all four coordinates (latMin, latMax, lonMin, lonMax) exist
+     * 3. Point if only latMin/lonMin exist
+     *
+     * @param  array<string, mixed>  $coverage
+     */
+    private function determineCoverageType(array $coverage): string
+    {
+        // Check for polygon first (highest priority)
+        if (! empty($coverage['polygonPoints'])) {
+            return 'polygon';
+        }
+
+        // Check for bounding box (all four coordinates)
+        if (($coverage['latMin'] ?? '') !== '' &&
+            ($coverage['latMax'] ?? '') !== '' &&
+            ($coverage['lonMin'] ?? '') !== '' &&
+            ($coverage['lonMax'] ?? '') !== '') {
+            return 'box';
+        }
+
+        // Default to point (includes cases with only latMin/lonMin)
+        return 'point';
     }
 
     /**

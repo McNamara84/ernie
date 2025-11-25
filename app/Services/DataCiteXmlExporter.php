@@ -939,8 +939,33 @@ class DataCiteXmlExporter
                 $hasContent = true;
             }
 
-            // Add bounding box if spatial data exists
-            if ($coverage->lat_min !== null || $coverage->lat_max !== null ||
+            // Add polygon if polygon_points exist (highest priority)
+            if ($coverage->type === 'polygon' && ! empty($coverage->polygon_points)) {
+                $geoLocationPolygon = $this->dom->createElement('geoLocationPolygon');
+
+                foreach ($coverage->polygon_points as $point) {
+                    $polygonPoint = $this->dom->createElement('polygonPoint');
+
+                    $pointLatitude = $this->dom->createElement(
+                        'pointLatitude',
+                        htmlspecialchars((string) $point['lat'])
+                    );
+                    $polygonPoint->appendChild($pointLatitude);
+
+                    $pointLongitude = $this->dom->createElement(
+                        'pointLongitude',
+                        htmlspecialchars((string) $point['lon'])
+                    );
+                    $polygonPoint->appendChild($pointLongitude);
+
+                    $geoLocationPolygon->appendChild($polygonPoint);
+                }
+
+                $geoLocation->appendChild($geoLocationPolygon);
+                $hasContent = true;
+            }
+            // Add bounding box if spatial data exists (fallback if not polygon)
+            elseif ($coverage->lat_min !== null || $coverage->lat_max !== null ||
                 $coverage->lon_min !== null || $coverage->lon_max !== null) {
 
                 $geoLocationBox = $this->dom->createElement('geoLocationBox');
