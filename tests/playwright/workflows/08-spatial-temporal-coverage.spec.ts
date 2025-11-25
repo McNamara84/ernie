@@ -281,7 +281,9 @@ test.describe('Spatial and Temporal Coverage', () => {
                 await expect(page.getByText(/Polygon Points \(4\)/i)).toBeVisible();
                 
                 // Should have table with 4 rows (one per point)
-                const tableRows = page.locator('tbody tr');
+                // Scope to the polygon table specifically by finding the table with "Latitude" header
+                const polygonTable = page.locator('table:has(th:has-text("Latitude"))');
+                const tableRows = polygonTable.locator('tbody tr');
                 await expect(tableRows).toHaveCount(4);
                 
                 // Each row should have coordinate inputs (lat/lon)
