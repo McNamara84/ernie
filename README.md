@@ -1,6 +1,6 @@
 # ERNIE - Earth Research Notary for Information Editing
 
-![Version](https://img.shields.io/badge/version-1.0.0-beta-blue)
+![Version](https://img.shields.io/badge/version-1.0.0b-blue)
 ![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)
 ![PHP](https://img.shields.io/badge/PHP-8-777BB4?logo=php&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
