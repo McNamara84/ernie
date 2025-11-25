@@ -262,10 +262,10 @@ class ResourceController extends Controller
                 // Note: 'created' and 'updated' dates are auto-managed and should not be
                 // submitted by the frontend. They are handled separately below.
                 if ($isUpdate) {
-                    // When updating, preserve 'created' date and delete other dates
+                    // When updating, preserve 'created' date (never overwritten) and delete
+                    // all other user-managed dates. The 'updated' date is handled separately below.
                     $resource->dates()
                         ->where('date_type', '!=', 'created')
-                        ->where('date_type', '!=', 'updated')
                         ->delete();
                 }
 
@@ -299,10 +299,8 @@ class ResourceController extends Controller
                 // Auto-manage 'updated' date: Update timestamp on every update operation.
                 // This reflects when the resource was last saved by a curator.
                 if ($isUpdate) {
-                    // Delete existing 'updated' date entry
-                    $resource->dates()->where('date_type', 'updated')->delete();
-
                     // Create new 'updated' date with current timestamp
+                    // (any existing 'updated' entry was already deleted above)
                     $resource->dates()->create([
                         'date_type' => 'updated',
                         'start_date' => now()->format('Y-m-d H:i:s'),
