@@ -280,13 +280,12 @@ test.describe('Spatial and Temporal Coverage', () => {
                 // Should show 4 points
                 await expect(page.getByText(/Polygon Points \(4\)/i)).toBeVisible();
                 
-                // Remove one point using delete button (trash icon)
-                const deleteButtons = page.getByRole('button').filter({ has: page.locator('svg') });
-                const firstDeleteButton = deleteButtons.first();
-                if (await firstDeleteButton.isVisible()) {
-                    await firstDeleteButton.click();
-                    await page.waitForTimeout(100);
-                }
+                // Remove one point using delete button in the polygon table
+                // Find the first delete button within the table (not in sidebar or other UI)
+                const tableRow = page.locator('tbody tr').first();
+                const deleteButton = tableRow.getByRole('button', { name: '' }).last(); // Last button in row is delete
+                await deleteButton.click();
+                await page.waitForTimeout(200);
                 
                 // Should now show 3 points
                 await expect(page.getByText(/Polygon Points \(3\)/i)).toBeVisible();
