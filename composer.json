@@ -1,6 +1,7 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
     "name": "mcnamara84/ernie",
+    "version": "1.0.0b",
     "type": "project",
     "description": "A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.",
     "keywords": [
