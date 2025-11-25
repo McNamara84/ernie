@@ -38,6 +38,10 @@
     ],
     "improvements": [
       {
+        "title": "Simplified Relation Types Dropdown",
+        "description": "Removed category headings (Citation, Documentation, Versions, Compilation, etc.) from the Relation Types dropdown in the Related Work form section. All 33 DataCite relation types are now displayed in a flat, alphabetically organized list for easier navigation."
+      },
+      {
         "title": "Enhanced Search Trigger Timing",
         "description": "Fixed premature search triggering in resource lists with improved debounce handling. Search now waits for user to finish typing before executing queries, reducing unnecessary API calls and improving performance."
       },

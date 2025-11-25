@@ -7,16 +7,14 @@ import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
-    SelectGroup,
     SelectItem,
-    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
 import {
+    getAllRelationTypes,
     RELATION_TYPE_DESCRIPTIONS,
-    RELATION_TYPES_GROUPED,
 } from '@/lib/related-identifiers';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
@@ -189,20 +187,15 @@ export default function RelatedWorkAdvancedAdd({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="max-h-[400px]">
-                            {Object.entries(RELATION_TYPES_GROUPED).map(([category, types]) => (
-                                <SelectGroup key={category}>
-                                    <SelectLabel>{category}</SelectLabel>
-                                    {types.map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                            <div className="flex flex-col items-start">
-                                                <span className="font-medium">{type}</span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {RELATION_TYPE_DESCRIPTIONS[type]}
-                                                </span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
+                            {getAllRelationTypes().map((type) => (
+                                <SelectItem key={type} value={type}>
+                                    <div className="flex flex-col items-start">
+                                        <span className="font-medium">{type}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {RELATION_TYPE_DESCRIPTIONS[type]}
+                                        </span>
+                                    </div>
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
