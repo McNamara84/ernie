@@ -177,16 +177,6 @@ describe('DataCiteForm', () => {
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     };
 
-    /**
-     * Filters and returns all empty date input elements from the form.
-     * This is used to locate date inputs when filling out test data.
-     */
-    const getEmptyDateInputs = (): HTMLInputElement[] => {
-        return screen.getAllByDisplayValue('').filter(input => 
-            input.getAttribute('type') === 'date'
-        ) as HTMLInputElement[];
-    };
-
     const ensureAuthorsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
         // Use getAllByRole and filter to avoid matching "Import authors from CSV" button
         const buttons = screen.getAllByRole('button', { name: /Authors/i });
@@ -285,13 +275,6 @@ describe('DataCiteForm', () => {
         const abstractTextarea = screen.getByRole('textbox', { name: /Abstract/i });
         await user.click(abstractTextarea);
         await user.keyboard(abstract);
-    };
-
-    const ensureDatesOpen = async (user: ReturnType<typeof userEvent.setup>) => {
-        const datesTrigger = screen.getByRole('button', { name: /Dates/i });
-        if (datesTrigger.getAttribute('aria-expanded') === 'false') {
-            await user.click(datesTrigger);
-        }
     };
 
     beforeAll(() => {
