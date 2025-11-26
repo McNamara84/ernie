@@ -699,8 +699,9 @@ export default function DataCiteForm({
         if (initialDates && initialDates.length > 0) {
             // Filter out auto-managed date types ('created' and 'updated')
             // These are now automatically handled by the backend
+            const autoManagedTypes: readonly string[] = AUTO_MANAGED_DATE_TYPES;
             return initialDates
-                .filter((date) => !AUTO_MANAGED_DATE_TYPES.includes(date.dateType.toLowerCase() as typeof AUTO_MANAGED_DATE_TYPES[number]))
+                .filter((date) => !autoManagedTypes.includes(date.dateType.toLowerCase()))
                 .map((date) => ({
                     id: crypto.randomUUID(),
                     dateType: date.dateType,
