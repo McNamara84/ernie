@@ -43,6 +43,7 @@ class OldDataStatisticsControllerTest extends TestCase
             'creation_time',
             'descriptions',
             'publication_years',
+            'top_datasets_by_relation_type',
         ];
 
         foreach ($expectedKeys as $key) {

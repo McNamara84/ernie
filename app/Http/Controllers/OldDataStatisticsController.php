@@ -47,6 +47,7 @@ class OldDataStatisticsController extends Controller
             'creation_time' => $this->getCreationTimeStats(),
             'descriptions' => $this->getDescriptionStats(),
             'publication_years' => $this->getPublicationYearStats(),
+            'topDatasetsByRelationType' => $this->getTopDatasetsByRelationType(),
         ];
 
         return Inertia::render('old-statistics', [
@@ -79,6 +80,7 @@ class OldDataStatisticsController extends Controller
             'creation_time',
             'descriptions',
             'publication_years',
+            'top_datasets_by_relation_type',
         ];
 
         foreach ($cacheKeys as $key) {
@@ -1154,6 +1156,102 @@ class OldDataStatisticsController extends Controller
                         'count' => (int) $row->count,
                     ];
                 })->toArray();
+            }
+        );
+    }
+
+    /**
+     * Get top 5 datasets for the most frequently used relation types.
+     *
+     * Returns the top 5 datasets (by usage count) for each of the 10 most common relation types:
+     * Cites, References, IsSupplementTo, IsCitedBy, IsReferencedBy, IsNewVersionOf,
+     * IsPreviousVersionOf, IsPartOf, HasPart, IsVariantFormOf
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function getTopDatasetsByRelationType(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX.'top_datasets_by_relation_type',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                // The 10 most frequently used relation types (ordered by overall frequency)
+                $relationTypes = [
+                    'Cites',
+                    'References',
+                    'IsSupplementTo',
+                    'IsCitedBy',
+                    'IsReferencedBy',
+                    'IsNewVersionOf',
+                    'IsPreviousVersionOf',
+                    'IsPartOf',
+                    'HasPart',
+                    'IsVariantFormOf',
+                ];
+
+                $result = [];
+
+                foreach ($relationTypes as $relationType) {
+                    // Use subquery to get correct counts without title duplication issues
+                    // First, get the top 5 resource IDs with their counts
+                    $topResourceIds = $db->table('relatedidentifier')
+                        ->select([
+                            'resource_id',
+                            DB::raw('COUNT(id) as usage_count'),
+                        ])
+                        ->where('relationtype', $relationType)
+                        ->groupBy('resource_id')
+                        ->orderBy('usage_count', 'desc')
+                        ->limit(5)
+                        ->get();
+
+                    if ($topResourceIds->isEmpty()) {
+                        $result[$relationType] = [];
+
+                        continue;
+                    }
+
+                    // Batch fetch all resource identifiers in one query
+                    $resourceIds = $topResourceIds->pluck('resource_id')->toArray();
+
+                    /** @var \Illuminate\Support\Collection<int, object{id: int, identifier: string}> $resources */
+                    $resources = $db->table('resource')
+                        ->select(['id', 'identifier'])
+                        ->whereIn('id', $resourceIds)
+                        ->get()
+                        ->keyBy('id');
+
+                    // Batch fetch first title for each resource in one query using MIN to get one title per resource
+                    /** @var \Illuminate\Support\Collection<int, object{resource_id: int, title: string}> $titles */
+                    $titles = $db->table('title')
+                        ->select(['resource_id', DB::raw('MIN(title) as title')])
+                        ->whereIn('resource_id', $resourceIds)
+                        ->groupBy('resource_id')
+                        ->get()
+                        ->keyBy('resource_id');
+
+                    // Map results using the pre-fetched data
+                    $topDatasets = $topResourceIds->map(function ($row) use ($resources, $titles) {
+                        $resourceId = $row->resource_id;
+                        /** @var object{id: int, identifier: string}|null $resource */
+                        $resource = $resources->get($resourceId);
+                        /** @var object{resource_id: int, title: string}|null $titleRow */
+                        $titleRow = $titles->get($resourceId);
+
+                        return [
+                            'id' => (int) $resourceId,
+                            'identifier' => $resource !== null ? $resource->identifier : '',
+                            'title' => $titleRow !== null ? $titleRow->title : null,
+                            'count' => (int) $row->usage_count,
+                        ];
+                    })->toArray();
+
+                    $result[$relationType] = $topDatasets;
+                }
+
+                return $result;
             }
         );
     }

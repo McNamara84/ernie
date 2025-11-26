@@ -25,6 +25,7 @@ import ResourceTypeChart from '@/components/statistics/resource-type-chart';
 import RoleDistributionChart from '@/components/statistics/role-distribution-chart';
 import StatsCard from '@/components/statistics/stats-card';
 import TimelineChart from '@/components/statistics/timeline-chart';
+import TopDatasetsByRelationType from '@/components/statistics/top-datasets-by-relation-type';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
@@ -196,6 +197,15 @@ type PublicationYearStat = {
     count: number;
 };
 
+type TopDatasetsByRelationTypeStat = {
+    [relationType: string]: Array<{
+        id: number;
+        identifier: string;
+        title: string | null;
+        count: number;
+    }>;
+};
+
 type OverviewStat = {
     totalDatasets: number;
     totalAuthors: number;
@@ -243,6 +253,7 @@ type Statistics = {
     creation_time: CreationTimeStat[];
     descriptions: DescriptionStat;
     publication_years: PublicationYearStat[];
+    topDatasetsByRelationType: TopDatasetsByRelationTypeStat;
 };
 
 type OldStatisticsProps = {
@@ -461,6 +472,9 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                             />
                         </CardContent>
                     </Card>
+
+                    {/* Top Datasets by Relation Type */}
+                    <TopDatasetsByRelationType data={statistics.topDatasetsByRelationType} />
                 </div>
 
                 {/* Data Completeness */}
