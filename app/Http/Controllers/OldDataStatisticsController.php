@@ -1161,9 +1161,9 @@ class OldDataStatisticsController extends Controller
     }
 
     /**
-     * Get top 10 datasets for the most frequently used relation types.
+     * Get top 5 datasets for the most frequently used relation types.
      *
-     * Returns the top 10 datasets (by usage count) for each of the 10 most common relation types:
+     * Returns the top 5 datasets (by usage count) for each of the 10 most common relation types:
      * Cites, References, IsSupplementTo, IsCitedBy, IsReferencedBy, IsNewVersionOf,
      * IsPreviousVersionOf, IsPartOf, HasPart, IsVariantFormOf
      *
@@ -1194,29 +1194,42 @@ class OldDataStatisticsController extends Controller
                 $result = [];
 
                 foreach ($relationTypes as $relationType) {
-                    $topDatasets = $db->table('relatedidentifier')
-                        ->join('resource', 'relatedidentifier.resource_id', '=', 'resource.id')
-                        ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
+                    // Use subquery to get correct counts without title duplication issues
+                    // First, get the top 5 resource IDs with their counts
+                    $topResourceIds = $db->table('relatedidentifier')
                         ->select([
-                            'resource.id',
-                            'resource.identifier',
-                            'title.title',
-                            DB::raw('COUNT(relatedidentifier.id) as usage_count'),
+                            'resource_id',
+                            DB::raw('COUNT(id) as usage_count'),
                         ])
-                        ->where('relatedidentifier.relationtype', $relationType)
-                        ->groupBy('resource.id', 'resource.identifier', 'title.title')
+                        ->where('relationtype', $relationType)
+                        ->groupBy('resource_id')
                         ->orderBy('usage_count', 'desc')
                         ->limit(5)
                         ->get();
 
-                    $result[$relationType] = $topDatasets->map(function ($row) {
+                    // Then fetch resource details and first title for each
+                    $topDatasets = $topResourceIds->map(function ($row) use ($db) {
+                        /** @var object{identifier: string}|null $resource */
+                        $resource = $db->table('resource')
+                            ->select('identifier')
+                            ->where('id', $row->resource_id)
+                            ->first();
+
+                        /** @var object{title: string}|null $titleRow */
+                        $titleRow = $db->table('title')
+                            ->select('title')
+                            ->where('resource_id', $row->resource_id)
+                            ->first();
+
                         return [
-                            'id' => (int) $row->id,
-                            'identifier' => $row->identifier,
-                            'title' => $row->title,
+                            'id' => (int) $row->resource_id,
+                            'identifier' => $resource !== null ? $resource->identifier : '',
+                            'title' => $titleRow !== null ? $titleRow->title : null,
                             'count' => (int) $row->usage_count,
                         ];
                     })->toArray();
+
+                    $result[$relationType] = $topDatasets;
                 }
 
                 return $result;

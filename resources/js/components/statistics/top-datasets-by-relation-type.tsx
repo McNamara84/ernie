@@ -16,55 +16,68 @@ type TopDatasetsByRelationTypeProps = {
 };
 
 // Map relation types to descriptive labels and emojis
-const relationTypeInfo: Record<string, { label: string; emoji: string; description: string }> = {
+const relationTypeInfo: Record<
+    string,
+    { label: string; emoji: string; ariaLabel: string; description: string }
+> = {
     Cites: {
         label: 'Cites',
         emoji: '📖',
+        ariaLabel: 'Open book',
         description: 'Datasets that cite other works most frequently',
     },
     References: {
         label: 'References',
         emoji: '📚',
+        ariaLabel: 'Books',
         description: 'Datasets that reference other works most frequently',
     },
     IsSupplementTo: {
         label: 'IsSupplementTo',
         emoji: '📎',
+        ariaLabel: 'Paperclip',
         description: 'Datasets that are supplements to publications most frequently',
     },
     IsCitedBy: {
         label: 'IsCitedBy',
         emoji: '🏆',
+        ariaLabel: 'Trophy',
         description: 'Datasets that are cited by other works most frequently',
     },
     IsReferencedBy: {
         label: 'IsReferencedBy',
         emoji: '🔗',
+        ariaLabel: 'Link',
         description: 'Datasets that are referenced by other works most frequently',
     },
     IsNewVersionOf: {
         label: 'IsNewVersionOf',
         emoji: '🆕',
+        ariaLabel: 'New',
         description: 'Datasets that are new versions of other datasets most frequently',
     },
     IsPreviousVersionOf: {
         label: 'IsPreviousVersionOf',
         emoji: '⏮️',
+        ariaLabel: 'Previous',
         description: 'Datasets that are previous versions of other datasets most frequently',
     },
     IsPartOf: {
         label: 'IsPartOf',
         emoji: '🧩',
+        ariaLabel: 'Puzzle piece',
         description: 'Datasets that are parts of larger collections most frequently',
     },
     HasPart: {
         label: 'HasPart',
         emoji: '📦',
+        ariaLabel: 'Package',
         description: 'Datasets that contain multiple parts most frequently',
     },
     IsVariantFormOf: {
         label: 'IsVariantFormOf',
         emoji: '🔄',
+        ariaLabel: 'Arrows rotating',
         description: 'Datasets that are variant forms of other datasets most frequently',
     },
 };
@@ -88,7 +101,10 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
         <div className="space-y-4">
             <div>
                 <h2 className="text-2xl font-bold tracking-tight">
-                    🏅 Top 5 Datasets by Relation Type
+                    <span role="img" aria-label="Medal">
+                        🏅
+                    </span>{' '}
+                    Top 5 Datasets by Relation Type
                 </h2>
                 <p className="text-muted-foreground">
                     Datasets with the highest usage of each relation type in the legacy database
@@ -101,6 +117,7 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                     const info = relationTypeInfo[relationType] || {
                         label: relationType,
                         emoji: '📊',
+                        ariaLabel: 'Chart',
                         description: `Top datasets using ${relationType}`,
                     };
 
@@ -108,7 +125,10 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                         <Card key={relationType}>
                             <CardHeader className="pb-3">
                                 <CardTitle className="text-lg">
-                                    {info.emoji} Top 5: {info.label}
+                                    <span role="img" aria-label={info.ariaLabel}>
+                                        {info.emoji}
+                                    </span>{' '}
+                                    Top 5: {info.label}
                                 </CardTitle>
                                 <CardDescription className="text-xs">
                                     {info.description}
@@ -124,11 +144,22 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                                         <table className="w-full text-sm">
                                             <thead className="sticky top-0 bg-muted">
                                                 <tr>
-                                                    <th className="p-2 text-left font-medium">#</th>
-                                                    <th className="p-2 text-left font-medium">
+                                                    <th
+                                                        scope="col"
+                                                        className="p-2 text-left font-medium"
+                                                    >
+                                                        #
+                                                    </th>
+                                                    <th
+                                                        scope="col"
+                                                        className="p-2 text-left font-medium"
+                                                    >
                                                         Identifier
                                                     </th>
-                                                    <th className="p-2 text-right font-medium">
+                                                    <th
+                                                        scope="col"
+                                                        className="p-2 text-right font-medium"
+                                                    >
                                                         Count
                                                     </th>
                                                 </tr>
