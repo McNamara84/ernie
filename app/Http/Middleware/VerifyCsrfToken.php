@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken as Middleware;
+use Symfony\Component\HttpFoundation\Cookie;
 
 class VerifyCsrfToken extends Middleware
 {
@@ -16,21 +18,10 @@ class VerifyCsrfToken extends Middleware
     ];
 
     /**
-     * Determine if the session and input CSRF tokens match.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return bool
-     */
-    protected function tokensMatch($request)
-    {
-        $token = $this->getTokenFromRequest($request);
-
-        return is_string($token) &&
-               hash_equals($request->session()->token(), $token);
-    }
-
-    /**
      * Add the CSRF token to the response cookies.
+     *
+     * This override ensures the XSRF-TOKEN cookie is properly set for ALL response types,
+     * including Inertia responses, not just Illuminate\Http\Response and JsonResponse.
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  \Symfony\Component\HttpFoundation\Response  $response
@@ -40,22 +31,26 @@ class VerifyCsrfToken extends Middleware
     {
         $config = config('session');
 
-        if ($response instanceof \Illuminate\Http\Response ||
-            $response instanceof \Illuminate\Http\JsonResponse) {
-            $response->withCookie(
-                cookie(
-                    'XSRF-TOKEN',
-                    $request->session()->token(),
-                    $config['lifetime'],
-                    $config['path'],
-                    $config['domain'],
-                    $config['secure'],
-                    false,
-                    false,
-                    $config['same_site'] ?? null
-                )
-            );
+        // Convert Responsable objects to Response (like Inertia\Response)
+        if ($response instanceof Responsable) {
+            $response = $response->toResponse($request);
         }
+
+        // Use the Symfony response headers directly to ensure cookie is set for ALL response types
+        $response->headers->setCookie(
+            new Cookie(
+                'XSRF-TOKEN',
+                $request->session()->token(),
+                $this->availableAt(60 * $config['lifetime']),
+                $config['path'],
+                $config['domain'],
+                $config['secure'],
+                false,
+                false,
+                $config['same_site'] ?? null,
+                $config['partitioned'] ?? false
+            )
+        );
 
         return $response;
     }
