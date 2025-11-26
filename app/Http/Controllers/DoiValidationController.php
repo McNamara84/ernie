@@ -103,7 +103,7 @@ class DoiValidationController extends Controller
                     'success' => true,
                     'source' => 'doi.org',
                     'metadata' => [
-                        'title' => 'DOI registered (not in DataCite)',
+                        'title' => 'DOI registered',
                     ],
                 ]);
             }
