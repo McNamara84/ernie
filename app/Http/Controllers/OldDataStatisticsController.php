@@ -1207,22 +1207,41 @@ class OldDataStatisticsController extends Controller
                         ->limit(5)
                         ->get();
 
-                    // Then fetch resource details and first title for each
-                    $topDatasets = $topResourceIds->map(function ($row) use ($db) {
-                        /** @var object{identifier: string}|null $resource */
-                        $resource = $db->table('resource')
-                            ->select('identifier')
-                            ->where('id', $row->resource_id)
-                            ->first();
+                    if ($topResourceIds->isEmpty()) {
+                        $result[$relationType] = [];
 
-                        /** @var object{title: string}|null $titleRow */
-                        $titleRow = $db->table('title')
-                            ->select('title')
-                            ->where('resource_id', $row->resource_id)
-                            ->first();
+                        continue;
+                    }
+
+                    // Batch fetch all resource identifiers in one query
+                    $resourceIds = $topResourceIds->pluck('resource_id')->toArray();
+
+                    /** @var \Illuminate\Support\Collection<int, object{id: int, identifier: string}> $resources */
+                    $resources = $db->table('resource')
+                        ->select(['id', 'identifier'])
+                        ->whereIn('id', $resourceIds)
+                        ->get()
+                        ->keyBy('id');
+
+                    // Batch fetch first title for each resource in one query using MIN to get one title per resource
+                    /** @var \Illuminate\Support\Collection<int, object{resource_id: int, title: string}> $titles */
+                    $titles = $db->table('title')
+                        ->select(['resource_id', DB::raw('MIN(title) as title')])
+                        ->whereIn('resource_id', $resourceIds)
+                        ->groupBy('resource_id')
+                        ->get()
+                        ->keyBy('resource_id');
+
+                    // Map results using the pre-fetched data
+                    $topDatasets = $topResourceIds->map(function ($row) use ($resources, $titles) {
+                        $resourceId = $row->resource_id;
+                        /** @var object{id: int, identifier: string}|null $resource */
+                        $resource = $resources->get($resourceId);
+                        /** @var object{resource_id: int, title: string}|null $titleRow */
+                        $titleRow = $titles->get($resourceId);
 
                         return [
-                            'id' => (int) $row->resource_id,
+                            'id' => (int) $resourceId,
                             'identifier' => $resource !== null ? $resource->identifier : '',
                             'title' => $titleRow !== null ? $titleRow->title : null,
                             'count' => (int) $row->usage_count,
