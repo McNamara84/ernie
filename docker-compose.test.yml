@@ -45,7 +45,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.test
       target: app
     container_name: ernie-test-app
     restart: unless-stopped
@@ -91,7 +91,7 @@ services:
   webserver:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.test
       target: nginx
     container_name: ernie-test-webserver
     restart: unless-stopped

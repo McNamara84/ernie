@@ -20,12 +20,14 @@ class SetUrlRoot
         if (app()->environment('production')) {
             $appUrl = config('app.url');
             if ($appUrl) {
+                // Set the root URL (includes scheme and path prefix)
                 URL::forceRootUrl($appUrl);
 
-                // Force HTTPS scheme if the app URL uses HTTPS
+                // Mark the request as secure if using HTTPS
+                // Note: Do NOT call URL::forceScheme('https') here!
+                // The scheme is already included in APP_URL.
+                // Calling forceScheme after forceRootUrl causes double-protocol URLs
                 if (str_starts_with($appUrl, 'https://')) {
-                    URL::forceScheme('https');
-                    // Also mark the request as secure
                     $request->server->set('HTTPS', 'on');
                 }
             }
