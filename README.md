@@ -275,6 +275,31 @@ The project includes Docker configuration for production deployment with multi-s
    docker-compose -f docker-compose.prod.yml exec app php artisan spdx:sync-licenses
    ```
 
+### Local Test Environment (Production-like)
+
+A local test environment is available that mirrors production with Traefik, HTTPS, and the `/ernie` path prefix. This is useful for testing CSRF, session handling, and other production-specific issues before deployment.
+
+**Start the test environment:**
+```bash
+npm run docker:test
+```
+
+**Access the application:** https://localhost:3333/ernie/
+
+> ⚠️ Accept the self-signed certificate in your browser.
+
+**Create a test user:**
+```bash
+docker exec -it ernie-test-app php artisan add-user "Test Admin" admin@test.local test123
+```
+
+**Stop the test environment:**
+```bash
+npm run docker:test:down
+```
+
+For detailed instructions, see [docs/test-environment.md](docs/test-environment.md).
+
 ### Docker Stack
 
 The Docker setup includes:

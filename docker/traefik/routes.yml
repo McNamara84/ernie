@@ -1,0 +1,43 @@
+# Static routes configuration for Traefik (File Provider)
+# This is used instead of Docker labels for Windows compatibility
+
+http:
+  routers:
+    # API router (higher priority)
+    ernie-test-api:
+      rule: "Host(`localhost`) && PathPrefix(`/ernie/api/v1`)"
+      entryPoints:
+        - "https"
+      priority: 100
+      middlewares:
+        - "ernie-api-stripprefix"
+      service: "ernie-service"
+      tls: {}
+
+    # Web router (lower priority)
+    ernie-test-router:
+      rule: "Host(`localhost`) && PathPrefix(`/ernie`)"
+      entryPoints:
+        - "https"
+      priority: 10
+      middlewares:
+        - "ernie-stripprefix"
+      service: "ernie-service"
+      tls: {}
+
+  middlewares:
+    ernie-api-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/ernie"
+
+    ernie-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/ernie"
+
+  services:
+    ernie-service:
+      loadBalancer:
+        servers:
+          - url: "http://webserver:80"

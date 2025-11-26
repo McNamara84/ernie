@@ -16,7 +16,10 @@
     "test:e2e:changelog": "start-server-and-test 'php artisan serve' http://127.0.0.1:8000 'playwright test critical/changelog'",
     "test:e2e:a11y": "start-server-and-test 'php artisan serve' http://127.0.0.1:8000 'playwright test accessibility'",
     "test:e2e:ui": "start-server-and-test 'php artisan serve' http://127.0.0.1:8000 'playwright test --ui'",
-    "test:e2e:headed": "start-server-and-test 'php artisan serve' http://127.0.0.1:8000 'playwright test --headed'"
+    "test:e2e:headed": "start-server-and-test 'php artisan serve' http://127.0.0.1:8000 'playwright test --headed'",
+    "docker:test": "docker compose -f docker-compose.test.yml up --build",
+    "docker:test:down": "docker compose -f docker-compose.test.yml down",
+    "docker:test:clean": "docker compose -f docker-compose.test.yml down -v"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",

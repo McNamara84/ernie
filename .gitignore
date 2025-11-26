@@ -36,3 +36,7 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local SSL certificates for test environment
+/docker/certs/localhost.crt
+/docker/certs/localhost.key

@@ -1,0 +1,134 @@
+# Test environment that mirrors production with Traefik and /ernie path prefix
+# Use this to test CSRF, session handling, and other production-specific issues
+#
+# Usage:
+#   1. Generate SSL certificates (first time only):
+#      docker run --rm -v ${PWD}/docker/certs:/certs alpine/openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /certs/localhost.key -out /certs/localhost.crt -subj "/CN=localhost" -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+#
+#   2. Start the test environment:
+#      docker compose -f docker-compose.test.yml up --build
+#
+#   3. Access the application:
+#      https://localhost:3333/ernie/
+#
+#   4. Stop the environment:
+#      docker compose -f docker-compose.test.yml down
+#
+# Note: You may need to accept the self-signed certificate in your browser
+
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: ernie-test-traefik
+    restart: unless-stopped
+    command:
+      # Enable API and Dashboard (optional, for debugging)
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      # File provider only (no Docker provider - avoids Windows socket issues)
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      # Entrypoints
+      - "--entrypoints.https.address=:443"
+      # Logging
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "3333:443"    # HTTPS on port 3333
+      - "8888:8080"   # Traefik dashboard (optional)
+    volumes:
+      - ./docker/certs:/etc/traefik/certs:ro
+      - ./docker/traefik:/etc/traefik/dynamic:ro
+    networks:
+      - ernie-test-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    container_name: ernie-test-app
+    restart: unless-stopped
+    volumes:
+      - test-storage-data:/var/www/html/storage
+      - test-bootstrap-cache:/var/www/html/bootstrap/cache
+    networks:
+      - ernie-test-network
+    depends_on:
+      - db
+    environment:
+      # Application settings - mirroring production
+      - APP_NAME=ERNIE-Test
+      - APP_URL=https://localhost:3333/ernie
+      - ASSET_URL=https://localhost:3333/ernie
+      - APP_ENV=production
+      - APP_DEBUG=true
+      # Session settings - critical for CSRF to work with path prefix
+      - SESSION_DRIVER=file
+      - SESSION_LIFETIME=120
+      - SESSION_PATH=/ernie
+      - SESSION_DOMAIN=localhost
+      - SESSION_SECURE_COOKIE=true
+      - SESSION_SAME_SITE=lax
+      - SESSION_HTTP_ONLY=true
+      # Database
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=ernie_test
+      - DB_USERNAME=ernie
+      - DB_PASSWORD=ernie_test_password
+      # Cache & Queue
+      - CACHE_DRIVER=file
+      - QUEUE_CONNECTION=database
+      - BROADCAST_DRIVER=log
+      # Sanctum - for SPA authentication
+      - SANCTUM_STATEFUL_DOMAINS=localhost:3333,localhost
+      # Logging
+      - LOG_CHANNEL=stack
+      - LOG_LEVEL=debug
+
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx
+    container_name: ernie-test-webserver
+    restart: unless-stopped
+    volumes:
+      - test-storage-data:/var/www/html/storage:ro
+    networks:
+      - ernie-test-network
+    depends_on:
+      - app
+    # Routes are defined in docker/traefik/routes.yml (File Provider)
+    # This avoids Docker socket issues on Windows
+
+  db:
+    image: mysql:8.0
+    container_name: ernie-test-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_test_password
+      - MYSQL_DATABASE=ernie_test
+      - MYSQL_USER=ernie
+      - MYSQL_PASSWORD=ernie_test_password
+    volumes:
+      - test-mysql-data:/var/lib/mysql
+    networks:
+      - ernie-test-network
+    # Expose port for debugging (optional)
+    ports:
+      - "33060:3306"
+
+networks:
+  ernie-test-network:
+    driver: bridge
+
+volumes:
+  test-mysql-data:
+    driver: local
+  test-storage-data:
+    driver: local
+  test-bootstrap-cache:
+    driver: local

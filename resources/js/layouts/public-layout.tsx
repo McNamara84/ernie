@@ -12,11 +12,11 @@ export default function PublicLayout({ children }: PropsWithChildren) {
             <header className="border-b border-sidebar-border/80 bg-background">
                 <nav className="mx-auto flex h-16 w-full max-w-4xl items-center justify-end gap-4 px-6">
                     {auth.user ? (
-                        <Link href={dashboard()} className="rounded-sm border px-5 py-1.5">
+                        <Link href={dashboard.url()} className="rounded-sm border px-5 py-1.5">
                             Dashboard
                         </Link>
                     ) : (
-                        <Link href={login()} className="rounded-sm border px-5 py-1.5">
+                        <Link href={login.url()} className="rounded-sm border px-5 py-1.5">
                             Log in
                         </Link>
                     )}
