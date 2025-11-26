@@ -259,18 +259,53 @@ class ResourceController extends Controller
                 }
 
                 // Save dates
+                // Note: 'created' and 'updated' dates are auto-managed and should not be
+                // submitted by the frontend. They are handled separately below.
                 if ($isUpdate) {
-                    $resource->dates()->delete();
+                    // When updating, preserve 'created' date (never overwritten) and delete
+                    // all other user-managed dates. The 'updated' date is handled separately below.
+                    $resource->dates()
+                        ->where('date_type', '!=', 'created')
+                        ->delete();
                 }
 
                 $dates = $validated['dates'] ?? [];
 
                 foreach ($dates as $date) {
+                    // Skip 'created' and 'updated' date types - these are auto-managed
+                    if (in_array(strtolower($date['dateType']), ['created', 'updated'], true)) {
+                        continue;
+                    }
+
                     $resource->dates()->create([
                         'date_type' => $date['dateType'],
                         'start_date' => $date['startDate'] ?? null,
                         'end_date' => $date['endDate'] ?? null,
                         'date_information' => $date['dateInformation'] ?? null,
+                    ]);
+                }
+
+                // Auto-manage 'created' date: Set only on new resources (not on updates)
+                if (! $isUpdate) {
+                    // Create a 'created' date with current timestamp for new resources
+                    $resource->dates()->create([
+                        'date_type' => 'created',
+                        'start_date' => now()->format('Y-m-d H:i:s'),
+                        'end_date' => null,
+                        'date_information' => null,
+                    ]);
+                }
+
+                // Auto-manage 'updated' date: Update timestamp on every update operation.
+                // This reflects when the resource was last saved by a curator.
+                if ($isUpdate) {
+                    // Create new 'updated' date with current timestamp
+                    // (any existing 'updated' entry was already deleted above)
+                    $resource->dates()->create([
+                        'date_type' => 'updated',
+                        'start_date' => now()->format('Y-m-d H:i:s'),
+                        'end_date' => null,
+                        'date_information' => null,
                     ]);
                 }
 

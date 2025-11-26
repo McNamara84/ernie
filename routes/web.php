@@ -470,9 +470,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             })->toArray();
 
             // Transform dates (exclude 'coverage' dates as they belong to spatial-temporal coverage)
+            // Also exclude 'created' and 'updated' as these are auto-managed by the backend
             $dates = $resource->dates
                 ->filter(function ($date) {
-                    return $date->date_type !== 'coverage';
+                    return ! in_array($date->date_type, ['coverage', 'created', 'updated'], true);
                 })
                 ->map(function ($date) {
                     // Convert datetime to date-only format (YYYY-MM-DD) for HTML date inputs

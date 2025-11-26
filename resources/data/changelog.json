@@ -4,6 +4,10 @@
     "date": "2025-11-25",
     "features": [
       {
+        "title": "Automatic Created/Updated Timestamps",
+        "description": "The 'Created' and 'Updated' date types are now automatically managed by the system and removed from the manual date entry form. 'Created' is set once when a resource is first saved and never overwritten. 'Updated' is automatically refreshed with the current datetime whenever resource data is modified. Both timestamps include full datetime precision for accurate audit trails."
+      },
+      {
         "title": "Spatial Coverage with Polygons",
         "description": "Draw and edit complex polygons for geographic coverage areas with interactive Google Maps integration. Enhanced coordinate handling and validation for precise spatial data representation. Supports both simple rectangles and complex multi-point polygons for flexible coverage definition."
       },
@@ -37,6 +41,10 @@
       }
     ],
     "improvements": [
+      {
+        "title": "Streamlined Dates Form Section",
+        "description": "Simplified the Dates form section by removing the requirement for manual 'Created' date entry. The form now starts empty for new resources with an 'Add date' button for optional date types like 'Accepted', 'Issued', or 'Valid'. System-managed timestamps ensure consistent metadata without curator intervention."
+      },
       {
         "title": "Simplified Relation Types Dropdown",
         "description": "Removed category headings (Citation, Documentation, Versions, Compilation, etc.) from the Relation Types dropdown in the Related Work form section. All 33 DataCite relation types are now displayed in a flat, alphabetically organized list for easier navigation."
