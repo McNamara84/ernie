@@ -47,6 +47,7 @@ class OldDataStatisticsController extends Controller
             'creation_time' => $this->getCreationTimeStats(),
             'descriptions' => $this->getDescriptionStats(),
             'publication_years' => $this->getPublicationYearStats(),
+            'topDatasetsByRelationType' => $this->getTopDatasetsByRelationType(),
         ];
 
         return Inertia::render('old-statistics', [
@@ -79,6 +80,7 @@ class OldDataStatisticsController extends Controller
             'creation_time',
             'descriptions',
             'publication_years',
+            'top_datasets_by_relation_type',
         ];
 
         foreach ($cacheKeys as $key) {
@@ -1154,6 +1156,70 @@ class OldDataStatisticsController extends Controller
                         'count' => (int) $row->count,
                     ];
                 })->toArray();
+            }
+        );
+    }
+
+    /**
+     * Get top 10 datasets for the most frequently used relation types.
+     *
+     * Returns the top 10 datasets (by usage count) for each of the 10 most common relation types:
+     * Cites, References, IsSupplementTo, IsCitedBy, IsReferencedBy, IsNewVersionOf,
+     * IsPreviousVersionOf, IsPartOf, HasPart, IsVariantFormOf
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function getTopDatasetsByRelationType(): array
+    {
+        return Cache::remember(
+            self::CACHE_KEY_PREFIX.'top_datasets_by_relation_type',
+            self::CACHE_DURATION,
+            function () {
+                $db = DB::connection(self::DATASET_CONNECTION);
+
+                // The 10 most frequently used relation types (ordered by overall frequency)
+                $relationTypes = [
+                    'Cites',
+                    'References',
+                    'IsSupplementTo',
+                    'IsCitedBy',
+                    'IsReferencedBy',
+                    'IsNewVersionOf',
+                    'IsPreviousVersionOf',
+                    'IsPartOf',
+                    'HasPart',
+                    'IsVariantFormOf',
+                ];
+
+                $result = [];
+
+                foreach ($relationTypes as $relationType) {
+                    $topDatasets = $db->table('relatedidentifier')
+                        ->join('resource', 'relatedidentifier.resource_id', '=', 'resource.id')
+                        ->leftJoin('title', 'resource.id', '=', 'title.resource_id')
+                        ->select([
+                            'resource.id',
+                            'resource.identifier',
+                            'title.title',
+                            DB::raw('COUNT(relatedidentifier.id) as usage_count'),
+                        ])
+                        ->where('relatedidentifier.relationtype', $relationType)
+                        ->groupBy('resource.id', 'resource.identifier', 'title.title')
+                        ->orderBy('usage_count', 'desc')
+                        ->limit(5)
+                        ->get();
+
+                    $result[$relationType] = $topDatasets->map(function ($row) {
+                        return [
+                            'id' => (int) $row->id,
+                            'identifier' => $row->identifier,
+                            'title' => $row->title,
+                            'count' => (int) $row->usage_count,
+                        ];
+                    })->toArray();
+                }
+
+                return $result;
             }
         );
     }
