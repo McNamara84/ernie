@@ -1,0 +1,79 @@
+# Traefik Dynamic Configuration
+# Static routing for ERNIE development environment
+
+http:
+  routers:
+    # Vite HMR router (highest priority) - catches Vite dev server requests
+    # Only route actual Vite/source files, NOT /ernie/resources (Laravel route)
+    ernie-vite-root:
+      rule: "PathPrefix(`/@vite`) || PathPrefix(`/@fs`) || PathPrefix(`/@react-refresh`) || PathPrefix(`/node_modules`) || PathPrefix(`/resources/js`) || PathPrefix(`/resources/css`)"
+      entryPoints:
+        - https
+      priority: 300
+      service: ernie-vite-service
+      tls: {}
+
+    # Vite with /ernie/ prefix - only for source files
+    ernie-vite:
+      rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`)"
+      entryPoints:
+        - https
+      priority: 200
+      middlewares:
+        - ernie-vite-stripprefix
+      service: ernie-vite-service
+      tls: {}
+
+    # API router (higher priority) - for public API endpoints
+    ernie-api:
+      rule: "PathPrefix(`/ernie/api/v1`)"
+      entryPoints:
+        - https
+      priority: 100
+      middlewares:
+        - ernie-stripprefix
+      service: ernie-service
+      tls: {}
+
+    # Main web router with /ernie prefix
+    ernie-router:
+      rule: "PathPrefix(`/ernie`)"
+      entryPoints:
+        - https
+      priority: 50
+      middlewares:
+        - ernie-stripprefix
+      service: ernie-service
+      tls: {}
+
+    # Catch-all router for requests without /ernie prefix (login, register, etc.)
+    # These are requests from Inertia/axios that don't include the prefix
+    ernie-catchall:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - https
+      priority: 1
+      service: ernie-service
+      tls: {}
+
+  middlewares:
+    ernie-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/ernie"
+    
+    ernie-vite-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/ernie"
+
+  services:
+    ernie-service:
+      loadBalancer:
+        servers:
+          - url: "http://ernie-webserver-dev:80"
+
+    ernie-vite-service:
+      loadBalancer:
+        servers:
+          - url: "http://ernie-vite-dev:5173"

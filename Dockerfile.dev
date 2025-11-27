@@ -1,0 +1,117 @@
+# =============================================================================
+# ERNIE Development Dockerfile
+# =============================================================================
+# Multi-stage build for local development with hot-reload support
+# Usage: docker-compose -f docker-compose.dev.yml up --build
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage: PHP-FPM Application (Development)
+# -----------------------------------------------------------------------------
+FROM php:8.4-fpm AS app
+
+WORKDIR /var/www/html
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    libzip-dev \
+    libsodium-dev \
+    libxslt1-dev \
+    libicu-dev \
+    g++ \
+    netcat-traditional \
+    ca-certificates \
+    gnupg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 22 LTS
+RUN mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip sodium xsl intl
+
+# Install Redis extension
+RUN pecl install redis && docker-php-ext-enable redis
+
+# Install Xdebug for debugging (optional, disabled by default)
+RUN pecl install xdebug && docker-php-ext-enable xdebug
+
+# Configure Xdebug (disabled by default - enable via env vars)
+RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.start_with_request=trigger" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.client_host=host.docker.internal" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
+    && echo "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Create symlink for php in /bin so it's available in all shells
+RUN ln -s /usr/local/bin/php /bin/php
+
+# Copy development entrypoint
+COPY docker/dev-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/dev-entrypoint.sh
+
+# Copy SSL certificates for external database connections
+COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
+RUN update-ca-certificates
+
+# Set permissions for development
+RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
+
+EXPOSE 9000
+
+ENTRYPOINT ["dev-entrypoint.sh"]
+CMD ["php-fpm"]
+
+# -----------------------------------------------------------------------------
+# Stage: Nginx Webserver (Development)
+# -----------------------------------------------------------------------------
+FROM nginx:alpine AS nginx
+
+WORKDIR /var/www/html
+
+# Copy nginx configuration (dev config is mounted as volume)
+# The dev.conf will be mounted via docker-compose
+
+EXPOSE 80
+
+# -----------------------------------------------------------------------------
+# Stage: Vite Development Server
+# -----------------------------------------------------------------------------
+FROM node:22-alpine AS vite
+
+WORKDIR /var/www/html
+
+# Install dependencies that might be needed for native modules
+RUN apk add --no-cache python3 make g++
+
+# Create startup script that ensures dependencies are installed
+RUN echo '#!/bin/sh' > /usr/local/bin/vite-entrypoint.sh && \
+    echo 'set -e' >> /usr/local/bin/vite-entrypoint.sh && \
+    echo 'cd /var/www/html' >> /usr/local/bin/vite-entrypoint.sh && \
+    echo 'if [ ! -d "node_modules" ] || [ ! "$(ls -A node_modules 2>/dev/null)" ]; then' >> /usr/local/bin/vite-entrypoint.sh && \
+    echo '  echo "Installing npm dependencies..."' >> /usr/local/bin/vite-entrypoint.sh && \
+    echo '  npm install' >> /usr/local/bin/vite-entrypoint.sh && \
+    echo 'fi' >> /usr/local/bin/vite-entrypoint.sh && \
+    echo 'exec "$@"' >> /usr/local/bin/vite-entrypoint.sh && \
+    chmod +x /usr/local/bin/vite-entrypoint.sh
+
+EXPOSE 5173
+
+ENTRYPOINT ["/usr/local/bin/vite-entrypoint.sh"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

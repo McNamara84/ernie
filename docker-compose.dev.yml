@@ -1,0 +1,235 @@
+services:
+  # Traefik Reverse Proxy - emuliert die Produktivumgebung
+  # Auf Windows: Docker-Provider deaktiviert, nutzt statische routes.yml
+  # Labels bleiben für Kompatibilität mit Produktion erhalten
+  traefik:
+    image: traefik:v3.2
+    container_name: ernie-traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.http.address=:80"
+      - "--entrypoints.https.address=:443"
+      - "--entrypoints.http.http.redirections.entrypoint.to=https"
+      - "--entrypoints.http.http.redirections.entrypoint.scheme=https"
+      - "--log.level=INFO"
+    ports:
+      - "3333:443"
+      - "8080:8080"  # Traefik Dashboard
+    volumes:
+      - ./docker/traefik/certs:/etc/traefik/certs:ro
+      - ./docker/traefik/dynamic:/etc/traefik/dynamic:ro
+    networks:
+      - ernie-dev-network
+
+  # Laravel App (PHP-FPM) - Development Mode
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: app
+    container_name: ernie-app-dev
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      # Source code mounting für Hot-Reload
+      - .:/var/www/html
+      # Persist vendor/node_modules für bessere Performance
+      - ernie-vendor:/var/www/html/vendor
+      - ernie-node-modules:/var/www/html/node_modules
+      # PHP config
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - ernie-dev-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=https://localhost:3333/ernie
+      - ASSET_URL=https://localhost:3333/ernie
+      - VITE_DEV_SERVER_URL=https://localhost:3333
+      - SESSION_DRIVER=database
+      - SESSION_LIFETIME=120
+      - SESSION_PATH=/
+      - SESSION_DOMAIN=localhost
+      - SESSION_SECURE_COOKIE=false
+      - SESSION_SAME_SITE=lax
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=ernie
+      - DB_USERNAME=ernie
+      - DB_PASSWORD=secret
+      - REDIS_HOST=redis
+      - BROADCAST_DRIVER=log
+      - CACHE_DRIVER=redis
+      - QUEUE_CONNECTION=database
+      - SANCTUM_STATEFUL_DOMAINS=localhost:3333
+
+  # Nginx Webserver
+  webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: nginx
+    container_name: ernie-webserver-dev
+    restart: unless-stopped
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/conf.d/dev.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - ernie-dev-network
+    depends_on:
+      - app
+    labels:
+      - "traefik.enable=true"
+      # API router (WITHOUT Forward-Auth) - higher priority
+      - "traefik.http.routers.ernie-api.rule=Host(`localhost`) && PathPrefix(`/ernie/api/v1`)"
+      - "traefik.http.routers.ernie-api.entrypoints=https"
+      - "traefik.http.routers.ernie-api.priority=100"
+      - "traefik.http.routers.ernie-api.middlewares=ernie-api-stripprefix"
+      - "traefik.http.routers.ernie-api.service=ernie-service"
+      - "traefik.http.routers.ernie-api.tls=true"
+      - "traefik.http.middlewares.ernie-api-stripprefix.stripprefix.prefixes=/ernie"
+      # Web router - lower priority
+      - "traefik.http.routers.ernie-router.rule=Host(`localhost`) && PathPrefix(`/ernie`)"
+      - "traefik.http.routers.ernie-router.entrypoints=https"
+      - "traefik.http.routers.ernie-router.priority=10"
+      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
+      - "traefik.http.routers.ernie-router.service=ernie-service"
+      - "traefik.http.routers.ernie-router.tls=true"
+      - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
+      # Service
+      - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
+
+  # Vite Dev Server für Hot Module Replacement
+  # Läuft im App-Container da Wayfinder-Plugin php artisan benötigt
+  vite:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: app
+    container_name: ernie-vite-dev
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ernie-vendor:/var/www/html/vendor
+      - ernie-node-modules:/var/www/html/node_modules
+    networks:
+      - ernie-dev-network
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=https://localhost:3333/ernie
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=ernie
+      - DB_USERNAME=ernie
+      - DB_PASSWORD=secret
+      - VITE_APP_NAME=ERNIE
+      - VITE_DEV_SERVER_URL=https://localhost:3333
+      - VITE_HMR_HOST=localhost
+      - VITE_HMR_PORT=3333
+      - VITE_USE_POLLING=true
+    entrypoint: [""]
+    command: ["/bin/sh", "/var/www/html/docker/vite-entrypoint.sh"]
+    labels:
+      - "traefik.enable=true"
+      # Vite HMR WebSocket and assets
+      - "traefik.http.routers.ernie-vite.rule=Host(`localhost`) && (PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources`))"
+      - "traefik.http.routers.ernie-vite.entrypoints=https"
+      - "traefik.http.routers.ernie-vite.priority=200"
+      - "traefik.http.routers.ernie-vite.middlewares=ernie-vite-stripprefix"
+      - "traefik.http.routers.ernie-vite.service=ernie-vite-service"
+      - "traefik.http.routers.ernie-vite.tls=true"
+      - "traefik.http.middlewares.ernie-vite-stripprefix.stripprefix.prefixes=/ernie"
+      - "traefik.http.services.ernie-vite-service.loadbalancer.server.port=5173"
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: ernie-db-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootsecret
+      MYSQL_DATABASE: ernie
+      MYSQL_USER: ernie
+      MYSQL_PASSWORD: secret
+    volumes:
+      - ernie-db-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - ernie-dev-network
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootsecret"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:alpine
+    container_name: ernie-redis-dev
+    restart: unless-stopped
+    networks:
+      - ernie-dev-network
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  # Queue Worker
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: app
+    container_name: ernie-queue-dev
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - .:/var/www/html
+      - ernie-vendor:/var/www/html/vendor
+    networks:
+      - ernie-dev-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=ernie
+      - DB_USERNAME=ernie
+      - DB_PASSWORD=secret
+      - REDIS_HOST=redis
+      - QUEUE_CONNECTION=database
+    command: php artisan queue:work --sleep=3 --tries=3
+
+networks:
+  ernie-dev-network:
+    driver: bridge
+
+volumes:
+  ernie-db-data:
+    driver: local
+  ernie-vendor:
+    driver: local
+  ernie-node-modules:
+    driver: local
