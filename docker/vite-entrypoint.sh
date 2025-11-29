@@ -7,7 +7,7 @@ cd /var/www/html
 export PATH="/usr/local/bin:$PATH"
 
 # Install npm dependencies if needed
-if [ ! -d "node_modules" ] || [ ! -f "node_modules/.package-lock.json" ]; then
+if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
     echo "Installing npm dependencies..."
     npm install
 fi

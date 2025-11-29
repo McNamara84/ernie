@@ -1,7 +1,7 @@
 services:
-  # Traefik Reverse Proxy - emuliert die Produktivumgebung
-  # Auf Windows: Docker-Provider deaktiviert, nutzt statische routes.yml
-  # Labels bleiben für Kompatibilität mit Produktion erhalten
+  # Traefik Reverse Proxy - mirrors production environment
+  # On Windows: Docker provider disabled, uses static routes.yml
+  # Labels retained for production compatibility reference
   traefik:
     image: traefik:v3.2
     container_name: ernie-traefik
@@ -34,9 +34,9 @@ services:
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
-      # Source code mounting für Hot-Reload
+      # Source code mounting for hot-reload
       - .:/var/www/html
-      # Persist vendor/node_modules für bessere Performance
+      # Persist vendor/node_modules for better performance
       - ernie-vendor:/var/www/html/vendor
       - ernie-node-modules:/var/www/html/node_modules
       # PHP config
@@ -55,6 +55,10 @@ services:
       - ASSET_URL=https://localhost:3333/ernie
       - VITE_APP_BASE_PATH=/ernie
       - VITE_DEV_SERVER_URL=https://localhost:3333
+      # Session Configuration:
+      # - SESSION_PATH=/ required because Traefik strips /ernie prefix before Laravel sees the request
+      # - SESSION_SECURE_COOKIE=false required for self-signed certificates (browser won't accept secure cookie)
+      # These settings differ from production but are necessary for Docker development to work
       - SESSION_DRIVER=database
       - SESSION_LIFETIME=120
       - SESSION_PATH=/
@@ -109,8 +113,8 @@ services:
       # Service
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
 
-  # Vite Dev Server für Hot Module Replacement
-  # Läuft im App-Container da Wayfinder-Plugin php artisan benötigt
+  # Vite Dev Server for Hot Module Replacement
+  # Runs in app container as Wayfinder plugin requires php artisan
   vite:
     build:
       context: .
@@ -149,7 +153,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Vite HMR WebSocket and assets
-      - "traefik.http.routers.ernie-vite.rule=Host(`localhost`) && (PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources`))"
+      - "traefik.http.routers.ernie-vite.rule=Host(`localhost`) && (PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`) || PathPrefix(`/ernie/resources/data`))"
       - "traefik.http.routers.ernie-vite.entrypoints=https"
       - "traefik.http.routers.ernie-vite.priority=200"
       - "traefik.http.routers.ernie-vite.middlewares=ernie-vite-stripprefix"

@@ -15,7 +15,7 @@ http:
 
     # Vite with /ernie/ prefix - only for source files
     ernie-vite:
-      rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`)"
+      rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`) || PathPrefix(`/ernie/resources/data`)"
       entryPoints:
         - https
       priority: 200

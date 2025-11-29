@@ -46,7 +46,7 @@ export default defineConfig({
   
   /* Shared settings for all the projects below */
   use: {
-    /* Docker development URL with /ernie/ prefix */
+    /* Docker development URL with /ernie prefix */
     baseURL: 'https://localhost:3333/ernie',
 
     /* Accept self-signed certificates */
