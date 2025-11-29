@@ -152,14 +152,14 @@ services:
     command: ["/bin/sh", "/var/www/html/docker/vite-entrypoint.sh"]
     labels:
       - "traefik.enable=true"
-      # Vite HMR WebSocket and assets
-      - "traefik.http.routers.ernie-vite.rule=Host(`localhost`) && (PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`) || PathPrefix(`/ernie/resources/data`))"
+      # Note: These labels are for documentation/reference only.
+      # Actual routing is defined in docker/traefik/dynamic/routes.yml
+      # (Docker provider is disabled on Windows for socket compatibility)
+      - "traefik.http.routers.ernie-vite.rule=Host(`localhost`) && PathPrefix(`/ernie/@vite`)"
       - "traefik.http.routers.ernie-vite.entrypoints=https"
       - "traefik.http.routers.ernie-vite.priority=200"
-      - "traefik.http.routers.ernie-vite.middlewares=ernie-vite-stripprefix"
       - "traefik.http.routers.ernie-vite.service=ernie-vite-service"
       - "traefik.http.routers.ernie-vite.tls=true"
-      - "traefik.http.middlewares.ernie-vite-stripprefix.stripprefix.prefixes=/ernie"
       - "traefik.http.services.ernie-vite-service.loadbalancer.server.port=5173"
 
   # MySQL Database

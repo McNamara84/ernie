@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { testMatchPatterns, testIgnorePatterns, timeoutSettings } from './tests/playwright/playwright.shared';
 
 /**
  * Playwright configuration for Docker development environment.
@@ -23,26 +24,17 @@ export default defineConfig({
   /* Reporter to use */
   reporter: 'html',
   /* Global timeout for each test */
-  timeout: 90 * 1000,
+  timeout: timeoutSettings.testTimeout,
   /* Global timeout for expect() */
   expect: {
-    timeout: 15 * 1000,
+    timeout: timeoutSettings.expectTimeout,
   },
   
-  /* Test match patterns - same as main config */
-  testMatch: [
-    'tests/playwright/critical/**/*.spec.ts',
-    'tests/playwright/workflows/!(user-management).spec.ts',
-    'tests/playwright/accessibility/**/*.spec.ts',
-  ],
+  /* Test match patterns - imported from shared config */
+  testMatch: testMatchPatterns,
   
   /* Ignore helper files and documentation */
-  testIgnore: [
-    '**/helpers/**',
-    '**/page-objects/**',
-    '**/*.md',
-    '**/constants.ts',
-  ],
+  testIgnore: testIgnorePatterns,
   
   /* Shared settings for all the projects below */
   use: {

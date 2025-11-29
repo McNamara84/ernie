@@ -16,14 +16,28 @@ use Illuminate\Database\Seeder;
  */
 class PlaywrightTestSeeder extends Seeder
 {
+    /**
+     * Default password for all test users.
+     * Change this single value to update all test user passwords.
+     */
+    private const TEST_PASSWORD = 'password';
+
+    /**
+     * Hashed password, computed once for efficiency.
+     */
+    private string $hashedPassword;
+
     public function run(): void
     {
+        // Hash password once for all users
+        $this->hashedPassword = bcrypt(self::TEST_PASSWORD);
+
         // Create test user for Playwright tests
         User::firstOrCreate(
             ['email' => 'test@example.com'],
             [
                 'name' => 'Test User',
-                'password' => bcrypt('password'),
+                'password' => $this->hashedPassword,
                 'role' => UserRole::ADMIN,
                 'email_verified_at' => now(),
             ]
@@ -34,7 +48,7 @@ class PlaywrightTestSeeder extends Seeder
             ['email' => 'admin@example.com'],
             [
                 'name' => 'Admin User',
-                'password' => bcrypt('password'),
+                'password' => $this->hashedPassword,
                 'role' => UserRole::ADMIN,
                 'email_verified_at' => now(),
             ]
@@ -45,7 +59,7 @@ class PlaywrightTestSeeder extends Seeder
             ['email' => 'groupleader@example.com'],
             [
                 'name' => 'Group Leader',
-                'password' => bcrypt('password'),
+                'password' => $this->hashedPassword,
                 'role' => UserRole::GROUP_LEADER,
                 'email_verified_at' => now(),
             ]
@@ -56,7 +70,7 @@ class PlaywrightTestSeeder extends Seeder
             ['email' => 'curator@example.com'],
             [
                 'name' => 'Curator User',
-                'password' => bcrypt('password'),
+                'password' => $this->hashedPassword,
                 'role' => UserRole::CURATOR,
                 'email_verified_at' => now(),
             ]
@@ -67,7 +81,7 @@ class PlaywrightTestSeeder extends Seeder
             ['email' => 'beginner@example.com'],
             [
                 'name' => 'Beginner User',
-                'password' => bcrypt('password'),
+                'password' => $this->hashedPassword,
                 'role' => UserRole::BEGINNER,
                 'email_verified_at' => now(),
             ]

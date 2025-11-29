@@ -10,6 +10,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $CertDir = Join-Path $ScriptDir "traefik\certs"
+$ConfigFile = Join-Path $CertDir "openssl.cnf"
 
 Write-Host "===================================" -ForegroundColor Cyan
 Write-Host "Generating SSL Certificates" -ForegroundColor Cyan
@@ -18,6 +19,13 @@ Write-Host "===================================" -ForegroundColor Cyan
 # Create directory if it doesn't exist
 if (-not (Test-Path $CertDir)) {
     New-Item -ItemType Directory -Path $CertDir -Force | Out-Null
+}
+
+# Check if shared OpenSSL config exists
+if (-not (Test-Path $ConfigFile)) {
+    Write-Host "ERROR: OpenSSL config not found at $ConfigFile" -ForegroundColor Red
+    Write-Host "Please ensure openssl.cnf exists in docker/traefik/certs/" -ForegroundColor Yellow
+    exit 1
 }
 
 $KeyFile = Join-Path $CertDir "localhost.key"
@@ -55,37 +63,9 @@ if (-not $opensslPath) {
 }
 
 Write-Host "Using OpenSSL: $opensslPath" -ForegroundColor Gray
+Write-Host "Using config: $ConfigFile" -ForegroundColor Gray
 
-# Create OpenSSL config file for SAN
-$ConfigFile = Join-Path $CertDir "openssl.cnf"
-$ConfigContent = @"
-[req]
-default_bits = 4096
-prompt = no
-default_md = sha256
-distinguished_name = dn
-x509_extensions = v3_req
-
-[dn]
-C = DE
-ST = Brandenburg
-L = Potsdam
-O = GFZ
-OU = Development
-CN = localhost
-
-[v3_req]
-subjectAltName = @alt_names
-
-[alt_names]
-DNS.1 = localhost
-DNS.2 = *.localhost
-IP.1 = 127.0.0.1
-"@
-
-$ConfigContent | Out-File -FilePath $ConfigFile -Encoding ASCII
-
-# Generate certificate
+# Generate certificate using shared config
 try {
     & $opensslPath req -x509 `
         -newkey rsa:4096 `
@@ -98,9 +78,6 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "OpenSSL command failed"
     }
-
-    # Clean up config file
-    Remove-Item $ConfigFile -Force
 
     Write-Host ""
     Write-Host "Certificates generated successfully!" -ForegroundColor Green

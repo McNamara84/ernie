@@ -3,19 +3,32 @@
 
 http:
   routers:
-    # Vite HMR router (highest priority) - catches Vite dev server requests
-    # Only route actual Vite/source files, NOT /ernie/resources (Laravel route)
-    ernie-vite-root:
-      rule: "PathPrefix(`/@vite`) || PathPrefix(`/@fs`) || PathPrefix(`/@react-refresh`) || PathPrefix(`/node_modules`) || PathPrefix(`/resources/js`) || PathPrefix(`/resources/css`)"
+    # ==========================================================================
+    # Vite HMR Routers (highest priority) - Development asset serving
+    # Split into separate routers for better maintainability
+    # ==========================================================================
+    
+    # Vite internal routes (without /ernie prefix)
+    ernie-vite-internal:
+      rule: "PathPrefix(`/@vite`) || PathPrefix(`/@fs`) || PathPrefix(`/@react-refresh`)"
       entryPoints:
         - https
       priority: 300
       service: ernie-vite-service
       tls: {}
 
-    # Vite with /ernie/ prefix - only for source files
-    ernie-vite:
-      rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`) || PathPrefix(`/ernie/resources/data`)"
+    # Node modules and source files (without /ernie prefix)
+    ernie-vite-sources:
+      rule: "PathPrefix(`/node_modules`) || PathPrefix(`/resources/js`) || PathPrefix(`/resources/css`)"
+      entryPoints:
+        - https
+      priority: 300
+      service: ernie-vite-service
+      tls: {}
+
+    # Vite internal routes (with /ernie prefix)
+    ernie-vite-prefixed-internal:
+      rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`)"
       entryPoints:
         - https
       priority: 200
@@ -23,6 +36,21 @@ http:
         - ernie-vite-stripprefix
       service: ernie-vite-service
       tls: {}
+
+    # Source files with /ernie prefix (js, css, data)
+    ernie-vite-prefixed-sources:
+      rule: "PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`) || PathPrefix(`/ernie/resources/data`)"
+      entryPoints:
+        - https
+      priority: 200
+      middlewares:
+        - ernie-vite-stripprefix
+      service: ernie-vite-service
+      tls: {}
+
+    # ==========================================================================
+    # Application Routers
+    # ==========================================================================
 
     # API router (higher priority) - for public API endpoints
     ernie-api:
