@@ -1,14 +1,33 @@
-# Traefik Dynamic Configuration
-# Static routing for ERNIE development environment
+# =============================================================================
+# Traefik Dynamic Configuration for ERNIE Development
+# =============================================================================
+# Static routing configuration (Docker provider disabled on Windows)
+#
+# Router Priority Explanation:
+# - 300: Vite routes WITHOUT /ernie prefix (direct browser requests)
+# - 200: Vite routes WITH /ernie prefix (need strip-prefix middleware)
+# - 100: API routes (specific paths before general catch-all)
+# -  50: Main application with /ernie prefix
+# -   1: Catch-all for Inertia/axios requests without prefix
+#
+# Higher priority = matched first. Vite assets must be served before
+# the catch-all routes intercept them.
+# =============================================================================
 
 http:
   routers:
     # ==========================================================================
-    # Vite HMR Routers (highest priority) - Development asset serving
-    # Split into separate routers for better maintainability
+    # Vite Development Server Routers (Priority 300/200)
+    # ==========================================================================
+    # These routers handle Hot Module Replacement (HMR) and source file serving.
+    # Split into separate routers for better maintainability and debugging.
+    #
+    # Priority 300: Direct requests (browser makes request without /ernie prefix)
+    # Priority 200: Prefixed requests (need middleware to strip /ernie)
     # ==========================================================================
     
-    # Vite internal routes (without /ernie prefix)
+    # Vite internal routes - HMR, filesystem access, React refresh
+    # Priority 300: Highest - these are direct browser requests
     ernie-vite-internal:
       rule: "PathPrefix(`/@vite`) || PathPrefix(`/@fs`) || PathPrefix(`/@react-refresh`)"
       entryPoints:
@@ -17,7 +36,8 @@ http:
       service: ernie-vite-service
       tls: {}
 
-    # Node modules and source files (without /ernie prefix)
+    # Development source files and node_modules
+    # Priority 300: Same as above - direct browser requests
     ernie-vite-sources:
       rule: "PathPrefix(`/node_modules`) || PathPrefix(`/resources/js`) || PathPrefix(`/resources/css`)"
       entryPoints:
@@ -26,7 +46,8 @@ http:
       service: ernie-vite-service
       tls: {}
 
-    # Vite internal routes (with /ernie prefix)
+    # Vite internal routes with /ernie prefix (from Laravel-generated URLs)
+    # Priority 200: Lower than direct - needs prefix stripping
     ernie-vite-prefixed-internal:
       rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`)"
       entryPoints:
@@ -37,7 +58,8 @@ http:
       service: ernie-vite-service
       tls: {}
 
-    # Source files with /ernie prefix (js, css, data)
+    # Source files with /ernie prefix
+    # Priority 200: Same as above - needs prefix stripping
     ernie-vite-prefixed-sources:
       rule: "PathPrefix(`/ernie/node_modules`) || PathPrefix(`/ernie/resources/js`) || PathPrefix(`/ernie/resources/css`) || PathPrefix(`/ernie/resources/data`)"
       entryPoints:
@@ -49,10 +71,11 @@ http:
       tls: {}
 
     # ==========================================================================
-    # Application Routers
+    # Application Routers (Priority 100/50/1)
     # ==========================================================================
 
-    # API router (higher priority) - for public API endpoints
+    # API router - public endpoints that don't require session
+    # Priority 100: Higher than main app to handle API-specific logic
     ernie-api:
       rule: "PathPrefix(`/ernie/api/v1`)"
       entryPoints:
@@ -63,7 +86,8 @@ http:
       service: ernie-service
       tls: {}
 
-    # Main web router with /ernie prefix
+    # Main web application router
+    # Priority 50: Standard application routing
     ernie-router:
       rule: "PathPrefix(`/ernie`)"
       entryPoints:
@@ -74,8 +98,9 @@ http:
       service: ernie-service
       tls: {}
 
-    # Catch-all router for requests without /ernie prefix (login, register, etc.)
-    # These are requests from Inertia/axios that don't include the prefix
+    # Catch-all router for requests without /ernie prefix
+    # Priority 1: Lowest - handles Inertia/axios requests that bypass prefix
+    # These occur when JavaScript makes requests to relative URLs
     ernie-catchall:
       rule: "PathPrefix(`/`)"
       entryPoints:

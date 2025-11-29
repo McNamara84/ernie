@@ -12,7 +12,8 @@ FROM php:8.4-fpm AS app
 
 WORKDIR /var/www/html
 
-# Install system dependencies
+# Install system dependencies and Node.js in a single layer for efficiency
+# Node.js 22 LTS is required for the Wayfinder plugin (php artisan integration)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -29,11 +30,8 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     ca-certificates \
     gnupg \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Node.js 22 LTS
-RUN mkdir -p /etc/apt/keyrings \
+    # Install Node.js 22 LTS in the same layer to reduce image size
+    && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
     && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
@@ -88,10 +86,17 @@ WORKDIR /var/www/html
 # Copy nginx configuration (dev config is mounted as volume)
 # The dev.conf will be mounted via docker-compose
 
+# Copy nginx snippets for shared configuration
+COPY docker/nginx/snippets/ /etc/nginx/snippets/
+
 EXPOSE 80
 
 # -----------------------------------------------------------------------------
-# Stage: Vite Development Server
+# Stage: Vite Development Server (Alternative - currently unused)
+# -----------------------------------------------------------------------------
+# Note: docker-compose.dev.yml uses the 'app' stage for the vite container
+# because the Wayfinder plugin requires php artisan access. This stage is
+# kept for potential future use with a standalone Vite setup.
 # -----------------------------------------------------------------------------
 FROM node:22-alpine AS vite
 

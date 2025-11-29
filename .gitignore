@@ -34,7 +34,7 @@ clover.xml
 # Docker development
 /docker/traefik/certs/*.crt
 /docker/traefik/certs/*.key
-/docker/traefik/certs/*.cnf
+# Note: openssl.cnf is tracked for cross-platform certificate generation
 
 # Playwright
 node_modules/

@@ -1,0 +1,29 @@
+# =============================================================================
+# OpenSSL Configuration for ERNIE Development Certificates
+# =============================================================================
+# Shared configuration used by both generate-certs.sh and generate-certs.ps1
+# This ensures consistent certificate generation across platforms.
+# =============================================================================
+
+[req]
+default_bits = 4096
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_req
+
+[dn]
+C = DE
+ST = Brandenburg
+L = Potsdam
+O = GFZ
+OU = Development
+CN = localhost
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+DNS.2 = *.localhost
+IP.1 = 127.0.0.1

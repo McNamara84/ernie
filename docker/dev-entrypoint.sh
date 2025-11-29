@@ -34,8 +34,8 @@ if [ ! -f "$APP_PATH/vendor/autoload.php" ]; then
     composer install --no-interaction --optimize-autoloader
 fi
 
-# Install npm dependencies if node_modules is empty
-if [ ! -d "$APP_PATH/node_modules" ] || [ ! "$(ls -A $APP_PATH/node_modules 2>/dev/null)" ]; then
+# Install npm dependencies if node_modules is empty or doesn't exist
+if [ ! -d "$APP_PATH/node_modules" ] || [ -z "$(ls -A "$APP_PATH/node_modules" 2>/dev/null)" ]; then
     echo "Installing NPM dependencies..."
     npm install
 fi
