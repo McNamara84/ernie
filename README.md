@@ -252,11 +252,162 @@ php artisan get-msl-keywords
 php artisan get-ror-ids
 ```
 
-## Docker Deployment
+## Docker Development Environment
+
+The project includes a complete Docker development environment that mirrors the production setup with Traefik reverse proxy and `/ernie/` URL prefix.
+
+### Prerequisites
+
+- **Docker Desktop** installed and running
+- **OpenSSL** (included with Git for Windows or install separately)
+
+### Quick Start (Development)
+
+1. **Generate SSL certificates** (first time only):
+   ```powershell
+   # Windows PowerShell
+   .\docker\generate-certs.ps1
+   
+   # Or using Git Bash / WSL
+   ./docker/generate-certs.sh
+   ```
+
+2. **Create environment file**:
+   ```powershell
+   Copy-Item .env.docker.example .env.docker
+   ```
+   Edit `.env.docker` as needed (defaults work out of the box).
+
+3. **Start the development environment**:
+   ```powershell
+   docker-compose -f docker-compose.dev.yml up --build
+   ```
+
+4. **Access the application**:
+   - **Application**: https://localhost:3333/ernie/
+   - **Traefik Dashboard**: http://localhost:8080
+
+5. **Run initial setup** (first time or after database reset):
+   ```powershell
+   docker exec ernie-app-dev php artisan migrate
+   docker exec ernie-app-dev php artisan add-user "Admin Name" admin@example.com SecurePassword
+   docker exec ernie-app-dev php artisan spdx:sync-licenses
+   ```
+
+### Development Stack
+
+The Docker development environment includes:
+
+| Service | Container | Purpose | Port |
+|---------|-----------|---------|------|
+| Traefik | `ernie-traefik` | Reverse proxy with SSL termination | 3333 (HTTPS), 8080 (Dashboard) |
+| PHP-FPM | `ernie-app-dev` | Laravel application | 9000 (internal) |
+| Nginx | `ernie-webserver-dev` | Web server | 80 (internal) |
+| Vite | `ernie-vite-dev` | HMR dev server | 5173 (internal) |
+| MySQL | `ernie-db-dev` | Database | 3306 |
+| Redis | `ernie-redis-dev` | Cache & Sessions | 6379 |
+| Queue | `ernie-queue-dev` | Background jobs | - |
+
+### URL Routing
+
+The development environment replicates the production Traefik configuration:
+
+- `https://localhost:3333/ernie/` → Main application
+- `https://localhost:3333/ernie/api/v1/` → API endpoints (no Forward-Auth)
+- `https://localhost:3333/ernie/@vite/` → Vite HMR (proxied)
+
+This mirrors the production URL `https://env.rz-vm182.gfz.de/ernie/`.
+
+### Trust SSL Certificate (Windows)
+
+To avoid browser security warnings:
+
+1. Open `docker\traefik\certs\localhost.crt`
+2. Click "Install Certificate"
+3. Select "Local Machine"
+4. Choose "Place all certificates in the following store"
+5. Browse → "Trusted Root Certification Authorities"
+6. Click Finish
+
+Or run as Administrator:
+```powershell
+Import-Certificate -FilePath ".\docker\traefik\certs\localhost.crt" -CertStoreLocation Cert:\LocalMachine\Root
+```
+
+### Development Commands
+
+```powershell
+# Start environment
+docker-compose -f docker-compose.dev.yml up -d
+
+# View logs (all services)
+docker-compose -f docker-compose.dev.yml logs -f
+
+# View logs (specific service)
+docker-compose -f docker-compose.dev.yml logs -f app
+
+# Run artisan commands
+docker exec ernie-app-dev php artisan <command>
+
+# Run composer commands
+docker exec ernie-app-dev composer <command>
+
+# Run npm commands
+docker exec ernie-vite-dev npm <command>
+
+# Stop environment
+docker-compose -f docker-compose.dev.yml down
+
+# Reset database (removes volumes)
+docker-compose -f docker-compose.dev.yml down -v
+```
+
+### Xdebug Integration
+
+Xdebug is pre-installed but disabled by default. To enable:
+
+1. Edit `.env.docker`:
+   ```env
+   XDEBUG_MODE=debug
+   ```
+
+2. Restart the app container:
+   ```powershell
+   docker-compose -f docker-compose.dev.yml restart app
+   ```
+
+3. Configure VS Code with PHP Debug extension (default port: 9003)
+
+### Troubleshooting
+
+**Certificate errors in browser:**
+Ensure you've trusted the self-signed certificate (see above).
+
+**"Connection refused" errors:**
+Wait for all containers to be healthy. Check status with:
+```powershell
+docker-compose -f docker-compose.dev.yml ps
+```
+
+**Database migration fails:**
+The database needs time to initialize. Wait 30 seconds and retry:
+```powershell
+docker exec ernie-app-dev php artisan migrate
+```
+
+**Hot reload not working:**
+Ensure the Vite container is running and check Traefik routes:
+```powershell
+docker-compose -f docker-compose.dev.yml logs vite
+```
+
+---
+
+## Docker Production Deployment
 
 The project includes Docker configuration for production deployment with multi-stage builds and optimized images.
 
-### Quick Start
+### Quick Start (Production)
 
 1. Build the Docker image:
    ```bash
@@ -275,16 +426,18 @@ The project includes Docker configuration for production deployment with multi-s
    docker-compose -f docker-compose.prod.yml exec app php artisan spdx:sync-licenses
    ```
 
-### Docker Stack
+### Production Docker Stack
 
-The Docker setup includes:
-- **PHP-FPM 8.2+** with all required extensions
+The production Docker setup includes:
+- **PHP-FPM 8.4+** with all required extensions
 - **Nginx** web server with optimized configuration
-- **MariaDB 10.6+** database server
+- **MySQL 8.0** database server
+- **Redis** for caching
+- **Traefik** integration via labels (external Traefik required)
 - **Persistent volumes** for storage and database
 - **Health checks** for all services
 
-### Container Management
+### Production Container Management
 
 View logs:
 ```bash

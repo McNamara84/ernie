@@ -48,6 +48,26 @@ export default defineConfig(() => {
             warmup: {
                 clientFiles: ['resources/js/swagger.tsx'],
             },
+            // Docker development configuration
+            host: '0.0.0.0',
+            port: 5173,
+            strictPort: true,
+            // Configure origin for Docker/Traefik setup
+            origin: process.env.VITE_DEV_SERVER_URL || undefined,
+            // Allow all hosts in development (required for Docker networking)
+            allowedHosts: true,
+            hmr: {
+                // When running in Docker with Traefik, HMR uses WebSocket through the proxy
+                protocol: 'wss',
+                host: process.env.VITE_HMR_HOST || 'localhost',
+                port: process.env.VITE_HMR_PORT ? parseInt(process.env.VITE_HMR_PORT) : 3333,
+                clientPort: process.env.VITE_HMR_PORT ? parseInt(process.env.VITE_HMR_PORT) : 3333,
+            },
+            cors: true,
+            watch: {
+                // Use polling for file changes in Docker volumes (Windows compatibility)
+                usePolling: process.env.VITE_USE_POLLING === 'true',
+            },
         },
         test: {
             environment: 'jsdom',

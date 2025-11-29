@@ -16,6 +16,7 @@
 /vendor
 .env
 .env.backup
+.env.docker
 .phpactor.json
 .phpunit.result.cache
 Homestead.json
@@ -29,6 +30,11 @@ yarn-error.log
 /.vscode
 /.zed
 clover.xml
+
+# Docker development
+/docker/traefik/certs/*.crt
+/docker/traefik/certs/*.key
+# Note: openssl.cnf is tracked for cross-platform certificate generation
 
 # Playwright
 node_modules/

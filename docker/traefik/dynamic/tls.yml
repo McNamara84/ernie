@@ -1,0 +1,13 @@
+# Traefik Dynamic Configuration
+# TLS certificates for local development
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/localhost.crt
+      keyFile: /etc/traefik/certs/localhost.key
+
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /etc/traefik/certs/localhost.crt
+        keyFile: /etc/traefik/certs/localhost.key

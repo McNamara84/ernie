@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { testMatchPatterns, testIgnorePatterns, timeoutSettings } from './tests/playwright/playwright.shared';
 
 /**
  * Read environment variables from file.
@@ -24,32 +25,17 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? 'github' : 'html',
   /* Global timeout for each test */
-  timeout: 90 * 1000, // Increased to 90s for workflow tests (CI needs more time)
+  timeout: timeoutSettings.testTimeout,
   /* Global timeout for expect() */
   expect: {
-    timeout: 15 * 1000, // Increased to 15s for more complex assertions in CI
+    timeout: timeoutSettings.expectTimeout,
   },
   
-  /* Test match patterns - organized by priority */
-  testMatch: [
-    // Critical smoke tests run first
-    'tests/playwright/critical/**/*.spec.ts',
-    // Then workflow tests
-    // TODO: Re-enable user-management.spec.ts after implementing proper logout mechanism (dropdown-based)
-    // Currently excluded because logout tests rely on 'button:has-text("Logout")' which doesn't exist
-    // The actual implementation uses a dropdown menu (see resources/js/components/user-menu-content.tsx)
-    'tests/playwright/workflows/!(user-management).spec.ts',
-    // Accessibility tests
-    'tests/playwright/accessibility/**/*.spec.ts',
-  ],
+  /* Test match patterns - imported from shared config */
+  testMatch: testMatchPatterns,
   
   /* Ignore helper files and documentation */
-  testIgnore: [
-    '**/helpers/**',
-    '**/page-objects/**',
-    '**/*.md',
-    '**/constants.ts',
-  ],
+  testIgnore: testIgnorePatterns,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
