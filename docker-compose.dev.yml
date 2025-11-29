@@ -53,6 +53,7 @@ services:
       - APP_DEBUG=true
       - APP_URL=https://localhost:3333/ernie
       - ASSET_URL=https://localhost:3333/ernie
+      - VITE_APP_BASE_PATH=/ernie
       - VITE_DEV_SERVER_URL=https://localhost:3333
       - SESSION_DRIVER=database
       - SESSION_LIFETIME=120
@@ -138,6 +139,7 @@ services:
       - DB_USERNAME=ernie
       - DB_PASSWORD=secret
       - VITE_APP_NAME=ERNIE
+      - VITE_APP_BASE_PATH=/ernie
       - VITE_DEV_SERVER_URL=https://localhost:3333
       - VITE_HMR_HOST=localhost
       - VITE_HMR_PORT=3333
