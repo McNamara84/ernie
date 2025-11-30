@@ -40,6 +40,18 @@ describe('doi-validation', () => {
             expect(result.format).toBe('valid');
         });
 
+        it('should validate Handle URL with query string (query string excluded)', () => {
+            const result = validateHandleFormat('http://hdl.handle.net/11708/test?query=value');
+            expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
+        });
+
+        it('should validate Handle URL with fragment (fragment excluded)', () => {
+            const result = validateHandleFormat('http://hdl.handle.net/11708/test#section');
+            expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
+        });
+
         it('should reject Handle with whitespace-only suffix', () => {
             const result = validateHandleFormat('11708/   ');
             expect(result.isValid).toBe(false);
@@ -81,21 +93,25 @@ describe('doi-validation', () => {
         it('should validate bare DOI format', () => {
             const result = validateDOIFormat('10.5194/nhess-15-1463-2015');
             expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
         });
 
         it('should validate DOI URL with doi.org', () => {
             const result = validateDOIFormat('https://doi.org/10.5194/nhess-15-1463-2015');
             expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
         });
 
         it('should validate DOI URL with dx.doi.org', () => {
             const result = validateDOIFormat('http://dx.doi.org/10.5194/nhess-15-1463-2015');
             expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
         });
 
         it('should reject invalid DOI', () => {
             const result = validateDOIFormat('not-a-doi');
             expect(result.isValid).toBe(false);
+            expect(result.format).toBe('invalid');
         });
     });
 
@@ -103,16 +119,19 @@ describe('doi-validation', () => {
         it('should validate http URL', () => {
             const result = validateURLFormat('http://example.com');
             expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
         });
 
         it('should validate https URL', () => {
             const result = validateURLFormat('https://example.com/path?query=1');
             expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
         });
 
         it('should reject invalid URL', () => {
             const result = validateURLFormat('not-a-url');
             expect(result.isValid).toBe(false);
+            expect(result.format).toBe('invalid');
         });
     });
 

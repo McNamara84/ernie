@@ -116,8 +116,10 @@ export function useIdentifierValidation({
                 status: 'valid',
                 message: 'Format validated',
             });
+        } else {
+            // For DOIs, show validating state until API check completes
+            setValidationState({ status: 'validating' });
         }
-        // For DOIs, we'll let the debounced validation handle the API call
     }, [identifierType, identifier, enabled]);
 
     // Debounced API validation (only for DOIs)
@@ -141,7 +143,7 @@ export function useIdentifierValidation({
         }, debounceMs);
 
         return () => clearTimeout(timer);
-    }, [validate, debounceMs, identifier, identifierType, enabled]);
+    }, [validate, debounceMs]);
 
     return validationState;
 }
