@@ -220,6 +220,7 @@ export default function RelatedWorkField({
                             onToggleAdvanced={handleToggleAdvanced}
                             identifier={identifier}
                             onIdentifierChange={(value) => handleIdentifierChange(value, true)}
+                            identifierType={identifierType}
                             relationType={relationType}
                             onRelationTypeChange={setRelationType}
                         />

@@ -26,6 +26,7 @@ interface RelatedWorkQuickAddProps {
     onToggleAdvanced?: () => void;
     identifier: string;
     onIdentifierChange: (value: string) => void;
+    identifierType: IdentifierType;
     relationType: RelationType;
     onRelationTypeChange: (value: RelationType) => void;
 }
@@ -46,51 +47,16 @@ export default function RelatedWorkQuickAdd({
     onToggleAdvanced,
     identifier,
     onIdentifierChange,
+    identifierType,
     relationType,
     onRelationTypeChange,
 }: RelatedWorkQuickAddProps) {
     const [showSuggestion, setShowSuggestion] = useState(false);
 
-    // Auto-detect identifier type
-    const detectIdentifierType = (value: string): IdentifierType => {
-        const trimmed = value.trim();
-        
-        // DOI with URL prefix (extract DOI part)
-        // Matches: https://doi.org/10.xxxx/xxx or http://dx.doi.org/10.xxxx/xxx
-        const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-        if (doiUrlMatch) {
-            return 'DOI';
-        }
-        
-        // DOI patterns (without URL prefix)
-        if (trimmed.match(/^10\.\d{4,}/)) {
-            return 'DOI';
-        }
-        
-        // URL patterns
-        if (trimmed.match(/^https?:\/\//i)) {
-            return 'URL';
-        }
-        
-        // Handle patterns
-        if (trimmed.match(/^\d{5}\//)) {
-            return 'Handle';
-        }
-        
-        // Default to DOI if it looks like one
-        if (trimmed.includes('/') && !trimmed.includes(' ')) {
-            return 'DOI';
-        }
-        
-        return 'URL';
-    };
-
-    const detectedType = detectIdentifierType(identifier);
-
     // Validate identifier with API
     const validation = useIdentifierValidation({
         identifier,
-        identifierType: detectedType,
+        identifierType,
         enabled: identifier.trim().length > 0,
         debounceMs: 800,
     });
@@ -100,7 +66,6 @@ export default function RelatedWorkQuickAdd({
             return;
         }
 
-        const identifierType = detectIdentifierType(identifier);
         let normalizedIdentifier = identifier.trim();
 
         // If DOI was entered with URL prefix, extract just the DOI part
