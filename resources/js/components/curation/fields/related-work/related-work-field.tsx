@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import type { RelatedIdentifier, RelatedIdentifierFormData } from '@/types';
+import type { IdentifierType, RelatedIdentifier, RelatedIdentifierFormData, RelationType } from '@/types';
 
 import RelatedWorkAdvancedAdd from './related-work-advanced-add';
 import RelatedWorkCsvImport from './related-work-csv-import';
@@ -13,6 +13,42 @@ import RelatedWorkQuickAdd from './related-work-quick-add';
 interface RelatedWorkFieldProps {
     relatedWorks: RelatedIdentifier[];
     onChange: (relatedWorks: RelatedIdentifier[]) => void;
+}
+
+/**
+ * Auto-detect identifier type from the input value
+ * Used to share detection logic across Simple/Advanced modes
+ */
+function detectIdentifierType(value: string): IdentifierType {
+    const trimmed = value.trim();
+    
+    // DOI with URL prefix
+    const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
+    if (doiUrlMatch) {
+        return 'DOI';
+    }
+    
+    // DOI patterns (without URL prefix)
+    if (trimmed.match(/^10\.\d{4,}/)) {
+        return 'DOI';
+    }
+    
+    // URL patterns
+    if (trimmed.match(/^https?:\/\//i)) {
+        return 'URL';
+    }
+    
+    // Handle patterns
+    if (trimmed.match(/^\d{5}\//)) {
+        return 'Handle';
+    }
+    
+    // Default to DOI if it looks like one
+    if (trimmed.includes('/') && !trimmed.includes(' ')) {
+        return 'DOI';
+    }
+    
+    return 'URL';
 }
 
 /**
@@ -69,6 +105,19 @@ export default function RelatedWorkField({
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showCsvImport, setShowCsvImport] = useState(false);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
+    
+    // Shared form state - persisted across mode switches
+    const [identifier, setIdentifier] = useState('');
+    const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
+    const [relationType, setRelationType] = useState<RelationType>('Cites');
+
+    // Update identifierType when identifier changes in simple mode (auto-detection)
+    const handleIdentifierChange = (value: string, autoDetect: boolean = false) => {
+        setIdentifier(value);
+        if (autoDetect) {
+            setIdentifierType(detectIdentifierType(value));
+        }
+    };
 
     const handleAdd = (data: RelatedIdentifierFormData) => {
         // Check for duplicates (same identifier AND same relation type)
@@ -91,6 +140,11 @@ export default function RelatedWorkField({
         };
 
         onChange([...relatedWorks, newItem]);
+        
+        // Reset form after successful add
+        setIdentifier('');
+        setIdentifierType('DOI');
+        setRelationType('Cites');
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
@@ -164,10 +218,23 @@ export default function RelatedWorkField({
                             onAdd={handleAdd}
                             showAdvancedMode={showAdvanced}
                             onToggleAdvanced={handleToggleAdvanced}
+                            identifier={identifier}
+                            onIdentifierChange={(value) => handleIdentifierChange(value, true)}
+                            identifierType={identifierType}
+                            relationType={relationType}
+                            onRelationTypeChange={setRelationType}
                         />
                     ) : (
                         <>
-                            <RelatedWorkAdvancedAdd onAdd={handleAdd} />
+                            <RelatedWorkAdvancedAdd
+                                onAdd={handleAdd}
+                                identifier={identifier}
+                                onIdentifierChange={(value) => handleIdentifierChange(value, false)}
+                                identifierType={identifierType}
+                                onIdentifierTypeChange={setIdentifierType}
+                                relationType={relationType}
+                                onRelationTypeChange={setRelationType}
+                            />
                             <div className="pt-2">
                                 <button
                                     type="button"

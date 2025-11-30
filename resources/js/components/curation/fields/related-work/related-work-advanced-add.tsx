@@ -1,5 +1,4 @@
 import { Info } from 'lucide-react';
-import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +19,12 @@ import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/
 
 interface RelatedWorkAdvancedAddProps {
     onAdd: (data: RelatedIdentifierFormData) => void;
+    identifier: string;
+    onIdentifierChange: (value: string) => void;
+    identifierType: IdentifierType;
+    onIdentifierTypeChange: (value: IdentifierType) => void;
+    relationType: RelationType;
+    onRelationTypeChange: (value: RelationType) => void;
 }
 
 /**
@@ -30,11 +35,13 @@ interface RelatedWorkAdvancedAddProps {
  */
 export default function RelatedWorkAdvancedAdd({
     onAdd,
+    identifier,
+    onIdentifierChange,
+    identifierType,
+    onIdentifierTypeChange,
+    relationType,
+    onRelationTypeChange,
 }: RelatedWorkAdvancedAddProps) {
-    const [identifier, setIdentifier] = useState('');
-    const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
-    const [relationType, setRelationType] = useState<RelationType>('Cites');
-
     // Validate identifier with API
     const validation = useIdentifierValidation({
         identifier,
@@ -54,8 +61,7 @@ export default function RelatedWorkAdvancedAdd({
             relationType,
         });
 
-        // Reset form
-        setIdentifier('');
+        // Form reset is handled by parent component
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -115,7 +121,7 @@ export default function RelatedWorkAdvancedAdd({
                             id="advanced-identifier"
                             type="text"
                             value={identifier}
-                            onChange={(e) => setIdentifier(e.target.value)}
+                            onChange={(e) => onIdentifierChange(e.target.value)}
                             onKeyPress={handleKeyPress}
                             placeholder="e.g., 10.5194/nhess-15-1463-2015"
                             className={`font-mono text-sm ${
@@ -159,7 +165,7 @@ export default function RelatedWorkAdvancedAdd({
                     </Label>
                     <Select
                         value={identifierType}
-                        onValueChange={(value) => setIdentifierType(value as IdentifierType)}
+                        onValueChange={(value) => onIdentifierTypeChange(value as IdentifierType)}
                     >
                         <SelectTrigger id="advanced-identifier-type">
                             <SelectValue />
@@ -181,7 +187,7 @@ export default function RelatedWorkAdvancedAdd({
                     </Label>
                     <Select
                         value={relationType}
-                        onValueChange={(value) => setRelationType(value as RelationType)}
+                        onValueChange={(value) => onRelationTypeChange(value as RelationType)}
                     >
                         <SelectTrigger id="advanced-relation-type">
                             <SelectValue />
