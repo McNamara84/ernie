@@ -49,7 +49,7 @@ http:
     # Vite internal routes with /ernie prefix (from Laravel-generated URLs)
     # Priority 200: Lower than direct - needs prefix stripping
     ernie-vite-prefixed-internal:
-      rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`)"
+      rule: "PathPrefix(`/ernie/@vite`) || PathPrefix(`/ernie/@fs`) || PathPrefix(`/ernie/@react-refresh`)"
       entryPoints:
         - https
       priority: 200
