@@ -28,6 +28,12 @@ describe('doi-validation', () => {
             expect(result.format).toBe('valid');
         });
 
+        it('should validate Handle URL with short numeric prefix', () => {
+            const result = validateHandleFormat('https://hdl.handle.net/10419/163427');
+            expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
+        });
+
         it('should reject Handle without numeric prefix', () => {
             const result = validateHandleFormat('abc/suffix');
             expect(result.isValid).toBe(false);
