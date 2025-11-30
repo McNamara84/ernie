@@ -16,6 +16,12 @@ describe('doi-validation', () => {
             expect(result.format).toBe('valid');
         });
 
+        it('should validate bare Handle with short numeric prefix', () => {
+            const result = validateHandleFormat('10419/163427');
+            expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
+        });
+
         it('should validate Handle URL with http', () => {
             const result = validateHandleFormat('http://hdl.handle.net/11708/D386F88C-DC84-4544-9396-48ACE2F402DB');
             expect(result.isValid).toBe(true);
