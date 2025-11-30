@@ -157,7 +157,7 @@ export default function RelatedWorkQuickAdd({
                     </div>
                     {validation.status === 'invalid' && (
                         <p className="mt-1 text-xs text-red-600">
-                            Invalid {detectedType} format
+                            Invalid {identifierType} format
                         </p>
                     )}
                     {validation.status === 'warning' && (

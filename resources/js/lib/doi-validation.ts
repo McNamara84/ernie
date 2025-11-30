@@ -73,16 +73,28 @@ export function validateURLFormat(url: string): ValidationResult {
 /**
  * Validate Handle format
  * Handles are typically in the format: prefix/suffix (e.g., 10273/ICDP5054EHW1001)
+ * Also accepts Handle URLs (http://hdl.handle.net/prefix/suffix)
+ * 
+ * Note: Handle suffixes with whitespace are not supported.
+ * Query strings and fragments in Handle URLs are excluded from the identifier.
  */
 export function validateHandleFormat(handle: string): ValidationResult {
     const trimmed = handle.trim();
-    const handlePattern = /^\d+\/.+$/;
     
-    if (!handlePattern.test(trimmed)) {
+    // Check if it's a Handle URL and extract the Handle part
+    // Pattern excludes query strings (?...) and fragments (#...) from the Handle
+    const handleUrlMatch = trimmed.match(/^https?:\/\/hdl\.handle\.net\/([^?#\s]+)/i);
+    const handleToValidate = handleUrlMatch ? handleUrlMatch[1] : trimmed;
+    
+    // Handle pattern: prefix/suffix where prefix is numeric and suffix has non-whitespace
+    // Note: Bare handles with whitespace in suffix are rejected for consistency
+    const handlePattern = /^\d+\/\S+$/;
+    
+    if (!handlePattern.test(handleToValidate)) {
         return {
             isValid: false,
             format: 'invalid',
-            message: 'Invalid Handle format. Should be in format: prefix/suffix',
+            message: 'Invalid Handle format. Should be in format: prefix/suffix (e.g., 11708/D386F88C) or URL (http://hdl.handle.net/prefix/suffix)',
         };
     }
     
