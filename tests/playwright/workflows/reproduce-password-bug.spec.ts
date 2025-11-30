@@ -11,10 +11,10 @@ test.describe('Password Change Bug Reproduction (Issue #317)', () => {
   test.beforeAll(async () => {
     // Reset the test user's password via artisan command
     const { exec } = await import('child_process');
-    await new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve) => {
       exec(
         'docker exec ernie-app-dev php artisan tinker --execute="\\App\\Models\\User::where(\'email\', \'test@example.com\')->update([\'password\' => bcrypt(\'password\')])"',
-        (error, stdout, stderr) => {
+        (error, _stdout, stderr) => {
           if (error) {
             console.log('Warning: Could not reset user password:', stderr);
           }
