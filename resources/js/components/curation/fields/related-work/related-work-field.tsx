@@ -33,13 +33,19 @@ function detectIdentifierType(value: string): IdentifierType {
         return 'DOI';
     }
     
+    // Handle URL patterns (must be checked before generic URL)
+    // Matches: http://hdl.handle.net/prefix/suffix or https://hdl.handle.net/prefix/suffix
+    if (trimmed.match(/^https?:\/\/hdl\.handle\.net\/.+/i)) {
+        return 'Handle';
+    }
+    
     // URL patterns
     if (trimmed.match(/^https?:\/\//i)) {
         return 'URL';
     }
     
-    // Handle patterns
-    if (trimmed.match(/^\d{5}\//)) {
+    // Handle patterns (bare format: prefix/suffix where prefix is numeric)
+    if (trimmed.match(/^\d+\/.+$/)) {
         return 'Handle';
     }
     
