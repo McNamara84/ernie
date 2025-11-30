@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
-import { testMatchPatterns, testIgnorePatterns, timeoutSettings } from './tests/playwright/playwright.shared';
+
+import { testIgnorePatterns, testMatchPatterns, timeoutSettings } from './tests/playwright/playwright.shared';
 
 /**
  * Playwright configuration for Docker development environment.
