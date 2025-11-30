@@ -79,11 +79,11 @@ export function validateHandleFormat(handle: string): ValidationResult {
     const trimmed = handle.trim();
     
     // Check if it's a Handle URL and extract the Handle part
-    const handleUrlMatch = trimmed.match(/^https?:\/\/hdl\.handle\.net\/(.+)/i);
+    const handleUrlMatch = trimmed.match(/^https?:\/\/hdl\.handle\.net\/(\S+)/i);
     const handleToValidate = handleUrlMatch ? handleUrlMatch[1] : trimmed;
     
-    // Handle pattern: prefix/suffix where prefix is numeric
-    const handlePattern = /^\d+\/.+$/;
+    // Handle pattern: prefix/suffix where prefix is numeric and suffix has non-whitespace
+    const handlePattern = /^\d+\/\S+$/;
     
     if (!handlePattern.test(handleToValidate)) {
         return {

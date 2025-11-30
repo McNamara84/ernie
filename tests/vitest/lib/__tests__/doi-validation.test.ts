@@ -40,6 +40,24 @@ describe('doi-validation', () => {
             expect(result.format).toBe('valid');
         });
 
+        it('should reject Handle with whitespace-only suffix', () => {
+            const result = validateHandleFormat('11708/   ');
+            expect(result.isValid).toBe(false);
+            expect(result.format).toBe('invalid');
+        });
+
+        it('should reject Handle with slash and single space', () => {
+            const result = validateHandleFormat('11708/ ');
+            expect(result.isValid).toBe(false);
+            expect(result.format).toBe('invalid');
+        });
+
+        it('should reject Handle URL with whitespace-only suffix', () => {
+            const result = validateHandleFormat('http://hdl.handle.net/11708/   ');
+            expect(result.isValid).toBe(false);
+            expect(result.format).toBe('invalid');
+        });
+
         it('should reject Handle without numeric prefix', () => {
             const result = validateHandleFormat('abc/suffix');
             expect(result.isValid).toBe(false);

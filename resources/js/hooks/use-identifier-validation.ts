@@ -94,14 +94,54 @@ export function useIdentifierValidation({
         }
     }, [identifier, identifierType, enabled]);
 
-    // Debounced validation
+    // Immediate format validation when identifierType changes
+    // This ensures users see correct validation status immediately after changing the type
     useEffect(() => {
+        if (!enabled || !identifier.trim()) {
+            setValidationState({ status: 'idle' });
+            return;
+        }
+
+        // Immediate format check (no API call)
+        const formatResult = validateIdentifierFormat(identifier, identifierType);
+        
+        if (!formatResult.isValid) {
+            setValidationState({
+                status: 'invalid',
+                message: formatResult.message,
+            });
+        } else if (!supportsMetadataResolution(identifierType)) {
+            // For non-DOI types, show valid immediately
+            setValidationState({
+                status: 'valid',
+                message: 'Format validated',
+            });
+        }
+        // For DOIs, we'll let the debounced validation handle the API call
+    }, [identifierType, identifier, enabled]);
+
+    // Debounced API validation (only for DOIs)
+    useEffect(() => {
+        if (!enabled || !identifier.trim()) {
+            return;
+        }
+
+        // Only debounce API calls for DOIs
+        if (!supportsMetadataResolution(identifierType)) {
+            return;
+        }
+
+        const formatResult = validateIdentifierFormat(identifier, identifierType);
+        if (!formatResult.isValid) {
+            return; // Already handled by immediate validation
+        }
+
         const timer = setTimeout(() => {
             void validate();
         }, debounceMs);
 
         return () => clearTimeout(timer);
-    }, [validate, debounceMs]);
+    }, [validate, debounceMs, identifier, identifierType, enabled]);
 
     return validationState;
 }
