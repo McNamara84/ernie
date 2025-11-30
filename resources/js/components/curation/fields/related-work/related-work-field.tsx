@@ -144,6 +144,7 @@ export default function RelatedWorkField({
         // Reset form after successful add
         setIdentifier('');
         setIdentifierType('DOI');
+        setRelationType('Cites');
     };
 
     const handleBulkImport = (data: RelatedIdentifierFormData[]) => {
