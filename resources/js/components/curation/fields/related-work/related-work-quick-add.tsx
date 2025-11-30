@@ -24,6 +24,10 @@ interface RelatedWorkQuickAddProps {
     onAdd: (data: RelatedIdentifierFormData) => void;
     showAdvancedMode?: boolean;
     onToggleAdvanced?: () => void;
+    identifier: string;
+    onIdentifierChange: (value: string) => void;
+    relationType: RelationType;
+    onRelationTypeChange: (value: RelationType) => void;
 }
 
 /**
@@ -40,9 +44,11 @@ export default function RelatedWorkQuickAdd({
     onAdd,
     showAdvancedMode = false,
     onToggleAdvanced,
+    identifier,
+    onIdentifierChange,
+    relationType,
+    onRelationTypeChange,
 }: RelatedWorkQuickAddProps) {
-    const [identifier, setIdentifier] = useState('');
-    const [relationType, setRelationType] = useState<RelationType>('Cites');
     const [showSuggestion, setShowSuggestion] = useState(false);
 
     // Auto-detect identifier type
@@ -111,8 +117,7 @@ export default function RelatedWorkQuickAdd({
             relationType,
         });
 
-        // Reset form
-        setIdentifier('');
+        // Form reset is handled by parent component
         setShowSuggestion(false);
     };
 
@@ -125,7 +130,7 @@ export default function RelatedWorkQuickAdd({
 
     // Check for bidirectional suggestion
     const handleRelationTypeChange = (value: string) => {
-        setRelationType(value as RelationType);
+        onRelationTypeChange(value as RelationType);
         const opposite = getOppositeRelationType(value as RelationType);
         setShowSuggestion(!!opposite);
     };
@@ -135,7 +140,7 @@ export default function RelatedWorkQuickAdd({
     // Quick suggestion for opposite relation
     const handleUseSuggestion = () => {
         if (oppositeRelation) {
-            setRelationType(oppositeRelation);
+            onRelationTypeChange(oppositeRelation);
             setShowSuggestion(false);
         }
     };
@@ -164,7 +169,7 @@ export default function RelatedWorkQuickAdd({
                             type="text"
                             value={identifier}
                             onChange={(e) => {
-                                setIdentifier(e.target.value);
+                                onIdentifierChange(e.target.value);
                                 setShowSuggestion(false);
                             }}
                             onKeyPress={handleKeyPress}
