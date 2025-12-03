@@ -7,7 +7,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import DataCiteForm, { canAddLicense, canAddTitle } from '@/components/curation/datacite-form';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import type { Language, License, ResourceType, Role, TitleType } from '@/types';
+import type { DateType, Language, License, ResourceType, Role, TitleType } from '@/types';
 
 vi.mock('axios');
 vi.mock('@/hooks/use-ror-affiliations');
@@ -369,6 +369,18 @@ describe('DataCiteForm', () => {
         { id: 4, name: 'Rights Holder', slug: 'rights-holder' },
     ];
     const authorRoles: Role[] = [{ id: 5, name: 'Author', slug: 'author' }];
+    
+    const dateTypes: DateType[] = [
+        { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.' },
+        { id: 2, name: 'Available', slug: 'available', description: 'The date the resource is made publicly available.' },
+        { id: 3, name: 'Collected', slug: 'collected', description: 'The date the resource content was collected.' },
+        { id: 4, name: 'Copyrighted', slug: 'copyrighted', description: 'The date the resource receives a copyrighted status.' },
+        { id: 5, name: 'Issued', slug: 'issued', description: 'The date the resource is published or distributed.' },
+        { id: 6, name: 'Other', slug: 'other', description: 'Other date type.' },
+        { id: 7, name: 'Submitted', slug: 'submitted', description: 'The date the creator submits the resource to the publisher.' },
+        { id: 8, name: 'Valid', slug: 'valid', description: 'The date range during which the dataset is accurate.' },
+        { id: 9, name: 'Withdrawn', slug: 'withdrawn', description: 'The date the resource is removed.' },
+    ];
 
     it(
         'renders fields, title options and supports adding/removing titles',
@@ -378,6 +390,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -537,6 +550,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -566,6 +580,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -609,6 +624,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -657,6 +673,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -754,6 +771,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -803,6 +821,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -843,6 +862,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -880,6 +900,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -1038,6 +1059,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1106,6 +1128,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1144,6 +1167,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1170,6 +1194,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1210,6 +1235,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -1270,6 +1296,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1287,6 +1314,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1304,6 +1332,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1323,6 +1352,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1390,6 +1420,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1477,6 +1508,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1510,6 +1542,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1574,6 +1607,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1629,6 +1663,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1719,6 +1754,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1740,6 +1776,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1766,6 +1803,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={shuffledLanguages}
                 googleMapsApiKey="test-api-key"
@@ -1784,6 +1822,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1805,6 +1844,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1831,6 +1871,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={limitedLanguages}
                 googleMapsApiKey="test-api-key"
@@ -1855,6 +1896,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={incompleteLanguages}
                 googleMapsApiKey="test-api-key"
@@ -1873,6 +1915,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1892,6 +1935,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1911,6 +1955,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1939,6 +1984,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -1981,6 +2027,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2026,6 +2073,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2057,6 +2105,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2081,6 +2130,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2170,6 +2220,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2256,6 +2307,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2319,6 +2371,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2424,6 +2477,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2503,6 +2557,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2549,6 +2604,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2567,6 +2623,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2594,6 +2651,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2631,6 +2689,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2699,6 +2758,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2751,6 +2811,7 @@ describe('DataCiteForm', () => {
             <DataCiteForm
                 resourceTypes={resourceTypes}
                 titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                 licenses={licenses}
                 languages={languages}
                 contributorPersonRoles={contributorPersonRoles}
@@ -2795,6 +2856,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -2814,6 +2876,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -2833,6 +2896,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -2867,6 +2931,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -2898,6 +2963,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -2933,6 +2999,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -2952,6 +3019,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -2972,6 +3040,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3012,6 +3081,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3046,6 +3116,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3094,6 +3165,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3136,6 +3208,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3159,6 +3232,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3180,6 +3254,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3223,6 +3298,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3275,6 +3351,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
@@ -3324,6 +3401,7 @@ describe('DataCiteForm', () => {
                 <DataCiteForm
                     resourceTypes={resourceTypes}
                     titleTypes={titleTypes}
+                    dateTypes={dateTypes}
                     licenses={licenses}
                     languages={languages}
                     contributorPersonRoles={contributorPersonRoles}
