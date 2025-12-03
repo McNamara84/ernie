@@ -9,6 +9,7 @@ use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
+use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Services\OldDatasetEditorLoader;
 use Illuminate\Support\Facades\Cache;
@@ -472,10 +473,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Transform dates (exclude 'coverage' dates as they belong to spatial-temporal coverage)
             // Also exclude 'created' and 'updated' as these are auto-managed by the backend
             $dates = $resource->dates
-                ->filter(function ($date) {
-                    return ! in_array($date->date_type, ['coverage', 'created', 'updated'], true);
+                ->filter(function (ResourceDate $date): bool {
+                    $slug = $date->dateType->slug ?? '';
+
+                    return ! in_array($slug, ['coverage', 'created', 'updated'], true);
                 })
-                ->map(function ($date) {
+                ->map(function (ResourceDate $date): array {
                     // Convert datetime to date-only format (YYYY-MM-DD) for HTML date inputs
                     $startDate = '';
                     if ($date->start_date) {
@@ -496,7 +499,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     }
 
                     return [
-                        'dateType' => $date->date_type,
+                        'dateType' => $date->dateType->slug ?? '',
                         'startDate' => $startDate,
                         'endDate' => $endDate,
                     ];
