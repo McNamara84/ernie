@@ -199,7 +199,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                     Save
                 </Button>
                 <BentoGrid data-testid="bento-grid">
-                    <BentoGridItem aria-labelledby="licenses-heading" className="md:row-span-4 lg:row-span-2">
+                    <BentoGridItem aria-labelledby="licenses-heading" className="md:row-span-5">
                         <h2 id="licenses-heading" className="text-lg font-semibold">
                             Licenses
                         </h2>
@@ -255,7 +255,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="resource-types-heading">
+                    <BentoGridItem aria-labelledby="resource-types-heading" className="md:col-start-2">
                         <h2 id="resource-types-heading" className="text-lg font-semibold">
                             Resource Types
                         </h2>
@@ -318,7 +318,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="title-types-heading" className="md:col-start-2">
+                    <BentoGridItem aria-labelledby="title-types-heading">
                         <h2 id="title-types-heading" className="text-lg font-semibold">
                             Title Types
                         </h2>
@@ -504,7 +504,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="limits-heading" className="md:col-start-2">
+                    <BentoGridItem aria-labelledby="limits-heading">
                         <h2 id="limits-heading" className="text-lg font-semibold">
                             Limits
                         </h2>

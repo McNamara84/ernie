@@ -172,6 +172,51 @@
         ]
       }
     },
+    "/api/v1/date-types/elmo": {
+      "get": {
+        "tags": [
+          "Editor Configuration"
+        ],
+        "summary": "List date types enabled for ELMO",
+        "description": "Returns all date types that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "security": [
+          {
+            "ElmoApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of date types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DateType"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/languages/elmo": {
       "get": {
         "tags": [
@@ -592,6 +637,31 @@
           }
         },
         "required": ["id", "name", "slug"]
+      },
+      "DateType": {
+        "type": "object",
+        "description": "A date type for categorizing resource dates according to DataCite schema",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "readOnly": true,
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Accepted"
+          },
+          "slug": {
+            "type": "string",
+            "example": "accepted"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "The date that the publisher accepted the resource into their system."
+          }
+        },
+        "required": ["id", "name", "slug", "description"]
       },
       "License": {
         "type": "object",

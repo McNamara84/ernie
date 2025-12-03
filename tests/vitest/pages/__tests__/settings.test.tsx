@@ -83,7 +83,7 @@ describe('EditorSettings page', () => {
         expect(elmoCell).toHaveClass('text-center');
     });
 
-    it('uses a two-column layout with Title Types and Limits in the second column', () => {
+    it('uses a two-column layout with all cards except Licenses in the second column', () => {
         render(
             <EditorSettings
                 resourceTypes={[
@@ -93,8 +93,12 @@ describe('EditorSettings page', () => {
                     { id: 1, name: 'Article', slug: 'article', active: true, elmo_active: false },
                 ]}
                 licenses={[]}
-                languages={[]}
-                dateTypes={[]}
+                languages={[
+                    { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
+                ]}
+                dateTypes={[
+                    { id: 1, name: 'Accepted', slug: 'accepted', description: 'Test', active: true, elmo_active: false },
+                ]}
                 maxTitles={5}
                 maxLicenses={10}
             />,
@@ -104,8 +108,17 @@ describe('EditorSettings page', () => {
         expect(grid).toHaveClass('md:grid-cols-2');
         expect(grid).not.toHaveClass('lg:grid-cols-3');
 
+        const resourceTypesRegion = screen.getByRole('region', { name: 'Resource Types' });
+        expect(resourceTypesRegion).toHaveClass('md:col-start-2');
+
         const titleTypesRegion = screen.getByRole('region', { name: 'Title Types' });
         expect(titleTypesRegion).toHaveClass('md:col-start-2');
+
+        const languagesRegion = screen.getByRole('region', { name: 'Languages' });
+        expect(languagesRegion).toHaveClass('md:col-start-2');
+
+        const dateTypesRegion = screen.getByRole('region', { name: 'Date Types' });
+        expect(dateTypesRegion).toHaveClass('md:col-start-2');
 
         const limitsRegion = screen.getByRole('region', { name: 'Limits' });
         expect(limitsRegion).toHaveClass('md:col-start-2');
