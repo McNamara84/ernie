@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             TitleTypeSeeder::class,
             LicenseSeeder::class,
             LanguageSeeder::class,
+            DateTypeSeeder::class,
         ]);
 
         // Only create test data in testing environment (for automated tests)
