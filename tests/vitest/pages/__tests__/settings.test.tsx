@@ -62,6 +62,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -93,6 +94,7 @@ describe('EditorSettings page', () => {
                 ]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={5}
                 maxLicenses={10}
             />,
@@ -119,6 +121,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -139,6 +142,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -159,6 +163,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -177,6 +182,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -201,6 +207,7 @@ describe('License settings', () => {
                 titleTypes={[]}
                 licenses={licenses}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -223,6 +230,7 @@ describe('Language settings', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={languages}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
