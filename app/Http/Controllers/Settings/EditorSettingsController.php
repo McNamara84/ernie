@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
+use App\Models\DateType;
 use App\Models\Language;
 use App\Models\License;
 use App\Models\ResourceType;
@@ -22,6 +23,7 @@ class EditorSettingsController extends Controller
             'titleTypes' => TitleType::orderBy('id')->get(['id', 'name', 'slug', 'active', 'elmo_active']),
             'licenses' => License::orderBy('id')->get(['id', 'identifier', 'name', 'active', 'elmo_active']),
             'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
+            'dateTypes' => DateType::orderBy('id')->get(['id', 'name', 'slug', 'description', 'active', 'elmo_active']),
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
         ]);
@@ -59,6 +61,13 @@ class EditorSettingsController extends Controller
             Language::where('id', $language['id'])->update([
                 'active' => $language['active'],
                 'elmo_active' => $language['elmo_active'],
+            ]);
+        }
+
+        foreach ($validated['dateTypes'] as $dateType) {
+            DateType::where('id', $dateType['id'])->update([
+                'active' => $dateType['active'],
+                'elmo_active' => $dateType['elmo_active'],
             ]);
         }
 

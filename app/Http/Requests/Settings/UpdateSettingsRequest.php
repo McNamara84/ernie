@@ -32,6 +32,10 @@ class UpdateSettingsRequest extends FormRequest
             'languages.*.id' => ['required', 'integer', 'exists:languages,id'],
             'languages.*.active' => ['required', 'boolean'],
             'languages.*.elmo_active' => ['required', 'boolean'],
+            'dateTypes' => ['required', 'array'],
+            'dateTypes.*.id' => ['required', 'integer', 'exists:date_types,id'],
+            'dateTypes.*.active' => ['required', 'boolean'],
+            'dateTypes.*.elmo_active' => ['required', 'boolean'],
             'maxTitles' => ['required', 'integer', 'min:1'],
             'maxLicenses' => ['required', 'integer', 'min:1'],
         ];

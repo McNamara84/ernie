@@ -13,7 +13,7 @@ class ResourceDate extends Model
 
     protected $fillable = [
         'resource_id',
-        'date_type',
+        'date_type_id',
         'start_date',
         'end_date',
         'date_information',
@@ -29,6 +29,15 @@ class ResourceDate extends Model
     {
         /** @var BelongsTo<Resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
+
+        return $relation;
+    }
+
+    /** @return BelongsTo<DateType, static> */
+    public function dateType(): BelongsTo
+    {
+        /** @var BelongsTo<DateType, static> $relation */
+        $relation = $this->belongsTo(DateType::class);
 
         return $relation;
     }
