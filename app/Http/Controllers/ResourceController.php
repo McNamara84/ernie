@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Requests\StoreResourceRequest;
+use App\Models\DateType;
 use App\Models\Institution;
 use App\Models\Language;
 use App\Models\License;
@@ -261,11 +262,16 @@ class ResourceController extends Controller
                 // Save dates
                 // Note: 'created' and 'updated' dates are auto-managed and should not be
                 // submitted by the frontend. They are handled separately below.
+
+                // Cache the system date type IDs for 'created' and 'updated'
+                $createdDateTypeId = DateType::where('slug', 'created')->value('id');
+                $updatedDateTypeId = DateType::where('slug', 'updated')->value('id');
+
                 if ($isUpdate) {
                     // When updating, preserve 'created' date (never overwritten) and delete
                     // all other user-managed dates. The 'updated' date is handled separately below.
                     $resource->dates()
-                        ->where('date_type', '!=', 'created')
+                        ->where('date_type_id', '!=', $createdDateTypeId)
                         ->delete();
                 }
 
@@ -277,8 +283,18 @@ class ResourceController extends Controller
                         continue;
                     }
 
+                    // Look up the date type ID by slug
+                    $dateTypeId = DateType::where('slug', strtolower($date['dateType']))->value('id');
+
+                    if ($dateTypeId === null) {
+                        // If unknown date type, skip or log warning
+                        Log::warning('Unknown date type slug: '.$date['dateType']);
+
+                        continue;
+                    }
+
                     $resource->dates()->create([
-                        'date_type' => $date['dateType'],
+                        'date_type_id' => $dateTypeId,
                         'start_date' => $date['startDate'] ?? null,
                         'end_date' => $date['endDate'] ?? null,
                         'date_information' => $date['dateInformation'] ?? null,
@@ -286,10 +302,10 @@ class ResourceController extends Controller
                 }
 
                 // Auto-manage 'created' date: Set only on new resources (not on updates)
-                if (! $isUpdate) {
+                if (! $isUpdate && $createdDateTypeId !== null) {
                     // Create a 'created' date with current timestamp for new resources
                     $resource->dates()->create([
-                        'date_type' => 'created',
+                        'date_type_id' => $createdDateTypeId,
                         'start_date' => now()->format('Y-m-d H:i:s'),
                         'end_date' => null,
                         'date_information' => null,
@@ -298,11 +314,11 @@ class ResourceController extends Controller
 
                 // Auto-manage 'updated' date: Update timestamp on every update operation.
                 // This reflects when the resource was last saved by a curator.
-                if ($isUpdate) {
+                if ($isUpdate && $updatedDateTypeId !== null) {
                     // Create new 'updated' date with current timestamp
                     // (any existing 'updated' entry was already deleted above)
                     $resource->dates()->create([
-                        'date_type' => 'updated',
+                        'date_type_id' => $updatedDateTypeId,
                         'start_date' => now()->format('Y-m-d H:i:s'),
                         'end_date' => null,
                         'date_information' => null,

@@ -50,7 +50,7 @@ class DataCiteJsonExporter
             'dataciteContributors.roles',
             'dataciteContributors.affiliations',
             'descriptions',
-            'dates',
+            'dates.dateType',
             'keywords',
             'controlledKeywords',
             'coverages',
@@ -680,8 +680,13 @@ class DataCiteJsonExporter
         $dates = [];
 
         foreach ($resource->dates as $date) {
+            // Skip if no date type (should not happen in normal usage)
+            if (! $date->dateType) {
+                continue;
+            }
+
             $dateData = [
-                'dateType' => $this->convertDateType($date->date_type),
+                'dateType' => $this->convertDateType($date->dateType->slug),
             ];
 
             // Build date string

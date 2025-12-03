@@ -12,6 +12,7 @@ import { withBasePath } from '@/lib/base-path';
 import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
+    type DateType,
     type Language,
     type License,
     type MSLLaboratory,
@@ -70,6 +71,7 @@ export default function Editor({
 }: EditorProps) {
     const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null);
     const [titleTypes, setTitleTypes] = useState<TitleType[] | null>(null);
+    const [dateTypes, setDateTypes] = useState<DateType[] | null>(null);
     const [licenses, setLicenses] = useState<License[] | null>(null);
     const [languages, setLanguages] = useState<Language[] | null>(null);
     const [contributorPersonRoles, setContributorPersonRoles] = useState<Role[] | null>(null);
@@ -88,6 +90,7 @@ export default function Editor({
         Promise.all([
             fetch(withBasePath('/api/v1/resource-types/ernie')),
             fetch(withBasePath('/api/v1/title-types/ernie')),
+            fetch(withBasePath('/api/v1/date-types/ernie')),
             fetch(withBasePath('/api/v1/licenses/ernie')),
             fetch(withBasePath('/api/v1/languages/ernie')),
             fetch(withBasePath('/api/v1/roles/contributor-persons/ernie')),
@@ -97,6 +100,7 @@ export default function Editor({
             .then(async ([
                 resTypes,
                 titleRes,
+                dateRes,
                 licenseRes,
                 languageRes,
                 contributorPersonRes,
@@ -106,6 +110,7 @@ export default function Editor({
                 if (
                     !resTypes.ok ||
                     !titleRes.ok ||
+                    !dateRes.ok ||
                     !licenseRes.ok ||
                     !languageRes.ok ||
                     !contributorPersonRes.ok ||
@@ -117,6 +122,7 @@ export default function Editor({
                 const [
                     rData,
                     tData,
+                    dData,
                     lData,
                     langData,
                     contributorPersonData,
@@ -125,6 +131,7 @@ export default function Editor({
                 ] = await Promise.all([
                     resTypes.json() as Promise<ResourceType[]>,
                     titleRes.json() as Promise<TitleType[]>,
+                    dateRes.json() as Promise<DateType[]>,
                     licenseRes.json() as Promise<License[]>,
                     languageRes.json() as Promise<Language[]>,
                     contributorPersonRes.json() as Promise<Role[]>,
@@ -133,6 +140,7 @@ export default function Editor({
                 ]);
                 setResourceTypes(rData);
                 setTitleTypes(tData);
+                setDateTypes(dData);
                 setLicenses(lData);
                 setLanguages(langData);
                 setContributorPersonRoles(contributorPersonData);
@@ -150,6 +158,7 @@ export default function Editor({
                 aria-busy={
                     resourceTypes === null ||
                     titleTypes === null ||
+                    dateTypes === null ||
                     licenses === null ||
                     languages === null ||
                     contributorPersonRoles === null ||
@@ -164,6 +173,7 @@ export default function Editor({
                 )}
                 {(resourceTypes === null ||
                     titleTypes === null ||
+                    dateTypes === null ||
                     licenses === null ||
                     languages === null ||
                     contributorPersonRoles === null ||
@@ -176,6 +186,7 @@ export default function Editor({
                     )}
                 {resourceTypes &&
                     titleTypes &&
+                    dateTypes &&
                     licenses &&
                     languages &&
                     contributorPersonRoles &&
@@ -184,6 +195,7 @@ export default function Editor({
                         <DataCiteForm
                             resourceTypes={resourceTypes}
                             titleTypes={titleTypes}
+                            dateTypes={dateTypes}
                             licenses={licenses}
                             languages={languages}
                             contributorPersonRoles={contributorPersonRoles}

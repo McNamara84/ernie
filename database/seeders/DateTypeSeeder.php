@@ -11,11 +11,28 @@ class DateTypeSeeder extends Seeder
      * Run the database seeds.
      *
      * Seeds all standard DataCite date types.
-     * Note: 'created' and 'updated' are auto-managed by the system and not included here.
+     * System-managed types ('created', 'updated') are included but marked as inactive
+     * so they don't appear in the editor selection but can be referenced by the system.
      */
     public function run(): void
     {
         $dateTypes = [
+            // System-managed date types (not user-selectable, but needed for FK references)
+            [
+                'name' => 'Created',
+                'slug' => 'created',
+                'description' => 'The date the resource was created in the system. Auto-managed by ERNIE.',
+                'active' => false,
+                'elmo_active' => false,
+            ],
+            [
+                'name' => 'Updated',
+                'slug' => 'updated',
+                'description' => 'The date the resource was last updated in the system. Auto-managed by ERNIE.',
+                'active' => false,
+                'elmo_active' => false,
+            ],
+            // User-selectable date types
             [
                 'name' => 'Accepted',
                 'slug' => 'accepted',
