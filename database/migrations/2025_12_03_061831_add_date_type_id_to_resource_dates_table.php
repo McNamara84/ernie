@@ -22,11 +22,27 @@ return new class extends Migration
         });
 
         // Step 2: Migrate existing data - match date_type string to date_types.slug
-        DB::statement('
-            UPDATE resource_dates rd
-            JOIN date_types dt ON rd.date_type = dt.slug
-            SET rd.date_type_id = dt.id
-        ');
+        // Use database-agnostic approach for SQLite compatibility
+        $driver = Schema::getConnection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            // SQLite doesn't support UPDATE with JOIN, use subquery instead
+            DB::statement('
+                UPDATE resource_dates
+                SET date_type_id = (
+                    SELECT dt.id FROM date_types dt
+                    WHERE dt.slug = resource_dates.date_type
+                )
+                WHERE date_type IS NOT NULL
+            ');
+        } else {
+            // MySQL/MariaDB - use efficient JOIN syntax
+            DB::statement('
+                UPDATE resource_dates rd
+                JOIN date_types dt ON rd.date_type = dt.slug
+                SET rd.date_type_id = dt.id
+            ');
+        }
 
         // Step 3: Remove the old string column and update index
         Schema::table('resource_dates', function (Blueprint $table) {
@@ -47,11 +63,26 @@ return new class extends Migration
         });
 
         // Step 2: Migrate data back - copy slug from date_types to date_type
-        DB::statement('
-            UPDATE resource_dates rd
-            JOIN date_types dt ON rd.date_type_id = dt.id
-            SET rd.date_type = dt.slug
-        ');
+        $driver = Schema::getConnection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            // SQLite doesn't support UPDATE with JOIN, use subquery instead
+            DB::statement('
+                UPDATE resource_dates
+                SET date_type = (
+                    SELECT dt.slug FROM date_types dt
+                    WHERE dt.id = resource_dates.date_type_id
+                )
+                WHERE date_type_id IS NOT NULL
+            ');
+        } else {
+            // MySQL/MariaDB - use efficient JOIN syntax
+            DB::statement('
+                UPDATE resource_dates rd
+                JOIN date_types dt ON rd.date_type_id = dt.id
+                SET rd.date_type = dt.slug
+            ');
+        }
 
         // Step 3: Remove the foreign key column and restore index
         Schema::table('resource_dates', function (Blueprint $table) {
