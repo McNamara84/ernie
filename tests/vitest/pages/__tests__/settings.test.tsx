@@ -108,20 +108,22 @@ describe('EditorSettings page', () => {
         expect(grid).toHaveClass('md:grid-cols-2');
         expect(grid).not.toHaveClass('lg:grid-cols-3');
 
+        // Verify all regions exist - they flow naturally into the grid
+        // (Licenses spans 5 rows, others stack in right column)
         const resourceTypesRegion = screen.getByRole('region', { name: 'Resource Types' });
-        expect(resourceTypesRegion).toHaveClass('md:col-start-2');
+        expect(resourceTypesRegion).toBeInTheDocument();
 
         const titleTypesRegion = screen.getByRole('region', { name: 'Title Types' });
-        expect(titleTypesRegion).toHaveClass('md:col-start-2');
+        expect(titleTypesRegion).toBeInTheDocument();
 
         const languagesRegion = screen.getByRole('region', { name: 'Languages' });
-        expect(languagesRegion).toHaveClass('md:col-start-2');
+        expect(languagesRegion).toBeInTheDocument();
 
         const dateTypesRegion = screen.getByRole('region', { name: 'Date Types' });
-        expect(dateTypesRegion).toHaveClass('md:col-start-2');
+        expect(dateTypesRegion).toBeInTheDocument();
 
         const limitsRegion = screen.getByRole('region', { name: 'Limits' });
-        expect(limitsRegion).toHaveClass('md:col-start-2');
+        expect(limitsRegion).toBeInTheDocument();
     });
 
     it('updates ERNIE active when toggled', () => {
