@@ -75,15 +75,15 @@ it('allows license requests with a valid API key header', function () {
         ->assertJsonPath('0.identifier', $enabled->identifier);
 });
 
-it('allows license requests with a valid API key query parameter', function () {
-    $enabled = createElmoLicenses();
+it('rejects API keys in query parameters for security', function () {
+    createElmoLicenses();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
+    // API keys in query params are rejected as they can leak via logs and Referer headers
     $this->getJson('/api/v1/licenses/elmo?api_key=secret-key')
-        ->assertOk()
-        ->assertJsonCount(1)
-        ->assertJsonPath('0.identifier', $enabled->identifier);
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
 });
 
 it('sorts ERNIE licenses by usage count descending with alphabetical fallback', function () {

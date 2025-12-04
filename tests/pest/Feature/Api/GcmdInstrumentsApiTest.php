@@ -103,13 +103,13 @@ it('allows instruments requests with a valid API key header', function () {
     expect($response->json('data.0.text'))->toBe('Test Instrument');
 });
 
-it('allows instruments requests with a valid API key query parameter', function () {
+it('rejects API keys in query parameters for security', function () {
     createTestInstrumentsVocabularyFile();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
-    $response = getJson('/api/v1/vocabularies/gcmd-instruments?api_key=secret-key')
-        ->assertOk();
-
-    expect($response->json('data.0.text'))->toBe('Test Instrument');
+    // API keys in query params are rejected as they can leak via logs and Referer headers
+    getJson('/api/v1/vocabularies/gcmd-instruments?api_key=secret-key')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
 });

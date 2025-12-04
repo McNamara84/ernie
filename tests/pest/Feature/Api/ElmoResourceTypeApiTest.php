@@ -74,15 +74,13 @@ it('allows requests with a valid API key header', function () {
         ->toBe(['id' => $enabled->id, 'name' => 'Type A']);
 });
 
-it('allows requests with a valid API key query parameter', function () {
-    $enabled = createElmoResourceTypes();
+it('rejects API keys in query parameters for security', function () {
+    createElmoResourceTypes();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
-    $response = getJson('/api/v1/resource-types/elmo?api_key=secret-key')
-        ->assertOk()
-        ->assertJsonCount(1);
-
-    expect($response->json('0'))
-        ->toBe(['id' => $enabled->id, 'name' => 'Type A']);
+    // API keys in query params are rejected as they can leak via logs and Referer headers
+    getJson('/api/v1/resource-types/elmo?api_key=secret-key')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
 });
