@@ -30,7 +30,7 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { hasValidDateValue } from '@/lib/date-utils';
-import type { Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
@@ -475,6 +475,7 @@ const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
 interface DataCiteFormProps {
     resourceTypes: ResourceType[];
     titleTypes: TitleType[];
+    dateTypes: DateType[];
     licenses: License[];
     languages: Language[];
     contributorPersonRoles?: Role[];
@@ -533,6 +534,7 @@ export function canAddDate(dates: DateEntry[], maxDates: number) {
 export default function DataCiteForm({
     resourceTypes,
     titleTypes,
+    dateTypes,
     licenses,
     languages,
     contributorPersonRoles = [],
@@ -562,60 +564,27 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
-    const MAX_DATES = 9; // Reduced from 11, since 'created' and 'updated' are now auto-managed
     
     // Date types that are automatically managed by the system and not editable by users
+    // This is a constant array that never changes, so no useMemo needed
     const AUTO_MANAGED_DATE_TYPES = ['created', 'updated'] as const;
     
-    // Available date types according to DataCite schema with descriptions
+    // MAX_DATES excludes auto-managed types since users can't select them
+    // Simple calculation - dateTypes is stable from props, no memoization needed
+    const MAX_DATES = dateTypes.filter(
+        dt => !AUTO_MANAGED_DATE_TYPES.includes(dt.slug as typeof AUTO_MANAGED_DATE_TYPES[number])
+    ).length;
+    
+    // Transform dateTypes prop to the format used by the form
     // Note: 'Created' and 'Updated' are excluded as they are automatically managed
-    const dateTypes = [
-        { 
-            value: 'accepted', 
-            label: 'Accepted',
-            description: 'The date that the publisher accepted the resource into their system. To indicate the start of an embargo period, use Accepted or Submitted.'
-        },
-        { 
-            value: 'available', 
-            label: 'Available',
-            description: 'The date the resource is made publicly available. May be a range. To indicate the end of an embargo period, use Available.'
-        },
-        { 
-            value: 'copyrighted', 
-            label: 'Copyrighted',
-            description: 'The specific, documented date at which the resource receives a copyrighted status, if applicable.'
-        },
-        { 
-            value: 'collected', 
-            label: 'Collected',
-            description: 'The date or date range in which the resource content was collected. To indicate precise or particular timeframes in which research was conducted.'
-        },
-        { 
-            value: 'issued', 
-            label: 'Issued',
-            description: 'The date that the resource is published or distributed, e.g., to a data centre.'
-        },
-        { 
-            value: 'submitted', 
-            label: 'Submitted',
-            description: 'The date the creator submits the resource to the publisher. This could be different from Accepted if the publisher then applies a selection process. Recommended for discovery. To indicate the start of an embargo period, use Submitted or Accepted.'
-        },
-        { 
-            value: 'valid', 
-            label: 'Valid',
-            description: 'The date or date range during which the dataset or resource is accurate.'
-        },
-        { 
-            value: 'withdrawn', 
-            label: 'Withdrawn',
-            description: 'The date the resource is removed. It is good practice to include a Description that indicates the reason for the retraction or withdrawal.'
-        },
-        { 
-            value: 'other', 
-            label: 'Other',
-            description: 'Other date that does not fit into an existing category.'
-        },
-    ];
+    const dateTypeOptions = useMemo(
+        () => dateTypes.map((dt) => ({
+            value: dt.slug,
+            label: dt.name,
+            description: dt.description ?? '',
+        })),
+        [dateTypes]
+    );
     
     const errorRef = useRef<HTMLDivElement | null>(null);
     
@@ -1791,7 +1760,7 @@ export default function DataCiteForm({
         if (dates.length >= MAX_DATES) return;
         // Find the first unused date type or default to 'other'
         const usedTypes = new Set(dates.map((d) => d.dateType));
-        const availableType = dateTypes.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
+        const availableType = dateTypeOptions.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
         setDates((prev) => [
             ...prev,
             { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType },
@@ -2507,7 +2476,7 @@ export default function DataCiteForm({
                                 </Button>
                             ) : (
                                 dates.map((entry, index) => {
-                                    const selectedDateType = dateTypes.find(dt => dt.value === entry.dateType);
+                                    const selectedDateType = dateTypeOptions.find(dt => dt.value === entry.dateType);
                                     return (
                                         <DateField
                                             key={entry.id}
@@ -2516,7 +2485,7 @@ export default function DataCiteForm({
                                             endDate={entry.endDate}
                                             dateType={entry.dateType}
                                             dateTypeDescription={selectedDateType?.description}
-                                            options={dateTypes.filter(
+                                            options={dateTypeOptions.filter(
                                                 (dt) =>
                                                     dt.value === entry.dateType ||
                                                     !dates.some((d) => d.dateType === dt.value),

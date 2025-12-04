@@ -43,7 +43,7 @@
           "Editor Configuration"
         ],
         "summary": "List resource types enabled for ELMO",
-        "description": "Returns all resource types that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns all resource types that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -119,7 +119,7 @@
             }
           }
         },
-        "description": "Returns all title types that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns all title types that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -164,12 +164,57 @@
             }
           }
         },
-        "description": "Returns all licenses that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns all licenses that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
           }
         ]
+      }
+    },
+    "/api/v1/date-types/elmo": {
+      "get": {
+        "tags": [
+          "Editor Configuration"
+        ],
+        "summary": "List date types enabled for ELMO",
+        "description": "Returns all date types that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
+        "security": [
+          {
+            "ElmoApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of date types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DateType"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or missing API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Invalid API key."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/languages/elmo": {
@@ -209,7 +254,7 @@
             }
           }
         },
-        "description": "Returns all languages that are enabled for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns all languages that are enabled for ELMO. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -223,7 +268,7 @@
           "Editor Configuration"
         ],
         "summary": "List author roles active for ELMO",
-        "description": "Returns all author roles that are active for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns all author roles that are active for ELMO. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -268,7 +313,7 @@
           "Editor Configuration"
         ],
         "summary": "List contributor person roles active for ELMO",
-        "description": "Returns all contributor person roles that are active for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns all contributor person roles that are active for ELMO. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -313,7 +358,7 @@
           "Editor Configuration"
         ],
         "summary": "List contributor institution roles active for ELMO",
-        "description": "Returns all contributor institution roles that are active for ELMO. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns all contributor institution roles that are active for ELMO. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -358,7 +403,7 @@
           "Vocabularies"
         ],
         "summary": "Get GCMD Science Keywords vocabulary",
-        "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns the complete GCMD (Global Change Master Directory) Science Keywords vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -416,7 +461,7 @@
           "Vocabularies"
         ],
         "summary": "Get GCMD Platforms vocabulary",
-        "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns the complete GCMD (Global Change Master Directory) Platforms vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -474,7 +519,7 @@
           "Vocabularies"
         ],
         "summary": "Get GCMD Instruments vocabulary",
-        "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header or the `api_key` query parameter.",
+        "description": "Returns the complete GCMD (Global Change Master Directory) Instruments vocabulary as a hierarchical JSON structure. The vocabulary is loaded from NASA's KMS (Keyword Management System) API. Provide the API key via the `X-API-Key` header.",
         "security": [
           {
             "ElmoApiKey": []
@@ -533,7 +578,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-API-Key",
-        "description": "API key required to access ELMO-specific endpoints. Can be provided either in the `X-API-Key` header or as the `api_key` query parameter. Contact the ERNIE team to obtain an API key."
+        "description": "API key required to access ELMO-specific endpoints. Must be provided in the `X-API-Key` header. Query parameter authentication is not supported for security reasons. Contact the ERNIE team to obtain an API key."
       }
     },
     "schemas": {
@@ -592,6 +637,31 @@
           }
         },
         "required": ["id", "name", "slug"]
+      },
+      "DateType": {
+        "type": "object",
+        "description": "A date type for categorizing resource dates according to DataCite schema",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "readOnly": true,
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Accepted"
+          },
+          "slug": {
+            "type": "string",
+            "example": "accepted"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "The date that the publisher accepted the resource into their system."
+          }
+        },
+        "required": ["id", "name", "slug", "description"]
       },
       "License": {
         "type": "object",

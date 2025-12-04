@@ -38,6 +38,11 @@ abstract class EnsureValidApiKey
 
     protected function extractApiKey(Request $request): ?string
     {
+        // Only accept API keys via HTTP headers for security
+        // Query parameters are NOT accepted as they can leak via:
+        // - Server access logs
+        // - Reverse proxy logs
+        // - Referer headers to third-party domains
         $headerKey = $request->header('X-API-Key');
 
         if (is_string($headerKey) && $headerKey !== '') {
@@ -47,18 +52,6 @@ abstract class EnsureValidApiKey
         $bearerToken = $request->bearerToken();
         if (is_string($bearerToken) && $bearerToken !== '') {
             return $bearerToken;
-        }
-
-        $queryKey = $request->query('api_key');
-
-        if (is_string($queryKey) && $queryKey !== '') {
-            return $queryKey;
-        }
-
-        if (is_array($queryKey) && $queryKey !== []) {
-            $value = reset($queryKey);
-
-            return is_string($value) ? $value : null;
         }
 
         return null;

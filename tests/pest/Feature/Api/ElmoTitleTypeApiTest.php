@@ -74,15 +74,13 @@ it('allows title type requests with a valid API key header', function () {
         ->toBe(['id' => $enabled->id, 'name' => 'Main', 'slug' => 'main']);
 });
 
-it('allows title type requests with a valid API key query parameter', function () {
-    $enabled = createElmoTitleTypes();
+it('rejects API keys in query parameters for security', function () {
+    createElmoTitleTypes();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
-    $response = getJson('/api/v1/title-types/elmo?api_key=secret-key')
-        ->assertOk()
-        ->assertJsonCount(1);
-
-    expect($response->json('0'))
-        ->toBe(['id' => $enabled->id, 'name' => 'Main', 'slug' => 'main']);
+    // API keys in query params are rejected as they can leak via logs and Referer headers
+    getJson('/api/v1/title-types/elmo?api_key=secret-key')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
 });

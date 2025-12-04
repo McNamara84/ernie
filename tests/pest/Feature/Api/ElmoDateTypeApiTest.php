@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\ResourceType;
+use App\Models\DateType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 use function Pest\Laravel\getJson;
@@ -11,18 +11,20 @@ beforeEach(function () {
     config(['services.elmo.api_key' => null]);
 });
 
-function createElmoResourceTypes(): ResourceType
+function createElmoDateTypes(): DateType
 {
-    $enabled = ResourceType::create([
-        'name' => 'Type A',
-        'slug' => 'type-a',
+    $enabled = DateType::create([
+        'name' => 'Accepted',
+        'slug' => 'accepted',
+        'description' => 'The date that the publisher accepted the resource.',
         'active' => true,
         'elmo_active' => true,
     ]);
 
-    ResourceType::create([
-        'name' => 'Type B',
-        'slug' => 'type-b',
+    DateType::create([
+        'name' => 'Available',
+        'slug' => 'available',
+        'description' => 'The date the resource is made publicly available.',
         'active' => true,
         'elmo_active' => false,
     ]);
@@ -30,57 +32,59 @@ function createElmoResourceTypes(): ResourceType
     return $enabled;
 }
 
-it('returns only resource types enabled for ELMO', function () {
-    $enabled = createElmoResourceTypes();
+it('returns only date types enabled for ELMO', function () {
+    $enabled = createElmoDateTypes();
 
-    $response = getJson('/api/v1/resource-types/elmo')
+    $response = getJson('/api/v1/date-types/elmo')
         ->assertOk()
         ->assertJsonCount(1);
 
-    expect($response->json('0'))
-        ->toBe(['id' => $enabled->id, 'name' => 'Type A']);
+    expect($response->json('0.id'))->toBe($enabled->id);
+    expect($response->json('0.name'))->toBe('Accepted');
+    expect($response->json('0.slug'))->toBe('accepted');
+    expect($response->json('0.description'))->toContain('publisher accepted');
 });
 
 it('rejects requests without an API key when one is configured', function () {
-    createElmoResourceTypes();
+    createElmoDateTypes();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
-    getJson('/api/v1/resource-types/elmo')
+    getJson('/api/v1/date-types/elmo')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
 });
 
 it('rejects requests with an invalid API key', function () {
-    createElmoResourceTypes();
+    createElmoDateTypes();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
-    getJson('/api/v1/resource-types/elmo', ['X-API-Key' => 'wrong-key'])
+    getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'wrong-key'])
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
 });
 
 it('allows requests with a valid API key header', function () {
-    $enabled = createElmoResourceTypes();
+    $enabled = createElmoDateTypes();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
-    $response = getJson('/api/v1/resource-types/elmo', ['X-API-Key' => 'secret-key'])
+    $response = getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'secret-key'])
         ->assertOk()
         ->assertJsonCount(1);
 
-    expect($response->json('0'))
-        ->toBe(['id' => $enabled->id, 'name' => 'Type A']);
+    expect($response->json('0.id'))->toBe($enabled->id);
+    expect($response->json('0.name'))->toBe('Accepted');
 });
 
 it('rejects API keys in query parameters for security', function () {
-    createElmoResourceTypes();
+    createElmoDateTypes();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
     // API keys in query params are rejected as they can leak via logs and Referer headers
-    getJson('/api/v1/resource-types/elmo?api_key=secret-key')
+    getJson('/api/v1/date-types/elmo?api_key=secret-key')
         ->assertStatus(401)
         ->assertJson(['message' => 'Invalid API key.']);
 });

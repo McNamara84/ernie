@@ -75,13 +75,13 @@ it('allows language requests with a valid API key header', function () {
         ->assertJsonPath('0.code', $enabled->code);
 });
 
-it('allows language requests with a valid API key query parameter', function () {
-    $enabled = createElmoLanguages();
+it('rejects API keys in query parameters for security', function () {
+    createElmoLanguages();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
+    // API keys in query params are rejected as they can leak via logs and Referer headers
     $this->getJson('/api/v1/languages/elmo?api_key=secret-key')
-        ->assertOk()
-        ->assertJsonCount(1)
-        ->assertJsonPath('0.code', $enabled->code);
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
 });

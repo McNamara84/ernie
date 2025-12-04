@@ -82,18 +82,13 @@ it('allows requests with a valid API key header', function () {
     ]);
 });
 
-it('allows requests with a valid API key query parameter', function () {
-    $enabled = createElmoRoles();
+it('rejects API keys in query parameters for security', function () {
+    createElmoRoles();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
-    $response = getJson('/api/v1/roles/contributor-persons/elmo?api_key=secret-key')
-        ->assertOk()
-        ->assertJsonCount(1);
-
-    expect($response->json('0'))->toBe([
-        'id' => $enabled->id,
-        'name' => 'Researcher',
-        'slug' => 'researcher',
-    ]);
+    // API keys in query params are rejected as they can leak via logs and Referer headers
+    getJson('/api/v1/roles/contributor-persons/elmo?api_key=secret-key')
+        ->assertStatus(401)
+        ->assertJson(['message' => 'Invalid API key.']);
 });

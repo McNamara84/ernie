@@ -70,6 +70,13 @@ export interface TitleType {
     slug: string;
 }
 
+export interface DateType {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+}
+
 export interface License {
     id: number;
     identifier: string;

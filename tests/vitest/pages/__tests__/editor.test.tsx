@@ -4,11 +4,15 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import Editor from '@/pages/editor';
-import type { Language,License, ResourceType, TitleType } from '@/types';
+import type { DateType, Language,License, ResourceType, TitleType } from '@/types';
 
 const resourceTypes: ResourceType[] = [{ id: 1, name: 'Dataset' }];
 const titleTypes: TitleType[] = [
     { id: 1, name: 'Main Title', slug: 'main-title' },
+];
+const dateTypes: DateType[] = [
+    { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date the publisher accepted the resource.' },
+    { id: 2, name: 'Available', slug: 'available', description: 'The date the resource is made publicly available.' },
 ];
 const licenses: License[] = [
     { id: 1, identifier: 'MIT', name: 'MIT License' },
@@ -49,9 +53,11 @@ describe('Editor page', () => {
                                 ? resourceTypes
                                 : url.toString().includes('title-types')
                                   ? titleTypes
-                                  : url.toString().includes('licenses')
-                                    ? licenses
-                                    : languages,
+                                  : url.toString().includes('date-types')
+                                    ? dateTypes
+                                    : url.toString().includes('licenses')
+                                      ? licenses
+                                      : languages,
                         ),
                 }),
             ),
@@ -66,7 +72,7 @@ describe('Editor page', () => {
         render(<Editor maxTitles={99} maxLicenses={99} />);
         await waitFor(() =>
             expect(renderForm).toHaveBeenCalledWith(
-                expect.objectContaining({ resourceTypes, titleTypes, licenses, languages }),
+                expect.objectContaining({ resourceTypes, titleTypes, dateTypes, licenses, languages }),
             ),
         );
     });

@@ -40,18 +40,28 @@ interface LanguageRow {
     elmo_active: boolean;
 }
 
+interface DateTypeRow {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    active: boolean;
+    elmo_active: boolean;
+}
+
 interface EditorSettingsProps {
     resourceTypes: ResourceTypeRow[];
     titleTypes: TitleTypeRow[];
     licenses: LicenseRow[];
     languages: LanguageRow[];
+    dateTypes: DateTypeRow[];
     maxTitles: number;
     maxLicenses: number;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
-export default function EditorSettings({ resourceTypes, titleTypes, licenses, languages, maxTitles, maxLicenses }: EditorSettingsProps) {
+export default function EditorSettings({ resourceTypes, titleTypes, licenses, languages, dateTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
@@ -79,6 +89,14 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
             name: l.name,
             active: l.active,
             elmo_active: l.elmo_active,
+        })),
+        dateTypes: dateTypes.map((d) => ({
+            id: d.id,
+            name: d.name,
+            slug: d.slug,
+            description: d.description,
+            active: d.active,
+            elmo_active: d.elmo_active,
         })),
         maxTitles,
         maxLicenses,
@@ -154,6 +172,20 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
         );
     };
 
+    const handleDateTypeActiveChange = (index: number, value: boolean) => {
+        setData(
+            'dateTypes',
+            data.dateTypes.map((d, i) => (i === index ? { ...d, active: value } : d)),
+        );
+    };
+
+    const handleDateTypeElmoActiveChange = (index: number, value: boolean) => {
+        setData(
+            'dateTypes',
+            data.dateTypes.map((d, i) => (i === index ? { ...d, elmo_active: value } : d)),
+        );
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         post(settings().url);
@@ -167,7 +199,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                     Save
                 </Button>
                 <BentoGrid data-testid="bento-grid">
-                    <BentoGridItem aria-labelledby="licenses-heading" className="md:row-span-4 lg:row-span-2">
+                    <BentoGridItem aria-labelledby="licenses-heading" className="md:row-span-5">
                         <h2 id="licenses-heading" className="text-lg font-semibold">
                             Licenses
                         </h2>
@@ -223,7 +255,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="resource-types-heading">
+                    <BentoGridItem aria-labelledby="resource-types-heading" className="md:col-start-2">
                         <h2 id="resource-types-heading" className="text-lg font-semibold">
                             Resource Types
                         </h2>
@@ -286,7 +318,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="title-types-heading" className="md:col-start-2">
+                    <BentoGridItem aria-labelledby="title-types-heading">
                         <h2 id="title-types-heading" className="text-lg font-semibold">
                             Title Types
                         </h2>
@@ -416,7 +448,63 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="limits-heading" className="md:col-start-2">
+                    <BentoGridItem aria-labelledby="date-types-heading">
+                        <h2 id="date-types-heading" className="text-lg font-semibold">
+                            Date Types
+                        </h2>
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="text-left">
+                                        <th className="border-b p-2">ID</th>
+                                        <th className="border-b p-2">Name</th>
+                                        <th className="border-b p-2">Slug</th>
+                                        <th className="border-b p-2 text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                        </th>
+                                        <th className="border-b p-2 text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.dateTypes.map((dateType, index) => (
+                                        <tr key={dateType.id}>
+                                            <td className="border-b p-2">{dateType.id}</td>
+                                            <td className="border-b p-2">{dateType.name}</td>
+                                            <td className="border-b p-2">{dateType.slug}</td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`dt-active-${dateType.id}`} className="sr-only">
+                                                    ERNIE active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`dt-active-${dateType.id}`}
+                                                    checked={dateType.active}
+                                                    onCheckedChange={(checked) => handleDateTypeActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                            <td className="border-b p-2 text-center">
+                                                <Label htmlFor={`dt-elmo-active-${dateType.id}`} className="sr-only">
+                                                    ELMO active
+                                                </Label>
+                                                <Checkbox
+                                                    id={`dt-elmo-active-${dateType.id}`}
+                                                    checked={dateType.elmo_active}
+                                                    onCheckedChange={(checked) => handleDateTypeElmoActiveChange(index, checked === true)}
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </BentoGridItem>
+
+                    <BentoGridItem aria-labelledby="limits-heading">
                         <h2 id="limits-heading" className="text-lg font-semibold">
                             Limits
                         </h2>

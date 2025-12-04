@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read DateType|null $dateType
+ */
 class ResourceDate extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
@@ -13,7 +16,7 @@ class ResourceDate extends Model
 
     protected $fillable = [
         'resource_id',
-        'date_type',
+        'date_type_id',
         'start_date',
         'end_date',
         'date_information',
@@ -29,6 +32,15 @@ class ResourceDate extends Model
     {
         /** @var BelongsTo<Resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
+
+        return $relation;
+    }
+
+    /** @return BelongsTo<DateType, static> */
+    public function dateType(): BelongsTo
+    {
+        /** @var BelongsTo<DateType, static> $relation */
+        $relation = $this->belongsTo(DateType::class);
 
         return $relation;
     }

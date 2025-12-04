@@ -48,6 +48,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[{ id: 1, name: 'Main Title', slug: 'main-title', active: true, elmo_active: false }]}
                 licenses={[]}
                 languages={[{ id: 1, code: 'en', name: 'English', active: true, elmo_active: false }]}
+                dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test description', active: true, elmo_active: false }]}
                 maxTitles={10}
                 maxLicenses={5}
             />,
@@ -57,14 +58,14 @@ describe('EditorSettings page', () => {
         expect(grid).toHaveClass('md:grid-cols-2');
         expect(grid).not.toHaveClass('lg:grid-cols-3');
         const items = grid.querySelectorAll('[data-slot="bento-grid-item"]');
-        expect(items).toHaveLength(5);
+        expect(items).toHaveLength(6);
         items.forEach((item) => expect(item).toHaveClass('self-start'));
-        expect(items[0]).toHaveClass('md:row-span-4', 'lg:row-span-2');
-        expect(within(items[0]).getByText('Licenses')).toBeInTheDocument();
-        expect(within(items[1]).getByText('Resource Types')).toBeInTheDocument();
+        expect(items[0]).toHaveClass('md:row-span-5');
+        expect(within(items[0] as HTMLElement).getByText('Licenses')).toBeInTheDocument();
+        expect(within(items[1] as HTMLElement).getByText('Resource Types')).toBeInTheDocument();
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
-        expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(3);
-        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(3);
+        expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(4);
+        expect(screen.getAllByLabelText('ELMO active')).toHaveLength(4);
         expect(screen.getByLabelText('Slug')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
         expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
@@ -94,6 +95,16 @@ describe('EditorSettings page', () => {
                         id: 1,
                         code: 'en',
                         name: 'English',
+                        active: true,
+                        elmo_active: false,
+                    },
+                ],
+                dateTypes: [
+                    {
+                        id: 1,
+                        name: 'Accepted',
+                        slug: 'accepted',
+                        description: 'Test description',
                         active: true,
                         elmo_active: false,
                     },

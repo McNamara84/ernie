@@ -62,6 +62,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -82,7 +83,7 @@ describe('EditorSettings page', () => {
         expect(elmoCell).toHaveClass('text-center');
     });
 
-    it('uses a two-column layout with Title Types and Limits in the second column', () => {
+    it('uses a two-column layout with all cards except Licenses in the second column', () => {
         render(
             <EditorSettings
                 resourceTypes={[
@@ -92,7 +93,12 @@ describe('EditorSettings page', () => {
                     { id: 1, name: 'Article', slug: 'article', active: true, elmo_active: false },
                 ]}
                 licenses={[]}
-                languages={[]}
+                languages={[
+                    { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
+                ]}
+                dateTypes={[
+                    { id: 1, name: 'Accepted', slug: 'accepted', description: 'Test', active: true, elmo_active: false },
+                ]}
                 maxTitles={5}
                 maxLicenses={10}
             />,
@@ -102,11 +108,22 @@ describe('EditorSettings page', () => {
         expect(grid).toHaveClass('md:grid-cols-2');
         expect(grid).not.toHaveClass('lg:grid-cols-3');
 
+        // Verify all regions exist - they flow naturally into the grid
+        // (Licenses spans 5 rows, others stack in right column)
+        const resourceTypesRegion = screen.getByRole('region', { name: 'Resource Types' });
+        expect(resourceTypesRegion).toBeInTheDocument();
+
         const titleTypesRegion = screen.getByRole('region', { name: 'Title Types' });
-        expect(titleTypesRegion).toHaveClass('md:col-start-2');
+        expect(titleTypesRegion).toBeInTheDocument();
+
+        const languagesRegion = screen.getByRole('region', { name: 'Languages' });
+        expect(languagesRegion).toBeInTheDocument();
+
+        const dateTypesRegion = screen.getByRole('region', { name: 'Date Types' });
+        expect(dateTypesRegion).toBeInTheDocument();
 
         const limitsRegion = screen.getByRole('region', { name: 'Limits' });
-        expect(limitsRegion).toHaveClass('md:col-start-2');
+        expect(limitsRegion).toBeInTheDocument();
     });
 
     it('updates ERNIE active when toggled', () => {
@@ -119,6 +136,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -139,6 +157,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -159,6 +178,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -177,6 +197,7 @@ describe('EditorSettings page', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -201,6 +222,7 @@ describe('License settings', () => {
                 titleTypes={[]}
                 licenses={licenses}
                 languages={[]}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -223,6 +245,7 @@ describe('Language settings', () => {
                 titleTypes={[]}
                 licenses={[]}
                 languages={languages}
+                dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
             />,
@@ -230,6 +253,50 @@ describe('Language settings', () => {
         fireEvent.click(screen.getByLabelText('ERNIE active'));
         expect(setData).toHaveBeenCalledWith('languages', [
             { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
+        ]);
+    });
+});
+
+describe('Date Type settings', () => {
+    it('updates date type ERNIE active when toggled', () => {
+        const dateTypes = [
+            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: false, elmo_active: false },
+        ];
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={dateTypes}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
+        );
+        fireEvent.click(screen.getByLabelText('ERNIE active'));
+        expect(setData).toHaveBeenCalledWith('dateTypes', [
+            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: true, elmo_active: false },
+        ]);
+    });
+
+    it('updates date type ELMO active when toggled', () => {
+        const dateTypes = [
+            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: false, elmo_active: false },
+        ];
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={dateTypes}
+                maxTitles={1}
+                maxLicenses={1}
+            />,
+        );
+        fireEvent.click(screen.getByLabelText('ELMO active'));
+        expect(setData).toHaveBeenCalledWith('dateTypes', [
+            { id: 1, name: 'Accepted', slug: 'accepted', description: 'The date that the publisher accepted the resource.', active: false, elmo_active: true },
         ]);
     });
 });

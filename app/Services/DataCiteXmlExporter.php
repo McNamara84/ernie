@@ -67,7 +67,7 @@ class DataCiteXmlExporter
             'dataciteContributors.roles',
             'dataciteContributors.affiliations',
             'descriptions',
-            'dates',
+            'dates.dateType',
             'keywords',
             'controlledKeywords',
             'coverages',
@@ -693,6 +693,11 @@ class DataCiteXmlExporter
         $hasDates = false;
 
         foreach ($resource->dates as $date) {
+            // Skip if no date type (should not happen in normal usage)
+            if (! $date->dateType) {
+                continue;
+            }
+
             // Build date string
             $dateString = '';
             if ($date->start_date && $date->end_date) {
@@ -706,7 +711,7 @@ class DataCiteXmlExporter
             }
 
             $dateElement = $this->dom->createElement('date', htmlspecialchars($dateString));
-            $dateElement->setAttribute('dateType', $this->convertDateType($date->date_type));
+            $dateElement->setAttribute('dateType', $this->convertDateType($date->dateType->slug));
 
             if ($date->date_information) {
                 $dateElement->setAttribute('dateInformation', htmlspecialchars($date->date_information));

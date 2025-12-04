@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\DataCiteController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
+use App\Http\Controllers\DateTypeController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\LicenseController;
 use App\Http\Controllers\OrcidController;
@@ -21,6 +22,9 @@ Route::get('/v1/resource-types/ernie', [ResourceTypeController::class, 'ernie'])
 Route::get('/v1/title-types', [TitleTypeController::class, 'index']);
 Route::middleware('elmo.api-key')->get('/v1/title-types/elmo', [TitleTypeController::class, 'elmo']);
 Route::get('/v1/title-types/ernie', [TitleTypeController::class, 'ernie']);
+Route::get('/v1/date-types', [DateTypeController::class, 'index']);
+Route::middleware('elmo.api-key')->get('/v1/date-types/elmo', [DateTypeController::class, 'elmo']);
+Route::get('/v1/date-types/ernie', [DateTypeController::class, 'ernie']);
 Route::get('/v1/licenses', [LicenseController::class, 'index']);
 Route::middleware('elmo.api-key')->get('/v1/licenses/elmo', [LicenseController::class, 'elmo']);
 Route::get('/v1/licenses/ernie', [LicenseController::class, 'ernie']);
