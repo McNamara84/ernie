@@ -263,16 +263,24 @@ class ResourceController extends Controller
                 // Note: 'created' and 'updated' dates are auto-managed and should not be
                 // submitted by the frontend. They are handled separately below.
 
-                // Cache the system date type IDs for 'created' and 'updated'
-                $createdDateTypeId = DateType::where('slug', 'created')->value('id');
-                $updatedDateTypeId = DateType::where('slug', 'updated')->value('id');
+                // Pre-fetch all date type IDs in a single query to avoid N+1 queries
+                // This lookup map is used for both system date types and user-provided dates
+                /** @var array<string, int> $dateTypeLookup */
+                $dateTypeLookup = DateType::pluck('id', 'slug')->all();
+                $createdDateTypeId = $dateTypeLookup['created'] ?? null;
+                $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
 
                 if ($isUpdate) {
                     // When updating, preserve 'created' date (never overwritten) and delete
                     // all other user-managed dates. The 'updated' date is handled separately below.
-                    $resource->dates()
-                        ->where('date_type_id', '!=', $createdDateTypeId)
-                        ->delete();
+                    if ($createdDateTypeId !== null) {
+                        $resource->dates()
+                            ->where('date_type_id', '!=', $createdDateTypeId)
+                            ->delete();
+                    } else {
+                        // If 'created' type doesn't exist, delete all dates
+                        $resource->dates()->delete();
+                    }
                 }
 
                 $dates = $validated['dates'] ?? [];
@@ -283,8 +291,8 @@ class ResourceController extends Controller
                         continue;
                     }
 
-                    // Look up the date type ID by slug
-                    $dateTypeId = DateType::where('slug', strtolower($date['dateType']))->value('id');
+                    // Use the pre-fetched lookup map instead of querying for each date
+                    $dateTypeId = $dateTypeLookup[strtolower($date['dateType'])] ?? null;
 
                     if ($dateTypeId === null) {
                         // If unknown date type, skip or log warning
