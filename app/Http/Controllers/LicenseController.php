@@ -2,47 +2,53 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\License;
+use App\Models\Right;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controller for Rights/Licenses API endpoints.
+ *
+ * Note: This controller is named LicenseController for backward compatibility
+ * with API routes. The underlying model is now Right (DataCite schema naming).
+ */
 class LicenseController extends Controller
 {
     /**
-     * Return all licenses.
+     * Return all rights/licenses.
      */
     public function index(): JsonResponse
     {
-        $licenses = License::query()
+        $rights = Right::query()
             ->orderByName()
             ->get(['id', 'identifier', 'name']);
 
-        return response()->json($licenses);
+        return response()->json($rights);
     }
 
     /**
-     * Return all licenses that are active for ELMO.
+     * Return all rights/licenses that are active for ELMO.
      */
     public function elmo(): JsonResponse
     {
-        $licenses = License::query()
+        $rights = Right::query()
             ->active()
             ->elmoActive()
             ->orderByName()
             ->get(['id', 'identifier', 'name']);
 
-        return response()->json($licenses);
+        return response()->json($rights);
     }
 
     /**
-     * Return all licenses that are active for Ernie.
+     * Return all rights/licenses that are active for Ernie.
      */
     public function ernie(): JsonResponse
     {
-        $licenses = License::query()
+        $rights = Right::query()
             ->active()
             ->orderByUsageCount()
             ->get(['id', 'identifier', 'name']);
 
-        return response()->json($licenses);
+        return response()->json($rights);
     }
 }
