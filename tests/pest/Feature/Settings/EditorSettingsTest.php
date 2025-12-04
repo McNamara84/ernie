@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\DateType;
 use App\Models\Language;
 use App\Models\License;
 use App\Models\ResourceType;
@@ -23,6 +24,7 @@ test('authenticated users can view editor settings page', function () {
     TitleType::create(['name' => 'Main Title', 'slug' => 'main-title']);
     License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
     Language::create(['code' => 'en', 'name' => 'English']);
+    DateType::create(['name' => 'Created', 'slug' => 'created']);
     Setting::create(['key' => 'max_titles', 'value' => (string) Setting::DEFAULT_LIMIT]);
     Setting::create(['key' => 'max_licenses', 'value' => (string) Setting::DEFAULT_LIMIT]);
     $this->actingAs($user);
@@ -34,6 +36,7 @@ test('authenticated users can view editor settings page', function () {
         ->has('titleTypes', 1)
         ->has('licenses', 1)
         ->has('languages', 1)
+        ->has('dateTypes', 1)
         ->where('resourceTypes.0.active', true)
         ->where('resourceTypes.0.elmo_active', false)
         ->where('titleTypes.0.active', true)
@@ -42,6 +45,8 @@ test('authenticated users can view editor settings page', function () {
         ->where('licenses.0.elmo_active', false)
         ->where('languages.0.active', true)
         ->where('languages.0.elmo_active', false)
+        ->where('dateTypes.0.active', true)
+        ->where('dateTypes.0.elmo_active', false)
         ->where('maxTitles', Setting::DEFAULT_LIMIT)
         ->where('maxLicenses', Setting::DEFAULT_LIMIT)
     );
@@ -53,6 +58,7 @@ test('authenticated users can update resource and title types and settings', fun
     $title = TitleType::create(['name' => 'Main Title', 'slug' => 'main-title']);
     $license = License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
     $language = Language::create(['code' => 'en', 'name' => 'English']);
+    $dateType = DateType::create(['name' => 'Created', 'slug' => 'created']);
     Setting::create(['key' => 'max_titles', 'value' => '5']);
     Setting::create(['key' => 'max_licenses', 'value' => '2']);
     $this->actingAs($user);
@@ -69,6 +75,9 @@ test('authenticated users can update resource and title types and settings', fun
         ],
         'languages' => [
             ['id' => $language->id, 'active' => false, 'elmo_active' => true],
+        ],
+        'dateTypes' => [
+            ['id' => $dateType->id, 'active' => false, 'elmo_active' => true],
         ],
         'maxTitles' => 10,
         'maxLicenses' => 7,
@@ -97,6 +106,11 @@ test('authenticated users can update resource and title types and settings', fun
         'active' => false,
         'elmo_active' => true,
     ]);
+    $this->assertDatabaseHas('date_types', [
+        'id' => $dateType->id,
+        'active' => false,
+        'elmo_active' => true,
+    ]);
     expect(Setting::getValue('max_titles'))->toBe('10');
     expect(Setting::getValue('max_licenses'))->toBe('7');
 });
@@ -107,6 +121,7 @@ test('updating settings with invalid data returns errors', function () {
     $title = TitleType::create(['name' => 'Main Title', 'slug' => 'main-title']);
     $license = License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
     $language = Language::create(['code' => 'en', 'name' => 'English']);
+    $dateType = DateType::create(['name' => 'Created', 'slug' => 'created']);
     $this->actingAs($user);
 
     $response = $this->from(route('settings'))
@@ -122,6 +137,9 @@ test('updating settings with invalid data returns errors', function () {
             ],
             'languages' => [
                 ['id' => $language->id, 'active' => true, 'elmo_active' => false],
+            ],
+            'dateTypes' => [
+                ['id' => $dateType->id, 'active' => true, 'elmo_active' => false],
             ],
             'maxTitles' => 0,
             'maxLicenses' => 7,
