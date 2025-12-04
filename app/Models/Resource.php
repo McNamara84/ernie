@@ -5,10 +5,47 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * Resource Model (DataCite Metadata)
+ *
+ * Central entity representing a research dataset with DataCite metadata.
+ *
+ * @property int $id
+ * @property string|null $doi
+ * @property int|null $publication_year
+ * @property int|null $resource_type_id
+ * @property string|null $version
+ * @property int|null $language_id
+ * @property int|null $publisher_id
+ * @property int|null $created_by_user_id
+ * @property int|null $updated_by_user_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @property-read ResourceType|null $resourceType
+ * @property-read Language|null $language
+ * @property-read Publisher|null $publisher
+ * @property-read User|null $createdBy
+ * @property-read User|null $updatedBy
+ * @property-read LandingPage|null $landingPage
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Title> $titles
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceCreator> $creators
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceContributor> $contributors
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Description> $descriptions
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Subject> $subjects
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceDate> $dates
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, GeoLocation> $geoLocations
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, RelatedIdentifier> $relatedIdentifiers
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, FundingReference> $fundingReferences
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Right> $rights
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Size> $sizes
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Format> $formats
+ *
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
+ */
 class Resource extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
@@ -16,17 +53,22 @@ class Resource extends Model
 
     protected $fillable = [
         'doi',
-        'year',
+        'publication_year',
         'resource_type_id',
         'version',
         'language_id',
+        'publisher_id',
         'created_by_user_id',
         'updated_by_user_id',
     ];
 
     protected $casts = [
-        'year' => 'integer',
+        'publication_year' => 'integer',
     ];
+
+    // =========================================================================
+    // Lookup Table Relations
+    // =========================================================================
 
     /** @return BelongsTo<ResourceType, static> */
     public function resourceType(): BelongsTo
@@ -46,72 +88,60 @@ class Resource extends Model
         return $relation;
     }
 
-    /** @return HasMany<ResourceTitle, static> */
+    /** @return BelongsTo<Publisher, static> */
+    public function publisher(): BelongsTo
+    {
+        /** @var BelongsTo<Publisher, static> $relation */
+        $relation = $this->belongsTo(Publisher::class);
+
+        return $relation;
+    }
+
+    // =========================================================================
+    // DataCite Property Relations (HasMany)
+    // =========================================================================
+
+    /** @return HasMany<Title, static> */
     public function titles(): HasMany
     {
-        /** @var HasMany<ResourceTitle, static> $relation */
-        $relation = $this->hasMany(ResourceTitle::class);
+        /** @var HasMany<Title, static> $relation */
+        $relation = $this->hasMany(Title::class);
 
         return $relation;
     }
 
-    /** @return BelongsToMany<License, static, \Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'> */
-    public function licenses(): BelongsToMany
+    /** @return HasMany<ResourceCreator, static> */
+    public function creators(): HasMany
     {
-        /** @var BelongsToMany<License, static, \Illuminate\Database\Eloquent\Relations\Pivot, 'pivot'> $relation */
-        $relation = $this->belongsToMany(License::class)->withTimestamps();
+        /** @var HasMany<ResourceCreator, static> $relation */
+        $relation = $this->hasMany(ResourceCreator::class)->orderBy('position');
 
         return $relation;
     }
 
-    /** @return HasMany<ResourceAuthor, static> */
-    public function authors(): HasMany
+    /** @return HasMany<ResourceContributor, static> */
+    public function contributors(): HasMany
     {
-        /** @var HasMany<ResourceAuthor, static> $relation */
-        $relation = $this->hasMany(ResourceAuthor::class)->orderBy('position');
+        /** @var HasMany<ResourceContributor, static> $relation */
+        $relation = $this->hasMany(ResourceContributor::class)->orderBy('position');
 
         return $relation;
     }
 
-    /**
-     * Get authors for DataCite export (only ResourceAuthors with 'Author' role).
-     *
-     * @return HasMany<ResourceAuthor, static>
-     */
-    public function dataciteCreators(): HasMany
-    {
-        /** @var HasMany<ResourceAuthor, static> $relation */
-        $relation = $this->hasMany(ResourceAuthor::class)
-            ->whereHas('roles', function ($query) {
-                $query->where('name', 'Author');
-            })
-            ->orderBy('position');
-
-        return $relation;
-    }
-
-    /**
-     * Get contributors for DataCite export (ResourceAuthors without 'Author' role).
-     *
-     * @return HasMany<ResourceAuthor, static>
-     */
-    public function dataciteContributors(): HasMany
-    {
-        /** @var HasMany<ResourceAuthor, static> $relation */
-        $relation = $this->hasMany(ResourceAuthor::class)
-            ->whereDoesntHave('roles', function ($query) {
-                $query->where('name', 'Author');
-            })
-            ->orderBy('position');
-
-        return $relation;
-    }
-
-    /** @return HasMany<ResourceDescription, static> */
+    /** @return HasMany<Description, static> */
     public function descriptions(): HasMany
     {
-        /** @var HasMany<ResourceDescription, static> $relation */
-        $relation = $this->hasMany(ResourceDescription::class);
+        /** @var HasMany<Description, static> $relation */
+        $relation = $this->hasMany(Description::class);
+
+        return $relation;
+    }
+
+    /** @return HasMany<Subject, static> */
+    public function subjects(): HasMany
+    {
+        /** @var HasMany<Subject, static> $relation */
+        $relation = $this->hasMany(Subject::class);
 
         return $relation;
     }
@@ -125,29 +155,11 @@ class Resource extends Model
         return $relation;
     }
 
-    /** @return HasMany<ResourceKeyword, static> */
-    public function keywords(): HasMany
+    /** @return HasMany<GeoLocation, static> */
+    public function geoLocations(): HasMany
     {
-        /** @var HasMany<ResourceKeyword, static> $relation */
-        $relation = $this->hasMany(ResourceKeyword::class);
-
-        return $relation;
-    }
-
-    /** @return HasMany<ResourceControlledKeyword, static> */
-    public function controlledKeywords(): HasMany
-    {
-        /** @var HasMany<ResourceControlledKeyword, static> $relation */
-        $relation = $this->hasMany(ResourceControlledKeyword::class);
-
-        return $relation;
-    }
-
-    /** @return HasMany<ResourceCoverage, static> */
-    public function coverages(): HasMany
-    {
-        /** @var HasMany<ResourceCoverage, static> $relation */
-        $relation = $this->hasMany(ResourceCoverage::class);
+        /** @var HasMany<GeoLocation, static> $relation */
+        $relation = $this->hasMany(GeoLocation::class);
 
         return $relation;
     }
@@ -161,14 +173,45 @@ class Resource extends Model
         return $relation;
     }
 
-    /** @return HasMany<ResourceFundingReference, static> */
+    /** @return HasMany<FundingReference, static> */
     public function fundingReferences(): HasMany
     {
-        /** @var HasMany<ResourceFundingReference, static> $relation */
-        $relation = $this->hasMany(ResourceFundingReference::class)->orderBy('position');
+        /** @var HasMany<FundingReference, static> $relation */
+        $relation = $this->hasMany(FundingReference::class);
 
         return $relation;
     }
+
+    /** @return HasMany<Right, static> */
+    public function rights(): HasMany
+    {
+        /** @var HasMany<Right, static> $relation */
+        $relation = $this->hasMany(Right::class);
+
+        return $relation;
+    }
+
+    /** @return HasMany<Size, static> */
+    public function sizes(): HasMany
+    {
+        /** @var HasMany<Size, static> $relation */
+        $relation = $this->hasMany(Size::class);
+
+        return $relation;
+    }
+
+    /** @return HasMany<Format, static> */
+    public function formats(): HasMany
+    {
+        /** @var HasMany<Format, static> $relation */
+        $relation = $this->hasMany(Format::class);
+
+        return $relation;
+    }
+
+    // =========================================================================
+    // User Relations
+    // =========================================================================
 
     /** @return BelongsTo<User, static> */
     public function createdBy(): BelongsTo
@@ -195,5 +238,49 @@ class Resource extends Model
         $relation = $this->hasOne(LandingPage::class);
 
         return $relation;
+    }
+
+    // =========================================================================
+    // Helper Methods
+    // =========================================================================
+
+    /**
+     * Get the main title (title without type).
+     */
+    public function getMainTitleAttribute(): ?string
+    {
+        $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
+
+        return $mainTitle?->title;
+    }
+
+    /**
+     * Get all free-text subjects.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Subject>
+     */
+    public function getFreeTextSubjectsAttribute(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->subjects->filter(fn (Subject $s) => $s->isFreeText());
+    }
+
+    /**
+     * Get all controlled vocabulary subjects.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Subject>
+     */
+    public function getControlledSubjectsAttribute(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->subjects->filter(fn (Subject $s) => $s->isControlled());
+    }
+
+    /**
+     * Get temporal coverage dates (dateType = 'Collected').
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, ResourceDate>
+     */
+    public function getTemporalCoverageAttribute(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->dates->filter(fn (ResourceDate $d) => $d->isCollected());
     }
 }

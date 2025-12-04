@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\License;
+use App\Models\Right;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -11,7 +11,7 @@ class SyncSpdxLicenses extends Command
 {
     protected $signature = 'spdx:sync-licenses';
 
-    protected $description = 'Sync licenses from SPDX and store them in the database';
+    protected $description = 'Sync licenses from SPDX and store them in the rights table';
 
     public function handle(): int
     {
@@ -38,16 +38,12 @@ class SyncSpdxLicenses extends Command
         $licenses = $response->json('licenses') ?? [];
 
         foreach ($licenses as $license) {
-            License::updateOrCreate(
+            Right::updateOrCreate(
                 ['identifier' => $license['licenseId']],
                 [
                     'name' => $license['name'],
-                    'spdx_id' => $license['licenseId'],
-                    'reference' => $license['reference'] ?? null,
-                    'details_url' => $license['detailsUrl'] ?? null,
-                    'is_deprecated_license_id' => $license['isDeprecatedLicenseId'] ?? false,
-                    'is_osi_approved' => $license['isOsiApproved'] ?? false,
-                    'is_fsf_libre' => $license['isFsfLibre'] ?? false,
+                    'uri' => $license['reference'] ?? null,
+                    'scheme_uri' => 'https://spdx.org/licenses/',
                 ]
             );
         }

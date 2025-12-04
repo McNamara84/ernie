@@ -4,25 +4,64 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
+/**
+ * Affiliation Model (DataCite Creator/Contributor Affiliation)
+ *
+ * Stores affiliations for creators and contributors (polymorphic).
+ *
+ * @property int $id
+ * @property string $affiliatable_type
+ * @property int $affiliatable_id
+ * @property string $name
+ * @property string|null $affiliation_identifier
+ * @property string|null $affiliation_identifier_scheme
+ * @property string|null $scheme_uri
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @property-read ResourceCreator|ResourceContributor $affiliatable
+ *
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/creator/#affiliation
+ */
 class Affiliation extends Model
 {
     /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
     use HasFactory;
 
     protected $fillable = [
-        'resource_author_id',
-        'value',
-        'ror_id',
+        'affiliatable_type',
+        'affiliatable_id',
+        'name',
+        'affiliation_identifier',
+        'affiliation_identifier_scheme',
+        'scheme_uri',
     ];
 
-    /** @return BelongsTo<ResourceAuthor, static> */
-    public function resourceAuthor(): BelongsTo
+    /** @return MorphTo<Model, static> */
+    public function affiliatable(): MorphTo
     {
-        /** @var BelongsTo<ResourceAuthor, static> $relation */
-        $relation = $this->belongsTo(ResourceAuthor::class);
+        /** @var MorphTo<Model, static> $relation */
+        $relation = $this->morphTo();
 
         return $relation;
+    }
+
+    /**
+     * Check if this affiliation has a ROR identifier.
+     */
+    public function hasRor(): bool
+    {
+        return $this->affiliation_identifier_scheme === 'ROR'
+            && $this->affiliation_identifier !== null;
+    }
+
+    /**
+     * Get the ROR ID if present.
+     */
+    public function getRorIdAttribute(): ?string
+    {
+        return $this->hasRor() ? $this->affiliation_identifier : null;
     }
 }

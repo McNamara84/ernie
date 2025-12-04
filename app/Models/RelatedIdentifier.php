@@ -2,163 +2,47 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
+ * RelatedIdentifier Model (DataCite #12)
+ *
+ * Stores related identifiers for a Resource.
+ *
  * @property int $id
  * @property int $resource_id
- * @property string $identifier
- * @property string $identifier_type
- * @property string $relation_type
+ * @property string $related_identifier
+ * @property int $related_identifier_type_id
+ * @property int $relation_type_id
+ * @property string|null $resource_type_general
  * @property int $position
- * @property string|null $related_title
- * @property array<string, mixed>|null $related_metadata
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ *
+ * @property-read Resource $resource
+ * @property-read IdentifierType $relatedIdentifierType
+ * @property-read RelationType $relationType
+ *
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/relatedidentifier/
  */
 class RelatedIdentifier extends Model
 {
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'resource_related_identifiers';
+    /** @use HasFactory<\Illuminate\Database\Eloquent\Factories\Factory<static>> */
+    use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'resource_id',
-        'identifier',
-        'identifier_type',
-        'relation_type',
+        'related_identifier',
+        'related_identifier_type_id',
+        'relation_type_id',
+        'resource_type_general',
         'position',
-        'related_title',
-        'related_metadata',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
-        'related_metadata' => 'array',
         'position' => 'integer',
-    ];
-
-    /**
-     * Supported identifier types based on DataCite Schema and metaworks analysis.
-     *
-     * @var array<string>
-     */
-    public const IDENTIFIER_TYPES = [
-        'DOI',
-        'URL',
-        'Handle',
-        'IGSN',
-        'URN',
-        'ISBN',
-        'ISSN',
-        'PURL',
-        'ARK',
-        'arXiv',
-        'bibcode',
-        'EAN13',
-        'EISSN',
-        'ISTC',
-        'LISSN',
-        'LSID',
-        'PMID',
-        'PURL',
-        'UPC',
-        'w3id',
-    ];
-
-    /**
-     * DataCite 4.6 Relation Types grouped by category.
-     *
-     * @var array<string, array<string>>
-     */
-    public const RELATION_TYPES_GROUPED = [
-        'Citation' => [
-            'Cites',
-            'IsCitedBy',
-            'References',
-            'IsReferencedBy',
-        ],
-        'Documentation' => [
-            'Documents',
-            'IsDocumentedBy',
-            'Describes',
-            'IsDescribedBy',
-        ],
-        'Versions' => [
-            'IsNewVersionOf',
-            'IsPreviousVersionOf',
-            'HasVersion',
-            'IsVersionOf',
-            'Continues',
-            'IsContinuedBy',
-            'Obsoletes',
-            'IsObsoletedBy',
-            'IsVariantFormOf',
-            'IsOriginalFormOf',
-            'IsIdenticalTo',
-        ],
-        'Compilation' => [
-            'HasPart',
-            'IsPartOf',
-            'Compiles',
-            'IsCompiledBy',
-        ],
-        'Derivation' => [
-            'IsSourceOf',
-            'IsDerivedFrom',
-        ],
-        'Supplement' => [
-            'IsSupplementTo',
-            'IsSupplementedBy',
-        ],
-        'Software' => [
-            'Requires',
-            'IsRequiredBy',
-        ],
-        'Metadata' => [
-            'HasMetadata',
-            'IsMetadataFor',
-        ],
-        'Reviews' => [
-            'Reviews',
-            'IsReviewedBy',
-        ],
-        'Other' => [
-            'IsPublishedIn',
-            'Collects',
-            'IsCollectedBy',
-        ],
-    ];
-
-    /**
-     * Most commonly used relation types (Top 10 from metaworks analysis).
-     *
-     * @var array<string>
-     */
-    public const MOST_USED_RELATION_TYPES = [
-        'Cites',           // 56.1%
-        'References',      // 14.7%
-        'IsDerivedFrom',   // 12.6%
-        'IsDocumentedBy',  // 5.2%
-        'IsSupplementTo',  // 3.7%
-        'Compiles',        // 2.5%
-        'HasPart',         // 1.2%
-        'IsPartOf',        // 0.8%
-        'IsCitedBy',       // 0.6%
-        'IsVariantFormOf', // 0.6%
     ];
 
     /**
@@ -203,19 +87,31 @@ class RelatedIdentifier extends Model
         'IsCollectedBy' => 'Collects',
     ];
 
-    /**
-     * Get all relation types as flat array.
-     *
-     * @return array<string>
-     */
-    public static function getAllRelationTypes(): array
+    /** @return BelongsTo<Resource, static> */
+    public function resource(): BelongsTo
     {
-        $types = [];
-        foreach (self::RELATION_TYPES_GROUPED as $group) {
-            $types = array_merge($types, $group);
-        }
+        /** @var BelongsTo<Resource, static> $relation */
+        $relation = $this->belongsTo(Resource::class);
 
-        return array_unique($types);
+        return $relation;
+    }
+
+    /** @return BelongsTo<IdentifierType, static> */
+    public function relatedIdentifierType(): BelongsTo
+    {
+        /** @var BelongsTo<IdentifierType, static> $relation */
+        $relation = $this->belongsTo(IdentifierType::class, 'related_identifier_type_id');
+
+        return $relation;
+    }
+
+    /** @return BelongsTo<RelationType, static> */
+    public function relationType(): BelongsTo
+    {
+        /** @var BelongsTo<RelationType, static> $relation */
+        $relation = $this->belongsTo(RelationType::class);
+
+        return $relation;
     }
 
     /**
@@ -224,17 +120,5 @@ class RelatedIdentifier extends Model
     public static function getOppositeRelationType(string $relationType): ?string
     {
         return self::BIDIRECTIONAL_PAIRS[$relationType] ?? null;
-    }
-
-    /**
-     * Get the resource that owns this related identifier.
-     *
-     * @return BelongsTo<Resource, static>
-     *
-     * @phpstan-return BelongsTo<Resource, $this>
-     */
-    public function resource(): BelongsTo
-    {
-        return $this->belongsTo(Resource::class);
     }
 }
