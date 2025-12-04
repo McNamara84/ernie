@@ -9,9 +9,20 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * This migration depends on the date_types table existing.
+     * Ensure 2025_12_03_061804_create_date_types_table.php runs first.
      */
     public function up(): void
     {
+        // Verify date_types table exists (dependency check)
+        if (! Schema::hasTable('date_types')) {
+            throw new RuntimeException(
+                'The date_types table must exist before running this migration. '
+                . 'Please run the create_date_types_table migration first.'
+            );
+        }
+
         // Step 1: Add the new foreign key column (nullable initially for migration)
         Schema::table('resource_dates', function (Blueprint $table) {
             $table->foreignId('date_type_id')

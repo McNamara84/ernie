@@ -474,7 +474,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Also exclude 'created' and 'updated' as these are auto-managed by the backend
             $dates = $resource->dates
                 ->filter(function (ResourceDate $date): bool {
-                    $slug = $date->dateType->slug ?? '';
+                    // Use null-safe operator to handle missing dateType relationship
+                    // @phpstan-ignore nullsafe.neverNull (defensive coding for data integrity)
+                    $slug = $date->dateType?->slug ?? '';
 
                     return ! in_array($slug, ['coverage', 'created', 'updated'], true);
                 })
@@ -499,7 +501,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     }
 
                     return [
-                        'dateType' => $date->dateType->slug ?? '',
+                        // Use null-safe operator to handle missing dateType relationship
+                        // @phpstan-ignore nullsafe.neverNull (defensive coding for data integrity)
+                        'dateType' => $date->dateType?->slug ?? '',
                         'startDate' => $startDate,
                         'endDate' => $endDate,
                     ];

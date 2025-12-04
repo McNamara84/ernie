@@ -564,10 +564,12 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
-    const MAX_DATES = dateTypes.length;
     
     // Date types that are automatically managed by the system and not editable by users
     const AUTO_MANAGED_DATE_TYPES = ['created', 'updated'] as const;
+    
+    // MAX_DATES excludes auto-managed types since users can't select them
+    const MAX_DATES = dateTypes.filter(dt => !AUTO_MANAGED_DATE_TYPES.includes(dt.slug as typeof AUTO_MANAGED_DATE_TYPES[number])).length;
     
     // Transform dateTypes prop to the format used by the form
     // Note: 'Created' and 'Updated' are excluded as they are automatically managed
