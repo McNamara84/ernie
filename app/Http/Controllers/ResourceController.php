@@ -27,6 +27,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -295,10 +296,13 @@ class ResourceController extends Controller
                     $dateTypeId = $dateTypeLookup[strtolower($date['dateType'])] ?? null;
 
                     if ($dateTypeId === null) {
-                        // If unknown date type, skip or log warning
+                        // Throw validation exception for unknown date type to prevent silent data loss
+                        // This will rollback the transaction and return a proper validation error response
                         Log::warning('Unknown date type slug: '.$date['dateType']);
 
-                        continue;
+                        throw ValidationException::withMessages([
+                            'dates' => ["Unknown date type: {$date['dateType']}. Please select a valid date type."],
+                        ]);
                     }
 
                     $resource->dates()->create([
