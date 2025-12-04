@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,14 +12,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed essential data only (no test users or resources in development)
+        // Seed essential lookup tables (DataCite-compliant)
         $this->call([
-            RoleSeeder::class,
+            // Lookup tables
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
-            LicenseSeeder::class,
-            LanguageSeeder::class,
             DateTypeSeeder::class,
+            DescriptionTypeSeeder::class,
+            ContributorTypeSeeder::class,
+            IdentifierTypeSeeder::class,
+            RelationTypeSeeder::class,
+            FunderIdentifierTypeSeeder::class,
+            LanguageSeeder::class,
+            RightsSeeder::class,
+            PublisherSeeder::class,
         ]);
 
         // Only create test data in testing environment (for automated tests)
