@@ -11,8 +11,15 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 /**
+ * @property int $id
+ * @property string $name
+ * @property string $email
+ * @property string|null $password
+ * @property string|null $remember_token
  * @property UserRole $role
  * @property bool $is_active
+ * @property string|null $font_size_preference
+ * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property \Illuminate\Support\Carbon|null $deactivated_at
  * @property int|null $deactivated_by
  * @property \Illuminate\Support\Carbon $created_at

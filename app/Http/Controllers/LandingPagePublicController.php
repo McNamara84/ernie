@@ -62,18 +62,20 @@ class LandingPagePublicController extends Controller
 
         // Load resource with all necessary relationships
         $resource = Resource::with([
-            'authors.authorable',
-            'authors.affiliations',
-            'authors.roles',
+            'creators.creatorable',
+            'creators.affiliations',
+            'contributors.contributorable',
+            'contributors.contributorType',
+            'contributors.affiliations',
             'titles',
-            'descriptions',
-            'licenses',
-            'keywords',
-            'controlledKeywords',
-            'coverages',
-            'dates',
-            'relatedIdentifiers',
-            'fundingReferences',
+            'descriptions.descriptionType',
+            'rights',
+            'subjects',
+            'geoLocations',
+            'dates.dateType',
+            'relatedIdentifiers.relatedIdentifierType',
+            'relatedIdentifiers.relationType',
+            'fundingReferences.funderIdentifierType',
             'resourceType',
             'language',
         ])->findOrFail($resourceId);
@@ -85,12 +87,10 @@ class LandingPagePublicController extends Controller
         $resourceData['related_identifiers'] = $resource->relatedIdentifiers->map(function ($relatedId) {
             return [
                 'id' => $relatedId->id,
-                'identifier' => $relatedId->identifier,
-                'identifier_type' => $relatedId->identifier_type,
-                'relation_type' => $relatedId->relation_type,
+                'identifier' => $relatedId->related_identifier,
+                'identifier_type' => $relatedId->relatedIdentifierType->name,
+                'relation_type' => $relatedId->relationType->name,
                 'position' => $relatedId->position,
-                'related_title' => $relatedId->related_title,
-                'related_metadata' => $relatedId->related_metadata,
             ];
         })->toArray();
 
@@ -98,43 +98,72 @@ class LandingPagePublicController extends Controller
         $resourceData['descriptions'] = $resource->descriptions->map(function ($desc) {
             return [
                 'id' => $desc->id,
-                'description' => $desc->description,
-                'description_type' => $desc->description_type,
+                'value' => $desc->value,
+                'description_type' => $desc->descriptionType->name,
             ];
         })->toArray();
 
-        // Ensure authors are properly loaded with roles and affiliations
-        $resourceData['authors'] = $resource->authors->map(function ($author) {
-            $authorData = [
-                'id' => $author->id,
-                'position' => $author->position,
-                'email' => $author->email,
-                'website' => $author->website,
-                'roles' => $author->roles->pluck('name')->toArray(),
-                'affiliations' => $author->affiliations->map(function ($affiliation) {
+        // Ensure creators are properly loaded with affiliations
+        $resourceData['creators'] = $resource->creators->map(function ($creator) {
+            $creatorData = [
+                'id' => $creator->id,
+                'position' => $creator->position,
+                'affiliations' => $creator->affiliations->map(function ($affiliation) {
                     return [
                         'id' => $affiliation->id,
-                        'value' => $affiliation->value,
-                        'ror_id' => $affiliation->ror_id,
+                        'name' => $affiliation->name,
+                        'affiliation_identifier' => $affiliation->affiliation_identifier,
+                        'affiliation_identifier_scheme' => $affiliation->affiliation_identifier_scheme,
                     ];
                 })->toArray(),
             ];
 
-            // Add authorable data (Person or Institution)
-            if ($author->authorable) {
-                /** @var \App\Models\Person|\App\Models\Institution $authorable */
-                $authorable = $author->authorable;
-                $authorData['authorable'] = [
-                    'type' => class_basename($author->authorable_type),
-                    'id' => $authorable->id,
-                    'first_name' => $authorable->first_name ?? null,
-                    'last_name' => $authorable->last_name ?? null,
-                    'orcid' => $authorable->orcid ?? null,
-                    'name' => $authorable->name ?? null,
-                ];
-            }
+            // Add creatorable data (Person or Institution)
+            /** @var \App\Models\Person|\App\Models\Institution $creatorable */
+            $creatorable = $creator->creatorable;
+            $creatorData['creatorable'] = [
+                'type' => class_basename($creator->creatorable_type),
+                'id' => $creatorable->id,
+                'given_name' => $creatorable->given_name ?? null,
+                'family_name' => $creatorable->family_name ?? null,
+                'name_identifier' => $creatorable->name_identifier ?? null,
+                'name_identifier_scheme' => $creatorable->name_identifier_scheme ?? null,
+                'name' => $creatorable->name ?? null,
+            ];
 
-            return $authorData;
+            return $creatorData;
+        })->toArray();
+
+        // Ensure contributors are properly loaded with roles and affiliations
+        $resourceData['contributors'] = $resource->contributors->map(function ($contributor) {
+            $contributorData = [
+                'id' => $contributor->id,
+                'position' => $contributor->position,
+                'contributor_type' => $contributor->contributorType->name,
+                'affiliations' => $contributor->affiliations->map(function ($affiliation) {
+                    return [
+                        'id' => $affiliation->id,
+                        'name' => $affiliation->name,
+                        'affiliation_identifier' => $affiliation->affiliation_identifier,
+                        'affiliation_identifier_scheme' => $affiliation->affiliation_identifier_scheme,
+                    ];
+                })->toArray(),
+            ];
+
+            // Add contributorable data (Person or Institution)
+            /** @var \App\Models\Person|\App\Models\Institution $contributorable */
+            $contributorable = $contributor->contributorable;
+            $contributorData['contributorable'] = [
+                'type' => class_basename($contributor->contributorable_type),
+                'id' => $contributorable->id,
+                'given_name' => $contributorable->given_name ?? null,
+                'family_name' => $contributorable->family_name ?? null,
+                'name_identifier' => $contributorable->name_identifier ?? null,
+                'name_identifier_scheme' => $contributorable->name_identifier_scheme ?? null,
+                'name' => $contributorable->name ?? null,
+            ];
+
+            return $contributorData;
         })->toArray();
 
         // Ensure funding references are properly loaded
@@ -143,7 +172,7 @@ class LandingPagePublicController extends Controller
                 'id' => $funding->id,
                 'funder_name' => $funding->funder_name,
                 'funder_identifier' => $funding->funder_identifier,
-                'funder_identifier_type' => $funding->funder_identifier_type,
+                'funder_identifier_type' => $funding->funderIdentifierType?->name,
                 'award_number' => $funding->award_number,
                 'award_uri' => $funding->award_uri,
                 'award_title' => $funding->award_title,
@@ -151,22 +180,15 @@ class LandingPagePublicController extends Controller
             ];
         })->toArray();
 
-        // Ensure keywords are properly loaded
-        $resourceData['keywords'] = $resource->keywords->map(function ($keyword) {
+        // Ensure subjects are properly loaded
+        $resourceData['subjects'] = $resource->subjects->map(function ($subject) {
             return [
-                'id' => $keyword->id,
-                'keyword' => $keyword->keyword,
-            ];
-        })->toArray();
-
-        // Ensure controlled keywords are properly loaded
-        $resourceData['controlled_keywords'] = $resource->controlledKeywords->map(function ($keyword) {
-            return [
-                'id' => $keyword->id,
-                'text' => $keyword->text,
-                'path' => $keyword->path,
-                'scheme' => $keyword->scheme,
-                'scheme_uri' => $keyword->scheme_uri,
+                'id' => $subject->id,
+                'subject' => $subject->subject,
+                'subject_scheme' => $subject->subject_scheme,
+                'scheme_uri' => $subject->scheme_uri,
+                'value_uri' => $subject->value_uri,
+                'classification_code' => $subject->classification_code,
             ];
         })->toArray();
 

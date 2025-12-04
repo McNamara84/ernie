@@ -4,15 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Requests\StoreResourceRequest;
+use App\Models\ContributorType;
 use App\Models\DateType;
+use App\Models\DescriptionType;
 use App\Models\Institution;
 use App\Models\Language;
-use App\Models\License;
 use App\Models\Person;
+use App\Models\IdentifierType;
+use App\Models\RelationType;
 use App\Models\Resource;
-use App\Models\ResourceAuthor;
-use App\Models\ResourceTitle;
-use App\Models\Role;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
+use App\Models\Right;
+use App\Models\Title;
 use App\Models\TitleType;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
@@ -159,7 +163,7 @@ class ResourceController extends Controller
 
                 foreach ($validated['titles'] as $title) {
                     $resourceTitles[] = [
-                        'title' => $title['title'],
+                        'value' => $title['title'],
                         'title_type_id' => $titleTypeMap[$title['titleType']],
                     ];
                 }
@@ -170,15 +174,23 @@ class ResourceController extends Controller
 
                 $resource->titles()->createMany($resourceTitles);
 
-                /** @var array<int, int> $licenseIds */
-                $licenseIds = License::query()
-                    ->whereIn('identifier', $validated['licenses'])
-                    ->pluck('id')
-                    ->all();
+                // Delete existing rights and create new ones based on the validated licenses
+                $resource->rights()->delete();
+                $licenseIdentifiers = $validated['licenses'] ?? [];
+                foreach ($licenseIdentifiers as $licenseIdentifier) {
+                    $rightData = Right::query()
+                        ->where('identifier', $licenseIdentifier)
+                        ->first();
+                    if ($rightData) {
+                        $resource->rights()->create([
+                            'identifier' => $rightData->identifier,
+                            'name' => $rightData->name,
+                            'uri' => $rightData->uri,
+                        ]);
+                    }
+                }
 
-                $resource->licenses()->sync($licenseIds);
-
-                $resource->authors()->delete();
+                $resource->creators()->delete();
 
                 $authors = $validated['authors'] ?? [];
 
@@ -188,37 +200,47 @@ class ResourceController extends Controller
                         : 0;
 
                     if (($author['type'] ?? 'person') === 'institution') {
-                        $resourceAuthor = $this->storeInstitutionAuthor($resource, $author, $position);
+                        $resourceCreator = $this->storeInstitutionCreator($resource, $author, $position);
                     } else {
-                        $resourceAuthor = $this->storePersonAuthor($resource, $author, $position);
+                        $resourceCreator = $this->storePersonCreator($resource, $author, $position);
                     }
 
-                    $this->syncAuthorRoles($resourceAuthor, $author);
-                    $this->syncAuthorAffiliations($resourceAuthor, $author);
+                    $this->syncCreatorAffiliations($resourceCreator, $author);
                 }
 
                 // Delete old MSL labs if updating (before adding new ones)
                 if ($isUpdate) {
-                    // Get all existing MSL labs (institutions with identifier_type = 'labid')
+                    // Get all existing MSL labs (institutions with name_identifier_scheme = 'labid')
                     // Use whereIn with subquery to avoid morph type issues
-                    $mslLabIds = Institution::where('identifier_type', 'labid')
+                    $mslLabIds = Institution::where('name_identifier_scheme', 'labid')
                         ->pluck('id');
 
-                    $mslLabs = ResourceAuthor::query()
+                    $mslLabs = ResourceContributor::query()
                         ->where('resource_id', $resource->id)
-                        ->where('authorable_type', Institution::class)
-                        ->whereIn('authorable_id', $mslLabIds)
+                        ->where('contributorable_type', Institution::class)
+                        ->whereIn('contributorable_id', $mslLabIds)
                         ->get();
 
                     // Properly cleanup relationships before deleting
                     foreach ($mslLabs as $mslLab) {
-                        $mslLab->roles()->detach();      // Remove pivot table entries
                         $mslLab->affiliations()->delete(); // Delete child affiliation records
-                        $mslLab->delete();               // Finally delete the ResourceAuthor
+                        $mslLab->delete();               // Finally delete the ResourceContributor
                     }
                 }
 
                 $contributors = $validated['contributors'] ?? [];
+
+                // Delete old contributors if updating
+                if ($isUpdate) {
+                    $existingContributors = ResourceContributor::query()
+                        ->where('resource_id', $resource->id)
+                        ->get();
+
+                    foreach ($existingContributors as $contrib) {
+                        $contrib->affiliations()->delete();
+                        $contrib->delete();
+                    }
+                }
 
                 foreach ($contributors as $contributor) {
                     $position = isset($contributor['position']) && is_int($contributor['position'])
@@ -231,19 +253,18 @@ class ResourceController extends Controller
                         $resourceContributor = $this->storePersonContributor($resource, $contributor, $position);
                     }
 
-                    $this->syncContributorRoles($resourceContributor, $contributor);
+                    $this->syncContributorType($resourceContributor, $contributor);
                     $this->syncContributorAffiliations($resourceContributor, $contributor);
                 }
 
-                // Save MSL Laboratories
+                // Save MSL Laboratories as contributors with HostingInstitution type
                 $mslLaboratories = $validated['mslLaboratories'] ?? [];
 
                 foreach ($mslLaboratories as $lab) {
                     $position = (int) ($lab['position'] ?? 0);
 
-                    $resourceAuthor = $this->storeMslLaboratory($resource, $lab, $position);
-                    $this->syncMslLaboratoryRole($resourceAuthor);
-                    $this->syncMslLaboratoryAffiliation($resourceAuthor, $lab);
+                    $resourceContributor = $this->storeMslLaboratory($resource, $lab, $position);
+                    $this->syncMslLaboratoryAffiliation($resourceContributor, $lab);
                 }
 
                 // Save descriptions
@@ -251,13 +272,20 @@ class ResourceController extends Controller
                     $resource->descriptions()->delete();
                 }
 
+                // Pre-fetch description type IDs
+                /** @var array<string, int> $descriptionTypeLookup */
+                $descriptionTypeLookup = DescriptionType::pluck('id', 'slug')->all();
+
                 $descriptions = $validated['descriptions'] ?? [];
 
                 foreach ($descriptions as $description) {
-                    $resource->descriptions()->create([
-                        'description_type' => $description['descriptionType'],
-                        'description' => $description['description'],
-                    ]);
+                    $descTypeId = $descriptionTypeLookup[$description['descriptionType']] ?? null;
+                    if ($descTypeId) {
+                        $resource->descriptions()->create([
+                            'description_type_id' => $descTypeId,
+                            'description' => $description['description'],
+                        ]);
+                    }
                 }
 
                 // Save dates
@@ -307,8 +335,7 @@ class ResourceController extends Controller
 
                     $resource->dates()->create([
                         'date_type_id' => $dateTypeId,
-                        'start_date' => $date['startDate'] ?? null,
-                        'end_date' => $date['endDate'] ?? null,
+                        'date' => $this->formatDateValue($date),
                         'date_information' => $date['dateInformation'] ?? null,
                     ]);
                 }
@@ -318,8 +345,7 @@ class ResourceController extends Controller
                     // Create a 'created' date with current timestamp for new resources
                     $resource->dates()->create([
                         'date_type_id' => $createdDateTypeId,
-                        'start_date' => now()->format('Y-m-d H:i:s'),
-                        'end_date' => null,
+                        'date' => now()->format('Y-m-d'),
                         'date_information' => null,
                     ]);
                 }
@@ -331,15 +357,14 @@ class ResourceController extends Controller
                     // (any existing 'updated' entry was already deleted above)
                     $resource->dates()->create([
                         'date_type_id' => $updatedDateTypeId,
-                        'start_date' => now()->format('Y-m-d H:i:s'),
-                        'end_date' => null,
+                        'date' => now()->format('Y-m-d'),
                         'date_information' => null,
                     ]);
                 }
 
-                // Save free keywords
+                // Save subjects (free keywords and controlled keywords combined)
                 if ($isUpdate) {
-                    $resource->keywords()->delete();
+                    $resource->subjects()->delete();
                 }
 
                 $freeKeywords = $validated['freeKeywords'] ?? [];
@@ -347,15 +372,14 @@ class ResourceController extends Controller
                 foreach ($freeKeywords as $keyword) {
                     // Only save non-empty keywords
                     if (! empty(trim($keyword))) {
-                        $resource->keywords()->create([
-                            'keyword' => trim($keyword),
+                        $resource->subjects()->create([
+                            'subject' => trim($keyword),
+                            'subject_scheme' => null,
+                            'scheme_uri' => null,
+                            'value_uri' => null,
+                            'classification_code' => null,
                         ]);
                     }
-                }
-
-                // Save controlled keywords (GCMD vocabularies)
-                if ($isUpdate) {
-                    $resource->controlledKeywords()->delete();
                 }
 
                 $controlledKeywords = $validated['gcmdKeywords'] ?? [];
@@ -366,24 +390,27 @@ class ResourceController extends Controller
                     // Validate required fields (scheme is now the discriminator instead of vocabularyType)
                     if (! empty($keyword['id']) && ! empty($keyword['text']) && ! empty($keyword['scheme'])) {
                         $controlledKeywordsData[] = [
-                            'keyword_id' => $keyword['id'],
-                            'text' => $keyword['text'],
-                            'path' => $keyword['path'] ?? $keyword['text'],
-                            'language' => $keyword['language'] ?? 'en',
-                            'scheme' => $keyword['scheme'],
-                            'scheme_uri' => $keyword['schemeURI'] ?? '',
+                            'subject' => $keyword['text'],
+                            'subject_scheme' => $keyword['scheme'],
+                            'scheme_uri' => $keyword['schemeURI'] ?? null,
+                            'value_uri' => $keyword['id'],
+                            'classification_code' => null,
                         ];
                     }
                 }
 
                 // Bulk create controlled keywords using Eloquent (handles timestamps automatically)
                 if (! empty($controlledKeywordsData)) {
-                    $resource->controlledKeywords()->createMany($controlledKeywordsData);
+                    $resource->subjects()->createMany($controlledKeywordsData);
                 }
 
-                // Save spatial and temporal coverages
+                // Save geo locations (spatial and temporal coverages)
                 if ($isUpdate) {
-                    $resource->coverages()->delete();
+                    // Delete polygons first (child records)
+                    foreach ($resource->geoLocations as $geoLocation) {
+                        $geoLocation->polygons()->delete();
+                    }
+                    $resource->geoLocations()->delete();
                 }
 
                 $coverages = $validated['spatialTemporalCoverages'] ?? [];
@@ -394,40 +421,41 @@ class ResourceController extends Controller
                     // Only save coverage if it has at least one meaningful field
                     $hasData = ! empty($coverage['latMin']) || ! empty($coverage['lonMin']) ||
                                ! empty($coverage['polygonPoints']) ||
-                               ! empty($coverage['startDate']) || ! empty($coverage['description']);
+                               ! empty($coverage['description']);
 
                     if ($hasData) {
-                        // For polygon type, clear lat/lon coordinates and use polygon_points
-                        if ($type === 'polygon') {
-                            $resource->coverages()->create([
-                                'type' => $type,
-                                'polygon_points' => $coverage['polygonPoints'] ?? null,
-                                'lat_min' => null,
-                                'lat_max' => null,
-                                'lon_min' => null,
-                                'lon_max' => null,
-                                'start_date' => $coverage['startDate'] ?? null,
-                                'end_date' => $coverage['endDate'] ?? null,
-                                'start_time' => $coverage['startTime'] ?? null,
-                                'end_time' => $coverage['endTime'] ?? null,
-                                'timezone' => $coverage['timezone'] ?? 'UTC',
-                                'description' => $coverage['description'] ?? null,
-                            ]);
+                        $geoLocationData = [
+                            'geo_location_place' => $coverage['description'] ?? null,
+                        ];
+
+                        // For polygon type, store polygon points separately
+                        if ($type === 'polygon' && ! empty($coverage['polygonPoints'])) {
+                            $geoLocation = $resource->geoLocations()->create($geoLocationData);
+
+                            // Parse and store polygon points
+                            $points = json_decode($coverage['polygonPoints'], true);
+                            if (is_array($points)) {
+                                foreach ($points as $index => $point) {
+                                    $geoLocation->polygons()->create([
+                                        'point_longitude' => $point['longitude'] ?? $point['lon'] ?? 0,
+                                        'point_latitude' => $point['latitude'] ?? $point['lat'] ?? 0,
+                                        'position' => $index,
+                                        'is_in_polygon_point' => false,
+                                    ]);
+                                }
+                            }
+                        } elseif ($type === 'point') {
+                            // Point type
+                            $geoLocationData['geo_location_point_longitude'] = $coverage['lonMin'] ?? null;
+                            $geoLocationData['geo_location_point_latitude'] = $coverage['latMin'] ?? null;
+                            $resource->geoLocations()->create($geoLocationData);
                         } else {
-                            $resource->coverages()->create([
-                                'type' => $type,
-                                'lat_min' => $coverage['latMin'] ?? null,
-                                'lat_max' => $coverage['latMax'] ?? null,
-                                'lon_min' => $coverage['lonMin'] ?? null,
-                                'lon_max' => $coverage['lonMax'] ?? null,
-                                'polygon_points' => null,
-                                'start_date' => $coverage['startDate'] ?? null,
-                                'end_date' => $coverage['endDate'] ?? null,
-                                'start_time' => $coverage['startTime'] ?? null,
-                                'end_time' => $coverage['endTime'] ?? null,
-                                'timezone' => $coverage['timezone'] ?? 'UTC',
-                                'description' => $coverage['description'] ?? null,
-                            ]);
+                            // Box type
+                            $geoLocationData['geo_location_box_west_bound_longitude'] = $coverage['lonMin'] ?? null;
+                            $geoLocationData['geo_location_box_east_bound_longitude'] = $coverage['lonMax'] ?? null;
+                            $geoLocationData['geo_location_box_south_bound_latitude'] = $coverage['latMin'] ?? null;
+                            $geoLocationData['geo_location_box_north_bound_latitude'] = $coverage['latMax'] ?? null;
+                            $resource->geoLocations()->create($geoLocationData);
                         }
                     }
                 }
@@ -437,15 +465,21 @@ class ResourceController extends Controller
                     $resource->relatedIdentifiers()->delete();
                 }
 
+                // Pre-fetch related identifier type and relation type IDs
+                /** @var array<string, int> $relatedIdTypeLookup */
+                $relatedIdTypeLookup = IdentifierType::pluck('id', 'slug')->all();
+                /** @var array<string, int> $relationTypeLookup */
+                $relationTypeLookup = RelationType::pluck('id', 'slug')->all();
+
                 $relatedIdentifiers = $validated['relatedIdentifiers'] ?? [];
 
                 foreach ($relatedIdentifiers as $index => $relatedIdentifier) {
                     // Only save if identifier is not empty
                     if (! empty(trim($relatedIdentifier['identifier']))) {
                         $resource->relatedIdentifiers()->create([
-                            'identifier' => trim($relatedIdentifier['identifier']),
-                            'identifier_type' => $relatedIdentifier['identifierType'],
-                            'relation_type' => $relatedIdentifier['relationType'],
+                            'related_identifier' => trim($relatedIdentifier['identifier']),
+                            'related_identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
+                            'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                             'position' => $index,
                         ]);
                     }
@@ -464,16 +498,16 @@ class ResourceController extends Controller
                         $resource->fundingReferences()->create([
                             'funder_name' => trim($fundingReference['funderName']),
                             'funder_identifier' => ! empty($fundingReference['funderIdentifier']) ? trim($fundingReference['funderIdentifier']) : null,
-                            'funder_identifier_type' => ! empty($fundingReference['funderIdentifierType']) ? trim($fundingReference['funderIdentifierType']) : null,
+                            'funder_identifier_type_id' => ! empty($fundingReference['funderIdentifierType']) ? $this->getFunderIdentifierTypeId($fundingReference['funderIdentifierType']) : null,
+                            'scheme_uri' => null,
                             'award_number' => ! empty($fundingReference['awardNumber']) ? trim($fundingReference['awardNumber']) : null,
                             'award_uri' => ! empty($fundingReference['awardUri']) ? trim($fundingReference['awardUri']) : null,
                             'award_title' => ! empty($fundingReference['awardTitle']) ? trim($fundingReference['awardTitle']) : null,
-                            'position' => $index,
                         ]);
                     }
                 }
 
-                return [$resource->load(['titles', 'licenses', 'authors', 'descriptions', 'dates', 'keywords', 'controlledKeywords', 'coverages', 'relatedIdentifiers', 'fundingReferences']), $isUpdate];
+                return [$resource->load(['titles', 'rights', 'creators', 'contributors', 'descriptions', 'dates', 'subjects', 'geoLocations', 'relatedIdentifiers', 'fundingReferences']), $isUpdate];
             });
         } catch (Throwable $exception) {
             report($exception);
@@ -605,18 +639,18 @@ class ResourceController extends Controller
     /**
      * @param  array<string, mixed>  $data
      */
-    private function storePersonAuthor(Resource $resource, array $data, int $position): ResourceAuthor
+    private function storePersonCreator(Resource $resource, array $data, int $position): ResourceCreator
     {
         $search = null;
 
         if (! empty($data['orcid'])) {
-            $search = ['orcid' => $data['orcid']];
+            $search = ['name_identifier' => $data['orcid']];
         }
 
         if ($search === null) {
             $search = [
-                'first_name' => $data['firstName'] ?? null,
-                'last_name' => $data['lastName'],
+                'given_name' => $data['firstName'] ?? null,
+                'family_name' => $data['lastName'],
             ];
         }
 
@@ -625,31 +659,30 @@ class ResourceController extends Controller
         // Only update names if this is a new person (not yet saved to database)
         if (! $person->exists) {
             $person->fill([
-                'first_name' => $data['firstName'] ?? $person->first_name,
-                'last_name' => $data['lastName'] ?? $person->last_name,
+                'given_name' => $data['firstName'] ?? $person->given_name,
+                'family_name' => $data['lastName'] ?? $person->family_name,
             ]);
 
             if (! empty($data['orcid'])) {
-                $person->orcid = $data['orcid'];
+                $person->name_identifier = $data['orcid'];
+                $person->name_identifier_scheme = 'ORCID';
             }
         }
 
         $person->save();
 
-        return ResourceAuthor::query()->create([
+        return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => $position,
-            'email' => $data['email'] ?? null,
-            'website' => $data['website'] ?? null,
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function storeInstitutionAuthor(Resource $resource, array $data, int $position): ResourceAuthor
+    private function storeInstitutionCreator(Resource $resource, array $data, int $position): ResourceCreator
     {
         $name = $data['institutionName'];
         $rorId = $data['rorId'] ?? null;
@@ -657,12 +690,12 @@ class ResourceController extends Controller
         $institution = null;
 
         if ($rorId !== null) {
-            $institution = Institution::query()->where('ror_id', $rorId)->first();
+            $institution = Institution::query()->where('name_identifier', $rorId)->first();
 
             if ($institution === null) {
                 $institution = Institution::query()
                     ->where('name', $name)
-                    ->whereNull('ror_id')
+                    ->whereNull('name_identifier')
                     ->first();
             }
         }
@@ -670,7 +703,7 @@ class ResourceController extends Controller
         if ($institution === null) {
             $institution = Institution::query()
                 ->where('name', $name)
-                ->whereNull('ror_id')
+                ->whereNull('name_identifier')
                 ->first();
         }
 
@@ -680,51 +713,25 @@ class ResourceController extends Controller
 
         $institution->name = $name;
 
-        if ($rorId !== null && $institution->ror_id !== $rorId) {
-            $institution->ror_id = $rorId;
+        if ($rorId !== null && $institution->name_identifier !== $rorId) {
+            $institution->name_identifier = $rorId;
+            $institution->name_identifier_scheme = 'ROR';
         }
 
         $institution->save();
 
-        return ResourceAuthor::query()->create([
+        return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
-            'authorable_id' => $institution->id,
-            'authorable_type' => Institution::class,
+            'creatorable_id' => $institution->id,
+            'creatorable_type' => Institution::class,
             'position' => $position,
-            'email' => null,
-            'website' => null,
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function syncAuthorRoles(ResourceAuthor $resourceAuthor, array $data): void
-    {
-        $roles = ['Author'];
-
-        if (($data['type'] ?? 'person') === 'person' && BooleanNormalizer::isTrue($data['isContact'] ?? false)) {
-            $roles[] = 'Contact Person';
-        }
-
-        $roleIds = [];
-
-        foreach ($roles as $roleName) {
-            $role = Role::query()->firstOrCreate(
-                ['slug' => Str::slug($roleName)],
-                ['name' => $roleName],
-            );
-
-            $roleIds[] = $role->id;
-        }
-
-        $resourceAuthor->roles()->sync($roleIds);
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    private function syncAuthorAffiliations(ResourceAuthor $resourceAuthor, array $data): void
+    private function syncCreatorAffiliations(ResourceCreator $resourceCreator, array $data): void
     {
         $affiliations = $data['affiliations'] ?? [];
 
@@ -757,8 +764,9 @@ class ResourceController extends Controller
             }
 
             $payload[] = [
-                'value' => $value,
-                'ror_id' => $rorId,
+                'name' => $value,
+                'affiliation_identifier' => $rorId,
+                'affiliation_identifier_scheme' => $rorId ? 'ROR' : null,
             ];
         }
 
@@ -766,24 +774,24 @@ class ResourceController extends Controller
             return;
         }
 
-        $resourceAuthor->affiliations()->createMany($payload);
+        $resourceCreator->affiliations()->createMany($payload);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function storePersonContributor(Resource $resource, array $data, int $position): ResourceAuthor
+    private function storePersonContributor(Resource $resource, array $data, int $position): ResourceContributor
     {
         $search = null;
 
         if (! empty($data['orcid'])) {
-            $search = ['orcid' => $data['orcid']];
+            $search = ['name_identifier' => $data['orcid']];
         }
 
         if ($search === null) {
             $search = [
-                'first_name' => $data['firstName'] ?? null,
-                'last_name' => $data['lastName'],
+                'given_name' => $data['firstName'] ?? null,
+                'family_name' => $data['lastName'],
             ];
         }
 
@@ -792,31 +800,34 @@ class ResourceController extends Controller
         // Only update names if this is a new person (not yet saved to database)
         if (! $person->exists) {
             $person->fill([
-                'first_name' => $data['firstName'] ?? $person->first_name,
-                'last_name' => $data['lastName'] ?? $person->last_name,
+                'given_name' => $data['firstName'] ?? $person->given_name,
+                'family_name' => $data['lastName'] ?? $person->family_name,
             ]);
 
             if (! empty($data['orcid'])) {
-                $person->orcid = $data['orcid'];
+                $person->name_identifier = $data['orcid'];
+                $person->name_identifier_scheme = 'ORCID';
             }
         }
 
         $person->save();
 
-        return ResourceAuthor::query()->create([
+        // Get default contributor type
+        $contributorType = ContributorType::where('slug', 'other')->first();
+
+        return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'contributorable_id' => $person->id,
+            'contributorable_type' => Person::class,
+            'contributor_type_id' => $contributorType?->id,
             'position' => $position,
-            'email' => null,
-            'website' => null,
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceAuthor
+    private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceContributor
     {
         $name = $data['institutionName'];
         $identifier = $data['identifier'] ?? null;
@@ -827,8 +838,8 @@ class ResourceController extends Controller
         // Try to find by identifier and identifier_type first (if provided)
         if ($identifier !== null && $identifierType !== null) {
             $institution = Institution::query()
-                ->where('identifier', $identifier)
-                ->where('identifier_type', $identifierType)
+                ->where('name_identifier', $identifier)
+                ->where('name_identifier_scheme', $identifierType)
                 ->first();
         }
 
@@ -836,8 +847,8 @@ class ResourceController extends Controller
         if ($institution === null) {
             $institution = Institution::query()
                 ->where('name', $name)
-                ->whereNull('identifier')
-                ->whereNull('identifier_type')
+                ->whereNull('name_identifier')
+                ->whereNull('name_identifier_scheme')
                 ->first();
         }
 
@@ -847,8 +858,8 @@ class ResourceController extends Controller
             $institution->name = $name;
 
             if ($identifier !== null && $identifierType !== null) {
-                $institution->identifier = $identifier;
-                $institution->identifier_type = $identifierType;
+                $institution->name_identifier = $identifier;
+                $institution->name_identifier_scheme = $identifierType;
             }
 
             $institution->save();
@@ -862,9 +873,9 @@ class ResourceController extends Controller
             }
 
             if ($identifier !== null && $identifierType !== null) {
-                if ($institution->identifier !== $identifier || $institution->identifier_type !== $identifierType) {
-                    $institution->identifier = $identifier;
-                    $institution->identifier_type = $identifierType;
+                if ($institution->name_identifier !== $identifier || $institution->name_identifier_scheme !== $identifierType) {
+                    $institution->name_identifier = $identifier;
+                    $institution->name_identifier_scheme = $identifierType;
                     $needsUpdate = true;
                 }
             }
@@ -874,20 +885,22 @@ class ResourceController extends Controller
             }
         }
 
-        return ResourceAuthor::query()->create([
+        // Get default contributor type
+        $contributorType = ContributorType::where('slug', 'other')->first();
+
+        return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
-            'authorable_id' => $institution->id,
-            'authorable_type' => Institution::class,
+            'contributorable_id' => $institution->id,
+            'contributorable_type' => Institution::class,
+            'contributor_type_id' => $contributorType?->id,
             'position' => $position,
-            'email' => null,
-            'website' => null,
         ]);
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function syncContributorRoles(ResourceAuthor $resourceContributor, array $data): void
+    private function syncContributorType(ResourceContributor $resourceContributor, array $data): void
     {
         $roles = $data['roles'] ?? [];
 
@@ -895,28 +908,26 @@ class ResourceController extends Controller
             return;
         }
 
-        $roleIds = [];
-
-        foreach ($roles as $roleName) {
-            if (! is_string($roleName) || trim($roleName) === '') {
-                continue;
-            }
-
-            $role = Role::query()->firstOrCreate(
-                ['slug' => Str::slug($roleName)],
-                ['name' => $roleName],
-            );
-
-            $roleIds[] = $role->id;
+        // Get the first role and find the matching contributor type
+        $firstRole = reset($roles);
+        if (! is_string($firstRole) || trim($firstRole) === '') {
+            return;
         }
 
-        $resourceContributor->roles()->sync($roleIds);
+        $contributorType = ContributorType::where('name', $firstRole)
+            ->orWhere('slug', Str::slug($firstRole))
+            ->first();
+
+        if ($contributorType) {
+            $resourceContributor->contributor_type_id = $contributorType->id;
+            $resourceContributor->save();
+        }
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function syncContributorAffiliations(ResourceAuthor $resourceContributor, array $data): void
+    private function syncContributorAffiliations(ResourceContributor $resourceContributor, array $data): void
     {
         $affiliations = $data['affiliations'] ?? [];
 
@@ -949,8 +960,9 @@ class ResourceController extends Controller
             }
 
             $payload[] = [
-                'value' => $value,
-                'ror_id' => $rorId,
+                'name' => $value,
+                'affiliation_identifier' => $rorId,
+                'affiliation_identifier_scheme' => $rorId !== null ? 'ROR' : null,
             ];
         }
 
@@ -966,23 +978,23 @@ class ResourceController extends Controller
      *
      * @param  array<string, mixed>  $data
      */
-    private function storeMslLaboratory(Resource $resource, array $data, int $position): ResourceAuthor
+    private function storeMslLaboratory(Resource $resource, array $data, int $position): ResourceContributor
     {
         $identifier = $data['identifier'];
         $name = $data['name'];
 
         // Try to find existing laboratory by identifier
         $institution = Institution::query()
-            ->where('identifier', $identifier)
-            ->where('identifier_type', 'labid')
+            ->where('name_identifier', $identifier)
+            ->where('name_identifier_scheme', 'labid')
             ->first();
 
         // Create or update institution
         if ($institution === null) {
             $institution = Institution::query()->create([
                 'name' => $name,
-                'identifier' => $identifier,
-                'identifier_type' => 'labid',
+                'name_identifier' => $identifier,
+                'name_identifier_scheme' => 'labid',
             ]);
         } else {
             // Update name if changed
@@ -992,29 +1004,17 @@ class ResourceController extends Controller
             }
         }
 
-        // Create ResourceAuthor link
-        return ResourceAuthor::query()->create([
+        // Get HostingInstitution contributor type
+        $contributorType = ContributorType::where('slug', 'hosting-institution')->first();
+
+        // Create ResourceContributor link
+        return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
-            'authorable_id' => $institution->id,
-            'authorable_type' => Institution::class,
+            'contributorable_id' => $institution->id,
+            'contributorable_type' => Institution::class,
+            'contributor_type_id' => $contributorType?->id,
             'position' => $position,
-            'email' => null,
-            'website' => null,
         ]);
-    }
-
-    /**
-     * Sync the "Hosting Institution" role for an MSL Laboratory.
-     */
-    private function syncMslLaboratoryRole(ResourceAuthor $resourceAuthor): void
-    {
-        // Get or create the "Hosting Institution" role
-        $role = Role::query()->firstOrCreate(
-            ['slug' => 'hosting-institution'],
-            ['name' => 'Hosting Institution', 'applies_to' => 'institution'],
-        );
-
-        $resourceAuthor->roles()->sync([$role->id]);
     }
 
     /**
@@ -1022,7 +1022,7 @@ class ResourceController extends Controller
      *
      * @param  array<string, mixed>  $data
      */
-    private function syncMslLaboratoryAffiliation(ResourceAuthor $resourceAuthor, array $data): void
+    private function syncMslLaboratoryAffiliation(ResourceContributor $resourceContributor, array $data): void
     {
         $affiliationName = $data['affiliation_name'] ?? '';
         $affiliationRor = $data['affiliation_ror'] ?? null;
@@ -1033,9 +1033,10 @@ class ResourceController extends Controller
         }
 
         // Create affiliation for the host institution
-        $resourceAuthor->affiliations()->create([
-            'value' => trim($affiliationName),
-            'ror_id' => $affiliationRor !== '' ? $affiliationRor : null,
+        $resourceContributor->affiliations()->create([
+            'name' => trim($affiliationName),
+            'affiliation_identifier' => ($affiliationRor !== '' && $affiliationRor !== null) ? $affiliationRor : null,
+            'affiliation_identifier_scheme' => ($affiliationRor !== '' && $affiliationRor !== null) ? 'ROR' : null,
         ]);
     }
 
@@ -1075,16 +1076,15 @@ class ResourceController extends Controller
                 'updatedBy:id,name',
                 'landingPage:id,resource_id,status,published_at',
                 'titles' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'title', 'title_type_id'])
+                    $query->select(['id', 'resource_id', 'value', 'title_type_id'])
                         ->with(['titleType:id,name,slug'])
                         ->orderBy('id');
                 },
-                'licenses:id,identifier,name',
-                'authors' => function ($query): void {
+                'rights:id,identifier,name',
+                'creators' => function ($query): void {
                     $query
                         ->with([
-                            'authorable',
-                            'roles:id,name,slug,applies_to',
+                            'creatorable',
                         ])
                         ->orderBy('position');
                 },
@@ -1295,11 +1295,11 @@ class ResourceController extends Controller
         switch ($sortKey) {
             case 'title':
                 // Sort by first title
-                $query->leftJoin('resource_titles', function ($join) {
-                    $join->on('resources.id', '=', 'resource_titles.resource_id')
-                        ->whereRaw('resource_titles.id = (SELECT MIN(id) FROM resource_titles WHERE resource_id = resources.id)');
+                $query->leftJoin('titles', function ($join) {
+                    $join->on('resources.id', '=', 'titles.resource_id')
+                        ->whereRaw('titles.id = (SELECT MIN(id) FROM titles WHERE resource_id = resources.id)');
                 })
-                    ->orderBy('resource_titles.title', $sortDirection)
+                    ->orderBy('titles.value', $sortDirection)
                     ->select('resources.*');
                 break;
 
@@ -1310,20 +1310,20 @@ class ResourceController extends Controller
                 break;
 
             case 'first_author':
-                // Sort by first author's last name
-                $query->leftJoin('resource_authors', function ($join) {
-                    $join->on('resources.id', '=', 'resource_authors.resource_id')
-                        ->whereRaw('resource_authors.position = (SELECT MIN(position) FROM resource_authors WHERE resource_id = resources.id)');
+                // Sort by first creator's family name
+                $query->leftJoin('resource_creators', function ($join) {
+                    $join->on('resources.id', '=', 'resource_creators.resource_id')
+                        ->whereRaw('resource_creators.position = (SELECT MIN(position) FROM resource_creators WHERE resource_id = resources.id)');
                 })
                     ->leftJoin('persons', function ($join) {
-                        $join->on('resource_authors.authorable_id', '=', 'persons.id')
-                            ->where('resource_authors.authorable_type', '=', Person::class);
+                        $join->on('resource_creators.creatorable_id', '=', 'persons.id')
+                            ->where('resource_creators.creatorable_type', '=', Person::class);
                     })
                     ->leftJoin('institutions', function ($join) {
-                        $join->on('resource_authors.authorable_id', '=', 'institutions.id')
-                            ->where('resource_authors.authorable_type', '=', Institution::class);
+                        $join->on('resource_creators.creatorable_id', '=', 'institutions.id')
+                            ->where('resource_creators.creatorable_type', '=', Institution::class);
                     })
-                    ->orderByRaw("COALESCE(persons.last_name, institutions.name) {$sortDirection}")
+                    ->orderByRaw("COALESCE(persons.family_name, institutions.name) {$sortDirection}")
                     ->select('resources.*');
                 break;
 
@@ -1349,25 +1349,25 @@ class ResourceController extends Controller
     /**
      * Serialize a Resource model to an array for API responses.
      *
-     * @param  resource  $resource  The resource to serialize (must have titles, licenses, authors relationships loaded)
+     * @param  resource  $resource  The resource to serialize (must have titles, rights, creators relationships loaded)
      * @return array<string, mixed> The serialized resource data
      */
     private function serializeResource(Resource $resource): array
     {
-        // Get first author
-        $firstAuthor = $resource->authors->first();
-        $firstAuthorData = null;
+        // Get first creator
+        $firstCreator = $resource->creators->first();
+        $firstCreatorData = null;
 
-        if ($firstAuthor) {
-            $authorable = $firstAuthor->authorable;
-            if ($authorable instanceof Person) {
-                $firstAuthorData = [
-                    'givenName' => $authorable->first_name,
-                    'familyName' => $authorable->last_name,
+        if ($firstCreator) {
+            $creatorable = $firstCreator->creatorable;
+            if ($creatorable instanceof Person) {
+                $firstCreatorData = [
+                    'givenName' => $creatorable->given_name,
+                    'familyName' => $creatorable->family_name,
                 ];
-            } elseif ($authorable instanceof Institution) {
-                $firstAuthorData = [
-                    'name' => $authorable->name,
+            } elseif ($creatorable instanceof Institution) {
+                $firstCreatorData = [
+                    'name' => $creatorable->name,
                 ];
             }
         }
@@ -1381,7 +1381,7 @@ class ResourceController extends Controller
         return [
             'id' => $resource->id,
             'doi' => $resource->doi,
-            'year' => $resource->year,
+            'year' => $resource->publication_year,
             'version' => $resource->version,
             'created_at' => $resource->created_at?->toIso8601String(),
             'updated_at' => $resource->updated_at?->toIso8601String(),
@@ -1396,11 +1396,11 @@ class ResourceController extends Controller
                 'code' => $resource->language->code,
                 'name' => $resource->language->name,
             ] : null,
-            'title' => $resource->titles->first()?->title,
+            'title' => $resource->titles->first()?->value,
             'titles' => $resource->titles
-                ->map(static function (ResourceTitle $title): array {
+                ->map(static function (Title $title): array {
                     return [
-                        'title' => $title->title,
+                        'title' => $title->value,
                         'title_type' => $title->titleType ? [
                             'name' => $title->titleType->name,
                             'slug' => $title->titleType->slug,
@@ -1409,16 +1409,16 @@ class ResourceController extends Controller
                 })
                 ->values()
                 ->all(),
-            'licenses' => $resource->licenses
-                ->map(static function (License $license): array {
+            'rights' => $resource->rights
+                ->map(static function (Right $right): array {
                     return [
-                        'identifier' => $license->identifier,
-                        'name' => $license->name,
+                        'identifier' => $right->identifier,
+                        'name' => $right->name,
                     ];
                 })
                 ->values()
                 ->all(),
-            'first_author' => $firstAuthorData,
+            'first_author' => $firstCreatorData,
             'landingPage' => $resource->landingPage ? [
                 'id' => $resource->landingPage->id,
                 'status' => $resource->landingPage->status,
@@ -1662,5 +1662,44 @@ class ResourceController extends Controller
         ];
 
         return response()->json($prefixes);
+    }
+
+    /**
+     * Format date value from frontend format to DataCite RKMS-ISO8601 format.
+     *
+     * DataCite supports date ranges with the format: startDate/endDate
+     *
+     * @param  array<string, mixed>  $date
+     */
+    private function formatDateValue(array $date): string
+    {
+        $startDate = $date['startDate'] ?? null;
+        $endDate = $date['endDate'] ?? null;
+
+        if ($startDate && $endDate) {
+            return "{$startDate}/{$endDate}";
+        }
+
+        return $startDate ?? $endDate ?? now()->format('Y-m-d');
+    }
+
+    /**
+     * Get funder identifier type ID from type name.
+     */
+    private function getFunderIdentifierTypeId(string $type): ?int
+    {
+        static $cache = [];
+
+        if (isset($cache[$type])) {
+            return $cache[$type];
+        }
+
+        $funderType = \App\Models\FunderIdentifierType::where('name', $type)
+            ->orWhere('slug', \Illuminate\Support\Str::slug($type))
+            ->first();
+
+        $cache[$type] = $funderType?->id;
+
+        return $cache[$type];
     }
 }

@@ -663,6 +663,7 @@ class DataCiteXmlExporter
 
         foreach ($resource->dates as $date) {
             // Skip if no date type (should not happen in normal usage)
+            // @phpstan-ignore booleanNot.alwaysFalse
             if (! $date->dateType) {
                 continue;
             }

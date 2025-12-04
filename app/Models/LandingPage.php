@@ -7,6 +7,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property int $resource_id
+ * @property string $template
+ * @property string|null $ftp_url
+ * @property string $status
+ * @property string|null $preview_token
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property \Illuminate\Support\Carbon|null $last_viewed_at
+ * @property int $view_count
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Resource $resource
+ * @property-read string $preview_url
+ * @property-read string $public_url
+ */
 class LandingPage extends Model
 {
     /** @use HasFactory<\Database\Factories\LandingPageFactory> */

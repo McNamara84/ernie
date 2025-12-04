@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\DateType;
 use App\Models\Language;
-use App\Models\License;
+use App\Models\Right;
 use App\Models\ResourceType;
 use App\Models\Setting;
 use App\Models\TitleType;
@@ -21,7 +21,7 @@ class EditorSettingsController extends Controller
         return Inertia::render('settings/index', [
             'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name', 'active', 'elmo_active']),
             'titleTypes' => TitleType::orderBy('id')->get(['id', 'name', 'slug', 'active', 'elmo_active']),
-            'licenses' => License::orderBy('id')->get(['id', 'identifier', 'name', 'active', 'elmo_active']),
+            'licenses' => Right::orderBy('id')->get(['id', 'identifier', 'name', 'active', 'elmo_active']),
             'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
             'dateTypes' => DateType::orderBy('id')->get(['id', 'name', 'slug', 'description', 'active', 'elmo_active']),
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
@@ -51,7 +51,7 @@ class EditorSettingsController extends Controller
         }
 
         foreach ($validated['licenses'] as $license) {
-            License::where('id', $license['id'])->update([
+            Right::where('id', $license['id'])->update([
                 'active' => $license['active'],
                 'elmo_active' => $license['elmo_active'],
             ]);
