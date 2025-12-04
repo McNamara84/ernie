@@ -3,22 +3,22 @@ import { describe, expect, it } from 'vitest';
 import { buildCitation } from '@/pages/LandingPages/lib/buildCitation';
 
 describe('buildCitation', () => {
-    it('builds citation with Person author (new structure)', () => {
+    it('builds citation with Person creator (new structure)', () => {
         const resource = {
-            authors: [
+            creators: [
                 {
                     id: 1,
                     position: 1,
-                    authorable: {
+                    creatorable: {
                         type: 'Person',
-                        first_name: 'Holger',
-                        last_name: 'Ehrmann',
+                        given_name: 'Holger',
+                        family_name: 'Ehrmann',
                     },
                 },
             ],
             titles: [
                 {
-                    title: 'TESTTITLE',
+                    value: 'TESTTITLE',
                     title_type: 'MainTitle',
                 },
             ],
@@ -34,13 +34,13 @@ describe('buildCitation', () => {
         );
     });
 
-    it('builds citation with Institution author (new structure)', () => {
+    it('builds citation with Institution creator (new structure)', () => {
         const resource = {
-            authors: [
+            creators: [
                 {
                     id: 1,
                     position: 1,
-                    authorable: {
+                    creatorable: {
                         type: 'Institution',
                         name: 'GFZ German Research Centre for Geosciences',
                     },
@@ -48,7 +48,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    title: 'Test Dataset',
+                    value: 'Test Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -64,31 +64,31 @@ describe('buildCitation', () => {
         );
     });
 
-    it('builds citation with multiple authors', () => {
+    it('builds citation with multiple creators', () => {
         const resource = {
-            authors: [
+            creators: [
                 {
                     id: 1,
                     position: 1,
-                    authorable: {
+                    creatorable: {
                         type: 'Person',
-                        first_name: 'John',
-                        last_name: 'Doe',
+                        given_name: 'John',
+                        family_name: 'Doe',
                     },
                 },
                 {
                     id: 2,
                     position: 2,
-                    authorable: {
+                    creatorable: {
                         type: 'Person',
-                        first_name: 'Jane',
-                        last_name: 'Smith',
+                        given_name: 'Jane',
+                        family_name: 'Smith',
                     },
                 },
             ],
             titles: [
                 {
-                    title: 'Collaborative Research',
+                    value: 'Collaborative Research',
                     title_type: 'MainTitle',
                 },
             ],
@@ -106,20 +106,20 @@ describe('buildCitation', () => {
 
     it('handles missing year with n.d.', () => {
         const resource = {
-            authors: [
+            creators: [
                 {
                     id: 1,
                     position: 1,
-                    authorable: {
+                    creatorable: {
                         type: 'Person',
-                        first_name: 'Test',
-                        last_name: 'Author',
+                        given_name: 'Test',
+                        family_name: 'Author',
                     },
                 },
             ],
             titles: [
                 {
-                    title: 'Undated Dataset',
+                    value: 'Undated Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -134,12 +134,12 @@ describe('buildCitation', () => {
         );
     });
 
-    it('handles missing authors with Unknown Author', () => {
+    it('handles missing creators with Unknown Creator', () => {
         const resource = {
-            authors: [],
+            creators: [],
             titles: [
                 {
-                    title: 'Anonymous Dataset',
+                    value: 'Anonymous Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -151,25 +151,25 @@ describe('buildCitation', () => {
         const citation = buildCitation(resource);
 
         expect(citation).toBe(
-            'Unknown Author (2024): Anonymous Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+            'Unknown Creator (2024): Anonymous Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
 
-    it('handles Person with only last name', () => {
+    it('handles Person with only family name', () => {
         const resource = {
-            authors: [
+            creators: [
                 {
                     id: 1,
                     position: 1,
-                    authorable: {
+                    creatorable: {
                         type: 'Person',
-                        last_name: 'SingleName',
+                        family_name: 'SingleName',
                     },
                 },
             ],
             titles: [
                 {
-                    title: 'Test',
+                    value: 'Test',
                     title_type: 'MainTitle',
                 },
             ],
@@ -187,17 +187,17 @@ describe('buildCitation', () => {
 
     it('falls back to old structure for backward compatibility', () => {
         const resource = {
-            authors: [
+            creators: [
                 {
                     id: 1,
                     position: 1,
-                    first_name: 'Legacy',
-                    last_name: 'User',
+                    given_name: 'Legacy',
+                    family_name: 'User',
                 },
             ],
             titles: [
                 {
-                    title: 'Legacy Dataset',
+                    value: 'Legacy Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -215,20 +215,20 @@ describe('buildCitation', () => {
 
     it('uses publication_year if year is not present', () => {
         const resource = {
-            authors: [
+            creators: [
                 {
                     id: 1,
                     position: 1,
-                    authorable: {
+                    creatorable: {
                         type: 'Person',
-                        first_name: 'Test',
-                        last_name: 'Author',
+                        given_name: 'Test',
+                        family_name: 'Author',
                     },
                 },
             ],
             titles: [
                 {
-                    title: 'Test Dataset',
+                    value: 'Test Dataset',
                     title_type: 'MainTitle',
                 },
             ],

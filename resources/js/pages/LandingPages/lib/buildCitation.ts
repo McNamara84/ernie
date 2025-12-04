@@ -1,24 +1,24 @@
-interface Authorable {
+interface Creatorable {
     type: string;
-    first_name?: string;
-    last_name?: string;
+    given_name?: string;
+    family_name?: string;
     name?: string;
 }
 
-interface Author {
-    authorable?: Authorable;
-    first_name?: string;
-    last_name?: string;
+interface Creator {
+    creatorable?: Creatorable;
+    given_name?: string;
+    family_name?: string;
     institution_name?: string;
 }
 
 interface Title {
-    title: string;
+    value: string;
     title_type?: string | null;
 }
 
 interface Resource {
-    authors?: Author[];
+    creators?: Creator[];
     titles?: Title[];
     publisher?: string;
     doi?: string;
@@ -27,39 +27,39 @@ interface Resource {
 }
 
 export function buildCitation(resource: Resource): string {
-    // Extract authors
-    const authors =
-        resource.authors
-            ?.map((author) => {
-                // Check if authorable data exists (new structure)
-                if (author.authorable) {
-                    if (author.authorable.type === 'Institution') {
-                        return author.authorable.name;
+    // Extract creators
+    const creators =
+        resource.creators
+            ?.map((creator) => {
+                // Check if creatorable data exists (new structure)
+                if (creator.creatorable) {
+                    if (creator.creatorable.type === 'Institution') {
+                        return creator.creatorable.name;
                     }
-                    if (author.authorable.type === 'Person') {
-                        if (author.authorable.last_name && author.authorable.first_name) {
-                            return `${author.authorable.last_name}, ${author.authorable.first_name}`;
+                    if (creator.creatorable.type === 'Person') {
+                        if (creator.creatorable.family_name && creator.creatorable.given_name) {
+                            return `${creator.creatorable.family_name}, ${creator.creatorable.given_name}`;
                         }
-                        if (author.authorable.last_name) {
-                            return author.authorable.last_name;
+                        if (creator.creatorable.family_name) {
+                            return creator.creatorable.family_name;
                         }
                     }
                 }
                 
                 // Fallback to old structure (for backward compatibility)
-                if (author.institution_name) {
-                    return author.institution_name;
+                if (creator.institution_name) {
+                    return creator.institution_name;
                 }
-                if (author.last_name && author.first_name) {
-                    return `${author.last_name}, ${author.first_name}`;
+                if (creator.family_name && creator.given_name) {
+                    return `${creator.family_name}, ${creator.given_name}`;
                 }
-                if (author.last_name) {
-                    return author.last_name;
+                if (creator.family_name) {
+                    return creator.family_name;
                 }
                 return null;
             })
             .filter(Boolean)
-            .join('; ') || 'Unknown Author';
+            .join('; ') || 'Unknown Creator';
 
     // Extract year (check both field names for compatibility)
     const year = resource.year || resource.publication_year || 'n.d.';
@@ -68,7 +68,7 @@ export function buildCitation(resource: Resource): string {
     const mainTitle =
         resource.titles?.find(
             (t) => !t.title_type || t.title_type === 'MainTitle',
-        )?.title || 'Untitled';
+        )?.value || 'Untitled';
 
     // Extract publisher (default to GFZ Data Services)
     const publisher = resource.publisher || 'GFZ Data Services';
@@ -78,6 +78,6 @@ export function buildCitation(resource: Resource): string {
         ? `https://doi.org/${resource.doi}`
         : 'DOI not available';
 
-    // Build citation in format: [Authors] ([Year]): [Title]. [Publisher]. [DOI URL]
-    return `${authors} (${year}): ${mainTitle}. ${publisher}. ${doi}`;
+    // Build citation in format: [Creators] ([Year]): [Title]. [Publisher]. [DOI URL]
+    return `${creators} (${year}): ${mainTitle}. ${publisher}. ${doi}`;
 }

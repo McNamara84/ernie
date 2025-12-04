@@ -83,12 +83,36 @@ export interface License {
     name: string;
 }
 
+/**
+ * Right type (DataCite 4.6 - replaces License in database)
+ * Frontend continues to use "License" terminology for user familiarity
+ */
+export interface Right {
+    id: number;
+    identifier: string;
+    name: string;
+    uri?: string | null;
+}
+
 export interface Language {
     id: number;
     code: string;
     name: string;
 }
 
+/**
+ * ContributorType (DataCite 4.6 - replaces Role)
+ * Standardized contributor types from DataCite schema
+ */
+export interface ContributorType {
+    id: number;
+    name: string;
+    slug: string;
+}
+
+/**
+ * @deprecated Use ContributorType instead
+ */
 export interface Role {
     id: number;
     name: string;

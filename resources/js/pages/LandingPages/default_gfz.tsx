@@ -86,10 +86,9 @@ export default function DefaultGfzTemplate() {
                         <div className="lg:col-span-2">
                             <AbstractSection 
                                 descriptions={resource.descriptions || []}
-                                authors={resource.authors || []}
+                                creators={resource.creators || []}
                                 fundingReferences={resource.funding_references || []}
-                                keywords={resource.keywords || []}
-                                controlledKeywords={resource.controlled_keywords || []}
+                                subjects={resource.subjects || []}
                                 resourceId={resource.id}
                             />
                         </div>
