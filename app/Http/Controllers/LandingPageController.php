@@ -63,6 +63,8 @@ class LandingPageController extends Controller
     public function store(Request $request, Resource $resource): JsonResponse
     {
         $validated = $request->validate([
+            'template' => 'required|string|in:default_gfz,minimal,detailed',
+            'ftp_url' => 'nullable|url',
             'is_published' => 'boolean',
         ]);
 
@@ -78,13 +80,22 @@ class LandingPageController extends Controller
 
         $landingPage = $resource->landingPage()->create([
             'slug' => $slug,
+            'template' => $validated['template'],
+            'ftp_url' => $validated['ftp_url'] ?? null,
             'is_published' => $validated['is_published'] ?? false,
             'published_at' => ($validated['is_published'] ?? false) ? now() : null,
         ]);
 
+        $landingPage->refresh();
+
         return response()->json([
             'message' => 'Landing page created successfully',
-            'landing_page' => $landingPage->fresh(),
+            'landing_page' => [
+                'id' => $landingPage->id,
+                'preview_token' => $landingPage->preview_token,
+                'preview_url' => $landingPage->preview_url,
+            ],
+            'preview_url' => $landingPage->preview_url,
         ], 201);
     }
 
@@ -94,6 +105,8 @@ class LandingPageController extends Controller
     public function update(Request $request, Resource $resource): JsonResponse
     {
         $validated = $request->validate([
+            'template' => 'sometimes|string|in:default_gfz,minimal,detailed',
+            'ftp_url' => 'nullable|url',
             'is_published' => 'sometimes|boolean',
         ]);
 
@@ -104,6 +117,16 @@ class LandingPageController extends Controller
                 'message' => 'Landing page not found',
             ], 404);
         }
+
+        // Update template and ftp_url if provided
+        if (isset($validated['template'])) {
+            $landingPage->template = $validated['template'];
+        }
+        if (array_key_exists('ftp_url', $validated)) {
+            $landingPage->ftp_url = $validated['ftp_url'];
+        }
+
+        $landingPage->save();
 
         // Handle publication status change
         if (isset($validated['is_published'])) {

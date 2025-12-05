@@ -33,17 +33,20 @@ class LandingPagePublicController extends Controller
         // Landing page must exist
         abort_if(! $landingPage, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
-        // For public access, landing page must be published (preview mode removed in schema simplification)
-        abort_if(
-            ! $landingPage->isPublished(),
-            HttpResponse::HTTP_NOT_FOUND,
-            'Landing page not published'
-        );
+        // Check access permissions
+        if (! $landingPage->isPublished()) {
+            // For unpublished pages, require valid preview token
+            if (! $previewToken) {
+                abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+            }
+            if ($previewToken !== $landingPage->preview_token) {
+                abort(HttpResponse::HTTP_FORBIDDEN, 'Invalid preview token');
+            }
+        }
 
-        // Try to get from cache first (only for published pages)
-        $cached = Cache::get("landing_page.{$resourceId}");
-        if ($cached) {
-            return $cached;
+        // Increment view count only for published pages without preview token
+        if ($landingPage->isPublished() && ! $previewToken) {
+            $landingPage->incrementViewCount();
         }
 
         // Load resource with all necessary relationships
@@ -184,14 +187,9 @@ class LandingPagePublicController extends Controller
             'isPreview' => (bool) $previewToken,
         ];
 
-        // Render landing page (simplified - template system removed)
-        $response = Inertia::render("LandingPages/default", $data);
-
-        // Cache published pages for 24 hours
-        if (! $previewToken) {
-            Cache::put("landing_page.{$resourceId}", $response, now()->addDay());
-        }
-
-        return $response;
+        // Use the template specified in landing page configuration
+        $template = $landingPage->template ?? 'default_gfz';
+        
+        return Inertia::render("LandingPages/{$template}", $data);
     }
 }
