@@ -300,7 +300,7 @@ class DataCiteXmlExporter
         $titles = $this->dom->createElement('titles');
 
         foreach ($resource->titles as $title) {
-            $titleElement = $this->dom->createElement('title', htmlspecialchars($title->title));
+            $titleElement = $this->dom->createElement('title', htmlspecialchars($title->value));
 
             // Add title type if not main title
             $titleType = $title->titleType;

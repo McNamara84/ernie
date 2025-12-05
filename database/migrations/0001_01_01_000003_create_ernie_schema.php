@@ -99,6 +99,9 @@ return new class extends Migration
             $table->id();
             $table->string('code', 10)->unique();          // ISO 639-1 code (e.g., 'en', 'de')
             $table->string('name');                        // Display name (e.g., 'English')
+            // Legacy columns for backward compatibility with tests
+            $table->boolean('active')->default(true);
+            $table->boolean('elmo_active')->default(true);
             $table->timestamps();
         });
 
@@ -171,12 +174,13 @@ return new class extends Migration
 
             // DataCite #4: Publisher
             $table->foreignId('publisher_id')
+                ->nullable()
                 ->constrained('publishers')
                 ->cascadeOnUpdate()
-                ->restrictOnDelete();
+                ->nullOnDelete();
 
             // DataCite #5: PublicationYear
-            $table->unsignedSmallInteger('publication_year');
+            $table->unsignedSmallInteger('publication_year')->nullable();
 
             // DataCite #10: ResourceType
             $table->foreignId('resource_type_id')
@@ -242,6 +246,9 @@ return new class extends Migration
             $table->string('creatorable_type');
             $table->unsignedBigInteger('creatorable_id');
             $table->unsignedInteger('position')->default(0);
+            // Contact information (legacy, for backward compatibility)
+            $table->string('email')->nullable();
+            $table->string('website')->nullable();
             $table->timestamps();
 
             $table->index(['resource_id', 'position']);
@@ -500,7 +507,7 @@ return new class extends Migration
             $table->id();
             $table->string('key')->unique();
             $table->text('value')->nullable();
-            $table->timestamps();
+            // No timestamps as per application requirement
         });
     }
 

@@ -296,7 +296,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Transform resource data for editor
             $titles = $resource->titles->map(function ($title) {
                 return [
-                    'title' => $title->title,
+                    'title' => $title->value,
                     'titleType' => $title->titleType->slug ?? '',
                 ];
             })->toArray();

@@ -13,15 +13,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $resource_id
- * @property string $title
+ * @property string $value
  * @property int|null $title_type_id
- * @property int|null $language_id
+ * @property string|null $language
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
  * @property-read Resource $resource
  * @property-read TitleType|null $titleType
- * @property-read Language|null $language
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/title/
  */
@@ -32,9 +31,9 @@ class Title extends Model
 
     protected $fillable = [
         'resource_id',
-        'title',
+        'value',
         'title_type_id',
-        'language_id',
+        'language',
     ];
 
     /** @return BelongsTo<Resource, static> */
@@ -51,15 +50,6 @@ class Title extends Model
     {
         /** @var BelongsTo<TitleType, static> $relation */
         $relation = $this->belongsTo(TitleType::class);
-
-        return $relation;
-    }
-
-    /** @return BelongsTo<Language, static> */
-    public function language(): BelongsTo
-    {
-        /** @var BelongsTo<Language, static> $relation */
-        $relation = $this->belongsTo(Language::class);
 
         return $relation;
     }

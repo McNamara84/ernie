@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -182,11 +183,12 @@ class Resource extends Model
         return $relation;
     }
 
-    /** @return HasMany<Right, static> */
-    public function rights(): HasMany
+    /** @return BelongsToMany<Right, static> */
+    public function rights(): BelongsToMany
     {
-        /** @var HasMany<Right, static> $relation */
-        $relation = $this->hasMany(Right::class);
+        /** @var BelongsToMany<Right, static> $relation */
+        $relation = $this->belongsToMany(Right::class, 'resource_rights', 'resource_id', 'rights_id')
+            ->withTimestamps();
 
         return $relation;
     }
@@ -251,7 +253,7 @@ class Resource extends Model
     {
         $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
 
-        return $mainTitle?->title;
+        return $mainTitle?->value;
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\License;
+use App\Models\Right;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -9,16 +9,30 @@ beforeEach(function () {
     config(['services.elmo.api_key' => null]);
 });
 
-function createElmoLicenses(): License
+function createElmoRights(): Right
 {
-    $enabled = License::create(['identifier' => 'MIT', 'name' => 'MIT License', 'active' => true, 'elmo_active' => true]);
-    License::create(['identifier' => 'Apache', 'name' => 'Apache', 'active' => true, 'elmo_active' => false]);
+    $enabled = Right::create([
+        'identifier' => 'MIT',
+        'name' => 'MIT License',
+        'is_active' => true,
+        'is_elmo_active' => true,
+    ]);
+    Right::create([
+        'identifier' => 'Apache-2.0',
+        'name' => 'Apache License 2.0',
+        'is_active' => true,
+        'is_elmo_active' => false,
+    ]);
 
     return $enabled;
 }
 
 it('lists all licenses', function () {
-    License::create(['identifier' => 'MIT', 'name' => 'MIT License']);
+    Right::create([
+        'identifier' => 'MIT',
+        'name' => 'MIT License',
+        'is_active' => true,
+    ]);
 
     $this->getJson('/api/v1/licenses')
         ->assertOk()
@@ -26,7 +40,7 @@ it('lists all licenses', function () {
 });
 
 it('lists ELMO-active licenses', function () {
-    $enabled = createElmoLicenses();
+    $enabled = createElmoRights();
 
     $this->getJson('/api/v1/licenses/elmo')
         ->assertOk()
@@ -35,8 +49,16 @@ it('lists ELMO-active licenses', function () {
 });
 
 it('lists ERNIE-active licenses', function () {
-    License::create(['identifier' => 'MIT', 'name' => 'MIT License', 'active' => true]);
-    License::create(['identifier' => 'Apache', 'name' => 'Apache', 'active' => false]);
+    Right::create([
+        'identifier' => 'MIT',
+        'name' => 'MIT License',
+        'is_active' => true,
+    ]);
+    Right::create([
+        'identifier' => 'Apache-2.0',
+        'name' => 'Apache License 2.0',
+        'is_active' => false,
+    ]);
 
     $this->getJson('/api/v1/licenses/ernie')
         ->assertOk()
@@ -45,7 +67,7 @@ it('lists ERNIE-active licenses', function () {
 });
 
 it('rejects license requests without an API key when one is configured', function () {
-    createElmoLicenses();
+    createElmoRights();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -55,7 +77,7 @@ it('rejects license requests without an API key when one is configured', functio
 });
 
 it('rejects license requests with an invalid API key', function () {
-    createElmoLicenses();
+    createElmoRights();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -65,7 +87,7 @@ it('rejects license requests with an invalid API key', function () {
 });
 
 it('allows license requests with a valid API key header', function () {
-    $enabled = createElmoLicenses();
+    $enabled = createElmoRights();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -76,7 +98,7 @@ it('allows license requests with a valid API key header', function () {
 });
 
 it('rejects API keys in query parameters for security', function () {
-    createElmoLicenses();
+    createElmoRights();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
@@ -87,11 +109,31 @@ it('rejects API keys in query parameters for security', function () {
 });
 
 it('sorts ERNIE licenses by usage count descending with alphabetical fallback', function () {
-    // Create licenses with different usage counts
-    $mit = License::factory()->create(['identifier' => 'MIT', 'name' => 'MIT License', 'active' => true, 'usage_count' => 10]);
-    $apache = License::factory()->create(['identifier' => 'Apache-2.0', 'name' => 'Apache License 2.0', 'active' => true, 'usage_count' => 5]);
-    $gpl = License::factory()->create(['identifier' => 'GPL-3.0', 'name' => 'GNU General Public License v3.0', 'active' => true, 'usage_count' => 5]);
-    $bsd = License::factory()->create(['identifier' => 'BSD-3', 'name' => 'BSD 3-Clause', 'active' => true, 'usage_count' => 0]);
+    // Create rights with different usage counts
+    Right::create([
+        'identifier' => 'MIT',
+        'name' => 'MIT License',
+        'is_active' => true,
+        'usage_count' => 10,
+    ]);
+    Right::create([
+        'identifier' => 'Apache-2.0',
+        'name' => 'Apache License 2.0',
+        'is_active' => true,
+        'usage_count' => 5,
+    ]);
+    Right::create([
+        'identifier' => 'GPL-3.0',
+        'name' => 'GNU General Public License v3.0',
+        'is_active' => true,
+        'usage_count' => 5,
+    ]);
+    Right::create([
+        'identifier' => 'BSD-3',
+        'name' => 'BSD 3-Clause',
+        'is_active' => true,
+        'usage_count' => 0,
+    ]);
 
     $response = $this->getJson('/api/v1/licenses/ernie')
         ->assertOk()

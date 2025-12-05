@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Models\Language;
+use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<resource>
+ * @extends Factory<Resource>
  */
 class ResourceFactory extends Factory
 {
@@ -23,23 +24,32 @@ class ResourceFactory extends Factory
      */
     public function definition(): array
     {
-        // Get or create default resource type and language
+        // Get or create default resource type
         $resourceType = ResourceType::firstOrCreate(
-            ['slug' => 'dataset'],
-            ['name' => 'Dataset', 'slug' => 'dataset']
+            ['slug' => 'Dataset'],
+            ['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]
         );
 
+        // Get or create default language
         $language = Language::firstOrCreate(
             ['code' => 'en'],
-            ['code' => 'en', 'name' => 'English']
+            ['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]
+        );
+
+        // Get or create default publisher
+        $publisher = Publisher::firstOrCreate(
+            ['name' => 'GFZ Data Services'],
+            ['name' => 'GFZ Data Services', 'is_default' => true]
         );
 
         return [
             'doi' => '10.'.fake()->numberBetween(1000, 9999).'/'.fake()->slug(2),
-            'year' => fake()->year(),
+            'identifier_type' => 'DOI',
+            'publication_year' => (int) fake()->year(),
             'resource_type_id' => $resourceType->id,
             'version' => '1.0',
             'language_id' => $language->id,
+            'publisher_id' => $publisher->id,
         ];
     }
 
@@ -54,12 +64,20 @@ class ResourceFactory extends Factory
     }
 
     /**
-     * Indicate that the resource should have a specific year
+     * Indicate that the resource should have a specific publication year
+     */
+    public function withPublicationYear(int $year): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'publication_year' => $year,
+        ]);
+    }
+
+    /**
+     * @deprecated Use withPublicationYear() instead
      */
     public function withYear(int $year): static
     {
-        return $this->state(fn (array $attributes) => [
-            'year' => $year,
-        ]);
+        return $this->withPublicationYear($year);
     }
 }
