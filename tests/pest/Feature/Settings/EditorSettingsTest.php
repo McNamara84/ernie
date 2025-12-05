@@ -34,7 +34,7 @@ test('authenticated users can view editor settings page', function () {
         ->component('settings/index')
         ->has('resourceTypes', 1)
         ->has('titleTypes', 1)
-        ->has('licenses', 1)
+        ->has('rights', 1)
         ->has('languages', 1)
         ->has('dateTypes', 1)
         ->where('maxTitles', Setting::DEFAULT_LIMIT)
@@ -44,9 +44,9 @@ test('authenticated users can view editor settings page', function () {
 
 test('authenticated users can update resource and title types and settings', function () {
     $user = User::factory()->create();
-    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]);
-    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]);
-    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true]);
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
     Setting::create(['key' => 'max_titles', 'value' => '5']);
@@ -55,19 +55,19 @@ test('authenticated users can update resource and title types and settings', fun
 
     $this->post(route('settings.update'), [
         'resourceTypes' => [
-            ['id' => $type->id, 'name' => 'Data Set', 'active' => false, 'elmo_active' => true],
+            ['id' => $type->id, 'name' => 'Data Set', 'is_active' => false, 'is_elmo_active' => true],
         ],
         'titleTypes' => [
-            ['id' => $title->id, 'name' => 'Main', 'slug' => 'main', 'active' => false, 'elmo_active' => true],
+            ['id' => $title->id, 'name' => 'Main', 'slug' => 'main', 'is_active' => false, 'is_elmo_active' => true],
         ],
-        'licenses' => [
-            ['id' => $right->id, 'active' => false, 'elmo_active' => true],
+        'rights' => [
+            ['id' => $right->id, 'is_active' => false, 'is_elmo_active' => true],
         ],
         'languages' => [
             ['id' => $language->id, 'active' => false, 'elmo_active' => true],
         ],
         'dateTypes' => [
-            ['id' => $dateType->id, 'active' => false, 'elmo_active' => true],
+            ['id' => $dateType->id, 'is_active' => false],
         ],
         'maxTitles' => 10,
         'maxLicenses' => 7,
@@ -106,9 +106,9 @@ test('authenticated users can update resource and title types and settings', fun
 
 test('updating settings with invalid data returns errors', function () {
     $user = User::factory()->create();
-    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]);
-    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true]);
-    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true]);
+    $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
+    $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
+    $right = Right::create(['identifier' => 'MIT', 'name' => 'MIT License', 'is_active' => true, 'is_elmo_active' => true]);
     $language = Language::create(['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]);
     $dateType = DateType::create(['name' => 'Created', 'slug' => 'Created', 'is_active' => true]);
     $this->actingAs($user);
@@ -116,19 +116,19 @@ test('updating settings with invalid data returns errors', function () {
     $response = $this->from(route('settings'))
         ->post(route('settings.update'), [
             'resourceTypes' => [
-                ['id' => $type->id, 'name' => 'Data Set', 'active' => true, 'elmo_active' => false],
+                ['id' => $type->id, 'name' => 'Data Set', 'is_active' => true, 'is_elmo_active' => false],
             ],
             'titleTypes' => [
-                ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'main-title', 'active' => true, 'elmo_active' => false],
+                ['id' => $title->id, 'name' => 'Main Title', 'slug' => 'main-title', 'is_active' => true, 'is_elmo_active' => false],
             ],
-            'licenses' => [
-                ['id' => $right->id, 'active' => true, 'elmo_active' => false],
+            'rights' => [
+                ['id' => $right->id, 'is_active' => true, 'is_elmo_active' => false],
             ],
             'languages' => [
                 ['id' => $language->id, 'active' => true, 'elmo_active' => false],
             ],
             'dateTypes' => [
-                ['id' => $dateType->id, 'active' => true, 'elmo_active' => false],
+                ['id' => $dateType->id, 'is_active' => true],
             ],
             'maxTitles' => 0,
             'maxLicenses' => 7,

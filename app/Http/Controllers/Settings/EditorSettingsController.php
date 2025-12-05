@@ -19,11 +19,11 @@ class EditorSettingsController extends Controller
     public function index(): Response
     {
         return Inertia::render('settings/index', [
-            'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name', 'active', 'elmo_active']),
-            'titleTypes' => TitleType::orderBy('id')->get(['id', 'name', 'slug', 'active', 'elmo_active']),
-            'licenses' => Right::orderBy('id')->get(['id', 'identifier', 'name', 'active', 'elmo_active']),
+            'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active']),
+            'titleTypes' => TitleType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active']),
+            'rights' => Right::orderBy('id')->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active']),
             'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
-            'dateTypes' => DateType::orderBy('id')->get(['id', 'name', 'slug', 'description', 'active', 'elmo_active']),
+            'dateTypes' => DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active']),
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
         ]);
@@ -36,8 +36,8 @@ class EditorSettingsController extends Controller
         foreach ($validated['resourceTypes'] as $type) {
             ResourceType::where('id', $type['id'])->update([
                 'name' => $type['name'],
-                'active' => $type['active'],
-                'elmo_active' => $type['elmo_active'],
+                'is_active' => $type['is_active'],
+                'is_elmo_active' => $type['is_elmo_active'],
             ]);
         }
 
@@ -45,15 +45,15 @@ class EditorSettingsController extends Controller
             TitleType::where('id', $type['id'])->update([
                 'name' => $type['name'],
                 'slug' => $type['slug'],
-                'active' => $type['active'],
-                'elmo_active' => $type['elmo_active'],
+                'is_active' => $type['is_active'],
+                'is_elmo_active' => $type['is_elmo_active'],
             ]);
         }
 
-        foreach ($validated['licenses'] as $license) {
-            Right::where('id', $license['id'])->update([
-                'active' => $license['active'],
-                'elmo_active' => $license['elmo_active'],
+        foreach ($validated['rights'] as $right) {
+            Right::where('id', $right['id'])->update([
+                'is_active' => $right['is_active'],
+                'is_elmo_active' => $right['is_elmo_active'],
             ]);
         }
 
@@ -66,8 +66,7 @@ class EditorSettingsController extends Controller
 
         foreach ($validated['dateTypes'] as $dateType) {
             DateType::where('id', $dateType['id'])->update([
-                'active' => $dateType['active'],
-                'elmo_active' => $dateType['elmo_active'],
+                'is_active' => $dateType['is_active'],
             ]);
         }
 
