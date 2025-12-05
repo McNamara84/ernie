@@ -1074,7 +1074,7 @@ class ResourceController extends Controller
                 'language:id,code,name',
                 'createdBy:id,name',
                 'updatedBy:id,name',
-                'landingPage:id,resource_id,status,published_at',
+                'landingPage:id,resource_id,is_published,published_at',
                 'titles' => function ($query): void {
                     $query->select(['id', 'resource_id', 'value', 'title_type_id'])
                         ->with(['titleType:id,name,slug'])
@@ -1213,8 +1213,8 @@ class ResourceController extends Controller
         // Status filter - filter based on DOI and landing page status
         // Must match logic in serializeResource():
         // - curation: no DOI OR (has DOI but no landing page)
-        // - review: has DOI AND has landing page with status 'draft'
-        // - published: has DOI AND has landing page with status 'published'
+        // - review: has DOI AND has landing page with is_published = false
+        // - published: has DOI AND has landing page with is_published = true
         if (! empty($filters['status'])) {
             $statuses = $filters['status'];
             $query->where(function ($q) use ($statuses) {
@@ -1226,19 +1226,19 @@ class ResourceController extends Controller
                                 ->orWhereDoesntHave('landingPage');
                         });
                     } elseif ($status === 'review') {
-                        // Review: DOI registered + landing page with draft status
+                        // Review: DOI registered + landing page with is_published = false
                         $q->orWhere(function ($subQ) {
                             $subQ->whereNotNull('doi')
                                 ->whereHas('landingPage', function ($lpQ) {
-                                    $lpQ->where('status', 'draft');
+                                    $lpQ->where('is_published', false);
                                 });
                         });
                     } elseif ($status === 'published') {
-                        // Published: DOI registered + landing page with published status
+                        // Published: DOI registered + landing page with is_published = true
                         $q->orWhere(function ($subQ) {
                             $subQ->whereNotNull('doi')
                                 ->whereHas('landingPage', function ($lpQ) {
-                                    $lpQ->where('status', 'published');
+                                    $lpQ->where('is_published', true);
                                 });
                         });
                     }

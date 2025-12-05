@@ -52,7 +52,7 @@ describe('Status Filter', function (): void {
         ]);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         get(route('resources', ['status' => ['curation']]))
@@ -95,7 +95,7 @@ describe('Status Filter', function (): void {
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         get(route('resources', ['status' => ['curation']]))
@@ -126,7 +126,7 @@ describe('Status Filter', function (): void {
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         // Create resource in curation (no DOI)
@@ -169,7 +169,7 @@ describe('Status Filter', function (): void {
         ]);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         // Create resource in review (DOI + draft landing page)
@@ -185,7 +185,7 @@ describe('Status Filter', function (): void {
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         get(route('resources', ['status' => ['published']]))
@@ -228,7 +228,7 @@ describe('Status Filter', function (): void {
         ]);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         // Review resource (should not appear)
@@ -244,7 +244,7 @@ describe('Status Filter', function (): void {
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         get(route('resources', ['status' => ['curation', 'published']]))

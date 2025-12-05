@@ -58,7 +58,7 @@ test('doi registration validates prefix against allowed list in test mode', func
     // Create landing page
     LandingPage::factory()->create([
         'resource_id' => $this->resource->id,
-        'status' => 'draft',
+        'is_published' => false,
     ]);
 
     config(['datacite.test_mode' => true]);
@@ -75,7 +75,7 @@ test('doi registration validates prefix against allowed list in production mode'
 
     LandingPage::factory()->create([
         'resource_id' => $this->resource->id,
-        'status' => 'draft',
+        'is_published' => false,
     ]);
 
     config(['datacite.test_mode' => false]);
@@ -92,7 +92,7 @@ test('doi registration succeeds with valid data for new doi', function () {
 
     LandingPage::factory()->create([
         'resource_id' => $this->resource->id,
-        'status' => 'draft',
+        'is_published' => false,
     ]);
 
     // Mock DataCite API response - use wildcard to catch any request
@@ -132,7 +132,7 @@ test('doi registration updates metadata for existing doi', function () {
 
     LandingPage::factory()->create([
         'resource_id' => $this->resource->id,
-        'status' => 'published',
+        'is_published' => true,
     ]);
 
     // Mock DataCite API response for update - use wildcard
@@ -166,7 +166,7 @@ test('doi registration handles datacite api errors gracefully', function () {
 
     LandingPage::factory()->create([
         'resource_id' => $this->resource->id,
-        'status' => 'draft',
+        'is_published' => false,
     ]);
 
     // Mock DataCite API error response - use wildcard

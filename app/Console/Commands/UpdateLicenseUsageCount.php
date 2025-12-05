@@ -29,20 +29,23 @@ class UpdateLicenseUsageCount extends Command
     {
         $this->info('Calculating rights usage counts...');
 
-        // Get usage counts from the rights table (which has resource_id)
-        $usageCounts = DB::table('rights')
-            ->select('identifier', DB::raw('COUNT(DISTINCT resource_id) as count'))
-            ->whereNotNull('resource_id')
-            ->groupBy('identifier')
-            ->pluck('count', 'identifier');
+        // Get usage counts from the resource_rights pivot table
+        $usageCounts = DB::table('resource_rights')
+            ->join('rights', 'resource_rights.rights_id', '=', 'rights.id')
+            ->select('rights.id', DB::raw('COUNT(DISTINCT resource_rights.resource_id) as count'))
+            ->groupBy('rights.id')
+            ->pluck('count', 'id');
 
-        if ($usageCounts->isEmpty()) {
-            $this->info('No rights usage found.');
+        // Reset all usage counts to 0
+        Right::query()->update(['usage_count' => 0]);
 
-            return Command::SUCCESS;
+        // Update usage counts for rights that have associations
+        foreach ($usageCounts as $rightId => $count) {
+            Right::where('id', $rightId)->update(['usage_count' => $count]);
         }
 
-        $this->info('Successfully calculated usage counts for '.count($usageCounts).' rights.');
+        $totalRights = Right::count();
+        $this->info('Successfully calculated usage counts for '.$totalRights.' rights.');
 
         return Command::SUCCESS;
     }

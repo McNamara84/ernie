@@ -162,7 +162,7 @@ class UploadXmlController extends Controller
             'contributors' => $contributors,
             'descriptions' => $descriptions,
             'dates' => $dates,
-            'geoLocations' => $coverages,
+            'coverages' => $coverages,
             'gcmdKeywords' => $gcmdKeywords,
             'freeKeywords' => $freeKeywords,
             'mslKeywords' => $mslKeywords,
