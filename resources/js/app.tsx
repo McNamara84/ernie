@@ -84,7 +84,7 @@ createInertiaApp({
         
         // Check if it's a 419 CSRF error
         if (typeof errors === 'object' && errors !== null) {
-            const errorObj = errors as any;
+            const errorObj = errors as { response?: { status?: number }; status?: number };
             if (errorObj.response?.status === 419 || errorObj.status === 419) {
                 console.warn('[Inertia] CSRF token expired (419), reloading page...');
                 setTimeout(() => {

@@ -143,7 +143,7 @@ export function useIdentifierValidation({
         }, debounceMs);
 
         return () => clearTimeout(timer);
-    }, [validate, debounceMs]);
+    }, [enabled, identifier, identifierType, validate, debounceMs]);
 
     return validationState;
 }
