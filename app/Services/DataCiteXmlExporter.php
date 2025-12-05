@@ -875,10 +875,10 @@ class DataCiteXmlExporter
             $hasContent = false;
 
             // Add description/place
-            if ($geoLocation->geo_location_place) {
+            if ($geoLocation->place) {
                 $geoLocationPlace = $this->dom->createElement(
                     'geoLocationPlace',
-                    htmlspecialchars($geoLocation->geo_location_place)
+                    htmlspecialchars($geoLocation->place)
                 );
                 $geoLocationElement->appendChild($geoLocationPlace);
                 $hasContent = true;
@@ -890,13 +890,13 @@ class DataCiteXmlExporter
 
                 $pointLongitude = $this->dom->createElement(
                     'pointLongitude',
-                    htmlspecialchars((string) $geoLocation->geo_location_point_longitude)
+                    htmlspecialchars((string) $geoLocation->point_longitude)
                 );
                 $geoLocationPoint->appendChild($pointLongitude);
 
                 $pointLatitude = $this->dom->createElement(
                     'pointLatitude',
-                    htmlspecialchars((string) $geoLocation->geo_location_point_latitude)
+                    htmlspecialchars((string) $geoLocation->point_latitude)
                 );
                 $geoLocationPoint->appendChild($pointLatitude);
 
@@ -910,25 +910,25 @@ class DataCiteXmlExporter
 
                 $westBoundLongitude = $this->dom->createElement(
                     'westBoundLongitude',
-                    htmlspecialchars((string) $geoLocation->geo_location_box_west_bound_longitude)
+                    htmlspecialchars((string) $geoLocation->west_bound_longitude)
                 );
                 $geoLocationBox->appendChild($westBoundLongitude);
 
                 $eastBoundLongitude = $this->dom->createElement(
                     'eastBoundLongitude',
-                    htmlspecialchars((string) $geoLocation->geo_location_box_east_bound_longitude)
+                    htmlspecialchars((string) $geoLocation->east_bound_longitude)
                 );
                 $geoLocationBox->appendChild($eastBoundLongitude);
 
                 $southBoundLatitude = $this->dom->createElement(
                     'southBoundLatitude',
-                    htmlspecialchars((string) $geoLocation->geo_location_box_south_bound_latitude)
+                    htmlspecialchars((string) $geoLocation->south_bound_latitude)
                 );
                 $geoLocationBox->appendChild($southBoundLatitude);
 
                 $northBoundLatitude = $this->dom->createElement(
                     'northBoundLatitude',
-                    htmlspecialchars((string) $geoLocation->geo_location_box_north_bound_latitude)
+                    htmlspecialchars((string) $geoLocation->north_bound_latitude)
                 );
                 $geoLocationBox->appendChild($northBoundLatitude);
 

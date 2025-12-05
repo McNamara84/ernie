@@ -55,7 +55,7 @@ XML;
             ['title' => 'Example TranslatedTitle', 'titleType' => 'translated-title'],
             ['title' => 'Example AlternativeTitle', 'titleType' => 'alternative-title'],
         ],
-        'licenses' => ['CC-BY-4.0', 'MIT'],
+        'rights' => ['CC-BY-4.0', 'MIT'],
         'authors' => [],
     ]);
 });
@@ -71,7 +71,7 @@ it('returns null when doi, publication year, version, language and resource type
         '_token' => csrf_token(),
     ]);
 
-    $response->assertSessionData(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => [], 'licenses' => [], 'authors' => []]);
+    $response->assertSessionData(['doi' => null, 'year' => null, 'version' => null, 'language' => null, 'resourceType' => null, 'titles' => [], 'rights' => [], 'authors' => []]);
 });
 
 it('handles xml with a single main title', function () {
@@ -89,7 +89,7 @@ it('handles xml with a single main title', function () {
         'titles' => [
             ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
         ],
-        'licenses' => [],
+        'rights' => [],
     ]);
 });
 
@@ -352,7 +352,7 @@ XML;
         'titles' => [
             ['title' => 'A mandatory Event', 'titleType' => 'main-title'],
         ],
-        'licenses' => ['CC-BY-4.0'],
+        'rights' => ['CC-BY-4.0'],
     ]);
 });
 

@@ -686,28 +686,28 @@ class DataCiteJsonExporter
             $geoLocationData = [];
 
             // Add place name
-            if ($geoLocation->geo_location_place) {
-                $geoLocationData['geoLocationPlace'] = $geoLocation->geo_location_place;
+            if ($geoLocation->place) {
+                $geoLocationData['geoLocationPlace'] = $geoLocation->place;
             }
 
             // Add point if available
-            if ($geoLocation->geo_location_point_longitude !== null && $geoLocation->geo_location_point_latitude !== null) {
+            if ($geoLocation->point_longitude !== null && $geoLocation->point_latitude !== null) {
                 $geoLocationData['geoLocationPoint'] = [
-                    'pointLongitude' => $geoLocation->geo_location_point_longitude,
-                    'pointLatitude' => $geoLocation->geo_location_point_latitude,
+                    'pointLongitude' => $geoLocation->point_longitude,
+                    'pointLatitude' => $geoLocation->point_latitude,
                 ];
             }
 
             // Add bounding box if available
-            if ($geoLocation->geo_location_box_west_bound_longitude !== null &&
-                $geoLocation->geo_location_box_east_bound_longitude !== null &&
-                $geoLocation->geo_location_box_south_bound_latitude !== null &&
-                $geoLocation->geo_location_box_north_bound_latitude !== null) {
+            if ($geoLocation->west_bound_longitude !== null &&
+                $geoLocation->east_bound_longitude !== null &&
+                $geoLocation->south_bound_latitude !== null &&
+                $geoLocation->north_bound_latitude !== null) {
                 $geoLocationData['geoLocationBox'] = [
-                    'westBoundLongitude' => $geoLocation->geo_location_box_west_bound_longitude,
-                    'eastBoundLongitude' => $geoLocation->geo_location_box_east_bound_longitude,
-                    'southBoundLatitude' => $geoLocation->geo_location_box_south_bound_latitude,
-                    'northBoundLatitude' => $geoLocation->geo_location_box_north_bound_latitude,
+                    'westBoundLongitude' => $geoLocation->west_bound_longitude,
+                    'eastBoundLongitude' => $geoLocation->east_bound_longitude,
+                    'southBoundLatitude' => $geoLocation->south_bound_latitude,
+                    'northBoundLatitude' => $geoLocation->north_bound_latitude,
                 ];
             }
 

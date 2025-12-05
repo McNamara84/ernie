@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\FundingReference;
 use App\Models\Language;
-use App\Models\License;
 use App\Models\Resource;
-use App\Models\ResourceFundingReference;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,7 +28,7 @@ class ResourceControllerFundingReferenceTest extends TestCase
 
     private Language $language;
 
-    private License $license;
+    private Right $right;
 
     private TitleType $titleType;
 
@@ -44,10 +44,10 @@ class ResourceControllerFundingReferenceTest extends TestCase
         $this->language = Language::create([
             'code' => 'en',
             'name' => 'English',
-            'active' => true,
-            'elmo_active' => true,
+            'is_active' => true,
+            'is_elmo_active' => true,
         ]);
-        $this->license = License::create([
+        $this->right = Right::create([
             'identifier' => 'cc-by-4',
             'name' => 'Creative Commons Attribution 4.0',
         ]);
@@ -63,18 +63,18 @@ class ResourceControllerFundingReferenceTest extends TestCase
     private function getValidPayload(array $overrides = []): array
     {
         return array_merge([
-            'year' => 2024,
+            'publicationYear' => 2024,
             'resourceType' => (string) $this->resourceType->id,
             'language' => 'en',
             'titles' => [
-                ['title' => 'Test Resource', 'titleType' => 'main-title'],
+                ['value' => 'Test Resource', 'titleType' => 'main-title'],
             ],
-            'licenses' => ['cc-by-4'],
-            'authors' => [
+            'rights' => ['cc-by-4'],
+            'creators' => [
                 [
                     'type' => 'person',
-                    'firstName' => 'John',
-                    'lastName' => 'Doe',
+                    'givenName' => 'John',
+                    'familyName' => 'Doe',
                     'position' => 0,
                     'affiliations' => [],
                 ],
@@ -119,22 +119,18 @@ class ResourceControllerFundingReferenceTest extends TestCase
 
         $response->assertStatus(201);
 
-        $this->assertDatabaseHas('resource_funding_references', [
+        $this->assertDatabaseHas('funding_references', [
             'funder_name' => 'European Research Council',
             'funder_identifier' => 'https://doi.org/10.13039/501100000780',
-            'funder_identifier_type' => 'Crossref Funder ID',
             'award_number' => 'ERC-2021-STG-123456',
             'award_uri' => 'https://cordis.europa.eu/project/id/123456',
             'award_title' => 'Innovative AI Research',
-            'position' => 0,
         ]);
 
-        $this->assertDatabaseHas('resource_funding_references', [
+        $this->assertDatabaseHas('funding_references', [
             'funder_name' => 'Deutsche Forschungsgemeinschaft',
             'funder_identifier' => 'https://ror.org/018mejw64',
-            'funder_identifier_type' => 'ROR',
             'award_number' => 'DFG-2024-789',
-            'position' => 1,
         ]);
 
         // Check that the resource has 2 funding references
@@ -152,12 +148,10 @@ class ResourceControllerFundingReferenceTest extends TestCase
             'resource_type_id' => $this->resourceType->id,
         ]);
 
-        ResourceFundingReference::create([
+        FundingReference::create([
             'resource_id' => $resource->id,
             'funder_name' => 'Old Funder',
             'funder_identifier' => 'https://ror.org/old',
-            'funder_identifier_type' => 'ROR',
-            'position' => 0,
         ]);
 
         // Update with different funding references
@@ -189,23 +183,21 @@ class ResourceControllerFundingReferenceTest extends TestCase
         $response->assertStatus(200);
 
         // Old funding reference should be deleted
-        $this->assertDatabaseMissing('resource_funding_references', [
+        $this->assertDatabaseMissing('funding_references', [
             'resource_id' => $resource->id,
             'funder_name' => 'Old Funder',
         ]);
 
         // New funding references should exist
-        $this->assertDatabaseHas('resource_funding_references', [
+        $this->assertDatabaseHas('funding_references', [
             'resource_id' => $resource->id,
             'funder_name' => 'New Funder 1',
             'funder_identifier' => 'https://doi.org/10.13039/new1',
-            'position' => 0,
         ]);
 
-        $this->assertDatabaseHas('resource_funding_references', [
+        $this->assertDatabaseHas('funding_references', [
             'resource_id' => $resource->id,
             'funder_name' => 'New Funder 2',
-            'position' => 1,
         ]);
 
         $this->assertCount(2, $resource->fresh()->fundingReferences);
@@ -234,10 +226,9 @@ class ResourceControllerFundingReferenceTest extends TestCase
 
         $response->assertStatus(201);
 
-        $this->assertDatabaseHas('resource_funding_references', [
+        $this->assertDatabaseHas('funding_references', [
             'funder_name' => 'Minimal Funder',
             'funder_identifier' => null,
-            'funder_identifier_type' => null,
             'award_number' => null,
             'award_uri' => null,
             'award_title' => null,
@@ -290,17 +281,17 @@ class ResourceControllerFundingReferenceTest extends TestCase
     public function test_validates_funder_identifier_type(): void
     {
         $payload = [
-            'year' => 2024,
+            'publicationYear' => 2024,
             'resourceType' => (string) $this->resourceType->id,
             'language' => 'en',
             'titles' => [
-                ['title' => 'Test Resource', 'titleType' => 'main-title'],
+                ['value' => 'Test Resource', 'titleType' => 'main-title'],
             ],
-            'authors' => [
+            'creators' => [
                 [
                     'type' => 'person',
-                    'firstName' => 'John',
-                    'lastName' => 'Doe',
+                    'givenName' => 'John',
+                    'familyName' => 'Doe',
                     'position' => 0,
                     'affiliations' => [],
                 ],
@@ -330,17 +321,17 @@ class ResourceControllerFundingReferenceTest extends TestCase
     public function test_validates_award_uri_format(): void
     {
         $payload = [
-            'year' => 2024,
+            'publicationYear' => 2024,
             'resourceType' => (string) $this->resourceType->id,
             'language' => 'en',
             'titles' => [
-                ['title' => 'Test Resource', 'titleType' => 'main-title'],
+                ['value' => 'Test Resource', 'titleType' => 'main-title'],
             ],
-            'authors' => [
+            'creators' => [
                 [
                     'type' => 'person',
-                    'firstName' => 'John',
-                    'lastName' => 'Doe',
+                    'givenName' => 'John',
+                    'familyName' => 'Doe',
                     'position' => 0,
                     'affiliations' => [],
                 ],

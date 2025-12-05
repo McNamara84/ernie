@@ -31,7 +31,7 @@ class StoreResourceRequest extends FormRequest
             'titles.*.title' => ['required', 'string', 'max:255'],
             'titles.*.titleType' => ['required', 'string', Rule::exists('title_types', 'slug')],
             'licenses' => ['required', 'array', 'min:1'],
-            'licenses.*' => ['string', 'distinct', Rule::exists('licenses', 'identifier')],
+            'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
             'authors' => ['required', 'array', 'min:1'],
             'authors.*.type' => ['required', Rule::in(['person', 'institution'])],
             'authors.*.position' => ['required', 'integer', 'min:0'],

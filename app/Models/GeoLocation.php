@@ -14,13 +14,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * @property int $id
  * @property int $resource_id
- * @property string|null $geo_location_place
- * @property float|null $geo_location_point_longitude
- * @property float|null $geo_location_point_latitude
- * @property float|null $geo_location_box_west_bound_longitude
- * @property float|null $geo_location_box_east_bound_longitude
- * @property float|null $geo_location_box_south_bound_latitude
- * @property float|null $geo_location_box_north_bound_latitude
+ * @property string|null $place
+ * @property float|null $point_longitude
+ * @property float|null $point_latitude
+ * @property float|null $west_bound_longitude
+ * @property float|null $east_bound_longitude
+ * @property float|null $south_bound_latitude
+ * @property float|null $north_bound_latitude
+ * @property array<array{longitude: float, latitude: float}>|null $polygon_points
+ * @property float|null $in_polygon_point_longitude
+ * @property float|null $in_polygon_point_latitude
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
@@ -36,22 +39,28 @@ class GeoLocation extends Model
 
     protected $fillable = [
         'resource_id',
-        'geo_location_place',
-        'geo_location_point_longitude',
-        'geo_location_point_latitude',
-        'geo_location_box_west_bound_longitude',
-        'geo_location_box_east_bound_longitude',
-        'geo_location_box_south_bound_latitude',
-        'geo_location_box_north_bound_latitude',
+        'place',
+        'point_longitude',
+        'point_latitude',
+        'west_bound_longitude',
+        'east_bound_longitude',
+        'south_bound_latitude',
+        'north_bound_latitude',
+        'polygon_points',
+        'in_polygon_point_longitude',
+        'in_polygon_point_latitude',
     ];
 
     protected $casts = [
-        'geo_location_point_longitude' => 'decimal:8',
-        'geo_location_point_latitude' => 'decimal:8',
-        'geo_location_box_west_bound_longitude' => 'decimal:8',
-        'geo_location_box_east_bound_longitude' => 'decimal:8',
-        'geo_location_box_south_bound_latitude' => 'decimal:8',
-        'geo_location_box_north_bound_latitude' => 'decimal:8',
+        'point_longitude' => 'decimal:8',
+        'point_latitude' => 'decimal:8',
+        'west_bound_longitude' => 'decimal:8',
+        'east_bound_longitude' => 'decimal:8',
+        'south_bound_latitude' => 'decimal:8',
+        'north_bound_latitude' => 'decimal:8',
+        'polygon_points' => 'array',
+        'in_polygon_point_longitude' => 'decimal:8',
+        'in_polygon_point_latitude' => 'decimal:8',
     ];
 
     /** @return BelongsTo<Resource, static> */
@@ -77,8 +86,8 @@ class GeoLocation extends Model
      */
     public function hasPoint(): bool
     {
-        return $this->geo_location_point_longitude !== null
-            && $this->geo_location_point_latitude !== null;
+        return $this->point_longitude !== null
+            && $this->point_latitude !== null;
     }
 
     /**
@@ -86,10 +95,10 @@ class GeoLocation extends Model
      */
     public function hasBox(): bool
     {
-        return $this->geo_location_box_west_bound_longitude !== null
-            && $this->geo_location_box_east_bound_longitude !== null
-            && $this->geo_location_box_south_bound_latitude !== null
-            && $this->geo_location_box_north_bound_latitude !== null;
+        return $this->west_bound_longitude !== null
+            && $this->east_bound_longitude !== null
+            && $this->south_bound_latitude !== null
+            && $this->north_bound_latitude !== null;
     }
 
     /**
@@ -97,6 +106,14 @@ class GeoLocation extends Model
      */
     public function hasPlace(): bool
     {
-        return $this->geo_location_place !== null;
+        return $this->place !== null;
+    }
+
+    /**
+     * Check if this has polygon points defined.
+     */
+    public function hasPolygon(): bool
+    {
+        return $this->polygon_points !== null && count($this->polygon_points) >= 4;
     }
 }

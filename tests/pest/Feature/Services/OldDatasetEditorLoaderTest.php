@@ -24,7 +24,7 @@ describe('with metaworks database', function () {
             ->and($data)->toHaveKey('titles')
             ->and($data)->toHaveKey('authors')
             ->and($data)->toHaveKey('descriptions')
-            ->and($data)->toHaveKey('licenses');
+            ->and($data)->toHaveKey('rights');
     });
 
     it('transforms title type correctly for main titles', function () {

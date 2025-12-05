@@ -462,16 +462,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 // GeoLocation stores bounding box, but frontend expects different format
                 return [
                     'id' => (string) $geoLocation->id,
-                    'latMin' => $geoLocation->geo_location_box_south_bound_latitude !== null ? (string) $geoLocation->geo_location_box_south_bound_latitude : '',
-                    'latMax' => $geoLocation->geo_location_box_north_bound_latitude !== null ? (string) $geoLocation->geo_location_box_north_bound_latitude : '',
-                    'lonMin' => $geoLocation->geo_location_box_west_bound_longitude !== null ? (string) $geoLocation->geo_location_box_west_bound_longitude : '',
-                    'lonMax' => $geoLocation->geo_location_box_east_bound_longitude !== null ? (string) $geoLocation->geo_location_box_east_bound_longitude : '',
+                    'latMin' => $geoLocation->south_bound_latitude !== null ? (string) $geoLocation->south_bound_latitude : '',
+                    'latMax' => $geoLocation->north_bound_latitude !== null ? (string) $geoLocation->north_bound_latitude : '',
+                    'lonMin' => $geoLocation->west_bound_longitude !== null ? (string) $geoLocation->west_bound_longitude : '',
+                    'lonMax' => $geoLocation->east_bound_longitude !== null ? (string) $geoLocation->east_bound_longitude : '',
                     'startDate' => '',
                     'endDate' => '',
                     'startTime' => '',
                     'endTime' => '',
                     'timezone' => 'UTC',
-                    'description' => $geoLocation->geo_location_place ?? '',
+                    'description' => $geoLocation->place ?? '',
                 ];
             })->toArray();
 

@@ -3,10 +3,9 @@
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Models\ResourceAuthor;
-use App\Models\ResourceTitle;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
-use App\Models\Role;
+use App\Models\Title;
 use App\Models\User;
 
 beforeEach(function () {
@@ -34,29 +33,27 @@ describe('DataCite JSON Export Route', function () {
     test('exports DataCite JSON with correct headers', function () {
         $this->actingAs($this->user);
 
-        $resource = Resource::factory()->create(['year' => 2024]);
+        $resource = Resource::factory()->create(['publication_year' => 2024]);
         $resourceType = ResourceType::where('name', 'Dataset')->first();
         $resource->resource_type_id = $resourceType->id;
         $resource->save();
 
         // Add required creator
         $person = Person::factory()->create([
-            'first_name' => 'Test',
-            'last_name' => 'Creator',
+            'given_name' => 'Test',
+            'family_name' => 'Creator',
         ]);
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
         // Add required title
-        ResourceTitle::factory()->create([
+        Title::factory()->create([
             'resource_id' => $resource->id,
-            'title' => 'Test Resource',
+            'value' => 'Test Resource',
         ]);
 
         $response = $this->get(route('resources.export-datacite-json', $resource));
@@ -75,23 +72,21 @@ describe('DataCite JSON Export Route', function () {
     test('exports valid JSON structure', function () {
         $this->actingAs($this->user);
 
-        $resource = Resource::factory()->create(['year' => 2024]);
+        $resource = Resource::factory()->create(['publication_year' => 2024]);
         $resourceType = ResourceType::where('name', 'Software')->first();
         $resource->resource_type_id = $resourceType->id;
         $resource->save();
 
         // Add required fields
         $person = Person::factory()->create();
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
-        ResourceTitle::factory()->create(['resource_id' => $resource->id]);
+        Title::factory()->create(['resource_id' => $resource->id]);
 
         $response = $this->get(route('resources.export-datacite-json', $resource));
 
@@ -116,23 +111,21 @@ describe('DataCite JSON Export Route', function () {
     test('exports correct filename format with timestamp', function () {
         $this->actingAs($this->user);
 
-        $resource = Resource::factory()->create(['year' => 2024]);
+        $resource = Resource::factory()->create(['publication_year' => 2024]);
         $resourceType = ResourceType::where('name', 'Other')->first();
         $resource->resource_type_id = $resourceType->id;
         $resource->save();
 
         // Add minimum required data
         $person = Person::factory()->create();
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
-        ResourceTitle::factory()->create(['resource_id' => $resource->id]);
+        Title::factory()->create(['resource_id' => $resource->id]);
 
         $before = now()->format('YmdHis');
         $response = $this->get(route('resources.export-datacite-json', $resource));
@@ -155,46 +148,30 @@ describe('DataCite JSON Export Route', function () {
             ->and($timestamp)->toBeLessThanOrEqual($after);
     });
 
-    test('exports resource with multiple creators and contributors', function () {
+    test('exports resource with multiple creators', function () {
         $this->actingAs($this->user);
 
-        $resource = Resource::factory()->create(['year' => 2024]);
+        $resource = Resource::factory()->create(['publication_year' => 2024]);
 
         // Add creators
-        $person1 = Person::factory()->create(['first_name' => 'Alice', 'last_name' => 'Smith']);
-        $person2 = Person::factory()->create(['first_name' => 'Bob', 'last_name' => 'Jones']);
+        $person1 = Person::factory()->create(['given_name' => 'Alice', 'family_name' => 'Smith']);
+        $person2 = Person::factory()->create(['given_name' => 'Bob', 'family_name' => 'Jones']);
 
-        $authorRole = Role::where('name', 'Author')->first();
-
-        $creator1 = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person1->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person1->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $creator1->roles()->attach($authorRole);
 
-        $creator2 = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person2->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person2->id,
+            'creatorable_type' => Person::class,
             'position' => 2,
         ]);
-        $creator2->roles()->attach($authorRole);
 
-        // Add contributor
-        $person3 = Person::factory()->create(['first_name' => 'Charlie', 'last_name' => 'Brown']);
-        $contactRole = Role::where('name', 'Contact Person')->first();
-
-        $contributor = ResourceAuthor::create([
-            'resource_id' => $resource->id,
-            'authorable_id' => $person3->id,
-            'authorable_type' => Person::class,
-            'position' => 3,
-        ]);
-        $contributor->roles()->attach($contactRole);
-
-        ResourceTitle::factory()->create(['resource_id' => $resource->id]);
+        Title::factory()->create(['resource_id' => $resource->id]);
 
         $response = $this->get(route('resources.export-datacite-json', $resource));
 
@@ -202,17 +179,14 @@ describe('DataCite JSON Export Route', function () {
 
         expect($json['data']['attributes']['creators'])->toHaveCount(2)
             ->and($json['data']['attributes']['creators'][0]['name'])->toBe('Smith, Alice')
-            ->and($json['data']['attributes']['creators'][1]['name'])->toBe('Jones, Bob')
-            ->and($json['data']['attributes']['contributors'])->toHaveCount(1)
-            ->and($json['data']['attributes']['contributors'][0]['name'])->toBe('Brown, Charlie')
-            ->and($json['data']['attributes']['contributors'][0]['contributorType'])->toBe('ContactPerson');
+            ->and($json['data']['attributes']['creators'][1]['name'])->toBe('Jones, Bob');
     });
 
     test('exports resource with all optional fields', function () {
         $this->actingAs($this->user);
 
         $resource = Resource::factory()->create([
-            'year' => 2024,
+            'publication_year' => 2024,
             'doi' => '10.82433/TEST-123',
             'version' => '1.0.0',
         ]);
@@ -223,20 +197,18 @@ describe('DataCite JSON Export Route', function () {
 
         // Add creator
         $person = Person::factory()->create();
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
-        // Add titles
-        ResourceTitle::factory()->create([
+        // Add title
+        Title::factory()->create([
             'resource_id' => $resource->id,
-            'title' => 'Main Title',
-            'language_id' => $language->id,
+            'value' => 'Main Title',
+            'language' => 'en',
         ]);
 
         $response = $this->get(route('resources.export-datacite-json', $resource));
@@ -254,20 +226,18 @@ describe('DataCite JSON Export Route', function () {
     test('handles concurrent export requests', function () {
         $this->actingAs($this->user);
 
-        $resource1 = Resource::factory()->create(['year' => 2024]);
-        $resource2 = Resource::factory()->create(['year' => 2024]);
+        $resource1 = Resource::factory()->create(['publication_year' => 2024]);
+        $resource2 = Resource::factory()->create(['publication_year' => 2024]);
 
         foreach ([$resource1, $resource2] as $resource) {
             $person = Person::factory()->create();
-            $authorRole = Role::where('name', 'Author')->first();
-            $resourceAuthor = ResourceAuthor::create([
+            ResourceCreator::create([
                 'resource_id' => $resource->id,
-                'authorable_id' => $person->id,
-                'authorable_type' => Person::class,
+                'creatorable_id' => $person->id,
+                'creatorable_type' => Person::class,
                 'position' => 1,
             ]);
-            $resourceAuthor->roles()->attach($authorRole);
-            ResourceTitle::factory()->create(['resource_id' => $resource->id]);
+            Title::factory()->create(['resource_id' => $resource->id]);
         }
 
         $response1 = $this->get(route('resources.export-datacite-json', $resource1));

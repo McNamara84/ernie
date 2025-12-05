@@ -10,13 +10,9 @@ use Illuminate\Support\Str;
 /**
  * @property int $id
  * @property int $resource_id
- * @property string $template
- * @property string|null $ftp_url
- * @property string $status
- * @property string|null $preview_token
+ * @property string $slug
+ * @property bool $is_published
  * @property \Illuminate\Support\Carbon|null $published_at
- * @property \Illuminate\Support\Carbon|null $last_viewed_at
- * @property int $view_count
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
@@ -35,10 +31,8 @@ class LandingPage extends Model
      */
     protected $fillable = [
         'resource_id',
-        'template',
-        'ftp_url',
-        'status',
-        'preview_token',
+        'slug',
+        'is_published',
         'published_at',
     ];
 
@@ -48,9 +42,8 @@ class LandingPage extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'is_published' => 'boolean',
         'published_at' => 'datetime',
-        'last_viewed_at' => 'datetime',
-        'view_count' => 'integer',
     ];
 
     /**
@@ -62,32 +55,6 @@ class LandingPage extends Model
         'preview_url',
         'public_url',
     ];
-
-    /**
-     * Template constants.
-     *
-     * @var string
-     */
-    public const TEMPLATE_DEFAULT_GFZ = 'default_gfz';
-
-    /**
-     * Available templates.
-     *
-     * @var array<string, string>
-     */
-    public const TEMPLATES = [
-        self::TEMPLATE_DEFAULT_GFZ => 'Default GFZ Data Services',
-        // Future templates can be added here
-    ];
-
-    /**
-     * Status constants.
-     *
-     * @var string
-     */
-    public const STATUS_DRAFT = 'draft';
-
-    public const STATUS_PUBLISHED = 'published';
 
     /**
      * Get the resource that owns this landing page.
