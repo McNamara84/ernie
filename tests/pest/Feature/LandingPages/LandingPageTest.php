@@ -18,7 +18,7 @@ describe('Landing Page Creation', function () {
             ->postJson("/resources/{$this->resource->id}/landing-page", [
                 'template' => 'default_gfz',
                 'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test',
-                'status' => 'draft',
+                'is_published' => false,
             ]);
 
         $response->assertCreated()
@@ -30,14 +30,14 @@ describe('Landing Page Creation', function () {
 
         expect($this->resource->fresh()->landingPage)->not->toBeNull();
         expect($this->resource->landingPage->template)->toBe('default_gfz');
-        expect($this->resource->landingPage->status)->toBe('draft');
+        expect($this->resource->landingPage->is_published)->toBeFalse();
     });
 
     test('preview token is automatically generated on creation', function () {
         $this->actingAs($this->user)
             ->postJson("/resources/{$this->resource->id}/landing-page", [
                 'template' => 'default_gfz',
-                'status' => 'draft',
+                'is_published' => false,
             ]);
 
         $landingPage = $this->resource->fresh()->landingPage;
@@ -50,7 +50,7 @@ describe('Landing Page Creation', function () {
         $this->actingAs($this->user)
             ->postJson("/resources/{$this->resource->id}/landing-page", [
                 'template' => 'default_gfz',
-                'status' => 'published',
+                'is_published' => true,
             ]);
 
         $landingPage = $this->resource->fresh()->landingPage;
@@ -65,7 +65,7 @@ describe('Landing Page Creation', function () {
         $response = $this->actingAs($this->user)
             ->postJson("/resources/{$this->resource->id}/landing-page", [
                 'template' => 'default_gfz',
-                'status' => 'draft',
+                'is_published' => false,
             ]);
 
         $response->assertStatus(409)
@@ -77,7 +77,7 @@ describe('Landing Page Creation', function () {
     test('unauthenticated user cannot create landing page', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page", [
             'template' => 'default_gfz',
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         $response->assertUnauthorized();
@@ -95,7 +95,7 @@ describe('Landing Page Creation', function () {
         $response = $this->actingAs($this->user)
             ->postJson("/resources/{$this->resource->id}/landing-page", [
                 'template' => 'invalid_template',
-                'status' => 'draft',
+                'is_published' => false,
             ]);
 
         $response->assertUnprocessable()
@@ -107,7 +107,7 @@ describe('Landing Page Creation', function () {
             ->postJson("/resources/{$this->resource->id}/landing-page", [
                 'template' => 'default_gfz',
                 'ftp_url' => 'not-a-valid-url',
-                'status' => 'draft',
+                'is_published' => false,
             ]);
 
         $response->assertUnprocessable()
@@ -120,13 +120,13 @@ describe('Landing Page Updates', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
             'template' => 'default_gfz',
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         $response = $this->actingAs($this->user)
             ->putJson("/resources/{$this->resource->id}/landing-page", [
                 'ftp_url' => 'https://datapub.gfz-potsdam.de/download/updated',
-                'status' => 'published',
+                'is_published' => true,
             ]);
 
         $response->assertOk()
@@ -143,13 +143,13 @@ describe('Landing Page Updates', function () {
     test('updating to published sets published_at timestamp', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'draft',
+            'is_published' => false,
             'published_at' => null,
         ]);
 
         $this->actingAs($this->user)
             ->putJson("/resources/{$this->resource->id}/landing-page", [
-                'status' => 'published',
+                'is_published' => true,
             ]);
 
         $landingPage->refresh();
@@ -159,14 +159,14 @@ describe('Landing Page Updates', function () {
     test('updating to draft clears published_at and changes status', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         $landingPage->publish(); // Set published_at
 
         $this->actingAs($this->user)
             ->putJson("/resources/{$this->resource->id}/landing-page", [
-                'status' => 'draft',
+                'is_published' => false,
             ]);
 
         $landingPage->refresh();
@@ -177,7 +177,7 @@ describe('Landing Page Updates', function () {
     test('returns 404 when landing page does not exist', function () {
         $response = $this->actingAs($this->user)
             ->putJson("/resources/{$this->resource->id}/landing-page", [
-                'status' => 'published',
+                'is_published' => true,
             ]);
 
         $response->assertNotFound()
@@ -189,7 +189,7 @@ describe('Landing Page Updates', function () {
     test('invalidates cache on update', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         // Set cache
@@ -283,7 +283,7 @@ describe('Public Landing Page Display', function () {
     test('published landing page is publicly accessible', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'published',
+            'is_published' => true,
             'template' => 'default_gfz',
         ]);
         $landingPage->publish();
@@ -297,7 +297,7 @@ describe('Public Landing Page Display', function () {
     test('draft landing page requires preview token', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         // Without token: 404
@@ -312,7 +312,7 @@ describe('Public Landing Page Display', function () {
     test('draft landing page with invalid token returns 403', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         $response = $this->get("/datasets/{$this->resource->id}?preview=invalid-token");
@@ -322,7 +322,7 @@ describe('Public Landing Page Display', function () {
     test('increments view count on each visit for published pages', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'published',
+            'is_published' => true,
             'view_count' => 5,
         ]);
 
@@ -334,7 +334,7 @@ describe('Public Landing Page Display', function () {
     test('does not increment view count in preview mode', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'draft',
+            'is_published' => false,
             'view_count' => 5,
         ]);
 
@@ -346,7 +346,7 @@ describe('Public Landing Page Display', function () {
     test('updates last_viewed_at timestamp on visit', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'published',
+            'is_published' => true,
             'last_viewed_at' => null,
         ]);
 
@@ -401,16 +401,16 @@ describe('Landing Page Model', function () {
     });
 
     test('isPublished returns correct status', function () {
-        $published = LandingPage::factory()->create(['status' => 'published']);
-        $draft = LandingPage::factory()->create(['status' => 'draft']);
+        $published = LandingPage::factory()->create(['is_published' => true]);
+        $draft = LandingPage::factory()->create(['is_published' => false]);
 
         expect($published->isPublished())->toBeTrue();
         expect($draft->isPublished())->toBeFalse();
     });
 
     test('isDraft returns correct status', function () {
-        $published = LandingPage::factory()->create(['status' => 'published']);
-        $draft = LandingPage::factory()->create(['status' => 'draft']);
+        $published = LandingPage::factory()->create(['is_published' => true]);
+        $draft = LandingPage::factory()->create(['is_published' => false]);
 
         expect($published->isDraft())->toBeFalse();
         expect($draft->isDraft())->toBeTrue();
@@ -418,22 +418,22 @@ describe('Landing Page Model', function () {
 
     test('publish method updates status and published_at', function () {
         $landingPage = LandingPage::factory()->create([
-            'status' => 'draft',
+            'is_published' => false,
             'published_at' => null,
         ]);
 
         $landingPage->publish();
 
-        expect($landingPage->fresh()->status)->toBe('published');
+        expect($landingPage->fresh()->is_published)->toBeTrue();
         expect($landingPage->fresh()->published_at)->not->toBeNull();
     });
 
     test('unpublish method updates status to draft', function () {
-        $landingPage = LandingPage::factory()->create(['status' => 'published']);
+        $landingPage = LandingPage::factory()->create(['is_published' => true]);
 
         $landingPage->unpublish();
 
-        expect($landingPage->fresh()->status)->toBe('draft');
+        expect($landingPage->fresh()->is_published)->toBeFalse();
     });
 
     test('belongs to resource', function () {
