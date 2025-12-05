@@ -1375,7 +1375,7 @@ class ResourceController extends Controller
         // Determine publication status based on DOI and landing page status
         $publicStatus = 'curation'; // Default status
         if ($resource->doi && $resource->landingPage) {
-            $publicStatus = $resource->landingPage->status === 'published' ? 'published' : 'review';
+            $publicStatus = $resource->landingPage->is_published ? 'published' : 'review';
         }
 
         return [
@@ -1421,7 +1421,7 @@ class ResourceController extends Controller
             'first_author' => $firstCreatorData,
             'landingPage' => $resource->landingPage ? [
                 'id' => $resource->landingPage->id,
-                'status' => $resource->landingPage->status,
+                'is_published' => $resource->landingPage->is_published,
                 'public_url' => $resource->landingPage->public_url,
             ] : null,
         ];

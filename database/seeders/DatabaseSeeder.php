@@ -105,9 +105,8 @@ class DatabaseSeeder extends Seeder
 
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource->id,
-            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
-            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
-            'preview_token' => \Illuminate\Support\Str::random(64),
+            'slug' => 'test-resource-1',
+            'is_published' => true,
             'published_at' => now(),
         ]);
 
@@ -121,9 +120,8 @@ class DatabaseSeeder extends Seeder
 
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource2->id,
-            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
-            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
-            'preview_token' => \Illuminate\Support\Str::random(64),
+            'slug' => 'test-resource-2',
+            'is_published' => true,
             'published_at' => now(),
         ]);
 
@@ -137,9 +135,8 @@ class DatabaseSeeder extends Seeder
 
         \App\Models\LandingPage::create([
             'resource_id' => $publishedResource->id,
-            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
-            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
-            'preview_token' => \Illuminate\Support\Str::random(64),
+            'slug' => 'test-playwright',
+            'is_published' => true,
             'published_at' => now(),
         ]);
 

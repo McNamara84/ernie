@@ -16,7 +16,6 @@ use Illuminate\Support\Str;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
- * @property-read string $preview_url
  * @property-read string $public_url
  */
 class LandingPage extends Model
@@ -52,7 +51,6 @@ class LandingPage extends Model
      * @var list<string>
      */
     protected $appends = [
-        'preview_url',
         'public_url',
     ];
 
@@ -70,18 +68,6 @@ class LandingPage extends Model
     }
 
     /**
-     * Generate a new preview token (64 characters).
-     */
-    public function generatePreviewToken(): string
-    {
-        $token = Str::random(64);
-        $this->preview_token = $token;
-        $this->save();
-
-        return $token;
-    }
-
-    /**
      * Get the public landing page URL.
      */
     public function getPublicUrlAttribute(): string
@@ -90,19 +76,11 @@ class LandingPage extends Model
     }
 
     /**
-     * Get the preview URL with token.
-     */
-    public function getPreviewUrlAttribute(): string
-    {
-        return $this->public_url.'?preview='.$this->preview_token;
-    }
-
-    /**
      * Check if landing page is published.
      */
     public function isPublished(): bool
     {
-        return $this->status === self::STATUS_PUBLISHED;
+        return $this->is_published;
     }
 
     /**
@@ -110,7 +88,7 @@ class LandingPage extends Model
      */
     public function isDraft(): bool
     {
-        return $this->status === self::STATUS_DRAFT;
+        return ! $this->is_published;
     }
 
     /**
@@ -119,7 +97,7 @@ class LandingPage extends Model
     public function publish(): void
     {
         $this->update([
-            'status' => self::STATUS_PUBLISHED,
+            'is_published' => true,
             'published_at' => now(),
         ]);
     }
@@ -130,36 +108,8 @@ class LandingPage extends Model
     public function unpublish(): void
     {
         $this->update([
-            'status' => self::STATUS_DRAFT,
+            'is_published' => false,
             'published_at' => null,
         ]);
-    }
-
-    /**
-     * Increment the view counter.
-     */
-    public function incrementViewCount(): void
-    {
-        $this->increment('view_count');
-        $this->last_viewed_at = now();
-        $this->save();
-    }
-
-    /**
-     * Get all available template options.
-     *
-     * @return array<array<string, string>>
-     */
-    public static function getTemplateOptions(): array
-    {
-        $options = [];
-        foreach (self::TEMPLATES as $key => $label) {
-            $options[] = [
-                'value' => $key,
-                'label' => $label,
-            ];
-        }
-
-        return $options;
     }
 }

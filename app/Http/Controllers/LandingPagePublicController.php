@@ -33,31 +33,17 @@ class LandingPagePublicController extends Controller
         // Landing page must exist
         abort_if(! $landingPage, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
-        // If preview token is provided, validate it
-        if ($previewToken) {
-            abort_if(
-                $landingPage->preview_token !== $previewToken,
-                HttpResponse::HTTP_FORBIDDEN,
-                'Invalid preview token'
-            );
+        // For public access, landing page must be published (preview mode removed in schema simplification)
+        abort_if(
+            ! $landingPage->isPublished(),
+            HttpResponse::HTTP_NOT_FOUND,
+            'Landing page not published'
+        );
 
-            // Preview mode: skip cache and render directly
-        } else {
-            // For public access, landing page must be published
-            abort_if(
-                ! $landingPage->isPublished(),
-                HttpResponse::HTTP_NOT_FOUND,
-                'Landing page not published'
-            );
-
-            // Try to get from cache first (only for published pages)
-            $cached = Cache::get("landing_page.{$resourceId}");
-            if ($cached) {
-                // Increment view count (outside cache)
-                $landingPage->incrementViewCount();
-
-                return $cached;
-            }
+        // Try to get from cache first (only for published pages)
+        $cached = Cache::get("landing_page.{$resourceId}");
+        if ($cached) {
+            return $cached;
         }
 
         // Load resource with all necessary relationships
@@ -198,14 +184,11 @@ class LandingPagePublicController extends Controller
             'isPreview' => (bool) $previewToken,
         ];
 
-        // Render via template system (will be implemented in Sprint 3 Step 12)
-        $response = Inertia::render("LandingPages/{$landingPage->template}", $data);
+        // Render landing page (simplified - template system removed)
+        $response = Inertia::render("LandingPages/default", $data);
 
-        // Cache and increment view count for published pages (not previews)
+        // Cache published pages for 24 hours
         if (! $previewToken) {
-            $landingPage->incrementViewCount();
-
-            // Cache published pages for 24 hours
             Cache::put("landing_page.{$resourceId}", $response, now()->addDay());
         }
 

@@ -38,9 +38,9 @@ it('updates rights usage counts correctly', function () {
     $resource3->rights()->attach([$mit->id, $gpl->id]);
 
     // Run the command
-    $this->artisan('licenses:update-usage-count')
-        ->expectsOutput('Calculating license usage counts...')
-        ->expectsOutput('Successfully updated usage counts for 3 licenses.')
+    $this->artisan('rights:update-usage-count')
+        ->expectsOutput('Calculating rights usage counts...')
+        ->expectsOutput('Successfully calculated usage counts for 3 rights.')
         ->assertExitCode(0);
 
     // Verify usage counts
@@ -69,7 +69,7 @@ it('resets usage counts to zero for unused rights', function () {
     $resource->rights()->attach([$mit->id]);
 
     // Run the command
-    $this->artisan('licenses:update-usage-count')
+    $this->artisan('rights:update-usage-count')
         ->assertExitCode(0);
 
     // MIT should have count 1, Apache should be reset to 0
@@ -90,6 +90,6 @@ it('handles resources with no rights gracefully', function () {
     Resource::factory()->create();
 
     // Run the command
-    $this->artisan('licenses:update-usage-count')
+    $this->artisan('rights:update-usage-count')
         ->assertExitCode(0);
 });
