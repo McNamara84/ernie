@@ -18,12 +18,45 @@ class EditorSettingsController extends Controller
 {
     public function index(): Response
     {
+        // Map database fields to frontend expected field names
+        $resourceTypes = ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active'])->map(fn($r) => [
+            'id' => $r->id,
+            'name' => $r->name,
+            'active' => $r->is_active,
+            'elmo_active' => $r->is_elmo_active,
+        ]);
+
+        $titleTypes = TitleType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn($t) => [
+            'id' => $t->id,
+            'name' => $t->name,
+            'slug' => $t->slug,
+            'active' => $t->is_active,
+            'elmo_active' => $t->is_elmo_active,
+        ]);
+
+        $licenses = Right::orderBy('id')->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active'])->map(fn($r) => [
+            'id' => $r->id,
+            'identifier' => $r->identifier,
+            'name' => $r->name,
+            'active' => $r->is_active,
+            'elmo_active' => $r->is_elmo_active,
+        ]);
+
+        $dateTypes = DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active'])->map(fn($d) => [
+            'id' => $d->id,
+            'name' => $d->name,
+            'slug' => $d->slug,
+            'description' => null,
+            'active' => $d->is_active,
+            'elmo_active' => false, // DateType doesn't have is_elmo_active
+        ]);
+
         return Inertia::render('settings/index', [
-            'resourceTypes' => ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active']),
-            'titleTypes' => TitleType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active']),
-            'rights' => Right::orderBy('id')->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active']),
+            'resourceTypes' => $resourceTypes,
+            'titleTypes' => $titleTypes,
+            'licenses' => $licenses,
             'languages' => Language::orderBy('id')->get(['id', 'code', 'name', 'active', 'elmo_active']),
-            'dateTypes' => DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active']),
+            'dateTypes' => $dateTypes,
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
         ]);
@@ -36,8 +69,8 @@ class EditorSettingsController extends Controller
         foreach ($validated['resourceTypes'] as $type) {
             ResourceType::where('id', $type['id'])->update([
                 'name' => $type['name'],
-                'is_active' => $type['is_active'],
-                'is_elmo_active' => $type['is_elmo_active'],
+                'is_active' => $type['active'],
+                'is_elmo_active' => $type['elmo_active'],
             ]);
         }
 
@@ -45,15 +78,15 @@ class EditorSettingsController extends Controller
             TitleType::where('id', $type['id'])->update([
                 'name' => $type['name'],
                 'slug' => $type['slug'],
-                'is_active' => $type['is_active'],
-                'is_elmo_active' => $type['is_elmo_active'],
+                'is_active' => $type['active'],
+                'is_elmo_active' => $type['elmo_active'],
             ]);
         }
 
-        foreach ($validated['rights'] as $right) {
-            Right::where('id', $right['id'])->update([
-                'is_active' => $right['is_active'],
-                'is_elmo_active' => $right['is_elmo_active'],
+        foreach ($validated['licenses'] as $license) {
+            Right::where('id', $license['id'])->update([
+                'is_active' => $license['active'],
+                'is_elmo_active' => $license['elmo_active'],
             ]);
         }
 
@@ -66,7 +99,7 @@ class EditorSettingsController extends Controller
 
         foreach ($validated['dateTypes'] as $dateType) {
             DateType::where('id', $dateType['id'])->update([
-                'is_active' => $dateType['is_active'],
+                'is_active' => $dateType['active'],
             ]);
         }
 
