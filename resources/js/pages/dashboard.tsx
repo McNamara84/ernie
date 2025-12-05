@@ -20,7 +20,7 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
     const token = csrfHeaders['X-CSRF-TOKEN'];
 
     if (!token) {
-        throw new Error('CSRF token not found');
+        throw new Error('CSRF token not found. Please reload the page (Ctrl+F5) and try again.');
     }
 
     const formData = new FormData();
@@ -36,11 +36,21 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
         
         if (!response.ok) {
             let message = 'Upload failed';
-            try {
-                const errorData: { message?: string } = await response.json();
-                message = errorData.message ?? message;
-            } catch (err) {
-                console.error('Failed to parse error response', err);
+            
+            // Handle 419 CSRF token mismatch specifically
+            if (response.status === 419) {
+                console.warn('CSRF token expired, reloading page...');
+                // Automatically reload the page to get a fresh CSRF token
+                window.location.reload();
+                // Throw error to prevent further execution
+                throw new Error('Session expired. Reloading page...');
+            } else {
+                try {
+                    const errorData: { message?: string } = await response.json();
+                    message = errorData.message ?? message;
+                } catch (err) {
+                    console.error('Failed to parse error response', err);
+                }
             }
             throw new Error(message);
         }

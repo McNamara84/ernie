@@ -26,6 +26,10 @@ mkdir -p "$APP_PATH/bootstrap/cache"
 chown -R www-data:www-data "$STORAGE_PATH" "$APP_PATH/bootstrap/cache" 2>/dev/null || true
 chmod -R 775 "$STORAGE_PATH" "$APP_PATH/bootstrap/cache" 2>/dev/null || true
 
+# Configure PHP-FPM to listen on all interfaces for Docker networking
+echo "Configuring PHP-FPM..."
+sed -i 's/listen = 127.0.0.1:9000/listen = 9000/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+
 cd "$APP_PATH"
 
 # Install composer dependencies if vendor is empty
