@@ -88,7 +88,7 @@ describe('Landing Page Creation', function () {
             ->postJson("/resources/{$this->resource->id}/landing-page", []);
 
         $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['template', 'status']);
+            ->assertJsonValidationErrors(['template']);
     });
 
     test('validates template must be valid', function () {
@@ -170,7 +170,7 @@ describe('Landing Page Updates', function () {
             ]);
 
         $landingPage->refresh();
-        expect($landingPage->status)->toBe('draft');
+        expect($landingPage->is_published)->toBeFalse();
         expect($landingPage->published_at)->toBeNull();
     });
 

@@ -11,12 +11,18 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property int $resource_id
  * @property string $slug
+ * @property string $template
+ * @property string|null $ftp_url
  * @property bool $is_published
+ * @property string|null $preview_token
  * @property \Illuminate\Support\Carbon|null $published_at
+ * @property int $view_count
+ * @property \Illuminate\Support\Carbon|null $last_viewed_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
  * @property-read string $public_url
+ * @property-read string|null $preview_url
  */
 class LandingPage extends Model
 {
@@ -31,8 +37,13 @@ class LandingPage extends Model
     protected $fillable = [
         'resource_id',
         'slug',
+        'template',
+        'ftp_url',
         'is_published',
+        'preview_token',
         'published_at',
+        'view_count',
+        'last_viewed_at',
     ];
 
     /**
@@ -43,6 +54,8 @@ class LandingPage extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'published_at' => 'datetime',
+        'last_viewed_at' => 'datetime',
+        'view_count' => 'integer',
     ];
 
     /**
@@ -52,7 +65,22 @@ class LandingPage extends Model
      */
     protected $appends = [
         'public_url',
+        'preview_url',
     ];
+
+    /**
+     * Boot the model.
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (LandingPage $landingPage): void {
+            if (empty($landingPage->preview_token)) {
+                $landingPage->preview_token = Str::random(64);
+            }
+        });
+    }
 
     /**
      * Get the resource that owns this landing page.
@@ -73,6 +101,43 @@ class LandingPage extends Model
     public function getPublicUrlAttribute(): string
     {
         return route('landing-page.show', ['resourceId' => $this->resource_id]);
+    }
+
+    /**
+     * Get the preview URL for the landing page.
+     */
+    public function getPreviewUrlAttribute(): ?string
+    {
+        if (! $this->preview_token) {
+            return null;
+        }
+
+        return route('landing-page.show', [
+            'resourceId' => $this->resource_id,
+            'preview' => $this->preview_token,
+        ]);
+    }
+
+    /**
+     * Generate a new preview token.
+     */
+    public function generatePreviewToken(): string
+    {
+        $newToken = Str::random(64);
+        $this->update([
+            'preview_token' => $newToken,
+        ]);
+
+        return $newToken;
+    }
+
+    /**
+     * Increment the view count.
+     */
+    public function incrementViewCount(): void
+    {
+        $this->increment('view_count');
+        $this->update(['last_viewed_at' => now()]);
     }
 
     /**

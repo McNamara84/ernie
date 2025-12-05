@@ -497,9 +497,17 @@ return new class extends Migration
                 ->constrained('resources')
                 ->cascadeOnDelete();
             $table->string('slug')->unique();
+            $table->string('template', 50)->default('default_gfz');
+            $table->string('ftp_url', 2048)->nullable();
             $table->boolean('is_published')->default(false);
+            $table->string('preview_token', 64)->nullable()->unique();
             $table->timestamp('published_at')->nullable();
+            $table->unsignedInteger('view_count')->default(0);
+            $table->timestamp('last_viewed_at')->nullable();
             $table->timestamps();
+
+            $table->index('is_published');
+            $table->index('preview_token');
         });
 
         // Settings
