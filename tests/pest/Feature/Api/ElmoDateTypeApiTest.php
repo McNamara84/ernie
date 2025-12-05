@@ -16,33 +16,34 @@ function createElmoDateTypes(): DateType
     $enabled = DateType::create([
         'name' => 'Accepted',
         'slug' => 'accepted',
-        'description' => 'The date that the publisher accepted the resource.',
-        'active' => true,
-        'elmo_active' => true,
+        'is_active' => true,
     ]);
 
     DateType::create([
         'name' => 'Available',
         'slug' => 'available',
-        'description' => 'The date the resource is made publicly available.',
-        'active' => true,
-        'elmo_active' => false,
+        'is_active' => true,
+    ]);
+
+    DateType::create([
+        'name' => 'Inactive',
+        'slug' => 'inactive',
+        'is_active' => false,
     ]);
 
     return $enabled;
 }
 
-it('returns only date types enabled for ELMO', function () {
-    $enabled = createElmoDateTypes();
+it('returns only active date types for ELMO (same as Ernie)', function () {
+    createElmoDateTypes();
 
     $response = getJson('/api/v1/date-types/elmo')
         ->assertOk()
-        ->assertJsonCount(1);
+        ->assertJsonCount(2);
 
-    expect($response->json('0.id'))->toBe($enabled->id);
     expect($response->json('0.name'))->toBe('Accepted');
     expect($response->json('0.slug'))->toBe('accepted');
-    expect($response->json('0.description'))->toContain('publisher accepted');
+    expect($response->json('1.name'))->toBe('Available');
 });
 
 it('rejects requests without an API key when one is configured', function () {
@@ -66,16 +67,16 @@ it('rejects requests with an invalid API key', function () {
 });
 
 it('allows requests with a valid API key header', function () {
-    $enabled = createElmoDateTypes();
+    createElmoDateTypes();
 
     config(['services.elmo.api_key' => 'secret-key']);
 
     $response = getJson('/api/v1/date-types/elmo', ['X-API-Key' => 'secret-key'])
         ->assertOk()
-        ->assertJsonCount(1);
+        ->assertJsonCount(2);
 
-    expect($response->json('0.id'))->toBe($enabled->id);
     expect($response->json('0.name'))->toBe('Accepted');
+    expect($response->json('1.name'))->toBe('Available');
 });
 
 it('rejects API keys in query parameters for security', function () {

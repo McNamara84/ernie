@@ -16,15 +16,15 @@ function createElmoTitleTypes(): TitleType
     $enabled = TitleType::create([
         'name' => 'Main',
         'slug' => 'main',
-        'active' => true,
-        'elmo_active' => true,
+        'is_active' => true,
+        'is_elmo_active' => true,
     ]);
 
     TitleType::create([
         'name' => 'Alt',
         'slug' => 'alt',
-        'active' => true,
-        'elmo_active' => false,
+        'is_active' => true,
+        'is_elmo_active' => false,
     ]);
 
     return $enabled;

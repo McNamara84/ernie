@@ -16,12 +16,10 @@ class DateType extends Model
         'name',
         'slug',
         'is_active',
-        'is_elmo_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'is_elmo_active' => 'boolean',
     ];
 
     /**
@@ -33,17 +31,6 @@ class DateType extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
-    }
-
-    /**
-     * Scope to filter only ELMO-active date types.
-     *
-     * @param  Builder<DateType>  $query
-     * @return Builder<DateType>
-     */
-    public function scopeElmoActive(Builder $query): Builder
-    {
-        return $query->where('is_elmo_active', true);
     }
 
     /**

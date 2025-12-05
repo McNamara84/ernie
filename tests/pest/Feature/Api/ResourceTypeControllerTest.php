@@ -8,10 +8,10 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     config(['services.elmo.api_key' => null]);
 
-    ResourceType::create(['name' => 'Alpha', 'slug' => 'alpha', 'active' => true, 'elmo_active' => true]);
-    ResourceType::create(['name' => 'Bravo', 'slug' => 'bravo', 'active' => true, 'elmo_active' => false]);
-    ResourceType::create(['name' => 'Charlie', 'slug' => 'charlie', 'active' => false, 'elmo_active' => true]);
-    ResourceType::create(['name' => 'Delta', 'slug' => 'delta', 'active' => false, 'elmo_active' => false]);
+    ResourceType::create(['name' => 'Alpha', 'slug' => 'alpha', 'is_active' => true, 'is_elmo_active' => true]);
+    ResourceType::create(['name' => 'Bravo', 'slug' => 'bravo', 'is_active' => true, 'is_elmo_active' => false]);
+    ResourceType::create(['name' => 'Charlie', 'slug' => 'charlie', 'is_active' => false, 'is_elmo_active' => true]);
+    ResourceType::create(['name' => 'Delta', 'slug' => 'delta', 'is_active' => false, 'is_elmo_active' => false]);
 });
 
 test('returns all resource types ordered by name', function () {

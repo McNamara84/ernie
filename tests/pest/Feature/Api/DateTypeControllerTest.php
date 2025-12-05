@@ -8,10 +8,10 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     config(['services.elmo.api_key' => null]);
 
-    DateType::create(['name' => 'Accepted', 'slug' => 'accepted', 'description' => 'The date that the publisher accepted the resource.', 'active' => true, 'elmo_active' => true]);
-    DateType::create(['name' => 'Available', 'slug' => 'available', 'description' => 'The date the resource is made publicly available.', 'active' => true, 'elmo_active' => false]);
-    DateType::create(['name' => 'Collected', 'slug' => 'collected', 'description' => 'The date the resource content was collected.', 'active' => false, 'elmo_active' => true]);
-    DateType::create(['name' => 'Other', 'slug' => 'other', 'description' => 'Other date type.', 'active' => false, 'elmo_active' => false]);
+    DateType::create(['name' => 'Accepted', 'slug' => 'accepted', 'is_active' => true]);
+    DateType::create(['name' => 'Available', 'slug' => 'available', 'is_active' => true]);
+    DateType::create(['name' => 'Collected', 'slug' => 'collected', 'is_active' => false]);
+    DateType::create(['name' => 'Other', 'slug' => 'other', 'is_active' => false]);
 });
 
 test('returns all date types ordered by name', function () {
@@ -34,19 +34,19 @@ test('returns only active date types for Ernie', function () {
     ]);
 });
 
-test('returns only active and elmo-active date types', function () {
+test('returns only active date types for Elmo (same as Ernie)', function () {
     $response = $this->getJson('/api/v1/date-types/elmo')->assertOk();
-    expect($response->json())->toHaveCount(1);
+    expect($response->json())->toHaveCount(2);
     expect(array_column($response->json(), 'name'))->toBe([
         'Accepted',
+        'Available',
     ]);
 });
 
-test('date type response includes slug and description', function () {
+test('date type response includes slug', function () {
     $response = $this->getJson('/api/v1/date-types/ernie')->assertOk();
     $firstType = $response->json()[0];
 
-    expect($firstType)->toHaveKeys(['id', 'name', 'slug', 'description']);
+    expect($firstType)->toHaveKeys(['id', 'name', 'slug']);
     expect($firstType['slug'])->toBe('accepted');
-    expect($firstType['description'])->toContain('publisher accepted');
 });

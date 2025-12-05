@@ -8,11 +8,11 @@ uses(RefreshDatabase::class);
 
 test('returns active resource types for Ernie', function () {
     $this->seed(ResourceTypeSeeder::class);
-    ResourceType::create(['name' => 'Inactive', 'slug' => 'inactive', 'active' => false]);
+    ResourceType::create(['name' => 'Inactive', 'slug' => 'inactive', 'is_active' => false]);
 
     $response = $this->getJson('/api/v1/resource-types/ernie')->assertOk();
 
-    $response->assertJsonCount(ResourceType::where('active', true)->count());
+    $response->assertJsonCount(ResourceType::where('is_active', true)->count());
     $response->assertJsonStructure([
         '*' => ['id', 'name'],
     ]);

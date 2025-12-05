@@ -8,10 +8,10 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     config(['services.elmo.api_key' => null]);
 
-    TitleType::create(['name' => 'Alpha', 'slug' => 'alpha', 'active' => true, 'elmo_active' => true]);
-    TitleType::create(['name' => 'Bravo', 'slug' => 'bravo', 'active' => true, 'elmo_active' => false]);
-    TitleType::create(['name' => 'Charlie', 'slug' => 'charlie', 'active' => false, 'elmo_active' => true]);
-    TitleType::create(['name' => 'Delta', 'slug' => 'delta', 'active' => false, 'elmo_active' => false]);
+    TitleType::create(['name' => 'Alpha', 'slug' => 'alpha', 'is_active' => true, 'is_elmo_active' => true]);
+    TitleType::create(['name' => 'Bravo', 'slug' => 'bravo', 'is_active' => true, 'is_elmo_active' => false]);
+    TitleType::create(['name' => 'Charlie', 'slug' => 'charlie', 'is_active' => false, 'is_elmo_active' => true]);
+    TitleType::create(['name' => 'Delta', 'slug' => 'delta', 'is_active' => false, 'is_elmo_active' => false]);
 });
 
 test('returns all title types ordered by name', function () {
