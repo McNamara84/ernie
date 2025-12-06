@@ -81,7 +81,7 @@ services:
       - DB_PASSWORD=secret
       - REDIS_HOST=redis
       - BROADCAST_DRIVER=log
-      - CACHE_DRIVER=redis
+      - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - SANCTUM_STATEFUL_DOMAINS=localhost:3333
 
