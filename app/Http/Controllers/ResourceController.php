@@ -1096,12 +1096,8 @@ class ResourceController extends Controller
                 'creators' => function ($query): void {
                     $query
                         ->with([
-                            'creatorable' => function ($query) {
-                                // Eager load affiliations for both Person and Institution
-                                $query->with(['affiliations' => function ($q) {
-                                    $q->with('institution:id,name,ror_id');
-                                }]);
-                            },
+                            'creatorable', // Eager load Person or Institution
+                            'affiliations.institution:id,name,ror_id', // Eager load affiliations and their institutions
                         ])
                         ->orderBy('position');
                 },
@@ -1109,12 +1105,8 @@ class ResourceController extends Controller
                     $query
                         ->with([
                             'contributorType',
-                            'contributorable' => function ($query) {
-                                // Eager load affiliations for both Person and Institution
-                                $query->with(['affiliations' => function ($q) {
-                                    $q->with('institution:id,name,ror_id');
-                                }]);
-                            },
+                            'contributorable', // Eager load Person or Institution
+                            'affiliations.institution:id,name,ror_id', // Eager load affiliations and their institutions
                         ])
                         ->orderBy('position');
                 },

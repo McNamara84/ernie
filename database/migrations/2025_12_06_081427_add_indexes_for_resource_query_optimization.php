@@ -15,28 +15,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('resource_creators', function (Blueprint $table) {
-            // Composite index for ordering creators by resource and position
-            $table->index(['resource_id', 'position'], 'idx_creators_resource_position');
-            
-            // Composite index for polymorphic relationship lookups
-            $table->index(['creatorable_type', 'creatorable_id'], 'idx_creators_polymorphic');
-        });
-
-        Schema::table('resource_contributors', function (Blueprint $table) {
-            // Composite index for ordering contributors by resource and position
-            $table->index(['resource_id', 'position'], 'idx_contributors_resource_position');
-            
-            // Composite index for polymorphic relationship lookups
-            $table->index(['contributorable_type', 'contributorable_id'], 'idx_contributors_polymorphic');
-        });
+        // Note: Indexes for resource_creators and resource_contributors already exist
+        // in the main schema migration (0001_01_01_000003_create_ernie_schema.php)
+        // This migration adds additional optimizations where needed.
 
         Schema::table('affiliations', function (Blueprint $table) {
-            // Composite index for polymorphic relationship lookups
-            $table->index(['affiliatable_type', 'affiliatable_id'], 'idx_affiliations_polymorphic');
-            
-            // Index for institution lookups
-            $table->index('institution_id', 'idx_affiliations_institution');
+            // Index for affiliation name lookups (for filtering/searching)
+            // The polymorphic index already exists in the main schema
+            // Use try-catch to handle case where index already exists (idempotent)
+            try {
+                $table->index('name', 'idx_affiliations_name');
+            } catch (\Exception $e) {
+                // Index already exists - this is fine, continue
+            }
         });
     }
 
@@ -45,19 +36,13 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('resource_creators', function (Blueprint $table) {
-            $table->dropIndex('idx_creators_resource_position');
-            $table->dropIndex('idx_creators_polymorphic');
-        });
-
-        Schema::table('resource_contributors', function (Blueprint $table) {
-            $table->dropIndex('idx_contributors_resource_position');
-            $table->dropIndex('idx_contributors_polymorphic');
-        });
-
         Schema::table('affiliations', function (Blueprint $table) {
-            $table->dropIndex('idx_affiliations_polymorphic');
-            $table->dropIndex('idx_affiliations_institution');
+            // Use try-catch to handle case where index doesn't exist
+            try {
+                $table->dropIndex('idx_affiliations_name');
+            } catch (\Exception $e) {
+                // Index doesn't exist - this is fine, continue
+            }
         });
     }
 };
