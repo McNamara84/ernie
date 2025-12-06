@@ -29,6 +29,7 @@ class MslVocabularyService
             Log::info('Downloading MSL vocabulary', ['url' => self::VOCABULARY_URL]);
 
             $response = Http::timeout(30)->get(self::VOCABULARY_URL);
+            assert($response instanceof \Illuminate\Http\Client\Response);
 
             if (! $response->successful()) {
                 Log::error('Failed to download MSL vocabulary', [

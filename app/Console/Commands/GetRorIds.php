@@ -49,6 +49,7 @@ class GetRorIds extends Command
                 'sort' => 'mostrecent',
                 'size' => 1,
             ]);
+        assert($metadataResponse instanceof \Illuminate\Http\Client\Response);
 
         if ($metadataResponse->failed()) {
             $this->error(sprintf('Failed to fetch ROR metadata (HTTP %s).', $metadataResponse->status()));
@@ -105,6 +106,7 @@ class GetRorIds extends Command
         $downloadResponse = Http::retry(3, 500, throw: false)
             ->withOptions(['stream' => false])
             ->get($downloadUrl);
+        assert($downloadResponse instanceof \Illuminate\Http\Client\Response);
 
         if ($downloadResponse->failed()) {
             $this->error(sprintf('Failed to download ROR data dump (HTTP %s).', $downloadResponse->status()));

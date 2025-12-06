@@ -207,8 +207,9 @@ class DataCiteRegistrationService
         try {
             // Send POST request to DataCite API
             $response = $this->client
-                ->post("{$this->endpoint}/dois", $payload)
-                ->throw();
+                ->post("{$this->endpoint}/dois", $payload);
+            assert($response instanceof \Illuminate\Http\Client\Response);
+            $response->throw();
 
             $responseData = $response->json();
 
@@ -311,8 +312,9 @@ class DataCiteRegistrationService
 
             // Send PUT request to DataCite API
             $response = $this->client
-                ->put("{$this->endpoint}/dois/{$encodedDoi}", $payload)
-                ->throw();
+                ->put("{$this->endpoint}/dois/{$encodedDoi}", $payload);
+            assert($response instanceof \Illuminate\Http\Client\Response);
+            $response->throw();
 
             $responseData = $response->json();
 
