@@ -771,6 +771,18 @@ All pull requests are automatically checked for:
 - Type safety (TypeScript strict mode)
 - Accessibility (Axe-core in E2E tests)
 
+## Database Schema
+
+ERNIE uses a DataCite 4.6 compliant database schema with 30+ normalized tables.
+
+Key features:
+- Full DataCite 4.6 metadata coverage with all mandatory and recommended properties
+- Polymorphic relationships for creators/contributors (Person or Institution)
+- Normalized controlled vocabularies (resource types, date types, contributor types, etc.)
+- ORCID integration for persons with verification timestamps
+- ROR integration for institutions and affiliations
+- SPDX license management with usage tracking
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later).
@@ -784,7 +796,7 @@ For detailed information about changes in each release, visit the [interactive c
 Developed at **GFZ German Research Centre for Geosciences** – Helmholtz Centre Potsdam.
 
 This project integrates with:
-- [DataCite](https://datacite.org/) metadata schema v4.5
+- [DataCite](https://datacite.org/) metadata schema v4.6
 - [NASA GCMD](https://earthdata.nasa.gov/earth-observation-data/find-data/gcmd) controlled vocabularies
 - [Research Organization Registry (ROR)](https://ror.org/) for institutional identifiers
 - [ORCID](https://orcid.org/) Public API for researcher identification
