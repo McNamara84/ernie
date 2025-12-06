@@ -98,6 +98,7 @@ it('serializes resources efficiently with eager loaded relations', function () {
     // Act: Fetch resources via actual route to test real-world behavior
     $user = \App\Models\User::factory()->create();
     
+    DB::enableQueryLog();
     $response = $this->actingAs($user)
         ->get('/resources?per_page=10');
     

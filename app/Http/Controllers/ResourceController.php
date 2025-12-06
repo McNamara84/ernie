@@ -1372,7 +1372,7 @@ class ResourceController extends Controller
     private function serializeResource(Resource $resource): array
     {
         // In development, assert all required relations are loaded to detect N+1 queries
-        if (app()->environment('local')) {
+        if (app()->environment('local', 'testing')) {
             $this->assertRelationsLoaded($resource);
         }
 
@@ -1701,6 +1701,7 @@ class ResourceController extends Controller
     {
         $requiredRelations = [
             'creators',
+            'contributors',
             'titles',
             'rights',
             'resourceType',

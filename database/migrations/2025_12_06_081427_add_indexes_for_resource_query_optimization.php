@@ -19,13 +19,14 @@ return new class extends Migration
         // in the main schema migration (0001_01_01_000003_create_ernie_schema.php)
         // This migration adds additional optimizations where needed.
 
-        Schema::table('affiliations', function (Blueprint $table) {
-            // Index for affiliation name lookups (for filtering/searching)
-            // The polymorphic index already exists in the main schema
-            if (! Schema::hasIndex('affiliations', 'idx_affiliations_name')) {
+        // Check index existence outside the callback for proper conditional execution
+        if (! Schema::hasIndex('affiliations', 'idx_affiliations_name')) {
+            Schema::table('affiliations', function (Blueprint $table) {
+                // Index for affiliation name lookups (for filtering/searching)
+                // The polymorphic index already exists in the main schema
                 $table->index('name', 'idx_affiliations_name');
-            }
-        });
+            });
+        }
     }
 
     /**
@@ -33,10 +34,11 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('affiliations', function (Blueprint $table) {
-            if (Schema::hasIndex('affiliations', 'idx_affiliations_name')) {
+        // Check index existence outside the callback for proper conditional execution
+        if (Schema::hasIndex('affiliations', 'idx_affiliations_name')) {
+            Schema::table('affiliations', function (Blueprint $table) {
                 $table->dropIndex('idx_affiliations_name');
-            }
-        });
+            });
+        }
     }
 };
