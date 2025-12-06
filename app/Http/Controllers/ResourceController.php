@@ -23,6 +23,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
+use App\Services\ResourceCacheService;
 use App\Support\BooleanNormalizer;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +49,14 @@ class ResourceController extends Controller
     private const DEFAULT_SORT_KEY = 'updated_at';
 
     private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    /**
+     * Create a new controller instance.
+     */
+    public function __construct(
+        private readonly ResourceCacheService $cacheService
+    ) {
+    }
 
     private const ALLOWED_SORT_KEYS = [
         'id',
@@ -81,8 +90,19 @@ class ResourceController extends Controller
         // Apply sorting
         $this->applySorting($query, $sortKey, $sortDirection);
 
-        $resources = $query
-            ->paginate($perPage, ['*'], 'page', $page);
+        // Prepare cache key data
+        $cacheFilters = array_merge($filters, [
+            'sort' => $sortKey,
+            'direction' => $sortDirection,
+        ]);
+
+        // Use caching for resource listing
+        $resources = $this->cacheService->cacheResourceList(
+            $query,
+            $perPage,
+            $page,
+            $cacheFilters
+        );
 
         $resourcesData = collect($resources->items())
             ->map(fn (Resource $resource): array => $this->serializeResource($resource))
@@ -517,6 +537,9 @@ class ResourceController extends Controller
             ], 500);
         }
 
+        // Invalidate cache after creating/updating resource
+        $this->cacheService->invalidateResourceCache($resource->id);
+
         $message = $isUpdate ? 'Successfully updated resource.' : 'Successfully saved resource.';
         $status = $isUpdate ? 200 : 201;
 
@@ -530,7 +553,11 @@ class ResourceController extends Controller
 
     public function destroy(Resource $resource): RedirectResponse
     {
+        $resourceId = $resource->id;
         $resource->delete();
+
+        // Invalidate cache after deleting resource
+        $this->cacheService->invalidateResourceCache($resourceId);
 
         return redirect()
             ->route('resources')
@@ -557,8 +584,19 @@ class ResourceController extends Controller
         // Apply sorting
         $this->applySorting($query, $sortKey, $sortDirection);
 
-        $resources = $query
-            ->paginate($perPage, ['*'], 'page', $page);
+        // Prepare cache key data
+        $cacheFilters = array_merge($filters, [
+            'sort' => $sortKey,
+            'direction' => $sortDirection,
+        ]);
+
+        // Use caching for resource listing
+        $resources = $this->cacheService->cacheResourceList(
+            $query,
+            $perPage,
+            $page,
+            $cacheFilters
+        );
 
         $resourcesData = collect($resources->items())
             ->map(fn (Resource $resource): array => $this->serializeResource($resource))

@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Resource;
+use App\Observers\ResourceObserver;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -20,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register model observers
+        Resource::observe(ResourceObserver::class);
+
         // Only configure URL generation for route generation, not assets
         // Assets should remain at root level for proper serving
         try {

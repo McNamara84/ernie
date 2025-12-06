@@ -37,6 +37,9 @@ class GetMslKeywords extends Command
             $vocabulary = $service->getVocabulary();
             $count = count($vocabulary);
 
+            // Invalidate vocabulary caches after successful update
+            $this->call('cache:clear-app', ['category' => 'vocabularies']);
+
             $this->info('✓ MSL keywords downloaded and transformed successfully!');
             $this->info("✓ {$count} concepts extracted");
             $this->info('✓ Saved to: storage/app/private/msl-vocabulary.json');
