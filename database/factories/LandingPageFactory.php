@@ -24,7 +24,7 @@ class LandingPageFactory extends Factory
         return [
             'resource_id' => Resource::factory(),
             'slug' => fake()->unique()->slug(),
-            'template' => fake()->randomElement(['default_gfz', 'minimal', 'detailed']),
+            'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),
             'is_published' => $isPublished,
             'preview_token' => Str::random(64),
