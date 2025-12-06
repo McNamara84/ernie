@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\License;
+use App\Models\Right;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -13,55 +13,39 @@ class UpdateLicenseUsageCount extends Command
      *
      * @var string
      */
-    protected $signature = 'licenses:update-usage-count';
+    protected $signature = 'rights:update-usage-count';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Update usage count for all licenses based on resource associations';
+    protected $description = 'Update usage count for all rights based on resource associations';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $this->info('Calculating license usage counts...');
+        $this->info('Calculating rights usage counts...');
 
-        // Get usage counts from pivot table
-        $usageCounts = DB::table('license_resource')
-            ->select('license_id', DB::raw('COUNT(*) as count'))
-            ->groupBy('license_id')
-            ->pluck('count', 'license_id');
+        // Get usage counts from the resource_rights pivot table
+        $usageCounts = DB::table('resource_rights')
+            ->join('rights', 'resource_rights.rights_id', '=', 'rights.id')
+            ->select('rights.id', DB::raw('COUNT(DISTINCT resource_rights.resource_id) as count'))
+            ->groupBy('rights.id')
+            ->pluck('count', 'id');
 
-        if ($usageCounts->isEmpty()) {
-            // If no licenses are used, reset all to 0
-            License::query()->update(['usage_count' => 0]);
-            $this->info('No license usage found. All counts reset to 0.');
+        // Reset all usage counts to 0
+        Right::query()->update(['usage_count' => 0]);
 
-            return Command::SUCCESS;
+        // Update usage counts for rights that have associations
+        foreach ($usageCounts as $rightId => $count) {
+            Right::where('id', $rightId)->update(['usage_count' => $count]);
         }
 
-        // Build CASE statement with parameter bindings for SQL injection prevention
-        $cases = [];
-        $bindings = [];
-
-        foreach ($usageCounts as $licenseId => $count) {
-            $cases[] = 'WHEN id = ? THEN ?';
-            $bindings[] = $licenseId;
-            $bindings[] = $count;
-        }
-
-        $caseStatement = implode(' ', $cases);
-
-        // Single UPDATE query with CASE statement and parameter bindings
-        DB::statement("
-            UPDATE licenses
-            SET usage_count = CASE {$caseStatement} ELSE 0 END
-        ", $bindings);
-
-        $this->info('Successfully updated usage counts for '.count($usageCounts).' licenses.');
+        $totalRights = Right::count();
+        $this->info('Successfully calculated usage counts for '.$totalRights.' rights.');
 
         return Command::SUCCESS;
     }

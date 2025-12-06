@@ -39,14 +39,14 @@ export function useIdentifierValidation({
         status: 'idle',
     });
 
-    const validate = useCallback(async () => {
-        if (!enabled || !identifier.trim()) {
-            setValidationState({ status: 'idle' });
-            return;
-        }
-
+    // Memoize the async validation function
+    // This function performs format validation and API resolution for DOIs
+    const performValidation = useCallback(async (
+        identifierValue: string,
+        identifierTypeValue: string
+    ) => {
         // Step 1: Format validation (instant)
-        const formatResult = validateIdentifierFormat(identifier, identifierType);
+        const formatResult = validateIdentifierFormat(identifierValue, identifierTypeValue);
         
         if (!formatResult.isValid) {
             setValidationState({
@@ -57,11 +57,11 @@ export function useIdentifierValidation({
         }
 
         // Step 2: API resolution (only for DOI, non-blocking)
-        if (supportsMetadataResolution(identifierType)) {
+        if (supportsMetadataResolution(identifierTypeValue)) {
             setValidationState({ status: 'validating' });
 
             try {
-                const result = await resolveDOIMetadata(identifier);
+                const result = await resolveDOIMetadata(identifierValue);
                 
                 if (result.success && result.metadata) {
                     setValidationState({
@@ -92,7 +92,7 @@ export function useIdentifierValidation({
                 message: 'Format validated',
             });
         }
-    }, [identifier, identifierType, enabled]);
+    }, []); // No dependencies - function is stable
 
     // Immediate format validation when identifierType changes
     // This ensures users see correct validation status immediately after changing the type
@@ -139,11 +139,11 @@ export function useIdentifierValidation({
         }
 
         const timer = setTimeout(() => {
-            void validate();
+            void performValidation(identifier, identifierType);
         }, debounceMs);
 
         return () => clearTimeout(timer);
-    }, [validate, debounceMs]);
+    }, [enabled, identifier, identifierType, performValidation, debounceMs]);
 
     return validationState;
 }

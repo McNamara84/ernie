@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\GeoLocation;
 use App\Models\Language;
 use App\Models\Resource;
-use App\Models\ResourceCoverage;
 use App\Models\ResourceType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
+/**
+ * Tests for GeoLocation model (DataCite #18)
+ * Formerly ResourceCoverageTest - updated for DataCite 4.6 schema
+ */
 class ResourceCoverageTest extends TestCase
 {
     use RefreshDatabase;
@@ -33,7 +37,7 @@ class ResourceCoverageTest extends TestCase
         // Create a test resource
         $this->resource = Resource::create([
             'doi' => '10.5880/TEST.SETUP.001',
-            'year' => 2025,
+            'publication_year' => 2025,
             'version' => '1.0',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,

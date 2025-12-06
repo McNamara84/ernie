@@ -16,15 +16,15 @@ function createElmoResourceTypes(): ResourceType
     $enabled = ResourceType::create([
         'name' => 'Type A',
         'slug' => 'type-a',
-        'active' => true,
-        'elmo_active' => true,
+        'is_active' => true,
+        'is_elmo_active' => true,
     ]);
 
     ResourceType::create([
         'name' => 'Type B',
         'slug' => 'type-b',
-        'active' => true,
-        'elmo_active' => false,
+        'is_active' => true,
+        'is_elmo_active' => false,
     ]);
 
     return $enabled;

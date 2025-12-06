@@ -19,15 +19,18 @@ class LandingPageFactory extends Factory
      */
     public function definition(): array
     {
+        $isPublished = fake()->boolean(50);
+
         return [
             'resource_id' => Resource::factory(),
-            'template' => LandingPage::TEMPLATE_DEFAULT_GFZ,
-            'ftp_url' => fake()->optional(0.7)->url(),
-            'status' => fake()->randomElement([LandingPage::STATUS_DRAFT, LandingPage::STATUS_PUBLISHED]),
+            'slug' => fake()->unique()->slug(),
+            'template' => 'default_gfz', // Only template that exists currently
+            'ftp_url' => fake()->optional(0.3)->url(),
+            'is_published' => $isPublished,
             'preview_token' => Str::random(64),
-            'published_at' => fake()->optional(0.5)->dateTimeBetween('-1 year', 'now'),
+            'published_at' => $isPublished ? fake()->dateTimeBetween('-1 year', 'now') : null,
             'view_count' => fake()->numberBetween(0, 1000),
-            'last_viewed_at' => fake()->optional(0.6)->dateTimeBetween('-1 month', 'now'),
+            'last_viewed_at' => fake()->optional(0.7)->dateTimeBetween('-1 month', 'now'),
         ];
     }
 
@@ -37,7 +40,7 @@ class LandingPageFactory extends Factory
     public function draft(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => LandingPage::STATUS_DRAFT,
+            'is_published' => false,
             'published_at' => null,
         ]);
     }
@@ -48,29 +51,8 @@ class LandingPageFactory extends Factory
     public function published(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => LandingPage::STATUS_PUBLISHED,
-            'published_at' => fake()->dateTimeBetween('-1 year', 'now'),
-        ]);
-    }
-
-    /**
-     * Indicate that the landing page has an FTP URL.
-     */
-    public function withFtpUrl(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/'.fake()->sha256(),
-        ]);
-    }
-
-    /**
-     * Indicate that the landing page has no views yet.
-     */
-    public function noViews(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'view_count' => 0,
-            'last_viewed_at' => null,
+            'is_published' => true,
+            'published_at' => now(),
         ]);
     }
 }

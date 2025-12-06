@@ -8,4 +8,6 @@ parameters:
         - config
         - database
         - routes
+    excludePaths:
+        - database/migrations_backup
     level: 8

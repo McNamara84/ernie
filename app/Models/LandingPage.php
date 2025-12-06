@@ -7,6 +7,23 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property int $resource_id
+ * @property string $slug
+ * @property string $template
+ * @property string|null $ftp_url
+ * @property bool $is_published
+ * @property string|null $preview_token
+ * @property \Illuminate\Support\Carbon|null $published_at
+ * @property int $view_count
+ * @property \Illuminate\Support\Carbon|null $last_viewed_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read Resource $resource
+ * @property-read string $public_url
+ * @property-read string|null $preview_url
+ */
 class LandingPage extends Model
 {
     /** @use HasFactory<\Database\Factories\LandingPageFactory> */
@@ -19,11 +36,14 @@ class LandingPage extends Model
      */
     protected $fillable = [
         'resource_id',
+        'slug',
         'template',
         'ftp_url',
-        'status',
+        'is_published',
         'preview_token',
         'published_at',
+        'view_count',
+        'last_viewed_at',
     ];
 
     /**
@@ -32,6 +52,7 @@ class LandingPage extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'is_published' => 'boolean',
         'published_at' => 'datetime',
         'last_viewed_at' => 'datetime',
         'view_count' => 'integer',
@@ -43,35 +64,23 @@ class LandingPage extends Model
      * @var list<string>
      */
     protected $appends = [
-        'preview_url',
         'public_url',
+        'preview_url',
     ];
 
     /**
-     * Template constants.
-     *
-     * @var string
+     * Boot the model.
      */
-    public const TEMPLATE_DEFAULT_GFZ = 'default_gfz';
+    protected static function boot(): void
+    {
+        parent::boot();
 
-    /**
-     * Available templates.
-     *
-     * @var array<string, string>
-     */
-    public const TEMPLATES = [
-        self::TEMPLATE_DEFAULT_GFZ => 'Default GFZ Data Services',
-        // Future templates can be added here
-    ];
-
-    /**
-     * Status constants.
-     *
-     * @var string
-     */
-    public const STATUS_DRAFT = 'draft';
-
-    public const STATUS_PUBLISHED = 'published';
+        static::creating(function (LandingPage $landingPage): void {
+            if (empty($landingPage->preview_token)) {
+                $landingPage->preview_token = Str::random(64);
+            }
+        });
+    }
 
     /**
      * Get the resource that owns this landing page.
@@ -87,18 +96,6 @@ class LandingPage extends Model
     }
 
     /**
-     * Generate a new preview token (64 characters).
-     */
-    public function generatePreviewToken(): string
-    {
-        $token = Str::random(64);
-        $this->preview_token = $token;
-        $this->save();
-
-        return $token;
-    }
-
-    /**
      * Get the public landing page URL.
      */
     public function getPublicUrlAttribute(): string
@@ -107,11 +104,40 @@ class LandingPage extends Model
     }
 
     /**
-     * Get the preview URL with token.
+     * Get the preview URL for the landing page.
      */
-    public function getPreviewUrlAttribute(): string
+    public function getPreviewUrlAttribute(): ?string
     {
-        return $this->public_url.'?preview='.$this->preview_token;
+        if (! $this->preview_token) {
+            return null;
+        }
+
+        return route('landing-page.show', [
+            'resourceId' => $this->resource_id,
+            'preview' => $this->preview_token,
+        ]);
+    }
+
+    /**
+     * Generate a new preview token.
+     */
+    public function generatePreviewToken(): string
+    {
+        $newToken = Str::random(64);
+        $this->update([
+            'preview_token' => $newToken,
+        ]);
+
+        return $newToken;
+    }
+
+    /**
+     * Increment the view count.
+     */
+    public function incrementViewCount(): void
+    {
+        $this->increment('view_count');
+        $this->update(['last_viewed_at' => now()]);
     }
 
     /**
@@ -119,7 +145,7 @@ class LandingPage extends Model
      */
     public function isPublished(): bool
     {
-        return $this->status === self::STATUS_PUBLISHED;
+        return $this->is_published;
     }
 
     /**
@@ -127,7 +153,7 @@ class LandingPage extends Model
      */
     public function isDraft(): bool
     {
-        return $this->status === self::STATUS_DRAFT;
+        return ! $this->is_published;
     }
 
     /**
@@ -136,7 +162,7 @@ class LandingPage extends Model
     public function publish(): void
     {
         $this->update([
-            'status' => self::STATUS_PUBLISHED,
+            'is_published' => true,
             'published_at' => now(),
         ]);
     }
@@ -147,36 +173,8 @@ class LandingPage extends Model
     public function unpublish(): void
     {
         $this->update([
-            'status' => self::STATUS_DRAFT,
+            'is_published' => false,
             'published_at' => null,
         ]);
-    }
-
-    /**
-     * Increment the view counter.
-     */
-    public function incrementViewCount(): void
-    {
-        $this->increment('view_count');
-        $this->last_viewed_at = now();
-        $this->save();
-    }
-
-    /**
-     * Get all available template options.
-     *
-     * @return array<array<string, string>>
-     */
-    public static function getTemplateOptions(): array
-    {
-        $options = [];
-        foreach (self::TEMPLATES as $key => $label) {
-            $options[] = [
-                'value' => $key,
-                'label' => $label,
-            ];
-        }
-
-        return $options;
     }
 }

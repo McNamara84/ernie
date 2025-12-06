@@ -5,7 +5,8 @@ namespace App\Services;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Models\ResourceAuthor;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 
 /**
  * Service for exporting Resource data to DataCite JSON format (v4.5/4.6)
@@ -24,13 +25,6 @@ use App\Models\ResourceAuthor;
 class DataCiteJsonExporter
 {
     /**
-     * Fixed publisher information for all exports
-     */
-    private const PUBLISHER_NAME = 'GFZ Helmholtz Centre for Geosciences';
-
-    private const PUBLISHER_ROR_ID = 'https://ror.org/04z8jg394';
-
-    /**
      * Export a Resource to DataCite JSON format
      *
      * @param  resource  $resource  The resource to export
@@ -42,21 +36,21 @@ class DataCiteJsonExporter
         $resource->load([
             'resourceType',
             'language',
+            'publisher',
             'titles.titleType',
-            'dataciteCreators.authorable',
-            'dataciteCreators.roles',
-            'dataciteCreators.affiliations',
-            'dataciteContributors.authorable',
-            'dataciteContributors.roles',
-            'dataciteContributors.affiliations',
-            'descriptions',
+            'creators.creatorable',
+            'creators.affiliations',
+            'contributors.contributorable',
+            'contributors.contributorType',
+            'contributors.affiliations',
+            'descriptions.descriptionType',
             'dates.dateType',
-            'keywords',
-            'controlledKeywords',
-            'coverages',
-            'licenses',
-            'relatedIdentifiers',
-            'fundingReferences',
+            'subjects',
+            'geoLocations.polygons',
+            'rights',
+            'relatedIdentifiers.relatedIdentifierType',
+            'relatedIdentifiers.relationType',
+            'fundingReferences.funderIdentifierType',
         ]);
 
         return [
@@ -77,8 +71,8 @@ class DataCiteJsonExporter
         $attributes = [
             'doi' => $resource->doi,
             'titles' => $this->buildTitles($resource),
-            'publisher' => $this->buildPublisher(),
-            'publicationYear' => $resource->year,
+            'publisher' => $this->buildPublisher($resource),
+            'publicationYear' => $resource->publication_year,
             'types' => $this->buildTypes($resource),
             'creators' => $this->buildCreators($resource),
         ];
@@ -138,7 +132,7 @@ class DataCiteJsonExporter
 
         foreach ($resource->titles as $title) {
             $titleData = [
-                'title' => $title->title,
+                'title' => $title->value,
             ];
 
             // Map title types to DataCite format
@@ -177,16 +171,29 @@ class DataCiteJsonExporter
     /**
      * Build publisher information
      *
-     * @return array<string, string>
+     * @return array<string, string|null>
      */
-    private function buildPublisher(): array
+    private function buildPublisher(Resource $resource): array
     {
-        return [
-            'name' => self::PUBLISHER_NAME,
-            'publisherIdentifier' => self::PUBLISHER_ROR_ID,
-            'publisherIdentifierScheme' => 'ROR',
-            'schemeUri' => 'https://ror.org/',
+        $publisher = $resource->publisher;
+
+        if (! $publisher) {
+            return ['name' => 'GFZ Data Services'];
+        }
+
+        $data = [
+            'name' => $publisher->name,
         ];
+
+        if ($publisher->identifier) {
+            $data['publisherIdentifier'] = $publisher->identifier;
+            $data['publisherIdentifierScheme'] = $publisher->identifier_scheme ?? 'ROR';
+            if ($publisher->scheme_uri) {
+                $data['schemeUri'] = $publisher->scheme_uri;
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -213,11 +220,11 @@ class DataCiteJsonExporter
     {
         $creators = [];
 
-        foreach ($resource->dataciteCreators as $author) {
-            if ($author->authorable_type === Person::class) {
-                $creators[] = $this->buildPersonCreator($author);
-            } elseif ($author->authorable_type === Institution::class) {
-                $creators[] = $this->buildInstitutionCreator($author);
+        foreach ($resource->creators as $creator) {
+            if ($creator->creatorable_type === Person::class) {
+                $creators[] = $this->buildPersonCreator($creator);
+            } elseif ($creator->creatorable_type === Institution::class) {
+                $creators[] = $this->buildInstitutionCreator($creator);
             }
         }
 
@@ -237,10 +244,10 @@ class DataCiteJsonExporter
      *
      * @return array<string, mixed>
      */
-    private function buildPersonCreator(ResourceAuthor $author): array
+    private function buildPersonCreator(ResourceCreator $creator): array
     {
         /** @var Person|null $person */
-        $person = $author->authorable;
+        $person = $creator->creatorable;
 
         if (! $person instanceof Person) {
             return [
@@ -249,42 +256,42 @@ class DataCiteJsonExporter
             ];
         }
 
-        $creator = [
+        $creatorData = [
             'nameType' => 'Personal',
         ];
 
         // Build name in "FamilyName, GivenName" format
-        if ($person->last_name && $person->first_name) {
-            $creator['name'] = "{$person->last_name}, {$person->first_name}";
-            $creator['givenName'] = $person->first_name;
-            $creator['familyName'] = $person->last_name;
-        } elseif ($person->last_name) {
-            $creator['name'] = $person->last_name;
-            $creator['familyName'] = $person->last_name;
-        } elseif ($person->first_name) {
-            $creator['name'] = $person->first_name;
-            $creator['givenName'] = $person->first_name;
+        if ($person->family_name && $person->given_name) {
+            $creatorData['name'] = "{$person->family_name}, {$person->given_name}";
+            $creatorData['givenName'] = $person->given_name;
+            $creatorData['familyName'] = $person->family_name;
+        } elseif ($person->family_name) {
+            $creatorData['name'] = $person->family_name;
+            $creatorData['familyName'] = $person->family_name;
+        } elseif ($person->given_name) {
+            $creatorData['name'] = $person->given_name;
+            $creatorData['givenName'] = $person->given_name;
         } else {
-            $creator['name'] = 'Unknown';
+            $creatorData['name'] = 'Unknown';
         }
 
-        // Add ORCID if available
-        if ($person->orcid) {
-            $creator['nameIdentifiers'] = [
+        // Add name identifier (ORCID) if available
+        if ($person->name_identifier) {
+            $creatorData['nameIdentifiers'] = [
                 [
-                    'nameIdentifier' => $person->orcid,
-                    'nameIdentifierScheme' => 'ORCID',
+                    'nameIdentifier' => $person->name_identifier,
+                    'nameIdentifierScheme' => $person->name_identifier_scheme ?? 'ORCID',
                     'schemeUri' => 'https://orcid.org',
                 ],
             ];
         }
 
         // Add affiliations
-        if ($affiliations = $this->buildAffiliations($author)) {
-            $creator['affiliation'] = $affiliations;
+        if ($affiliations = $this->buildAffiliations($creator)) {
+            $creatorData['affiliation'] = $affiliations;
         }
 
-        return $creator;
+        return $creatorData;
     }
 
     /**
@@ -292,10 +299,10 @@ class DataCiteJsonExporter
      *
      * @return array<string, mixed>
      */
-    private function buildInstitutionCreator(ResourceAuthor $author): array
+    private function buildInstitutionCreator(ResourceCreator $creator): array
     {
         /** @var Institution|null $institution */
-        $institution = $author->authorable;
+        $institution = $creator->creatorable;
 
         if (! $institution instanceof Institution) {
             return [
@@ -304,37 +311,28 @@ class DataCiteJsonExporter
             ];
         }
 
-        $creator = [
+        $creatorData = [
             'name' => $institution->name ?? 'Unknown Institution',
             'nameType' => 'Organizational',
         ];
 
-        // Add ROR identifier if available
-        if ($institution->identifier_type === 'ROR' && $institution->identifier) {
-            $creator['nameIdentifiers'] = [
+        // Add name identifier (ROR) if available
+        if ($institution->name_identifier) {
+            $creatorData['nameIdentifiers'] = [
                 [
-                    'nameIdentifier' => $institution->identifier,
-                    'nameIdentifierScheme' => 'ROR',
-                    'schemeUri' => 'https://ror.org',
-                ],
-            ];
-        } elseif ($institution->ror_id) {
-            // Legacy ROR field
-            $creator['nameIdentifiers'] = [
-                [
-                    'nameIdentifier' => $institution->ror_id,
-                    'nameIdentifierScheme' => 'ROR',
+                    'nameIdentifier' => $institution->name_identifier,
+                    'nameIdentifierScheme' => $institution->name_identifier_scheme ?? 'ROR',
                     'schemeUri' => 'https://ror.org',
                 ],
             ];
         }
 
         // Add affiliations
-        if ($affiliations = $this->buildAffiliations($author)) {
-            $creator['affiliation'] = $affiliations;
+        if ($affiliations = $this->buildAffiliations($creator)) {
+            $creatorData['affiliation'] = $affiliations;
         }
 
-        return $creator;
+        return $creatorData;
     }
 
     /**
@@ -342,19 +340,21 @@ class DataCiteJsonExporter
      *
      * @return array<int, array<string, mixed>>|null
      */
-    private function buildAffiliations(ResourceAuthor $author): ?array
+    private function buildAffiliations(ResourceCreator|ResourceContributor $author): ?array
     {
         $affiliations = [];
 
         foreach ($author->affiliations as $affiliation) {
             $affiliationData = [
-                'name' => $affiliation->value,
+                'name' => $affiliation->name,
             ];
 
-            if ($affiliation->ror_id) {
-                $affiliationData['affiliationIdentifier'] = $affiliation->ror_id;
-                $affiliationData['affiliationIdentifierScheme'] = 'ROR';
-                $affiliationData['schemeUri'] = 'https://ror.org';
+            if ($affiliation->affiliation_identifier) {
+                $affiliationData['affiliationIdentifier'] = $affiliation->affiliation_identifier;
+                $affiliationData['affiliationIdentifierScheme'] = $affiliation->affiliation_identifier_scheme ?? 'ROR';
+                if ($affiliation->scheme_uri) {
+                    $affiliationData['schemeUri'] = $affiliation->scheme_uri;
+                }
             }
 
             $affiliations[] = $affiliationData;
@@ -372,11 +372,11 @@ class DataCiteJsonExporter
     {
         $contributors = [];
 
-        foreach ($resource->dataciteContributors as $contributor) {
+        foreach ($resource->contributors as $contributor) {
             // Check if this is an MSL Laboratory
-            if ($contributor->authorable_type === Institution::class) {
+            if ($contributor->contributorable_type === Institution::class) {
                 /** @var Institution|null $institution */
-                $institution = $contributor->authorable;
+                $institution = $contributor->contributorable;
                 if ($institution instanceof Institution && $institution->isLaboratory()) {
                     // MSL Laboratory - add as HostingInstitution
                     $contributors[] = $this->buildMslLaboratoryContributor($contributor);
@@ -385,12 +385,12 @@ class DataCiteJsonExporter
                 }
             }
 
-            // Regular contributor
-            $contributorType = $this->determineContributorType($contributor);
+            // Regular contributor - use contributorType from lookup table
+            $contributorType = $contributor->contributorType->name ?? 'Other';
 
-            if ($contributor->authorable_type === Person::class) {
+            if ($contributor->contributorable_type === Person::class) {
                 $contributors[] = $this->buildPersonContributor($contributor, $contributorType);
-            } elseif ($contributor->authorable_type === Institution::class) {
+            } elseif ($contributor->contributorable_type === Institution::class) {
                 $contributors[] = $this->buildInstitutionContributor($contributor, $contributorType);
             }
         }
@@ -403,10 +403,10 @@ class DataCiteJsonExporter
      *
      * @return array<string, mixed>
      */
-    private function buildMslLaboratoryContributor(ResourceAuthor $contributor): array
+    private function buildMslLaboratoryContributor(ResourceContributor $contributor): array
     {
         /** @var Institution|null $institution */
-        $institution = $contributor->authorable;
+        $institution = $contributor->contributorable;
 
         if (! $institution instanceof Institution) {
             return [
@@ -423,11 +423,11 @@ class DataCiteJsonExporter
         ];
 
         // Add laboratory identifier if available
-        if ($institution->identifier) {
+        if ($institution->name_identifier) {
             $contributorData['nameIdentifiers'] = [
                 [
-                    'nameIdentifier' => $institution->identifier,
-                    'nameIdentifierScheme' => 'labid',
+                    'nameIdentifier' => $institution->name_identifier,
+                    'nameIdentifierScheme' => $institution->name_identifier_scheme ?? 'labid',
                 ],
             ];
         }
@@ -441,56 +441,14 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Determine contributor type from roles
-     */
-    private function determineContributorType(ResourceAuthor $contributor): string
-    {
-        // Get the first role or default to 'Other'
-        $role = $contributor->roles->first();
-
-        if (! $role) {
-            return 'Other';
-        }
-
-        // Map ERNIE roles to DataCite contributor types
-        // Note: Role names in DB have spaces, DataCite uses CamelCase
-        $roleMapping = [
-            'Contact Person' => 'ContactPerson',
-            'Data Collector' => 'DataCollector',
-            'Data Curator' => 'DataCurator',
-            'Data Manager' => 'DataManager',
-            'Distributor' => 'Distributor',
-            'Editor' => 'Editor',
-            'Hosting Institution' => 'HostingInstitution',
-            'Producer' => 'Producer',
-            'Project Leader' => 'ProjectLeader',
-            'Project Manager' => 'ProjectManager',
-            'Project Member' => 'ProjectMember',
-            'Registration Agency' => 'RegistrationAgency',
-            'Registration Authority' => 'RegistrationAuthority',
-            'Related Person' => 'RelatedPerson',
-            'Researcher' => 'Researcher',
-            'Research Group' => 'ResearchGroup',
-            'Rights Holder' => 'RightsHolder',
-            'Sponsor' => 'Sponsor',
-            'Supervisor' => 'Supervisor',
-            'Work Package Leader' => 'WorkPackageLeader',
-            'Translator' => 'Translator',
-            'Other' => 'Other',
-        ];
-
-        return $roleMapping[$role->name] ?? 'Other';
-    }
-
-    /**
      * Build a person contributor entry
      *
      * @return array<string, mixed>
      */
-    private function buildPersonContributor(ResourceAuthor $contributor, string $contributorType): array
+    private function buildPersonContributor(ResourceContributor $contributor, string $contributorType): array
     {
         /** @var Person|null $person */
-        $person = $contributor->authorable;
+        $person = $contributor->contributorable;
 
         if (! $person instanceof Person) {
             return [
@@ -506,26 +464,26 @@ class DataCiteJsonExporter
         ];
 
         // Build name
-        if ($person->last_name && $person->first_name) {
-            $contributorData['name'] = "{$person->last_name}, {$person->first_name}";
-            $contributorData['givenName'] = $person->first_name;
-            $contributorData['familyName'] = $person->last_name;
-        } elseif ($person->last_name) {
-            $contributorData['name'] = $person->last_name;
-            $contributorData['familyName'] = $person->last_name;
-        } elseif ($person->first_name) {
-            $contributorData['name'] = $person->first_name;
-            $contributorData['givenName'] = $person->first_name;
+        if ($person->family_name && $person->given_name) {
+            $contributorData['name'] = "{$person->family_name}, {$person->given_name}";
+            $contributorData['givenName'] = $person->given_name;
+            $contributorData['familyName'] = $person->family_name;
+        } elseif ($person->family_name) {
+            $contributorData['name'] = $person->family_name;
+            $contributorData['familyName'] = $person->family_name;
+        } elseif ($person->given_name) {
+            $contributorData['name'] = $person->given_name;
+            $contributorData['givenName'] = $person->given_name;
         } else {
             $contributorData['name'] = 'Unknown';
         }
 
-        // Add ORCID if available
-        if ($person->orcid) {
+        // Add name identifier (ORCID) if available
+        if ($person->name_identifier) {
             $contributorData['nameIdentifiers'] = [
                 [
-                    'nameIdentifier' => $person->orcid,
-                    'nameIdentifierScheme' => 'ORCID',
+                    'nameIdentifier' => $person->name_identifier,
+                    'nameIdentifierScheme' => $person->name_identifier_scheme ?? 'ORCID',
                     'schemeUri' => 'https://orcid.org',
                 ],
             ];
@@ -544,10 +502,10 @@ class DataCiteJsonExporter
      *
      * @return array<string, mixed>
      */
-    private function buildInstitutionContributor(ResourceAuthor $contributor, string $contributorType): array
+    private function buildInstitutionContributor(ResourceContributor $contributor, string $contributorType): array
     {
         /** @var Institution|null $institution */
-        $institution = $contributor->authorable;
+        $institution = $contributor->contributorable;
 
         if (! $institution instanceof Institution) {
             return [
@@ -563,20 +521,12 @@ class DataCiteJsonExporter
             'contributorType' => $contributorType,
         ];
 
-        // Add ROR identifier if available
-        if ($institution->identifier_type === 'ROR' && $institution->identifier) {
+        // Add name identifier (ROR) if available
+        if ($institution->name_identifier) {
             $contributorData['nameIdentifiers'] = [
                 [
-                    'nameIdentifier' => $institution->identifier,
-                    'nameIdentifierScheme' => 'ROR',
-                    'schemeUri' => 'https://ror.org',
-                ],
-            ];
-        } elseif ($institution->ror_id) {
-            $contributorData['nameIdentifiers'] = [
-                [
-                    'nameIdentifier' => $institution->ror_id,
-                    'nameIdentifierScheme' => 'ROR',
+                    'nameIdentifier' => $institution->name_identifier,
+                    'nameIdentifierScheme' => $institution->name_identifier_scheme ?? 'ROR',
                     'schemeUri' => 'https://ror.org',
                 ],
             ];
@@ -591,7 +541,7 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build subjects array from keywords
+     * Build subjects array from subjects table
      *
      * @return array<int, array<string, mixed>>|null
      */
@@ -599,26 +549,25 @@ class DataCiteJsonExporter
     {
         $subjects = [];
 
-        // Add free keywords
-        foreach ($resource->keywords as $keyword) {
-            $subjects[] = [
-                'subject' => $keyword->keyword,
-            ];
-        }
-
-        // Add controlled keywords (GCMD)
-        foreach ($resource->controlledKeywords as $keyword) {
+        foreach ($resource->subjects as $subject) {
             $subjectData = [
-                'subject' => $keyword->text,
-                'subjectScheme' => $keyword->scheme,
+                'subject' => $subject->subject,
             ];
 
-            if ($keyword->scheme_uri) {
-                $subjectData['schemeUri'] = $keyword->scheme_uri;
+            if ($subject->subject_scheme) {
+                $subjectData['subjectScheme'] = $subject->subject_scheme;
             }
 
-            if ($keyword->keyword_id) {
-                $subjectData['valueUri'] = $keyword->keyword_id;
+            if ($subject->scheme_uri) {
+                $subjectData['schemeUri'] = $subject->scheme_uri;
+            }
+
+            if ($subject->value_uri) {
+                $subjectData['valueUri'] = $subject->value_uri;
+            }
+
+            if ($subject->classification_code) {
+                $subjectData['classificationCode'] = $subject->classification_code;
             }
 
             $subjects[] = $subjectData;
@@ -639,7 +588,7 @@ class DataCiteJsonExporter
         foreach ($resource->descriptions as $description) {
             $descriptionData = [
                 'description' => $description->description,
-                'descriptionType' => $this->convertDescriptionType($description->description_type),
+                'descriptionType' => $description->descriptionType->slug ?? 'Other',
             ];
 
             // Add language if available
@@ -654,23 +603,6 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Convert description type to DataCite format
-     */
-    private function convertDescriptionType(string $type): string
-    {
-        $mapping = [
-            'abstract' => 'Abstract',
-            'methods' => 'Methods',
-            'series-information' => 'SeriesInformation',
-            'table-of-contents' => 'TableOfContents',
-            'technical-info' => 'TechnicalInfo',
-            'other' => 'Other',
-        ];
-
-        return $mapping[$type] ?? 'Other';
-    }
-
-    /**
      * Build dates array
      *
      * @return array<int, array<string, mixed>>|null
@@ -681,24 +613,15 @@ class DataCiteJsonExporter
 
         foreach ($resource->dates as $date) {
             // Skip if no date type (should not happen in normal usage)
+            // @phpstan-ignore booleanNot.alwaysFalse
             if (! $date->dateType) {
                 continue;
             }
 
             $dateData = [
-                'dateType' => $this->convertDateType($date->dateType->slug),
+                'dateType' => $date->dateType->name,
+                'date' => $date->date,
             ];
-
-            // Build date string
-            if ($date->start_date && $date->end_date) {
-                $dateData['date'] = "{$date->start_date}/{$date->end_date}";
-            } elseif ($date->start_date) {
-                $dateData['date'] = $date->start_date;
-            } elseif ($date->end_date) {
-                $dateData['date'] = $date->end_date;
-            } else {
-                continue; // Skip if no date
-            }
 
             // Add date information if available
             if ($date->date_information) {
@@ -712,30 +635,7 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Convert date type to DataCite format
-     */
-    private function convertDateType(string $type): string
-    {
-        $mapping = [
-            'accepted' => 'Accepted',
-            'available' => 'Available',
-            'copyrighted' => 'Copyrighted',
-            'collected' => 'Collected',
-            'created' => 'Created',
-            'issued' => 'Issued',
-            'submitted' => 'Submitted',
-            'updated' => 'Updated',
-            'valid' => 'Valid',
-            'withdrawn' => 'Withdrawn',
-            'coverage' => 'Coverage', // DataCite 4.6 addition
-            'other' => 'Other',
-        ];
-
-        return $mapping[$type] ?? 'Other';
-    }
-
-    /**
-     * Build rights list from licenses
+     * Build rights list from rights table
      *
      * @return array<int, array<string, string>>|null
      */
@@ -743,21 +643,23 @@ class DataCiteJsonExporter
     {
         $rightsList = [];
 
-        foreach ($resource->licenses as $license) {
+        foreach ($resource->rights as $right) {
             $rightsData = [
-                'rights' => $license->name,
+                'rights' => $right->name,
             ];
 
             // Add rightsURI (license reference URL)
-            if ($license->reference) {
-                $rightsData['rightsURI'] = $license->reference;
+            if ($right->uri) {
+                $rightsData['rightsURI'] = $right->uri;
             }
 
-            // Add SPDX identifier
-            if ($license->spdx_id) {
-                $rightsData['rightsIdentifier'] = $license->spdx_id;
+            // Add rights identifier (SPDX)
+            if ($right->identifier) {
+                $rightsData['rightsIdentifier'] = $right->identifier;
                 $rightsData['rightsIdentifierScheme'] = 'SPDX';
-                $rightsData['schemeURI'] = 'https://spdx.org/licenses/';
+                if ($right->scheme_uri) {
+                    $rightsData['schemeURI'] = $right->scheme_uri;
+                }
             }
 
             // Add language if available
@@ -772,39 +674,80 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build geo locations from spatial/temporal coverages
+     * Build geo locations from geoLocations table
      *
      * @return array<int, array<string, mixed>>|null
      */
     private function buildGeoLocations(Resource $resource): ?array
     {
-        $geoLocations = [];
+        $geoLocationsData = [];
 
-        foreach ($resource->coverages as $coverage) {
-            $geoLocation = [];
+        foreach ($resource->geoLocations as $geoLocation) {
+            $geoLocationData = [];
 
-            // Add bounding box if spatial data exists
-            if ($coverage->lat_min !== null || $coverage->lat_max !== null ||
-                $coverage->lon_min !== null || $coverage->lon_max !== null) {
-                $geoLocation['geoLocationBox'] = [
-                    'westBoundLongitude' => $coverage->lon_min,
-                    'eastBoundLongitude' => $coverage->lon_max,
-                    'southBoundLatitude' => $coverage->lat_min,
-                    'northBoundLatitude' => $coverage->lat_max,
+            // Add place name
+            if ($geoLocation->place) {
+                $geoLocationData['geoLocationPlace'] = $geoLocation->place;
+            }
+
+            // Add point if available
+            if ($geoLocation->point_longitude !== null && $geoLocation->point_latitude !== null) {
+                $geoLocationData['geoLocationPoint'] = [
+                    'pointLongitude' => $geoLocation->point_longitude,
+                    'pointLatitude' => $geoLocation->point_latitude,
                 ];
             }
 
-            // Add description/place
-            if ($coverage->description) {
-                $geoLocation['geoLocationPlace'] = $coverage->description;
+            // Add bounding box if available
+            if ($geoLocation->west_bound_longitude !== null &&
+                $geoLocation->east_bound_longitude !== null &&
+                $geoLocation->south_bound_latitude !== null &&
+                $geoLocation->north_bound_latitude !== null) {
+                $geoLocationData['geoLocationBox'] = [
+                    'westBoundLongitude' => $geoLocation->west_bound_longitude,
+                    'eastBoundLongitude' => $geoLocation->east_bound_longitude,
+                    'southBoundLatitude' => $geoLocation->south_bound_latitude,
+                    'northBoundLatitude' => $geoLocation->north_bound_latitude,
+                ];
             }
 
-            if (! empty($geoLocation)) {
-                $geoLocations[] = $geoLocation;
+            // Add polygons if available
+            if ($geoLocation->polygons->isNotEmpty()) {
+                // Collect all polygon points grouped by geo_location_id
+                // First, collect regular points
+                $regularPoints = $geoLocation->polygons
+                    ->where('is_in_polygon_point', false)
+                    ->sortBy('position')
+                    ->map(fn ($p) => [
+                        'pointLongitude' => $p->point_longitude,
+                        'pointLatitude' => $p->point_latitude,
+                    ])
+                    ->values()
+                    ->all();
+
+                // Get the inPolygonPoint if exists
+                $inPoint = $geoLocation->polygons->firstWhere('is_in_polygon_point', true);
+
+                if (! empty($regularPoints)) {
+                    $polygonData = [
+                        'polygonPoints' => $regularPoints,
+                    ];
+                    if ($inPoint !== null) {
+                        $polygonData['inPolygonPoint'] = [
+                            'pointLongitude' => $inPoint->point_longitude,
+                            'pointLatitude' => $inPoint->point_latitude,
+                        ];
+                    }
+                    $geoLocationData['geoLocationPolygon'] = $polygonData;
+                }
+            }
+
+            if (! empty($geoLocationData)) {
+                $geoLocationsData[] = $geoLocationData;
             }
         }
 
-        return ! empty($geoLocations) ? $geoLocations : null;
+        return ! empty($geoLocationsData) ? $geoLocationsData : null;
     }
 
     /**
@@ -818,14 +761,14 @@ class DataCiteJsonExporter
 
         foreach ($resource->relatedIdentifiers as $relatedIdentifier) {
             $relatedData = [
-                'relatedIdentifier' => $relatedIdentifier->identifier,
-                'relatedIdentifierType' => $relatedIdentifier->identifier_type,
-                'relationType' => $relatedIdentifier->relation_type,
+                'relatedIdentifier' => $relatedIdentifier->related_identifier,
+                'relatedIdentifierType' => $relatedIdentifier->relatedIdentifierType->name ?? 'DOI',
+                'relationType' => $relatedIdentifier->relationType->name ?? 'References',
             ];
 
-            // Add resource type general if available in metadata
-            if (isset($relatedIdentifier->related_metadata['resourceTypeGeneral'])) {
-                $relatedData['resourceTypeGeneral'] = $relatedIdentifier->related_metadata['resourceTypeGeneral'];
+            // Add resource type general if available
+            if ($relatedIdentifier->resource_type_general) {
+                $relatedData['resourceTypeGeneral'] = $relatedIdentifier->resource_type_general;
             }
 
             $relatedIdentifiers[] = $relatedData;
@@ -850,19 +793,23 @@ class DataCiteJsonExporter
 
             if ($funding->funder_identifier) {
                 $fundingData['funderIdentifier'] = $funding->funder_identifier;
-                $fundingData['funderIdentifierType'] = $funding->funder_identifier_type ?? 'Other';
+                $fundingData['funderIdentifierType'] = $funding->funderIdentifierType->name ?? 'Other';
+            }
+
+            if ($funding->scheme_uri) {
+                $fundingData['schemeUri'] = $funding->scheme_uri;
             }
 
             if ($funding->award_number) {
                 $fundingData['awardNumber'] = $funding->award_number;
             }
 
-            if ($funding->award_title) {
-                $fundingData['awardTitle'] = $funding->award_title;
-            }
-
             if ($funding->award_uri) {
                 $fundingData['awardUri'] = $funding->award_uri;
+            }
+
+            if ($funding->award_title) {
+                $fundingData['awardTitle'] = $funding->award_title;
             }
 
             $fundingReferences[] = $fundingData;

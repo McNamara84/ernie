@@ -32,10 +32,10 @@ describe('Status Filter', function (): void {
             'doi' => null,
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $curationResource->titles()->create([
-            'title' => 'Curation Resource',
+            'value' => 'Curation Resource',
             'title_type_id' => $titleType->id,
         ]);
 
@@ -44,15 +44,15 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2024',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $publishedResource->titles()->create([
-            'title' => 'Published Resource',
+            'value' => 'Published Resource',
             'title_type_id' => $titleType->id,
         ]);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         get(route('resources', ['status' => ['curation']]))
@@ -75,10 +75,10 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2024',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $curationResource->titles()->create([
-            'title' => 'Curation with DOI',
+            'value' => 'Curation with DOI',
             'title_type_id' => $titleType->id,
         ]);
 
@@ -87,15 +87,15 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2025',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $reviewResource->titles()->create([
-            'title' => 'Review Resource',
+            'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         get(route('resources', ['status' => ['curation']]))
@@ -118,15 +118,15 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2024',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $reviewResource->titles()->create([
-            'title' => 'Review Resource',
+            'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         // Create resource in curation (no DOI)
@@ -134,10 +134,10 @@ describe('Status Filter', function (): void {
             'doi' => null,
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $curationResource->titles()->create([
-            'title' => 'Curation Resource',
+            'value' => 'Curation Resource',
             'title_type_id' => $titleType->id,
         ]);
 
@@ -161,15 +161,15 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2024',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $publishedResource->titles()->create([
-            'title' => 'Published Resource',
+            'value' => 'Published Resource',
             'title_type_id' => $titleType->id,
         ]);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         // Create resource in review (DOI + draft landing page)
@@ -177,15 +177,15 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2025',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $reviewResource->titles()->create([
-            'title' => 'Review Resource',
+            'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         get(route('resources', ['status' => ['published']]))
@@ -208,10 +208,10 @@ describe('Status Filter', function (): void {
             'doi' => null,
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $curationResource->titles()->create([
-            'title' => 'Curation Resource',
+            'value' => 'Curation Resource',
             'title_type_id' => $titleType->id,
         ]);
 
@@ -220,15 +220,15 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2024',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $publishedResource->titles()->create([
-            'title' => 'Published Resource',
+            'value' => 'Published Resource',
             'title_type_id' => $titleType->id,
         ]);
         LandingPage::factory()->create([
             'resource_id' => $publishedResource->id,
-            'status' => 'published',
+            'is_published' => true,
         ]);
 
         // Review resource (should not appear)
@@ -236,15 +236,15 @@ describe('Status Filter', function (): void {
             'doi' => '10.5880/test.2025',
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
         $reviewResource->titles()->create([
-            'title' => 'Review Resource',
+            'value' => 'Review Resource',
             'title_type_id' => $titleType->id,
         ]);
         LandingPage::factory()->create([
             'resource_id' => $reviewResource->id,
-            'status' => 'draft',
+            'is_published' => false,
         ]);
 
         get(route('resources', ['status' => ['curation', 'published']]))
@@ -269,12 +269,12 @@ describe('Curator Filter', function (): void {
         $resource = Resource::factory()->create([
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
             'created_by_user_id' => $creator->id,
             'updated_by_user_id' => $editor->id, // Last editor
         ]);
         $resource->titles()->create([
-            'title' => 'Edited Resource',
+            'value' => 'Edited Resource',
             'title_type_id' => $titleType->id,
         ]);
 
@@ -308,12 +308,12 @@ describe('Curator Filter', function (): void {
         $resource = Resource::factory()->create([
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
             'created_by_user_id' => $creator->id,
             'updated_by_user_id' => null, // Never edited
         ]);
         $resource->titles()->create([
-            'title' => 'Created Resource',
+            'value' => 'Created Resource',
             'title_type_id' => $titleType->id,
         ]);
 
@@ -340,7 +340,7 @@ describe('Curator Filter', function (): void {
         Resource::factory()->create([
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
             'created_by_user_id' => $creator->id,
             'updated_by_user_id' => $editor->id,
         ]);
@@ -349,7 +349,7 @@ describe('Curator Filter', function (): void {
         Resource::factory()->create([
             'resource_type_id' => $resourceType->id,
             'language_id' => $language->id,
-            'year' => 2024,
+            'publication_year' => 2024,
             'created_by_user_id' => $anotherCreator->id,
             'updated_by_user_id' => null,
         ]);

@@ -281,15 +281,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     'resourceType',
                     'language',
                     'titles.titleType',
-                    'licenses',
-                    'authors.authorable',
-                    'authors.roles',
-                    'authors.affiliations',
+                    'rights',
+                    'creators.creatorable',
+                    'creators.affiliations',
                     'descriptions',
                     'dates',
-                    'keywords',
-                    'controlledKeywords',
-                    'coverages',
+                    'subjects',
+                    'geoLocations',
                     'relatedIdentifiers',
                     'fundingReferences',
                 ])
@@ -298,160 +296,85 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Transform resource data for editor
             $titles = $resource->titles->map(function ($title) {
                 return [
-                    'title' => $title->title,
+                    'title' => $title->value,
                     'titleType' => $title->titleType->slug ?? '',
                 ];
             })->toArray();
 
-            $licenses = $resource->licenses->pluck('identifier')->toArray();
+            $licenses = $resource->rights->pluck('identifier')->toArray();
 
-            // Group ResourceAuthor entries by their authorable (Person/Institution)
-            // to handle cases where same person has multiple ResourceAuthor records
-            // (e.g., one with 'author' role and one with 'contact-person' role)
-            $authorableGroups = $resource->authors
-                ->filter(function ($author) {
+            // Group ResourceCreator entries by their creatorable (Person/Institution)
+            // to handle cases where same person has multiple ResourceCreator records
+            $creatorableGroups = $resource->creators
+                ->filter(function ($creator) {
                     // Filter out MSL laboratories
-                    if ($author->authorable_type === \App\Models\Institution::class) {
+                    if ($creator->creatorable_type === \App\Models\Institution::class) {
                         /** @var \App\Models\Institution $institution */
-                        $institution = $author->authorable;
+                        $institution = $creator->creatorable;
 
-                        return $institution->identifier_type !== 'labid';
+                        return $institution->name_identifier_scheme !== 'labid';
                     }
 
                     return true;
                 })
-                ->groupBy(function ($author) {
-                    return $author->authorable_type.'_'.$author->authorable_id;
+                ->groupBy(function ($creator) {
+                    return $creator->creatorable_type.'_'.$creator->creatorable_id;
                 });
 
-            // Transform authors (those with 'author' role)
+            // Transform creators - all ResourceCreator entries are creators in DataCite 4.6
             $authors = [];
             $contributors = [];
 
-            foreach ($authorableGroups as $group) {
-                // Check if this group has the 'author' role
-                $hasAuthorRole = $group->some(function ($author) {
-                    return $author->roles->contains('slug', 'author');
-                });
-
-                // Check if this group has only non-author roles (contributor roles)
-                $hasOnlyContributorRoles = $group->every(function ($author) use ($excludedAuthorRoles) {
-                    $roles = $author->roles->pluck('slug')->toArray();
-
-                    return empty(array_intersect($roles, $excludedAuthorRoles));
-                });
-
-                // Get the first entry to extract basic info
-                /** @var \App\Models\ResourceAuthor $firstEntry */
+            foreach ($creatorableGroups as $group) {
+                // In DataCite 4.6, all ResourceCreator entries are creators (no role distinction)
+                /** @var \App\Models\ResourceCreator $firstEntry */
                 $firstEntry = $group->first();
-                $authorable = $firstEntry->authorable;
+                $creatorable = $firstEntry->creatorable;
 
-                // Check if this is a contact person
-                $isContact = $group->some(function ($author) {
-                    return $author->roles->contains('slug', 'contact-person');
-                });
-
-                // Collect all unique affiliations from all entries of this authorable
-                $allAffiliations = $group->flatMap(function ($author) {
-                    return $author->affiliations;
+                // Collect all unique affiliations from all entries of this creator
+                $allAffiliations = $group->flatMap(function ($creator) {
+                    return $creator->affiliations;
                 })->unique(function ($affiliation) {
-                    // Unique by value and ror_id combination
-                    return $affiliation->value.'|'.($affiliation->ror_id ?? 'null');
+                    // Unique by name and affiliation_identifier combination
+                    return $affiliation->name.'|'.($affiliation->affiliation_identifier ?? 'null');
                 });
 
-                if ($hasAuthorRole) {
-                    // This is an author
-                    $data = [
-                        'position' => $firstEntry->position,
-                        'isContact' => $isContact,
-                    ];
+                // All ResourceCreator entries are creators in DataCite 4.6
+                $data = [
+                    'position' => $firstEntry->position,
+                    'isContact' => false, // Contact tracking will be handled differently
+                ];
 
-                    if ($firstEntry->authorable_type === \App\Models\Person::class) {
-                        /** @var \App\Models\Person $authorable */
-                        $data['type'] = 'person';
-                        $data['firstName'] = $authorable->first_name ?? '';
-                        $data['lastName'] = $authorable->last_name ?? '';
-                        $data['orcid'] = $authorable->orcid ?? '';
-                        $data['email'] = $firstEntry->email ?? '';
-                        $data['website'] = $firstEntry->website ?? '';
-
-                        // Mark ORCID as verified if it exists (to prevent re-verification)
-                        if (! empty($authorable->orcid) && $authorable->orcid_verified_at) {
-                            $data['orcidVerified'] = true;
-                            $data['orcidVerifiedAt'] = $authorable->orcid_verified_at->toIso8601String();
-                        }
-                    } elseif ($firstEntry->authorable_type === \App\Models\Institution::class) {
-                        $data['type'] = 'institution';
-                        $data['institutionName'] = $authorable->name ?? '';
-                        $data['rorId'] = $authorable->ror_id ?? '';
-                    }
-
-                    // Add unique affiliations
-                    $data['affiliations'] = $allAffiliations->map(function ($affiliation) {
-                        return [
-                            'value' => $affiliation->value,
-                            'rorId' => $affiliation->ror_id,
-                        ];
-                    })->values()->toArray();
-
-                    $authors[] = $data;
-                } elseif ($hasOnlyContributorRoles) {
-                    // This is a contributor (no 'author' role)
-                    $data = [
-                        'position' => $firstEntry->position,
-                    ];
-
-                    if ($firstEntry->authorable_type === \App\Models\Person::class) {
-                        /** @var \App\Models\Person $personAuthorable */
-                        $personAuthorable = $authorable;
-                        $data['type'] = 'person';
-                        $data['firstName'] = $personAuthorable->first_name ?? '';
-                        $data['lastName'] = $personAuthorable->last_name ?? '';
-                        $data['orcid'] = $personAuthorable->orcid ?? '';
-
-                        // Mark ORCID as verified if it exists (to prevent re-verification)
-                        if (! empty($personAuthorable->orcid) && $personAuthorable->orcid_verified_at) {
-                            $data['orcidVerified'] = true;
-                            $data['orcidVerifiedAt'] = $personAuthorable->orcid_verified_at->toIso8601String();
-                        }
-                    } elseif ($firstEntry->authorable_type === \App\Models\Institution::class) {
-                        /** @var \App\Models\Institution $institutionAuthorable */
-                        $institutionAuthorable = $authorable;
-                        $data['type'] = 'institution';
-                        $data['institutionName'] = $institutionAuthorable->name ?? '';
-                        $data['identifier'] = $institutionAuthorable->identifier ?? '';
-                        $data['identifierType'] = $institutionAuthorable->identifier_type ?? '';
-                    }
-
-                    // Collect all unique roles from all entries, excluding author/contact-person
-                    $allRoles = $group->flatMap(function ($author) {
-                        return $author->roles;
-                    })->unique('id')
-                        ->filter(fn ($role) => ! in_array($role->slug, ['author', 'contact-person']))
-                        ->pluck('name')
-                        ->values()
-                        ->toArray();
-
-                    $data['roles'] = $allRoles;
-
-                    // Add unique affiliations
-                    $data['affiliations'] = $allAffiliations->map(function ($affiliation) {
-                        return [
-                            'value' => $affiliation->value,
-                            'rorId' => $affiliation->ror_id,
-                        ];
-                    })->values()->toArray();
-
-                    $contributors[] = $data;
+                if ($firstEntry->creatorable_type === \App\Models\Person::class) {
+                    /** @var \App\Models\Person $creatorable */
+                    $data['type'] = 'person';
+                    // Map to frontend field names
+                    $data['firstName'] = $creatorable->given_name ?? '';
+                    $data['lastName'] = $creatorable->family_name ?? '';
+                    $data['orcid'] = $creatorable->name_identifier ?? '';
+                } elseif ($firstEntry->creatorable_type === \App\Models\Institution::class) {
+                    /** @var \App\Models\Institution $creatorable */
+                    $data['type'] = 'institution';
+                    $data['institutionName'] = $creatorable->name ?? '';
+                    $data['rorId'] = $creatorable->name_identifier ?? '';
                 }
+
+                // Add unique affiliations - map to frontend field names
+                $data['affiliations'] = $allAffiliations->map(function ($affiliation) {
+                    return [
+                        'value' => $affiliation->name,
+                        'rorId' => $affiliation->affiliation_identifier,
+                    ];
+                })->values()->toArray();
+
+                $authors[] = $data;
             }
 
             // Sort by position
             usort($authors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
             usort($contributors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
 
-            // Transform descriptions
-            // Convert database description_type (lowercase/kebab-case) to frontend format (PascalCase)
+            // Transform descriptions - map description_type to frontend format
             $descriptionTypeMap = [
                 'abstract' => 'Abstract',
                 'methods' => 'Methods',
@@ -462,11 +385,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ];
 
             $descriptions = $resource->descriptions->map(function ($description) use ($descriptionTypeMap) {
-                $frontendType = $descriptionTypeMap[$description->description_type] ?? 'Other';
+                // Map description_type slug to frontend format
+                // @phpstan-ignore nullCoalesce.expr (defensive coding)
+                $typeSlug = $description->descriptionType?->slug ?? 'other';
+                $frontendType = $descriptionTypeMap[$typeSlug] ?? 'Other';
 
                 return [
                     'type' => $frontendType,
-                    'description' => $description->description,
+                    'description' => $description->value,
                 ];
             })->toArray();
 
@@ -475,7 +401,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             $dates = $resource->dates
                 ->filter(function (ResourceDate $date): bool {
                     // Use null-safe operator to handle missing dateType relationship
-                    // @phpstan-ignore nullsafe.neverNull (defensive coding for data integrity)
+                    // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
                     $slug = $date->dateType?->slug ?? '';
 
                     return ! in_array($slug, ['coverage', 'created', 'updated'], true);
@@ -502,7 +428,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
                     return [
                         // Use null-safe operator to handle missing dateType relationship
-                        // @phpstan-ignore nullsafe.neverNull (defensive coding for data integrity)
+                        // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
                         'dateType' => $date->dateType?->slug ?? '',
                         'startDate' => $startDate,
                         'endDate' => $endDate,
@@ -511,55 +437,41 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->values()
                 ->toArray();
 
-            // Transform free keywords
-            $freeKeywords = $resource->keywords->pluck('keyword')->toArray();
+            // Transform subjects - separate free keywords and GCMD controlled keywords
+            $freeKeywords = $resource->subjects
+                ->filter(fn ($subject) => empty($subject->subject_scheme))
+                ->pluck('subject')
+                ->toArray();
 
             // Transform controlled keywords (GCMD)
-            $gcmdKeywords = $resource->controlledKeywords->map(function ($keyword) {
+            $gcmdKeywords = $resource->subjects
+                ->filter(fn ($subject) => ! empty($subject->subject_scheme))
+                ->map(function ($subject) {
+                    return [
+                        'id' => $subject->classification_code ?? '',
+                        'text' => $subject->subject,
+                        'path' => $subject->subject, // Path may need to be extracted from subject text
+                        'scheme' => $subject->subject_scheme ?? '',
+                        'schemeURI' => $subject->scheme_uri ?? '',
+                        'language' => 'en',
+                    ];
+                })->toArray();
+
+            // Transform geoLocations to coverages format for frontend
+            $coverages = $resource->geoLocations->map(function ($geoLocation) {
+                // GeoLocation stores bounding box, but frontend expects different format
                 return [
-                    'id' => $keyword->keyword_id,
-                    'text' => $keyword->text,
-                    'path' => $keyword->path,
-                    'scheme' => $keyword->scheme,
-                    'schemeURI' => $keyword->scheme_uri ?? '',
-                    'language' => $keyword->language ?? 'en',
-                ];
-            })->toArray();
-
-            // Transform coverages
-            // Transform coverages with proper date formatting
-            $coverages = $resource->coverages->map(function ($coverage) {
-                // Format dates for HTML date inputs (YYYY-MM-DD)
-                $startDate = '';
-                if ($coverage->start_date) {
-                    try {
-                        $startDate = \Carbon\Carbon::parse($coverage->start_date)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $startDate = '';
-                    }
-                }
-
-                $endDate = '';
-                if ($coverage->end_date) {
-                    try {
-                        $endDate = \Carbon\Carbon::parse($coverage->end_date)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        $endDate = '';
-                    }
-                }
-
-                return [
-                    'id' => (string) $coverage->id,
-                    'latMin' => $coverage->lat_min !== null ? (string) $coverage->lat_min : '',
-                    'latMax' => $coverage->lat_max !== null ? (string) $coverage->lat_max : '',
-                    'lonMin' => $coverage->lon_min !== null ? (string) $coverage->lon_min : '',
-                    'lonMax' => $coverage->lon_max !== null ? (string) $coverage->lon_max : '',
-                    'startDate' => $startDate,
-                    'endDate' => $endDate,
-                    'startTime' => $coverage->start_time ?? '',
-                    'endTime' => $coverage->end_time ?? '',
-                    'timezone' => $coverage->timezone ?? 'UTC',
-                    'description' => $coverage->description ?? '',
+                    'id' => (string) $geoLocation->id,
+                    'latMin' => $geoLocation->south_bound_latitude !== null ? (string) $geoLocation->south_bound_latitude : '',
+                    'latMax' => $geoLocation->north_bound_latitude !== null ? (string) $geoLocation->north_bound_latitude : '',
+                    'lonMin' => $geoLocation->west_bound_longitude !== null ? (string) $geoLocation->west_bound_longitude : '',
+                    'lonMax' => $geoLocation->east_bound_longitude !== null ? (string) $geoLocation->east_bound_longitude : '',
+                    'startDate' => '',
+                    'endDate' => '',
+                    'startTime' => '',
+                    'endTime' => '',
+                    'timezone' => 'UTC',
+                    'description' => $geoLocation->place ?? '',
                 ];
             })->toArray();
 
@@ -568,9 +480,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->sortBy('position')
                 ->map(function ($relatedId) {
                     return [
-                        'identifier' => $relatedId->identifier,
-                        'identifier_type' => $relatedId->identifier_type,
-                        'relation_type' => $relatedId->relation_type,
+                        'identifier' => $relatedId->related_identifier,
+                        // @phpstan-ignore nullCoalesce.expr (defensive coding)
+                        'identifier_type' => $relatedId->relatedIdentifierType?->name ?? '',
+                        // @phpstan-ignore nullCoalesce.expr (defensive coding)
+                        'relation_type' => $relatedId->relationType?->name ?? '',
                     ];
                 })
                 ->values()
@@ -590,29 +504,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->values()
                 ->toArray();
 
-            // Transform MSL Laboratories
-            $mslLaboratories = $resource->authors
-                ->filter(function ($author) {
-                    if ($author->authorable_type === \App\Models\Institution::class) {
+            // Transform MSL Laboratories - these are stored as creators with labid identifier scheme
+            $mslLaboratories = $resource->creators
+                ->filter(function ($creator) {
+                    if ($creator->creatorable_type === \App\Models\Institution::class) {
                         /** @var \App\Models\Institution $institution */
-                        $institution = $author->authorable;
+                        $institution = $creator->creatorable;
 
-                        return $institution->identifier_type === 'labid';
+                        return $institution->name_identifier_scheme === 'labid';
                     }
 
                     return false;
                 })
-                ->map(function ($author) {
+                ->map(function ($creator) {
                     /** @var \App\Models\Institution $institution */
-                    $institution = $author->authorable;
-                    $affiliation = $author->affiliations->first();
+                    $institution = $creator->creatorable;
+                    $affiliation = $creator->affiliations->first();
 
                     return [
-                        'identifier' => $institution->identifier ?? '',
+                        'identifier' => $institution->name_identifier ?? '',
                         'name' => $institution->name ?? '',
-                        'affiliation_name' => $affiliation->value ?? '',
-                        'affiliation_ror' => $affiliation->ror_id ?? '',
-                        'position' => $author->position,
+                        'affiliation_name' => $affiliation->name ?? '',
+                        'affiliation_ror' => $affiliation->affiliation_identifier ?? '',
+                        'position' => $creator->position,
                     ];
                 })
                 ->values()
@@ -623,7 +537,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
                 'googleMapsApiKey' => config('services.google_maps.api_key'),
                 'doi' => $resource->doi ?? '',
-                'year' => (string) $resource->year,
+                'year' => (string) $resource->publication_year,
                 'version' => $resource->version ?? '',
                 'language' => $resource->language->code ?? '',
                 'resourceType' => (string) $resource->resource_type_id,

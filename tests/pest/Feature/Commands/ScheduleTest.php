@@ -27,7 +27,7 @@ it('schedules license usage count update weekly', function () {
     $method->invoke($kernel, $schedule);
 
     $event = collect($schedule->events())
-        ->first(fn ($event) => str_contains($event->command, 'licenses:update-usage-count'));
+        ->first(fn ($event) => str_contains($event->command, 'rights:update-usage-count'));
 
     expect($event)->not->toBeNull()
         ->and($event->expression)->toBe('0 0 * * 0');

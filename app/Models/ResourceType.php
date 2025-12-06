@@ -15,13 +15,13 @@ class ResourceType extends Model
     protected $fillable = [
         'name',
         'slug',
-        'active',
-        'elmo_active',
+        'is_active',
+        'is_elmo_active',
     ];
 
     protected $casts = [
-        'active' => 'boolean',
-        'elmo_active' => 'boolean',
+        'is_active' => 'boolean',
+        'is_elmo_active' => 'boolean',
     ];
 
     /**
@@ -30,7 +30,7 @@ class ResourceType extends Model
      */
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('active', true);
+        return $query->where('is_active', true);
     }
 
     /**
@@ -39,7 +39,7 @@ class ResourceType extends Model
      */
     public function scopeElmoActive(Builder $query): Builder
     {
-        return $query->where('elmo_active', true);
+        return $query->where('is_elmo_active', true);
     }
 
     /**

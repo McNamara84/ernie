@@ -112,9 +112,11 @@ test.describe('DOI Registration Workflow', () => {
         // Wait for rows to be loaded
         await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
         
-        const resourceRow = resourceTable.locator('tbody tr').first();
+        // Find a row with a published resource (has landing page and DOI)
+        const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
         await expect(resourceRow).toBeVisible();
         
+        // Click DataCite button (3rd button in published row)
         const dataciteButton = resourceRow.locator('button').nth(2);
         await expect(dataciteButton).toBeVisible();
         await expect(dataciteButton).toBeEnabled();
@@ -142,9 +144,11 @@ test.describe('DOI Registration Workflow', () => {
         // Wait for rows to be loaded
         await expect(resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
         
-        const resourceRow = resourceTable.locator('tbody tr').first();
+        // Find a row with a published resource (has landing page and DOI)
+        const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
         await expect(resourceRow).toBeVisible();
         
+        // Click DataCite button (3rd button in published row)
         const dataciteButton = resourceRow.locator('button').nth(2);
         await expect(dataciteButton).toBeVisible();
         await expect(dataciteButton).toBeEnabled();

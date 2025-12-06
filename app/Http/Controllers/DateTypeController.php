@@ -14,21 +14,21 @@ class DateTypeController extends Controller
     {
         $types = DateType::query()
             ->orderByName()
-            ->get(['id', 'name', 'slug', 'description']);
+            ->get(['id', 'name', 'slug']);
 
         return response()->json($types);
     }
 
     /**
      * Return all date types that are active for ELMO.
+     * Note: DateType does not have is_elmo_active field, returns same as ernie().
      */
     public function elmo(): JsonResponse
     {
         $types = DateType::query()
             ->active()
-            ->elmoActive()
             ->orderByName()
-            ->get(['id', 'name', 'slug', 'description']);
+            ->get(['id', 'name', 'slug']);
 
         return response()->json($types);
     }
@@ -41,7 +41,7 @@ class DateTypeController extends Controller
         $types = DateType::query()
             ->active()
             ->orderByName()
-            ->get(['id', 'name', 'slug', 'description']);
+            ->get(['id', 'name', 'slug']);
 
         return response()->json($types);
     }

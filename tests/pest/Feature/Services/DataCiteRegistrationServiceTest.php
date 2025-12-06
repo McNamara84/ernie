@@ -24,10 +24,10 @@ beforeEach(function () {
         'doi' => null,
     ]);
 
-    // Create landing page for the resource
+    // Create landing page for the resource (optional - DOI registration doesn't require it)
     LandingPage::factory()->create([
         'resource_id' => $this->resource->id,
-        'status' => 'draft',
+        'is_published' => false,
     ]);
 });
 

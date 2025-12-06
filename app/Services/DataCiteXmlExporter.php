@@ -5,7 +5,8 @@ namespace App\Services;
 use App\Models\Institution;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Models\ResourceAuthor;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 use DOMDocument;
 use DOMElement;
 
@@ -25,13 +26,6 @@ use DOMElement;
  */
 class DataCiteXmlExporter
 {
-    /**
-     * Fixed publisher information for all exports
-     */
-    private const PUBLISHER_NAME = 'GFZ Helmholtz Centre for Geosciences';
-
-    private const PUBLISHER_ROR_ID = 'https://ror.org/04z8jg394';
-
     /**
      * DataCite namespace constants
      */
@@ -59,21 +53,23 @@ class DataCiteXmlExporter
         $resource->load([
             'resourceType',
             'language',
+            'publisher',
             'titles.titleType',
-            'dataciteCreators.authorable',
-            'dataciteCreators.roles',
-            'dataciteCreators.affiliations',
-            'dataciteContributors.authorable',
-            'dataciteContributors.roles',
-            'dataciteContributors.affiliations',
-            'descriptions',
+            'creators.creatorable',
+            'creators.affiliations',
+            'contributors.contributorable',
+            'contributors.contributorType',
+            'contributors.affiliations',
+            'descriptions.descriptionType',
             'dates.dateType',
-            'keywords',
-            'controlledKeywords',
-            'coverages',
-            'licenses',
-            'relatedIdentifiers',
-            'fundingReferences',
+            'subjects',
+            'geoLocations.polygons',
+            'rights',
+            'relatedIdentifiers.relatedIdentifierType',
+            'relatedIdentifiers.relationType',
+            'fundingReferences.funderIdentifierType',
+            'sizes',
+            'formats',
         ]);
 
         // Initialize DOM
@@ -145,17 +141,17 @@ class DataCiteXmlExporter
         $creators = $this->dom->createElement('creators');
 
         $hasCreators = false;
-        foreach ($resource->dataciteCreators as $author) {
-            $creator = null;
+        foreach ($resource->creators as $creator) {
+            $creatorElement = null;
 
-            if ($author->authorable_type === Person::class) {
-                $creator = $this->buildPersonCreator($author);
-            } elseif ($author->authorable_type === Institution::class) {
-                $creator = $this->buildInstitutionCreator($author);
+            if ($creator->creatorable_type === Person::class) {
+                $creatorElement = $this->buildPersonCreator($creator);
+            } elseif ($creator->creatorable_type === Institution::class) {
+                $creatorElement = $this->buildInstitutionCreator($creator);
             }
 
-            if ($creator) {
-                $creators->appendChild($creator);
+            if ($creatorElement) {
+                $creators->appendChild($creatorElement);
                 $hasCreators = true;
             }
         }
@@ -175,82 +171,88 @@ class DataCiteXmlExporter
     /**
      * Build a person creator element
      */
-    private function buildPersonCreator(ResourceAuthor $author): ?DOMElement
+    private function buildPersonCreator(ResourceCreator $creator): ?DOMElement
     {
         /** @var Person|null $person */
-        $person = $author->authorable;
+        $person = $creator->creatorable;
 
         if (! $person instanceof Person) {
             return null;
         }
 
-        $creator = $this->dom->createElement('creator');
+        $creatorElement = $this->dom->createElement('creator');
 
         // Creator name (required)
         $creatorName = $this->dom->createElement('creatorName');
 
-        if ($person->last_name && $person->first_name) {
-            $creatorName->nodeValue = htmlspecialchars("{$person->last_name}, {$person->first_name}");
-        } elseif ($person->last_name) {
-            $creatorName->nodeValue = htmlspecialchars($person->last_name);
-        } elseif ($person->first_name) {
-            $creatorName->nodeValue = htmlspecialchars($person->first_name);
+        if ($person->family_name && $person->given_name) {
+            $creatorName->nodeValue = htmlspecialchars("{$person->family_name}, {$person->given_name}");
+        } elseif ($person->family_name) {
+            $creatorName->nodeValue = htmlspecialchars($person->family_name);
+        } elseif ($person->given_name) {
+            $creatorName->nodeValue = htmlspecialchars($person->given_name);
         } else {
             $creatorName->nodeValue = 'Unknown';
         }
 
         $creatorName->setAttribute('nameType', 'Personal');
-        $creator->appendChild($creatorName);
+        $creatorElement->appendChild($creatorName);
 
         // Given name (optional)
-        if ($person->first_name) {
-            $givenName = $this->dom->createElement('givenName', htmlspecialchars($person->first_name));
-            $creator->appendChild($givenName);
+        if ($person->given_name) {
+            $givenName = $this->dom->createElement('givenName', htmlspecialchars($person->given_name));
+            $creatorElement->appendChild($givenName);
         }
 
         // Family name (optional)
-        if ($person->last_name) {
-            $familyName = $this->dom->createElement('familyName', htmlspecialchars($person->last_name));
-            $creator->appendChild($familyName);
+        if ($person->family_name) {
+            $familyName = $this->dom->createElement('familyName', htmlspecialchars($person->family_name));
+            $creatorElement->appendChild($familyName);
         }
 
-        // Name identifiers (ORCID)
-        if ($person->orcid) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($person->orcid));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', 'ORCID');
-            $nameIdentifier->setAttribute('schemeURI', 'https://orcid.org');
-            $creator->appendChild($nameIdentifier);
+        // Name identifiers (ORCID or other)
+        if ($person->name_identifier) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($person->name_identifier));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $person->name_identifier_scheme ?? 'ORCID');
+            if ($person->name_identifier_scheme_uri) {
+                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($person->name_identifier_scheme_uri));
+            } elseif ($person->name_identifier_scheme === 'ORCID') {
+                $nameIdentifier->setAttribute('schemeURI', 'https://orcid.org');
+            }
+            $creatorElement->appendChild($nameIdentifier);
         }
 
         // Affiliations
-        foreach ($author->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
+        foreach ($creator->affiliations as $affiliation) {
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->ror_id) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
-                $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
+            if ($affiliation->affiliation_identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+                if ($affiliation->scheme_uri) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+                }
             }
 
-            $creator->appendChild($affiliationElement);
+            $creatorElement->appendChild($affiliationElement);
         }
 
-        return $creator;
+        return $creatorElement;
     }
 
     /**
      * Build an institution creator element
      */
-    private function buildInstitutionCreator(ResourceAuthor $author): ?DOMElement
+    private function buildInstitutionCreator(ResourceCreator $creator): ?DOMElement
     {
         /** @var Institution|null $institution */
-        $institution = $author->authorable;
+        $institution = $creator->creatorable;
 
         if (! $institution instanceof Institution) {
             return null;
         }
 
-        $creator = $this->dom->createElement('creator');
+        $creatorElement = $this->dom->createElement('creator');
 
         // Creator name (required)
         $creatorName = $this->dom->createElement(
@@ -258,36 +260,36 @@ class DataCiteXmlExporter
             htmlspecialchars($institution->name ?? 'Unknown Institution')
         );
         $creatorName->setAttribute('nameType', 'Organizational');
-        $creator->appendChild($creatorName);
+        $creatorElement->appendChild($creatorName);
 
-        // Name identifiers (ROR)
-        if ($institution->identifier_type === 'ROR' && $institution->identifier) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->identifier));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', 'ROR');
-            $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
-            $creator->appendChild($nameIdentifier);
-        } elseif ($institution->ror_id) {
-            // Legacy ROR field
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->ror_id));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', 'ROR');
-            $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
-            $creator->appendChild($nameIdentifier);
+        // Name identifiers (ROR or other)
+        if ($institution->name_identifier) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->name_identifier));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $institution->name_identifier_scheme ?? 'ROR');
+            if ($institution->name_identifier_scheme_uri) {
+                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($institution->name_identifier_scheme_uri));
+            } elseif ($institution->name_identifier_scheme === 'ROR') {
+                $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
+            }
+            $creatorElement->appendChild($nameIdentifier);
         }
 
         // Affiliations
-        foreach ($author->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
+        foreach ($creator->affiliations as $affiliation) {
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->ror_id) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
-                $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
+            if ($affiliation->affiliation_identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+                if ($affiliation->scheme_uri) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+                }
             }
 
-            $creator->appendChild($affiliationElement);
+            $creatorElement->appendChild($affiliationElement);
         }
 
-        return $creator;
+        return $creatorElement;
     }
 
     /**
@@ -298,12 +300,12 @@ class DataCiteXmlExporter
         $titles = $this->dom->createElement('titles');
 
         foreach ($resource->titles as $title) {
-            $titleElement = $this->dom->createElement('title', htmlspecialchars($title->title));
+            $titleElement = $this->dom->createElement('title', htmlspecialchars($title->value));
 
             // Add title type if not main title
-            $titleType = $title->titleType?->slug;
-            if ($titleType && $titleType !== 'main-title') {
-                $titleElement->setAttribute('titleType', $this->convertTitleType($titleType));
+            $titleType = $title->titleType;
+            if ($titleType && ! $title->isMainTitle()) {
+                $titleElement->setAttribute('titleType', $titleType->slug);
             }
 
             // Add language
@@ -328,29 +330,27 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Convert title type slug to DataCite format
-     */
-    private function convertTitleType(string $slug): string
-    {
-        $mapping = [
-            'subtitle' => 'Subtitle',
-            'alternative-title' => 'AlternativeTitle',
-            'translated-title' => 'TranslatedTitle',
-            'other' => 'Other',
-        ];
-
-        return $mapping[$slug] ?? 'Other';
-    }
-
-    /**
      * Build publisher element (required)
      */
     private function buildPublisher(Resource $resource): void
     {
-        $publisher = $this->dom->createElement('publisher', htmlspecialchars(self::PUBLISHER_NAME));
-        $publisher->setAttribute('publisherIdentifier', self::PUBLISHER_ROR_ID);
-        $publisher->setAttribute('publisherIdentifierScheme', 'ROR');
-        $publisher->setAttribute('schemeURI', 'https://ror.org/');
+        $publisherModel = $resource->publisher;
+
+        if (! $publisherModel) {
+            $publisher = $this->dom->createElement('publisher', htmlspecialchars('GFZ Data Services'));
+        } else {
+            $publisher = $this->dom->createElement('publisher', htmlspecialchars($publisherModel->name));
+
+            if ($publisherModel->identifier) {
+                $publisher->setAttribute('publisherIdentifier', htmlspecialchars($publisherModel->identifier));
+                if ($publisherModel->identifier_scheme) {
+                    $publisher->setAttribute('publisherIdentifierScheme', htmlspecialchars($publisherModel->identifier_scheme));
+                }
+                if ($publisherModel->scheme_uri) {
+                    $publisher->setAttribute('schemeURI', htmlspecialchars($publisherModel->scheme_uri));
+                }
+            }
+        }
 
         if ($resource->language) {
             $publisher->setAttributeNS(
@@ -370,7 +370,7 @@ class DataCiteXmlExporter
     {
         $publicationYear = $this->dom->createElement(
             'publicationYear',
-            htmlspecialchars((string) $resource->year)
+            htmlspecialchars((string) $resource->publication_year)
         );
         $this->root->appendChild($publicationYear);
     }
@@ -394,29 +394,29 @@ class DataCiteXmlExporter
      */
     private function buildSubjects(Resource $resource): void
     {
-        if ($resource->keywords->isEmpty() && $resource->controlledKeywords->isEmpty()) {
+        if ($resource->subjects->isEmpty()) {
             return;
         }
 
         $subjects = $this->dom->createElement('subjects');
 
-        // Free keywords
-        foreach ($resource->keywords as $keyword) {
-            $subject = $this->dom->createElement('subject', htmlspecialchars($keyword->keyword));
-            $subjects->appendChild($subject);
-        }
+        foreach ($resource->subjects as $subjectModel) {
+            $subject = $this->dom->createElement('subject', htmlspecialchars($subjectModel->subject));
 
-        // Controlled keywords (GCMD)
-        foreach ($resource->controlledKeywords as $keyword) {
-            $subject = $this->dom->createElement('subject', htmlspecialchars($keyword->text));
-            $subject->setAttribute('subjectScheme', htmlspecialchars($keyword->scheme));
-
-            if ($keyword->scheme_uri) {
-                $subject->setAttribute('schemeURI', htmlspecialchars($keyword->scheme_uri));
+            if ($subjectModel->subject_scheme) {
+                $subject->setAttribute('subjectScheme', htmlspecialchars($subjectModel->subject_scheme));
             }
 
-            if ($keyword->keyword_id) {
-                $subject->setAttribute('valueURI', htmlspecialchars($keyword->keyword_id));
+            if ($subjectModel->scheme_uri) {
+                $subject->setAttribute('schemeURI', htmlspecialchars($subjectModel->scheme_uri));
+            }
+
+            if ($subjectModel->value_uri) {
+                $subject->setAttribute('valueURI', htmlspecialchars($subjectModel->value_uri));
+            }
+
+            if ($subjectModel->classification_code) {
+                $subject->setAttribute('classificationCode', htmlspecialchars($subjectModel->classification_code));
             }
 
             $subjects->appendChild($subject);
@@ -430,20 +430,20 @@ class DataCiteXmlExporter
      */
     private function buildContributors(Resource $resource): void
     {
-        if ($resource->dataciteContributors->isEmpty()) {
+        if ($resource->contributors->isEmpty()) {
             return;
         }
 
         $contributors = $this->dom->createElement('contributors');
         $hasContributors = false;
 
-        foreach ($resource->dataciteContributors as $contributor) {
+        foreach ($resource->contributors as $contributor) {
             $contributorElement = null;
 
             // Check if this is an MSL Laboratory
-            if ($contributor->authorable_type === Institution::class) {
+            if ($contributor->contributorable_type === Institution::class) {
                 /** @var Institution|null $institution */
-                $institution = $contributor->authorable;
+                $institution = $contributor->contributorable;
                 if ($institution instanceof Institution && $institution->isLaboratory()) {
                     $contributorElement = $this->buildMslLaboratoryContributor($contributor);
                     if ($contributorElement) {
@@ -455,12 +455,12 @@ class DataCiteXmlExporter
                 }
             }
 
-            // Regular contributor
-            $contributorType = $this->determineContributorType($contributor);
+            // Regular contributor - get type from contributorType relation
+            $contributorType = $contributor->contributorType->slug ?? 'Other';
 
-            if ($contributor->authorable_type === Person::class) {
+            if ($contributor->contributorable_type === Person::class) {
                 $contributorElement = $this->buildPersonContributor($contributor, $contributorType);
-            } elseif ($contributor->authorable_type === Institution::class) {
+            } elseif ($contributor->contributorable_type === Institution::class) {
                 $contributorElement = $this->buildInstitutionContributor($contributor, $contributorType);
             }
 
@@ -478,10 +478,10 @@ class DataCiteXmlExporter
     /**
      * Build MSL Laboratory contributor element
      */
-    private function buildMslLaboratoryContributor(ResourceAuthor $contributor): ?DOMElement
+    private function buildMslLaboratoryContributor(ResourceContributor $contributor): ?DOMElement
     {
         /** @var Institution|null $institution */
-        $institution = $contributor->authorable;
+        $institution = $contributor->contributorable;
 
         if (! $institution instanceof Institution) {
             return null;
@@ -499,20 +499,22 @@ class DataCiteXmlExporter
         $contributorElement->appendChild($contributorName);
 
         // Laboratory identifier
-        if ($institution->identifier) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->identifier));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', 'labid');
+        if ($institution->name_identifier) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->name_identifier));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $institution->name_identifier_scheme ?? 'labid');
             $contributorElement->appendChild($nameIdentifier);
         }
 
         // Affiliations
         foreach ($contributor->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->ror_id) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
-                $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
+            if ($affiliation->affiliation_identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+                if ($affiliation->scheme_uri) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+                }
             }
 
             $contributorElement->appendChild($affiliationElement);
@@ -522,52 +524,12 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Determine contributor type from roles
-     */
-    private function determineContributorType(ResourceAuthor $contributor): string
-    {
-        $role = $contributor->roles->first();
-
-        if (! $role) {
-            return 'Other';
-        }
-
-        // Map ERNIE roles to DataCite contributor types
-        $roleMapping = [
-            'Contact Person' => 'ContactPerson',
-            'Data Collector' => 'DataCollector',
-            'Data Curator' => 'DataCurator',
-            'Data Manager' => 'DataManager',
-            'Distributor' => 'Distributor',
-            'Editor' => 'Editor',
-            'Hosting Institution' => 'HostingInstitution',
-            'Producer' => 'Producer',
-            'Project Leader' => 'ProjectLeader',
-            'Project Manager' => 'ProjectManager',
-            'Project Member' => 'ProjectMember',
-            'Registration Agency' => 'RegistrationAgency',
-            'Registration Authority' => 'RegistrationAuthority',
-            'Related Person' => 'RelatedPerson',
-            'Researcher' => 'Researcher',
-            'Research Group' => 'ResearchGroup',
-            'Rights Holder' => 'RightsHolder',
-            'Sponsor' => 'Sponsor',
-            'Supervisor' => 'Supervisor',
-            'Work Package Leader' => 'WorkPackageLeader',
-            'Translator' => 'Translator',
-            'Other' => 'Other',
-        ];
-
-        return $roleMapping[$role->name] ?? 'Other';
-    }
-
-    /**
      * Build a person contributor element
      */
-    private function buildPersonContributor(ResourceAuthor $contributor, string $contributorType): ?DOMElement
+    private function buildPersonContributor(ResourceContributor $contributor, string $contributorType): ?DOMElement
     {
         /** @var Person|null $person */
-        $person = $contributor->authorable;
+        $person = $contributor->contributorable;
 
         if (! $person instanceof Person) {
             return null;
@@ -579,12 +541,12 @@ class DataCiteXmlExporter
         // Contributor name (required)
         $contributorName = $this->dom->createElement('contributorName');
 
-        if ($person->last_name && $person->first_name) {
-            $contributorName->nodeValue = htmlspecialchars("{$person->last_name}, {$person->first_name}");
-        } elseif ($person->last_name) {
-            $contributorName->nodeValue = htmlspecialchars($person->last_name);
-        } elseif ($person->first_name) {
-            $contributorName->nodeValue = htmlspecialchars($person->first_name);
+        if ($person->family_name && $person->given_name) {
+            $contributorName->nodeValue = htmlspecialchars("{$person->family_name}, {$person->given_name}");
+        } elseif ($person->family_name) {
+            $contributorName->nodeValue = htmlspecialchars($person->family_name);
+        } elseif ($person->given_name) {
+            $contributorName->nodeValue = htmlspecialchars($person->given_name);
         } else {
             $contributorName->nodeValue = 'Unknown';
         }
@@ -593,33 +555,39 @@ class DataCiteXmlExporter
         $contributorElement->appendChild($contributorName);
 
         // Given name (optional)
-        if ($person->first_name) {
-            $givenName = $this->dom->createElement('givenName', htmlspecialchars($person->first_name));
+        if ($person->given_name) {
+            $givenName = $this->dom->createElement('givenName', htmlspecialchars($person->given_name));
             $contributorElement->appendChild($givenName);
         }
 
         // Family name (optional)
-        if ($person->last_name) {
-            $familyName = $this->dom->createElement('familyName', htmlspecialchars($person->last_name));
+        if ($person->family_name) {
+            $familyName = $this->dom->createElement('familyName', htmlspecialchars($person->family_name));
             $contributorElement->appendChild($familyName);
         }
 
-        // Name identifiers (ORCID)
-        if ($person->orcid) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($person->orcid));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', 'ORCID');
-            $nameIdentifier->setAttribute('schemeURI', 'https://orcid.org');
+        // Name identifiers (ORCID or other)
+        if ($person->name_identifier) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($person->name_identifier));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $person->name_identifier_scheme ?? 'ORCID');
+            if ($person->name_identifier_scheme_uri) {
+                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($person->name_identifier_scheme_uri));
+            } elseif ($person->name_identifier_scheme === 'ORCID') {
+                $nameIdentifier->setAttribute('schemeURI', 'https://orcid.org');
+            }
             $contributorElement->appendChild($nameIdentifier);
         }
 
         // Affiliations
         foreach ($contributor->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->ror_id) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
-                $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
+            if ($affiliation->affiliation_identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+                if ($affiliation->scheme_uri) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+                }
             }
 
             $contributorElement->appendChild($affiliationElement);
@@ -631,10 +599,10 @@ class DataCiteXmlExporter
     /**
      * Build an institution contributor element
      */
-    private function buildInstitutionContributor(ResourceAuthor $contributor, string $contributorType): ?DOMElement
+    private function buildInstitutionContributor(ResourceContributor $contributor, string $contributorType): ?DOMElement
     {
         /** @var Institution|null $institution */
-        $institution = $contributor->authorable;
+        $institution = $contributor->contributorable;
 
         if (! $institution instanceof Institution) {
             return null;
@@ -651,27 +619,28 @@ class DataCiteXmlExporter
         $contributorName->setAttribute('nameType', 'Organizational');
         $contributorElement->appendChild($contributorName);
 
-        // Name identifiers (ROR)
-        if ($institution->identifier_type === 'ROR' && $institution->identifier) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->identifier));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', 'ROR');
-            $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
-            $contributorElement->appendChild($nameIdentifier);
-        } elseif ($institution->ror_id) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->ror_id));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', 'ROR');
-            $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
+        // Name identifiers (ROR or other)
+        if ($institution->name_identifier) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->name_identifier));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $institution->name_identifier_scheme ?? 'ROR');
+            if ($institution->name_identifier_scheme_uri) {
+                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($institution->name_identifier_scheme_uri));
+            } elseif ($institution->name_identifier_scheme === 'ROR') {
+                $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
+            }
             $contributorElement->appendChild($nameIdentifier);
         }
 
         // Affiliations
         foreach ($contributor->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->value));
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->ror_id) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->ror_id));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', 'ROR');
-                $affiliationElement->setAttribute('schemeURI', 'https://ror.org');
+            if ($affiliation->affiliation_identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+                if ($affiliation->scheme_uri) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+                }
             }
 
             $contributorElement->appendChild($affiliationElement);
@@ -694,24 +663,13 @@ class DataCiteXmlExporter
 
         foreach ($resource->dates as $date) {
             // Skip if no date type (should not happen in normal usage)
+            // @phpstan-ignore booleanNot.alwaysFalse
             if (! $date->dateType) {
                 continue;
             }
 
-            // Build date string
-            $dateString = '';
-            if ($date->start_date && $date->end_date) {
-                $dateString = "{$date->start_date}/{$date->end_date}";
-            } elseif ($date->start_date) {
-                $dateString = $date->start_date;
-            } elseif ($date->end_date) {
-                $dateString = $date->end_date;
-            } else {
-                continue; // Skip if no date
-            }
-
-            $dateElement = $this->dom->createElement('date', htmlspecialchars($dateString));
-            $dateElement->setAttribute('dateType', $this->convertDateType($date->dateType->slug));
+            $dateElement = $this->dom->createElement('date', htmlspecialchars($date->date));
+            $dateElement->setAttribute('dateType', $date->dateType->slug);
 
             if ($date->date_information) {
                 $dateElement->setAttribute('dateInformation', htmlspecialchars($date->date_information));
@@ -724,29 +682,6 @@ class DataCiteXmlExporter
         if ($hasDates) {
             $this->root->appendChild($dates);
         }
-    }
-
-    /**
-     * Convert date type to DataCite format
-     */
-    private function convertDateType(string $type): string
-    {
-        $mapping = [
-            'accepted' => 'Accepted',
-            'available' => 'Available',
-            'copyrighted' => 'Copyrighted',
-            'collected' => 'Collected',
-            'created' => 'Created',
-            'issued' => 'Issued',
-            'submitted' => 'Submitted',
-            'updated' => 'Updated',
-            'valid' => 'Valid',
-            'withdrawn' => 'Withdrawn',
-            'coverage' => 'Coverage', // DataCite 4.6 addition
-            'other' => 'Other',
-        ];
-
-        return $mapping[$type] ?? 'Other';
     }
 
     /**
@@ -786,16 +721,16 @@ class DataCiteXmlExporter
         foreach ($resource->relatedIdentifiers as $relatedIdentifier) {
             $relatedElement = $this->dom->createElement(
                 'relatedIdentifier',
-                htmlspecialchars($relatedIdentifier->identifier)
+                htmlspecialchars($relatedIdentifier->related_identifier)
             );
-            $relatedElement->setAttribute('relatedIdentifierType', htmlspecialchars($relatedIdentifier->identifier_type));
-            $relatedElement->setAttribute('relationType', htmlspecialchars($relatedIdentifier->relation_type));
+            $relatedElement->setAttribute('relatedIdentifierType', $relatedIdentifier->relatedIdentifierType->slug ?? 'DOI');
+            $relatedElement->setAttribute('relationType', $relatedIdentifier->relationType->slug ?? 'References');
 
             // Add resourceTypeGeneral if available
-            if (isset($relatedIdentifier->related_metadata['resourceTypeGeneral'])) {
+            if ($relatedIdentifier->resource_type_general) {
                 $relatedElement->setAttribute(
                     'resourceTypeGeneral',
-                    htmlspecialchars($relatedIdentifier->related_metadata['resourceTypeGeneral'])
+                    htmlspecialchars($relatedIdentifier->resource_type_general)
                 );
             }
 
@@ -810,8 +745,18 @@ class DataCiteXmlExporter
      */
     private function buildSizes(Resource $resource): void
     {
-        // Currently not implemented in ERNIE data model
-        // Placeholder for future implementation
+        if ($resource->sizes->isEmpty()) {
+            return;
+        }
+
+        $sizes = $this->dom->createElement('sizes');
+
+        foreach ($resource->sizes as $size) {
+            $sizeElement = $this->dom->createElement('size', htmlspecialchars($size->size));
+            $sizes->appendChild($sizeElement);
+        }
+
+        $this->root->appendChild($sizes);
     }
 
     /**
@@ -819,8 +764,18 @@ class DataCiteXmlExporter
      */
     private function buildFormats(Resource $resource): void
     {
-        // Currently not implemented in ERNIE data model
-        // Placeholder for future implementation
+        if ($resource->formats->isEmpty()) {
+            return;
+        }
+
+        $formats = $this->dom->createElement('formats');
+
+        foreach ($resource->formats as $format) {
+            $formatElement = $this->dom->createElement('format', htmlspecialchars($format->format));
+            $formats->appendChild($formatElement);
+        }
+
+        $this->root->appendChild($formats);
     }
 
     /**
@@ -839,34 +794,36 @@ class DataCiteXmlExporter
      */
     private function buildRightsList(Resource $resource): void
     {
-        if ($resource->licenses->isEmpty()) {
+        if ($resource->rights->isEmpty()) {
             return;
         }
 
         $rightsList = $this->dom->createElement('rightsList');
 
-        foreach ($resource->licenses as $license) {
-            $rights = $this->dom->createElement('rights', htmlspecialchars($license->name));
+        foreach ($resource->rights as $right) {
+            $rightsElement = $this->dom->createElement('rights', htmlspecialchars($right->name));
 
-            if ($license->reference) {
-                $rights->setAttribute('rightsURI', htmlspecialchars($license->reference));
+            if ($right->uri) {
+                $rightsElement->setAttribute('rightsURI', htmlspecialchars($right->uri));
             }
 
-            if ($license->spdx_id) {
-                $rights->setAttribute('rightsIdentifier', htmlspecialchars($license->spdx_id));
-                $rights->setAttribute('rightsIdentifierScheme', 'SPDX');
-                $rights->setAttribute('schemeURI', 'https://spdx.org/licenses/');
+            if ($right->identifier) {
+                $rightsElement->setAttribute('rightsIdentifier', htmlspecialchars($right->identifier));
+                $rightsElement->setAttribute('rightsIdentifierScheme', 'SPDX');
+                if ($right->scheme_uri) {
+                    $rightsElement->setAttribute('schemeURI', htmlspecialchars($right->scheme_uri));
+                }
             }
 
             if ($resource->language) {
-                $rights->setAttributeNS(
+                $rightsElement->setAttributeNS(
                     self::XML_NAMESPACE,
                     'xml:lang',
                     $resource->language->iso_code ?? 'en'
                 );
             }
 
-            $rightsList->appendChild($rights);
+            $rightsList->appendChild($rightsElement);
         }
 
         $this->root->appendChild($rightsList);
@@ -885,7 +842,7 @@ class DataCiteXmlExporter
 
         foreach ($resource->descriptions as $description) {
             $descriptionElement = $this->dom->createElement('description', htmlspecialchars($description->description));
-            $descriptionElement->setAttribute('descriptionType', $this->convertDescriptionType($description->description_type));
+            $descriptionElement->setAttribute('descriptionType', $description->descriptionType->slug ?? 'Abstract');
 
             if ($resource->language) {
                 $descriptionElement->setAttributeNS(
@@ -902,109 +859,131 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Convert description type to DataCite format
-     */
-    private function convertDescriptionType(string $type): string
-    {
-        $mapping = [
-            'abstract' => 'Abstract',
-            'methods' => 'Methods',
-            'series-information' => 'SeriesInformation',
-            'table-of-contents' => 'TableOfContents',
-            'technical-info' => 'TechnicalInfo',
-            'other' => 'Other',
-        ];
-
-        return $mapping[$type] ?? 'Other';
-    }
-
-    /**
      * Build geoLocations element (optional)
      */
     private function buildGeoLocations(Resource $resource): void
     {
-        if ($resource->coverages->isEmpty()) {
+        if ($resource->geoLocations->isEmpty()) {
             return;
         }
 
         $geoLocations = $this->dom->createElement('geoLocations');
         $hasGeoLocations = false;
 
-        foreach ($resource->coverages as $coverage) {
-            $geoLocation = $this->dom->createElement('geoLocation');
+        foreach ($resource->geoLocations as $geoLocation) {
+            $geoLocationElement = $this->dom->createElement('geoLocation');
             $hasContent = false;
 
             // Add description/place
-            if ($coverage->description) {
+            if ($geoLocation->place) {
                 $geoLocationPlace = $this->dom->createElement(
                     'geoLocationPlace',
-                    htmlspecialchars($coverage->description)
+                    htmlspecialchars($geoLocation->place)
                 );
-                $geoLocation->appendChild($geoLocationPlace);
+                $geoLocationElement->appendChild($geoLocationPlace);
                 $hasContent = true;
             }
 
-            // Add polygon if polygon_points exist (highest priority)
-            if ($coverage->type === 'polygon' && ! empty($coverage->polygon_points)) {
-                $geoLocationPolygon = $this->dom->createElement('geoLocationPolygon');
+            // Add point if coordinates exist
+            if ($geoLocation->hasPoint()) {
+                $geoLocationPoint = $this->dom->createElement('geoLocationPoint');
 
-                foreach ($coverage->polygon_points as $point) {
-                    $polygonPoint = $this->dom->createElement('polygonPoint');
+                $pointLongitude = $this->dom->createElement(
+                    'pointLongitude',
+                    htmlspecialchars((string) $geoLocation->point_longitude)
+                );
+                $geoLocationPoint->appendChild($pointLongitude);
 
-                    $pointLatitude = $this->dom->createElement(
-                        'pointLatitude',
-                        htmlspecialchars((string) $point['lat'])
-                    );
-                    $polygonPoint->appendChild($pointLatitude);
+                $pointLatitude = $this->dom->createElement(
+                    'pointLatitude',
+                    htmlspecialchars((string) $geoLocation->point_latitude)
+                );
+                $geoLocationPoint->appendChild($pointLatitude);
 
-                    $pointLongitude = $this->dom->createElement(
-                        'pointLongitude',
-                        htmlspecialchars((string) $point['lon'])
-                    );
-                    $polygonPoint->appendChild($pointLongitude);
-
-                    $geoLocationPolygon->appendChild($polygonPoint);
-                }
-
-                $geoLocation->appendChild($geoLocationPolygon);
+                $geoLocationElement->appendChild($geoLocationPoint);
                 $hasContent = true;
             }
-            // Add bounding box if spatial data exists (fallback if not polygon)
-            elseif ($coverage->lat_min !== null || $coverage->lat_max !== null ||
-                $coverage->lon_min !== null || $coverage->lon_max !== null) {
 
+            // Add bounding box if coordinates exist
+            if ($geoLocation->hasBox()) {
                 $geoLocationBox = $this->dom->createElement('geoLocationBox');
 
                 $westBoundLongitude = $this->dom->createElement(
                     'westBoundLongitude',
-                    htmlspecialchars((string) $coverage->lon_min)
+                    htmlspecialchars((string) $geoLocation->west_bound_longitude)
                 );
                 $geoLocationBox->appendChild($westBoundLongitude);
 
                 $eastBoundLongitude = $this->dom->createElement(
                     'eastBoundLongitude',
-                    htmlspecialchars((string) $coverage->lon_max)
+                    htmlspecialchars((string) $geoLocation->east_bound_longitude)
                 );
                 $geoLocationBox->appendChild($eastBoundLongitude);
 
                 $southBoundLatitude = $this->dom->createElement(
                     'southBoundLatitude',
-                    htmlspecialchars((string) $coverage->lat_min)
+                    htmlspecialchars((string) $geoLocation->south_bound_latitude)
                 );
                 $geoLocationBox->appendChild($southBoundLatitude);
 
                 $northBoundLatitude = $this->dom->createElement(
                     'northBoundLatitude',
-                    htmlspecialchars((string) $coverage->lat_max)
+                    htmlspecialchars((string) $geoLocation->north_bound_latitude)
                 );
                 $geoLocationBox->appendChild($northBoundLatitude);
 
-                $geoLocation->appendChild($geoLocationBox);
+                $geoLocationElement->appendChild($geoLocationBox);
+                $hasContent = true;
+            }
+
+            // Add polygons if they exist
+            if ($geoLocation->polygons->isNotEmpty()) {
+                $geoLocationPolygon = $this->dom->createElement('geoLocationPolygon');
+
+                foreach ($geoLocation->polygons->sortBy('position') as $polygonPoint) {
+                    if ($polygonPoint->is_in_polygon_point) {
+                        // This is the inPolygonPoint
+                        $inPolygonPoint = $this->dom->createElement('inPolygonPoint');
+
+                        $pointLongitude = $this->dom->createElement(
+                            'pointLongitude',
+                            htmlspecialchars((string) $polygonPoint->point_longitude)
+                        );
+                        $inPolygonPoint->appendChild($pointLongitude);
+
+                        $pointLatitude = $this->dom->createElement(
+                            'pointLatitude',
+                            htmlspecialchars((string) $polygonPoint->point_latitude)
+                        );
+                        $inPolygonPoint->appendChild($pointLatitude);
+
+                        $geoLocationPolygon->appendChild($inPolygonPoint);
+                    } else {
+                        // Regular polygon point
+                        $polygonPointElement = $this->dom->createElement('polygonPoint');
+
+                        $pointLongitude = $this->dom->createElement(
+                            'pointLongitude',
+                            htmlspecialchars((string) $polygonPoint->point_longitude)
+                        );
+                        $polygonPointElement->appendChild($pointLongitude);
+
+                        $pointLatitude = $this->dom->createElement(
+                            'pointLatitude',
+                            htmlspecialchars((string) $polygonPoint->point_latitude)
+                        );
+                        $polygonPointElement->appendChild($pointLatitude);
+
+                        $geoLocationPolygon->appendChild($polygonPointElement);
+                    }
+                }
+
+                $geoLocationElement->appendChild($geoLocationPolygon);
                 $hasContent = true;
             }
 
             if ($hasContent) {
-                $geoLocations->appendChild($geoLocation);
+                $geoLocations->appendChild($geoLocationElement);
                 $hasGeoLocations = true;
             }
         }
@@ -1038,24 +1017,28 @@ class DataCiteXmlExporter
                 );
                 $funderIdentifier->setAttribute(
                     'funderIdentifierType',
-                    htmlspecialchars($funding->funder_identifier_type ?? 'Other')
+                    $funding->funderIdentifierType->slug ?? 'Other'
                 );
+                if ($funding->scheme_uri) {
+                    $funderIdentifier->setAttribute(
+                        'schemeURI',
+                        htmlspecialchars($funding->scheme_uri)
+                    );
+                }
                 $fundingReference->appendChild($funderIdentifier);
             }
 
             if ($funding->award_number) {
                 $awardNumber = $this->dom->createElement('awardNumber', htmlspecialchars($funding->award_number));
+                if ($funding->award_uri) {
+                    $awardNumber->setAttribute('awardURI', htmlspecialchars($funding->award_uri));
+                }
                 $fundingReference->appendChild($awardNumber);
             }
 
             if ($funding->award_title) {
                 $awardTitle = $this->dom->createElement('awardTitle', htmlspecialchars($funding->award_title));
                 $fundingReference->appendChild($awardTitle);
-            }
-
-            if ($funding->award_uri) {
-                $awardURI = $this->dom->createElement('awardURI', htmlspecialchars($funding->award_uri));
-                $fundingReference->appendChild($awardURI);
             }
 
             $fundingReferences->appendChild($fundingReference);

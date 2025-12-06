@@ -15,14 +15,11 @@ class DateType extends Model
     protected $fillable = [
         'name',
         'slug',
-        'description',
-        'active',
-        'elmo_active',
+        'is_active',
     ];
 
     protected $casts = [
-        'active' => 'boolean',
-        'elmo_active' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     /**
@@ -33,18 +30,7 @@ class DateType extends Model
      */
     public function scopeActive(Builder $query): Builder
     {
-        return $query->where('active', true);
-    }
-
-    /**
-     * Scope to filter only ELMO-active date types.
-     *
-     * @param  Builder<DateType>  $query
-     * @return Builder<DateType>
-     */
-    public function scopeElmoActive(Builder $query): Builder
-    {
-        return $query->where('elmo_active', true);
+        return $query->where('is_active', true);
     }
 
     /**

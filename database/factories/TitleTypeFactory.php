@@ -36,8 +36,8 @@ class TitleTypeFactory extends Factory
         return [
             'name' => $type['name'],
             'slug' => $type['slug'],
-            'active' => true,
-            'elmo_active' => true,
+            'is_active' => true,
+            'is_elmo_active' => true,
         ];
     }
 }

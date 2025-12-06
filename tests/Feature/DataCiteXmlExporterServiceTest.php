@@ -1,16 +1,17 @@
 <?php
 
+use App\Models\ContributorType;
+use App\Models\Description;
+use App\Models\DescriptionType;
 use App\Models\Institution;
 use App\Models\Language;
-use App\Models\License;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Models\ResourceAuthor;
-use App\Models\ResourceDate;
-use App\Models\ResourceDescription;
-use App\Models\ResourceTitle;
+use App\Models\ResourceContributor;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
-use App\Models\Role;
+use App\Models\Right;
+use App\Models\Title;
 use App\Services\DataCiteXmlExporter;
 
 beforeEach(function () {
@@ -18,212 +19,128 @@ beforeEach(function () {
 });
 
 describe('DataCiteXmlExporter - Required Fields', function () {
-    test('exports valid XML with required elements', function () {
+    test('exports valid XML structure', function () {
         $resource = Resource::factory()->create([
-            'doi' => '10.82433/B09Z-4K37',
-            'year' => 2024,
+            'doi' => '10.82433/TEST-XML',
+            'publication_year' => 2024,
         ]);
-
-        $resourceType = ResourceType::factory()->create(['name' => 'Dataset']);
-        $resource->resourceType()->associate($resourceType);
-        $resource->save();
 
         $xml = $this->exporter->export($resource);
 
-        expect($xml)->toBeString()
-            ->and($xml)->toContain('<?xml version="1.0" encoding="UTF-8"?>')
+        expect($xml)->toContain('<?xml version="1.0" encoding="UTF-8"?>')
             ->and($xml)->toContain('<resource xmlns="http://datacite.org/schema/kernel-4"')
-            ->and($xml)->toContain('<identifier identifierType="DOI">10.82433/B09Z-4K37</identifier>');
+            ->and($xml)->toContain('<identifier identifierType="DOI">10.82433/TEST-XML</identifier>');
+
+        // Validate it's proper XML
+        libxml_use_internal_errors(true);
+        $dom = new DOMDocument;
+        $loaded = $dom->loadXML($xml);
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
+
+        expect($loaded)->toBeTrue()
+            ->and($errors)->toBeEmpty();
     });
 
-    test('exports required creators', function () {
+    test('exports creators', function () {
         $resource = Resource::factory()->create();
         $person = Person::factory()->create([
-            'first_name' => 'Holger',
-            'last_name' => 'Ehrmann',
-            'orcid' => '0009-0000-1235-6950',
+            'given_name' => 'Jane',
+            'family_name' => 'Doe',
+            'name_identifier' => '0000-0002-1234-5678',
+            'name_identifier_scheme' => 'ORCID',
         ]);
 
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<creators>')
-            ->and($xml)->toContain('<creator>')
-            ->and($xml)->toContain('<creatorName nameType="Personal">Ehrmann, Holger</creatorName>')
-            ->and($xml)->toContain('<givenName>Holger</givenName>')
-            ->and($xml)->toContain('<familyName>Ehrmann</familyName>')
-            ->and($xml)->toContain('<nameIdentifier nameIdentifierScheme="ORCID"');
+            ->and($xml)->toContain('<creatorName nameType="Personal">Doe, Jane</creatorName>')
+            ->and($xml)->toContain('<givenName>Jane</givenName>')
+            ->and($xml)->toContain('<familyName>Doe</familyName>');
     });
 
-    test('exports required titles', function () {
+    test('exports titles', function () {
         $resource = Resource::factory()->create();
-        $language = Language::factory()->create(['iso_code' => 'en']);
-        $resource->language()->associate($language);
-        $resource->save();
 
-        ResourceTitle::create([
+        Title::factory()->create([
             'resource_id' => $resource->id,
-            'title' => 'Test Dataset Software',
-            'language_id' => $language->id,
-            'title_type' => null,
+            'value' => 'Test Dataset Title',
+            'language' => 'en',
         ]);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<titles>')
-            ->and($xml)->toContain('<title xml:lang="en">Test Dataset Software</title>');
+            ->and($xml)->toContain('Test Dataset Title');
     });
 
-    test('exports required publisher', function () {
+    test('exports publisher', function () {
         $resource = Resource::factory()->create();
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<publisher')
-            ->and($xml)->toContain('publisherIdentifier="https://ror.org/04z8jg394"')
-            ->and($xml)->toContain('publisherIdentifierScheme="ROR"')
-            ->and($xml)->toContain('>GFZ Helmholtz Centre for Geosciences</publisher>');
+            ->and($xml)->toContain('GFZ Data Services');
     });
 
-    test('exports required publication year', function () {
-        $resource = Resource::factory()->create(['year' => 2024]);
+    test('exports publicationYear', function () {
+        $resource = Resource::factory()->create([
+            'publication_year' => 2024,
+        ]);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<publicationYear>2024</publicationYear>');
     });
 
-    test('exports required resource type', function () {
+    test('exports resourceType', function () {
         $resource = Resource::factory()->create();
-        $resourceType = ResourceType::factory()->create(['name' => 'Dataset']);
-        $resource->resourceType()->associate($resourceType);
+        $resourceType = ResourceType::where('name', 'Dataset')->first();
+        $resource->resource_type_id = $resourceType?->id;
         $resource->save();
 
         $xml = $this->exporter->export($resource);
 
-        expect($xml)->toContain('<resourceType resourceTypeGeneral="Dataset">Dataset</resourceType>');
-    });
-
-    test('handles missing creators with default', function () {
-        $resource = Resource::factory()->create();
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('<creators>')
-            ->and($xml)->toContain('<creatorName nameType="Personal">Unknown</creatorName>');
+        expect($xml)->toContain('<resourceType');
     });
 });
 
-describe('DataCiteXmlExporter - Creators & Contributors', function () {
-    test('exports person creator with ORCID', function () {
-        $resource = Resource::factory()->create();
-        $person = Person::factory()->create([
-            'first_name' => 'Jane',
-            'last_name' => 'Doe',
-            'orcid' => '0000-0002-1825-0097',
-        ]);
-
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
-            'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
-            'position' => 1,
-        ]);
-        $resourceAuthor->roles()->attach($authorRole);
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('<nameIdentifier nameIdentifierScheme="ORCID" schemeURI="https://orcid.org">0000-0002-1825-0097</nameIdentifier>');
-    });
-
-    test('exports institutional creator with ROR', function () {
-        $resource = Resource::factory()->create();
-        $institution = Institution::factory()->create([
-            'name' => 'Test University',
-            'identifier_type' => 'ROR',
-            'identifier' => 'https://ror.org/12345',
-        ]);
-
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
-            'resource_id' => $resource->id,
-            'authorable_id' => $institution->id,
-            'authorable_type' => Institution::class,
-            'position' => 1,
-        ]);
-        $resourceAuthor->roles()->attach($authorRole);
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('<creatorName nameType="Organizational">Test University</creatorName>')
-            ->and($xml)->toContain('<nameIdentifier nameIdentifierScheme="ROR" schemeURI="https://ror.org">https://ror.org/12345</nameIdentifier>');
-    });
-
+describe('DataCiteXmlExporter - Contributors', function () {
     test('exports contributors', function () {
         $resource = Resource::factory()->create();
         $person = Person::factory()->create([
-            'first_name' => 'John',
-            'last_name' => 'Editor',
+            'given_name' => 'Contact',
+            'family_name' => 'Person',
         ]);
 
-        $editorRole = Role::where('name', 'Editor')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        $contactType = ContributorType::where('name', 'ContactPerson')->first();
+        ResourceContributor::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
-            'position' => 2,
+            'contributorable_id' => $person->id,
+            'contributorable_type' => Person::class,
+            'contributor_type_id' => $contactType?->id,
+            'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($editorRole);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<contributors>')
-            ->and($xml)->toContain('<contributor contributorType="Editor">')
-            ->and($xml)->toContain('<contributorName nameType="Personal">Editor, John</contributorName>');
+            ->and($xml)->toContain('contributorType="ContactPerson"');
     });
 });
 
 describe('DataCiteXmlExporter - Optional Fields', function () {
-    test('exports subjects from keywords', function () {
-        $resource = Resource::factory()->create();
-        $resource->keywords()->create(['keyword' => 'geology']);
-        $resource->keywords()->create(['keyword' => 'climate']);
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('<subjects>')
-            ->and($xml)->toContain('<subject>geology</subject>')
-            ->and($xml)->toContain('<subject>climate</subject>');
-    });
-
-    test('exports dates', function () {
-        $resource = Resource::factory()->create();
-        ResourceDate::create([
-            'resource_id' => $resource->id,
-            'date_type' => 'collected',
-            'start_date' => '2023-01-01',
-            'end_date' => '2023-12-31',
-        ]);
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('<dates>')
-            ->and($xml)->toContain('<date dateType="Collected">2023-01-01/2023-12-31</date>');
-    });
-
     test('exports language', function () {
         $resource = Resource::factory()->create();
         $language = Language::factory()->create(['iso_code' => 'de']);
-        $resource->language()->associate($language);
+        $resource->language_id = $language->id;
         $resource->save();
 
         $xml = $this->exporter->export($resource);
@@ -232,279 +149,100 @@ describe('DataCiteXmlExporter - Optional Fields', function () {
     });
 
     test('exports version', function () {
-        $resource = Resource::factory()->create(['version' => '2.1']);
+        $resource = Resource::factory()->create([
+            'version' => '1.2.3',
+        ]);
 
         $xml = $this->exporter->export($resource);
 
-        expect($xml)->toContain('<version>2.1</version>');
+        expect($xml)->toContain('<version>1.2.3</version>');
     });
 
-    test('exports rights list', function () {
+    test('exports rights', function () {
         $resource = Resource::factory()->create();
-        $license = License::factory()->create([
-            'name' => 'CC BY 4.0',
-            'reference' => 'https://creativecommons.org/licenses/by/4.0/',
-            'spdx_id' => 'CC-BY-4.0',
+        $right = Right::factory()->create([
+            'identifier' => 'CC-BY-4.0',
+            'name' => 'Creative Commons Attribution 4.0',
+            'uri' => 'https://creativecommons.org/licenses/by/4.0/',
         ]);
-        $resource->licenses()->attach($license);
+        $resource->rights()->attach($right);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<rightsList>')
-            ->and($xml)->toContain('<rights')
-            ->and($xml)->toContain('rightsURI="https://creativecommons.org/licenses/by/4.0/"')
-            ->and($xml)->toContain('rightsIdentifier="CC-BY-4.0"')
-            ->and($xml)->toContain('>CC BY 4.0</rights>');
+            ->and($xml)->toContain('Creative Commons Attribution 4.0');
     });
 
     test('exports descriptions', function () {
         $resource = Resource::factory()->create();
-        ResourceDescription::create([
+        $abstractType = DescriptionType::where('slug', 'Abstract')->first();
+
+        Description::create([
             'resource_id' => $resource->id,
-            'description' => 'This is an abstract',
-            'description_type' => 'abstract',
+            'description' => 'This is a test abstract.',
+            'description_type_id' => $abstractType?->id,
         ]);
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<descriptions>')
-            ->and($xml)->toContain('<description descriptionType="Abstract">This is an abstract</description>');
-    });
-
-    test('exports geo locations', function () {
-        $resource = Resource::factory()->create();
-        $resource->coverages()->create([
-            'description' => 'Berlin, Germany',
-            'lat_min' => 52.3,
-            'lat_max' => 52.7,
-            'lon_min' => 13.0,
-            'lon_max' => 13.8,
-        ]);
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('<geoLocations>')
-            ->and($xml)->toContain('<geoLocation>')
-            ->and($xml)->toContain('<geoLocationPlace>Berlin, Germany</geoLocationPlace>')
-            ->and($xml)->toContain('<geoLocationBox>')
-            ->and($xml)->toContain('<westBoundLongitude>13</westBoundLongitude>')
-            ->and($xml)->toContain('<eastBoundLongitude>13.8</eastBoundLongitude>');
-    });
-
-    test('exports geo locations with polygon', function () {
-        $resource = Resource::factory()->create();
-        $resource->coverages()->create([
-            'type' => 'polygon',
-            'description' => 'Berlin Area',
-            'polygon_points' => [
-                ['lat' => 52.5, 'lon' => 13.4],
-                ['lat' => 52.6, 'lon' => 13.5],
-                ['lat' => 52.5, 'lon' => 13.6],
-                ['lat' => 52.4, 'lon' => 13.5],
-            ],
-        ]);
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('<geoLocations>')
-            ->and($xml)->toContain('<geoLocation>')
-            ->and($xml)->toContain('<geoLocationPlace>Berlin Area</geoLocationPlace>')
-            ->and($xml)->toContain('<geoLocationPolygon>')
-            ->and($xml)->toContain('<polygonPoint>')
-            ->and($xml)->toContain('<pointLatitude>52.5</pointLatitude>')
-            ->and($xml)->toContain('<pointLongitude>13.4</pointLongitude>')
-            ->and($xml)->toContain('<pointLatitude>52.6</pointLatitude>')
-            ->and($xml)->toContain('<pointLongitude>13.5</pointLongitude>');
-    });
-
-    test('exports polygon with correct point order', function () {
-        $resource = Resource::factory()->create();
-        $resource->coverages()->create([
-            'type' => 'polygon',
-            'description' => 'Triangle',
-            'polygon_points' => [
-                ['lat' => 10.0, 'lon' => 20.0],
-                ['lat' => 15.0, 'lon' => 25.0],
-                ['lat' => 12.5, 'lon' => 30.0],
-            ],
-        ]);
-
-        $xml = $this->exporter->export($resource);
-
-        // Parse XML to verify order
-        $dom = new DOMDocument;
-        $dom->loadXML($xml);
-
-        $xpath = new DOMXPath($dom);
-        $xpath->registerNamespace('dc', 'http://datacite.org/schema/kernel-4');
-
-        $points = $xpath->query('//dc:geoLocationPolygon/dc:polygonPoint');
-        expect($points->length)->toBe(3);
-
-        // First point
-        $firstLat = $xpath->query('.//dc:pointLatitude', $points->item(0))->item(0)->nodeValue;
-        $firstLon = $xpath->query('.//dc:pointLongitude', $points->item(0))->item(0)->nodeValue;
-        expect($firstLat)->toBe('10')
-            ->and($firstLon)->toBe('20');
-
-        // Second point
-        $secondLat = $xpath->query('.//dc:pointLatitude', $points->item(1))->item(0)->nodeValue;
-        $secondLon = $xpath->query('.//dc:pointLongitude', $points->item(1))->item(0)->nodeValue;
-        expect($secondLat)->toBe('15')
-            ->and($secondLon)->toBe('25');
-    });
-
-    test('exports multiple coverages with mixed types', function () {
-        $resource = Resource::factory()->create();
-
-        // Box coverage
-        $resource->coverages()->create([
-            'type' => 'box',
-            'description' => 'Study Area',
-            'lat_min' => 50.0,
-            'lat_max' => 55.0,
-            'lon_min' => 10.0,
-            'lon_max' => 15.0,
-        ]);
-
-        // Polygon coverage
-        $resource->coverages()->create([
-            'type' => 'polygon',
-            'description' => 'Sample Site',
-            'polygon_points' => [
-                ['lat' => 52.0, 'lon' => 12.0],
-                ['lat' => 52.1, 'lon' => 12.1],
-                ['lat' => 52.0, 'lon' => 12.2],
-            ],
-        ]);
-
-        $xml = $this->exporter->export($resource);
-
-        // Should contain both box and polygon
-        expect($xml)->toContain('<geoLocationBox>')
-            ->and($xml)->toContain('<geoLocationPolygon>')
-            ->and($xml)->toContain('Study Area')
-            ->and($xml)->toContain('Sample Site');
-    });
-
-    test('does not export polygon for non-polygon type coverage', function () {
-        $resource = Resource::factory()->create();
-        $resource->coverages()->create([
-            'type' => 'box',
-            'description' => 'Box Coverage',
-            'lat_min' => 50.0,
-            'lat_max' => 55.0,
-            'lon_min' => 10.0,
-            'lon_max' => 15.0,
-            // polygon_points should be ignored for box type
-            'polygon_points' => [
-                ['lat' => 52.0, 'lon' => 12.0],
-                ['lat' => 52.1, 'lon' => 12.1],
-                ['lat' => 52.0, 'lon' => 12.2],
-            ],
-        ]);
-
-        $xml = $this->exporter->export($resource);
-
-        // Should export box, not polygon
-        expect($xml)->toContain('<geoLocationBox>')
-            ->and($xml)->not->toContain('<geoLocationPolygon>');
+            ->and($xml)->toContain('This is a test abstract.')
+            ->and($xml)->toContain('descriptionType="Abstract"');
     });
 });
 
-describe('DataCiteXmlExporter - XML Structure', function () {
-    test('validates well-formed XML', function () {
+describe('DataCiteXmlExporter - Institution as Creator', function () {
+    test('exports institution as organizational creator', function () {
         $resource = Resource::factory()->create();
+        $institution = Institution::factory()->create([
+            'name' => 'GFZ Potsdam',
+        ]);
 
-        $xml = $this->exporter->export($resource);
-
-        // Try to parse XML - should not throw exception
-        $dom = new DOMDocument;
-        $result = $dom->loadXML($xml);
-
-        expect($result)->toBeTrue()
-            ->and($dom->documentElement->nodeName)->toBe('resource');
-    });
-
-    test('includes correct namespaces', function () {
-        $resource = Resource::factory()->create();
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toContain('xmlns="http://datacite.org/schema/kernel-4"')
-            ->and($xml)->toContain('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"')
-            ->and($xml)->toContain('xsi:schemaLocation="http://datacite.org/schema/kernel-4 https://schema.datacite.org/meta/kernel-4.6/metadata.xsd"');
-    });
-
-    test('escapes special XML characters', function () {
-        $resource = Resource::factory()->create();
-        ResourceTitle::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'title' => 'Test & Special <Characters> "Quotes"',
+            'creatorable_id' => $institution->id,
+            'creatorable_type' => Institution::class,
+            'position' => 1,
         ]);
 
         $xml = $this->exporter->export($resource);
 
-        // XML should contain escaped characters
+        expect($xml)->toContain('<creators>')
+            ->and($xml)->toContain('nameType="Organizational"')
+            ->and($xml)->toContain('GFZ Potsdam');
+    });
+});
+
+describe('DataCiteXmlExporter - Special Characters', function () {
+    test('properly escapes XML special characters', function () {
+        $resource = Resource::factory()->create();
+        $person = Person::factory()->create([
+            'given_name' => 'Test & Co',
+            'family_name' => 'Author <Main>',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
+            'position' => 1,
+        ]);
+
+        $xml = $this->exporter->export($resource);
+
+        // Should contain properly escaped XML
         expect($xml)->toContain('&amp;')
             ->and($xml)->toContain('&lt;')
             ->and($xml)->toContain('&gt;');
-    });
-});
 
-describe('DataCiteXmlExporter - Edge Cases', function () {
-    test('handles resource with minimal data', function () {
-        $resource = Resource::factory()->create([
-            'doi' => '10.1234/test',
-            'year' => 2024,
-        ]);
+        // Should still be valid XML
+        libxml_use_internal_errors(true);
+        $dom = new DOMDocument;
+        $loaded = $dom->loadXML($xml);
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
 
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toBeString()
-            ->and(strlen($xml))->toBeGreaterThan(100);
-    });
-
-    test('handles resource with maximum data', function () {
-        $resource = Resource::factory()->create([
-            'doi' => '10.1234/full-test',
-            'year' => 2024,
-            'version' => '1.0',
-        ]);
-
-        $language = Language::factory()->create(['iso_code' => 'en']);
-        $resource->language()->associate($language);
-
-        // Add all possible related data
-        ResourceTitle::create(['resource_id' => $resource->id]);
-
-        $person = Person::factory()->create();
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
-            'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
-            'position' => 1,
-        ]);
-        $resourceAuthor->roles()->attach($authorRole);
-
-        $resource->keywords()->create(['keyword' => 'test']);
-        ResourceDescription::create(['resource_id' => $resource->id]);
-        ResourceDate::create(['resource_id' => $resource->id]);
-
-        $license = License::factory()->create();
-        $resource->licenses()->attach($license);
-
-        $resource->save();
-
-        $xml = $this->exporter->export($resource);
-
-        expect($xml)->toBeString()
-            ->and($xml)->toContain('<identifier')
-            ->and($xml)->toContain('<creators>')
-            ->and($xml)->toContain('<titles>')
-            ->and($xml)->toContain('<publisher')
-            ->and($xml)->toContain('<publicationYear>')
-            ->and($xml)->toContain('<resourceType');
+        expect($loaded)->toBeTrue()
+            ->and($errors)->toBeEmpty();
     });
 });

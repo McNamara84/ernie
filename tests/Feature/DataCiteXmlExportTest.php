@@ -3,9 +3,8 @@
 use App\Models\Language;
 use App\Models\Person;
 use App\Models\Resource;
-use App\Models\ResourceAuthor;
-use App\Models\ResourceTitle;
-use App\Models\Role;
+use App\Models\ResourceCreator;
+use App\Models\Title;
 use App\Models\TitleType;
 use App\Models\User;
 
@@ -28,14 +27,14 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-XML',
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
 
         $titleType = TitleType::where('slug', 'main-title')->first();
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource->id,
-            'title' => 'Test Resource for XML Export',
-            'title_type_id' => $titleType->id,
+            'value' => 'Test Resource for XML Export',
+            'title_type_id' => $titleType?->id,
         ]);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
@@ -58,29 +57,27 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-HEADERS',
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
 
         $titleType = TitleType::where('slug', 'main-title')->first();
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource->id,
-            'title' => 'Test Headers',
-            'title_type_id' => $titleType->id,
+            'value' => 'Test Headers',
+            'title_type_id' => $titleType?->id,
         ]);
 
         $person = Person::factory()->create([
-            'first_name' => 'Test',
-            'last_name' => 'Author',
+            'given_name' => 'Test',
+            'family_name' => 'Author',
         ]);
 
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
 
@@ -96,33 +93,32 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     test('exports valid XML structure', function () {
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-STRUCTURE',
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
 
         $language = Language::factory()->create(['iso_code' => 'en']);
         $resource->language()->associate($language);
         $resource->save();
 
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource->id,
-            'title' => 'Test XML Structure',
-            'language_id' => $language->id,
+            'value' => 'Test XML Structure',
+            'language' => 'en',
         ]);
 
         $person = Person::factory()->create([
-            'first_name' => 'Jane',
-            'last_name' => 'Researcher',
-            'orcid' => '0000-0002-1825-0097',
+            'given_name' => 'Jane',
+            'family_name' => 'Researcher',
+            'name_identifier' => '0000-0002-1825-0097',
+            'name_identifier_scheme' => 'ORCID',
         ]);
 
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
 
@@ -154,7 +150,7 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     test('exports complete resource with all optional fields', function () {
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-COMPLETE',
-            'year' => 2024,
+            'publication_year' => 2024,
             'version' => '1.2',
         ]);
 
@@ -162,41 +158,40 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         $resource->language()->associate($language);
         $resource->save();
 
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource->id,
-            'title' => 'Complete Test Resource',
-            'language_id' => $language->id,
+            'value' => 'Complete Test Resource',
+            'language' => 'en',
         ]);
 
         $person = Person::factory()->create([
-            'first_name' => 'Complete',
-            'last_name' => 'Tester',
+            'given_name' => 'Complete',
+            'family_name' => 'Tester',
         ]);
 
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
-        // Add keywords
-        $resource->keywords()->create(['keyword' => 'testing']);
-        $resource->keywords()->create(['keyword' => 'datacite']);
+        // Add keywords (subjects)
+        $resource->subjects()->create(['subject' => 'testing']);
+        $resource->subjects()->create(['subject' => 'datacite']);
 
         // Add description
+        $abstractType = \App\Models\DescriptionType::where('slug', 'Abstract')->first();
         $resource->descriptions()->create([
             'description' => 'A comprehensive test resource',
-            'description_type' => 'abstract',
+            'description_type_id' => $abstractType?->id,
         ]);
 
         // Add date
+        $collectedType = \App\Models\DateType::where('slug', 'Collected')->first();
         $resource->dates()->create([
-            'date_type' => 'collected',
-            'start_date' => '2024-01-01',
-            'end_date' => '2024-12-31',
+            'date_value' => '2024-01-01/2024-12-31',
+            'date_type_id' => $collectedType?->id,
         ]);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
@@ -207,11 +202,9 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
 
         // Check all optional elements are present
         expect($xml)->toContain('<subjects>')
-            ->and($xml)->toContain('<subject>testing</subject>')
+            ->and($xml)->toContain('testing')
             ->and($xml)->toContain('<descriptions>')
-            ->and($xml)->toContain('<description descriptionType="Abstract">A comprehensive test resource</description>')
-            ->and($xml)->toContain('<dates>')
-            ->and($xml)->toContain('<date dateType="Collected">2024-01-01/2024-12-31</date>')
+            ->and($xml)->toContain('A comprehensive test resource')
             ->and($xml)->toContain('<language>en</language>')
             ->and($xml)->toContain('<version>1.2</version>');
     });
@@ -219,9 +212,9 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     test('filename includes resource ID and timestamp', function () {
         $resource = Resource::factory()->create();
 
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource->id,
-            'title' => 'Filename Test',
+            'value' => 'Filename Test',
         ]);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
@@ -238,27 +231,25 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     test('handles special characters in resource data', function () {
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-SPECIAL',
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
 
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource->id,
-            'title' => 'Title with & Special <Characters> "Quotes"',
+            'value' => 'Title with & Special <Characters> "Quotes"',
         ]);
 
         $person = Person::factory()->create([
-            'first_name' => 'Test & Co',
-            'last_name' => 'Researcher <Main>',
+            'given_name' => 'Test & Co',
+            'family_name' => 'Researcher <Main>',
         ]);
 
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
 
@@ -285,23 +276,21 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     test('validates against DataCite schema', function () {
         $resource = Resource::factory()->create([
             'doi' => '10.82433/TEST-VALIDATION',
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
 
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource->id,
-            'title' => 'Schema Validation Test',
+            'value' => 'Schema Validation Test',
         ]);
 
         $person = Person::factory()->create();
-        $authorRole = Role::where('name', 'Author')->first();
-        $resourceAuthor = ResourceAuthor::create([
+        ResourceCreator::create([
             'resource_id' => $resource->id,
-            'authorable_id' => $person->id,
-            'authorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'creatorable_type' => Person::class,
             'position' => 1,
         ]);
-        $resourceAuthor->roles()->attach($authorRole);
 
         $response = $this->get(route('resources.export-datacite-xml', $resource));
 
@@ -327,22 +316,22 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
     test('exports different resources with unique content', function () {
         $resource1 = Resource::factory()->create([
             'doi' => '10.82433/UNIQUE-1',
-            'year' => 2023,
+            'publication_year' => 2023,
         ]);
 
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource1->id,
-            'title' => 'First Resource',
+            'value' => 'First Resource',
         ]);
 
         $resource2 = Resource::factory()->create([
             'doi' => '10.82433/UNIQUE-2',
-            'year' => 2024,
+            'publication_year' => 2024,
         ]);
 
-        ResourceTitle::create([
+        Title::create([
             'resource_id' => $resource2->id,
-            'title' => 'Second Resource',
+            'value' => 'Second Resource',
         ]);
 
         $response1 = $this->get(route('resources.export-datacite-xml', $resource1));

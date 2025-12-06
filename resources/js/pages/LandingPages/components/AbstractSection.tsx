@@ -4,14 +4,15 @@ import { withBasePath } from '@/lib/base-path';
 
 interface Description {
     id: number;
-    description: string;
+    value: string;
     description_type: string | null;
 }
 
 interface Affiliation {
     id: number;
-    value: string;
-    ror_id: string | null;
+    name: string;
+    affiliation_identifier: string | null;
+    affiliation_identifier_scheme: string | null;
 }
 
 interface FundingReference {
@@ -25,54 +26,48 @@ interface FundingReference {
     position: number;
 }
 
-interface Keyword {
+interface Subject {
     id: number;
-    keyword: string;
-}
-
-interface ControlledKeyword {
-    id: number;
-    text: string;
-    path: string;
-    scheme: string;
+    subject: string;
+    subject_scheme: string | null;
     scheme_uri: string | null;
+    value_uri: string | null;
+    classification_code: string | null;
 }
 
-interface Author {
+interface Creator {
     id: number;
     position: number;
-    roles: string[];
     affiliations: Affiliation[];
-    authorable: {
+    creatorable: {
         type: string;
         id: number;
-        first_name?: string;
-        last_name?: string;
-        orcid?: string;
+        given_name?: string;
+        family_name?: string;
+        name_identifier?: string;
+        name_identifier_scheme?: string;
         name?: string;
     };
 }
 
 interface AbstractSectionProps {
     descriptions: Description[];
-    authors: Author[];
+    creators: Creator[];
     fundingReferences: FundingReference[];
-    keywords: Keyword[];
-    controlledKeywords: ControlledKeyword[];
+    subjects: Subject[];
     resourceId: number;
 }
 
 /**
  * Abstract Section
  * 
- * Zeigt die Abstract-Description, Authors, Funders, Keywords und Controlled Keywords an.
+ * Zeigt die Abstract-Description, Creators, Funders und Subjects an.
  */
 export function AbstractSection({ 
     descriptions, 
-    authors, 
+    creators, 
     fundingReferences, 
-    keywords,
-    controlledKeywords,
+    subjects,
     resourceId,
 }: AbstractSectionProps) {
     // Finde die Abstract-Description (case-insensitive)
@@ -84,66 +79,65 @@ export function AbstractSection({
         return null;
     }
 
-    // Filter authors with "Author" role
-    const authorList = authors.filter((author) =>
-        author.roles.includes('Author'),
+    // Group subjects by scheme
+    const freeKeywords = subjects.filter(
+        (s) => !s.subject_scheme || s.subject_scheme === '',
     );
-
-    // Group controlled keywords by scheme
-    const gcmdScienceKeywords = controlledKeywords.filter(
-        (kw) => kw.scheme === 'Science Keywords',
+    const gcmdScienceKeywords = subjects.filter(
+        (s) => s.subject_scheme === 'Science Keywords',
     );
-    const gcmdPlatforms = controlledKeywords.filter(
-        (kw) => kw.scheme === 'Platforms',
+    const gcmdPlatforms = subjects.filter(
+        (s) => s.subject_scheme === 'Platforms',
     );
-    const gcmdInstruments = controlledKeywords.filter(
-        (kw) => kw.scheme === 'Instruments',
+    const gcmdInstruments = subjects.filter(
+        (s) => s.subject_scheme === 'Instruments',
     );
-    const mslVocabularies = controlledKeywords.filter(
-        (kw) => kw.scheme === 'msl',
+    const mslVocabularies = subjects.filter(
+        (s) => s.subject_scheme === 'msl',
     );
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-gray-900">Abstract</h3>
             <div className="prose prose-sm max-w-none text-gray-700">
-                <p className="mt-0 whitespace-pre-wrap">{abstract.description}</p>
+                <p className="mt-0 whitespace-pre-wrap">{abstract.value}</p>
             </div>
 
-            {/* Authors Section */}
-            {authorList.length > 0 && (
+            {/* Creators Section */}
+            {creators.length > 0 && (
                 <div className="mt-6">
                     <h3 className="text-lg font-semibold text-gray-900">
-                        Authors
+                        Creators
                     </h3>
                     <ul className="space-y-2">
-                        {authorList.map((author) => {
-                            const authorable = author.authorable;
-                            const firstAffiliation = author.affiliations[0];
-                            const isPerson = authorable.type === 'Person';
+                        {creators.map((creator) => {
+                            const creatorable = creator.creatorable;
+                            const firstAffiliation = creator.affiliations[0];
+                            const isPerson = creatorable.type === 'Person';
+                            const hasOrcid = isPerson && creatorable.name_identifier && creatorable.name_identifier_scheme === 'ORCID';
 
                             return (
                                 <li
-                                    key={author.id}
+                                    key={creator.id}
                                     className="flex items-center gap-1 text-sm text-gray-700"
                                 >
-                                    {/* Author Name */}
+                                    {/* Creator Name */}
                                     {isPerson ? (
                                         <span>
-                                            {authorable.last_name}, {authorable.first_name}
+                                            {creatorable.family_name}, {creatorable.given_name}
                                         </span>
                                     ) : (
-                                        <span>{authorable.name}</span>
+                                        <span>{creatorable.name}</span>
                                     )}
 
                                     {/* ORCID Icon (only for persons) */}
-                                    {isPerson && authorable.orcid && (
+                                    {hasOrcid && (
                                         <a
-                                            href={`https://orcid.org/${authorable.orcid}`}
+                                            href={`https://orcid.org/${creatorable.name_identifier}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="shrink-0"
-                                            title={`ORCID: ${authorable.orcid}`}
+                                            title={`ORCID: ${creatorable.name_identifier}`}
                                         >
                                             <img
                                                 src={withBasePath('/images/pid-icons/orcid-icon.png')}
@@ -157,17 +151,17 @@ export function AbstractSection({
                                     {firstAffiliation && (
                                         <>
                                             {/* Semikolon nur wenn: Institution ODER Person ohne ORCID */}
-                                            {(!isPerson || !authorable.orcid) && <span>; </span>}
-                                            <span>{firstAffiliation.value}</span>
+                                            {(!isPerson || !hasOrcid) && <span>; </span>}
+                                            <span>{firstAffiliation.name}</span>
 
                                             {/* ROR Icon */}
-                                            {firstAffiliation.ror_id && (
+                                            {firstAffiliation.affiliation_identifier && firstAffiliation.affiliation_identifier_scheme === 'ROR' && (
                                                 <a
-                                                    href={firstAffiliation.ror_id}
+                                                    href={firstAffiliation.affiliation_identifier}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="shrink-0"
-                                                    title={`ROR ID: ${firstAffiliation.ror_id}`}
+                                                    title={`ROR ID: ${firstAffiliation.affiliation_identifier}`}
                                                 >
                                                     <img
                                                         src={withBasePath('/images/pid-icons/ror-icon.png')}
@@ -242,19 +236,19 @@ export function AbstractSection({
             )}
 
             {/* Free Keywords Section */}
-            {keywords.length > 0 && (
+            {freeKeywords.length > 0 && (
                 <div className="mt-6">
                     <h3 className="text-lg font-semibold text-gray-900">
                         Free Keywords
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        {keywords.map((keyword) => (
+                        {freeKeywords.map((subject) => (
                             <span
-                                key={keyword.id}
+                                key={subject.id}
                                 className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
                                 style={{ backgroundColor: '#0C2A63' }}
                             >
-                                {keyword.keyword}
+                                {subject.subject}
                             </span>
                         ))}
                     </div>
@@ -268,13 +262,13 @@ export function AbstractSection({
                         GCMD Science Keywords
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        {gcmdScienceKeywords.map((keyword) => (
+                        {gcmdScienceKeywords.map((subject) => (
                             <span
-                                key={keyword.id}
+                                key={subject.id}
                                 className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
                                 style={{ backgroundColor: '#0C2A63' }}
                             >
-                                {keyword.path}
+                                {subject.subject}
                             </span>
                         ))}
                     </div>
@@ -288,13 +282,13 @@ export function AbstractSection({
                         GCMD Platforms
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        {gcmdPlatforms.map((keyword) => (
+                        {gcmdPlatforms.map((subject) => (
                             <span
-                                key={keyword.id}
+                                key={subject.id}
                                 className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
                                 style={{ backgroundColor: '#0C2A63' }}
                             >
-                                {keyword.path}
+                                {subject.subject}
                             </span>
                         ))}
                     </div>
@@ -308,13 +302,13 @@ export function AbstractSection({
                         GCMD Instruments
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        {gcmdInstruments.map((keyword) => (
+                        {gcmdInstruments.map((subject) => (
                             <span
-                                key={keyword.id}
+                                key={subject.id}
                                 className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
                                 style={{ backgroundColor: '#0C2A63' }}
                             >
-                                {keyword.path}
+                                {subject.subject}
                             </span>
                         ))}
                     </div>
@@ -328,13 +322,13 @@ export function AbstractSection({
                         MSL Vocabularies
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                        {mslVocabularies.map((keyword) => (
+                        {mslVocabularies.map((subject) => (
                             <span
-                                key={keyword.id}
+                                key={subject.id}
                                 className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
                                 style={{ backgroundColor: '#0C2A63' }}
                             >
-                                {keyword.path}
+                                {subject.subject}
                             </span>
                         ))}
                     </div>

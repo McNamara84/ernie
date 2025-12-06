@@ -17,52 +17,43 @@ class LandingPageController extends Controller
      */
     public function show(Request $request, int $resourceId): Response
     {
-        $previewToken = $request->query('preview');
+        // Cache key based on resource ID
+        $cacheKey = "landing-page.{$resourceId}";
 
-        // Cache key based on resource ID and preview mode
-        $cacheKey = "landing-page.{$resourceId}".($previewToken ? ".preview.{$previewToken}" : '');
-
-        $data = Cache::remember($cacheKey, now()->addHours(24), function () use ($resourceId, $previewToken) {
+        $data = Cache::remember($cacheKey, now()->addHours(24), function () use ($resourceId) {
             $landingPage = LandingPage::with([
                 'resource' => function ($query) {
                     $query->with([
                         'titles',
                         'resourceType',
                         'language',
-                        'authors.authorable',
-                        'authors.roles',
-                        'authors.affiliations',
-                        'licenses',
+                        'creators.creatorable',
+                        'creators.affiliations',
+                        'contributors.contributorable',
+                        'contributors.contributorType',
+                        'contributors.affiliations',
+                        'rights',
                         'descriptions',
                         'dates',
-                        'freeKeywords',
-                        'controlledKeywords',
-                        'coverages',
+                        'subjects',
+                        'geoLocations',
                         'fundingReferences',
                         'relatedIdentifiers',
                     ]);
                 },
             ])->where('resource_id', $resourceId)->firstOrFail();
 
-            // Access validation
+            // Only show published landing pages
             if (! $landingPage->isPublished()) {
-                if (! $previewToken || $previewToken !== $landingPage->preview_token) {
-                    abort(404, 'Landing page not found or not published');
-                }
+                abort(404, 'Landing page not found or not published');
             }
 
             return $landingPage;
         });
 
-        // Increment view count (outside cache)
-        if (! $previewToken && $data->isPublished()) {
-            $data->incrementViewCount();
-        }
-
         return Inertia::render('landing-page', [
             'landingPage' => $data,
             'resource' => $data->resource,
-            'isPreview' => (bool) $previewToken,
         ]);
     }
 
@@ -72,9 +63,9 @@ class LandingPageController extends Controller
     public function store(Request $request, Resource $resource): JsonResponse
     {
         $validated = $request->validate([
-            'template' => 'required|in:'.implode(',', array_keys(LandingPage::TEMPLATES)),
-            'ftp_url' => 'nullable|url|max:2048',
-            'status' => 'required|in:'.LandingPage::STATUS_DRAFT.','.LandingPage::STATUS_PUBLISHED,
+            'template' => 'required|string|in:default_gfz,minimal,detailed',
+            'ftp_url' => 'nullable|url',
+            'is_published' => 'boolean',
         ]);
 
         // Check if landing page already exists
@@ -84,19 +75,26 @@ class LandingPageController extends Controller
             ], 409);
         }
 
-        $landingPage = $resource->landingPage()->create($validated);
+        // Generate slug from resource
+        $slug = \Illuminate\Support\Str::slug($resource->titles->first()->value ?? 'dataset-'.$resource->id);
 
-        // Generate preview token
-        $landingPage->generatePreviewToken();
+        $landingPage = $resource->landingPage()->create([
+            'slug' => $slug,
+            'template' => $validated['template'],
+            'ftp_url' => $validated['ftp_url'] ?? null,
+            'is_published' => $validated['is_published'] ?? false,
+            'published_at' => ($validated['is_published'] ?? false) ? now() : null,
+        ]);
 
-        // If published, set published_at timestamp
-        if ($validated['status'] === LandingPage::STATUS_PUBLISHED) {
-            $landingPage->publish();
-        }
+        $landingPage->refresh();
 
         return response()->json([
             'message' => 'Landing page created successfully',
-            'landing_page' => $landingPage->fresh(),
+            'landing_page' => [
+                'id' => $landingPage->id,
+                'preview_token' => $landingPage->preview_token,
+                'preview_url' => $landingPage->preview_url,
+            ],
             'preview_url' => $landingPage->preview_url,
         ], 201);
     }
@@ -107,9 +105,9 @@ class LandingPageController extends Controller
     public function update(Request $request, Resource $resource): JsonResponse
     {
         $validated = $request->validate([
-            'template' => 'sometimes|in:'.implode(',', array_keys(LandingPage::TEMPLATES)),
-            'ftp_url' => 'nullable|url|max:2048',
-            'status' => 'sometimes|in:'.LandingPage::STATUS_DRAFT.','.LandingPage::STATUS_PUBLISHED,
+            'template' => 'sometimes|string|in:default_gfz,minimal,detailed',
+            'ftp_url' => 'nullable|url',
+            'is_published' => 'sometimes|boolean',
         ]);
 
         $landingPage = $resource->landingPage;
@@ -120,11 +118,19 @@ class LandingPageController extends Controller
             ], 404);
         }
 
-        $landingPage->update($validated);
+        // Update template and ftp_url if provided
+        if (isset($validated['template'])) {
+            $landingPage->template = $validated['template'];
+        }
+        if (array_key_exists('ftp_url', $validated)) {
+            $landingPage->ftp_url = $validated['ftp_url'];
+        }
 
-        // Handle status change
-        if (isset($validated['status'])) {
-            if ($validated['status'] === LandingPage::STATUS_PUBLISHED) {
+        $landingPage->save();
+
+        // Handle publication status change
+        if (isset($validated['is_published'])) {
+            if ($validated['is_published']) {
                 $landingPage->publish();
             } else {
                 $landingPage->unpublish();

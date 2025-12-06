@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,14 +12,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed essential data only (no test users or resources in development)
+        // Seed essential lookup tables (DataCite-compliant)
         $this->call([
-            RoleSeeder::class,
+            // Lookup tables
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
-            LicenseSeeder::class,
-            LanguageSeeder::class,
             DateTypeSeeder::class,
+            DescriptionTypeSeeder::class,
+            ContributorTypeSeeder::class,
+            IdentifierTypeSeeder::class,
+            RelationTypeSeeder::class,
+            FunderIdentifierTypeSeeder::class,
+            LanguageSeeder::class,
+            RightsSeeder::class,
+            PublisherSeeder::class,
         ]);
 
         // Only create test data in testing environment (for automated tests)
@@ -100,9 +105,8 @@ class DatabaseSeeder extends Seeder
 
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource->id,
-            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
-            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
-            'preview_token' => \Illuminate\Support\Str::random(64),
+            'slug' => 'test-resource-1',
+            'is_published' => true,
             'published_at' => now(),
         ]);
 
@@ -116,9 +120,8 @@ class DatabaseSeeder extends Seeder
 
         \App\Models\LandingPage::create([
             'resource_id' => $curationResource2->id,
-            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
-            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
-            'preview_token' => \Illuminate\Support\Str::random(64),
+            'slug' => 'test-resource-2',
+            'is_published' => true,
             'published_at' => now(),
         ]);
 
@@ -132,9 +135,8 @@ class DatabaseSeeder extends Seeder
 
         \App\Models\LandingPage::create([
             'resource_id' => $publishedResource->id,
-            'template' => \App\Models\LandingPage::TEMPLATE_DEFAULT_GFZ,
-            'status' => \App\Models\LandingPage::STATUS_PUBLISHED,
-            'preview_token' => \Illuminate\Support\Str::random(64),
+            'slug' => 'test-playwright',
+            'is_published' => true,
             'published_at' => now(),
         ]);
 

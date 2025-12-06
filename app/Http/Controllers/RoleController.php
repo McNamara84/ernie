@@ -2,92 +2,90 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Role;
+use App\Models\ContributorType;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Controller for returning contributor types.
+ *
+ * In DataCite 4.6, the concept of "roles" was replaced with
+ * contributorTypes, which are standardized types like "DataCurator",
+ * "ProjectLeader", "ContactPerson", etc.
+ */
 class RoleController extends Controller
 {
     /**
-     * Return all author roles active for Ernie.
+     * Return all contributor types (for authors/creators).
+     *
+     * Note: In DataCite 4.6, creators don't have types - they are just creators.
+     * This endpoint returns contributor types for backwards compatibility.
      */
     public function authorRolesForErnie(): JsonResponse
     {
-        $roles = Role::query()
-            ->authors()
-            ->activeInErnie()
-            ->ordered()
+        $types = ContributorType::query()
+            ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($roles);
+        return response()->json($types);
     }
 
     /**
-     * Return all author roles active for ELMO.
+     * Return all contributor types for ELMO.
      */
     public function authorRolesForElmo(): JsonResponse
     {
-        $roles = Role::query()
-            ->authors()
-            ->activeInElmo()
-            ->ordered()
+        $types = ContributorType::query()
+            ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($roles);
+        return response()->json($types);
     }
 
     /**
-     * Return contributor roles for people that are active for Ernie.
+     * Return contributor types for people that are active for Ernie.
      */
     public function contributorPersonRolesForErnie(): JsonResponse
     {
-        $roles = Role::query()
-            ->contributorPersons()
-            ->activeInErnie()
-            ->ordered()
+        $types = ContributorType::query()
+            ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($roles);
+        return response()->json($types);
     }
 
     /**
-     * Return contributor roles for people that are active for ELMO.
+     * Return contributor types for people that are active for ELMO.
      */
     public function contributorPersonRolesForElmo(): JsonResponse
     {
-        $roles = Role::query()
-            ->contributorPersons()
-            ->activeInElmo()
-            ->ordered()
+        $types = ContributorType::query()
+            ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($roles);
+        return response()->json($types);
     }
 
     /**
-     * Return contributor roles for institutions that are active for Ernie.
+     * Return contributor types for institutions that are active for Ernie.
      */
     public function contributorInstitutionRolesForErnie(): JsonResponse
     {
-        $roles = Role::query()
-            ->contributorInstitutions()
-            ->activeInErnie()
-            ->ordered()
+        $types = ContributorType::query()
+            ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($roles);
+        return response()->json($types);
     }
 
     /**
-     * Return contributor roles for institutions that are active for ELMO.
+     * Return contributor types for institutions that are active for ELMO.
      */
     public function contributorInstitutionRolesForElmo(): JsonResponse
     {
-        $roles = Role::query()
-            ->contributorInstitutions()
-            ->activeInElmo()
-            ->ordered()
+        $types = ContributorType::query()
+            ->orderBy('name')
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($roles);
+        return response()->json($types);
     }
 }
