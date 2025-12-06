@@ -1752,6 +1752,11 @@ class ResourceController extends Controller
                     'Relation contributorable not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
+            if (! $firstContributor->relationLoaded('contributorType')) {
+                throw new \RuntimeException(
+                    'Relation contributorType not loaded on ResourceContributor. N+1 query detected!'
+                );
+            }
             // Also check affiliations and their nested institution relation
             if (! $firstContributor->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
