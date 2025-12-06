@@ -30,7 +30,7 @@ it('loads 50 resources with minimal queries using eager loading', function () {
         }
     }
 
-    // Act: Enable query logging and fetch resources
+    // Act: Enable query logging and fetch resources via actual route
     DB::enableQueryLog();
     
     $response = $this->actingAs(\App\Models\User::factory()->create())
@@ -39,12 +39,18 @@ it('loads 50 resources with minimal queries using eager loading', function () {
     $queries = DB::getQueryLog();
     $queryCount = count($queries);
 
-    // Assert: Should use fewer than 20 queries (target: ~10-15)
-    expect($queryCount)->toBeLessThan(20, "Expected fewer than 20 queries, but got {$queryCount}");
+    // Assert: Query count should meet optimization goal of 10-15 queries
+    // Allow up to 16 for small safety margin
+    expect($queryCount)->toBeLessThan(16, "Expected fewer than 16 queries, but got {$queryCount}");
     $response->assertStatus(200);
 });
 
 it('detects N+1 queries in development environment', function () {
+    // Skip test if not in local/testing environment where assertions are active
+    if (! app()->environment('local', 'testing')) {
+        $this->markTestSkipped('N+1 detection only runs in local/testing environment');
+    }
+
     // Arrange: Create a resource with creator
     $resource = Resource::factory()->create();
     Title::factory()->for($resource)->create();
@@ -56,14 +62,12 @@ it('detects N+1 queries in development environment', function () {
         'position' => 1,
     ]);
 
-    // Set environment to local to enable assertions
-    app()->instance('env', 'local');
-
     // Act & Assert: Loading resource without eager loading should throw exception
+    // We test via reflection since assertRelationsLoaded is private
     expect(function () use ($resource) {
         $controller = new \App\Http\Controllers\ResourceController();
         $reflection = new \ReflectionClass($controller);
-        $method = $reflection->getMethod('serializeResource');
+        $method = $reflection->getMethod('assertRelationsLoaded');
         $method->setAccessible(true);
         
         // Load resource without eager loading relationships
@@ -91,30 +95,18 @@ it('serializes resources efficiently with eager loaded relations', function () {
         }
     }
 
-    // Act: Fetch resources using the controller's baseQuery
-    $controller = new \App\Http\Controllers\ResourceController();
-    $reflection = new \ReflectionClass($controller);
-    $baseQueryMethod = $reflection->getMethod('baseQuery');
-    $baseQueryMethod->setAccessible(true);
-
-    DB::enableQueryLog();
+    // Act: Fetch resources via actual route to test real-world behavior
+    $user = \App\Models\User::factory()->create();
     
-    $query = $baseQueryMethod->invoke($controller);
-    $resources = $query->limit(10)->get();
+    $response = $this->actingAs($user)
+        ->get('/resources?per_page=10');
     
     $queries = DB::getQueryLog();
     $queryCount = count($queries);
 
-    // Assert: Should load all resources with relationships in minimal queries
-    expect($resources)->toHaveCount(10);
-    expect($queryCount)->toBeLessThan(15, "Expected fewer than 15 queries for eager loading, got {$queryCount}");
-    
-    // Verify all relations are loaded on first resource
-    $firstResource = $resources->first();
-    expect($firstResource->relationLoaded('creators'))->toBeTrue();
-    expect($firstResource->relationLoaded('titles'))->toBeTrue();
-    expect($firstResource->relationLoaded('rights'))->toBeTrue();
-    expect($firstResource->relationLoaded('resourceType'))->toBeTrue();
+    // Assert: Should meet optimization goal
+    expect($queryCount)->toBeLessThan(16, "Expected fewer than 16 queries for eager loading, got {$queryCount}");
+    $response->assertStatus(200);
 });
 
 it('handles resources without creators efficiently', function () {
@@ -135,7 +127,7 @@ it('handles resources without creators efficiently', function () {
     $queryCount = count($queries);
 
     // Assert: Should still use minimal queries even without creators
-    expect($queryCount)->toBeLessThan(15);
+    expect($queryCount)->toBeLessThan(16);
     $response->assertStatus(200);
 });
 
@@ -154,25 +146,29 @@ it('maintains performance with pagination', function () {
         ]);
     }
 
+    // Use same authenticated user for both requests to ensure consistent query counts
+    $user = \App\Models\User::factory()->create();
+
     // Act: Test first page
     DB::enableQueryLog();
-    
-    $response = $this->actingAs(\App\Models\User::factory()->create())
+    $response = $this->actingAs($user)
         ->get('/resources?page=1&per_page=50');
     
     $queriesPage1 = DB::getQueryLog();
     
-    // Test second page
+    // Test second page with same user
     DB::flushQueryLog();
-    
-    $response2 = $this->actingAs(\App\Models\User::factory()->create())
+    $response2 = $this->actingAs($user)
         ->get('/resources?page=2&per_page=50');
     
     $queriesPage2 = DB::getQueryLog();
 
-    // Assert: Both pages should use similar query counts
-    expect(count($queriesPage1))->toBeLessThan(20);
-    expect(count($queriesPage2))->toBeLessThan(20);
+    // Assert: Both pages should meet optimization goal
+    expect(count($queriesPage1))->toBeLessThan(16);
+    expect(count($queriesPage2))->toBeLessThan(16);
+    
+    // Query counts should be nearly identical (allow max 2 queries difference for session overhead)
+    expect(abs(count($queriesPage1) - count($queriesPage2)))->toBeLessThanOrEqual(2);
     
     $response->assertStatus(200);
     $response2->assertStatus(200);

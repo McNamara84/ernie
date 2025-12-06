@@ -1062,11 +1062,6 @@ class ResourceController extends Controller
     }
 
     /**
-     * Build the base query with eager-loaded relationships.
-     *
-     * @return \Illuminate\Database\Eloquent\Builder<resource>
-     */
-    /**
      * Base query for resource listing with optimized eager loading.
      *
      * This query eager loads all necessary relationships to avoid N+1 problems:
@@ -1731,6 +1726,44 @@ class ResourceController extends Controller
                 throw new \RuntimeException(
                     'Relation creatorable not loaded on ResourceCreator. N+1 query detected!'
                 );
+            }
+            // Also check affiliations and their nested institution relation
+            if (! $firstCreator->relationLoaded('affiliations')) {
+                throw new \RuntimeException(
+                    'Relation affiliations not loaded on ResourceCreator. N+1 query detected!'
+                );
+            }
+            if ($firstCreator->affiliations->isNotEmpty()) {
+                $firstAffiliation = $firstCreator->affiliations->first();
+                if (! $firstAffiliation->relationLoaded('institution')) {
+                    throw new \RuntimeException(
+                        'Relation institution not loaded on Affiliation. N+1 query detected!'
+                    );
+                }
+            }
+        }
+
+        // Check nested relations on contributors if contributors exist
+        if ($resource->contributors->isNotEmpty()) {
+            $firstContributor = $resource->contributors->first();
+            if (! $firstContributor->relationLoaded('contributorable')) {
+                throw new \RuntimeException(
+                    'Relation contributorable not loaded on ResourceContributor. N+1 query detected!'
+                );
+            }
+            // Also check affiliations and their nested institution relation
+            if (! $firstContributor->relationLoaded('affiliations')) {
+                throw new \RuntimeException(
+                    'Relation affiliations not loaded on ResourceContributor. N+1 query detected!'
+                );
+            }
+            if ($firstContributor->affiliations->isNotEmpty()) {
+                $firstAffiliation = $firstContributor->affiliations->first();
+                if (! $firstAffiliation->relationLoaded('institution')) {
+                    throw new \RuntimeException(
+                        'Relation institution not loaded on Affiliation. N+1 query detected!'
+                    );
+                }
             }
         }
     }

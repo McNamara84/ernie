@@ -22,11 +22,8 @@ return new class extends Migration
         Schema::table('affiliations', function (Blueprint $table) {
             // Index for affiliation name lookups (for filtering/searching)
             // The polymorphic index already exists in the main schema
-            // Use try-catch to handle case where index already exists (idempotent)
-            try {
+            if (! Schema::hasIndex('affiliations', 'idx_affiliations_name')) {
                 $table->index('name', 'idx_affiliations_name');
-            } catch (\Exception $e) {
-                // Index already exists - this is fine, continue
             }
         });
     }
@@ -37,11 +34,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('affiliations', function (Blueprint $table) {
-            // Use try-catch to handle case where index doesn't exist
-            try {
+            if (Schema::hasIndex('affiliations', 'idx_affiliations_name')) {
                 $table->dropIndex('idx_affiliations_name');
-            } catch (\Exception $e) {
-                // Index doesn't exist - this is fine, continue
             }
         });
     }
