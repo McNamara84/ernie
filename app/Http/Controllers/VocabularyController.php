@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
+use App\Exceptions\VocabularyCorruptedException;
+use App\Exceptions\VocabularyNotFoundException;
+use App\Exceptions\VocabularyReadException;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -78,19 +81,19 @@ class VocabularyController extends Controller
                 $cacheKey,
                 function () use ($filename, $command): array {
                     if (! Storage::exists($filename)) {
-                        throw new \RuntimeException("Vocabulary file not found. Please run: {$command}");
+                        throw new VocabularyNotFoundException($command);
                     }
 
                     $content = Storage::get($filename);
 
                     if ($content === null) {
-                        throw new \RuntimeException('Failed to read vocabulary file.');
+                        throw new VocabularyReadException();
                     }
 
                     $decoded = json_decode($content, true);
 
                     if (json_last_error() !== JSON_ERROR_NONE) {
-                        throw new \RuntimeException('Invalid JSON in vocabulary file: ' . json_last_error_msg());
+                        throw new VocabularyCorruptedException(json_last_error_msg());
                     }
 
                     return $decoded;
@@ -98,21 +101,14 @@ class VocabularyController extends Controller
             );
 
             return response()->json($data);
-        } catch (\RuntimeException $e) {
-            // Determine appropriate HTTP status code based on error type
-            $statusCode = 500; // Default: Internal Server Error
-            
-            if (str_contains($e->getMessage(), 'not found')) {
-                $statusCode = 404; // Not Found
-            } elseif (str_contains($e->getMessage(), 'Invalid JSON')) {
-                $statusCode = 500; // Internal Server Error (corrupted data)
-            } elseif (str_contains($e->getMessage(), 'Failed to read')) {
-                $statusCode = 500; // Internal Server Error (I/O problem)
-            }
-
+        } catch (VocabularyNotFoundException $e) {
             return response()->json([
                 'error' => $e->getMessage(),
-            ], $statusCode);
+            ], 404);
+        } catch (VocabularyReadException | VocabularyCorruptedException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 }

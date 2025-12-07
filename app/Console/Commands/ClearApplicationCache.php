@@ -22,7 +22,7 @@ class ClearApplicationCache extends Command
      * @var string
      */
     protected $signature = 'cache:clear-app
-                            {category? : Cache category to clear (resources, vocabularies, ror, affiliations, orcid, system, all)}';
+                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, system, all)}';
 
     /**
      * The console command description.
@@ -46,7 +46,7 @@ class ClearApplicationCache extends Command
     {
         $category = $this->argument('category') ?? 'all';
 
-        $validCategories = ['resources', 'vocabularies', 'ror', 'orcid', 'affiliations', 'system', 'all'];
+        $validCategories = ['resources', 'vocabularies', 'ror', 'orcid', 'system', 'all'];
 
         if (! in_array($category, $validCategories, true)) {
             $this->error("Invalid category. Valid categories: ".implode(', ', $validCategories));
@@ -75,7 +75,8 @@ class ClearApplicationCache extends Command
     private function clearAllCaches(): void
     {
         if ($this->supportsTagging()) {
-            $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'affiliations', 'system'];
+            // Note: 'affiliations' is a secondary tag for 'ror', not a separate category
+            $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'system'];
 
             foreach ($tags as $tag) {
                 Cache::tags([$tag])->flush();

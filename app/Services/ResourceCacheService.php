@@ -119,7 +119,8 @@ class ResourceCacheService
         if ($this->supportsTagging()) {
             Cache::tags(['resources'])->flush();
         } else {
-            // WARNING: This clears the ENTIRE cache store, not just resources
+            // Log warning before clearing entire cache store
+            \Log::warning('Cache tagging not supported. Clearing entire cache store for resource invalidation.');
             Cache::flush();
         }
     }
@@ -183,9 +184,10 @@ class ResourceCacheService
             }
 
             if (is_array($value)) {
-                // Use SORT_REGULAR for type-safe comparison (preserves int/string distinction)
-                sort($value, SORT_REGULAR);
-                $normalized[] = "{$key}:" . implode(',', array_map('strval', $value));
+                // Convert all values to strings first, then sort with SORT_STRING for consistency
+                $stringValues = array_map('strval', $value);
+                sort($stringValues, SORT_STRING);
+                $normalized[] = "{$key}:" . implode(',', $stringValues);
             } else {
                 $normalized[] = "{$key}:{$value}";
             }

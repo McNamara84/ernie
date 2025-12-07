@@ -133,7 +133,8 @@ class VocabularyCacheService
         if ($this->supportsTagging()) {
             Cache::tags(['vocabularies'])->flush();
         } else {
-            // WARNING: This clears the ENTIRE cache store, not just vocabularies
+            // Log warning before clearing entire cache store
+            \Log::warning('Cache tagging not supported. Clearing entire cache store for vocabulary invalidation.');
             Cache::flush();
         }
     }
