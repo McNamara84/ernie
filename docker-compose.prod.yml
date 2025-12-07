@@ -29,7 +29,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
       - BROADCAST_DRIVER=log
-      - CACHE_DRIVER=file
+      - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
       - SANCTUM_STATEFUL_DOMAINS=env.rz-vm182.gfz.de
       - DB_SUMARIOPMD_HOST=${DB_SUMARIOPMD_HOST}
@@ -98,6 +98,34 @@ services:
       - dockerized-laravel-network
     ports:
       - "6379:6379"
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    container_name: dockerized-laravel-queue
+    restart: unless-stopped
+    command: php artisan queue:work --verbose --tries=3 --timeout=90
+    volumes:
+      - storage-data:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    networks:
+      - dockerized-laravel-network
+    depends_on:
+      - db
+      - redis
+    environment:
+      - APP_URL=https://env.rz-vm182.gfz.de/ernie
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - DB_HOST=db
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - CACHE_STORE=redis
+      - QUEUE_CONNECTION=database
 
 networks:
   dockerized-laravel-network:
