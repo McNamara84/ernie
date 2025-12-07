@@ -17,6 +17,28 @@ use Illuminate\Support\Facades\Cache;
 class VocabularyCacheService
 {
     /**
+     * Check if the current cache store supports tagging.
+     */
+    private function supportsTagging(): bool
+    {
+        return method_exists(Cache::getStore(), 'tags');
+    }
+
+    /**
+     * Get cache instance with tags if supported, otherwise without tags.
+     *
+     * @param array<int, string> $tags
+     * @return \Illuminate\Contracts\Cache\Repository
+     */
+    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
+    {
+        if ($this->supportsTagging()) {
+            return Cache::tags($tags);
+        }
+
+        return Cache::store();
+    }
+    /**
      * Cache GCMD science keywords.
      *
      * @param \Closure(): ?array<int|string, mixed> $callback Callback to load keywords
@@ -81,7 +103,7 @@ class VocabularyCacheService
      */
     public function cacheVocabulary(CacheKey $key, \Closure $callback): mixed
     {
-        return Cache::tags($key->tags())
+        return $this->getCacheInstance($key->tags())
             ->remember(
                 $key->key(),
                 $key->ttl(),
@@ -98,7 +120,12 @@ class VocabularyCacheService
      */
     public function invalidateAllVocabularyCaches(): void
     {
-        Cache::tags(['vocabularies'])->flush();
+        if ($this->supportsTagging()) {
+            Cache::tags(['vocabularies'])->flush();
+        } else {
+            // Without tagging, clear entire cache store
+            Cache::flush();
+        }
     }
 
     /**
@@ -109,6 +136,10 @@ class VocabularyCacheService
      */
     public function invalidateVocabularyCache(CacheKey $key): void
     {
-        Cache::tags($key->tags())->forget($key->key());
+        if ($this->supportsTagging()) {
+            Cache::tags($key->tags())->forget($key->key());
+        } else {
+            Cache::forget($key->key());
+        }
     }
 }

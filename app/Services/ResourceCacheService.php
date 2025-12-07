@@ -19,6 +19,28 @@ use Illuminate\Support\Facades\Cache;
 class ResourceCacheService
 {
     /**
+     * Check if the current cache store supports tagging.
+     */
+    private function supportsTagging(): bool
+    {
+        return method_exists(Cache::getStore(), 'tags');
+    }
+
+    /**
+     * Get cache instance with tags if supported, otherwise without tags.
+     *
+     * @param array<int, string> $tags
+     * @return \Illuminate\Contracts\Cache\Repository
+     */
+    private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
+    {
+        if ($this->supportsTagging()) {
+            return Cache::tags($tags);
+        }
+
+        return Cache::store();
+    }
+    /**
      * Cache a paginated resource listing.
      *
      * @param Builder<Resource> $query The base query builder
@@ -35,7 +57,7 @@ class ResourceCacheService
     ): LengthAwarePaginator {
         $cacheKey = $this->buildListCacheKey($perPage, $currentPage, $filters);
 
-        return Cache::tags(CacheKey::RESOURCE_LIST->tags())
+        return $this->getCacheInstance(CacheKey::RESOURCE_LIST->tags())
             ->remember(
                 $cacheKey,
                 CacheKey::RESOURCE_LIST->ttl(),
@@ -54,7 +76,7 @@ class ResourceCacheService
     {
         $cacheKey = CacheKey::RESOURCE_DETAIL->key($resourceId);
 
-        return Cache::tags(CacheKey::RESOURCE_DETAIL->tags())
+        return $this->getCacheInstance(CacheKey::RESOURCE_DETAIL->tags())
             ->remember(
                 $cacheKey,
                 CacheKey::RESOURCE_DETAIL->ttl(),
@@ -72,7 +94,7 @@ class ResourceCacheService
     {
         $cacheKey = CacheKey::RESOURCE_COUNT->key();
 
-        return Cache::tags(CacheKey::RESOURCE_COUNT->tags())
+        return $this->getCacheInstance(CacheKey::RESOURCE_COUNT->tags())
             ->remember(
                 $cacheKey,
                 CacheKey::RESOURCE_COUNT->ttl(),
@@ -89,7 +111,12 @@ class ResourceCacheService
      */
     public function invalidateAllResourceCaches(): void
     {
-        Cache::tags(['resources'])->flush();
+        if ($this->supportsTagging()) {
+            Cache::tags(['resources'])->flush();
+        } else {
+            // Without tagging, clear entire cache store
+            Cache::flush();
+        }
     }
 
     /**
@@ -101,7 +128,12 @@ class ResourceCacheService
     public function invalidateResourceCache(int $resourceId): void
     {
         $cacheKey = CacheKey::RESOURCE_DETAIL->key($resourceId);
-        Cache::tags(CacheKey::RESOURCE_DETAIL->tags())->forget($cacheKey);
+        
+        if ($this->supportsTagging()) {
+            Cache::tags(CacheKey::RESOURCE_DETAIL->tags())->forget($cacheKey);
+        } else {
+            Cache::forget($cacheKey);
+        }
 
         // Also invalidate list caches since the resource might appear in listings
         $this->invalidateAllResourceCaches();

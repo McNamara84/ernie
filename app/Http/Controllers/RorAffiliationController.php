@@ -15,11 +15,22 @@ class RorAffiliationController extends Controller
 
     private const STORAGE_PATH = 'ror/ror-affiliations.json';
 
+    /**
+     * Check if the current cache store supports tagging.
+     */
+    private function supportsTagging(): bool
+    {
+        return method_exists(Cache::getStore(), 'tags');
+    }
+
     public function __invoke(): JsonResponse
     {
         // Cache ROR affiliations for 7 days
-        $data = Cache::tags(CacheKey::ROR_AFFILIATION->tags())
-            ->remember(
+        $cacheInstance = $this->supportsTagging()
+            ? Cache::tags(CacheKey::ROR_AFFILIATION->tags())
+            : Cache::store();
+
+        $data = $cacheInstance->remember(
                 CacheKey::ROR_AFFILIATION->key(),
                 CacheKey::ROR_AFFILIATION->ttl(),
                 function (): array {

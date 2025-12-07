@@ -32,6 +32,14 @@ class ClearApplicationCache extends Command
     protected $description = 'Clear application caches by category';
 
     /**
+     * Check if the current cache store supports tagging.
+     */
+    private function supportsTagging(): bool
+    {
+        return method_exists(Cache::getStore(), 'tags');
+    }
+
+    /**
      * Execute the console command.
      */
     public function handle(): int
@@ -62,10 +70,15 @@ class ClearApplicationCache extends Command
      */
     private function clearAllCaches(): void
     {
-        $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'affiliations', 'system'];
+        if ($this->supportsTagging()) {
+            $tags = ['resources', 'vocabularies', 'ror', 'orcid', 'affiliations', 'system'];
 
-        foreach ($tags as $tag) {
-            Cache::tags([$tag])->flush();
+            foreach ($tags as $tag) {
+                Cache::tags([$tag])->flush();
+            }
+        } else {
+            // Without tagging, clear entire cache store
+            Cache::flush();
         }
     }
 
@@ -76,6 +89,11 @@ class ClearApplicationCache extends Command
      */
     private function clearCacheByTag(string $tag): void
     {
-        Cache::tags([$tag])->flush();
+        if ($this->supportsTagging()) {
+            Cache::tags([$tag])->flush();
+        } else {
+            // Without tagging, clear entire cache store
+            Cache::flush();
+        }
     }
 }
