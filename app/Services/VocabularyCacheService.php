@@ -19,10 +19,10 @@ class VocabularyCacheService
     /**
      * Cache GCMD science keywords.
      *
-     * @param callable $callback Callback to load keywords
-     * @return Collection
+     * @param \Closure(): ?array<int|string, mixed> $callback Callback to load keywords
+     * @return array<int|string, mixed>|null
      */
-    public function cacheGcmdScienceKeywords(callable $callback): Collection
+    public function cacheGcmdScienceKeywords(\Closure $callback): ?array
     {
         return $this->cacheVocabulary(CacheKey::GCMD_SCIENCE_KEYWORDS, $callback);
     }
@@ -30,10 +30,10 @@ class VocabularyCacheService
     /**
      * Cache GCMD instruments.
      *
-     * @param callable $callback Callback to load instruments
-     * @return Collection
+     * @param \Closure(): ?array<int|string, mixed> $callback Callback to load instruments
+     * @return array<int|string, mixed>|null
      */
-    public function cacheGcmdInstruments(callable $callback): Collection
+    public function cacheGcmdInstruments(\Closure $callback): ?array
     {
         return $this->cacheVocabulary(CacheKey::GCMD_INSTRUMENTS, $callback);
     }
@@ -41,10 +41,10 @@ class VocabularyCacheService
     /**
      * Cache GCMD platforms.
      *
-     * @param callable $callback Callback to load platforms
-     * @return Collection
+     * @param \Closure(): ?array<int|string, mixed> $callback Callback to load platforms
+     * @return array<int|string, mixed>|null
      */
-    public function cacheGcmdPlatforms(callable $callback): Collection
+    public function cacheGcmdPlatforms(\Closure $callback): ?array
     {
         return $this->cacheVocabulary(CacheKey::GCMD_PLATFORMS, $callback);
     }
@@ -52,10 +52,10 @@ class VocabularyCacheService
     /**
      * Cache GCMD providers.
      *
-     * @param callable $callback Callback to load providers
-     * @return Collection
+     * @param \Closure(): ?array<int|string, mixed> $callback Callback to load providers
+     * @return array<int|string, mixed>|null
      */
-    public function cacheGcmdProviders(callable $callback): Collection
+    public function cacheGcmdProviders(\Closure $callback): ?array
     {
         return $this->cacheVocabulary(CacheKey::GCMD_PROVIDERS, $callback);
     }
@@ -63,10 +63,10 @@ class VocabularyCacheService
     /**
      * Cache MSL keywords.
      *
-     * @param callable $callback Callback to load keywords
-     * @return Collection
+     * @param \Closure(): ?array<int|string, mixed> $callback Callback to load keywords
+     * @return array<int|string, mixed>|null
      */
-    public function cacheMslKeywords(callable $callback): Collection
+    public function cacheMslKeywords(\Closure $callback): ?array
     {
         return $this->cacheVocabulary(CacheKey::MSL_KEYWORDS, $callback);
     }
@@ -74,11 +74,12 @@ class VocabularyCacheService
     /**
      * Generic method to cache any vocabulary.
      *
+     * @template TValue
      * @param CacheKey $key Cache key enum
-     * @param callable $callback Callback to load vocabulary data
-     * @return mixed
+     * @param \Closure(): TValue $callback Callback to load vocabulary data
+     * @return TValue
      */
-    public function cacheVocabulary(CacheKey $key, callable $callback): mixed
+    public function cacheVocabulary(CacheKey $key, \Closure $callback): mixed
     {
         return Cache::tags($key->tags())
             ->remember(

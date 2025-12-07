@@ -104,7 +104,9 @@ class ResourceController extends Controller
             $cacheFilters
         );
 
-        $resourcesData = collect($resources->items())
+        /** @var array<int, Resource> $items */
+        $items = $resources->items();
+        $resourcesData = collect($items)
             ->map(fn (Resource $resource): array => $this->serializeResource($resource))
             ->all();
 
@@ -598,7 +600,9 @@ class ResourceController extends Controller
             $cacheFilters
         );
 
-        $resourcesData = collect($resources->items())
+        /** @var array<int, Resource> $items */
+        $items = $resources->items();
+        $resourcesData = collect($items)
             ->map(fn (Resource $resource): array => $this->serializeResource($resource))
             ->all();
 

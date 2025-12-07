@@ -21,11 +21,11 @@ class ResourceCacheService
     /**
      * Cache a paginated resource listing.
      *
-     * @param Builder $query The base query builder
+     * @param Builder<Resource> $query The base query builder
      * @param int $perPage Items per page
      * @param int $currentPage Current page number
      * @param array<string, mixed> $filters Active filters
-     * @return LengthAwarePaginator
+     * @return LengthAwarePaginator<int, Resource>
      */
     public function cacheResourceList(
         Builder $query,
@@ -47,10 +47,10 @@ class ResourceCacheService
      * Cache an individual resource with its relationships.
      *
      * @param int $resourceId The resource ID
-     * @param callable $callback Callback to load the resource
+     * @param \Closure(): ?Resource $callback Callback to load the resource
      * @return Resource|null
      */
-    public function cacheResource(int $resourceId, callable $callback): ?Resource
+    public function cacheResource(int $resourceId, \Closure $callback): ?Resource
     {
         $cacheKey = CacheKey::RESOURCE_DETAIL->key($resourceId);
 
@@ -65,10 +65,10 @@ class ResourceCacheService
     /**
      * Get cached resource count.
      *
-     * @param callable $callback Callback to count resources
+     * @param \Closure(): int $callback Callback to count resources
      * @return int
      */
-    public function cacheResourceCount(callable $callback): int
+    public function cacheResourceCount(\Closure $callback): int
     {
         $cacheKey = CacheKey::RESOURCE_COUNT->key();
 
