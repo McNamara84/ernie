@@ -76,7 +76,7 @@ class VocabularyController extends Controller
         try {
             $data = $this->cacheService->cacheVocabulary(
                 $cacheKey,
-                function () use ($filename, $command): ?array {
+                function () use ($filename, $command): array {
                     if (! Storage::exists($filename)) {
                         throw new \RuntimeException("Vocabulary file not found. Please run: {$command}");
                     }
