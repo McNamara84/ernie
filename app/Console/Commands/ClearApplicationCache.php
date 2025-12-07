@@ -22,7 +22,7 @@ class ClearApplicationCache extends Command
      * @var string
      */
     protected $signature = 'cache:clear-app
-                            {category? : Cache category to clear (resources, vocabularies, ror, orcid, system, all)}';
+                            {category? : Cache category to clear (resources, vocabularies, ror, affiliations, orcid, system, all)}';
 
     /**
      * The console command description.

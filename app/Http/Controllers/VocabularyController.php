@@ -73,28 +73,34 @@ class VocabularyController extends Controller
         string $filename,
         string $command
     ): JsonResponse {
-        $data = $this->cacheService->cacheVocabulary(
-            $cacheKey,
-            function () use ($filename): ?array {
-                if (! Storage::exists($filename)) {
-                    return null;
+        try {
+            $data = $this->cacheService->cacheVocabulary(
+                $cacheKey,
+                function () use ($filename, $command): ?array {
+                    if (! Storage::exists($filename)) {
+                        throw new \RuntimeException("Vocabulary file not found. Please run: {$command}");
+                    }
+
+                    $content = Storage::get($filename);
+
+                    if ($content === null) {
+                        throw new \RuntimeException('Failed to read vocabulary file.');
+                    }
+
+                    $decoded = json_decode($content, true);
+
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new \RuntimeException('Invalid JSON in vocabulary file: ' . json_last_error_msg());
+                    }
+
+                    return $decoded;
                 }
-
-                $content = Storage::get($filename);
-
-                if ($content === null) {
-                    return null;
-                }
-
-                $decoded = json_decode($content, true);
-
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    return null;
-                }
-
-                return $decoded;
-            }
-        );
+            );
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+            ], 404);
+        }
 
         if ($data === null) {
             return response()->json([
