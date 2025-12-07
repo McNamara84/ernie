@@ -116,7 +116,7 @@ class ResourceCacheService
             Cache::tags(['resources'])->flush();
         } else {
             // Log warning before clearing entire cache store
-            \Log::warning('Cache tagging not supported. Clearing entire cache store for resource invalidation.');
+            Log::warning('Cache tagging not supported. Clearing entire cache store for resource invalidation.');
             Cache::flush();
         }
     }

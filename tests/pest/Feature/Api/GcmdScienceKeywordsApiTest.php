@@ -68,6 +68,7 @@ it('returns GCMD Science Keywords vocabulary', function () {
 });
 
 it('returns 404 when vocabulary file does not exist', function () {
+    // Error handling occurs in the cache callback, which throws VocabularyNotFoundException
     getJson('/api/v1/vocabularies/gcmd-science-keywords')
         ->assertStatus(404)
         ->assertJson([
