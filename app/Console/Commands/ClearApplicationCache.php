@@ -67,6 +67,10 @@ class ClearApplicationCache extends Command
 
     /**
      * Clear all application caches.
+     *
+     * WARNING: When cache tagging is not supported (e.g., file/database drivers),
+     * this will call Cache::flush() which clears the ENTIRE cache store,
+     * including sessions, rate limiting, and any other cached data.
      */
     private function clearAllCaches(): void
     {
@@ -77,13 +81,19 @@ class ClearApplicationCache extends Command
                 Cache::tags([$tag])->flush();
             }
         } else {
-            // Without tagging, clear entire cache store
+            // WARNING: This clears the ENTIRE cache store (sessions, rate limiting, etc.)
             Cache::flush();
+            $this->warn('⚠️  Cache tagging not supported. Cleared entire cache store.');
         }
     }
 
     /**
      * Clear cache by specific tag.
+     *
+     * WARNING: When cache tagging is not supported (e.g., file/database drivers),
+     * this will call Cache::flush() which clears the ENTIRE cache store,
+     * not just the requested category. This affects all application caches
+     * including sessions, rate limiting, and other cached data.
      *
      * @param string $tag Cache tag to clear
      */
@@ -92,8 +102,10 @@ class ClearApplicationCache extends Command
         if ($this->supportsTagging()) {
             Cache::tags([$tag])->flush();
         } else {
-            // Without tagging, clear entire cache store
+            // WARNING: Cannot clear specific category without tagging support.
+            // This clears the ENTIRE cache store (sessions, rate limiting, etc.)
             Cache::flush();
+            $this->warn("⚠️  Cache tagging not supported. Cleared entire cache store instead of just '{$tag}'.");
         }
     }
 }

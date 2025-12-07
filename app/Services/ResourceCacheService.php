@@ -40,6 +40,7 @@ class ResourceCacheService
 
         return Cache::store();
     }
+
     /**
      * Cache a paginated resource listing.
      *
@@ -107,6 +108,10 @@ class ResourceCacheService
      *
      * This should be called when any resource is created, updated, or deleted.
      *
+     * WARNING: When cache tagging is not supported (e.g., file/database drivers),
+     * this will call Cache::flush() which clears the ENTIRE cache store,
+     * including sessions, vocabularies, ROR data, and any other cached data.
+     *
      * @return void
      */
     public function invalidateAllResourceCaches(): void
@@ -114,7 +119,7 @@ class ResourceCacheService
         if ($this->supportsTagging()) {
             Cache::tags(['resources'])->flush();
         } else {
-            // Without tagging, clear entire cache store
+            // WARNING: This clears the ENTIRE cache store, not just resources
             Cache::flush();
         }
     }
@@ -178,8 +183,9 @@ class ResourceCacheService
             }
 
             if (is_array($value)) {
-                sort($value);
-                $normalized[] = "{$key}:" . implode(',', $value);
+                // Use SORT_REGULAR for type-safe comparison (preserves int/string distinction)
+                sort($value, SORT_REGULAR);
+                $normalized[] = "{$key}:" . implode(',', array_map('strval', $value));
             } else {
                 $normalized[] = "{$key}:{$value}";
             }

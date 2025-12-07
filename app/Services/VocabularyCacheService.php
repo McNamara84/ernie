@@ -122,6 +122,10 @@ class VocabularyCacheService
      *
      * This should be called after vocabulary sync commands.
      *
+     * WARNING: When cache tagging is not supported (e.g., file/database drivers),
+     * this will call Cache::flush() which clears the ENTIRE cache store,
+     * including sessions, resources, ROR data, and any other cached data.
+     *
      * @return void
      */
     public function invalidateAllVocabularyCaches(): void
@@ -129,7 +133,7 @@ class VocabularyCacheService
         if ($this->supportsTagging()) {
             Cache::tags(['vocabularies'])->flush();
         } else {
-            // Without tagging, clear entire cache store
+            // WARNING: This clears the ENTIRE cache store, not just vocabularies
             Cache::flush();
         }
     }

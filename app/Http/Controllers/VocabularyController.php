@@ -96,12 +96,23 @@ class VocabularyController extends Controller
                     return $decoded;
                 }
             );
+
+            return response()->json($data);
         } catch (\RuntimeException $e) {
+            // Determine appropriate HTTP status code based on error type
+            $statusCode = 500; // Default: Internal Server Error
+            
+            if (str_contains($e->getMessage(), 'not found')) {
+                $statusCode = 404; // Not Found
+            } elseif (str_contains($e->getMessage(), 'Invalid JSON')) {
+                $statusCode = 500; // Internal Server Error (corrupted data)
+            } elseif (str_contains($e->getMessage(), 'Failed to read')) {
+                $statusCode = 500; // Internal Server Error (I/O problem)
+            }
+
             return response()->json([
                 'error' => $e->getMessage(),
-            ], 404);
+            ], $statusCode);
         }
-
-        return response()->json($data);
     }
 }
