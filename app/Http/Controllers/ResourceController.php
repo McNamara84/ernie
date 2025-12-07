@@ -539,9 +539,6 @@ class ResourceController extends Controller
             ], 500);
         }
 
-        // Invalidate cache after creating/updating resource
-        $this->cacheService->invalidateResourceCache($resource->id);
-
         $message = $isUpdate ? 'Successfully updated resource.' : 'Successfully saved resource.';
         $status = $isUpdate ? 200 : 201;
 
@@ -555,11 +552,7 @@ class ResourceController extends Controller
 
     public function destroy(Resource $resource): RedirectResponse
     {
-        $resourceId = $resource->id;
         $resource->delete();
-
-        // Invalidate cache after deleting resource
-        $this->cacheService->invalidateResourceCache($resourceId);
 
         return redirect()
             ->route('resources')

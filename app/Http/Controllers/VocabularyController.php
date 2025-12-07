@@ -102,12 +102,6 @@ class VocabularyController extends Controller
             ], 404);
         }
 
-        if ($data === null) {
-            return response()->json([
-                'error' => "Vocabulary file not found. Please run: {$command}",
-            ], 404);
-        }
-
         return response()->json($data);
     }
 }
