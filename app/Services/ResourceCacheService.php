@@ -6,9 +6,11 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Models\Resource;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service for managing resource-related caching.
@@ -18,13 +20,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class ResourceCacheService
 {
-    /**
-     * Check if the current cache store supports tagging.
-     */
-    private function supportsTagging(): bool
-    {
-        return method_exists(Cache::getStore(), 'tags');
-    }
+    use ChecksCacheTagging;
 
     /**
      * Get cache instance with tags if supported, otherwise without tags.
@@ -128,20 +124,16 @@ class ResourceCacheService
     /**
      * Invalidate cache for a specific resource.
      *
+     * This invalidates all resource caches since the resource might appear in listings.
+     * There's no need to forget the individual cache entry first since
+     * invalidateAllResourceCaches() will flush all resource-related caches.
+     *
      * @param int $resourceId The resource ID
      * @return void
      */
     public function invalidateResourceCache(int $resourceId): void
     {
-        $cacheKey = CacheKey::RESOURCE_DETAIL->key($resourceId);
-        
-        if ($this->supportsTagging()) {
-            Cache::tags(CacheKey::RESOURCE_DETAIL->tags())->forget($cacheKey);
-        } else {
-            Cache::forget($cacheKey);
-        }
-
-        // Also invalidate list caches since the resource might appear in listings
+        // Invalidate all resource caches (lists and detail pages)
         $this->invalidateAllResourceCaches();
     }
 
@@ -184,12 +176,28 @@ class ResourceCacheService
             }
 
             if (is_array($value)) {
+                // Validate array contains only scalar values
+                foreach ($value as $item) {
+                    if (! is_scalar($item)) {
+                        throw new \InvalidArgumentException('Filter array values must be scalar types');
+                    }
+                }
+
                 // Convert all values to strings first, then sort with SORT_STRING for consistency
                 $stringValues = array_map('strval', $value);
                 sort($stringValues, SORT_STRING);
-                $normalized[] = "{$key}:" . implode(',', $stringValues);
+                
+                // Escape delimiter characters to prevent cache key collisions
+                $escapedValues = array_map(fn($v) => str_replace([':', '|', ','], ['\\:', '\\|', '\\,'], $v), $stringValues);
+                $normalized[] = "{$key}:" . implode(',', $escapedValues);
             } else {
-                $normalized[] = "{$key}:{$value}";
+                if (! is_scalar($value)) {
+                    throw new \InvalidArgumentException('Filter values must be scalar types');
+                }
+                
+                // Escape delimiter characters
+                $escapedValue = str_replace([':', '|'], ['\\:', '\\|'], (string)$value);
+                $normalized[] = "{$key}:{$escapedValue}";
             }
         }
 

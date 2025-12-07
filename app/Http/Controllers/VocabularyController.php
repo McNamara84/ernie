@@ -96,6 +96,11 @@ class VocabularyController extends Controller
                         throw new VocabularyCorruptedException(json_last_error_msg());
                     }
 
+                    // Ensure decoded data is not null (e.g., if JSON contains literal "null")
+                    if ($decoded === null) {
+                        throw new VocabularyCorruptedException('Vocabulary file contains null data');
+                    }
+
                     return $decoded;
                 }
             );

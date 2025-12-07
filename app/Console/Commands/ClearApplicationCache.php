@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\Cache;
  */
 class ClearApplicationCache extends Command
 {
+    use ChecksCacheTagging;
+
     /**
      * The name and signature of the console command.
      *
@@ -30,14 +33,6 @@ class ClearApplicationCache extends Command
      * @var string
      */
     protected $description = 'Clear application caches by category';
-
-    /**
-     * Check if the current cache store supports tagging.
-     */
-    private function supportsTagging(): bool
-    {
-        return method_exists(Cache::getStore(), 'tags');
-    }
 
     /**
      * Execute the console command.
@@ -90,6 +85,11 @@ class ClearApplicationCache extends Command
 
     /**
      * Clear cache by specific tag.
+     *
+     * Note: Laravel's cache tag flushing uses OR logic. Flushing a single tag
+     * (e.g., 'ror') will clear all items tagged with that tag, regardless of
+     * other tags. For example, items tagged with ['ror', 'affiliations'] will
+     * be cleared when flushing 'ror' alone.
      *
      * WARNING: When cache tagging is not supported (e.g., file/database drivers),
      * this will call Cache::flush() which clears the ENTIRE cache store,

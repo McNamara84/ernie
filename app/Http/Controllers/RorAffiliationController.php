@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CacheKey;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -11,17 +12,11 @@ use JsonException;
 
 class RorAffiliationController extends Controller
 {
+    use ChecksCacheTagging;
+
     private const STORAGE_DISK = 'local';
 
     private const STORAGE_PATH = 'ror/ror-affiliations.json';
-
-    /**
-     * Check if the current cache store supports tagging.
-     */
-    private function supportsTagging(): bool
-    {
-        return method_exists(Cache::getStore(), 'tags');
-    }
 
     public function __invoke(): JsonResponse
     {

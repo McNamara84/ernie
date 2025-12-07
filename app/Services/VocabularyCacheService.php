@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CacheKey;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service for managing vocabulary-related caching.
@@ -16,13 +18,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class VocabularyCacheService
 {
-    /**
-     * Check if the current cache store supports tagging.
-     */
-    private function supportsTagging(): bool
-    {
-        return method_exists(Cache::getStore(), 'tags');
-    }
+    use ChecksCacheTagging;
 
     /**
      * Get cache instance with tags if supported, otherwise without tags.
