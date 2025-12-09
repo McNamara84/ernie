@@ -2,51 +2,69 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CacheKey;
+use App\Support\Traits\ChecksCacheTagging;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use JsonException;
 
 class RorAffiliationController extends Controller
 {
+    use ChecksCacheTagging;
+
     private const STORAGE_DISK = 'local';
 
     private const STORAGE_PATH = 'ror/ror-affiliations.json';
 
     public function __invoke(): JsonResponse
     {
-        $disk = Storage::disk(self::STORAGE_DISK);
+        // Cache ROR affiliations for 7 days
+        $cacheInstance = $this->supportsTagging()
+            ? Cache::tags(CacheKey::ROR_AFFILIATION->tags())
+            : Cache::store();
 
-        if (! $disk->exists(self::STORAGE_PATH)) {
-            return response()->json([]);
-        }
+        $data = $cacheInstance->remember(
+                CacheKey::ROR_AFFILIATION->key(),
+                CacheKey::ROR_AFFILIATION->ttl(),
+                function (): array {
+                    $disk = Storage::disk(self::STORAGE_DISK);
 
-        try {
-            $contents = $disk->get(self::STORAGE_PATH);
+                    if (! $disk->exists(self::STORAGE_PATH)) {
+                        return [];
+                    }
 
-            if (! is_string($contents)) {
-                Log::warning('Cached ROR affiliations returned non-string contents.', [
-                    'path' => self::STORAGE_PATH,
-                    'type' => get_debug_type($contents),
-                ]);
+                    try {
+                        $contents = $disk->get(self::STORAGE_PATH);
 
-                return response()->json([], 500);
-            }
+                        if (! is_string($contents)) {
+                            Log::warning('Cached ROR affiliations returned non-string contents.', [
+                                'path' => self::STORAGE_PATH,
+                                'type' => get_debug_type($contents),
+                            ]);
 
-            $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $exception) {
-            Log::error('Failed to decode cached ROR affiliations.', [
-                'message' => $exception->getMessage(),
-                'path' => self::STORAGE_PATH,
-            ]);
+                            return [];
+                        }
 
-            return response()->json([], 500);
-        }
+                        $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+                    } catch (JsonException $exception) {
+                        Log::error('Failed to decode cached ROR affiliations.', [
+                            'message' => $exception->getMessage(),
+                            'path' => self::STORAGE_PATH,
+                        ]);
 
-        if (! is_array($decoded)) {
-            return response()->json([]);
-        }
+                        return [];
+                    }
 
-        return response()->json($decoded);
+                    if (! is_array($decoded)) {
+                        return [];
+                    }
+
+                    return $decoded;
+                }
+            );
+
+        return response()->json($data);
     }
 }

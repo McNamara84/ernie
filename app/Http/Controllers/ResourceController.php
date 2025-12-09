@@ -23,6 +23,7 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
+use App\Services\ResourceCacheService;
 use App\Support\BooleanNormalizer;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +49,14 @@ class ResourceController extends Controller
     private const DEFAULT_SORT_KEY = 'updated_at';
 
     private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    /**
+     * Create a new controller instance.
+     */
+    public function __construct(
+        private readonly ResourceCacheService $cacheService
+    ) {
+    }
 
     private const ALLOWED_SORT_KEYS = [
         'id',
@@ -81,10 +90,23 @@ class ResourceController extends Controller
         // Apply sorting
         $this->applySorting($query, $sortKey, $sortDirection);
 
-        $resources = $query
-            ->paginate($perPage, ['*'], 'page', $page);
+        // Prepare cache key data
+        $cacheFilters = array_merge($filters, [
+            'sort' => $sortKey,
+            'direction' => $sortDirection,
+        ]);
 
-        $resourcesData = collect($resources->items())
+        // Use caching for resource listing
+        $resources = $this->cacheService->cacheResourceList(
+            $query,
+            $perPage,
+            $page,
+            $cacheFilters
+        );
+
+        /** @var array<int, Resource> $items */
+        $items = $resources->items();
+        $resourcesData = collect($items)
             ->map(fn (Resource $resource): array => $this->serializeResource($resource))
             ->all();
 
@@ -557,10 +579,23 @@ class ResourceController extends Controller
         // Apply sorting
         $this->applySorting($query, $sortKey, $sortDirection);
 
-        $resources = $query
-            ->paginate($perPage, ['*'], 'page', $page);
+        // Prepare cache key data
+        $cacheFilters = array_merge($filters, [
+            'sort' => $sortKey,
+            'direction' => $sortDirection,
+        ]);
 
-        $resourcesData = collect($resources->items())
+        // Use caching for resource listing
+        $resources = $this->cacheService->cacheResourceList(
+            $query,
+            $perPage,
+            $page,
+            $cacheFilters
+        );
+
+        /** @var array<int, Resource> $items */
+        $items = $resources->items();
+        $resourcesData = collect($items)
             ->map(fn (Resource $resource): array => $this->serializeResource($resource))
             ->all();
 

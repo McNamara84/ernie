@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\getJson;
@@ -7,6 +8,8 @@ use function Pest\Laravel\getJson;
 beforeEach(function () {
     config(['services.elmo.api_key' => null]);
     Storage::fake();
+    // Clear cache to ensure each test starts fresh
+    Cache::flush();
 });
 
 function createTestMslVocabularyFile(): void
@@ -65,6 +68,7 @@ it('returns MSL vocabulary', function () {
 });
 
 it('returns 404 when MSL vocabulary file does not exist', function () {
+    // Error handling occurs in the cache callback, which throws VocabularyNotFoundException
     getJson('/api/v1/vocabularies/msl')
         ->assertStatus(404)
         ->assertJson([

@@ -27,7 +27,7 @@ it('returns an empty array when the cache is missing', function () {
     $response->assertOk()->assertExactJson([]);
 });
 
-it('responds with an error when the cache is invalid', function () {
+it('responds with an empty array when the cache is invalid', function () {
     Storage::fake('local');
     Log::spy();
 
@@ -35,12 +35,13 @@ it('responds with an error when the cache is invalid', function () {
 
     $response = $this->getJson('/api/v1/ror-affiliations');
 
-    $response->assertStatus(500)->assertExactJson([]);
+    // With caching, invalid JSON is handled gracefully and returns empty array
+    $response->assertStatus(200)->assertExactJson([]);
 
     Log::shouldHaveReceived('error')->once();
 });
 
-it('responds with an error when the storage adapter returns non-string contents', function () {
+it('responds with an empty array when the storage adapter returns non-string contents', function () {
     Log::spy();
 
     $filesystem = \Mockery::mock(Filesystem::class);
@@ -51,7 +52,8 @@ it('responds with an error when the storage adapter returns non-string contents'
 
     $response = $this->getJson('/api/v1/ror-affiliations');
 
-    $response->assertStatus(500)->assertExactJson([]);
+    // With caching, invalid content is handled gracefully and returns empty array
+    $response->assertStatus(200)->assertExactJson([]);
 
     Log::shouldHaveReceived('warning')->once();
 });

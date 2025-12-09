@@ -121,6 +121,9 @@ abstract class BaseGcmdCommand extends Command
 
             Storage::put($outputFile, $json);
 
+            // Invalidate vocabulary caches after successful update
+            $this->call('cache:clear-app', ['category' => 'vocabularies']);
+
             $filePath = Storage::path($outputFile);
             $fileSize = Storage::size($outputFile);
 

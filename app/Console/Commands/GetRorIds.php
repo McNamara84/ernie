@@ -152,6 +152,9 @@ class GetRorIds extends Command
             return self::FAILURE;
         }
 
+        // Invalidate ROR caches after successful update
+        $this->call('cache:clear-app', ['category' => 'ror']);
+
         $this->info(sprintf('Saved %d ROR affiliation entries to %s', $saved, $targetPath));
 
         return self::SUCCESS;
