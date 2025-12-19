@@ -35,7 +35,6 @@ class DataCiteApiService
                     'Accept' => 'application/vnd.citationstyles.csl+json',
                 ])
                 ->get($url);
-            assert($response instanceof \Illuminate\Http\Client\Response);
 
             if ($response->successful()) {
                 return $response->json();

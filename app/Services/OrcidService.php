@@ -72,7 +72,6 @@ class OrcidService
             $response = Http::timeout(5)
                 ->acceptJson()
                 ->get(self::API_BASE_URL.'/'.$orcid.'/person');
-            assert($response instanceof \Illuminate\Http\Client\Response);
 
             if ($response->successful()) {
                 return [
@@ -142,7 +141,6 @@ class OrcidService
             $response = Http::timeout(10)
                 ->acceptJson()
                 ->get(self::API_BASE_URL.'/'.$orcid);
-            assert($response instanceof \Illuminate\Http\Client\Response);
 
             if ($response->status() === 404) {
                 return [
@@ -256,7 +254,6 @@ class OrcidService
                     'q' => $searchQuery,
                     'rows' => $limit,
                 ]);
-            assert($response instanceof \Illuminate\Http\Client\Response);
 
             if (! $response->successful()) {
                 Log::error('ORCID search failed', [

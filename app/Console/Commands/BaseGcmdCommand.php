@@ -67,7 +67,6 @@ abstract class BaseGcmdCommand extends Command
                 $response = Http::timeout(60)
                     ->accept('application/rdf+xml')
                     ->get($pageUrl);
-                assert($response instanceof \Illuminate\Http\Client\Response);
 
                 if (! $response->successful()) {
                     $this->error('Failed to fetch data from NASA KMS API');

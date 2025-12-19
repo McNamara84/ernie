@@ -43,7 +43,6 @@ class DoiValidationController extends Controller
             $response = Http::timeout(5)
                 ->acceptJson()
                 ->get("https://api.datacite.org/dois/{$encodedDoi}");
-            assert($response instanceof \Illuminate\Http\Client\Response);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -97,7 +96,6 @@ class DoiValidationController extends Controller
             $response = Http::timeout(5)
                 ->withOptions(['allow_redirects' => false])
                 ->head("https://doi.org/{$doi}");
-            assert($response instanceof \Illuminate\Http\Client\Response);
 
             // 302/301 means DOI exists and redirects
             if (in_array($response->status(), [301, 302])) {
