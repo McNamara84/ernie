@@ -16,6 +16,7 @@ use App\Models\ResourceType;
 use App\Models\Title;
 use App\Models\TitleType;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\App;
 
 /**
  * Seeder for creating test resources with various GeoLocation configurations.
@@ -37,6 +38,13 @@ class GeoLocationTestSeeder extends Seeder
 {
     public function run(): void
     {
+        // Prevent running in production environment
+        if (App::environment('production')) {
+            $this->command->error('This seeder cannot be run in production environment!');
+
+            return;
+        }
+
         $this->command->info('Creating GeoLocation test resources...');
 
         // Get or create required related models
@@ -255,10 +263,11 @@ class GeoLocationTestSeeder extends Seeder
         $this->command->info('Access them at:');
         $this->command->newLine();
 
-        // List created resources
+        // List created resources with dynamically generated URLs
         $resources = Resource::where('doi', 'like', '10.5880/geoloc.%')->get();
         foreach ($resources as $resource) {
-            $this->command->info("  - /ernie/landing-page/{$resource->id}");
+            $url = route('landing-page.show', ['resource' => $resource->id]);
+            $this->command->info("  - {$url}");
         }
     }
 

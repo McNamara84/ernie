@@ -9,7 +9,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Polygon, Rectangle, TileLayer, useMap } from 'react-leaflet';
 
 // Fix Leaflet default marker icons (they don't load correctly with bundlers)
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: () => string })._getIconUrl;
+// Using unknown as intermediate step for safer type assertion
+const iconPrototype: unknown = L.Icon.Default.prototype;
+delete (iconPrototype as { _getIconUrl?: () => string })._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconUrl: markerIcon,
     iconRetinaUrl: markerIcon2x,
