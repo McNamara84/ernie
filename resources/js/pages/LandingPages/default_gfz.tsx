@@ -5,6 +5,7 @@ import { withBasePath } from '@/lib/base-path';
 
 import { AbstractSection } from './components/AbstractSection';
 import { FilesSection } from './components/FilesSection';
+import { LocationSection } from './components/LocationSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
 import { RelatedWorkSection } from './components/RelatedWorkSection';
 import { ResourceHero } from './components/ResourceHero';
@@ -83,13 +84,16 @@ export default function DefaultGfzTemplate() {
                         </div>
 
                         {/* Right Column - 2/3 width */}
-                        <div className="lg:col-span-2">
+                        <div className="space-y-6 lg:col-span-2">
                             <AbstractSection 
                                 descriptions={resource.descriptions || []}
                                 creators={resource.creators || []}
                                 fundingReferences={resource.funding_references || []}
                                 subjects={resource.subjects || []}
                                 resourceId={resource.id}
+                            />
+                            <LocationSection 
+                                geoLocations={resource.geo_locations || []}
                             />
                         </div>
                     </div>
