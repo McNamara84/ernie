@@ -115,10 +115,72 @@ function FitBoundsControl({ bounds }: { bounds: L.LatLngBounds }) {
 }
 
 /**
- * Check if the Fullscreen API is available in the current browser
+ * Check if the Fullscreen API is available in the current browser.
+ * Includes vendor prefix detection for webkit (Safari) and moz (older Firefox).
  */
 function isFullscreenSupported(): boolean {
-    return typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function';
+    if (typeof document === 'undefined') return false;
+
+    const docEl = document.documentElement as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void>;
+        mozRequestFullScreen?: () => Promise<void>;
+    };
+
+    return (
+        typeof docEl.requestFullscreen === 'function' ||
+        typeof docEl.webkitRequestFullscreen === 'function' ||
+        typeof docEl.mozRequestFullScreen === 'function'
+    );
+}
+
+/**
+ * Request fullscreen with vendor prefix fallback.
+ */
+function requestFullscreen(element: HTMLElement): Promise<void> {
+    const el = element as HTMLElement & {
+        webkitRequestFullscreen?: () => Promise<void>;
+        mozRequestFullScreen?: () => Promise<void>;
+    };
+
+    if (el.requestFullscreen) {
+        return el.requestFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+        return el.webkitRequestFullscreen();
+    } else if (el.mozRequestFullScreen) {
+        return el.mozRequestFullScreen();
+    }
+    return Promise.reject(new Error('Fullscreen API not supported'));
+}
+
+/**
+ * Exit fullscreen with vendor prefix fallback.
+ */
+function exitFullscreen(): Promise<void> {
+    const doc = document as Document & {
+        webkitExitFullscreen?: () => Promise<void>;
+        mozCancelFullScreen?: () => Promise<void>;
+    };
+
+    if (doc.exitFullscreen) {
+        return doc.exitFullscreen();
+    } else if (doc.webkitExitFullscreen) {
+        return doc.webkitExitFullscreen();
+    } else if (doc.mozCancelFullScreen) {
+        return doc.mozCancelFullScreen();
+    }
+    return Promise.reject(new Error('Fullscreen API not supported'));
+}
+
+/**
+ * Get the current fullscreen element with vendor prefix fallback.
+ */
+function getFullscreenElement(): Element | null {
+    const doc = document as Document & {
+        webkitFullscreenElement?: Element | null;
+        mozFullScreenElement?: Element | null;
+    };
+
+    return doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || null;
 }
 
 /**
@@ -142,17 +204,22 @@ function FullscreenControl() {
         containerRef.current = container;
 
         const handleFullscreenChange = () => {
-            setIsFullscreen(!!document.fullscreenElement);
+            setIsFullscreen(!!getFullscreenElement());
             // Invalidate map size after fullscreen change
             setTimeout(() => {
                 map.invalidateSize();
             }, 100);
         };
 
+        // Add event listeners for all vendor prefixes
         document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
 
         return () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
         };
     }, [map]);
 
@@ -160,12 +227,12 @@ function FullscreenControl() {
         const container = containerRef.current;
         if (!container) return;
 
-        if (!document.fullscreenElement) {
-            container.requestFullscreen().catch((err) => {
+        if (!getFullscreenElement()) {
+            requestFullscreen(container).catch((err) => {
                 console.warn('Fullscreen request failed:', err);
             });
         } else {
-            document.exitFullscreen().catch((err) => {
+            exitFullscreen().catch((err) => {
                 console.warn('Exit fullscreen failed:', err);
             });
         }

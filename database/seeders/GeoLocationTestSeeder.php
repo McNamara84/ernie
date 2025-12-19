@@ -264,6 +264,7 @@ class GeoLocationTestSeeder extends Seeder
 
     /**
      * Create a resource with geo locations and a published landing page.
+     * If the resource already exists, updates its geo_locations to ensure consistency.
      *
      * @param  array<int, array<string, mixed>>  $geoLocations
      */
@@ -281,7 +282,9 @@ class GeoLocationTestSeeder extends Seeder
         // Check if resource already exists
         $existing = Resource::where('doi', $doi)->first();
         if ($existing) {
-            $this->command->warn("  - Skipping existing resource: {$doi}");
+            // Update geo_locations for existing resource to ensure they are present
+            $this->syncGeoLocations($existing, $geoLocations);
+            $this->command->info("  ↻ Updated existing resource: {$doi}");
 
             return $existing;
         }
@@ -319,6 +322,35 @@ class GeoLocationTestSeeder extends Seeder
         ]);
 
         // Create geo locations
+        $this->syncGeoLocations($resource, $geoLocations);
+
+        // Create published landing page
+        LandingPage::create([
+            'resource_id' => $resource->id,
+            'slug' => 'geoloc-test-'.str_replace(['10.5880/geoloc.', '.001'], '', $doi),
+            'template' => 'default_gfz',
+            'is_published' => true,
+            'published_at' => now(),
+            'preview_token' => bin2hex(random_bytes(32)),
+        ]);
+
+        $this->command->info("  ✓ Created: {$title}");
+
+        return $resource;
+    }
+
+    /**
+     * Sync geo locations for a resource.
+     * Deletes existing geo_locations and recreates them to ensure consistency.
+     *
+     * @param  array<int, array<string, mixed>>  $geoLocations
+     */
+    private function syncGeoLocations(Resource $resource, array $geoLocations): void
+    {
+        // Delete existing geo_locations for this resource
+        GeoLocation::where('resource_id', $resource->id)->delete();
+
+        // Create new geo_locations
         foreach ($geoLocations as $geoData) {
             GeoLocation::create([
                 'resource_id' => $resource->id,
@@ -334,19 +366,5 @@ class GeoLocationTestSeeder extends Seeder
                 'in_polygon_point_latitude' => $geoData['in_polygon_point_latitude'] ?? null,
             ]);
         }
-
-        // Create published landing page
-        LandingPage::create([
-            'resource_id' => $resource->id,
-            'slug' => 'geoloc-test-'.str_replace(['10.5880/geoloc.', '.001'], '', $doi),
-            'template' => 'default_gfz',
-            'is_published' => true,
-            'published_at' => now(),
-            'preview_token' => bin2hex(random_bytes(32)),
-        ]);
-
-        $this->command->info("  ✓ Created: {$title}");
-
-        return $resource;
     }
 }
