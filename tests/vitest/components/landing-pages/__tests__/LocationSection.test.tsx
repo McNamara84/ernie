@@ -375,4 +375,31 @@ describe('LocationSection', () => {
             expect(screen.getByTestId('tile-layer')).toBeInTheDocument();
         });
     });
+
+    describe('fullscreen support', () => {
+        it('should gracefully handle when fullscreen API is not available', () => {
+            // The FullscreenControl checks for requestFullscreen support
+            // and only renders when it's available. In jsdom, it may or may not be mocked.
+            // The component should not throw an error regardless.
+            expect(() =>
+                render(
+                    <LocationSection
+                        geoLocations={[
+                            {
+                                id: 1,
+                                place: 'Test',
+                                point_longitude: 10.0,
+                                point_latitude: 50.0,
+                                west_bound_longitude: null,
+                                east_bound_longitude: null,
+                                south_bound_latitude: null,
+                                north_bound_latitude: null,
+                                polygon_points: null,
+                            },
+                        ]}
+                    />,
+                ),
+            ).not.toThrow();
+        });
+    });
 });

@@ -1,8 +1,9 @@
-import L from 'leaflet';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import 'leaflet/dist/leaflet.css';
+
+import L from 'leaflet';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, Polygon, Rectangle, TileLayer, useMap } from 'react-leaflet';
@@ -114,15 +115,31 @@ function FitBoundsControl({ bounds }: { bounds: L.LatLngBounds }) {
 }
 
 /**
+ * Check if the Fullscreen API is available in the current browser
+ */
+function isFullscreenSupported(): boolean {
+    return typeof document !== 'undefined' && typeof document.documentElement.requestFullscreen === 'function';
+}
+
+/**
  * Custom Fullscreen Control Button
+ * Only renders if the Fullscreen API is available in the browser
  */
 function FullscreenControl() {
     const map = useMap();
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isSupported, setIsSupported] = useState(false);
     const containerRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
-        containerRef.current = map.getContainer();
+        // Check fullscreen support on mount
+        setIsSupported(isFullscreenSupported());
+    }, []);
+
+    useEffect(() => {
+        // Get the container reference from the map
+        const container = map.getContainer();
+        containerRef.current = container;
 
         const handleFullscreenChange = () => {
             setIsFullscreen(!!document.fullscreenElement);
@@ -140,16 +157,24 @@ function FullscreenControl() {
     }, [map]);
 
     const toggleFullscreen = () => {
-        if (!document.fullscreenElement && containerRef.current) {
-            containerRef.current.requestFullscreen().catch((err) => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        if (!document.fullscreenElement) {
+            container.requestFullscreen().catch((err) => {
                 console.warn('Fullscreen request failed:', err);
             });
-        } else if (document.fullscreenElement) {
+        } else {
             document.exitFullscreen().catch((err) => {
                 console.warn('Exit fullscreen failed:', err);
             });
         }
     };
+
+    // Don't render the button if fullscreen is not supported
+    if (!isSupported) {
+        return null;
+    }
 
     return (
         <div className="leaflet-top leaflet-right">
