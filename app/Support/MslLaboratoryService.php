@@ -48,7 +48,6 @@ class MslLaboratoryService
 
         try {
             $response = Http::timeout(10)->get($vocabularyUrl);
-            assert($response instanceof \Illuminate\Http\Client\Response);
 
             if (! $response->successful()) {
                 Log::warning('Failed to fetch MSL laboratories', [

@@ -22,7 +22,6 @@ class SyncSpdxLicenses extends Command
 
             return self::FAILURE;
         }
-        assert($response instanceof \Illuminate\Http\Client\Response);
 
         if ($response->failed()) {
             $this->error(
