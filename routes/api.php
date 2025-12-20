@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\DataCiteController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
+use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\DateTypeController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\LicenseController;
@@ -60,3 +61,7 @@ Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [Voc
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
 Route::get('/v1/doc', ApiDocController::class);
+
+// Contact form for landing pages (public, rate-limited)
+Route::post('/v1/resources/{resource}/contact', [ContactMessageController::class, 'send'])
+    ->name('api.resources.contact');

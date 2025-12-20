@@ -129,6 +129,8 @@ class LandingPagePublicController extends Controller
                 'id' => $contributor->id,
                 'position' => $contributor->position,
                 'contributor_type' => $contributor->contributorType->name,
+                // Include email only for ContactPerson contributors
+                'email' => $contributor->contributorType->name === 'ContactPerson' ? $contributor->email : null,
                 'affiliations' => $contributor->affiliations->map(function ($affiliation) {
                     return [
                         'id' => $affiliation->id,

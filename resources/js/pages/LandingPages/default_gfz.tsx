@@ -4,6 +4,7 @@ import { usePage } from '@inertiajs/react';
 import { withBasePath } from '@/lib/base-path';
 
 import { AbstractSection } from './components/AbstractSection';
+import { ContactSection } from './components/ContactSection';
 import { FilesSection } from './components/FilesSection';
 import { LocationSection } from './components/LocationSection';
 import { ModelDescriptionSection } from './components/ModelDescriptionSection';
@@ -24,6 +25,24 @@ export default function DefaultGfzTemplate() {
     const subtitle = resource.titles?.find((t: any) => t.title_type === 'Subtitle')
         ?.title;
     const citation = buildCitation(resource);
+
+    // Extract contact persons from contributors
+    const contactPersons = (resource.contributors || [])
+        .filter((c: any) => c.contributor_type === 'ContactPerson' && c.email)
+        .map((c: any) => {
+            const contributorable = c.contributorable || {};
+            // Build display name based on type
+            const name = contributorable.type === 'Person'
+                ? [contributorable.family_name, contributorable.given_name].filter(Boolean).join(', ')
+                : contributorable.name || 'Contact Person';
+            
+            return {
+                id: c.id,
+                name: name || 'Contact Person',
+                email: c.email,
+                affiliations: (c.affiliations || []).map((a: any) => a.name).filter(Boolean),
+            };
+        });
 
     return (
         <div className="min-h-screen pt-6" style={{ backgroundColor: '#0C2A63' }}>
@@ -74,6 +93,10 @@ export default function DefaultGfzTemplate() {
                             <FilesSection
                                 downloadUrl={landingPage?.ftp_url || '#'}
                                 licenses={resource.licenses || []}
+                            />
+                            <ContactSection
+                                contactPersons={contactPersons}
+                                resourceId={resource.id}
                             />
                             <ModelDescriptionSection
                                 relatedIdentifiers={resource.related_identifiers || []}
