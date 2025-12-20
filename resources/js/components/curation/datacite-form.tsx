@@ -164,6 +164,7 @@ type SerializedContributor =
           orcid: string | null;
           firstName: string | null;
           lastName: string;
+          email: string | null;
           roles: string[];
           affiliations: SerializedAffiliation[];
           position: number;
@@ -205,6 +206,7 @@ const createEmptyPersonContributor = (): PersonContributorEntry => ({
     orcid: '',
     firstName: '',
     lastName: '',
+    email: '',
     affiliations: [],
     affiliationsInput: '',
 });
@@ -420,6 +422,7 @@ const mapInitialContributorToEntry = (
         orcid?: string | null;
         firstName?: string | null;
         lastName?: string | null;
+        email?: string | null;
     };
 
     return {
@@ -427,6 +430,7 @@ const mapInitialContributorToEntry = (
         orcid: normalizeOrcid(personContributor.orcid),
         firstName: typeof personContributor.firstName === 'string' ? personContributor.firstName.trim() : '',
         lastName: typeof personContributor.lastName === 'string' ? personContributor.lastName.trim() : '',
+        email: typeof personContributor.email === 'string' ? personContributor.email.trim() : '',
         affiliations,
         affiliationsInput,
         roles,
@@ -1877,12 +1881,18 @@ export default function DataCiteForm({
                     const orcid = contributor.orcid.trim();
                     const firstName = contributor.firstName.trim();
                     const lastName = contributor.lastName.trim();
+                    const email = contributor.email.trim();
+                    // Only include email if contributor has ContactPerson role
+                    const hasContactPersonRole = roles.some(
+                        (role) => role.toLowerCase() === 'contact person' || role === 'ContactPerson'
+                    );
 
                     return {
                         type: 'person',
                         orcid: orcid || null,
                         firstName: firstName || null,
                         lastName,
+                        email: hasContactPersonRole && email ? email : null,
                         roles,
                         affiliations,
                         position: index,

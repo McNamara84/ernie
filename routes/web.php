@@ -284,6 +284,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     'rights',
                     'creators.creatorable',
                     'creators.affiliations',
+                    'contributors.contributorable',
+                    'contributors.contributorType',
+                    'contributors.affiliations',
                     'descriptions',
                     'dates',
                     'subjects',
@@ -370,9 +373,47 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $authors[] = $data;
             }
 
+            // Transform ResourceContributor entries (separate from creators in DataCite 4.6)
+            $contributors = $resource->contributors
+                ->sortBy('position')
+                ->map(function ($contributor) {
+                    /** @var \App\Models\ResourceContributor $contributor */
+                    $contributorable = $contributor->contributorable;
+                    $contributorType = $contributor->contributorType;
+
+                    $data = [
+                        'position' => $contributor->position,
+                        'roles' => [$contributorType->name],
+                    ];
+
+                    if ($contributor->contributorable_type === \App\Models\Person::class) {
+                        /** @var \App\Models\Person $contributorable */
+                        $data['type'] = 'person';
+                        $data['firstName'] = $contributorable->given_name ?? '';
+                        $data['lastName'] = $contributorable->family_name ?? '';
+                        $data['orcid'] = $contributorable->name_identifier ?? '';
+                        $data['email'] = $contributor->email ?? '';
+                    } elseif ($contributor->contributorable_type === \App\Models\Institution::class) {
+                        /** @var \App\Models\Institution $contributorable */
+                        $data['type'] = 'institution';
+                        $data['institutionName'] = $contributorable->name ?? '';
+                    }
+
+                    // Add affiliations
+                    $data['affiliations'] = $contributor->affiliations->map(function ($affiliation) {
+                        return [
+                            'value' => $affiliation->name,
+                            'rorId' => $affiliation->affiliation_identifier,
+                        ];
+                    })->values()->toArray();
+
+                    return $data;
+                })
+                ->values()
+                ->toArray();
+
             // Sort by position
             usort($authors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
-            usort($contributors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
 
             // Transform descriptions - map description_type to frontend format
             $descriptionTypeMap = [

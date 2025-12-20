@@ -850,12 +850,19 @@ class ResourceController extends Controller
         // Get default contributor type
         $contributorType = ContributorType::where('slug', 'other')->first();
 
+        // Get email for ContactPerson contributors
+        $email = null;
+        if (! empty($data['email']) && is_string($data['email'])) {
+            $email = trim($data['email']);
+        }
+
         return ResourceContributor::query()->create([
             'resource_id' => $resource->id,
             'contributorable_id' => $person->id,
             'contributorable_type' => Person::class,
             'contributor_type_id' => $contributorType?->id,
             'position' => $position,
+            'email' => $email,
         ]);
     }
 

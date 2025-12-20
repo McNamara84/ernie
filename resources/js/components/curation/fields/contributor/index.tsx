@@ -35,6 +35,7 @@ const createEmptyPersonContributor = (): PersonContributorEntry => ({
     orcid: '',
     firstName: '',
     lastName: '',
+    email: '',
     roles: [],
     rolesInput: '',
     affiliations: [],

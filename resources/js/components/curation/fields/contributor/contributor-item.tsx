@@ -29,7 +29,7 @@ interface ContributorItemProps {
     index: number;
     onTypeChange: (type: ContributorType) => void;
     onRolesChange: (value: { raw: string; tags: ContributorRoleTag[] }) => void;
-    onPersonFieldChange: (field: 'orcid' | 'firstName' | 'lastName', value: string) => void;
+    onPersonFieldChange: (field: 'orcid' | 'firstName' | 'lastName' | 'email', value: string) => void;
     onInstitutionNameChange: (value: string) => void;
     onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
     onContributorChange: (contributor: ContributorEntry) => void; // For bulk updates (e.g., ORCID verification)
@@ -81,7 +81,7 @@ export default function ContributorItem({
 
     // Wrapper for onPersonFieldChange that marks user interaction for name fields only
     // Only firstName/lastName changes should enable ORCID auto-suggest, not orcid field itself
-    const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName', value: string) => {
+    const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName' | 'email', value: string) => {
         if (field === 'firstName' || field === 'lastName') {
             setHasUserInteracted(true);
         }
@@ -633,6 +633,25 @@ export default function ContributorItem({
                             containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                             required
                         />
+                        {/* Email field - shown only when Contact Person role is selected */}
+                        {contributor.roles.some(
+                            (role) => 
+                                role.value.toLowerCase() === 'contact person' || 
+                                role.value === 'ContactPerson'
+                        ) && (
+                            <InputField
+                                id={`${contributor.id}-email`}
+                                label="Contact email"
+                                type="email"
+                                value={contributor.email || ''}
+                                onChange={(event) =>
+                                    handlePersonFieldChange('email', event.target.value)
+                                }
+                                containerProps={{ className: 'md:col-span-12 lg:col-span-4' }}
+                                placeholder="email@example.com"
+                                required
+                            />
+                        )}
                     </div>
                 ) : (
                     <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
