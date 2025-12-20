@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property int $contributorable_id
  * @property int $contributor_type_id
  * @property int $position
+ * @property string|null $email
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
@@ -40,6 +41,7 @@ class ResourceContributor extends Model
         'contributorable_id',
         'contributor_type_id',
         'position',
+        'email',
     ];
 
     protected $casts = [
