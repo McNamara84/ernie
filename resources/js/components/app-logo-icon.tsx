@@ -11,9 +11,9 @@ export default function AppLogoIcon({ className, ...props }: ImgHTMLAttributes<H
         }
         return '';
     };
-    
+
     const basePath = getBasePath();
     const logoPath = `${basePath}/favicon.svg`;
-    
+
     return <img src={logoPath} alt="App logo" className={cn('dark:invert', className)} {...props} />;
 }

@@ -38,14 +38,7 @@ export default function ResourceTypeChart({ data }: ResourceTypeChartProps) {
         <div className="space-y-4">
             <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                    <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                    >
+                    <Pie data={chartData} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value">
                         {chartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
@@ -58,18 +51,12 @@ export default function ResourceTypeChart({ data }: ResourceTypeChartProps) {
                                     <div className="rounded-lg border bg-background p-2 shadow-sm">
                                         <div className="grid gap-2">
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Type
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Type</span>
                                                 <span className="font-bold">{data.name}</span>
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Count
-                                                </span>
-                                                <span className="font-bold text-muted-foreground">
-                                                    {data.value.toLocaleString()}
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Count</span>
+                                                <span className="font-bold text-muted-foreground">{data.value.toLocaleString()}</span>
                                             </div>
                                         </div>
                                     </div>

@@ -31,7 +31,7 @@ export const RELATION_TYPES_GROUPED: Record<string, RelationType[]> = {
 
 /**
  * Most commonly used relation types based on metaworks database analysis.
- * 
+ *
  * Top 10 represent 95.4% of all relations:
  * - Cites: 56.1%
  * - References: 14.7%
@@ -43,7 +43,7 @@ export const RELATION_TYPES_GROUPED: Record<string, RelationType[]> = {
  * - IsPartOf: 0.8%
  * - IsCitedBy: 0.6%
  * - IsVariantFormOf: 0.6%
- * 
+ *
  * Version relations (IsNewVersionOf, IsPreviousVersionOf) added for easy access
  * in simple mode as they are commonly needed for dataset version management.
  */

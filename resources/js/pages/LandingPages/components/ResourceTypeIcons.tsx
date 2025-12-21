@@ -26,12 +26,12 @@ import {
     Newspaper,
     Package,
     Shield,
+    Type,
     UserCheck,
     Video,
     Workflow,
     Wrench,
 } from 'lucide-react';
-import { Type } from 'lucide-react';
 
 const RESOURCE_TYPE_ICONS: Record<string, LucideIcon> = {
     Audiovisual: Video,

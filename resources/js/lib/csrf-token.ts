@@ -90,9 +90,9 @@ export const buildCsrfHeaders = (): Record<string, string> => {
 
     // Only log token presence in development, never log actual token values
     if (import.meta.env.DEV) {
-        console.debug('[CSRF] Building headers', { 
+        console.debug('[CSRF] Building headers', {
             hasMetaToken: !!metaToken,
-            hasCookieToken: !!cookieToken 
+            hasCookieToken: !!cookieToken,
         });
     }
 

@@ -89,13 +89,19 @@ function calculateBounds(locations: GeoLocation[]): L.LatLngBounds {
 
     if (allPoints.length === 0) {
         // Fallback: World view
-        return L.latLngBounds([[-60, -180], [80, 180]]);
+        return L.latLngBounds([
+            [-60, -180],
+            [80, 180],
+        ]);
     }
 
     if (allPoints.length === 1) {
         // Single point: Create a small area around it
         const [lat, lng] = allPoints[0];
-        return L.latLngBounds([[lat - 0.5, lng - 0.5], [lat + 0.5, lng + 0.5]]);
+        return L.latLngBounds([
+            [lat - 0.5, lng - 0.5],
+            [lat + 0.5, lng + 0.5],
+        ]);
     }
 
     return L.latLngBounds(allPoints);
@@ -254,11 +260,7 @@ function FullscreenControl() {
                     title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                     aria-label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
                 >
-                    {isFullscreen ? (
-                        <Minimize2 className="h-4 w-4 text-gray-700" />
-                    ) : (
-                        <Maximize2 className="h-4 w-4 text-gray-700" />
-                    )}
+                    {isFullscreen ? <Minimize2 className="h-4 w-4 text-gray-700" /> : <Maximize2 className="h-4 w-4 text-gray-700" />}
                 </button>
             </div>
         </div>
@@ -272,11 +274,7 @@ function GeoLocationLayer({ geoLocation }: { geoLocation: GeoLocation }) {
     return (
         <>
             {/* Point as Marker */}
-            {hasPoint(geoLocation) && (
-                <Marker
-                    position={[geoLocation.point_latitude!, geoLocation.point_longitude!]}
-                />
-            )}
+            {hasPoint(geoLocation) && <Marker position={[geoLocation.point_latitude!, geoLocation.point_longitude!]} />}
 
             {/* Bounding Box as Rectangle */}
             {hasBox(geoLocation) && (
@@ -325,10 +323,7 @@ export function LocationSection({ geoLocations }: LocationSectionProps) {
     }, []);
 
     // Filter: Only GeoLocations with actual coordinates
-    const validLocations = useMemo(
-        () => geoLocations.filter((geo) => hasPoint(geo) || hasBox(geo) || hasPolygon(geo)),
-        [geoLocations],
-    );
+    const validLocations = useMemo(() => geoLocations.filter((geo) => hasPoint(geo) || hasBox(geo) || hasPolygon(geo)), [geoLocations]);
 
     // Calculate bounds for auto-zoom
     const bounds = useMemo(() => calculateBounds(validLocations), [validLocations]);
@@ -352,12 +347,7 @@ export function LocationSection({ geoLocations }: LocationSectionProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Location</h3>
             <div className="h-[300px] w-full overflow-hidden rounded-lg">
-                <MapContainer
-                    bounds={bounds}
-                    className="h-full w-full"
-                    scrollWheelZoom={true}
-                    style={{ height: '100%', width: '100%' }}
-                >
+                <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

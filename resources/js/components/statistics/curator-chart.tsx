@@ -1,13 +1,4 @@
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 type CuratorData = {
     name: string;
@@ -50,20 +41,12 @@ export default function CuratorChart({ data }: CuratorChartProps) {
                                 <div className="rounded-lg border bg-background p-2 shadow-sm">
                                     <div className="grid gap-2">
                                         <div className="flex flex-col">
-                                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                Curator
-                                            </span>
-                                            <span className="font-bold">
-                                                {payload[0].payload.name}
-                                            </span>
+                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Curator</span>
+                                            <span className="font-bold">{payload[0].payload.name}</span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                Datasets Curated
-                                            </span>
-                                            <span className="font-bold text-muted-foreground">
-                                                {payload[0].payload.datasets}
-                                            </span>
+                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Datasets Curated</span>
+                                            <span className="font-bold text-muted-foreground">{payload[0].payload.datasets}</span>
                                         </div>
                                     </div>
                                 </div>

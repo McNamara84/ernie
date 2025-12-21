@@ -22,8 +22,7 @@ export default function IdentifierStatsCard({ data }: IdentifierStatsProps) {
                     <div>
                         <h3 className="font-semibold">ROR-IDs in Affiliations</h3>
                         <p className="text-sm text-muted-foreground">
-                            {data.ror.count.toLocaleString()} of {data.ror.total.toLocaleString()}{' '}
-                            affiliations have ROR identifiers
+                            {data.ror.count.toLocaleString()} of {data.ror.total.toLocaleString()} affiliations have ROR identifiers
                         </p>
                     </div>
                     <div className="text-right">
@@ -47,9 +46,7 @@ export default function IdentifierStatsCard({ data }: IdentifierStatsProps) {
                     <div>
                         <h3 className="font-semibold">ORCIDs in Authors/Contributors</h3>
                         <p className="text-sm text-muted-foreground">
-                            {data.orcid.count.toLocaleString()} of{' '}
-                            {data.orcid.total.toLocaleString()} authors/contributors have ORCID
-                            identifiers
+                            {data.orcid.count.toLocaleString()} of {data.orcid.total.toLocaleString()} authors/contributors have ORCID identifiers
                         </p>
                     </div>
                     <div className="text-right">

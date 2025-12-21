@@ -15,12 +15,8 @@ export default function CurrentYearChart({ data }: CurrentYearChartProps) {
         <div className="flex h-full items-center justify-center py-12">
             <div className="text-center">
                 <div className="text-6xl font-bold text-primary">{data.total.toLocaleString()}</div>
-                <p className="mt-4 text-lg text-muted-foreground">
-                    Total publications in {data.year}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    (Monthly breakdown not available - only publication year is stored)
-                </p>
+                <p className="mt-4 text-lg text-muted-foreground">Total publications in {data.year}</p>
+                <p className="mt-2 text-sm text-muted-foreground">(Monthly breakdown not available - only publication year is stored)</p>
             </div>
         </div>
     );

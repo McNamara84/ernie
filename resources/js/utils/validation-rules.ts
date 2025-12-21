@@ -266,9 +266,7 @@ export function validateDate(
     if (maxDate && date > maxDate) {
         return {
             isValid: false,
-            error: options.allowFuture
-                ? `Date must be on or before ${maxDate.toLocaleDateString()}`
-                : 'Date cannot be in the future',
+            error: options.allowFuture ? `Date must be on or before ${maxDate.toLocaleDateString()}` : 'Date cannot be in the future',
         };
     }
 
@@ -346,9 +344,7 @@ export function validateRequired(
  * Validates that titles are unique (case-sensitive)
  * Only marks newer duplicates as errors, keeping the first occurrence valid
  */
-export function validateTitleUniqueness(
-    titles: Array<{ title: string; type: string }>,
-): {
+export function validateTitleUniqueness(titles: Array<{ title: string; type: string }>): {
     isValid: boolean;
     errors: Record<number, string>;
 } {
@@ -357,7 +353,7 @@ export function validateTitleUniqueness(
 
     titles.forEach((t, idx) => {
         const trimmedTitle = t.title.trim();
-        
+
         // Skip empty titles
         if (trimmedTitle === '') {
             return;

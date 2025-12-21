@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -92,24 +92,10 @@ const hasData = (entry: SpatialTemporalCoverageEntry): boolean => {
     }
 
     // Check point/box coordinates
-    return !!(
-        entry.latMin ||
-        entry.lonMin ||
-        entry.startDate ||
-        entry.endDate ||
-        entry.description
-    );
+    return !!(entry.latMin || entry.lonMin || entry.startDate || entry.endDate || entry.description);
 };
 
-export default function CoverageEntry({
-    entry,
-    index,
-    apiKey,
-    isFirst,
-    onChange,
-    onBatchChange,
-    onRemove,
-}: CoverageEntryProps) {
+export default function CoverageEntry({ entry, index, apiKey, isFirst, onChange, onBatchChange, onRemove }: CoverageEntryProps) {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const handleTypeChange = (newType: CoverageType) => {
@@ -139,41 +125,25 @@ export default function CoverageEntry({
         }
     };
 
-    const handleTemporalChange = (
-        field: 'startDate' | 'endDate' | 'startTime' | 'endTime' | 'timezone',
-        value: string,
-    ) => {
+    const handleTemporalChange = (field: 'startDate' | 'endDate' | 'startTime' | 'endTime' | 'timezone', value: string) => {
         onChange(field, value);
     };
 
     return (
         <Card className="w-full">
-            <CardHeader
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
+            <CardHeader className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setIsExpanded(!isExpanded)}>
                 <div className="flex items-center justify-between">
                     <div className="flex-1">
-                        <h3 className="text-lg font-semibold">
-                            Coverage Entry #{index + 1}
-                        </h3>
+                        <h3 className="text-lg font-semibold">Coverage Entry #{index + 1}</h3>
                         {!isExpanded && hasData(entry) && (
                             <div className="mt-2 space-y-1">
-                                <p className="text-sm text-muted-foreground">
-                                    📍 {formatCoordinates(entry)}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    🕐 {formatDateRange(entry)}
-                                </p>
-                                {entry.description && (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                        {entry.description}
-                                    </p>
-                                )}
+                                <p className="text-sm text-muted-foreground">📍 {formatCoordinates(entry)}</p>
+                                <p className="text-sm text-muted-foreground">🕐 {formatDateRange(entry)}</p>
+                                {entry.description && <p className="truncate text-sm text-muted-foreground">{entry.description}</p>}
                             </div>
                         )}
                     </div>
-                    <div className="flex gap-2 ml-4">
+                    <div className="ml-4 flex gap-2">
                         <Button
                             type="button"
                             variant="ghost"
@@ -184,11 +154,7 @@ export default function CoverageEntry({
                                 setIsExpanded(!isExpanded);
                             }}
                         >
-                            {isExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                            ) : (
-                                <ChevronDown className="h-4 w-4" />
-                            )}
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </Button>
                         {!isFirst && (
                             <Button
@@ -219,30 +185,15 @@ export default function CoverageEntry({
                         </TabsList>
 
                         <TabsContent value="point" className="mt-4">
-                            <PointForm
-                                entry={entry}
-                                apiKey={apiKey}
-                                onChange={onChange}
-                                onBatchChange={onBatchChange}
-                            />
+                            <PointForm entry={entry} apiKey={apiKey} onChange={onChange} onBatchChange={onBatchChange} />
                         </TabsContent>
 
                         <TabsContent value="box" className="mt-4">
-                            <BoxForm
-                                entry={entry}
-                                apiKey={apiKey}
-                                onChange={onChange}
-                                onBatchChange={onBatchChange}
-                            />
+                            <BoxForm entry={entry} apiKey={apiKey} onChange={onChange} onBatchChange={onBatchChange} />
                         </TabsContent>
 
                         <TabsContent value="polygon" className="mt-4">
-                            <PolygonForm
-                                entry={entry}
-                                apiKey={apiKey}
-                                onChange={onChange}
-                                onBatchChange={onBatchChange}
-                            />
+                            <PolygonForm entry={entry} apiKey={apiKey} onChange={onChange} onBatchChange={onBatchChange} />
                         </TabsContent>
                     </Tabs>
 
@@ -262,9 +213,7 @@ export default function CoverageEntry({
 
                     {/* Description (Full Width) */}
                     <div className="space-y-2">
-                        <Label htmlFor={`description-${entry.id}`}>
-                            Description (optional)
-                        </Label>
+                        <Label htmlFor={`description-${entry.id}`}>Description (optional)</Label>
                         <Textarea
                             id={`description-${entry.id}`}
                             value={entry.description}
@@ -273,9 +222,7 @@ export default function CoverageEntry({
                             rows={3}
                             className="resize-none"
                         />
-                        <p className="text-xs text-muted-foreground">
-                            Provide additional context about this spatial and temporal coverage.
-                        </p>
+                        <p className="text-xs text-muted-foreground">Provide additional context about this spatial and temporal coverage.</p>
                     </div>
                 </CardContent>
             )}

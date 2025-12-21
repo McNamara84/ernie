@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Database, FileText,History, LayoutGrid, Menu, Search, Settings } from 'lucide-react';
+import { BookOpen, Database, FileText, History, LayoutGrid, Menu, Search, Settings } from 'lucide-react';
 
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { Icon } from '@/components/icon';
@@ -104,12 +104,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                             {rightNavItems.map((item) => {
                                                 const href = typeof item.href === 'string' ? item.href : item.href.url;
                                                 return (
-                                                    <Link
-                                                        key={item.title}
-                                                        href={href}
-                                                        prefetch
-                                                        className="flex items-center space-x-2 font-medium"
-                                                    >
+                                                    <Link key={item.title} href={href} prefetch className="flex items-center space-x-2 font-medium">
                                                         {item.icon && <Icon iconNode={item.icon} className="h-5 w-5" />}
                                                         <span>{item.title}</span>
                                                     </Link>
@@ -177,7 +172,9 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                                         className="group ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md bg-transparent p-0 text-sm font-medium text-[var(--header-foreground)] ring-offset-background transition-colors hover:bg-[var(--header-hover)] hover:text-[var(--header-foreground)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
                                                     >
                                                         <span className="sr-only">{item.title}</span>
-                                                        {item.icon && <Icon iconNode={item.icon} className="size-5 opacity-80 group-hover:opacity-100" />}
+                                                        {item.icon && (
+                                                            <Icon iconNode={item.icon} className="size-5 opacity-80 group-hover:opacity-100" />
+                                                        )}
                                                     </Link>
                                                 </TooltipTrigger>
                                                 <TooltipContent>

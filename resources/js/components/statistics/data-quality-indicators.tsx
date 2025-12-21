@@ -22,10 +22,7 @@ type DataQualityIndicatorsProps = {
     quality: QualityData;
 };
 
-export default function DataQualityIndicators({
-    placeholders,
-    quality,
-}: DataQualityIndicatorsProps) {
+export default function DataQualityIndicators({ placeholders, quality }: DataQualityIndicatorsProps) {
     const hasPlaceholders = placeholders.totalPlaceholders > 0;
     const isHighQuality = quality.percentageComplete >= 99;
 
@@ -35,23 +32,17 @@ export default function DataQualityIndicators({
             {isHighQuality ? (
                 <Alert className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                    <AlertTitle className="text-emerald-900 dark:text-emerald-100">
-                        Excellent Data Quality
-                    </AlertTitle>
+                    <AlertTitle className="text-emerald-900 dark:text-emerald-100">Excellent Data Quality</AlertTitle>
                     <AlertDescription className="text-emerald-800 dark:text-emerald-200">
-                        {quality.percentageComplete}% of related work entries have complete,
-                        valid data.
+                        {quality.percentageComplete}% of related work entries have complete, valid data.
                     </AlertDescription>
                 </Alert>
             ) : (
                 <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
                     <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <AlertTitle className="text-amber-900 dark:text-amber-100">
-                        Data Quality Needs Attention
-                    </AlertTitle>
+                    <AlertTitle className="text-amber-900 dark:text-amber-100">Data Quality Needs Attention</AlertTitle>
                     <AlertDescription className="text-amber-800 dark:text-amber-200">
-                        {quality.percentageComplete}% complete. {quality.incompleteOrPlaceholder}{' '}
-                        entries contain placeholder values.
+                        {quality.percentageComplete}% complete. {quality.incompleteOrPlaceholder} entries contain placeholder values.
                     </AlertDescription>
                 </Alert>
             )}
@@ -72,9 +63,7 @@ export default function DataQualityIndicators({
                         <AlertTriangle className="h-5 w-5 text-amber-500" />
                         <h4 className="text-sm font-medium">Placeholders</h4>
                     </div>
-                    <p className="mt-2 text-2xl font-bold">
-                        {quality.incompleteOrPlaceholder.toLocaleString()}
-                    </p>
+                    <p className="mt-2 text-2xl font-bold">{quality.incompleteOrPlaceholder.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">Entries with placeholder values</p>
                 </div>
 
@@ -98,8 +87,7 @@ export default function DataQualityIndicators({
                     <div className="space-y-2">
                         <p className="text-sm text-muted-foreground">
                             {placeholders.datasetsWithPlaceholders} dataset
-                            {placeholders.datasetsWithPlaceholders !== 1 ? 's' : ''} affected by{' '}
-                            {placeholders.totalPlaceholders} placeholder entr
+                            {placeholders.datasetsWithPlaceholders !== 1 ? 's' : ''} affected by {placeholders.totalPlaceholders} placeholder entr
                             {placeholders.totalPlaceholders !== 1 ? 'ies' : 'y'}:
                         </p>
                         <div className="rounded-md border">
@@ -113,12 +101,8 @@ export default function DataQualityIndicators({
                                 <tbody>
                                     {placeholders.patterns.map((pattern) => (
                                         <tr key={pattern.pattern} className="border-t">
-                                            <td className="p-2 font-mono text-xs">
-                                                "{pattern.pattern}"
-                                            </td>
-                                            <td className="p-2 text-right font-bold">
-                                                {pattern.count}
-                                            </td>
+                                            <td className="p-2 font-mono text-xs">"{pattern.pattern}"</td>
+                                            <td className="p-2 text-right font-bold">{pattern.count}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -133,9 +117,7 @@ export default function DataQualityIndicators({
                 <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>No Placeholder Values Found</AlertTitle>
-                    <AlertDescription>
-                        All related work entries contain valid, complete data.
-                    </AlertDescription>
+                    <AlertDescription>All related work entries contain valid, complete data.</AlertDescription>
                 </Alert>
             )}
         </div>

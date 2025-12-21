@@ -17,8 +17,7 @@ export interface TagInputChangeDetail {
     tags: TagInputItem[];
 }
 
-interface TagInputFieldProps
-    extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+interface TagInputFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
     id: string;
     label: string;
     value: TagInputItem[];
@@ -53,10 +52,7 @@ export function TagInputField({
         changeHandlerRef.current = onChange;
     }, [onChange]);
 
-    const mergedClassName = useMemo(
-        () => cn('flex flex-col gap-2', containerProps?.className, className),
-        [className, containerProps?.className],
-    );
+    const mergedClassName = useMemo(() => cn('flex flex-col gap-2', containerProps?.className, className), [className, containerProps?.className]);
 
     useEffect(() => {
         const inputElement = inputRef.current;
@@ -245,32 +241,19 @@ export function TagInputField({
     const labelId = `${id}-label`;
 
     // Only use aria-label when label is hidden; otherwise use aria-labelledby
-    const ariaProps = hideLabel
-        ? { 'aria-label': label }
-        : { 'aria-labelledby': labelId };
+    const ariaProps = hideLabel ? { 'aria-label': label } : { 'aria-labelledby': labelId };
 
     return (
         <div {...containerProps} className={mergedClassName}>
-            <Label
-                id={labelId}
-                htmlFor={id}
-                className={hideLabel ? 'sr-only' : undefined}
-            >
+            <Label id={labelId} htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>
                 {label}
                 {required && (
-                    <span aria-hidden="true" className="text-destructive ml-1">
+                    <span aria-hidden="true" className="ml-1 text-destructive">
                         *
                     </span>
                 )}
             </Label>
-            <input
-                ref={inputRef}
-                id={id}
-                placeholder={placeholder}
-                data-testid={dataTestId}
-                {...ariaProps}
-                {...inputProps}
-            />
+            <input ref={inputRef} id={id} placeholder={placeholder} data-testid={dataTestId} {...ariaProps} {...inputProps} />
         </div>
     );
 }

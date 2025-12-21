@@ -3,16 +3,16 @@
  * These types are used across components and tests to ensure consistency.
  */
 
-export type ResourceSortKey = 
-    | 'id' 
-    | 'doi' 
-    | 'title' 
-    | 'resourcetypegeneral' 
-    | 'first_author' 
-    | 'year' 
-    | 'curator' 
-    | 'publicstatus' 
-    | 'created_at' 
+export type ResourceSortKey =
+    | 'id'
+    | 'doi'
+    | 'title'
+    | 'resourcetypegeneral'
+    | 'first_author'
+    | 'year'
+    | 'curator'
+    | 'publicstatus'
+    | 'created_at'
     | 'updated_at';
 
 export type ResourceSortDirection = 'asc' | 'desc';

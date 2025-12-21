@@ -18,12 +18,12 @@ import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { 
-    type ResourceFilterOptions, 
-    type ResourceFilterState, 
-    type ResourceSortDirection, 
-    type ResourceSortKey, 
-    type ResourceSortState 
+import {
+    type ResourceFilterOptions,
+    type ResourceFilterState,
+    type ResourceSortDirection,
+    type ResourceSortKey,
+    type ResourceSortState,
 } from '@/types/resources';
 import { parseResourceFiltersFromUrl } from '@/utils/filter-parser';
 
@@ -120,8 +120,7 @@ const DEFAULT_DIRECTION_BY_KEY: Record<ResourceSortKey, ResourceSortDirection> =
     updated_at: 'desc',
 };
 
-const describeDirection = (direction: ResourceSortDirection): string =>
-    direction === 'asc' ? 'ascending' : 'descending';
+const describeDirection = (direction: ResourceSortDirection): string => (direction === 'asc' ? 'ascending' : 'descending');
 
 const isSortState = (value: unknown): value is ResourceSortState => {
     if (!value || typeof value !== 'object') {
@@ -129,16 +128,21 @@ const isSortState = (value: unknown): value is ResourceSortState => {
     }
 
     const maybeState = value as { key?: unknown; direction?: unknown };
-    
+
     const validKeys: ResourceSortKey[] = [
-        'id', 'doi', 'title', 'resourcetypegeneral', 
-        'first_author', 'year', 'curator', 
-        'publicstatus', 'created_at', 'updated_at'
+        'id',
+        'doi',
+        'title',
+        'resourcetypegeneral',
+        'first_author',
+        'year',
+        'curator',
+        'publicstatus',
+        'created_at',
+        'updated_at',
     ];
 
-    return (
-        validKeys.includes(maybeState.key as ResourceSortKey)
-    ) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
+    return validKeys.includes(maybeState.key as ResourceSortKey) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
 };
 
 const resolveDisplayDirection = (option: SortOption, sortState: ResourceSortState): ResourceSortDirection =>
@@ -179,13 +183,7 @@ const getSortLabel = (key: ResourceSortKey): string => {
     return labels[key];
 };
 
-const SortDirectionIndicator = ({
-    isActive,
-    direction,
-}: {
-    isActive: boolean;
-    direction: ResourceSortDirection;
-}) => {
+const SortDirectionIndicator = ({ isActive, direction }: { isActive: boolean; direction: ResourceSortDirection }) => {
     if (!isActive) {
         return <ArrowUpDown aria-hidden="true" className="size-3.5" />;
     }
@@ -209,12 +207,15 @@ const deriveResourceRowKey = (resource: Resource): string => {
     }
 
     const metadataSegments: string[] = [];
-    
+
     if (resource.title) metadataSegments.push(resource.title);
     if (resource.year) metadataSegments.push(String(resource.year));
     if (resource.created_at) metadataSegments.push(resource.created_at);
-    
-    return `resource-${metadataSegments.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '-')}`;
+
+    return `resource-${metadataSegments
+        .join('-')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')}`;
 };
 
 const getDateDetails = (isoDate: string | null): DateDetails => {
@@ -243,12 +244,7 @@ const getDateDetails = (isoDate: string | null): DateDetails => {
     }
 };
 
-const describeDate = (
-    label: string,
-    iso: string | null,
-    rawValue: string | null | undefined,
-    dateType: string,
-): string | null => {
+const describeDate = (label: string, iso: string | null, rawValue: string | null | undefined, dateType: string): string | null => {
     if (!rawValue || iso === null) {
         return null;
     }
@@ -330,7 +326,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             Object.entries(filters).forEach(([key, value]) => {
                 if (value !== undefined && value !== null && value !== '') {
                     if (Array.isArray(value)) {
-                        value.forEach(v => params.append(`${key}[]`, String(v)));
+                        value.forEach((v) => params.append(`${key}[]`, String(v)));
                     } else {
                         params.append(key, String(value));
                     }
@@ -339,11 +335,11 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
 
             const response = await axios.get(withBasePath('/resources/load-more'), { params });
 
-            setResources(prev => [...prev, ...(response.data.resources || [])]);
+            setResources((prev) => [...prev, ...(response.data.resources || [])]);
             setPagination(response.data.pagination);
         } catch (err) {
             console.error('Error loading more resources:', err);
-            
+
             if (isAxiosError(err)) {
                 const errorMessage = err.response?.data?.error || err.message;
                 setLoadingError(`Failed to load more resources: ${errorMessage}`);
@@ -395,62 +391,68 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         }
     }, [sortState]);
 
-    const handleSortChange = useCallback((key: ResourceSortKey) => {
-        const newDirection = determineNextDirection(sortState, key);
-        const newState = { key, direction: newDirection };
-        
-        setSortState(newState);
-        
-        // Build query string
-        const params = new URLSearchParams({
-            sort_key: newState.key,
-            sort_direction: newState.direction,
-        });
-        
-        // Add current filters
-        Object.entries(filters).forEach(([filterKey, value]) => {
-            if (value !== undefined && value !== null && value !== '') {
-                if (Array.isArray(value)) {
-                    value.forEach(v => params.append(`${filterKey}[]`, String(v)));
-                } else {
-                    params.append(filterKey, String(value));
+    const handleSortChange = useCallback(
+        (key: ResourceSortKey) => {
+            const newDirection = determineNextDirection(sortState, key);
+            const newState = { key, direction: newDirection };
+
+            setSortState(newState);
+
+            // Build query string
+            const params = new URLSearchParams({
+                sort_key: newState.key,
+                sort_direction: newState.direction,
+            });
+
+            // Add current filters
+            Object.entries(filters).forEach(([filterKey, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    if (Array.isArray(value)) {
+                        value.forEach((v) => params.append(`${filterKey}[]`, String(v)));
+                    } else {
+                        params.append(filterKey, String(value));
+                    }
                 }
-            }
-        });
-        
-        // Navigate to same page with new query params
-        router.visit(withBasePath(`/resources?${params.toString()}`), {
-            preserveState: false,
-            replace: true,
-        });
-    }, [sortState, filters]);
+            });
 
-    const handleFilterChange = useCallback((newFilters: ResourceFilterState) => {
-        setFilters(newFilters);
-        
-        // Build query string with current sort state
-        const params = new URLSearchParams({
-            sort_key: sortState.key,
-            sort_direction: sortState.direction,
-        });
+            // Navigate to same page with new query params
+            router.visit(withBasePath(`/resources?${params.toString()}`), {
+                preserveState: false,
+                replace: true,
+            });
+        },
+        [sortState, filters],
+    );
 
-        // Add filters to params
-        Object.entries(newFilters).forEach(([key, value]) => {
-            if (value !== undefined && value !== null && value !== '') {
-                if (Array.isArray(value)) {
-                    value.forEach(v => params.append(`${key}[]`, String(v)));
-                } else {
-                    params.append(key, String(value));
+    const handleFilterChange = useCallback(
+        (newFilters: ResourceFilterState) => {
+            setFilters(newFilters);
+
+            // Build query string with current sort state
+            const params = new URLSearchParams({
+                sort_key: sortState.key,
+                sort_direction: sortState.direction,
+            });
+
+            // Add filters to params
+            Object.entries(newFilters).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    if (Array.isArray(value)) {
+                        value.forEach((v) => params.append(`${key}[]`, String(v)));
+                    } else {
+                        params.append(key, String(value));
+                    }
                 }
-            }
-        });
+            });
 
-        // Navigate to same page with new query params
-        router.visit(withBasePath(`/resources?${params.toString()}`), {
-            preserveState: false,
-            replace: true,
-        });
-    }, [sortState]);
+            // Navigate to same page with new query params
+            router.visit(withBasePath(`/resources?${params.toString()}`), {
+                preserveState: false,
+                replace: true,
+            });
+        },
+        [sortState],
+    );
 
     // Infinite scrolling
     useEffect(() => {
@@ -521,7 +523,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     const handleDoiSuccess = useCallback((doi: string) => {
         // Refresh the resources list to show the new DOI
         router.reload({ only: ['resources'] });
-        
+
         toast.success(`DOI ${doi} successfully registered!`);
     }, []);
 
@@ -529,40 +531,41 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
      * Copy text to clipboard with toast notification
      */
     const copyToClipboard = useCallback((text: string, successMessage: string, successDescription?: string) => {
-        navigator.clipboard.writeText(text).then(() => {
-            toast.success(successMessage, {
-                description: successDescription,
-                duration: 3000,
+        navigator.clipboard
+            .writeText(text)
+            .then(() => {
+                toast.success(successMessage, {
+                    description: successDescription,
+                    duration: 3000,
+                });
+            })
+            .catch(() => {
+                toast.error('Failed to copy URL to clipboard');
             });
-        }).catch(() => {
-            toast.error('Failed to copy URL to clipboard');
-        });
     }, []);
 
-    const handleStatusBadgeClick = useCallback((resource: Resource, status: string) => {
-        if (status === 'published' && resource.doi) {
-            // Published: Open DOI URL and copy to clipboard
-            const doiUrl = `https://doi.org/${resource.doi}`;
-            
-            copyToClipboard(doiUrl, 'DOI URL copied to clipboard', doiUrl);
-            
-            // Open in new tab
-            window.open(doiUrl, '_blank', 'noopener,noreferrer');
-            
-        } else if (status === 'review' && resource.landingPage?.public_url) {
-            // Review: Open preview landing page and copy URL to clipboard
-            const previewUrl = resource.landingPage.public_url;
-            
-            copyToClipboard(
-                previewUrl, 
-                'Preview URL copied to clipboard',
-                'URL with access token copied for sharing with reviewers'
-            );
-            
-            // Open in new tab
-            window.open(previewUrl, '_blank', 'noopener,noreferrer');
-        }
-    }, [copyToClipboard]);
+    const handleStatusBadgeClick = useCallback(
+        (resource: Resource, status: string) => {
+            if (status === 'published' && resource.doi) {
+                // Published: Open DOI URL and copy to clipboard
+                const doiUrl = `https://doi.org/${resource.doi}`;
+
+                copyToClipboard(doiUrl, 'DOI URL copied to clipboard', doiUrl);
+
+                // Open in new tab
+                window.open(doiUrl, '_blank', 'noopener,noreferrer');
+            } else if (status === 'review' && resource.landingPage?.public_url) {
+                // Review: Open preview landing page and copy URL to clipboard
+                const previewUrl = resource.landingPage.public_url;
+
+                copyToClipboard(previewUrl, 'Preview URL copied to clipboard', 'URL with access token copied for sharing with reviewers');
+
+                // Open in new tab
+                window.open(previewUrl, '_blank', 'noopener,noreferrer');
+            }
+        },
+        [copyToClipboard],
+    );
 
     const [exportingResources, setExportingResources] = useState<Set<number>>(new Set());
     const [exportingXmlResources, setExportingXmlResources] = useState<Set<number>>(new Set());
@@ -578,23 +581,20 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         }
 
         // Mark resource as exporting
-        setExportingResources(prev => new Set(prev).add(resource.id!));
+        setExportingResources((prev) => new Set(prev).add(resource.id!));
 
         try {
-            const response = await axios.get(
-                withBasePath(`/resources/${resource.id}/export-datacite-json`),
-                {
-                    responseType: 'blob', // Important for file download
-                }
-            );
+            const response = await axios.get(withBasePath(`/resources/${resource.id}/export-datacite-json`), {
+                responseType: 'blob', // Important for file download
+            });
 
             // Create blob from response
             const blob = new Blob([response.data], { type: 'application/json' });
-            
+
             // Get filename from Content-Disposition header or generate it
             const contentDisposition = response.headers['content-disposition'] as string | undefined;
             let filename = `resource-${resource.id}-datacite.json`;
-            
+
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
                 if (filenameMatch) {
@@ -609,7 +609,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             link.download = filename;
             document.body.appendChild(link);
             link.click();
-            
+
             // Cleanup
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
@@ -617,7 +617,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             toast.success('DataCite JSON exported successfully');
         } catch (error) {
             console.error('Failed to export DataCite JSON:', error);
-            
+
             let errorMessage = 'Failed to export DataCite JSON';
             if (isAxiosError(error) && error.response?.data) {
                 try {
@@ -629,11 +629,11 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     // Ignore parsing errors
                 }
             }
-            
+
             toast.error(errorMessage);
         } finally {
             // Remove resource from exporting set
-            setExportingResources(prev => {
+            setExportingResources((prev) => {
                 const next = new Set(prev);
                 next.delete(resource.id!);
                 return next;
@@ -648,15 +648,12 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         }
 
         // Mark resource as exporting
-        setExportingXmlResources(prev => new Set(prev).add(resource.id!));
+        setExportingXmlResources((prev) => new Set(prev).add(resource.id!));
 
         try {
-            const response = await axios.get(
-                withBasePath(`/resources/${resource.id}/export-datacite-xml`),
-                {
-                    responseType: 'blob', // Important for file download
-                }
-            );
+            const response = await axios.get(withBasePath(`/resources/${resource.id}/export-datacite-xml`), {
+                responseType: 'blob', // Important for file download
+            });
 
             // Check for validation warning in headers
             const validationWarning = response.headers['x-validation-warning'];
@@ -678,11 +675,11 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
 
             // Create blob from response
             const blob = new Blob([response.data], { type: 'application/xml' });
-            
+
             // Get filename from Content-Disposition header or generate it
             const contentDisposition = response.headers['content-disposition'] as string | undefined;
             let filename = `resource-${resource.id}-datacite.xml`;
-            
+
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
                 if (filenameMatch) {
@@ -697,7 +694,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             link.download = filename;
             document.body.appendChild(link);
             link.click();
-            
+
             // Cleanup
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
@@ -709,7 +706,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             }
         } catch (error) {
             console.error('Failed to export DataCite XML:', error);
-            
+
             let errorMessage = 'Failed to export DataCite XML';
             if (isAxiosError(error) && error.response?.data) {
                 try {
@@ -721,11 +718,11 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     console.debug('Failed to parse error response:', e);
                 }
             }
-            
+
             toast.error(errorMessage);
         } finally {
             // Remove resource from exporting set
-            setExportingXmlResources(prev => {
+            setExportingXmlResources((prev) => {
                 const next = new Set(prev);
                 next.delete(resource.id!);
                 return next;
@@ -765,20 +762,13 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     : 'text-sm text-gray-500 dark:text-gray-400 italic';
 
                 return (
-                    <div
-                        className="flex flex-col gap-1 text-left"
-                        aria-label={`Resource ID: ${idValue}. DOI: ${identifierValue}`}
-                    >
+                    <div className="flex flex-col gap-1 text-left" aria-label={`Resource ID: ${idValue}. DOI: ${identifierValue}`}>
                         <span
-                            className={hasId
-                                ? 'text-sm font-semibold text-gray-900 dark:text-gray-100'
-                                : 'text-sm text-gray-500 dark:text-gray-300'}
+                            className={hasId ? 'text-sm font-semibold text-gray-900 dark:text-gray-100' : 'text-sm text-gray-500 dark:text-gray-300'}
                         >
                             {idValue}
                         </span>
-                        <span className={identifierClasses}>
-                            {identifierValue}
-                        </span>
+                        <span className={identifierClasses}>{identifierValue}</span>
                     </div>
                 );
             },
@@ -812,12 +802,8 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
 
                 return (
                     <div className="flex flex-col gap-1 text-left">
-                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed wrap-break-word">
-                            {title}
-                        </span>
-                        <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                            {resourceType}
-                        </span>
+                        <span className="text-sm leading-relaxed font-normal wrap-break-word text-gray-900 dark:text-gray-100">{title}</span>
+                        <span className="text-sm whitespace-nowrap text-gray-600 dark:text-gray-300">{resourceType}</span>
                     </div>
                 );
             },
@@ -836,7 +822,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 {
                     key: 'first_author',
                     label: 'Author',
-                    description: 'Sort by the first author\'s last name',
+                    description: "Sort by the first author's last name",
                 },
                 {
                     key: 'year',
@@ -897,8 +883,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 const status = resource.publicstatus ?? 'curation';
 
                 // Determine if badge is clickable
-                const isClickable = (status === 'published' && resource.doi) || 
-                                   (status === 'review' && resource.landingPage?.public_url);
+                const isClickable = (status === 'published' && resource.doi) || (status === 'review' && resource.landingPage?.public_url);
 
                 // Determine badge style based on status
                 let statusClasses = 'text-sm px-2 py-0.5 rounded-md font-medium inline-flex items-center justify-center';
@@ -931,12 +916,16 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             onClick={isClickable ? () => handleStatusBadgeClick(resource, status) : undefined}
                             role={isClickable ? 'button' : undefined}
                             tabIndex={isClickable ? 0 : undefined}
-                            onKeyDown={isClickable ? (e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    handleStatusBadgeClick(resource, status);
-                                }
-                            } : undefined}
+                            onKeyDown={
+                                isClickable
+                                    ? (e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                              e.preventDefault();
+                                              handleStatusBadgeClick(resource, status);
+                                          }
+                                      }
+                                    : undefined
+                            }
                             aria-label={ariaLabel}
                             title={ariaLabel}
                         >
@@ -976,10 +965,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 const dateColumnAriaLabel = ariaLabelParts.length > 0 ? ariaLabelParts.join('. ') : undefined;
 
                 return (
-                    <div
-                        className={DATE_COLUMN_CONTAINER_CLASSES}
-                        aria-label={dateColumnAriaLabel}
-                    >
+                    <div className={DATE_COLUMN_CONTAINER_CLASSES} aria-label={dateColumnAriaLabel}>
                         {renderDateContent(createdDetails)}
                         {renderDateContent(updatedDetails)}
                     </div>
@@ -1035,16 +1021,12 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                         <CardTitle asChild>
                             <h1 className="text-2xl font-semibold tracking-tight">Resources</h1>
                         </CardTitle>
-                        <CardDescription>
-                            Overview of curated resources in ERNIE
-                        </CardDescription>
+                        <CardDescription>Overview of curated resources in ERNIE</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {error ? (
                             <Alert className="mb-4" variant="destructive">
-                                <AlertDescription>
-                                    {error}
-                                </AlertDescription>
+                                <AlertDescription>{error}</AlertDescription>
                             </Alert>
                         ) : null}
 
@@ -1052,13 +1034,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             <Alert className="mb-4" variant="destructive">
                                 <AlertDescription>
                                     {loadingError}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="ml-2"
-                                        onClick={handleRetry}
-                                        disabled={loading}
-                                    >
+                                    <Button variant="outline" size="sm" className="ml-2" onClick={handleRetry} disabled={loading}>
                                         Retry
                                     </Button>
                                 </AlertDescription>
@@ -1076,15 +1052,14 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                         />
 
                         {sortedResources.length === 0 && !loading && !loadingError ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                {error ?
-                                    "No resources available. Please check the database connection." :
-                                    "No resources found matching your filters."
-                                }
+                            <div className="py-8 text-center text-muted-foreground">
+                                {error
+                                    ? 'No resources available. Please check the database connection.'
+                                    : 'No resources found matching your filters.'}
                             </div>
                         ) : (
                             <>
-                                <div className="mb-4 flex items-center gap-2 flex-wrap">
+                                <div className="mb-4 flex flex-wrap items-center gap-2">
                                     <Badge variant="outline" className="text-xs">
                                         Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
                                     </Badge>
@@ -1098,8 +1073,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                             <tr>
                                                 {resourceColumns.map((column) => {
                                                     const isColumnSorted =
-                                                        column.sortOptions?.some(option => option.key === sortState.key) ??
-                                                        false;
+                                                        column.sortOptions?.some((option) => option.key === sortState.key) ?? false;
                                                     const ariaSortValue = isColumnSorted
                                                         ? sortState.direction === 'asc'
                                                             ? 'ascending'
@@ -1109,7 +1083,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                     return (
                                                         <th
                                                             key={column.key}
-                                                            className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${column.widthClass}`}
+                                                            className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
                                                             scope="col"
                                                         >
@@ -1119,16 +1093,10 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                     role="group"
                                                                     aria-label={column.sortGroupLabel ?? 'Sorting options'}
                                                                 >
-                                                                    {column.sortOptions.map(option => {
+                                                                    {column.sortOptions.map((option) => {
                                                                         const isActive = sortState.key === option.key;
-                                                                        const displayDirection = resolveDisplayDirection(
-                                                                            option,
-                                                                            sortState,
-                                                                        );
-                                                                        const buttonLabel = buildSortButtonLabel(
-                                                                            option,
-                                                                            sortState,
-                                                                        );
+                                                                        const displayDirection = resolveDisplayDirection(option, sortState);
+                                                                        const buttonLabel = buildSortButtonLabel(option, sortState);
 
                                                                         return (
                                                                             <Button
@@ -1136,7 +1104,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                                 type="button"
                                                                                 variant={isActive ? 'secondary' : 'ghost'}
                                                                                 size="sm"
-                                                                                className="h-7 px-2 text-xs font-medium justify-start"
+                                                                                className="h-7 justify-start px-2 text-xs font-medium"
                                                                                 onClick={() => handleSortChange(option.key)}
                                                                                 aria-pressed={isActive}
                                                                                 aria-label={buttonLabel}
@@ -1152,7 +1120,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                     })}
                                                                 </div>
                                                             ) : (
-                                                                <div className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
+                                                                <div className="text-left text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-300">
                                                                     {column.label}
                                                                 </div>
                                                             )}
@@ -1160,20 +1128,18 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                     );
                                                 })}
                                                 <th
-                                                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                    className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                 >
                                                     Actions
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                                             {loading && sortedResources.length === 0 && <LoadingSkeleton />}
                                             {sortedResources.map((resource, index) => {
                                                 const isLast = index === sortedResources.length - 1;
                                                 const resourceLabel =
-                                                    resource.doi ??
-                                                    resource.title ??
-                                                    (resource.id !== undefined ? `#${resource.id}` : 'entry');
+                                                    resource.doi ?? resource.title ?? (resource.id !== undefined ? `#${resource.id}` : 'entry');
                                                 return (
                                                     <tr
                                                         key={deriveResourceRowKey(resource)}
@@ -1190,7 +1156,9 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                     : formatValue(column.key, resource[column.key])}
                                                             </td>
                                                         ))}
-                                                        <td className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                                                        <td
+                                                            className={`px-6 py-1.5 align-middle text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                        >
                                                             <div className="flex flex-col gap-0.5">
                                                                 <div className="flex items-center gap-1">
                                                                     <Button
@@ -1220,7 +1188,9 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                             size="icon"
                                                                             onClick={() => handleRegisterDoi(resource)}
                                                                             aria-label={`Register DOI for resource ${resourceLabel}`}
-                                                                            title={resource.doi ? 'Update DOI metadata' : 'Register DOI with DataCite'}
+                                                                            title={
+                                                                                resource.doi ? 'Update DOI metadata' : 'Register DOI with DataCite'
+                                                                            }
                                                                         >
                                                                             <DataCiteIcon aria-hidden="true" className="size-4" />
                                                                         </Button>
@@ -1256,7 +1226,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                                                         disabled
                                                                         aria-label={`Delete resource ${resourceLabel} (not yet implemented)`}
                                                                         title="Delete resource (not yet implemented)"
-                                                                        className="opacity-40 cursor-not-allowed"
+                                                                        className="cursor-not-allowed opacity-40"
                                                                     >
                                                                         <Trash2 aria-hidden="true" className="size-4" />
                                                                     </Button>
@@ -1271,7 +1241,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                     </table>
 
                                     {!loading && !pagination.has_more && sortedResources.length > 0 && (
-                                        <div className="text-center py-4 text-muted-foreground text-sm">
+                                        <div className="py-4 text-center text-sm text-muted-foreground">
                                             All resources have been loaded ({pagination.total} total)
                                         </div>
                                     )}

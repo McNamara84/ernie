@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
@@ -56,6 +57,12 @@ Route::get('/changelog', function () {
 Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
     ->where('resourceId', '[0-9]+');
+
+// Contact form for landing pages (public, rate-limited)
+Route::post('datasets/{resourceId}/contact', [ContactMessageController::class, 'store'])
+    ->name('landing-page.contact')
+    ->where('resourceId', '[0-9]+')
+    ->middleware('throttle:10,1'); // Additional Laravel throttle: 10 requests per minute
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
@@ -335,8 +342,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $allAffiliations = $group->flatMap(function ($creator) {
                     return $creator->affiliations;
                 })->unique(function ($affiliation) {
-                    // Unique by name and affiliation_identifier combination
-                    return $affiliation->name.'|'.($affiliation->affiliation_identifier ?? 'null');
+                    // Unique by name and identifier combination
+                    return $affiliation->name.'|'.($affiliation->identifier ?? 'null');
                 });
 
                 // All ResourceCreator entries are creators in DataCite 4.6
@@ -360,12 +367,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 }
 
                 // Add unique affiliations - map to frontend field names
-                $data['affiliations'] = $allAffiliations->map(function ($affiliation) {
-                    return [
-                        'value' => $affiliation->name,
-                        'rorId' => $affiliation->affiliation_identifier,
-                    ];
-                })->values()->toArray();
+                $data['affiliations'] = $allAffiliations->map(fn (\App\Models\Affiliation $affiliation): array => [
+                    'value' => $affiliation->name,
+                    'rorId' => $affiliation->identifier,
+                ])->values()->toArray();
 
                 $authors[] = $data;
             }
@@ -525,7 +530,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         'identifier' => $institution->name_identifier ?? '',
                         'name' => $institution->name ?? '',
                         'affiliation_name' => $affiliation->name ?? '',
-                        'affiliation_ror' => $affiliation->affiliation_identifier ?? '',
+                        'affiliation_ror' => $affiliation->identifier ?? '',
                         'position' => $creator->position,
                     ];
                 })

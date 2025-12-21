@@ -349,9 +349,9 @@ class DataCiteJsonExporter
                 'name' => $affiliation->name,
             ];
 
-            if ($affiliation->affiliation_identifier) {
-                $affiliationData['affiliationIdentifier'] = $affiliation->affiliation_identifier;
-                $affiliationData['affiliationIdentifierScheme'] = $affiliation->affiliation_identifier_scheme ?? 'ROR';
+            if ($affiliation->identifier) {
+                $affiliationData['affiliationIdentifier'] = $affiliation->identifier;
+                $affiliationData['affiliationIdentifierScheme'] = $affiliation->identifier_scheme ?? 'ROR';
                 if ($affiliation->scheme_uri) {
                     $affiliationData['schemeUri'] = $affiliation->scheme_uri;
                 }

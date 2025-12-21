@@ -25,7 +25,7 @@ function highlightText(text: string, query?: string): React.ReactNode {
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
     return parts.map((part, index) =>
         part.toLowerCase() === query.toLowerCase() ? (
-            <mark key={index} className="bg-yellow-200 dark:bg-yellow-900/50 font-medium">
+            <mark key={index} className="bg-yellow-200 font-medium dark:bg-yellow-900/50">
                 {part}
             </mark>
         ) : (
@@ -38,14 +38,7 @@ function highlightText(text: string, query?: string): React.ReactNode {
  * Recursive tree node component for GCMD controlled vocabularies
  * Memoized to prevent unnecessary re-renders when parent updates
  */
-const GCMDTreeNodeComponent = ({
-    node,
-    selectedIds,
-    onToggle,
-    level = 0,
-    pathPrefix = [],
-    searchQuery,
-}: GCMDTreeNodeProps) => {
+const GCMDTreeNodeComponent = ({ node, selectedIds, onToggle, level = 0, pathPrefix = [], searchQuery }: GCMDTreeNodeProps) => {
     // Check if this node or any of its descendants are selected
     const hasSelectedDescendant = (keyword: GCMDKeyword): boolean => {
         if (selectedIds.has(keyword.id)) return true;
@@ -58,7 +51,7 @@ const GCMDTreeNodeComponent = ({
     // 2. Node or any descendant is selected (to show selected keywords)
     const shouldAutoExpand = level === 0 || hasSelectedDescendant(node);
     const [isExpanded, setIsExpanded] = useState(shouldAutoExpand);
-    
+
     const hasChildren = node.children && node.children.length > 0;
     const isSelected = selectedIds.has(node.id);
     const currentPath = [...pathPrefix, node.text];
@@ -77,7 +70,7 @@ const GCMDTreeNodeComponent = ({
         <div className="select-none">
             <div
                 className={cn(
-                    'flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-accent/50 transition-colors group',
+                    'group flex items-center gap-2 rounded-md px-2 py-1.5 transition-colors hover:bg-accent/50',
                     level === 0 && 'font-semibold',
                 )}
                 style={{ paddingLeft: `${level * 1.5 + 0.5}rem` }}
@@ -86,34 +79,22 @@ const GCMDTreeNodeComponent = ({
                 <button
                     type="button"
                     onClick={handleExpand}
-                    className={cn(
-                        'flex-shrink-0 w-4 h-4 flex items-center justify-center',
-                        !hasChildren && 'invisible',
-                    )}
+                    className={cn('flex h-4 w-4 flex-shrink-0 items-center justify-center', !hasChildren && 'invisible')}
                     aria-label={isExpanded ? 'Collapse' : 'Expand'}
                 >
                     {hasChildren &&
                         (isExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         ) : (
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         ))}
                 </button>
 
                 {/* Checkbox */}
-                <Checkbox
-                    id={`gcmd-node-${node.id}`}
-                    checked={isSelected}
-                    onCheckedChange={handleToggle}
-                    className="flex-shrink-0"
-                />
+                <Checkbox id={`gcmd-node-${node.id}`} checked={isSelected} onCheckedChange={handleToggle} className="flex-shrink-0" />
 
                 {/* Label */}
-                <label
-                    htmlFor={`gcmd-node-${node.id}`}
-                    className="flex-1 cursor-pointer text-sm leading-tight"
-                    title={node.description || node.text}
-                >
+                <label htmlFor={`gcmd-node-${node.id}`} className="flex-1 cursor-pointer text-sm leading-tight" title={node.description || node.text}>
                     {highlightText(node.text, searchQuery)}
                 </label>
             </div>
@@ -141,11 +122,7 @@ const GCMDTreeNodeComponent = ({
 // Memoize the component to prevent re-renders when props haven't changed
 export const GCMDTreeNode = memo(GCMDTreeNodeComponent, (prevProps, nextProps) => {
     // Custom comparison function for better performance
-    return (
-        prevProps.node.id === nextProps.node.id &&
-        prevProps.selectedIds === nextProps.selectedIds &&
-        prevProps.level === nextProps.level
-    );
+    return prevProps.node.id === nextProps.node.id && prevProps.selectedIds === nextProps.selectedIds && prevProps.level === nextProps.level;
 });
 
 interface GCMDTreeProps {
@@ -159,31 +136,15 @@ interface GCMDTreeProps {
 /**
  * Tree view for GCMD controlled vocabularies
  */
-export function GCMDTree({
-    keywords,
-    selectedIds,
-    onToggle,
-    emptyMessage,
-    searchQuery,
-}: GCMDTreeProps) {
+export function GCMDTree({ keywords, selectedIds, onToggle, emptyMessage, searchQuery }: GCMDTreeProps) {
     if (!keywords || keywords.length === 0) {
-        return (
-            <div className="text-sm text-muted-foreground text-center py-8">
-                {emptyMessage || 'No keywords available'}
-            </div>
-        );
+        return <div className="py-8 text-center text-sm text-muted-foreground">{emptyMessage || 'No keywords available'}</div>;
     }
 
     return (
-        <div className="space-y-1 max-h-96 overflow-y-auto border rounded-md p-2 bg-muted/10">
+        <div className="max-h-96 space-y-1 overflow-y-auto rounded-md border bg-muted/10 p-2">
             {keywords.map((keyword) => (
-                <GCMDTreeNode
-                    key={keyword.id}
-                    node={keyword}
-                    selectedIds={selectedIds}
-                    onToggle={onToggle}
-                    searchQuery={searchQuery}
-                />
+                <GCMDTreeNode key={keyword.id} node={keyword} selectedIds={selectedIds} onToggle={onToggle} searchQuery={searchQuery} />
             ))}
         </div>
     );

@@ -16,9 +16,7 @@ export default function StatsCard({ title, value, description, icon }: StatsCard
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">{value}</div>
-                {description && (
-                    <CardDescription className="text-xs">{description}</CardDescription>
-                )}
+                {description && <CardDescription className="text-xs">{description}</CardDescription>}
             </CardContent>
         </Card>
     );

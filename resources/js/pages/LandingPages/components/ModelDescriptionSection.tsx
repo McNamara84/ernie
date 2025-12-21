@@ -15,20 +15,16 @@ interface ModelDescriptionSectionProps {
 
 /**
  * Model Description Section
- * 
+ *
  * Zeigt die IsSupplementTo-Relation mit Zitation von der DOI an.
  */
-export function ModelDescriptionSection({
-    relatedIdentifiers,
-}: ModelDescriptionSectionProps) {
+export function ModelDescriptionSection({ relatedIdentifiers }: ModelDescriptionSectionProps) {
     const [citation, setCitation] = useState<string | null>(null);
     const [doi, setDoi] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     // Finde die IsSupplementTo-Relation
-    const supplementTo = relatedIdentifiers.find(
-        (rel) => rel.relation_type === 'IsSupplementTo',
-    );
+    const supplementTo = relatedIdentifiers.find((rel) => rel.relation_type === 'IsSupplementTo');
 
     useEffect(() => {
         if (!supplementTo || supplementTo.identifier_type !== 'DOI') {
@@ -60,14 +56,10 @@ export function ModelDescriptionSection({
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                Model Description
-            </h3>
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">Model Description</h3>
 
             <div className="space-y-3">
-                {loading && (
-                    <p className="text-sm text-gray-500">Loading citation...</p>
-                )}
+                {loading && <p className="text-sm text-gray-500">Loading citation...</p>}
 
                 {!loading && citation && doi && (
                     <a

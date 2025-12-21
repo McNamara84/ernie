@@ -16,10 +16,7 @@ interface FundingReferenceFieldProps {
     onChange: (fundings: FundingReferenceEntry[]) => void;
 }
 
-export function FundingReferenceField({
-    value = [],
-    onChange,
-}: FundingReferenceFieldProps) {
+export function FundingReferenceField({ value = [], onChange }: FundingReferenceFieldProps) {
     const [rorFunders, setRorFunders] = useState<RorFunder[]>([]);
     const [isLoadingRor, setIsLoadingRor] = useState(true);
 
@@ -28,7 +25,7 @@ export function FundingReferenceField({
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
-        })
+        }),
     );
 
     // Load ROR data on mount
@@ -92,21 +89,13 @@ export function FundingReferenceField({
         onChange(updated);
     };
 
-    const handleFieldChange = (
-        index: number,
-        field: keyof FundingReferenceEntry,
-        fieldValue: string | boolean
-    ) => {
-        const updated = value.map((funding, i) =>
-            i === index ? { ...funding, [field]: fieldValue } : funding
-        );
+    const handleFieldChange = (index: number, field: keyof FundingReferenceEntry, fieldValue: string | boolean) => {
+        const updated = value.map((funding, i) => (i === index ? { ...funding, [field]: fieldValue } : funding));
         onChange(updated);
     };
 
     const handleFieldsChange = (index: number, fields: Partial<FundingReferenceEntry>) => {
-        const updated = value.map((funding, i) =>
-            i === index ? { ...funding, ...fields } : funding
-        );
+        const updated = value.map((funding, i) => (i === index ? { ...funding, ...fields } : funding));
         onChange(updated);
     };
 
@@ -142,54 +131,29 @@ export function FundingReferenceField({
                     {value.length} / {MAX_FUNDING_REFERENCES} funding reference
                     {value.length !== 1 ? 's' : ''}
                 </p>
-                {isLoadingRor && (
-                    <p className="text-xs text-muted-foreground">
-                        Loading ROR data...
-                    </p>
-                )}
+                {isLoadingRor && <p className="text-xs text-muted-foreground">Loading ROR data...</p>}
             </div>
 
             {/* List of Funding References */}
             {value.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center">
-                    <p className="text-sm text-muted-foreground">
-                        No funding references added yet.
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Click "Add Funding Reference" to get started.
-                    </p>
+                    <p className="text-sm text-muted-foreground">No funding references added yet.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Click "Add Funding Reference" to get started.</p>
                 </div>
             ) : (
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                >
-                    <SortableContext
-                        items={value.map((f) => f.id)}
-                        strategy={verticalListSortingStrategy}
-                    >
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={value.map((f) => f.id)} strategy={verticalListSortingStrategy}>
                         <div className="space-y-4">
                             {value.map((funding, index) => (
                                 <SortableFundingReferenceItem
                                     key={funding.id}
                                     funding={funding}
                                     index={index}
-                                    onFunderNameChange={(val: string) =>
-                                        handleFieldChange(index, 'funderName', val)
-                                    }
-                                    onFieldsChange={(fields: Partial<FundingReferenceEntry>) =>
-                                        handleFieldsChange(index, fields)
-                                    }
-                                    onAwardNumberChange={(val: string) =>
-                                        handleFieldChange(index, 'awardNumber', val)
-                                    }
-                                    onAwardUriChange={(val: string) =>
-                                        handleFieldChange(index, 'awardUri', val)
-                                    }
-                                    onAwardTitleChange={(val: string) =>
-                                        handleFieldChange(index, 'awardTitle', val)
-                                    }
+                                    onFunderNameChange={(val: string) => handleFieldChange(index, 'funderName', val)}
+                                    onFieldsChange={(fields: Partial<FundingReferenceEntry>) => handleFieldsChange(index, fields)}
+                                    onAwardNumberChange={(val: string) => handleFieldChange(index, 'awardNumber', val)}
+                                    onAwardUriChange={(val: string) => handleFieldChange(index, 'awardUri', val)}
+                                    onAwardTitleChange={(val: string) => handleFieldChange(index, 'awardTitle', val)}
                                     onToggleExpanded={() => handleToggleExpanded(index)}
                                     onRemove={() => handleRemove(index)}
                                     canRemove={canRemove}
@@ -202,14 +166,7 @@ export function FundingReferenceField({
             )}
 
             {/* Add Button */}
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAdd}
-                disabled={!canAdd}
-                className="w-full"
-            >
+            <Button type="button" variant="outline" size="sm" onClick={handleAdd} disabled={!canAdd} className="w-full">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Funding Reference
                 {!canAdd && ' (Maximum reached)'}

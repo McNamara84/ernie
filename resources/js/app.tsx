@@ -44,7 +44,7 @@ axios.interceptors.request.use(
     },
     function (error) {
         return Promise.reject(error);
-    }
+    },
 );
 
 // Add response interceptor to handle CSRF token refresh on 419 errors
@@ -59,14 +59,14 @@ axios.interceptors.response.use(
             window.location.reload();
         }
         return Promise.reject(error);
-    }
+    },
 );
 
 // Setup URL transformation for production
 setupUrlTransformation();
 
 createInertiaApp({
-    title: (title) => title ? `${title} - ${appName}` : appName,
+    title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
     setup({ el, App, props }) {
         // Initialize font size before rendering
@@ -81,7 +81,7 @@ createInertiaApp({
     },
     onError: (errors) => {
         console.error('[Inertia] Error:', errors);
-        
+
         // Check if it's a 419 CSRF error
         if (typeof errors === 'object' && errors !== null) {
             const errorObj = errors as { response?: { status?: number }; status?: number };

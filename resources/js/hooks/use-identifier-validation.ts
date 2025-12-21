@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-    type DataCiteMetadata,
-    resolveDOIMetadata,
-    supportsMetadataResolution,
-    validateIdentifierFormat,
-} from '@/lib/doi-validation';
+import { type DataCiteMetadata, resolveDOIMetadata, supportsMetadataResolution, validateIdentifierFormat } from '@/lib/doi-validation';
 
 export interface ValidationState {
     status: 'idle' | 'validating' | 'valid' | 'invalid' | 'warning';
@@ -22,32 +17,24 @@ interface UseIdentifierValidationProps {
 
 /**
  * Hook for validating identifiers with format check and optional API resolution
- * 
+ *
  * Features:
  * - Format validation (immediate)
  * - API metadata resolution for DOIs (debounced, non-blocking)
  * - Timeout handling
  * - Warning instead of error for API failures
  */
-export function useIdentifierValidation({
-    identifier,
-    identifierType,
-    enabled = true,
-    debounceMs = 1000,
-}: UseIdentifierValidationProps) {
+export function useIdentifierValidation({ identifier, identifierType, enabled = true, debounceMs = 1000 }: UseIdentifierValidationProps) {
     const [validationState, setValidationState] = useState<ValidationState>({
         status: 'idle',
     });
 
     // Memoize the async validation function
     // This function performs format validation and API resolution for DOIs
-    const performValidation = useCallback(async (
-        identifierValue: string,
-        identifierTypeValue: string
-    ) => {
+    const performValidation = useCallback(async (identifierValue: string, identifierTypeValue: string) => {
         // Step 1: Format validation (instant)
         const formatResult = validateIdentifierFormat(identifierValue, identifierTypeValue);
-        
+
         if (!formatResult.isValid) {
             setValidationState({
                 status: 'invalid',
@@ -62,13 +49,11 @@ export function useIdentifierValidation({
 
             try {
                 const result = await resolveDOIMetadata(identifierValue);
-                
+
                 if (result.success && result.metadata) {
                     setValidationState({
                         status: 'valid',
-                        message: result.metadata.title 
-                            ? `Verified: ${result.metadata.title}`
-                            : 'DOI verified',
+                        message: result.metadata.title ? `Verified: ${result.metadata.title}` : 'DOI verified',
                         metadata: result.metadata,
                     });
                 } else {
@@ -104,7 +89,7 @@ export function useIdentifierValidation({
 
         // Immediate format check (no API call)
         const formatResult = validateIdentifierFormat(identifier, identifierType);
-        
+
         if (!formatResult.isValid) {
             setValidationState({
                 status: 'invalid',

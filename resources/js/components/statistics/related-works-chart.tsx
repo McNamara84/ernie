@@ -1,13 +1,4 @@
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 type RelatedWorksData = {
     topDatasets: Array<{
@@ -74,9 +65,7 @@ const COLORS = [
 export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
     // Sort distribution by custom order
     const rangeOrder = ['1-10', '11-25', '26-50', '51-100', '101-200', '201-400', '400+'];
-    const sortedDistribution = [...data.distribution].sort(
-        (a, b) => rangeOrder.indexOf(a.range) - rangeOrder.indexOf(b.range),
-    );
+    const sortedDistribution = [...data.distribution].sort((a, b) => rangeOrder.indexOf(a.range) - rangeOrder.indexOf(b.range));
 
     const chartData = sortedDistribution.map((item) => ({
         range: item.range,
@@ -115,20 +104,12 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
                                         <div className="rounded-lg border bg-background p-2 shadow-sm">
                                             <div className="grid gap-2">
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Range
-                                                    </span>
-                                                    <span className="font-bold">
-                                                        {payload[0].payload.range} related works
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Range</span>
+                                                    <span className="font-bold">{payload[0].payload.range} related works</span>
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Datasets
-                                                    </span>
-                                                    <span className="font-bold text-muted-foreground">
-                                                        {payload[0].payload.datasets}
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Datasets</span>
+                                                    <span className="font-bold text-muted-foreground">{payload[0].payload.datasets}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -148,9 +129,7 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
 
             {/* Top Datasets Table */}
             <div>
-                <h4 className="mb-4 text-sm font-medium">
-                    Top 20 Datasets with Most Related Works
-                </h4>
+                <h4 className="mb-4 text-sm font-medium">Top 20 Datasets with Most Related Works</h4>
                 <div className="max-h-[400px] overflow-y-auto rounded-md border">
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-muted">
@@ -167,11 +146,7 @@ export default function RelatedWorksChart({ data }: RelatedWorksChartProps) {
                                     <td className="p-2">{index + 1}</td>
                                     <td className="p-2 font-mono text-xs">{dataset.identifier}</td>
                                     <td className="p-2">
-                                        {dataset.title
-                                            ? dataset.title.length > 60
-                                                ? dataset.title.substring(0, 57) + '...'
-                                                : dataset.title
-                                            : '-'}
+                                        {dataset.title ? (dataset.title.length > 60 ? dataset.title.substring(0, 57) + '...' : dataset.title) : '-'}
                                     </td>
                                     <td className="p-2 text-right font-bold">{dataset.count}</td>
                                 </tr>

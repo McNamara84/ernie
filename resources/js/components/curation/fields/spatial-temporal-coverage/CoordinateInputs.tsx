@@ -1,5 +1,3 @@
-import React from 'react';
-
 import { Label } from '@/components/ui/label';
 
 import InputField from '../input-field';
@@ -62,14 +60,7 @@ const isValidLongitude = (value: string): boolean => {
     return !isNaN(num) && num >= -180 && num <= 180;
 };
 
-export default function CoordinateInputs({
-    latMin,
-    lonMin,
-    latMax,
-    lonMax,
-    onChange,
-    showLabels = true,
-}: CoordinateInputsProps) {
+export default function CoordinateInputs({ latMin, lonMin, latMax, lonMax, onChange, showLabels = true }: CoordinateInputsProps) {
     const handleChange = (field: 'latMin' | 'lonMin' | 'latMax' | 'lonMax', value: string) => {
         const formatted = formatCoordinate(value);
         onChange(field, formatted);
@@ -77,16 +68,12 @@ export default function CoordinateInputs({
 
     return (
         <div className="space-y-4">
-            {showLabels && (
-                <Label className="text-sm font-medium">Coordinates</Label>
-            )}
+            {showLabels && <Label className="text-sm font-medium">Coordinates</Label>}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 {/* Min Coordinates (Required) */}
                 <div className="space-y-3">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase">
-                        Min (Required)
-                    </Label>
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase">Min (Required)</Label>
                     <div className="space-y-2">
                         <InputField
                             id="lat-min"
@@ -96,17 +83,9 @@ export default function CoordinateInputs({
                             onChange={(e) => handleChange('latMin', e.target.value)}
                             placeholder="e.g., 48.137154"
                             required
-                            className={
-                                latMin && !isValidLatitude(latMin)
-                                    ? 'border-destructive'
-                                    : ''
-                            }
+                            className={latMin && !isValidLatitude(latMin) ? 'border-destructive' : ''}
                         />
-                        {latMin && !isValidLatitude(latMin) && (
-                            <p className="text-xs text-destructive">
-                                Latitude must be between -90 and +90
-                            </p>
-                        )}
+                        {latMin && !isValidLatitude(latMin) && <p className="text-xs text-destructive">Latitude must be between -90 and +90</p>}
 
                         <InputField
                             id="lon-min"
@@ -116,25 +95,15 @@ export default function CoordinateInputs({
                             onChange={(e) => handleChange('lonMin', e.target.value)}
                             placeholder="e.g., 11.576124"
                             required
-                            className={
-                                lonMin && !isValidLongitude(lonMin)
-                                    ? 'border-destructive'
-                                    : ''
-                            }
+                            className={lonMin && !isValidLongitude(lonMin) ? 'border-destructive' : ''}
                         />
-                        {lonMin && !isValidLongitude(lonMin) && (
-                            <p className="text-xs text-destructive">
-                                Longitude must be between -180 and +180
-                            </p>
-                        )}
+                        {lonMin && !isValidLongitude(lonMin) && <p className="text-xs text-destructive">Longitude must be between -180 and +180</p>}
                     </div>
                 </div>
 
                 {/* Max Coordinates (Optional) */}
                 <div className="space-y-3">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase">
-                        Max (Optional)
-                    </Label>
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase">Max (Optional)</Label>
                     <div className="space-y-2">
                         <InputField
                             id="lat-max"
@@ -143,17 +112,9 @@ export default function CoordinateInputs({
                             value={latMax}
                             onChange={(e) => handleChange('latMax', e.target.value)}
                             placeholder="e.g., 48.150000"
-                            className={
-                                latMax && !isValidLatitude(latMax)
-                                    ? 'border-destructive'
-                                    : ''
-                            }
+                            className={latMax && !isValidLatitude(latMax) ? 'border-destructive' : ''}
                         />
-                        {latMax && !isValidLatitude(latMax) && (
-                            <p className="text-xs text-destructive">
-                                Latitude must be between -90 and +90
-                            </p>
-                        )}
+                        {latMax && !isValidLatitude(latMax) && <p className="text-xs text-destructive">Latitude must be between -90 and +90</p>}
 
                         <InputField
                             id="lon-max"
@@ -162,40 +123,20 @@ export default function CoordinateInputs({
                             value={lonMax}
                             onChange={(e) => handleChange('lonMax', e.target.value)}
                             placeholder="e.g., 11.600000"
-                            className={
-                                lonMax && !isValidLongitude(lonMax)
-                                    ? 'border-destructive'
-                                    : ''
-                            }
+                            className={lonMax && !isValidLongitude(lonMax) ? 'border-destructive' : ''}
                         />
-                        {lonMax && !isValidLongitude(lonMax) && (
-                            <p className="text-xs text-destructive">
-                                Longitude must be between -180 and +180
-                            </p>
-                        )}
+                        {lonMax && !isValidLongitude(lonMax) && <p className="text-xs text-destructive">Longitude must be between -180 and +180</p>}
                     </div>
                 </div>
             </div>
 
             {/* Validation hint for min < max */}
-            {latMin &&
-                latMax &&
-                isValidLatitude(latMin) &&
-                isValidLatitude(latMax) &&
-                parseFloat(latMin) >= parseFloat(latMax) && (
-                    <p className="text-xs text-destructive">
-                        Latitude Min must be less than Latitude Max
-                    </p>
-                )}
-            {lonMin &&
-                lonMax &&
-                isValidLongitude(lonMin) &&
-                isValidLongitude(lonMax) &&
-                parseFloat(lonMin) >= parseFloat(lonMax) && (
-                    <p className="text-xs text-destructive">
-                        Longitude Min must be less than Longitude Max
-                    </p>
-                )}
+            {latMin && latMax && isValidLatitude(latMin) && isValidLatitude(latMax) && parseFloat(latMin) >= parseFloat(latMax) && (
+                <p className="text-xs text-destructive">Latitude Min must be less than Latitude Max</p>
+            )}
+            {lonMin && lonMax && isValidLongitude(lonMin) && isValidLongitude(lonMax) && parseFloat(lonMin) >= parseFloat(lonMax) && (
+                <p className="text-xs text-destructive">Longitude Min must be less than Longitude Max</p>
+            )}
         </div>
     );
 }

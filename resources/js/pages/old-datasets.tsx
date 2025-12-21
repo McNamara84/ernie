@@ -121,8 +121,7 @@ const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, SortDirection> = {
     updated_at: 'desc',
 };
 
-const describeDirection = (direction: SortDirection): string =>
-    direction === 'asc' ? 'ascending' : 'descending';
+const describeDirection = (direction: SortDirection): string => (direction === 'asc' ? 'ascending' : 'descending');
 
 const isSortState = (value: unknown): value is SortState => {
     if (!value || typeof value !== 'object') {
@@ -130,16 +129,21 @@ const isSortState = (value: unknown): value is SortState => {
     }
 
     const maybeState = value as { key?: unknown; direction?: unknown };
-    
+
     const validKeys: SortKey[] = [
-        'id', 'identifier', 'title', 'resourcetypegeneral', 
-        'first_author', 'publicationyear', 'curator', 
-        'publicstatus', 'created_at', 'updated_at'
+        'id',
+        'identifier',
+        'title',
+        'resourcetypegeneral',
+        'first_author',
+        'publicationyear',
+        'curator',
+        'publicstatus',
+        'created_at',
+        'updated_at',
     ];
 
-    return (
-        validKeys.includes(maybeState.key as SortKey)
-    ) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
+    return validKeys.includes(maybeState.key as SortKey) && (maybeState.direction === 'asc' || maybeState.direction === 'desc');
 };
 
 const resolveDisplayDirection = (option: SortOption, sortState: SortState): SortDirection =>
@@ -180,13 +184,7 @@ const getSortLabel = (key: SortKey): string => {
     return labels[key];
 };
 
-const SortDirectionIndicator = ({
-    isActive,
-    direction,
-}: {
-    isActive: boolean;
-    direction: SortDirection;
-}) => {
+const SortDirectionIndicator = ({ isActive, direction }: { isActive: boolean; direction: SortDirection }) => {
     if (!isActive) {
         return <ArrowUpDown aria-hidden="true" className="size-3.5" />;
     }
@@ -284,13 +282,9 @@ const serialiseDeterministically = (value: unknown): string => {
     }
 
     if (typeof value === 'object') {
-        const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
-            left.localeCompare(right),
-        );
+        const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
 
-        return `{${entries
-            .map(([key, entryValue]) => `${key.toLowerCase()}:${serialiseDeterministically(entryValue)}`)
-            .join('|')}}`;
+        return `{${entries.map(([key, entryValue]) => `${key.toLowerCase()}:${serialiseDeterministically(entryValue)}`).join('|')}}`;
     }
 
     return '';
@@ -398,10 +392,10 @@ const normaliseLicenses = (dataset: Dataset): string[] => {
                 'identifier' in value
                     ? value.identifier
                     : 'rightsIdentifier' in value
-                        ? value.rightsIdentifier
-                        : 'license' in value
-                            ? value.license
-                            : null;
+                      ? value.rightsIdentifier
+                      : 'license' in value
+                        ? value.license
+                        : null;
 
             if (typeof candidate === 'string') {
                 const trimmed = candidate.trim();
@@ -431,12 +425,7 @@ const normaliseLicenses = (dataset: Dataset): string[] => {
  * editor form never receives invalid identifiers.
  */
 const getResourceTypeIdentifier = (dataset: Dataset): string | null => {
-    const candidates = [
-        dataset.resourceTypeId,
-        dataset.resource_type_id,
-        dataset.resourcetypeid,
-        dataset.resourcetype,
-    ];
+    const candidates = [dataset.resourceTypeId, dataset.resource_type_id, dataset.resourcetypeid, dataset.resourcetype];
 
     for (const candidate of candidates) {
         if (candidate === null || candidate === undefined) {
@@ -471,12 +460,7 @@ const renderDateContent = (details: DateDetails): ReactNode => {
     return <span className="text-gray-600 dark:text-gray-300">{details.label}</span>;
 };
 
-const describeDate = (
-    label: string,
-    iso: string | null,
-    rawValue: string | undefined,
-    dateType: DateType,
-): string | null => {
+const describeDate = (label: string, iso: string | null, rawValue: string | undefined, dateType: DateType): string | null => {
     if (iso) {
         return `${dateType} on ${label}`;
     }
@@ -535,25 +519,28 @@ export default function OldDatasets({
     const lastRequestRef = useRef<{ page: number; sort: SortState; replace: boolean } | null>(null);
     const [activeSortState, setActiveSortState] = useState<SortState>(initialSort);
 
-    const handleSortChange = useCallback((key: SortKey) => {
-        const nextDirection = determineNextDirection(sortState, key);
-        
-        // Set sorting state immediately for skeleton display
-        setIsSorting(true);
-        setLoading(true);
-        
-        // Clear datasets immediately to avoid showing wrongly sorted data
-        setDatasets([]);
-        
-        // Smooth scroll to top
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        // Update sort state which will trigger the useEffect to reload data
-        setSortState({
-            key,
-            direction: nextDirection,
-        });
-    }, [sortState]);
+    const handleSortChange = useCallback(
+        (key: SortKey) => {
+            const nextDirection = determineNextDirection(sortState, key);
+
+            // Set sorting state immediately for skeleton display
+            setIsSorting(true);
+            setLoading(true);
+
+            // Clear datasets immediately to avoid showing wrongly sorted data
+            setDatasets([]);
+
+            // Smooth scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Update sort state which will trigger the useEffect to reload data
+            setSortState({
+                key,
+                direction: nextDirection,
+            });
+        },
+        [sortState],
+    );
 
     // No client-side sorting - data comes pre-sorted from server
     // We keep the variable name for consistency, but it's just the datasets array
@@ -621,7 +608,7 @@ export default function OldDatasets({
                 setFilterOptions(response.data);
             } catch (err) {
                 console.error('Failed to load filter options:', err);
-                
+
                 // Provide empty fallback so filters don't stay disabled forever
                 setFilterOptions({
                     resource_types: [],
@@ -629,7 +616,7 @@ export default function OldDatasets({
                     year_range: { min: 2000, max: 2025 },
                     statuses: ['published', 'draft', 'review', 'archived'],
                 });
-                
+
                 // Show a subtle warning toast
                 toast.error('Filter options could not be loaded. Some filters may be unavailable.', {
                     duration: 5000,
@@ -639,7 +626,7 @@ export default function OldDatasets({
 
         loadFilterOptions();
     }, []);
-    
+
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Old Datasets',
@@ -669,7 +656,7 @@ export default function OldDatasets({
                     Object.entries(filterParams).forEach(([key, value]) => {
                         if (Array.isArray(value)) {
                             // For arrays, append each value with [] notation
-                            value.forEach(item => {
+                            value.forEach((item) => {
                                 searchParams.append(`${key}[]`, String(item));
                             });
                         } else {
@@ -685,7 +672,7 @@ export default function OldDatasets({
                 }
 
                 if (response.data.datasets) {
-                    setDatasets(prev => (replace ? response.data.datasets : [...prev, ...response.data.datasets]));
+                    setDatasets((prev) => (replace ? response.data.datasets : [...prev, ...response.data.datasets]));
                 }
 
                 if (response.data.pagination) {
@@ -723,19 +710,11 @@ export default function OldDatasets({
                 if (isAxiosError(err)) {
                     const debugPayload = err.response?.data?.debug as Record<string, unknown> | undefined;
                     const errorMessage = err.message || err.response?.data?.error;
-                    logDebugInformation(
-                        isRefreshing ? 'sort change request' : 'load more request',
-                        errorMessage,
-                        debugPayload,
-                    );
+                    logDebugInformation(isRefreshing ? 'sort change request' : 'load more request', errorMessage, debugPayload);
                 }
 
-                setLoadingError(
-                    isRefreshing
-                        ? 'Failed to refresh datasets. Please try again.'
-                        : 'Failed to load more datasets. Please try again.',
-                );
-                
+                setLoadingError(isRefreshing ? 'Failed to refresh datasets. Please try again.' : 'Failed to load more datasets. Please try again.');
+
                 if (isRefreshing) {
                     setIsSorting(false);
                 }
@@ -784,10 +763,7 @@ export default function OldDatasets({
     }, [fetchDatasetsPage, pagination.has_more, pagination.current_page, activeSortState, filters]);
 
     useEffect(() => {
-        if (
-            sortState.key === activeSortState.key &&
-            sortState.direction === activeSortState.direction
-        ) {
+        if (sortState.key === activeSortState.key && sortState.direction === activeSortState.direction) {
             return;
         }
 
@@ -802,7 +778,7 @@ export default function OldDatasets({
     // Reload datasets when filters change (but not on initial mount)
     const isInitialMount = useRef(true);
     const prevFiltersRef = useRef<FilterState>(filters);
-    
+
     useEffect(() => {
         // Skip on initial mount
         if (isInitialMount.current) {
@@ -813,7 +789,7 @@ export default function OldDatasets({
 
         // Check if filters actually changed
         const filtersChanged = JSON.stringify(prevFiltersRef.current) !== JSON.stringify(filters);
-        
+
         if (!filtersChanged) {
             return;
         }
@@ -829,16 +805,19 @@ export default function OldDatasets({
     }, [filters, activeSortState, fetchDatasetsPage]);
 
     // Reference to the last dataset element for intersection observer
-    const lastDatasetElementRef = useCallback((node: HTMLElement | null) => {
-        if (loading) return;
-        if (observer.current) observer.current.disconnect();
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && pagination.has_more) {
-                loadMoreDatasets();
-            }
-        });
-        if (node) observer.current.observe(node);
-    }, [loading, pagination.has_more, loadMoreDatasets]);
+    const lastDatasetElementRef = useCallback(
+        (node: HTMLElement | null) => {
+            if (loading) return;
+            if (observer.current) observer.current.disconnect();
+            observer.current = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && pagination.has_more) {
+                    loadMoreDatasets();
+                }
+            });
+            if (node) observer.current.observe(node);
+        },
+        [loading, pagination.has_more, loadMoreDatasets],
+    );
 
     // Loading skeleton component
     const getDateDetails = (dateString: string | null): DateDetails => {
@@ -870,14 +849,14 @@ export default function OldDatasets({
 
         if (key === 'publicstatus') {
             const statusMap: { [key: string]: string } = {
-                'published': 'Published',
-                'draft': 'Draft',
-                'review': 'Under Review',
-                'archived': 'Archived',
+                published: 'Published',
+                draft: 'Draft',
+                review: 'Under Review',
+                archived: 'Archived',
             };
             return statusMap[value as string] || String(value);
         }
-        
+
         return String(value);
     };
     const datasetColumns: DatasetColumn[] = [
@@ -903,7 +882,7 @@ export default function OldDatasets({
                 const hasId = dataset.id !== undefined && dataset.id !== null;
                 const idValue = hasId ? String(dataset.id) : 'Not available';
                 const hasIdentifier = typeof dataset.identifier === 'string' && dataset.identifier.trim().length > 0;
-                const identifierValue = hasIdentifier ? dataset.identifier?.trim() ?? '' : 'Not available';
+                const identifierValue = hasIdentifier ? (dataset.identifier?.trim() ?? '') : 'Not available';
                 const identifierClasses = hasIdentifier
                     ? 'text-sm text-gray-600 dark:text-gray-300 break-all'
                     : 'text-sm text-gray-500 dark:text-gray-300';
@@ -914,20 +893,13 @@ export default function OldDatasets({
                 ];
 
                 return (
-                    <div
-                        className="flex flex-col gap-1 text-left"
-                        aria-label={ariaLabelSegments.join('. ')}
-                    >
+                    <div className="flex flex-col gap-1 text-left" aria-label={ariaLabelSegments.join('. ')}>
                         <span
-                            className={hasId
-                                ? 'text-sm font-semibold text-gray-900 dark:text-gray-100'
-                                : 'text-sm text-gray-500 dark:text-gray-300'}
+                            className={hasId ? 'text-sm font-semibold text-gray-900 dark:text-gray-100' : 'text-sm text-gray-500 dark:text-gray-300'}
                         >
                             {idValue}
                         </span>
-                        <span className={identifierClasses}>
-                            {identifierValue}
-                        </span>
+                        <span className={identifierClasses}>{identifierValue}</span>
                     </div>
                 );
             },
@@ -961,12 +933,8 @@ export default function OldDatasets({
 
                 return (
                     <div className="flex flex-col gap-1 text-left">
-                        <span className="text-sm font-normal text-gray-900 dark:text-gray-100 leading-relaxed wrap-break-word">
-                            {title}
-                        </span>
-                        <span className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                            {resourceType}
-                        </span>
+                        <span className="text-sm leading-relaxed font-normal wrap-break-word text-gray-900 dark:text-gray-100">{title}</span>
+                        <span className="text-sm whitespace-nowrap text-gray-600 dark:text-gray-300">{resourceType}</span>
                     </div>
                 );
             },
@@ -985,7 +953,7 @@ export default function OldDatasets({
                 {
                     key: 'first_author',
                     label: 'Author',
-                    description: 'Sort by the first author\'s last name',
+                    description: "Sort by the first author's last name",
                 },
                 {
                     key: 'publicationyear',
@@ -1083,10 +1051,7 @@ export default function OldDatasets({
                 const dateColumnAriaLabel = ariaLabelParts.length > 0 ? ariaLabelParts.join('. ') : undefined;
 
                 return (
-                    <div
-                        className={DATE_COLUMN_CONTAINER_CLASSES}
-                        aria-label={dateColumnAriaLabel}
-                    >
+                    <div className={DATE_COLUMN_CONTAINER_CLASSES} aria-label={dateColumnAriaLabel}>
                         {renderDateContent(createdDetails)}
                         {renderDateContent(updatedDetails)}
                     </div>
@@ -1136,16 +1101,12 @@ export default function OldDatasets({
                         <CardTitle asChild>
                             <h1 className="text-2xl font-semibold tracking-tight">Old Datasets</h1>
                         </CardTitle>
-                        <CardDescription>
-                            Overview of legacy resources from the SUMARIOPMD database
-                        </CardDescription>
+                        <CardDescription>Overview of legacy resources from the SUMARIOPMD database</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {error ? (
                             <Alert className="mb-4" variant="destructive">
-                                <AlertDescription>
-                                    {error}
-                                </AlertDescription>
+                                <AlertDescription>{error}</AlertDescription>
                             </Alert>
                         ) : null}
 
@@ -1153,13 +1114,7 @@ export default function OldDatasets({
                             <Alert className="mb-4" variant="destructive">
                                 <AlertDescription>
                                     {loadingError}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="ml-2"
-                                        onClick={handleRetry}
-                                        disabled={loading}
-                                    >
+                                    <Button variant="outline" size="sm" className="ml-2" onClick={handleRetry} disabled={loading}>
                                         Retry
                                     </Button>
                                 </AlertDescription>
@@ -1177,15 +1132,14 @@ export default function OldDatasets({
                         />
 
                         {sortedDatasets.length === 0 && !isSorting && !loading && !loadingError ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                {error ?
-                                    "No datasets available. Please check the database connection." :
-                                    "No old datasets found matching your filters."
-                                }
+                            <div className="py-8 text-center text-muted-foreground">
+                                {error
+                                    ? 'No datasets available. Please check the database connection.'
+                                    : 'No old datasets found matching your filters.'}
                             </div>
                         ) : (
                             <>
-                                <div className="mb-4 flex items-center gap-2 flex-wrap">
+                                <div className="mb-4 flex flex-wrap items-center gap-2">
                                     <Badge variant="outline" className="text-xs">
                                         Sorted by: {getSortLabel(sortState.key)} {sortState.direction === 'asc' ? '↑' : '↓'}
                                     </Badge>
@@ -1196,8 +1150,7 @@ export default function OldDatasets({
                                             <tr>
                                                 {datasetColumns.map((column) => {
                                                     const isColumnSorted =
-                                                        column.sortOptions?.some(option => option.key === sortState.key) ??
-                                                        false;
+                                                        column.sortOptions?.some((option) => option.key === sortState.key) ?? false;
                                                     const ariaSortValue = isColumnSorted
                                                         ? sortState.direction === 'asc'
                                                             ? 'ascending'
@@ -1207,7 +1160,7 @@ export default function OldDatasets({
                                                     return (
                                                         <th
                                                             key={column.key}
-                                                            className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${column.widthClass}`}
+                                                            className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${column.widthClass}`}
                                                             aria-sort={column.sortOptions ? ariaSortValue : undefined}
                                                             scope="col"
                                                         >
@@ -1217,16 +1170,10 @@ export default function OldDatasets({
                                                                     role="group"
                                                                     aria-label={column.sortGroupLabel ?? 'Sorting options'}
                                                                 >
-                                                                    {column.sortOptions.map(option => {
+                                                                    {column.sortOptions.map((option) => {
                                                                         const isActive = sortState.key === option.key;
-                                                                        const displayDirection = resolveDisplayDirection(
-                                                                            option,
-                                                                            sortState,
-                                                                        );
-                                                                        const buttonLabel = buildSortButtonLabel(
-                                                                            option,
-                                                                            sortState,
-                                                                        );
+                                                                        const displayDirection = resolveDisplayDirection(option, sortState);
+                                                                        const buttonLabel = buildSortButtonLabel(option, sortState);
 
                                                                         return (
                                                                             <Button
@@ -1234,7 +1181,7 @@ export default function OldDatasets({
                                                                                 type="button"
                                                                                 variant={isActive ? 'secondary' : 'ghost'}
                                                                                 size="sm"
-                                                                                className="h-7 px-2 text-xs font-medium justify-start"
+                                                                                className="h-7 justify-start px-2 text-xs font-medium"
                                                                                 onClick={() => handleSortChange(option.key)}
                                                                                 aria-pressed={isActive}
                                                                                 aria-label={buttonLabel}
@@ -1250,7 +1197,7 @@ export default function OldDatasets({
                                                                     })}
                                                                 </div>
                                                             ) : (
-                                                                <div className="text-left text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-300">
+                                                                <div className="text-left text-xs font-semibold tracking-wider text-gray-500 uppercase dark:text-gray-300">
                                                                     {column.label}
                                                                 </div>
                                                             )}
@@ -1258,20 +1205,18 @@ export default function OldDatasets({
                                                     );
                                                 })}
                                                 <th
-                                                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                    className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                 >
                                                     Actions
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700">
+                                        <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
                                             {(isSorting || (loading && sortedDatasets.length === 0)) && <LoadingSkeleton />}
                                             {sortedDatasets.map((dataset, index) => {
                                                 const isLast = index === sortedDatasets.length - 1;
                                                 const datasetLabel =
-                                                    dataset.identifier ??
-                                                    dataset.title ??
-                                                    (dataset.id !== undefined ? `#${dataset.id}` : 'entry');
+                                                    dataset.identifier ?? dataset.title ?? (dataset.id !== undefined ? `#${dataset.id}` : 'entry');
                                                 return (
                                                     <tr
                                                         key={deriveDatasetRowKey(dataset)}
@@ -1288,7 +1233,9 @@ export default function OldDatasets({
                                                                     : formatValue(column.key, dataset[column.key])}
                                                             </td>
                                                         ))}
-                                                        <td className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                                                        <td
+                                                            className={`px-6 py-4 text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                        >
                                                             <div className="flex items-center gap-1">
                                                                 <Button
                                                                     type="button"
@@ -1307,7 +1254,7 @@ export default function OldDatasets({
                                                                     disabled
                                                                     aria-label={`Delete dataset ${datasetLabel} (not yet implemented)`}
                                                                     title="Delete dataset (not yet implemented)"
-                                                                    className="opacity-40 cursor-not-allowed"
+                                                                    className="cursor-not-allowed opacity-40"
                                                                 >
                                                                     <Trash2 aria-hidden="true" className="size-4" />
                                                                 </Button>
@@ -1321,7 +1268,7 @@ export default function OldDatasets({
                                     </table>
 
                                     {!loading && !pagination.has_more && sortedDatasets.length > 0 && (
-                                        <div className="text-center py-4 text-muted-foreground text-sm">
+                                        <div className="py-4 text-center text-sm text-muted-foreground">
                                             All datasets have been loaded ({pagination.total} total)
                                         </div>
                                     )}

@@ -38,10 +38,10 @@ export function SortableFundingReferenceItem(props: SortableFundingReferenceItem
             <div
                 {...attributes}
                 {...listeners}
-                className="flex-shrink-0 pt-6 cursor-grab active:cursor-grabbing touch-none"
+                className="flex-shrink-0 cursor-grab touch-none pt-6 active:cursor-grabbing"
                 aria-label="Drag to reorder"
             >
-                <div className="rounded-md bg-muted p-1 hover:bg-muted/80 transition-colors">
+                <div className="rounded-md bg-muted p-1 transition-colors hover:bg-muted/80">
                     <GripVertical className="h-5 w-5 text-muted-foreground" />
                 </div>
             </div>

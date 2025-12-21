@@ -76,26 +76,16 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                                         <div className="rounded-lg border bg-background p-3 shadow-sm">
                                             <div className="grid gap-2">
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Category
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Category</span>
                                                     <span className="font-bold">{item.name}</span>
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Datasets
-                                                    </span>
-                                                    <span className="font-bold text-muted-foreground">
-                                                        {item.value.toLocaleString()}
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Datasets</span>
+                                                    <span className="font-bold text-muted-foreground">{item.value.toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Percentage
-                                                    </span>
-                                                    <span className="font-bold text-muted-foreground">
-                                                        {item.percentage}%
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Percentage</span>
+                                                    <span className="font-bold text-muted-foreground">{item.percentage}%</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -113,58 +103,35 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-lg border bg-card p-4">
                     <div className="flex items-center gap-2">
-                        <div
-                            className="h-4 w-4 rounded"
-                            style={{ backgroundColor: COLORS.noRelatedWorks }}
-                        />
+                        <div className="h-4 w-4 rounded" style={{ backgroundColor: COLORS.noRelatedWorks }} />
                         <h4 className="text-sm font-medium">No Related Works</h4>
                     </div>
-                    <p className="mt-2 text-2xl font-bold">
-                        {data.withNoRelatedWorks.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        {safePercentage(data.withNoRelatedWorks)}% of total
-                    </p>
+                    <p className="mt-2 text-2xl font-bold">{data.withNoRelatedWorks.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{safePercentage(data.withNoRelatedWorks)}% of total</p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4">
                     <div className="flex items-center gap-2">
-                        <div
-                            className="h-4 w-4 rounded"
-                            style={{ backgroundColor: COLORS.onlyIsSupplementTo }}
-                        />
+                        <div className="h-4 w-4 rounded" style={{ backgroundColor: COLORS.onlyIsSupplementTo }} />
                         <h4 className="text-sm font-medium">Only IsSupplementTo</h4>
                     </div>
-                    <p className="mt-2 text-2xl font-bold">
-                        {data.withOnlyIsSupplementTo.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        {safePercentage(data.withOnlyIsSupplementTo)}% of total
-                    </p>
+                    <p className="mt-2 text-2xl font-bold">{data.withOnlyIsSupplementTo.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{safePercentage(data.withOnlyIsSupplementTo)}% of total</p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4">
                     <div className="flex items-center gap-2">
-                        <div
-                            className="h-4 w-4 rounded"
-                            style={{ backgroundColor: COLORS.multipleTypes }}
-                        />
+                        <div className="h-4 w-4 rounded" style={{ backgroundColor: COLORS.multipleTypes }} />
                         <h4 className="text-sm font-medium">Multiple Types</h4>
                     </div>
-                    <p className="mt-2 text-2xl font-bold">
-                        {data.withMultipleTypes.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        {safePercentage(data.withMultipleTypes)}% of total
-                    </p>
+                    <p className="mt-2 text-2xl font-bold">{data.withMultipleTypes.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{safePercentage(data.withMultipleTypes)}% of total</p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4">
                     <h4 className="text-sm font-medium">Avg. Types per Dataset</h4>
                     <p className="mt-2 text-2xl font-bold">{data.avgTypesPerDataset}</p>
-                    <p className="text-sm text-muted-foreground">
-                        For datasets with related works
-                    </p>
+                    <p className="text-sm text-muted-foreground">For datasets with related works</p>
                 </div>
             </div>
 
@@ -175,37 +142,28 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                     <div className="flex items-start gap-2">
                         <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         <p>
-                            <span className="font-semibold">
-                                {datasetsWithRelatedWorks.toLocaleString()}
-                            </span>{' '}
-                            datasets ({safePercentage(datasetsWithRelatedWorks)}%) have at least one
-                            related work entry
+                            <span className="font-semibold">{datasetsWithRelatedWorks.toLocaleString()}</span> datasets (
+                            {safePercentage(datasetsWithRelatedWorks)}%) have at least one related work entry
                         </p>
                     </div>
                     <div className="flex items-start gap-2">
                         <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
                         <p>
-                            <span className="font-semibold">
-                                {data.withOnlyIsSupplementTo.toLocaleString()}
-                            </span>{' '}
-                            datasets use exclusively the IsSupplementTo relation type
+                            <span className="font-semibold">{data.withOnlyIsSupplementTo.toLocaleString()}</span> datasets use exclusively the
+                            IsSupplementTo relation type
                         </p>
                     </div>
                     <div className="flex items-start gap-2">
                         <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
                         <p>
-                            <span className="font-semibold">
-                                {data.withMultipleTypes.toLocaleString()}
-                            </span>{' '}
-                            datasets use multiple relation types, indicating rich contextual
-                            information
+                            <span className="font-semibold">{data.withMultipleTypes.toLocaleString()}</span> datasets use multiple relation types,
+                            indicating rich contextual information
                         </p>
                     </div>
                     <div className="flex items-start gap-2">
                         <div className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-500" />
                         <p>
-                            On average, datasets with related works reference{' '}
-                            <span className="font-semibold">{data.avgTypesPerDataset}</span>{' '}
+                            On average, datasets with related works reference <span className="font-semibold">{data.avgTypesPerDataset}</span>{' '}
                             different types of relations
                         </p>
                     </div>

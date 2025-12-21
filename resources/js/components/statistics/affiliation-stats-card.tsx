@@ -11,17 +11,13 @@ export default function AffiliationStatsCard({ data }: AffiliationStatsCardProps
             <div className="rounded-lg border bg-card p-6 text-center">
                 <div className="text-5xl font-bold text-primary">{data.max_per_agent}</div>
                 <h3 className="mt-2 font-semibold">Maximum Affiliations</h3>
-                <p className="text-sm text-muted-foreground">
-                    Highest number of affiliations per author/contributor
-                </p>
+                <p className="text-sm text-muted-foreground">Highest number of affiliations per author/contributor</p>
             </div>
 
             <div className="rounded-lg border bg-card p-6 text-center">
                 <div className="text-5xl font-bold text-primary">{data.avg_per_agent}</div>
                 <h3 className="mt-2 font-semibold">Average Affiliations</h3>
-                <p className="text-sm text-muted-foreground">
-                    Average affiliations per author/contributor
-                </p>
+                <p className="text-sm text-muted-foreground">Average affiliations per author/contributor</p>
             </div>
         </div>
     );

@@ -15,15 +15,13 @@ function WorkflowStep({ number, title, children, isLast = false }: WorkflowStepP
         <div className="relative flex gap-4">
             {/* Step Number Circle */}
             <div className="relative flex shrink-0 flex-col items-center">
-                <div className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold">
-                    {number}
-                </div>
+                <div className="flex size-10 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground">{number}</div>
                 {!isLast && <div className="mt-2 h-full w-0.5 bg-border" />}
             </div>
 
             {/* Step Content */}
             <div className={cn('flex-1 space-y-2', !isLast && 'pb-8')}>
-                <h3 className="font-semibold text-lg">{title}</h3>
+                <h3 className="text-lg font-semibold">{title}</h3>
                 <div className="text-muted-foreground">{children}</div>
             </div>
         </div>

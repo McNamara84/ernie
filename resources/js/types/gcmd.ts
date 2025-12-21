@@ -33,12 +33,12 @@ export interface SelectedKeyword {
 export function getVocabularyTypeFromScheme(scheme: string): GCMDVocabularyType {
     // Normalize scheme for comparison
     const normalized = scheme.toLowerCase();
-    
+
     if (normalized.includes('science')) return 'science';
     if (normalized.includes('platform')) return 'platforms';
     if (normalized.includes('instrument')) return 'instruments';
     if (normalized.includes('msl') || normalized.includes('epos')) return 'msl';
-    
+
     return 'science'; // Default fallback
 }
 

@@ -29,14 +29,14 @@ export interface DOIResolutionResult {
  */
 export function validateDOIFormat(doi: string): ValidationResult {
     const trimmed = doi.trim();
-    
+
     // Check if it's a DOI URL and extract the DOI part
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
     const doiToValidate = doiUrlMatch ? doiUrlMatch[1] : trimmed;
-    
+
     // Basic DOI pattern: 10.xxxx/yyyy
     const doiPattern = /^10\.\d{4,}(?:\.\d+)*\/\S+$/;
-    
+
     if (!doiPattern.test(doiToValidate)) {
         return {
             isValid: false,
@@ -44,7 +44,7 @@ export function validateDOIFormat(doi: string): ValidationResult {
             message: 'Invalid DOI format. DOI should start with "10." followed by a registrant code and suffix (e.g., 10.5194/nhess-15-1463-2015)',
         };
     }
-    
+
     return {
         isValid: true,
         format: 'valid',
@@ -74,22 +74,22 @@ export function validateURLFormat(url: string): ValidationResult {
  * Validate Handle format
  * Handles are typically in the format: prefix/suffix (e.g., 10273/ICDP5054EHW1001)
  * Also accepts Handle URLs (http://hdl.handle.net/prefix/suffix)
- * 
+ *
  * Note: Handle suffixes with whitespace are not supported.
  * Query strings and fragments in Handle URLs are excluded from the identifier.
  */
 export function validateHandleFormat(handle: string): ValidationResult {
     const trimmed = handle.trim();
-    
+
     // Check if it's a Handle URL and extract the Handle part
     // Pattern excludes query strings (?...) and fragments (#...) from the Handle
     const handleUrlMatch = trimmed.match(/^https?:\/\/hdl\.handle\.net\/([^?#\s]+)/i);
     const handleToValidate = handleUrlMatch ? handleUrlMatch[1] : trimmed;
-    
+
     // Handle pattern: prefix/suffix where prefix is numeric and suffix has non-whitespace
     // Note: Bare handles with whitespace in suffix are rejected for consistency
     const handlePattern = /^\d+\/\S+$/;
-    
+
     if (!handlePattern.test(handleToValidate)) {
         return {
             isValid: false,
@@ -97,7 +97,7 @@ export function validateHandleFormat(handle: string): ValidationResult {
             message: 'Invalid Handle format. Should be in format: prefix/suffix (e.g., 11708/D386F88C) or URL (http://hdl.handle.net/prefix/suffix)',
         };
     }
-    
+
     return {
         isValid: true,
         format: 'valid',
@@ -127,19 +127,19 @@ export function validateIdentifierFormat(identifier: string, type: string): Vali
 
 /**
  * Resolve DOI metadata via backend proxy
- * 
+ *
  * Backend handles both DataCite API and doi.org resolution
  * This avoids CORS issues with direct doi.org requests from browser
- * 
+ *
  * Note: This is a non-blocking validation - failures should only show warnings
  */
 export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<DOIResolutionResult> {
     const trimmed = doi.trim();
-    
+
     // Extract bare DOI if URL format
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
     const bareDOI = doiUrlMatch ? doiUrlMatch[1] : trimmed;
-    
+
     // First validate format locally
     const formatValidation = validateDOIFormat(bareDOI);
     if (!formatValidation.isValid) {
@@ -148,25 +148,25 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
             error: formatValidation.message,
         };
     }
-    
+
     try {
         // Use backend proxy to validate DOI
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
-        
+
         const response = await fetch('/api/validate-doi', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                Accept: 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
             body: JSON.stringify({ doi: bareDOI }),
             signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             return {
@@ -174,16 +174,16 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
                 error: errorData.error || `Validation error: ${response.status}`,
             };
         }
-        
+
         const data = await response.json();
-        
+
         if (data.success && data.metadata) {
             return {
                 success: true,
                 metadata: data.metadata,
             };
         }
-        
+
         return {
             success: false,
             error: data.error || 'Could not verify DOI',
@@ -214,4 +214,3 @@ export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<D
 export function supportsMetadataResolution(identifierType: string): boolean {
     return identifierType === 'DOI';
 }
-

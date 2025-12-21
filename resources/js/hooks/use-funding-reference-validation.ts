@@ -25,7 +25,7 @@ function isValidUrl(url: string): boolean {
 
 /**
  * Hook for validating a single funding reference entry
- * 
+ *
  * Validation Rules:
  * - funderName: Required, must not be empty
  * - awardUri: Optional, but if provided must be valid URL

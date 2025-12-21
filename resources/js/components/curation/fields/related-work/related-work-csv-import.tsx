@@ -16,22 +16,22 @@ function detectIdentifierType(identifier: string): IdentifierType {
     if (doiUrlMatch) {
         return 'DOI';
     }
-    
+
     // Check for bare DOI pattern (e.g., 10.1234/example)
     if (identifier.match(/^10\.\d{4,}\/\S+/)) {
         return 'DOI';
     }
-    
+
     // Check for URL pattern
     if (identifier.match(/^https?:\/\//i)) {
         return 'URL';
     }
-    
+
     // Check for Handle pattern (e.g., 1234/5678)
     if (identifier.match(/^\d+\/\d+/)) {
         return 'Handle';
     }
-    
+
     // Default to URL for safety
     return 'URL';
 }
@@ -56,17 +56,14 @@ interface ValidationError {
 
 /**
  * RelatedWorkCsvImport Component
- * 
+ *
  * CSV bulk import for related works:
  * - Drag & drop or file selection
  * - Validation with detailed error reporting
  * - Preview of parsed data
  * - Example CSV template download
  */
-export default function RelatedWorkCsvImport({
-    onImport,
-    onClose,
-}: RelatedWorkCsvImportProps) {
+export default function RelatedWorkCsvImport({ onImport, onClose }: RelatedWorkCsvImportProps) {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -76,23 +73,64 @@ export default function RelatedWorkCsvImport({
 
     const parseCSV = useCallback(async (csvFile: File) => {
         const validIdentifierTypes = [
-            'DOI', 'URL', 'Handle', 'IGSN', 'URN', 'ISBN', 'ISSN',
-            'PURL', 'ARK', 'arXiv', 'bibcode', 'EAN13', 'EISSN',
-            'ISTC', 'LISSN', 'LSID', 'PMID', 'UPC', 'w3id',
+            'DOI',
+            'URL',
+            'Handle',
+            'IGSN',
+            'URN',
+            'ISBN',
+            'ISSN',
+            'PURL',
+            'ARK',
+            'arXiv',
+            'bibcode',
+            'EAN13',
+            'EISSN',
+            'ISTC',
+            'LISSN',
+            'LSID',
+            'PMID',
+            'UPC',
+            'w3id',
         ];
 
         const validRelationTypes = [
-            'Cites', 'IsCitedBy', 'References', 'IsReferencedBy',
-            'IsSupplementTo', 'IsSupplementedBy', 'IsContinuedBy',
-            'Continues', 'Describes', 'IsDescribedBy', 'HasMetadata',
-            'IsMetadataFor', 'HasVersion', 'IsVersionOf', 'IsNewVersionOf',
-            'IsPreviousVersionOf', 'IsPartOf', 'HasPart', 'IsPublishedIn',
-            'IsReferencedBy', 'References', 'IsDocumentedBy', 'Documents',
-            'IsCompiledBy', 'Compiles', 'IsVariantFormOf', 'IsOriginalFormOf',
-            'IsIdenticalTo', 'IsReviewedBy', 'Reviews', 'IsDerivedFrom',
-            'IsSourceOf', 'IsRequiredBy', 'Requires',
+            'Cites',
+            'IsCitedBy',
+            'References',
+            'IsReferencedBy',
+            'IsSupplementTo',
+            'IsSupplementedBy',
+            'IsContinuedBy',
+            'Continues',
+            'Describes',
+            'IsDescribedBy',
+            'HasMetadata',
+            'IsMetadataFor',
+            'HasVersion',
+            'IsVersionOf',
+            'IsNewVersionOf',
+            'IsPreviousVersionOf',
+            'IsPartOf',
+            'HasPart',
+            'IsPublishedIn',
+            'IsReferencedBy',
+            'References',
+            'IsDocumentedBy',
+            'Documents',
+            'IsCompiledBy',
+            'Compiles',
+            'IsVariantFormOf',
+            'IsOriginalFormOf',
+            'IsIdenticalTo',
+            'IsReviewedBy',
+            'Reviews',
+            'IsDerivedFrom',
+            'IsSourceOf',
+            'IsRequiredBy',
+            'Requires',
         ];
-        
+
         setIsProcessing(true);
         setErrors([]);
         setParsedData([]);
@@ -100,34 +138,38 @@ export default function RelatedWorkCsvImport({
 
         try {
             const text = await csvFile.text();
-            const lines = text.split('\n').filter(line => line.trim());
+            const lines = text.split('\n').filter((line) => line.trim());
 
             if (lines.length < 2) {
-                setErrors([{
-                    row: 0,
-                    field: 'file',
-                    value: '',
-                    message: 'CSV file is empty or has no data rows',
-                }]);
+                setErrors([
+                    {
+                        row: 0,
+                        field: 'file',
+                        value: '',
+                        message: 'CSV file is empty or has no data rows',
+                    },
+                ]);
                 setIsProcessing(false);
                 return;
             }
 
             // Parse header
-            const header = lines[0].split(',').map(h => h.trim().toLowerCase());
-            
+            const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+
             // Required: identifier and relation_type
             // Optional: identifier_type (will be auto-detected if missing)
             const requiredColumns = ['identifier', 'relation_type'];
-            const missingColumns = requiredColumns.filter(col => !header.includes(col));
+            const missingColumns = requiredColumns.filter((col) => !header.includes(col));
 
             if (missingColumns.length > 0) {
-                setErrors([{
-                    row: 0,
-                    field: 'header',
-                    value: header.join(', '),
-                    message: `Missing required columns: ${missingColumns.join(', ')}. Optional: identifier_type (auto-detected if not provided)`,
-                }]);
+                setErrors([
+                    {
+                        row: 0,
+                        field: 'header',
+                        value: header.join(', '),
+                        message: `Missing required columns: ${missingColumns.join(', ')}. Optional: identifier_type (auto-detected if not provided)`,
+                    },
+                ]);
                 setIsProcessing(false);
                 return;
             }
@@ -141,8 +183,8 @@ export default function RelatedWorkCsvImport({
 
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i];
-                const values = line.split(',').map(v => v.trim());
-                
+                const values = line.split(',').map((v) => v.trim());
+
                 const minColumns = hasIdentifierType ? 3 : 2;
                 if (values.length < minColumns) {
                     validationErrors.push({
@@ -192,7 +234,7 @@ export default function RelatedWorkCsvImport({
                         row: i + 1,
                         field: 'identifier_type',
                         value: row.identifier_type,
-                        message: hasIdentifierType 
+                        message: hasIdentifierType
                             ? `Invalid identifier type. Must be one of: ${validIdentifierTypes.join(', ')}`
                             : `Could not auto-detect identifier type. Please provide identifier_type column.`,
                     });
@@ -209,7 +251,7 @@ export default function RelatedWorkCsvImport({
                 }
 
                 // If valid, add to data
-                if (validationErrors.length === 0 || validationErrors.every(e => e.row !== i + 1)) {
+                if (validationErrors.length === 0 || validationErrors.every((e) => e.row !== i + 1)) {
                     data.push({
                         identifier: row.identifier,
                         identifierType: row.identifier_type as IdentifierType,
@@ -224,12 +266,14 @@ export default function RelatedWorkCsvImport({
             setParsedData(data);
             setProgress(100);
         } catch (error) {
-            setErrors([{
-                row: 0,
-                field: 'file',
-                value: '',
-                message: error instanceof Error ? error.message : 'Failed to parse CSV file',
-            }]);
+            setErrors([
+                {
+                    row: 0,
+                    field: 'file',
+                    value: '',
+                    message: error instanceof Error ? error.message : 'Failed to parse CSV file',
+                },
+            ]);
         } finally {
             setIsProcessing(false);
         }
@@ -291,19 +335,10 @@ https://example.org/dataset/123,IsSupplementTo
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                    <Label className="text-base font-semibold">
-                        CSV Bulk Import
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                        Import multiple related works from a CSV file
-                    </p>
+                    <Label className="text-base font-semibold">CSV Bulk Import</Label>
+                    <p className="text-sm text-muted-foreground">Import multiple related works from a CSV file</p>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onClose}
-                    aria-label="Close CSV import"
-                >
+                <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
                     <X className="h-4 w-4" />
                 </Button>
             </div>
@@ -312,14 +347,8 @@ https://example.org/dataset/123,IsSupplementTo
             <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription className="flex items-center justify-between">
-                    <span className="text-sm">
-                        Need a template? Download our example CSV file
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={downloadExample}
-                    >
+                    <span className="text-sm">Need a template? Download our example CSV file</span>
+                    <Button variant="outline" size="sm" onClick={downloadExample}>
                         <FileUp className="mr-2 h-3 w-3" />
                         Download Example
                     </Button>
@@ -328,33 +357,18 @@ https://example.org/dataset/123,IsSupplementTo
 
             {/* File Upload Area */}
             <div
-                className={`
-                    relative rounded-lg border-2 border-dashed p-8 text-center transition-colors
-                    ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-                    ${file ? 'bg-muted/50' : ''}
-                `}
+                className={`relative rounded-lg border-2 border-dashed p-8 text-center transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'} ${file ? 'bg-muted/50' : ''} `}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                <input
-                    type="file"
-                    id="csv-upload"
-                    accept=".csv,text/csv"
-                    onChange={handleFileSelect}
-                    className="sr-only"
-                />
-                
+                <input type="file" id="csv-upload" accept=".csv,text/csv" onChange={handleFileSelect} className="sr-only" />
+
                 {!file ? (
-                    <label
-                        htmlFor="csv-upload"
-                        className="flex cursor-pointer flex-col items-center gap-2"
-                    >
+                    <label htmlFor="csv-upload" className="flex cursor-pointer flex-col items-center gap-2">
                         <Upload className="h-10 w-10 text-muted-foreground" />
                         <div className="space-y-1">
-                            <p className="text-sm font-medium">
-                                Drop your CSV file here or click to browse
-                            </p>
+                            <p className="text-sm font-medium">Drop your CSV file here or click to browse</p>
                             <p className="text-xs text-muted-foreground">
                                 Required columns: identifier, relation_type (identifier_type is optional and will be auto-detected)
                             </p>
@@ -365,16 +379,12 @@ https://example.org/dataset/123,IsSupplementTo
                         <div className="flex items-center justify-center gap-2">
                             <FileUp className="h-5 w-5 text-green-600" />
                             <span className="font-medium">{file.name}</span>
-                            <span className="text-sm text-muted-foreground">
-                                ({(file.size / 1024).toFixed(2)} KB)
-                            </span>
+                            <span className="text-sm text-muted-foreground">({(file.size / 1024).toFixed(2)} KB)</span>
                         </div>
                         {isProcessing && (
                             <div className="space-y-2">
                                 <Progress value={progress} className="h-2" />
-                                <p className="text-xs text-muted-foreground">
-                                    Processing... {progress}%
-                                </p>
+                                <p className="text-xs text-muted-foreground">Processing... {progress}%</p>
                             </div>
                         )}
                     </div>
@@ -396,11 +406,7 @@ https://example.org/dataset/123,IsSupplementTo
                                         Row {error.row}, {error.field}: {error.message}
                                     </li>
                                 ))}
-                                {errors.length > 10 && (
-                                    <li className="italic text-muted-foreground">
-                                        ... and {errors.length - 10} more errors
-                                    </li>
-                                )}
+                                {errors.length > 10 && <li className="text-muted-foreground italic">... and {errors.length - 10} more errors</li>}
                             </ul>
                         </div>
                     </AlertDescription>
@@ -413,8 +419,7 @@ https://example.org/dataset/123,IsSupplementTo
                     <Info className="h-4 w-4 text-green-600" />
                     <AlertDescription>
                         <p className="text-sm text-green-800">
-                            ✓ Successfully parsed {parsedData.length} related work{parsedData.length > 1 ? 's' : ''}.
-                            Ready to import!
+                            ✓ Successfully parsed {parsedData.length} related work{parsedData.length > 1 ? 's' : ''}. Ready to import!
                         </p>
                         {parsedData.length > 0 && (
                             <div className="mt-2 max-h-40 overflow-y-auto rounded border bg-white p-2">
@@ -425,11 +430,7 @@ https://example.org/dataset/123,IsSupplementTo
                                             {item.relationType}: {item.identifier} ({item.identifierType})
                                         </li>
                                     ))}
-                                    {parsedData.length > 5 && (
-                                        <li className="italic text-muted-foreground">
-                                            ... and {parsedData.length - 5} more
-                                        </li>
-                                    )}
+                                    {parsedData.length > 5 && <li className="text-muted-foreground italic">... and {parsedData.length - 5} more</li>}
                                 </ul>
                             </div>
                         )}
@@ -439,16 +440,10 @@ https://example.org/dataset/123,IsSupplementTo
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-2">
-                <Button
-                    variant="outline"
-                    onClick={onClose}
-                >
+                <Button variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button
-                    onClick={handleImport}
-                    disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}
-                >
+                <Button onClick={handleImport} disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}>
                     Import {parsedData.length > 0 && `${parsedData.length} Items`}
                 </Button>
             </div>

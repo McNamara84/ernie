@@ -83,9 +83,7 @@ interface ResourceInstitutionContributorSummary extends BaseResourceContributorS
     institutionName?: string | null;
 }
 
-type ResourceContributorSummary =
-    | ResourcePersonContributorSummary
-    | ResourceInstitutionContributorSummary;
+type ResourceContributorSummary = ResourcePersonContributorSummary | ResourceInstitutionContributorSummary;
 
 interface NormalisedAuthorAffiliation {
     value: string;
@@ -148,47 +146,57 @@ export interface ResourceForCuration {
     descriptions?: (ResourceDescriptionSummary | null | undefined)[] | null;
     dates?: (ResourceDateSummary | null | undefined)[] | null;
     freeKeywords?: string[] | null;
-    controlledKeywords?: {
-        id: string;
-        text: string;
-        path: string;
-        language: string;
-        scheme: string;
-        schemeURI: string;
-    }[] | null;
-    spatialTemporalCoverages?: {
-        latMin: string;
-        latMax: string;
-        lonMin: string;
-        lonMax: string;
-        startDate: string;
-        endDate: string;
-        startTime: string;
-        endTime: string;
-        timezone: string;
-        description: string;
-    }[] | null;
-    relatedIdentifiers?: {
-        identifier: string;
-        identifierType: string;
-        relationType: string;
-        position: number;
-    }[] | null;
-    fundingReferences?: {
-        funderName: string;
-        funderIdentifier: string | null;
-        funderIdentifierType: string | null;
-        awardNumber: string | null;
-        awardUri: string | null;
-        awardTitle: string | null;
-        position: number;
-    }[] | null;
-    mslLaboratories?: {
-        identifier: string;
-        name: string;
-        affiliation_name: string;
-        affiliation_ror: string;
-    }[] | null;
+    controlledKeywords?:
+        | {
+              id: string;
+              text: string;
+              path: string;
+              language: string;
+              scheme: string;
+              schemeURI: string;
+          }[]
+        | null;
+    spatialTemporalCoverages?:
+        | {
+              latMin: string;
+              latMax: string;
+              lonMin: string;
+              lonMax: string;
+              startDate: string;
+              endDate: string;
+              startTime: string;
+              endTime: string;
+              timezone: string;
+              description: string;
+          }[]
+        | null;
+    relatedIdentifiers?:
+        | {
+              identifier: string;
+              identifierType: string;
+              relationType: string;
+              position: number;
+          }[]
+        | null;
+    fundingReferences?:
+        | {
+              funderName: string;
+              funderIdentifier: string | null;
+              funderIdentifierType: string | null;
+              awardNumber: string | null;
+              awardUri: string | null;
+              awardTitle: string | null;
+              position: number;
+          }[]
+        | null;
+    mslLaboratories?:
+        | {
+              identifier: string;
+              name: string;
+              affiliation_name: string;
+              affiliation_ror: string;
+          }[]
+        | null;
 }
 
 let resourceTypesCache: ResourceTypeReference[] | null = null;
@@ -292,9 +300,7 @@ const normaliseTitles = (titles: ResourceTitleSummary[]): { title: string; title
 };
 
 const normaliseLicenses = (licenses: ResourceLicenseSummary[]): string[] =>
-    licenses
-        .map((license) => license.identifier?.trim())
-        .filter((identifier): identifier is string => Boolean(identifier));
+    licenses.map((license) => license.identifier?.trim()).filter((identifier): identifier is string => Boolean(identifier));
 
 const toTrimmedStringOrNull = (value: unknown): string | null => {
     if (typeof value !== 'string') {
@@ -344,11 +350,7 @@ const normaliseAuthorAffiliations = (
         }
 
         const valueCandidate =
-            typeof affiliation.value === 'string'
-                ? affiliation.value
-                : typeof affiliation.name === 'string'
-                  ? affiliation.name
-                  : '';
+            typeof affiliation.value === 'string' ? affiliation.value : typeof affiliation.name === 'string' ? affiliation.name : '';
         const rorCandidate =
             typeof affiliation.rorId === 'string'
                 ? affiliation.rorId
@@ -380,9 +382,7 @@ const normaliseAuthorAffiliations = (
     return results;
 };
 
-const normaliseAuthors = (
-    authors?: (ResourceAuthorSummary | null | undefined)[] | null,
-): NormalisedAuthor[] => {
+const normaliseAuthors = (authors?: (ResourceAuthorSummary | null | undefined)[] | null): NormalisedAuthor[] => {
     if (!Array.isArray(authors) || authors.length === 0) {
         return [];
     }
@@ -401,20 +401,14 @@ const normaliseAuthors = (
                 return {
                     type,
                     position,
-                    institutionName: toTrimmedStringOrNull(
-                        (author as ResourceInstitutionAuthorSummary).institutionName,
-                    ),
+                    institutionName: toTrimmedStringOrNull((author as ResourceInstitutionAuthorSummary).institutionName),
                     rorId: toTrimmedStringOrNull((author as ResourceInstitutionAuthorSummary).rorId),
                     affiliations,
                 } satisfies NormalisedAuthor;
             }
 
             const { isContact } = author as ResourcePersonAuthorSummary;
-            const contactFlag =
-                isContact === true ||
-                isContact === 'true' ||
-                isContact === 1 ||
-                isContact === '1';
+            const contactFlag = isContact === true || isContact === 'true' || isContact === 1 || isContact === '1';
 
             return {
                 type,
@@ -432,9 +426,7 @@ const normaliseAuthors = (
         .sort((left, right) => left.position - right.position);
 };
 
-const normaliseContributorRoles = (
-    roles?: (string | ResourceContributorRoleSummary | null | undefined)[] | null,
-): string[] => {
+const normaliseContributorRoles = (roles?: (string | ResourceContributorRoleSummary | null | undefined)[] | null): string[] => {
     if (!Array.isArray(roles) || roles.length === 0) {
         return [];
     }
@@ -468,9 +460,7 @@ const normaliseContributorRoles = (
     return result;
 };
 
-const normaliseContributors = (
-    contributors?: (ResourceContributorSummary | null | undefined)[] | null,
-): NormalisedContributor[] => {
+const normaliseContributors = (contributors?: (ResourceContributorSummary | null | undefined)[] | null): NormalisedContributor[] => {
     if (!Array.isArray(contributors) || contributors.length === 0) {
         return [];
     }
@@ -484,16 +474,13 @@ const normaliseContributors = (
             const position = toNonNegativeInteger(contributor.position);
             const affiliations = normaliseAuthorAffiliations(contributor.affiliations ?? null);
             const roles = normaliseContributorRoles(contributor.roles ?? null);
-            const type: 'person' | 'institution' =
-                contributor.type === 'institution' ? 'institution' : 'person';
+            const type: 'person' | 'institution' = contributor.type === 'institution' ? 'institution' : 'person';
 
             if (type === 'institution') {
                 return {
                     type,
                     position,
-                    institutionName: toTrimmedStringOrNull(
-                        (contributor as ResourceInstitutionContributorSummary).institutionName,
-                    ),
+                    institutionName: toTrimmedStringOrNull((contributor as ResourceInstitutionContributorSummary).institutionName),
                     roles,
                     affiliations,
                 } satisfies NormalisedContributor;
@@ -502,15 +489,9 @@ const normaliseContributors = (
             return {
                 type,
                 position,
-                orcid: toTrimmedStringOrNull(
-                    (contributor as ResourcePersonContributorSummary).orcid,
-                ),
-                firstName: toTrimmedStringOrNull(
-                    (contributor as ResourcePersonContributorSummary).firstName,
-                ),
-                lastName: toTrimmedStringOrNull(
-                    (contributor as ResourcePersonContributorSummary).lastName,
-                ),
+                orcid: toTrimmedStringOrNull((contributor as ResourcePersonContributorSummary).orcid),
+                firstName: toTrimmedStringOrNull((contributor as ResourcePersonContributorSummary).firstName),
+                lastName: toTrimmedStringOrNull((contributor as ResourcePersonContributorSummary).lastName),
                 roles,
                 affiliations,
             } satisfies NormalisedContributor;
@@ -519,9 +500,7 @@ const normaliseContributors = (
         .sort((left, right) => left.position - right.position);
 };
 
-export const buildCurationQueryFromResource = async (
-    resource: ResourceForCuration,
-): Promise<Record<string, string>> => {
+export const buildCurationQueryFromResource = async (resource: ResourceForCuration): Promise<Record<string, string>> => {
     const query: Record<string, string> = {};
 
     if (Number.isInteger(resource.id)) {
@@ -669,10 +648,7 @@ export const buildCurationQueryFromResource = async (
     descriptions
         .filter(
             (desc): desc is ResourceDescriptionSummary =>
-                desc !== null &&
-                desc !== undefined &&
-                Boolean(desc.descriptionType) &&
-                Boolean(desc.description),
+                desc !== null && desc !== undefined && Boolean(desc.descriptionType) && Boolean(desc.description),
         )
         .forEach((description, index) => {
             const prefix = `descriptions[${index}]`;
@@ -691,10 +667,7 @@ export const buildCurationQueryFromResource = async (
     // Add dates to query (already in kebab-case)
     const dates = resource.dates ?? [];
     dates
-        .filter(
-            (date): date is ResourceDateSummary =>
-                date !== null && date !== undefined && Boolean(date.dateType),
-        )
+        .filter((date): date is ResourceDateSummary => date !== null && date !== undefined && Boolean(date.dateType))
         .forEach((date, index) => {
             const prefix = `dates[${index}]`;
 

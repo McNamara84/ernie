@@ -179,7 +179,9 @@
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        transition:
+            border-color 0.2s ease,
+            box-shadow 0.2s ease;
     }
 
     .tagify:focus-within {
@@ -247,4 +249,3 @@
         }
     }
 }
-

@@ -1,5 +1,3 @@
-import React from 'react';
-
 import CoordinateInputs from './CoordinateInputs';
 import MapPicker from './MapPicker';
 import type { CoordinateBounds, SpatialTemporalCoverageEntry } from './types';
@@ -11,12 +9,7 @@ interface BoxFormProps {
     onBatchChange: (updates: Partial<SpatialTemporalCoverageEntry>) => void;
 }
 
-export default function BoxForm({
-    entry,
-    apiKey,
-    onChange,
-    onBatchChange,
-}: BoxFormProps) {
+export default function BoxForm({ entry, apiKey, onChange, onBatchChange }: BoxFormProps) {
     const handleRectangleSelected = (bounds: CoordinateBounds) => {
         const latMinStr = bounds.south.toFixed(6);
         const latMaxStr = bounds.north.toFixed(6);
@@ -38,15 +31,12 @@ export default function BoxForm({
         });
     };
 
-    const handleCoordinateChange = (
-        field: 'latMin' | 'lonMin' | 'latMax' | 'lonMax',
-        value: string,
-    ) => {
+    const handleCoordinateChange = (field: 'latMin' | 'lonMin' | 'latMax' | 'lonMax', value: string) => {
         onChange(field, value);
     };
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Left Column: Map */}
             <div className="space-y-4">
                 <MapPicker

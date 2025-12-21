@@ -1,17 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import {
-    BarChart3,
-    BookOpen,
-    ClipboardEdit,
-    Database,
-    FileText,
-    FlaskConical,
-    History,
-    Layers,
-    LayoutGrid,
-    Settings,
-    Users,
-} from 'lucide-react';
+import { BarChart3, BookOpen, ClipboardEdit, Database, FileText, FlaskConical, History, Layers, LayoutGrid, Settings, Users } from 'lucide-react';
 
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -19,7 +7,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { withBasePath } from '@/lib/base-path';
 import { dashboard, settings } from '@/routes';
-import { type NavItem, type User as AuthUser } from '@/types';
+import { type NavItem,type User as AuthUser } from '@/types';
 
 import AppLogo from './app-logo';
 

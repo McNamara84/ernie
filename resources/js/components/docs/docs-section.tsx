@@ -16,7 +16,7 @@ export function DocsSection({ id, title, icon: Icon, children }: DocsSectionProp
                 </div>
                 <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
             </div>
-            <div className="prose max-w-none dark:prose-invert">{children}</div>
+            <div className="prose dark:prose-invert max-w-none">{children}</div>
         </section>
     );
 }

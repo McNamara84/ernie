@@ -5,19 +5,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
-import {
-    getOppositeRelationType,
-    MOST_USED_RELATION_TYPES,
-    RELATION_TYPE_DESCRIPTIONS,
-} from '@/lib/related-identifiers';
+import { getOppositeRelationType, MOST_USED_RELATION_TYPES, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
 interface RelatedWorkQuickAddProps {
@@ -33,7 +23,7 @@ interface RelatedWorkQuickAddProps {
 
 /**
  * RelatedWorkQuickAdd Component
- * 
+ *
  * Quick mode for adding related works with:
  * - Auto-detection of identifier type (DOI, URL)
  * - Top 5 most used relation types for quick access
@@ -114,10 +104,10 @@ export default function RelatedWorkQuickAdd({
         <div className="space-y-4">
             {/* Info text */}
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+                <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
                 <p>
-                    Add relationships to other datasets, publications, or resources.
-                    Enter a DOI, URL, or other identifier and select the relationship type.
+                    Add relationships to other datasets, publications, or resources. Enter a DOI, URL, or other identifier and select the relationship
+                    type.
                 </p>
             </div>
 
@@ -150,16 +140,12 @@ export default function RelatedWorkQuickAdd({
                             }`}
                         />
                         {validation.status === 'validating' && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="absolute top-1/2 right-3 -translate-y-1/2">
                                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             </div>
                         )}
                     </div>
-                    {validation.status === 'invalid' && (
-                        <p className="mt-1 text-xs text-red-600">
-                            Invalid {identifierType} format
-                        </p>
-                    )}
+                    {validation.status === 'invalid' && <p className="mt-1 text-xs text-red-600">Invalid {identifierType} format</p>}
                     {validation.status === 'warning' && (
                         <p className="mt-1 text-xs text-yellow-600">
                             <Info className="mr-1 inline h-3 w-3" />
@@ -167,14 +153,10 @@ export default function RelatedWorkQuickAdd({
                         </p>
                     )}
                     {validation.status === 'valid' && validation.metadata?.title && (
-                        <p className="mt-1 text-xs text-green-600">
-                            ✓ {validation.metadata.title}
-                        </p>
+                        <p className="mt-1 text-xs text-green-600">✓ {validation.metadata.title}</p>
                     )}
                     {validation.status === 'idle' && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            Type will be auto-detected (DOI, URL, Handle)
-                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">Type will be auto-detected (DOI, URL, Handle)</p>
                     )}
                 </div>
 
@@ -183,24 +165,17 @@ export default function RelatedWorkQuickAdd({
                     <Label htmlFor="relation-type" className="sr-only">
                         Relation Type
                     </Label>
-                    <Select
-                        value={relationType}
-                        onValueChange={handleRelationTypeChange}
-                    >
+                    <Select value={relationType} onValueChange={handleRelationTypeChange}>
                         <SelectTrigger id="relation-type">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                                Most Used
-                            </div>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Most Used</div>
                             {MOST_USED_RELATION_TYPES.map((type) => (
                                 <SelectItem key={type} value={type}>
                                     <div className="flex flex-col items-start">
                                         <span>{type}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {RELATION_TYPE_DESCRIPTIONS[type].substring(0, 50)}...
-                                        </span>
+                                        <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type].substring(0, 50)}...</span>
                                     </div>
                                 </SelectItem>
                             ))}
@@ -224,22 +199,14 @@ export default function RelatedWorkQuickAdd({
 
             {/* Bidirectional Suggestion */}
             {showSuggestion && oppositeRelation && (
-                <Alert className="bg-blue-50 border-blue-200">
+                <Alert className="border-blue-200 bg-blue-50">
                     <Lightbulb className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="flex items-center justify-between">
                         <span className="text-sm">
                             Did you mean <strong>{oppositeRelation}</strong> instead?
-                            <span className="text-muted-foreground ml-1">
-                                ({RELATION_TYPE_DESCRIPTIONS[oppositeRelation]})
-                            </span>
+                            <span className="ml-1 text-muted-foreground">({RELATION_TYPE_DESCRIPTIONS[oppositeRelation]})</span>
                         </span>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={handleUseSuggestion}
-                            className="ml-4 flex-shrink-0"
-                        >
+                        <Button type="button" variant="outline" size="sm" onClick={handleUseSuggestion} className="ml-4 flex-shrink-0">
                             Use {oppositeRelation}
                         </Button>
                     </AlertDescription>
@@ -249,13 +216,7 @@ export default function RelatedWorkQuickAdd({
             {/* Advanced Mode Toggle */}
             {onToggleAdvanced && (
                 <div className="pt-2">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={onToggleAdvanced}
-                        className="text-xs"
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={onToggleAdvanced} className="text-xs">
                         {showAdvancedMode ? '← Simple mode' : 'Show all relation types →'}
                     </Button>
                 </div>

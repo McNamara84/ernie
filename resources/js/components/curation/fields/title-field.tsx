@@ -49,7 +49,7 @@ export function TitleField({
 }: TitleFieldProps) {
     // Determine if this is the main title for adding test-id
     const isMainTitle = titleType === 'main-title';
-    
+
     return (
         <div className={cn('grid gap-4 md:grid-cols-12', className)}>
             <InputField
@@ -78,24 +78,11 @@ export function TitleField({
             />
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Add title"
-                        onClick={onAdd}
-                        disabled={!canAdd}
-                    >
+                    <Button type="button" variant="outline" size="icon" aria-label="Add title" onClick={onAdd} disabled={!canAdd}>
                         <Plus className="h-4 w-4" />
                     </Button>
                 ) : (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Remove title"
-                        onClick={onRemove}
-                    >
+                    <Button type="button" variant="outline" size="icon" aria-label="Remove title" onClick={onRemove}>
                         <Minus className="h-4 w-4" />
                     </Button>
                 )}

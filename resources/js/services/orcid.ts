@@ -1,6 +1,6 @@
 /**
  * ORCID Service - Frontend API Client
- * 
+ *
  * Provides methods to interact with the ORCID backend API
  */
 
@@ -65,7 +65,7 @@ interface ApiResponse<T> {
 export class OrcidService {
     /**
      * Fetch ORCID record data
-     * 
+     *
      * @param orcid The ORCID ID (format: XXXX-XXXX-XXXX-XXXX)
      * @returns Promise with ORCID person data or error
      */
@@ -75,15 +75,12 @@ export class OrcidService {
         error?: string;
     }> {
         try {
-            const response = await fetch(
-                withBasePath(`/api/v1/orcid/${encodeURIComponent(orcid)}`),
-                {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                }
-            );
+            const response = await fetch(withBasePath(`/api/v1/orcid/${encodeURIComponent(orcid)}`), {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                },
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
@@ -117,7 +114,7 @@ export class OrcidService {
 
     /**
      * Validate ORCID ID
-     * 
+     *
      * @param orcid The ORCID ID to validate
      * @returns Promise with validation result
      */
@@ -127,15 +124,12 @@ export class OrcidService {
         error?: string;
     }> {
         try {
-            const response = await fetch(
-                withBasePath(`/api/v1/orcid/validate/${encodeURIComponent(orcid)}`),
-                {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                }
-            );
+            const response = await fetch(withBasePath(`/api/v1/orcid/validate/${encodeURIComponent(orcid)}`), {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                },
+            });
 
             if (!response.ok) {
                 return {
@@ -161,14 +155,14 @@ export class OrcidService {
 
     /**
      * Search for ORCID records by name
-     * 
+     *
      * @param query Search query (person name)
      * @param limit Number of results (default: 10, max: 50)
      * @returns Promise with search results
      */
     static async searchOrcid(
         query: string,
-        limit: number = 10
+        limit: number = 10,
     ): Promise<{
         success: boolean;
         data?: {
@@ -183,15 +177,12 @@ export class OrcidService {
                 limit: Math.min(limit, 50).toString(),
             });
 
-            const response = await fetch(
-                withBasePath(`/api/v1/orcid/search?${params.toString()}`),
-                {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                }
-            );
+            const response = await fetch(withBasePath(`/api/v1/orcid/search?${params.toString()}`), {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json',
+                },
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
@@ -228,7 +219,7 @@ export class OrcidService {
 
     /**
      * Validate ORCID format (client-side)
-     * 
+     *
      * @param orcid The ORCID ID to validate
      * @returns True if format is valid
      */
@@ -239,7 +230,7 @@ export class OrcidService {
 
     /**
      * Format ORCID for display
-     * 
+     *
      * @param orcid The ORCID ID
      * @returns Formatted ORCID with https URL
      */

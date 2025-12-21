@@ -41,9 +41,7 @@ const INSTITUTION_ONLY_ROLE_KEY_VALUES = Object.freeze([
     'sponsor',
 ] as const);
 
-const INSTITUTION_ONLY_ROLE_KEYS: ReadonlySet<string> = Object.freeze(
-    new Set<string>(INSTITUTION_ONLY_ROLE_KEY_VALUES),
-);
+const INSTITUTION_ONLY_ROLE_KEYS: ReadonlySet<string> = Object.freeze(new Set<string>(INSTITUTION_ONLY_ROLE_KEY_VALUES));
 
 export const normaliseContributorRoleLabel = (value: string): string => {
     const trimmed = value.trim();
@@ -63,9 +61,7 @@ const normaliseRoleKey = (role: string): string | null => {
 };
 
 const rolesRequireInstitution = (roles: readonly string[]): boolean => {
-    const keys = roles
-        .map((role) => (typeof role === 'string' ? normaliseRoleKey(role) : null))
-        .filter((role): role is string => Boolean(role));
+    const keys = roles.map((role) => (typeof role === 'string' ? normaliseRoleKey(role) : null)).filter((role): role is string => Boolean(role));
 
     if (keys.length === 0) {
         return false;
@@ -74,10 +70,7 @@ const rolesRequireInstitution = (roles: readonly string[]): boolean => {
     return keys.every((key) => INSTITUTION_ONLY_ROLE_KEYS.has(key));
 };
 
-export const inferContributorTypeFromRoles = (
-    rawType: string | null | undefined,
-    roles: readonly string[],
-): 'person' | 'institution' => {
+export const inferContributorTypeFromRoles = (rawType: string | null | undefined, roles: readonly string[]): 'person' | 'institution' => {
     if (typeof rawType === 'string' && rawType.trim().toLowerCase() === 'institution') {
         return 'institution';
     }

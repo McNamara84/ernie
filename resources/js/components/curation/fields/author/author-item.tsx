@@ -1,6 +1,6 @@
 /**
  * AuthorItem Component
- * 
+ *
  * Individual author entry with all fields.
  * Supports both person and institution types with drag & drop reordering.
  * Migrated from author-field.tsx
@@ -30,10 +30,7 @@ interface AuthorItemProps {
     author: AuthorEntry;
     index: number;
     onTypeChange: (type: AuthorType) => void;
-    onPersonFieldChange: (
-        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
-        value: string,
-    ) => void;
+    onPersonFieldChange: (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => void;
     onInstitutionNameChange: (value: string) => void;
     onContactChange: (checked: boolean) => void;
     onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
@@ -60,16 +57,9 @@ export default function AuthorItem({
     affiliationSuggestions,
 }: AuthorItemProps) {
     const isPerson = author.type === 'person';
-    
+
     // Drag & Drop
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: author.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: author.id });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -77,10 +67,10 @@ export default function AuthorItem({
         opacity: isDragging ? 0.5 : 1,
     };
     const contactLabelTextId = `${author.id}-contact-label-text`;
-    
+
     // Track user interactions with name fields to prevent auto-suggest on initial load
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
-    
+
     // Wrapper for onPersonFieldChange that marks user interaction for name fields only
     // Only firstName/lastName changes should enable ORCID auto-suggest, not email/website/orcid
     const handlePersonFieldChange = (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
@@ -89,16 +79,16 @@ export default function AuthorItem({
         }
         onPersonFieldChange(field, value);
     };
-    
+
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
-    
+
     // ORCID Auto-Suggest State
     const [orcidSuggestions, setOrcidSuggestions] = useState<OrcidSearchResult[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    
+
     // Extract affiliations with ROR IDs
     const affiliationsWithRorId = useMemo(() => {
         const seen = new Set<string>();
@@ -116,9 +106,8 @@ export default function AuthorItem({
             return accumulator;
         }, []);
     }, [author.affiliations]);
-    
-    const affiliationsDescriptionId =
-        affiliationsWithRorId.length > 0 ? `${author.id}-affiliations-ror-description` : undefined;
+
+    const affiliationsDescriptionId = affiliationsWithRorId.length > 0 ? `${author.id}-affiliations-ror-description` : undefined;
 
     // Tagify settings for affiliations autocomplete
     const tagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
@@ -145,12 +134,12 @@ export default function AuthorItem({
      */
     const handleOrcidSelect = async (orcid: string, searchResult: OrcidSearchResult) => {
         if (author.type !== 'person') return;
-        
+
         // Set the ORCID and clear any previous errors
         // Use onPersonFieldChange directly to avoid triggering hasUserInteracted
         onPersonFieldChange('orcid', orcid);
         setVerificationError(null);
-        
+
         // Auto-fill name fields if empty
         if (!author.firstName && searchResult.firstName) {
             onPersonFieldChange('firstName', searchResult.firstName);
@@ -158,21 +147,21 @@ export default function AuthorItem({
         if (!author.lastName && searchResult.lastName) {
             onPersonFieldChange('lastName', searchResult.lastName);
         }
-        
+
         // Now verify and fetch full details
         setIsVerifying(true);
-        
+
         try {
             const response = await OrcidService.fetchOrcidRecord(orcid);
-            
+
             if (!response.success || !response.data) {
                 setVerificationError(response.error || 'Failed to fetch ORCID data');
                 setIsVerifying(false);
                 return;
             }
-            
+
             const data = response.data;
-            
+
             // Update with complete ORCID data
             const updatedAuthor: PersonAuthorEntry = {
                 ...author,
@@ -187,26 +176,19 @@ export default function AuthorItem({
             // Auto-fill affiliations from full ORCID record
             if (data.affiliations.length > 0) {
                 const employmentAffiliations = data.affiliations
-                    .filter(aff => aff.type === 'employment' && aff.name)
-                    .map(aff => ({
+                    .filter((aff) => aff.type === 'employment' && aff.name)
+                    .map((aff) => ({
                         value: aff.name!,
                         rorId: null,
                     }));
 
                 if (employmentAffiliations.length > 0) {
-                    const existingValues = new Set(author.affiliations.map(a => a.value));
-                    const newAffiliations = employmentAffiliations.filter(
-                        a => !existingValues.has(a.value)
-                    );
+                    const existingValues = new Set(author.affiliations.map((a) => a.value));
+                    const newAffiliations = employmentAffiliations.filter((a) => !existingValues.has(a.value));
 
                     if (newAffiliations.length > 0) {
-                        updatedAuthor.affiliations = [
-                            ...author.affiliations,
-                            ...newAffiliations as AffiliationTag[],
-                        ];
-                        updatedAuthor.affiliationsInput = updatedAuthor.affiliations
-                            .map((a: AffiliationTag) => a.value)
-                            .join(', ');
+                        updatedAuthor.affiliations = [...author.affiliations, ...(newAffiliations as AffiliationTag[])];
+                        updatedAuthor.affiliationsInput = updatedAuthor.affiliations.map((a: AffiliationTag) => a.value).join(', ');
                     }
                 }
             }
@@ -219,7 +201,7 @@ export default function AuthorItem({
             setIsVerifying(false);
         }
     };
-    
+
     /**
      * Handle selecting an ORCID suggestion
      */
@@ -227,11 +209,11 @@ export default function AuthorItem({
         setShowSuggestions(false);
         await handleOrcidSelect(suggestion.orcid, suggestion);
     };
-    
+
     /**
      * Auto-suggest ORCIDs based on name and affiliations
      * Triggered when firstName + lastName are filled and ORCID is empty
-     * 
+     *
      * IMPORTANT: Only trigger after user interaction to prevent unwanted searches
      * when loading old records into the editor.
      */
@@ -243,13 +225,7 @@ export default function AuthorItem({
 
         const searchForOrcid = async () => {
             // Only search if person type, has name, and no ORCID yet
-            if (
-                author.type !== 'person' ||
-                !author.firstName?.trim() ||
-                !author.lastName?.trim() ||
-                author.orcid?.trim() ||
-                author.orcidVerified
-            ) {
+            if (author.type !== 'person' || !author.firstName?.trim() || !author.lastName?.trim() || author.orcid?.trim() || author.orcidVerified) {
                 setOrcidSuggestions([]);
                 setShowSuggestions(false);
                 return;
@@ -261,7 +237,7 @@ export default function AuthorItem({
             try {
                 // Build search query: "FirstName LastName"
                 let searchQuery = `${author.firstName.trim()} ${author.lastName.trim()}`;
-                
+
                 // Add first affiliation if available to refine search
                 if (author.affiliations.length > 0 && author.affiliations[0].value) {
                     searchQuery += ` ${author.affiliations[0].value}`;
@@ -316,7 +292,7 @@ export default function AuthorItem({
             try {
                 // Validate ORCID exists
                 const validationResponse = await OrcidService.validateOrcid(author.orcid);
-                
+
                 if (!validationResponse.success || !validationResponse.data?.exists) {
                     setVerificationError('ORCID not found');
                     setIsVerifying(false);
@@ -347,26 +323,19 @@ export default function AuthorItem({
                 // Auto-fill affiliations from full ORCID record
                 if (data.affiliations.length > 0) {
                     const employmentAffiliations = data.affiliations
-                        .filter(aff => aff.type === 'employment' && aff.name)
-                        .map(aff => ({
+                        .filter((aff) => aff.type === 'employment' && aff.name)
+                        .map((aff) => ({
                             value: aff.name!,
                             rorId: null,
                         }));
 
                     if (employmentAffiliations.length > 0) {
-                        const existingValues = new Set(author.affiliations.map(a => a.value));
-                        const newAffiliations = employmentAffiliations.filter(
-                            a => !existingValues.has(a.value)
-                        );
+                        const existingValues = new Set(author.affiliations.map((a) => a.value));
+                        const newAffiliations = employmentAffiliations.filter((a) => !existingValues.has(a.value));
 
                         if (newAffiliations.length > 0) {
-                            updatedAuthor.affiliations = [
-                                ...author.affiliations,
-                                ...newAffiliations as AffiliationTag[],
-                            ];
-                            updatedAuthor.affiliationsInput = updatedAuthor.affiliations
-                                .map((a: AffiliationTag) => a.value)
-                                .join(', ');
+                            updatedAuthor.affiliations = [...author.affiliations, ...(newAffiliations as AffiliationTag[])];
+                            updatedAuthor.affiliationsInput = updatedAuthor.affiliations.map((a: AffiliationTag) => a.value).join(', ');
                         }
                     }
                 }
@@ -399,7 +368,7 @@ export default function AuthorItem({
                     {/* Drag Handle */}
                     <button
                         type="button"
-                        className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground transition-colors"
+                        className="cursor-grab touch-none text-muted-foreground transition-colors hover:text-foreground active:cursor-grabbing"
                         {...attributes}
                         {...listeners}
                         aria-label={`Reorder author ${index + 1}`}
@@ -407,10 +376,7 @@ export default function AuthorItem({
                         <GripVertical className="h-5 w-5" />
                     </button>
                     <div>
-                        <h3
-                            id={`${author.id}-heading`}
-                            className="text-lg font-semibold leading-6 text-foreground"
-                        >
+                        <h3 id={`${author.id}-heading`} className="text-lg leading-6 font-semibold text-foreground">
                             Author {index + 1}
                         </h3>
                     </div>
@@ -432,10 +398,7 @@ export default function AuthorItem({
             {/* Form Fields */}
             <div className="mt-6 space-y-4">
                 {/* Type, ORCID, Name, Contact Person */}
-                <div
-                    className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
-                    data-testid={`author-${index}-fields-grid`}
-                >
+                <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3" data-testid={`author-${index}-fields-grid`}>
                     <SelectField
                         id={`${author.id}-type`}
                         label="Author type"
@@ -457,19 +420,16 @@ export default function AuthorItem({
                         <>
                             {/* ORCID with Verify & Fill Button */}
                             <div className="relative flex flex-col gap-2 md:col-span-3" data-testid={`author-${index}-orcid-field`}>
-                                <Label htmlFor={`${author.id}-orcid`} className="inline-flex items-baseline flex-wrap gap-x-2">
+                                <Label htmlFor={`${author.id}-orcid`} className="inline-flex flex-wrap items-baseline gap-x-2">
                                     <span>ORCID</span>
                                     {author.type === 'person' && author.orcidVerified && (
-                                        <Badge 
-                                            variant="outline" 
-                                            className="text-green-600 border-green-600 h-4 py-0 px-1.5 text-[10px] leading-none"
-                                        >
-                                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                                        <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
+                                            <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
                                             Verified
                                         </Badge>
                                     )}
                                     {isVerifying && (
-                                        <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5">
+                                        <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
                                             <Loader2 className="h-2.5 w-2.5 animate-spin" />
                                             Verifying...
                                         </span>
@@ -480,11 +440,9 @@ export default function AuthorItem({
                                         id={`${author.id}-orcid`}
                                         type="text"
                                         value={author.orcid || ''}
-                                        onChange={(event) =>
-                                            handlePersonFieldChange('orcid', event.target.value)
-                                        }
+                                        onChange={(event) => handlePersonFieldChange('orcid', event.target.value)}
                                         placeholder="0000-0000-0000-0000"
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                         inputMode="text"
                                         pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
                                     />
@@ -495,100 +453,82 @@ export default function AuthorItem({
                                         />
                                     )}
                                 </div>
-                                {verificationError && (
-                                    <p className="text-sm text-red-600 mt-1">
-                                        {verificationError}
-                                    </p>
-                                )}
+                                {verificationError && <p className="mt-1 text-sm text-red-600">{verificationError}</p>}
                                 {author.orcid && OrcidService.isValidFormat(author.orcid) && (
                                     <a
                                         href={OrcidService.formatOrcidUrl(author.orcid)}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                                        className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
                                     >
                                         View on ORCID.org
                                         <ExternalLink className="h-3 w-3" />
                                     </a>
                                 )}
-                                
+
                                 {/* ORCID Auto-Suggestions */}
                                 {showSuggestions && orcidSuggestions.length > 0 && (
-                                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
                                         {isLoadingSuggestions && (
-                                            <div className="p-3 text-sm text-gray-500 flex items-center gap-2">
+                                            <div className="flex items-center gap-2 p-3 text-sm text-gray-500">
                                                 <Loader2 className="h-4 w-4 animate-spin" />
                                                 Searching for matching ORCIDs...
                                             </div>
                                         )}
-                                        {!isLoadingSuggestions && orcidSuggestions.map((suggestion) => (
-                                            <button
-                                                key={suggestion.orcid}
-                                                type="button"
-                                                onClick={() => handleSelectSuggestion(suggestion)}
-                                                className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                                            >
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-medium text-gray-900 truncate">
-                                                            {suggestion.creditName || `${suggestion.firstName} ${suggestion.lastName}`}
-                                                        </p>
-                                                        <p className="text-xs text-gray-600 font-mono mt-1">
-                                                            {suggestion.orcid}
-                                                        </p>
-                                                        {suggestion.institutions.length > 0 && (
-                                                            <p className="text-xs text-gray-500 mt-1 truncate">
-                                                                {suggestion.institutions.join(', ')}
+                                        {!isLoadingSuggestions &&
+                                            orcidSuggestions.map((suggestion) => (
+                                                <button
+                                                    key={suggestion.orcid}
+                                                    type="button"
+                                                    onClick={() => handleSelectSuggestion(suggestion)}
+                                                    className="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50"
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="truncate font-medium text-gray-900">
+                                                                {suggestion.creditName || `${suggestion.firstName} ${suggestion.lastName}`}
                                                             </p>
-                                                        )}
+                                                            <p className="mt-1 font-mono text-xs text-gray-600">{suggestion.orcid}</p>
+                                                            {suggestion.institutions.length > 0 && (
+                                                                <p className="mt-1 truncate text-xs text-gray-500">
+                                                                    {suggestion.institutions.join(', ')}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <ExternalLink className="h-4 w-4 shrink-0 text-gray-400" />
                                                     </div>
-                                                    <ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
-                                                </div>
-                                            </button>
-                                        ))}
+                                                </button>
+                                            ))}
                                     </div>
                                 )}
                             </div>
-                            
+
                             <InputField
                                 id={`${author.id}-firstName`}
                                 label="First name"
                                 value={author.firstName || ''}
-                                onChange={(event) =>
-                                    handlePersonFieldChange('firstName', event.target.value)
-                                }
+                                onChange={(event) => handlePersonFieldChange('firstName', event.target.value)}
                                 containerProps={{ className: 'md:col-span-3' }}
                             />
                             <InputField
                                 id={`${author.id}-lastName`}
                                 label="Last name"
                                 value={author.lastName || ''}
-                                onChange={(event) =>
-                                    handlePersonFieldChange('lastName', event.target.value)
-                                }
+                                onChange={(event) => handlePersonFieldChange('lastName', event.target.value)}
                                 containerProps={{ className: 'md:col-span-3' }}
                                 required
                             />
-                            <div
-                                className="flex flex-col items-start gap-2 md:col-span-1"
-                                data-testid={`author-${index}-contact-field`}
-                            >
+                            <div className="flex flex-col items-start gap-2 md:col-span-1" data-testid={`author-${index}-contact-field`}>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Label
-                                            htmlFor={`${author.id}-contact`}
-                                            className="cursor-help font-medium inline-flex"
-                                        >
+                                        <Label htmlFor={`${author.id}-contact`} className="inline-flex cursor-help font-medium">
                                             <span aria-hidden="true">CP</span>
                                             <span id={contactLabelTextId} className="sr-only">
                                                 Contact person
                                             </span>
                                         </Label>
                                     </TooltipTrigger>
-                                    <TooltipContent side="top">
-                                        Contact Person: Select if this author should be the primary
-                                        contact.
-                                    </TooltipContent>
+                                    <TooltipContent side="top">Contact Person: Select if this author should be the primary contact.</TooltipContent>
                                 </Tooltip>
                                 <Checkbox
                                     id={`${author.id}-contact`}
@@ -598,8 +538,7 @@ export default function AuthorItem({
                                     aria-labelledby={contactLabelTextId}
                                 />
                                 <p id={`${author.id}-contact-hint`} className="sr-only">
-                                    Contact Person: Select if this author should be the primary
-                                    contact.
+                                    Contact Person: Select if this author should be the primary contact.
                                 </p>
                             </div>
                         </>
@@ -616,10 +555,7 @@ export default function AuthorItem({
                 </div>
 
                 {/* Affiliations, Email, Website */}
-                <div
-                    className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
-                    data-testid={`author-${index}-affiliations-grid`}
-                >
+                <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3" data-testid={`author-${index}-affiliations-grid`}>
                     <TagInputField
                         id={`${author.id}-affiliations`}
                         label="Affiliations"
@@ -629,10 +565,7 @@ export default function AuthorItem({
                                 raw: detail.raw,
                                 tags: detail.tags.map((tag) => ({
                                     value: tag.value,
-                                    rorId:
-                                        'rorId' in tag && typeof tag.rorId === 'string'
-                                            ? tag.rorId
-                                            : null,
+                                    rorId: 'rorId' in tag && typeof tag.rorId === 'string' ? tag.rorId : null,
                                 })),
                             })
                         }
@@ -645,7 +578,7 @@ export default function AuthorItem({
                         tagifySettings={tagifySettings}
                         aria-describedby={affiliationsDescriptionId}
                     />
-                    
+
                     {/* Email and Website for Contact Person */}
                     {isPerson && author.isContact && (
                         <>
@@ -654,9 +587,7 @@ export default function AuthorItem({
                                 type="email"
                                 label="Email address"
                                 value={author.email || ''}
-                                onChange={(event) =>
-                                    handlePersonFieldChange('email', event.target.value)
-                                }
+                                onChange={(event) => handlePersonFieldChange('email', event.target.value)}
                                 containerProps={{ className: 'md:col-span-3' }}
                                 required
                             />
@@ -665,15 +596,13 @@ export default function AuthorItem({
                                 type="url"
                                 label="Website"
                                 value={author.website || ''}
-                                onChange={(event) =>
-                                    handlePersonFieldChange('website', event.target.value)
-                                }
+                                onChange={(event) => handlePersonFieldChange('website', event.target.value)}
                                 placeholder="https://example.org"
                                 containerProps={{ className: 'md:col-span-3' }}
                             />
                         </>
                     )}
-                    
+
                     {/* ROR ID Badges */}
                     {affiliationsWithRorId.length > 0 && (
                         <div
@@ -682,19 +611,13 @@ export default function AuthorItem({
                             data-testid={`author-${index}-affiliations-ror-ids`}
                             aria-live="polite"
                         >
-                            <p className="text-sm font-medium text-muted-foreground">
-                                Linked ROR IDs
-                            </p>
-                            <div
-                                className="flex flex-wrap gap-2"
-                                role="list"
-                                aria-label="Selected ROR identifiers"
-                            >
+                            <p className="text-sm font-medium text-muted-foreground">Linked ROR IDs</p>
+                            <div className="flex flex-wrap gap-2" role="list" aria-label="Selected ROR identifiers">
                                 {affiliationsWithRorId.map((affiliation) => (
                                     <Badge
                                         key={`${affiliation.rorId}-${affiliation.value}`}
                                         variant="secondary"
-                                        className="gap-1 px-2 py-1 text-xs font-medium hover:bg-secondary/80 transition-colors"
+                                        className="gap-1 px-2 py-1 text-xs font-medium transition-colors hover:bg-secondary/80"
                                         role="listitem"
                                         asChild
                                     >

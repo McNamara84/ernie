@@ -15,7 +15,7 @@ const normalizeSuggestion = (input: unknown): AffiliationSuggestion | null => {
     }
 
     const raw = input as Record<string, unknown>;
-    
+
     // Map new JSON structure (prefLabel, rorId, otherLabel) to internal structure (value, rorId, searchTerms)
     const prefLabel = typeof raw.prefLabel === 'string' ? raw.prefLabel.trim() : '';
     const rorId = typeof raw.rorId === 'string' ? raw.rorId.trim() : '';
@@ -25,9 +25,7 @@ const normalizeSuggestion = (input: unknown): AffiliationSuggestion | null => {
     }
 
     const otherLabel = Array.isArray(raw.otherLabel)
-        ? raw.otherLabel
-              .map((term) => (typeof term === 'string' ? term.trim() : ''))
-              .filter((term): term is string => Boolean(term))
+        ? raw.otherLabel.map((term) => (typeof term === 'string' ? term.trim() : '')).filter((term): term is string => Boolean(term))
         : [prefLabel];
 
     return {
@@ -63,11 +61,9 @@ export function useRorAffiliations(): UseRorAffiliationsResult {
                 }
 
                 const payload = (await response.json()) as unknown;
-                
+
                 const parsed = Array.isArray(payload)
-                    ? payload
-                          .map((item) => normalizeSuggestion(item))
-                          .filter((item): item is AffiliationSuggestion => Boolean(item))
+                    ? payload.map((item) => normalizeSuggestion(item)).filter((item): item is AffiliationSuggestion => Boolean(item))
                     : [];
 
                 if (!isMounted) {

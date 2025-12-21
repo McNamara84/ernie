@@ -2,13 +2,7 @@ import { type HTMLAttributes } from 'react';
 
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 import { cn } from '@/lib/utils';
@@ -65,11 +59,7 @@ export function SelectField({
     const helpTextId = helpText ? `${id}-help` : undefined;
     const feedbackId = validationMessages.length > 0 ? `${id}-feedback` : undefined;
 
-    const mergedClassName = cn(
-        'flex flex-col gap-2',
-        containerProps?.className,
-        className,
-    );
+    const mergedClassName = cn('flex flex-col gap-2', containerProps?.className, className);
 
     // Determine if field has error
     const hasError = validationMessages.some((m) => m.severity === 'error');
@@ -79,9 +69,7 @@ export function SelectField({
     const ariaDescribedBy = [helpTextId, feedbackId].filter(Boolean).join(' ') || undefined;
 
     // Only use aria-label when label is hidden; otherwise use aria-labelledby
-    const ariaProps = hideLabel
-        ? { 'aria-label': label }
-        : { 'aria-labelledby': labelId };
+    const ariaProps = hideLabel ? { 'aria-label': label } : { 'aria-labelledby': labelId };
 
     // Handle value change with optional blur callback
     const handleValueChange = (newValue: string) => {
@@ -99,7 +87,7 @@ export function SelectField({
         <>
             {label}
             {required && (
-                <span aria-hidden="true" className="text-destructive ml-1">
+                <span aria-hidden="true" className="ml-1 text-destructive">
                     *
                 </span>
             )}
@@ -111,12 +99,7 @@ export function SelectField({
             {labelTooltip ? (
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Label
-                            id={labelId}
-                            className={cn(
-                                hideLabel ? 'sr-only' : 'cursor-help',
-                            )}
-                        >
+                        <Label id={labelId} className={cn(hideLabel ? 'sr-only' : 'cursor-help')}>
                             {labelContent}
                         </Label>
                     </TooltipTrigger>
@@ -125,10 +108,7 @@ export function SelectField({
                     </TooltipContent>
                 </Tooltip>
             ) : (
-                <Label
-                    id={labelId}
-                    className={hideLabel ? 'sr-only' : undefined}
-                >
+                <Label id={labelId} className={hideLabel ? 'sr-only' : undefined}>
                     {labelContent}
                 </Label>
             )}
@@ -161,11 +141,7 @@ export function SelectField({
             </Select>
 
             {touched && validationMessages.length > 0 && (
-                <FieldValidationFeedback
-                    id={feedbackId}
-                    messages={validationMessages}
-                    showSuccess={showSuccessFeedback}
-                />
+                <FieldValidationFeedback id={feedbackId} messages={validationMessages} showSuccess={showSuccessFeedback} />
             )}
         </div>
     );

@@ -800,8 +800,8 @@ class ResourceController extends Controller
 
             $payload[] = [
                 'name' => $value,
-                'affiliation_identifier' => $rorId,
-                'affiliation_identifier_scheme' => $rorId ? 'ROR' : null,
+                'identifier' => $rorId,
+                'identifier_scheme' => $rorId ? 'ROR' : null,
             ];
         }
 
@@ -996,8 +996,8 @@ class ResourceController extends Controller
 
             $payload[] = [
                 'name' => $value,
-                'affiliation_identifier' => $rorId,
-                'affiliation_identifier_scheme' => $rorId !== null ? 'ROR' : null,
+                'identifier' => $rorId,
+                'identifier_scheme' => $rorId !== null ? 'ROR' : null,
             ];
         }
 
@@ -1070,8 +1070,8 @@ class ResourceController extends Controller
         // Create affiliation for the host institution
         $resourceContributor->affiliations()->create([
             'name' => trim($affiliationName),
-            'affiliation_identifier' => ($affiliationRor !== '' && $affiliationRor !== null) ? $affiliationRor : null,
-            'affiliation_identifier_scheme' => ($affiliationRor !== '' && $affiliationRor !== null) ? 'ROR' : null,
+            'identifier' => ($affiliationRor !== '' && $affiliationRor !== null) ? $affiliationRor : null,
+            'identifier_scheme' => ($affiliationRor !== '' && $affiliationRor !== null) ? 'ROR' : null,
         ]);
     }
 

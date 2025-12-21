@@ -63,24 +63,12 @@ export function LicenseField({
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
                     canAdd ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Add license"
-                            onClick={onAdd}
-                        >
+                        <Button type="button" variant="outline" size="icon" aria-label="Add license" onClick={onAdd}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     ) : null
                 ) : (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Remove license"
-                        onClick={onRemove}
-                    >
+                    <Button type="button" variant="outline" size="icon" aria-label="Remove license" onClick={onRemove}>
                         <Minus className="h-4 w-4" />
                     </Button>
                 )}
@@ -90,4 +78,3 @@ export function LicenseField({
 }
 
 export default LicenseField;
-

@@ -1,13 +1,4 @@
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 type RelationType = {
     type: string;
@@ -59,9 +50,7 @@ export default function RelationTypesChart({ data, limit = 15 }: RelationTypesCh
         <div className="space-y-6">
             {/* Bar Chart */}
             <div>
-                <h4 className="mb-4 text-sm font-medium">
-                    Top {limit} Relation Types by Occurrences
-                </h4>
+                <h4 className="mb-4 text-sm font-medium">Top {limit} Relation Types by Occurrences</h4>
                 <ResponsiveContainer width="100%" height={400}>
                     <BarChart data={chartData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -74,12 +63,7 @@ export default function RelationTypesChart({ data, limit = 15 }: RelationTypesCh
                                 offset: -5,
                             }}
                         />
-                        <YAxis
-                            type="category"
-                            dataKey="type"
-                            className="text-xs"
-                            width={120}
-                        />
+                        <YAxis type="category" dataKey="type" className="text-xs" width={120} />
                         <Tooltip
                             content={({ active, payload }) => {
                                 if (active && payload && payload.length) {
@@ -88,34 +72,20 @@ export default function RelationTypesChart({ data, limit = 15 }: RelationTypesCh
                                         <div className="rounded-lg border bg-background p-3 shadow-sm">
                                             <div className="grid gap-2">
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Relation Type
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Relation Type</span>
                                                     <span className="font-bold">{item.type}</span>
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Total Occurrences
-                                                    </span>
-                                                    <span className="font-bold text-muted-foreground">
-                                                        {item.occurrences.toLocaleString()}
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Total Occurrences</span>
+                                                    <span className="font-bold text-muted-foreground">{item.occurrences.toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Unique Datasets
-                                                    </span>
-                                                    <span className="font-bold text-muted-foreground">
-                                                        {item.datasets.toLocaleString()}
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Unique Datasets</span>
+                                                    <span className="font-bold text-muted-foreground">{item.datasets.toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                        Percentage
-                                                    </span>
-                                                    <span className="font-bold text-muted-foreground">
-                                                        {item.percentage}%
-                                                    </span>
+                                                    <span className="text-[0.70rem] text-muted-foreground uppercase">Percentage</span>
+                                                    <span className="font-bold text-muted-foreground">{item.percentage}%</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -151,11 +121,7 @@ export default function RelationTypesChart({ data, limit = 15 }: RelationTypesCh
                             {data.map((item, index) => (
                                 <tr
                                     key={item.type}
-                                    className={`border-t ${
-                                        item.type === 'IsSupplementTo'
-                                            ? 'bg-emerald-50 font-semibold dark:bg-emerald-950'
-                                            : ''
-                                    }`}
+                                    className={`border-t ${item.type === 'IsSupplementTo' ? 'bg-emerald-50 font-semibold dark:bg-emerald-950' : ''}`}
                                 >
                                     <td className="p-2">{index + 1}</td>
                                     <td className="p-2 font-mono text-xs">
@@ -166,15 +132,9 @@ export default function RelationTypesChart({ data, limit = 15 }: RelationTypesCh
                                             </span>
                                         )}
                                     </td>
-                                    <td className="p-2 text-right">
-                                        {item.count.toLocaleString()}
-                                    </td>
-                                    <td className="p-2 text-right">
-                                        {item.datasetCount.toLocaleString()}
-                                    </td>
-                                    <td className="p-2 text-right font-bold">
-                                        {item.percentage}%
-                                    </td>
+                                    <td className="p-2 text-right">{item.count.toLocaleString()}</td>
+                                    <td className="p-2 text-right">{item.datasetCount.toLocaleString()}</td>
+                                    <td className="p-2 text-right font-bold">{item.percentage}%</td>
                                 </tr>
                             ))}
                         </tbody>

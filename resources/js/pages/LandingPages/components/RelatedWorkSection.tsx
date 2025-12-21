@@ -31,19 +31,15 @@ function formatRelationType(type: string): string {
 
 /**
  * Related Work Section
- * 
+ *
  * Zeigt alle Related Identifiers gruppiert nach RelationType an.
  * Erste IsSupplementTo-Relation wird ausgeschlossen (die ist in Model Description).
  */
-export function RelatedWorkSection({
-    relatedIdentifiers,
-}: RelatedWorkSectionProps) {
+export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionProps) {
     const [citations, setCitations] = useState<Map<string, Citation>>(new Map());
 
     // Erste IsSupplementTo-Relation ausschließen
-    const firstSupplementToIndex = relatedIdentifiers.findIndex(
-        (rel) => rel.relation_type === 'IsSupplementTo',
-    );
+    const firstSupplementToIndex = relatedIdentifiers.findIndex((rel) => rel.relation_type === 'IsSupplementTo');
 
     const filteredRelations = relatedIdentifiers.filter((rel, index) => {
         // Erste IsSupplementTo ausschließen
@@ -54,13 +50,16 @@ export function RelatedWorkSection({
     });
 
     // Nach RelationType gruppieren
-    const groupedByType = filteredRelations.reduce((acc, rel) => {
-        if (!acc[rel.relation_type]) {
-            acc[rel.relation_type] = [];
-        }
-        acc[rel.relation_type].push(rel);
-        return acc;
-    }, {} as Record<string, RelatedIdentifier[]>);
+    const groupedByType = filteredRelations.reduce(
+        (acc, rel) => {
+            if (!acc[rel.relation_type]) {
+                acc[rel.relation_type] = [];
+            }
+            acc[rel.relation_type].push(rel);
+            return acc;
+        },
+        {} as Record<string, RelatedIdentifier[]>,
+    );
 
     // Sortiere die Gruppen alphabetisch
     const sortedTypes = Object.keys(groupedByType).sort();
@@ -73,15 +72,17 @@ export function RelatedWorkSection({
             }
 
             const key = `${rel.id}`;
-            
+
             // Initialisiere mit loading state
-            setCitations((prev) => new Map(prev).set(key, {
-                doi: rel.identifier,
-                citation: '',
-                loading: true,
-                error: false,
-                relatedTitle: rel.related_title,
-            }));
+            setCitations((prev) =>
+                new Map(prev).set(key, {
+                    doi: rel.identifier,
+                    citation: '',
+                    loading: true,
+                    error: false,
+                    relatedTitle: rel.related_title,
+                }),
+            );
 
             // Lade Citation asynchron
             fetch(`/api/datacite/citation/${encodeURIComponent(rel.identifier)}`)
@@ -92,22 +93,26 @@ export function RelatedWorkSection({
                     throw new Error('Citation not found');
                 })
                 .then((data) => {
-                    setCitations((prev) => new Map(prev).set(key, {
-                        doi: rel.identifier,
-                        citation: data.citation,
-                        loading: false,
-                        error: false,
-                        relatedTitle: rel.related_title,
-                    }));
+                    setCitations((prev) =>
+                        new Map(prev).set(key, {
+                            doi: rel.identifier,
+                            citation: data.citation,
+                            loading: false,
+                            error: false,
+                            relatedTitle: rel.related_title,
+                        }),
+                    );
                 })
                 .catch(() => {
-                    setCitations((prev) => new Map(prev).set(key, {
-                        doi: rel.identifier,
-                        citation: '',
-                        loading: false,
-                        error: true,
-                        relatedTitle: rel.related_title,
-                    }));
+                    setCitations((prev) =>
+                        new Map(prev).set(key, {
+                            doi: rel.identifier,
+                            citation: '',
+                            loading: false,
+                            error: true,
+                            relatedTitle: rel.related_title,
+                        }),
+                    );
                 });
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,16 +124,12 @@ export function RelatedWorkSection({
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                Related Work
-            </h3>
+            <h3 className="mb-4 text-lg font-semibold text-gray-900">Related Work</h3>
 
             <div className="space-y-6">
                 {sortedTypes.map((relationType) => (
                     <div key={relationType}>
-                        <h4 className="mb-3 text-sm font-semibold text-gray-700">
-                            {formatRelationType(relationType)}
-                        </h4>
+                        <h4 className="mb-3 text-sm font-semibold text-gray-700">{formatRelationType(relationType)}</h4>
                         <ul className="space-y-2">
                             {groupedByType[relationType].map((rel) => {
                                 const key = `${rel.id}`;

@@ -42,10 +42,7 @@ interface AuthorFieldProps {
     author: AuthorEntry;
     index: number;
     onTypeChange: (type: AuthorType) => void;
-    onPersonFieldChange: (
-        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
-        value: string,
-    ) => void;
+    onPersonFieldChange: (field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => void;
     onInstitutionNameChange: (value: string) => void;
     onContactChange: (checked: boolean) => void;
     onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
@@ -88,8 +85,7 @@ export function AuthorField({
             return accumulator;
         }, []);
     }, [author.affiliations]);
-    const affiliationsDescriptionId =
-        affiliationsWithRorId.length > 0 ? `${author.id}-affiliations-ror-description` : undefined;
+    const affiliationsDescriptionId = affiliationsWithRorId.length > 0 ? `${author.id}-affiliations-ror-description` : undefined;
 
     const tagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
         const whitelist = affiliationSuggestions.map((suggestion) => ({
@@ -116,10 +112,7 @@ export function AuthorField({
         >
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <h3
-                        id={`${author.id}-heading`}
-                        className="text-lg font-semibold leading-6 text-foreground"
-                    >
+                    <h3 id={`${author.id}-heading`} className="text-lg leading-6 font-semibold text-foreground">
                         Author {index + 1}
                     </h3>
                 </div>
@@ -139,10 +132,7 @@ export function AuthorField({
 
             <div className="mt-6 grid md:grid-cols-[1fr_auto] md:gap-x-3">
                 <div className="space-y-4">
-                    <div
-                        className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
-                        data-testid={`author-${index}-fields-grid`}
-                    >
+                    <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3" data-testid={`author-${index}-fields-grid`}>
                         <SelectField
                             id={`${author.id}-type`}
                             label="Author type"
@@ -166,9 +156,7 @@ export function AuthorField({
                                     id={`${author.id}-orcid`}
                                     label="ORCID"
                                     value={author.orcid}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('orcid', event.target.value)
-                                    }
+                                    onChange={(event) => onPersonFieldChange('orcid', event.target.value)}
                                     placeholder="0000-0000-0000-0000"
                                     containerProps={{
                                         'data-testid': `author-${index}-orcid-field`,
@@ -182,31 +170,21 @@ export function AuthorField({
                                     id={`${author.id}-firstName`}
                                     label="First name"
                                     value={author.firstName}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('firstName', event.target.value)
-                                    }
+                                    onChange={(event) => onPersonFieldChange('firstName', event.target.value)}
                                     containerProps={{ className: 'md:col-span-3' }}
                                 />
                                 <InputField
                                     id={`${author.id}-lastName`}
                                     label="Last name"
                                     value={author.lastName}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('lastName', event.target.value)
-                                    }
+                                    onChange={(event) => onPersonFieldChange('lastName', event.target.value)}
                                     containerProps={{ className: 'md:col-span-3' }}
                                     required
                                 />
-                                <div
-                                    className="flex flex-col items-start gap-2 md:col-span-1"
-                                    data-testid={`author-${index}-contact-field`}
-                                >
+                                <div className="flex flex-col items-start gap-2 md:col-span-1" data-testid={`author-${index}-contact-field`}>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <Label
-                                                htmlFor={`${author.id}-contact`}
-                                                className="cursor-help font-medium inline-flex"
-                                            >
+                                            <Label htmlFor={`${author.id}-contact`} className="inline-flex cursor-help font-medium">
                                                 <span aria-hidden="true">CP</span>
                                                 <span id={contactLabelTextId} className="sr-only">
                                                     Contact person
@@ -214,8 +192,7 @@ export function AuthorField({
                                             </Label>
                                         </TooltipTrigger>
                                         <TooltipContent side="top">
-                                            Contact Person: Select if this author should be the primary
-                                            contact.
+                                            Contact Person: Select if this author should be the primary contact.
                                         </TooltipContent>
                                     </Tooltip>
                                     <Checkbox
@@ -226,8 +203,7 @@ export function AuthorField({
                                         aria-labelledby={contactLabelTextId}
                                     />
                                     <p id={`${author.id}-contact-hint`} className="sr-only">
-                                        Contact Person: Select if this author should be the primary
-                                        contact.
+                                        Contact Person: Select if this author should be the primary contact.
                                     </p>
                                 </div>
                             </>
@@ -243,10 +219,7 @@ export function AuthorField({
                         )}
                     </div>
 
-                    <div
-                        className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
-                        data-testid={`author-${index}-affiliations-grid`}
-                    >
+                    <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3" data-testid={`author-${index}-affiliations-grid`}>
                         <TagInputField
                             id={`${author.id}-affiliations`}
                             label="Affiliations"
@@ -256,10 +229,7 @@ export function AuthorField({
                                     raw: detail.raw,
                                     tags: detail.tags.map((tag) => ({
                                         value: tag.value,
-                                        rorId:
-                                            'rorId' in tag && typeof tag.rorId === 'string'
-                                                ? tag.rorId
-                                                : null,
+                                        rorId: 'rorId' in tag && typeof tag.rorId === 'string' ? tag.rorId : null,
                                     })),
                                 })
                             }
@@ -279,19 +249,13 @@ export function AuthorField({
                                 data-testid={`author-${index}-affiliations-ror-ids`}
                                 aria-live="polite"
                             >
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Linked ROR IDs
-                                </p>
-                                <div
-                                    className="flex flex-wrap gap-2"
-                                    role="list"
-                                    aria-label="Selected ROR identifiers"
-                                >
+                                <p className="text-sm font-medium text-muted-foreground">Linked ROR IDs</p>
+                                <div className="flex flex-wrap gap-2" role="list" aria-label="Selected ROR identifiers">
                                     {affiliationsWithRorId.map((affiliation) => (
                                         <Badge
                                             key={`${affiliation.rorId}-${affiliation.value}`}
                                             variant="secondary"
-                                            className="gap-1 px-2 py-1 text-xs font-medium hover:bg-secondary/80 transition-colors"
+                                            className="gap-1 px-2 py-1 text-xs font-medium transition-colors hover:bg-secondary/80"
                                             role="listitem"
                                             asChild
                                         >
@@ -321,9 +285,7 @@ export function AuthorField({
                                     type="email"
                                     label="Email address"
                                     value={author.email}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('email', event.target.value)
-                                    }
+                                    onChange={(event) => onPersonFieldChange('email', event.target.value)}
                                     containerProps={{ className: 'md:col-span-3' }}
                                     required
                                 />
@@ -332,9 +294,7 @@ export function AuthorField({
                                     type="url"
                                     label="Website"
                                     value={author.website}
-                                    onChange={(event) =>
-                                        onPersonFieldChange('website', event.target.value)
-                                    }
+                                    onChange={(event) => onPersonFieldChange('website', event.target.value)}
                                     placeholder="https://example.org"
                                     containerProps={{ className: 'md:col-span-3' }}
                                 />
@@ -345,13 +305,7 @@ export function AuthorField({
 
                 {canAddAuthor && (
                     <div className="hidden md:flex md:items-center md:self-center">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Add author"
-                            onClick={onAddAuthor}
-                        >
+                        <Button type="button" variant="outline" size="icon" aria-label="Add author" onClick={onAddAuthor}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>
@@ -359,14 +313,8 @@ export function AuthorField({
             </div>
 
             {canAddAuthor && (
-                <div className="flex justify-end mt-4 md:hidden">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Add author"
-                        onClick={onAddAuthor}
-                    >
+                <div className="mt-4 flex justify-end md:hidden">
+                    <Button type="button" variant="outline" size="icon" aria-label="Add author" onClick={onAddAuthor}>
                         <Plus className="h-4 w-4" />
                     </Button>
                 </div>

@@ -43,10 +43,7 @@ interface ContributorFieldProps {
     index: number;
     onTypeChange: (type: ContributorType) => void;
     onRolesChange: (value: { raw: string; tags: ContributorRoleTag[] }) => void;
-    onPersonFieldChange: (
-        field: 'orcid' | 'firstName' | 'lastName',
-        value: string,
-    ) => void;
+    onPersonFieldChange: (field: 'orcid' | 'firstName' | 'lastName', value: string) => void;
     onInstitutionNameChange: (value: string) => void;
     onAffiliationsChange: (value: { raw: string; tags: AffiliationTag[] }) => void;
     onRemoveContributor: () => void;
@@ -97,25 +94,21 @@ export default function ContributorField({
     const affiliationsWithRorId = useMemo(() => {
         const seen = new Set<string>();
 
-        return contributor.affiliations.reduce<{ value: string; rorId: string }[]>(
-            (accumulator, affiliation) => {
-                const value = affiliation.value.trim();
-                const rorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
+        return contributor.affiliations.reduce<{ value: string; rorId: string }[]>((accumulator, affiliation) => {
+            const value = affiliation.value.trim();
+            const rorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
 
-                if (!value || !rorId || seen.has(rorId)) {
-                    return accumulator;
-                }
-
-                seen.add(rorId);
-                accumulator.push({ value, rorId });
+            if (!value || !rorId || seen.has(rorId)) {
                 return accumulator;
-            },
-            [],
-        );
+            }
+
+            seen.add(rorId);
+            accumulator.push({ value, rorId });
+            return accumulator;
+        }, []);
     }, [contributor.affiliations]);
 
-    const affiliationsDescriptionId =
-        affiliationsWithRorId.length > 0 ? `${contributor.id}-contributor-affiliations` : undefined;
+    const affiliationsDescriptionId = affiliationsWithRorId.length > 0 ? `${contributor.id}-contributor-affiliations` : undefined;
 
     const rolesHintId = `${contributor.id}-roles-hint`;
     const rolesUnavailableId = `${contributor.id}-roles-unavailable`;
@@ -147,10 +140,7 @@ export default function ContributorField({
         >
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                    <h3
-                        id={`${contributor.id}-heading`}
-                        className="text-lg font-semibold leading-6 text-foreground"
-                    >
+                    <h3 id={`${contributor.id}-heading`} className="text-lg leading-6 font-semibold text-foreground">
                         Contributor {index + 1}
                     </h3>
                 </div>
@@ -200,11 +190,7 @@ export default function ContributorField({
                                     })),
                                 })
                             }
-                            placeholder={
-                                hasRoleOptions
-                                    ? 'Select one or more roles'
-                                    : 'No roles available for this contributor type'
-                            }
+                            placeholder={hasRoleOptions ? 'Select one or more roles' : 'No roles available for this contributor type'}
                             disabled={!hasRoleOptions}
                             containerProps={{
                                 className: 'md:col-span-6 lg:col-span-8',
@@ -221,11 +207,7 @@ export default function ContributorField({
                         Choose all roles that apply to this contributor.
                     </p>
                     {!hasRoleOptions && (
-                        <p
-                            id={rolesUnavailableId}
-                            className="text-sm text-muted-foreground md:col-span-6 lg:col-span-8"
-                            role="status"
-                        >
+                        <p id={rolesUnavailableId} className="text-sm text-muted-foreground md:col-span-6 lg:col-span-8" role="status">
                             No roles are available for {isPerson ? 'person' : 'institution'} contributors yet.
                         </p>
                     )}
@@ -236,9 +218,7 @@ export default function ContributorField({
                                 id={`${contributor.id}-orcid`}
                                 label="ORCID"
                                 value={contributor.orcid}
-                                onChange={(event) =>
-                                    onPersonFieldChange('orcid', event.target.value)
-                                }
+                                onChange={(event) => onPersonFieldChange('orcid', event.target.value)}
                                 placeholder="0000-0000-0000-0000"
                                 containerProps={{
                                     'data-testid': `contributor-${index}-orcid-field`,
@@ -252,18 +232,14 @@ export default function ContributorField({
                                 id={`${contributor.id}-firstName`}
                                 label="First name"
                                 value={contributor.firstName}
-                                onChange={(event) =>
-                                    onPersonFieldChange('firstName', event.target.value)
-                                }
+                                onChange={(event) => onPersonFieldChange('firstName', event.target.value)}
                                 containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                             />
                             <InputField
                                 id={`${contributor.id}-lastName`}
                                 label="Last name"
                                 value={contributor.lastName}
-                                onChange={(event) =>
-                                    onPersonFieldChange('lastName', event.target.value)
-                                }
+                                onChange={(event) => onPersonFieldChange('lastName', event.target.value)}
                                 containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                                 required
                             />
@@ -281,10 +257,7 @@ export default function ContributorField({
                         </div>
                     )}
 
-                    <div
-                        className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
-                        data-testid={`contributor-${index}-affiliations-grid`}
-                    >
+                    <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3" data-testid={`contributor-${index}-affiliations-grid`}>
                         <TagInputField
                             id={`${contributor.id}-affiliations`}
                             label="Affiliations"
@@ -294,10 +267,7 @@ export default function ContributorField({
                                     raw: detail.raw,
                                     tags: detail.tags.map((tag) => ({
                                         value: tag.value,
-                                        rorId:
-                                            'rorId' in tag && typeof tag.rorId === 'string'
-                                                ? tag.rorId
-                                                : null,
+                                        rorId: 'rorId' in tag && typeof tag.rorId === 'string' ? tag.rorId : null,
                                     })),
                                 })
                             }
@@ -318,19 +288,13 @@ export default function ContributorField({
                                 data-testid={`contributor-${index}-affiliations-ror-ids`}
                                 aria-live="polite"
                             >
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Linked ROR IDs
-                                </p>
-                                <div
-                                    className="flex flex-wrap gap-2"
-                                    role="list"
-                                    aria-label="Selected ROR identifiers"
-                                >
+                                <p className="text-sm font-medium text-muted-foreground">Linked ROR IDs</p>
+                                <div className="flex flex-wrap gap-2" role="list" aria-label="Selected ROR identifiers">
                                     {affiliationsWithRorId.map((affiliation) => (
                                         <Badge
                                             key={`${affiliation.rorId}-${affiliation.value}`}
                                             variant="secondary"
-                                            className="gap-1 px-2 py-1 text-xs font-medium hover:bg-secondary/80 transition-colors"
+                                            className="gap-1 px-2 py-1 text-xs font-medium transition-colors hover:bg-secondary/80"
                                             role="listitem"
                                             asChild
                                         >
@@ -358,13 +322,7 @@ export default function ContributorField({
 
                 {canAddContributor && (
                     <div className="hidden md:flex md:items-center md:self-center">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Add contributor"
-                            onClick={onAddContributor}
-                        >
+                        <Button type="button" variant="outline" size="icon" aria-label="Add contributor" onClick={onAddContributor}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>
@@ -373,13 +331,7 @@ export default function ContributorField({
 
             {canAddContributor && (
                 <div className="mt-4 flex justify-end md:hidden">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Add contributor"
-                        onClick={onAddContributor}
-                    >
+                    <Button type="button" variant="outline" size="icon" aria-label="Add contributor" onClick={onAddContributor}>
                         <Plus className="h-4 w-4" />
                     </Button>
                 </div>

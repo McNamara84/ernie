@@ -1,11 +1,9 @@
 /**
  * AuthorField Component (Main)
- * 
+ *
  * Main component for managing authors in the DataCite form.
  * Coordinates between list, items, quick-add, and CSV import.
  */
-
-import React from 'react';
 
 import type { AffiliationSuggestion } from '@/types/affiliations';
 
@@ -57,14 +55,10 @@ const createEmptyAuthor = (type: AuthorType = 'person'): AuthorEntry => {
 /**
  * AuthorField - Main component
  */
-export default function AuthorField({
-    authors,
-    onChange,
-    affiliationSuggestions,
-}: AuthorFieldProps) {
+export default function AuthorField({ authors, onChange, affiliationSuggestions }: AuthorFieldProps) {
     const handleAdd = (type: AuthorType = 'person') => {
         if (authors.length >= MAX_AUTHORS) return;
-        
+
         const newAuthor = createEmptyAuthor(type);
         onChange([...authors, newAuthor]);
     };
@@ -82,7 +76,7 @@ export default function AuthorField({
     const handleBulkAdd = (newAuthors: AuthorEntry[]) => {
         // Check if adding would exceed max limit
         const totalAfterAdd = authors.length + newAuthors.length;
-        
+
         if (totalAfterAdd > MAX_AUTHORS) {
             const remaining = MAX_AUTHORS - authors.length;
             if (remaining > 0) {
@@ -110,18 +104,11 @@ export default function AuthorField({
 
             {/* Max limit info */}
             {authors.length > 0 && authors.length >= MAX_AUTHORS && (
-                <p className="text-sm text-muted-foreground text-center">
-                    Maximum number of authors ({MAX_AUTHORS}) reached.
-                </p>
+                <p className="text-center text-sm text-muted-foreground">Maximum number of authors ({MAX_AUTHORS}) reached.</p>
             )}
         </div>
     );
 }
 
 // Re-export types for convenience
-export type {
-    AuthorEntry,
-    AuthorType,
-    InstitutionAuthorEntry,
-    PersonAuthorEntry,
-} from './types';
+export type { AuthorEntry, AuthorType, InstitutionAuthorEntry, PersonAuthorEntry } from './types';

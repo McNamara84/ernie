@@ -1,4 +1,4 @@
-import { FileCode,FileJson } from 'lucide-react';
+import { FileCode, FileJson } from 'lucide-react';
 
 import { withBasePath } from '@/lib/base-path';
 
@@ -60,41 +60,23 @@ interface AbstractSectionProps {
 
 /**
  * Abstract Section
- * 
+ *
  * Zeigt die Abstract-Description, Creators, Funders und Subjects an.
  */
-export function AbstractSection({ 
-    descriptions, 
-    creators, 
-    fundingReferences, 
-    subjects,
-    resourceId,
-}: AbstractSectionProps) {
+export function AbstractSection({ descriptions, creators, fundingReferences, subjects, resourceId }: AbstractSectionProps) {
     // Finde die Abstract-Description (case-insensitive)
-    const abstract = descriptions.find(
-        (desc) => desc.description_type?.toLowerCase() === 'abstract',
-    );
+    const abstract = descriptions.find((desc) => desc.description_type?.toLowerCase() === 'abstract');
 
     if (!abstract) {
         return null;
     }
 
     // Group subjects by scheme
-    const freeKeywords = subjects.filter(
-        (s) => !s.subject_scheme || s.subject_scheme === '',
-    );
-    const gcmdScienceKeywords = subjects.filter(
-        (s) => s.subject_scheme === 'Science Keywords',
-    );
-    const gcmdPlatforms = subjects.filter(
-        (s) => s.subject_scheme === 'Platforms',
-    );
-    const gcmdInstruments = subjects.filter(
-        (s) => s.subject_scheme === 'Instruments',
-    );
-    const mslVocabularies = subjects.filter(
-        (s) => s.subject_scheme === 'msl',
-    );
+    const freeKeywords = subjects.filter((s) => !s.subject_scheme || s.subject_scheme === '');
+    const gcmdScienceKeywords = subjects.filter((s) => s.subject_scheme === 'Science Keywords');
+    const gcmdPlatforms = subjects.filter((s) => s.subject_scheme === 'Platforms');
+    const gcmdInstruments = subjects.filter((s) => s.subject_scheme === 'Instruments');
+    const mslVocabularies = subjects.filter((s) => s.subject_scheme === 'msl');
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -106,9 +88,7 @@ export function AbstractSection({
             {/* Creators Section */}
             {creators.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        Creators
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Creators</h3>
                     <ul className="space-y-2">
                         {creators.map((creator) => {
                             const creatorable = creator.creatorable;
@@ -117,10 +97,7 @@ export function AbstractSection({
                             const hasOrcid = isPerson && creatorable.name_identifier && creatorable.name_identifier_scheme === 'ORCID';
 
                             return (
-                                <li
-                                    key={creator.id}
-                                    className="flex items-center gap-1 text-sm text-gray-700"
-                                >
+                                <li key={creator.id} className="flex items-center gap-1 text-sm text-gray-700">
                                     {/* Creator Name */}
                                     {isPerson ? (
                                         <span>
@@ -139,11 +116,7 @@ export function AbstractSection({
                                             className="shrink-0"
                                             title={`ORCID: ${creatorable.name_identifier}`}
                                         >
-                                            <img
-                                                src={withBasePath('/images/pid-icons/orcid-icon.png')}
-                                                alt="ORCID"
-                                                className="h-4 w-4"
-                                            />
+                                            <img src={withBasePath('/images/pid-icons/orcid-icon.png')} alt="ORCID" className="h-4 w-4" />
                                         </a>
                                     )}
 
@@ -163,11 +136,7 @@ export function AbstractSection({
                                                     className="shrink-0"
                                                     title={`ROR ID: ${firstAffiliation.affiliation_identifier}`}
                                                 >
-                                                    <img
-                                                        src={withBasePath('/images/pid-icons/ror-icon.png')}
-                                                        alt="ROR"
-                                                        className="h-4 w-4"
-                                                    />
+                                                    <img src={withBasePath('/images/pid-icons/ror-icon.png')} alt="ROR" className="h-4 w-4" />
                                                 </a>
                                             )}
                                         </>
@@ -182,53 +151,42 @@ export function AbstractSection({
             {/* Funders Section */}
             {fundingReferences.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        Funders
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Funders</h3>
                     <ul className="space-y-2">
                         {fundingReferences.map((funding) => (
-                            <li
-                                key={funding.id}
-                                className="flex items-center gap-1 text-sm text-gray-700"
-                            >
+                            <li key={funding.id} className="flex items-center gap-1 text-sm text-gray-700">
                                 {/* Funder Name */}
                                 <span>{funding.funder_name}</span>
 
                                 {/* ROR Icon */}
-                                {funding.funder_identifier_type === 'ROR' &&
-                                    funding.funder_identifier && (
-                                        <a
-                                            href={funding.funder_identifier}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="shrink-0"
-                                            title={`ROR ID: ${funding.funder_identifier}`}
-                                        >
-                                            <img
-                                                src={withBasePath('/images/pid-icons/ror-icon.png')}
-                                                alt="ROR"
-                                                className="h-4 w-4"
-                                            />
-                                        </a>
-                                    )}
+                                {funding.funder_identifier_type === 'ROR' && funding.funder_identifier && (
+                                    <a
+                                        href={funding.funder_identifier}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="shrink-0"
+                                        title={`ROR ID: ${funding.funder_identifier}`}
+                                    >
+                                        <img src={withBasePath('/images/pid-icons/ror-icon.png')} alt="ROR" className="h-4 w-4" />
+                                    </a>
+                                )}
 
                                 {/* Crossref Funder Icon */}
-                                {funding.funder_identifier_type === 'Crossref Funder ID' &&
-                                    funding.funder_identifier && (
-                                        <a
-                                            href={`https://doi.org/${funding.funder_identifier}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="shrink-0"
-                                            title={`Crossref Funder ID: ${funding.funder_identifier}`}
-                                        >
-                                            <img
-                                                src={withBasePath('/images/pid-icons/crossref-funder.png')}
-                                                alt="Crossref Funder ID"
-                                                className="h-4 w-4"
-                                            />
-                                        </a>
-                                    )}
+                                {funding.funder_identifier_type === 'Crossref Funder ID' && funding.funder_identifier && (
+                                    <a
+                                        href={`https://doi.org/${funding.funder_identifier}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="shrink-0"
+                                        title={`Crossref Funder ID: ${funding.funder_identifier}`}
+                                    >
+                                        <img
+                                            src={withBasePath('/images/pid-icons/crossref-funder.png')}
+                                            alt="Crossref Funder ID"
+                                            className="h-4 w-4"
+                                        />
+                                    </a>
+                                )}
                             </li>
                         ))}
                     </ul>
@@ -238,9 +196,7 @@ export function AbstractSection({
             {/* Free Keywords Section */}
             {freeKeywords.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        Free Keywords
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Free Keywords</h3>
                     <div className="flex flex-wrap gap-2">
                         {freeKeywords.map((subject) => (
                             <span
@@ -258,9 +214,7 @@ export function AbstractSection({
             {/* GCMD Science Keywords Section */}
             {gcmdScienceKeywords.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        GCMD Science Keywords
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">GCMD Science Keywords</h3>
                     <div className="flex flex-wrap gap-2">
                         {gcmdScienceKeywords.map((subject) => (
                             <span
@@ -278,9 +232,7 @@ export function AbstractSection({
             {/* GCMD Platforms Section */}
             {gcmdPlatforms.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        GCMD Platforms
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">GCMD Platforms</h3>
                     <div className="flex flex-wrap gap-2">
                         {gcmdPlatforms.map((subject) => (
                             <span
@@ -298,9 +250,7 @@ export function AbstractSection({
             {/* GCMD Instruments Section */}
             {gcmdInstruments.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        GCMD Instruments
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">GCMD Instruments</h3>
                     <div className="flex flex-wrap gap-2">
                         {gcmdInstruments.map((subject) => (
                             <span
@@ -318,9 +268,7 @@ export function AbstractSection({
             {/* MSL Vocabularies Section */}
             {mslVocabularies.length > 0 && (
                 <div className="mt-6">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                        MSL Vocabularies
-                    </h3>
+                    <h3 className="text-lg font-semibold text-gray-900">MSL Vocabularies</h3>
                     <div className="flex flex-wrap gap-2">
                         {mslVocabularies.map((subject) => (
                             <span
@@ -337,16 +285,10 @@ export function AbstractSection({
 
             {/* Download Metadata Section */}
             <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                    Download Metadata
-                </h3>
+                <h3 className="text-lg font-semibold text-gray-900">Download Metadata</h3>
                 <div className="flex items-center gap-4">
                     {/* DataCite Logo */}
-                    <img
-                        src={withBasePath('/images/datacite-logo.png')}
-                        alt="DataCite"
-                        className="h-8"
-                    />
+                    <img src={withBasePath('/images/datacite-logo.png')} alt="DataCite" className="h-8" />
 
                     {/* XML Download Button */}
                     <a
