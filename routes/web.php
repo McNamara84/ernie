@@ -295,7 +295,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     'dates',
                     'subjects',
                     'geoLocations',
-                    'relatedIdentifiers',
+                    'relatedIdentifiers.relatedIdentifierType',
+                    'relatedIdentifiers.relationType',
                     'fundingReferences',
                 ])
                 ->findOrFail($resourceId);

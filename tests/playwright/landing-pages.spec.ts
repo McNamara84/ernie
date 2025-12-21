@@ -329,9 +329,9 @@ test.describe('Landing Page - Contact Persons', () => {
     // Verify creators section has contact persons
     await expect(landingPage.creatorsSection).toBeVisible();
 
-    // Contact information should be accessible
-    await landingPage.verifyCreatorDisplayed('Primary Contact');
-    await landingPage.verifyCreatorDisplayed('Secondary Contact');
+    // Contact information should be accessible (names from seeder)
+    await landingPage.verifyCreatorDisplayed('Anna Contact');
+    await landingPage.verifyCreatorDisplayed('Bruno Kontakt');
   });
 });
 

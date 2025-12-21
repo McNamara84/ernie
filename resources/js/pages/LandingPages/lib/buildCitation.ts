@@ -14,7 +14,11 @@ interface Creator {
 
 interface Title {
     title: string;
-    value?: string; // Fallback for backward compatibility
+    /**
+     * @deprecated Use 'title' instead. This field is only kept for backward
+     * compatibility with legacy data structures and will be removed in a future version.
+     */
+    value?: string;
     title_type?: string | null;
 }
 

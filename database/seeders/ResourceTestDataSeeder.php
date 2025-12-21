@@ -392,7 +392,7 @@ class ResourceTestDataSeeder extends Seeder
             $this->addAffiliation($creator, 'GFZ German Research Centre for Geosciences', 'https://ror.org/04z8jg394', 'ROR');
         }
 
-        $this->createLandingPage($resource, 'many-creators-with-orcid');
+        $this->createLandingPage($resource, 'many-creators-all-with-orcid');
 
         $this->logCreation($resource, '8 creators all with ORCID');
     }
@@ -426,7 +426,7 @@ class ResourceTestDataSeeder extends Seeder
         $this->addCreator($resource, 'Diana', 'Without-Orcid', null, 4);
         $this->addCreator($resource, 'Eve', 'With-Orcid', '0000-0002-3333-3333', 5);
 
-        $this->createLandingPage($resource, 'mixed-creators-orcid');
+        $this->createLandingPage($resource, 'mixed-orcid-creators');
 
         $this->logCreation($resource, '5 creators - mixed ORCID status');
     }
@@ -617,7 +617,7 @@ class ResourceTestDataSeeder extends Seeder
         // Also add some free keywords
         Subject::create(['resource_id' => $resource->id, 'value' => 'Additional free keyword']);
 
-        $this->createLandingPage($resource, 'controlled-vocabulary-keywords');
+        $this->createLandingPage($resource, 'gcmd-keywords');
 
         $this->logCreation($resource, 'GCMD controlled vocabulary + free keywords');
     }
@@ -1218,12 +1218,14 @@ class ResourceTestDataSeeder extends Seeder
 
     /**
      * Create a published landing page for a resource.
+     *
+     * Note: Slugs are deterministic (no unique ID) to allow Playwright tests to navigate to them.
      */
     private function createLandingPage(Resource $resource, string $slug): LandingPage
     {
         return LandingPage::create([
             'resource_id' => $resource->id,
-            'slug' => "test-{$slug}-".uniqid(),
+            'slug' => $slug,
             'template' => 'default_gfz',
             'is_published' => true,
             'published_at' => now(),
