@@ -395,7 +395,7 @@ class ResourceController extends Controller
                     // Only save non-empty keywords
                     if (! empty(trim($keyword))) {
                         $resource->subjects()->create([
-                            'subject' => trim($keyword),
+                            'value' => trim($keyword),
                             'subject_scheme' => null,
                             'scheme_uri' => null,
                             'value_uri' => null,
@@ -412,7 +412,7 @@ class ResourceController extends Controller
                     // Validate required fields (scheme is now the discriminator instead of vocabularyType)
                     if (! empty($keyword['id']) && ! empty($keyword['text']) && ! empty($keyword['scheme'])) {
                         $controlledKeywordsData[] = [
-                            'subject' => $keyword['text'],
+                            'value' => $keyword['text'],
                             'subject_scheme' => $keyword['scheme'],
                             'scheme_uri' => $keyword['schemeURI'] ?? null,
                             'value_uri' => $keyword['id'],

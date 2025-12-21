@@ -446,7 +446,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Transform subjects - separate free keywords and GCMD controlled keywords
             $freeKeywords = $resource->subjects
                 ->filter(fn ($subject) => empty($subject->subject_scheme))
-                ->pluck('subject')
+                ->pluck('value')
                 ->toArray();
 
             // Transform controlled keywords (GCMD)
@@ -455,8 +455,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->map(function ($subject) {
                     return [
                         'id' => $subject->classification_code ?? '',
-                        'text' => $subject->subject,
-                        'path' => $subject->subject, // Path may need to be extracted from subject text
+                        'text' => $subject->value,
+                        'path' => $subject->value, // Path may need to be extracted from subject text
                         'scheme' => $subject->subject_scheme ?? '',
                         'schemeURI' => $subject->scheme_uri ?? '',
                         'language' => 'en',

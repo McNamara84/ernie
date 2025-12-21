@@ -551,7 +551,7 @@ class DataCiteJsonExporter
 
         foreach ($resource->subjects as $subject) {
             $subjectData = [
-                'subject' => $subject->subject,
+                'subject' => $subject->value,
             ];
 
             if ($subject->subject_scheme) {

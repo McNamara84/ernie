@@ -401,7 +401,7 @@ class DataCiteXmlExporter
         $subjects = $this->dom->createElement('subjects');
 
         foreach ($resource->subjects as $subjectModel) {
-            $subject = $this->dom->createElement('subject', htmlspecialchars($subjectModel->subject));
+            $subject = $this->dom->createElement('subject', htmlspecialchars($subjectModel->value));
 
             if ($subjectModel->subject_scheme) {
                 $subject->setAttribute('subjectScheme', htmlspecialchars($subjectModel->subject_scheme));
