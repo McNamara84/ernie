@@ -48,7 +48,7 @@ class DataCiteJsonExporter
             'subjects',
             'geoLocations.polygons',
             'rights',
-            'relatedIdentifiers.relatedIdentifierType',
+            'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
             'fundingReferences.funderIdentifierType',
         ]);
@@ -762,7 +762,7 @@ class DataCiteJsonExporter
         foreach ($resource->relatedIdentifiers as $relatedIdentifier) {
             $relatedData = [
                 'relatedIdentifier' => $relatedIdentifier->identifier,
-                'relatedIdentifierType' => $relatedIdentifier->relatedIdentifierType->name ?? 'DOI',
+                'relatedIdentifierType' => $relatedIdentifier->identifierType->name ?? 'DOI',
                 'relationType' => $relatedIdentifier->relationType->name ?? 'References',
             ];
 

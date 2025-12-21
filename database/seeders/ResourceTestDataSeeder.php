@@ -252,10 +252,12 @@ class ResourceTestDataSeeder extends Seeder
      */
     private function createMandatoryFieldsOnly(): void
     {
+        // Use addDefaultContact: false since we add our own specific contact person below
         $resource = $this->createBaseResource(
             'TEST: Mandatory Fields Only',
             null,  // version
-            'This is a minimal test resource containing only the mandatory fields required by the DataCite schema and ERNIE metadata editor. It demonstrates the baseline requirements for publishing research data.'
+            'This is a minimal test resource containing only the mandatory fields required by the DataCite schema and ERNIE metadata editor. It demonstrates the baseline requirements for publishing research data.',
+            false  // addDefaultContact - we add our own below
         );
 
         // Creator with contact person (mandatory: at least one creator as contact with email)
@@ -269,8 +271,7 @@ class ResourceTestDataSeeder extends Seeder
             'jane.doe@example.com'  // email (required for contact person)
         );
 
-        // Primary License is mandatory in ERNIE
-        $resource->rights()->attach($this->ccByLicense->id);
+        // Note: License is already added by createBaseResource (CC-BY-4.0)
 
         $this->createLandingPage($resource, 'mandatory-fields-only');
 
@@ -288,12 +289,14 @@ class ResourceTestDataSeeder extends Seeder
             'This dataset contains comprehensive test data for validating the metadata editor functionality. It includes various types of metadata fields following the DataCite 4.6 schema.'
         );
 
-        // Main creator with ORCID and affiliation
-        $creator = $this->addCreator($resource, 'Alice', 'Wonderland', '0000-0001-1234-5678', 1);
+        // Note: Default contact person is already added by createBaseResource at position 1
+
+        // Main creator with ORCID and affiliation (position 2)
+        $creator = $this->addCreator($resource, 'Alice', 'Wonderland', '0000-0001-1234-5678', 2);
         $this->addAffiliation($creator, 'GFZ German Research Centre for Geosciences', 'https://ror.org/04z8jg394', 'ROR');
 
-        // Second creator
-        $creator2 = $this->addCreator($resource, 'Bob', 'Builder', '0000-0002-2345-6789', 2);
+        // Second creator (position 3)
+        $creator2 = $this->addCreator($resource, 'Bob', 'Builder', '0000-0002-2345-6789', 3);
         $this->addAffiliation($creator2, 'University of Potsdam', 'https://ror.org/03bnmw459', 'ROR');
 
         // Contributor
@@ -360,14 +363,7 @@ class ResourceTestDataSeeder extends Seeder
             'award_title' => 'Research Project XYZ',
         ]);
 
-        // Rights/License
-        $license = Right::where('identifier', 'CC-BY-4.0')->first();
-        if ($license) {
-            $resource->rights()->attach($license->id);
-        }
-
-        // Sizes and Formats
-        Size::create(['resource_id' => $resource->id, 'value' => '1.5 GB']);
+        // Note: CC-BY-4.0 license is already added by createBaseResource\n\n        // Sizes and Formats\n        Size::create(['resource_id' => $resource->id, 'value' => '1.5 GB']);
         Format::create(['resource_id' => $resource->id, 'value' => 'application/zip']);
 
         $this->createLandingPage($resource, 'fully-populated');
@@ -382,6 +378,7 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Many Creators All with ORCID');
 
+        // Note: Default contact person is already at position 1
         $creators = [
             ['Anna', 'Schmidt', '0000-0001-1111-1111'],
             ['Bruno', 'Meyer', '0000-0001-2222-2222'],
@@ -394,7 +391,7 @@ class ResourceTestDataSeeder extends Seeder
         ];
 
         foreach ($creators as $index => $data) {
-            $creator = $this->addCreator($resource, $data[0], $data[1], $data[2], $index + 1);
+            $creator = $this->addCreator($resource, $data[0], $data[1], $data[2], $index + 2);
             $this->addAffiliation($creator, 'GFZ German Research Centre for Geosciences', 'https://ror.org/04z8jg394', 'ROR');
         }
 
@@ -410,9 +407,10 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Creators Without ORCID');
 
-        $this->addCreator($resource, 'Max', 'Mustermann', null, 1);
-        $this->addCreator($resource, 'Erika', 'Musterfrau', null, 2);
-        $this->addCreator($resource, 'John', 'Smith', null, 3);
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Max', 'Mustermann', null, 2);
+        $this->addCreator($resource, 'Erika', 'Musterfrau', null, 3);
+        $this->addCreator($resource, 'John', 'Smith', null, 4);
 
         $this->createLandingPage($resource, 'creators-without-orcid');
 
@@ -426,11 +424,12 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Mixed Creators With and Without ORCID');
 
-        $this->addCreator($resource, 'Alice', 'With-Orcid', '0000-0002-1111-1111', 1);
-        $this->addCreator($resource, 'Bob', 'Without-Orcid', null, 2);
-        $this->addCreator($resource, 'Charlie', 'With-Orcid', '0000-0002-2222-2222', 3);
-        $this->addCreator($resource, 'Diana', 'Without-Orcid', null, 4);
-        $this->addCreator($resource, 'Eve', 'With-Orcid', '0000-0002-3333-3333', 5);
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Alice', 'With-Orcid', '0000-0002-1111-1111', 2);
+        $this->addCreator($resource, 'Bob', 'Without-Orcid', null, 3);
+        $this->addCreator($resource, 'Charlie', 'With-Orcid', '0000-0002-2222-2222', 4);
+        $this->addCreator($resource, 'Diana', 'Without-Orcid', null, 5);
+        $this->addCreator($resource, 'Eve', 'With-Orcid', '0000-0002-3333-3333', 6);
 
         $this->createLandingPage($resource, 'mixed-orcid-creators');
 
@@ -444,7 +443,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Many Contributors with Different Types');
 
-        $this->addCreator($resource, 'Main', 'Author');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Main', 'Author', null, 2);
 
         $contributorTypes = ContributorType::all();
         $position = 1;
@@ -468,7 +468,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Contributors with ROR Affiliations');
 
-        $this->addCreator($resource, 'Main', 'Author');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Main', 'Author', null, 2);
 
         $contributor1 = $this->addContributor($resource, 'Peter', 'Schmidt', $this->dataCollectorType, '0000-0003-1111-1111', 1);
         $this->addAffiliation($contributor1, 'GFZ German Research Centre for Geosciences', 'https://ror.org/04z8jg394', 'ROR');
@@ -489,8 +490,10 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Institutional Creators (Organizations)');
 
-        // Personal creator
-        $this->addCreator($resource, 'John', 'Coordinator', null, 1);
+        // Note: Default contact person is already at position 1
+
+        // Personal creator at position 2
+        $this->addCreator($resource, 'John', 'Coordinator', null, 2);
 
         // Institutional creators
         $institution1 = Institution::firstOrCreate(
@@ -515,14 +518,14 @@ class ResourceTestDataSeeder extends Seeder
             'resource_id' => $resource->id,
             'creatorable_type' => Institution::class,
             'creatorable_id' => $institution1->id,
-            'position' => 2,
+            'position' => 3,
         ]);
 
         ResourceCreator::create([
             'resource_id' => $resource->id,
             'creatorable_type' => Institution::class,
             'creatorable_id' => $institution2->id,
-            'position' => 3,
+            'position' => 4,
         ]);
 
         $this->createLandingPage($resource, 'institutional-creators');
@@ -537,12 +540,10 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Single License (CC-BY-4.0)');
 
-        $this->addCreator($resource, 'License', 'Tester');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'License', 'Tester', null, 2);
 
-        $license = Right::where('identifier', 'CC-BY-4.0')->first();
-        if ($license) {
-            $resource->rights()->attach($license->id);
-        }
+        // Note: CC-BY-4.0 license is already added by createBaseResource
 
         $this->createLandingPage($resource, 'single-license');
 
@@ -556,16 +557,19 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Multiple Licenses');
 
-        $this->addCreator($resource, 'Multi', 'License');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Multi', 'License', null, 2);
 
-        $licenses = Right::whereIn('identifier', ['CC-BY-4.0', 'CC-BY-SA-4.0', 'CC0-1.0'])->get();
-        foreach ($licenses as $license) {
+        // Note: CC-BY-4.0 is already added by createBaseResource, add additional licenses
+        $additionalLicenses = Right::whereIn('identifier', ['CC-BY-SA-4.0', 'CC0-1.0'])->get();
+        foreach ($additionalLicenses as $license) {
             $resource->rights()->attach($license->id);
         }
 
         $this->createLandingPage($resource, 'multiple-licenses');
 
-        $this->logCreation($resource, count($licenses).' licenses attached');
+        // Count includes the CC-BY-4.0 already added
+        $this->logCreation($resource, ($additionalLicenses->count() + 1).' licenses attached');
     }
 
     /**
@@ -575,7 +579,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Many Free-Text Keywords');
 
-        $this->addCreator($resource, 'Keyword', 'Author');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Keyword', 'Author', null, 2);
 
         $keywords = [
             'Geophysics', 'Seismology', 'Earthquake', 'Fault Zone', 'Tectonic Plates',
@@ -602,7 +607,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: GCMD Controlled Vocabulary Keywords');
 
-        $this->addCreator($resource, 'Vocabulary', 'Expert');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Vocabulary', 'Expert', null, 2);
 
         // GCMD Science Keywords
         $gcmdKeywords = [
@@ -635,7 +641,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Many GeoLocations - Points Only');
 
-        $this->addCreator($resource, 'Geo', 'Point');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Geo', 'Point', null, 2);
 
         $points = [
             ['GFZ Potsdam', 13.0661, 52.3806],
@@ -669,7 +676,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: GeoLocations - Bounding Boxes');
 
-        $this->addCreator($resource, 'Geo', 'Box');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Geo', 'Box', null, 2);
 
         // Germany bounding box
         GeoLocation::create([
@@ -713,7 +721,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: GeoLocations - Polygons');
 
-        $this->addCreator($resource, 'Geo', 'Polygon');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Geo', 'Polygon', null, 2);
 
         // Lake Constance polygon
         GeoLocation::create([
@@ -758,7 +767,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: GeoLocations - Mixed Types (Points, Boxes, Polygons)');
 
-        $this->addCreator($resource, 'Geo', 'Mix');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Geo', 'Mix', null, 2);
 
         // Point
         GeoLocation::create([
@@ -808,7 +818,8 @@ class ResourceTestDataSeeder extends Seeder
             'This dataset intentionally has no geographic location data. The location section should not appear on the landing page.'
         );
 
-        $this->addCreator($resource, 'No', 'Location');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'No', 'Location', null, 2);
 
         $this->createLandingPage($resource, 'no-geo-locations');
 
@@ -822,7 +833,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Many Related Identifiers');
 
-        $this->addCreator($resource, 'Relation', 'Expert');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Relation', 'Expert', null, 2);
 
         // Using real DOIs for accurate landing page display
         $relatedDois = [
@@ -867,7 +879,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Many Funding References');
 
-        $this->addCreator($resource, 'Funding', 'Recipient');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Funding', 'Recipient', null, 2);
 
         $fundings = [
             ['Deutsche Forschungsgemeinschaft (DFG)', 'https://ror.org/018mejw64', 'DFG-123456', 'Climate Research Project'],
@@ -899,7 +912,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Multiple Title Types (Main, Subtitle, Alternative)');
 
-        $this->addCreator($resource, 'Title', 'Author');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Title', 'Author', null, 2);
 
         Title::create([
             'resource_id' => $resource->id,
@@ -935,7 +949,8 @@ class ResourceTestDataSeeder extends Seeder
             'This is the main abstract describing the dataset and its scientific significance. It provides an overview of the data collection, analysis methods, and key findings.'
         );
 
-        $this->addCreator($resource, 'Description', 'Author');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Description', 'Author', null, 2);
 
         // Additional descriptions (Methods, TechnicalInfo) - Abstract is already created by createBaseResource
         Description::create([
@@ -965,7 +980,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Many Date Types');
 
-        $this->addCreator($resource, 'Date', 'Expert');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'Date', 'Expert', null, 2);
 
         $dateTypes = DateType::all();
 
@@ -1017,9 +1033,15 @@ class ResourceTestDataSeeder extends Seeder
      */
     private function createContactPersons(): void
     {
-        $resource = $this->createBaseResource('TEST: Contact Persons with Full Details');
+        // Use addDefaultContact: false since we add our own specific contact persons below
+        $resource = $this->createBaseResource(
+            'TEST: Contact Persons with Full Details',
+            null,
+            null,
+            false  // addDefaultContact - we add our own below
+        );
 
-        // Main author (not contact)
+        // Main author (not contact) at position 1
         $this->addCreator($resource, 'Main', 'Author', '0000-0004-1111-1111', 1);
 
         // Contact persons with email and website - using addCreator parameters directly
@@ -1058,7 +1080,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Multiple Sizes and Formats');
 
-        $this->addCreator($resource, 'File', 'Manager');
+        // Note: Default contact person is already at position 1
+        $this->addCreator($resource, 'File', 'Manager', null, 2);
 
         Size::create(['resource_id' => $resource->id, 'value' => '2.5 GB']);
         Size::create(['resource_id' => $resource->id, 'value' => '150,000 records']);
@@ -1081,12 +1104,24 @@ class ResourceTestDataSeeder extends Seeder
     /**
      * Create base resource with mandatory fields.
      *
+     * Creates a resource with all mandatory fields including:
+     * - DOI, publication year, resource type, language, publisher, version
+     * - Main title
+     * - Abstract (min 50 characters)
+     * - Default contact person with email (mandatory in ERNIE)
+     * - CC-BY-4.0 license
+     *
      * @param  string  $title  The main title of the resource
      * @param  string|null  $version  The version number (default: 1.0)
      * @param  string|null  $abstract  The abstract text (if null, a default abstract is created based on the title)
+     * @param  bool  $addDefaultContact  Whether to add a default contact person (default: true)
      */
-    private function createBaseResource(string $title, ?string $version = null, ?string $abstract = null): Resource
-    {
+    private function createBaseResource(
+        string $title,
+        ?string $version = null,
+        ?string $abstract = null,
+        bool $addDefaultContact = true
+    ): Resource {
         $uniqueId = uniqid();
 
         $resource = Resource::create([
@@ -1114,6 +1149,22 @@ class ResourceTestDataSeeder extends Seeder
             'value' => $abstractText,
             'description_type_id' => $this->abstractType->id,
         ]);
+
+        // Add CC-BY-4.0 license (mandatory field in ERNIE)
+        $resource->rights()->attach($this->ccByLicense->id);
+
+        // Add default contact person with email (mandatory in ERNIE)
+        if ($addDefaultContact) {
+            $this->addCreator(
+                $resource,
+                'Contact',
+                'Person',
+                null, // No ORCID for default contact
+                1,
+                true, // is_contact
+                'contact@gfz-potsdam.de'
+            );
+        }
 
         $this->createdResourceIds[] = $resource->id;
 

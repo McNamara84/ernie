@@ -65,7 +65,7 @@ class DataCiteXmlExporter
             'subjects',
             'geoLocations.polygons',
             'rights',
-            'relatedIdentifiers.relatedIdentifierType',
+            'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
             'fundingReferences.funderIdentifierType',
             'sizes',
@@ -723,7 +723,7 @@ class DataCiteXmlExporter
                 'relatedIdentifier',
                 htmlspecialchars($relatedIdentifier->identifier)
             );
-            $relatedElement->setAttribute('relatedIdentifierType', $relatedIdentifier->relatedIdentifierType->slug ?? 'DOI');
+            $relatedElement->setAttribute('relatedIdentifierType', $relatedIdentifier->identifierType->slug ?? 'DOI');
             $relatedElement->setAttribute('relationType', $relatedIdentifier->relationType->slug ?? 'References');
 
             // Add resourceTypeGeneral if available

@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
  * @property-read Resource $resource
- * @property-read IdentifierType $relatedIdentifierType
+ * @property-read IdentifierType $identifierType
  * @property-read RelationType $relationType
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/relatedidentifier/
@@ -97,7 +97,7 @@ class RelatedIdentifier extends Model
     }
 
     /** @return BelongsTo<IdentifierType, static> */
-    public function relatedIdentifierType(): BelongsTo
+    public function identifierType(): BelongsTo
     {
         /** @var BelongsTo<IdentifierType, static> $relation */
         $relation = $this->belongsTo(IdentifierType::class, 'identifier_type_id');

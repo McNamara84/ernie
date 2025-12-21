@@ -104,7 +104,8 @@ describe('Scenario: Fully Populated Resource', function () {
             ->first();
 
         expect($resource)->not->toBeNull();
-        expect($resource->creators)->toHaveCount(2);
+        // 3 creators: 1 default contact + 2 scenario creators
+        expect($resource->creators)->toHaveCount(3);
         expect($resource->contributors)->toHaveCount(1);
         expect($resource->descriptions)->not->toBeEmpty();
         expect($resource->subjects)->not->toBeEmpty();
@@ -135,7 +136,8 @@ describe('Scenario: Many Creators with ORCIDs', function () {
             ->first();
 
         expect($resource)->not->toBeNull();
-        expect($resource->creators)->toHaveCount(8);
+        // 9 creators: 1 default contact + 8 scenario creators with ORCID
+        expect($resource->creators)->toHaveCount(9);
 
         $creatorsWithOrcid = $resource->creators->filter(function ($creator) {
             $person = $creator->creatorable;
@@ -143,6 +145,7 @@ describe('Scenario: Many Creators with ORCIDs', function () {
             return $person && $person->name_identifier !== null;
         });
 
+        // 8 creators have ORCID (default contact doesn't have one)
         expect($creatorsWithOrcid)->toHaveCount(8);
     });
 });

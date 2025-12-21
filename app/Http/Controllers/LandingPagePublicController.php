@@ -61,7 +61,7 @@ class LandingPagePublicController extends Controller
             'subjects',
             'geoLocations',
             'dates.dateType',
-            'relatedIdentifiers.relatedIdentifierType',
+            'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
             'fundingReferences.funderIdentifierType',
             'resourceType',
@@ -86,7 +86,7 @@ class LandingPagePublicController extends Controller
             return [
                 'id' => $relatedId->id,
                 'identifier' => $relatedId->identifier,
-                'identifier_type' => $relatedId->relatedIdentifierType->name,
+                'identifier_type' => $relatedId->identifierType->name,
                 'relation_type' => $relatedId->relationType->name,
                 'position' => $relatedId->position,
             ];

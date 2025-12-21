@@ -295,7 +295,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     'dates',
                     'subjects',
                     'geoLocations',
-                    'relatedIdentifiers.relatedIdentifierType',
+                    'relatedIdentifiers.identifierType',
                     'relatedIdentifiers.relationType',
                     'fundingReferences',
                 ])
@@ -486,11 +486,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->sortBy('position')
                 ->map(fn (\App\Models\RelatedIdentifier $relatedId): array => [
                     'identifier' => $relatedId->identifier,
-                    'identifier_type' => $relatedId->relatedIdentifierType->name,
+                    'identifier_type' => $relatedId->identifierType->name,
                     'relation_type' => $relatedId->relationType->name,
                 ])
                 ->values()
-                ->toArray();            // Transform funding references
+                ->toArray();
+
+            // Transform funding references
             $fundingReferences = $resource->fundingReferences
                 ->sortBy('position')
                 ->map(function ($funding) {
