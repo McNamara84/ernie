@@ -483,15 +483,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Transform related identifiers
             $relatedWorks = $resource->relatedIdentifiers
                 ->sortBy('position')
-                ->map(function ($relatedId) {
-                    return [
-                        'identifier' => $relatedId->related_identifier,
-                        // @phpstan-ignore nullCoalesce.expr (defensive coding)
-                        'identifier_type' => $relatedId->relatedIdentifierType?->name ?? '',
-                        // @phpstan-ignore nullCoalesce.expr (defensive coding)
-                        'relation_type' => $relatedId->relationType?->name ?? '',
-                    ];
-                })
+                ->map(fn (\App\Models\RelatedIdentifier $relatedId): array => [
+                    'identifier' => $relatedId->identifier,
+                    'identifier_type' => $relatedId->relatedIdentifierType->name,
+                    'relation_type' => $relatedId->relationType->name,
+                ])
                 ->values()
                 ->toArray();            // Transform funding references
             $fundingReferences = $resource->fundingReferences

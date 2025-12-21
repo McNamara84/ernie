@@ -721,7 +721,7 @@ class DataCiteXmlExporter
         foreach ($resource->relatedIdentifiers as $relatedIdentifier) {
             $relatedElement = $this->dom->createElement(
                 'relatedIdentifier',
-                htmlspecialchars($relatedIdentifier->related_identifier)
+                htmlspecialchars($relatedIdentifier->identifier)
             );
             $relatedElement->setAttribute('relatedIdentifierType', $relatedIdentifier->relatedIdentifierType->slug ?? 'DOI');
             $relatedElement->setAttribute('relationType', $relatedIdentifier->relationType->slug ?? 'References');

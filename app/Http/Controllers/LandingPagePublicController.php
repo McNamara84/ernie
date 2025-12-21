@@ -86,8 +86,8 @@ class LandingPagePublicController extends Controller
             return [
                 'id' => $relatedId->id,
                 'identifier' => $relatedId->identifier,
-                'identifier_type' => $relatedId->relatedIdentifierType?->name,
-                'relation_type' => $relatedId->relationType?->name,
+                'identifier_type' => $relatedId->relatedIdentifierType->name,
+                'relation_type' => $relatedId->relationType->name,
                 'position' => $relatedId->position,
             ];
         })->toArray();
@@ -97,7 +97,7 @@ class LandingPagePublicController extends Controller
             return [
                 'id' => $desc->id,
                 'value' => $desc->value,
-                'description_type' => $desc->descriptionType?->name,
+                'description_type' => $desc->descriptionType->name,
             ];
         })->toArray();
 
@@ -135,7 +135,7 @@ class LandingPagePublicController extends Controller
             $contributorData = [
                 'id' => $contributor->id,
                 'position' => $contributor->position,
-                'contributor_type' => $contributor->contributorType?->name,
+                'contributor_type' => $contributor->contributorType->name,
                 'affiliations' => $contributor->affiliations->map(fn (\App\Models\Affiliation $affiliation): array => [
                     'id' => $affiliation->id,
                     'name' => $affiliation->name,

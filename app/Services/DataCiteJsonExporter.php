@@ -761,7 +761,7 @@ class DataCiteJsonExporter
 
         foreach ($resource->relatedIdentifiers as $relatedIdentifier) {
             $relatedData = [
-                'relatedIdentifier' => $relatedIdentifier->related_identifier,
+                'relatedIdentifier' => $relatedIdentifier->identifier,
                 'relatedIdentifierType' => $relatedIdentifier->relatedIdentifierType->name ?? 'DOI',
                 'relationType' => $relatedIdentifier->relationType->name ?? 'References',
             ];
