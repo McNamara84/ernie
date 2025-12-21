@@ -246,7 +246,11 @@ class ResourceTestDataSeeder extends Seeder
      */
     private function createMandatoryFieldsOnly(): void
     {
-        $resource = $this->createBaseResource('TEST: Mandatory Fields Only');
+        $resource = $this->createBaseResource(
+            'TEST: Mandatory Fields Only',
+            null,  // version
+            'This is a minimal test resource containing only the mandatory fields required by the DataCite schema and ERNIE metadata editor. It demonstrates the baseline requirements for publishing research data.'
+        );
 
         // Creator with contact person (mandatory: at least one creator as contact with email)
         $this->addCreator(
@@ -262,13 +266,6 @@ class ResourceTestDataSeeder extends Seeder
         // Primary License is mandatory in ERNIE
         $resource->rights()->attach($this->ccByLicense->id);
 
-        // Abstract is mandatory in ERNIE (min 50 characters)
-        Description::create([
-            'resource_id' => $resource->id,
-            'value' => 'This is a minimal test resource containing only the mandatory fields required by the DataCite schema and ERNIE metadata editor. It demonstrates the baseline requirements for publishing research data.',
-            'description_type_id' => $this->abstractType->id,
-        ]);
-
         $this->createLandingPage($resource, 'mandatory-fields-only');
 
         $this->logCreation($resource, 'Mandatory fields only');
@@ -281,7 +278,8 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource(
             'TEST: Fully Populated Resource with All Fields',
-            version: '2.1.0',
+            '2.1.0',  // version
+            'This dataset contains comprehensive test data for validating the metadata editor functionality. It includes various types of metadata fields following the DataCite 4.6 schema.'
         );
 
         // Main creator with ORCID and affiliation
@@ -303,13 +301,7 @@ class ResourceTestDataSeeder extends Seeder
             'title_type_id' => $this->subtitleType->id,
         ]);
 
-        // Descriptions
-        Description::create([
-            'resource_id' => $resource->id,
-            'value' => 'This dataset contains comprehensive test data for validating the metadata editor functionality. It includes various types of metadata fields following the DataCite 4.6 schema.',
-            'description_type_id' => $this->abstractType->id,
-        ]);
-
+        // Additional description (Methods) - Abstract is already created by createBaseResource
         Description::create([
             'resource_id' => $resource->id,
             'value' => 'Data was collected using standardized protocols and processed using Python scripts.',
@@ -804,15 +796,13 @@ class ResourceTestDataSeeder extends Seeder
      */
     private function createNoGeoLocations(): void
     {
-        $resource = $this->createBaseResource('TEST: No GeoLocations (Control Case)');
+        $resource = $this->createBaseResource(
+            'TEST: No GeoLocations (Control Case)',
+            null,  // version
+            'This dataset intentionally has no geographic location data. The location section should not appear on the landing page.'
+        );
 
         $this->addCreator($resource, 'No', 'Location');
-
-        Description::create([
-            'resource_id' => $resource->id,
-            'value' => 'This dataset intentionally has no geographic location data. The location section should not appear on the landing page.',
-            'description_type_id' => $this->abstractType->id,
-        ]);
 
         $this->createLandingPage($resource, 'no-geo-locations');
 
@@ -828,12 +818,13 @@ class ResourceTestDataSeeder extends Seeder
 
         $this->addCreator($resource, 'Relation', 'Expert');
 
+        // Using real DOIs for accurate landing page display
         $relatedDois = [
-            ['10.1000/related1', 'Cites'],
-            ['10.1000/related2', 'IsSupplementTo'],
-            ['10.1000/related3', 'References'],
-            ['10.1000/related4', 'IsCitedBy'],
-            ['10.1000/related5', 'IsPartOf'],
+            ['10.5880/igets.su.l1.001', 'Cites'],
+            ['10.1007/978-3-642-20338-1_37', 'IsSupplementTo'],
+            ['10.1016/j.jog.2009.09.009', 'References'],
+            ['10.1016/j.jog.2009.09.020', 'IsCitedBy'],
+            ['10.1785/0120100217', 'IsPartOf'],
         ];
 
         foreach ($relatedDois as $index => $data) {
@@ -932,16 +923,15 @@ class ResourceTestDataSeeder extends Seeder
      */
     private function createMultipleDescriptions(): void
     {
-        $resource = $this->createBaseResource('TEST: Multiple Description Types');
+        $resource = $this->createBaseResource(
+            'TEST: Multiple Description Types',
+            null,  // version
+            'This is the main abstract describing the dataset and its scientific significance. It provides an overview of the data collection, analysis methods, and key findings.'
+        );
 
         $this->addCreator($resource, 'Description', 'Author');
 
-        Description::create([
-            'resource_id' => $resource->id,
-            'value' => 'This is the main abstract describing the dataset and its scientific significance. It provides an overview of the data collection, analysis methods, and key findings.',
-            'description_type_id' => $this->abstractType->id,
-        ]);
-
+        // Additional descriptions (Methods, TechnicalInfo) - Abstract is already created by createBaseResource
         Description::create([
             'resource_id' => $resource->id,
             'value' => 'Data was collected using high-precision instruments following ISO standards. Processing involved quality control, outlier detection, and statistical analysis using R and Python.',
@@ -1076,8 +1066,12 @@ class ResourceTestDataSeeder extends Seeder
 
     /**
      * Create base resource with mandatory fields.
+     *
+     * @param  string  $title  The main title of the resource
+     * @param  string|null  $version  The version number (default: 1.0)
+     * @param  string|null  $abstract  The abstract text (if null, a default abstract is created based on the title)
      */
-    private function createBaseResource(string $title, ?string $version = null): Resource
+    private function createBaseResource(string $title, ?string $version = null, ?string $abstract = null): Resource
     {
         $uniqueId = uniqid();
 
@@ -1095,6 +1089,16 @@ class ResourceTestDataSeeder extends Seeder
             'resource_id' => $resource->id,
             'value' => $title,
             'title_type_id' => $this->mainTitleType->id,
+        ]);
+
+        // Add abstract (mandatory field in ERNIE - min 50 characters)
+        // Generate a default abstract based on the title if none provided
+        $abstractText = $abstract ?? "This is a test resource for the scenario: {$title}. This dataset was created by the ResourceTestDataSeeder to validate the metadata editor functionality and landing page display. It contains sample data for development and testing purposes only.";
+
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => $abstractText,
+            'description_type_id' => $this->abstractType->id,
         ]);
 
         $this->createdResourceIds[] = $resource->id;
