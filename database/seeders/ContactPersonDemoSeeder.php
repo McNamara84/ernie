@@ -37,7 +37,9 @@ class ContactPersonDemoSeeder extends Seeder
                     'email' => 'anna.mueller@gfz-potsdam.de',
                     'orcid' => null,
                     'website' => null,
-                    'affiliations' => ['GFZ German Research Centre for Geosciences'],
+                    'affiliations' => [
+                        ['name' => 'GFZ German Research Centre for Geosciences'],
+                    ],
                 ],
             ]
         );
@@ -52,7 +54,10 @@ class ContactPersonDemoSeeder extends Seeder
                     'email' => 'thomas.schmidt@gfz-potsdam.de',
                     'orcid' => "0000-0001-{$uniqueId}-1001",
                     'website' => 'https://www.gfz-potsdam.de/staff/thomas-schmidt',
-                    'affiliations' => ['GFZ German Research Centre for Geosciences', 'University of Potsdam'],
+                    'affiliations' => [
+                        ['name' => 'GFZ German Research Centre for Geosciences'],
+                        ['name' => 'University of Potsdam'],
+                    ],
                 ],
             ]
         );
@@ -67,7 +72,9 @@ class ContactPersonDemoSeeder extends Seeder
                     'email' => 'maria.weber@gfz-potsdam.de',
                     'orcid' => "0000-0002-{$uniqueId}-2001",
                     'website' => 'https://www.gfz-potsdam.de/staff/maria-weber',
-                    'affiliations' => ['GFZ German Research Centre for Geosciences'],
+                    'affiliations' => [
+                        ['name' => 'GFZ German Research Centre for Geosciences'],
+                    ],
                 ],
                 [
                     'firstName' => 'Klaus',
@@ -75,7 +82,10 @@ class ContactPersonDemoSeeder extends Seeder
                     'email' => 'klaus.fischer@uni-potsdam.de',
                     'orcid' => "0000-0003-{$uniqueId}-3001",
                     'website' => null,
-                    'affiliations' => ['University of Potsdam', 'Helmholtz Association'],
+                    'affiliations' => [
+                        ['name' => 'University of Potsdam'],
+                        ['name' => 'Helmholtz Association'],
+                    ],
                 ],
                 [
                     'firstName' => 'Sabine',
@@ -83,7 +93,49 @@ class ContactPersonDemoSeeder extends Seeder
                     'email' => 'sabine.hoffmann@gfz-potsdam.de',
                     'orcid' => null,
                     'website' => 'https://orcid.org/researcher/sabine-hoffmann',
-                    'affiliations' => ['GFZ German Research Centre for Geosciences'],
+                    'affiliations' => [
+                        ['name' => 'GFZ German Research Centre for Geosciences'],
+                    ],
+                ],
+            ]
+        );
+
+        // Scenario 4: Contact persons with ROR-IDs for affiliations
+        $resource4 = $this->createResourceWithContactPersons(
+            title: 'Demo: Contact Persons with ROR Affiliations',
+            contactPersons: [
+                [
+                    'firstName' => 'Elena',
+                    'lastName' => 'Berger',
+                    'email' => 'elena.berger@gfz-potsdam.de',
+                    'orcid' => "0000-0004-{$uniqueId}-4001",
+                    'website' => 'https://www.gfz-potsdam.de/staff/elena-berger',
+                    'affiliations' => [
+                        [
+                            'name' => 'GFZ German Research Centre for Geosciences',
+                            'identifier' => 'https://ror.org/04z8jg394',
+                            'scheme' => 'ROR',
+                        ],
+                    ],
+                ],
+                [
+                    'firstName' => 'Markus',
+                    'lastName' => 'Richter',
+                    'email' => 'markus.richter@uni-potsdam.de',
+                    'orcid' => "0000-0005-{$uniqueId}-5001",
+                    'website' => null,
+                    'affiliations' => [
+                        [
+                            'name' => 'University of Potsdam',
+                            'identifier' => 'https://ror.org/03bnmw459',
+                            'scheme' => 'ROR',
+                        ],
+                        [
+                            'name' => 'Helmholtz Association',
+                            'identifier' => 'https://ror.org/0281dp749',
+                            'scheme' => 'ROR',
+                        ],
+                    ],
                 ],
             ]
         );
@@ -95,12 +147,13 @@ class ContactPersonDemoSeeder extends Seeder
                 [$resource1->id, 'Single Contact (Minimum)', '1'],
                 [$resource2->id, 'Full Details', '1'],
                 [$resource3->id, 'Multiple Contacts (Maximum)', '3'],
+                [$resource4->id, 'With ROR Affiliations', '2'],
             ]
         );
     }
 
     /**
-     * @param  array<int, array{firstName: string, lastName: string, email: string, orcid: ?string, website: ?string, affiliations: array<string>}>  $contactPersons
+     * @param  array<int, array{firstName: string, lastName: string, email: string, orcid: ?string, website: ?string, affiliations: array<int, array{name: string, identifier?: string, scheme?: string}>}>  $contactPersons
      */
     private function createResourceWithContactPersons(string $title, array $contactPersons): Resource
     {
@@ -182,11 +235,13 @@ class ContactPersonDemoSeeder extends Seeder
             ]);
 
             // Add affiliations
-            foreach ($contactData['affiliations'] as $affiliationName) {
+            foreach ($contactData['affiliations'] as $affiliationData) {
                 Affiliation::create([
                     'affiliatable_type' => ResourceCreator::class,
                     'affiliatable_id' => $creator->id,
-                    'name' => $affiliationName,
+                    'name' => $affiliationData['name'],
+                    'identifier' => $affiliationData['identifier'] ?? null,
+                    'identifier_scheme' => $affiliationData['scheme'] ?? null,
                 ]);
             }
 

@@ -15,8 +15,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $affiliatable_type
  * @property int $affiliatable_id
  * @property string $name
- * @property string|null $affiliation_identifier
- * @property string|null $affiliation_identifier_scheme
+ * @property string|null $identifier
+ * @property string|null $identifier_scheme
  * @property string|null $scheme_uri
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -34,8 +34,8 @@ class Affiliation extends Model
         'affiliatable_type',
         'affiliatable_id',
         'name',
-        'affiliation_identifier',
-        'affiliation_identifier_scheme',
+        'identifier',
+        'identifier_scheme',
         'scheme_uri',
     ];
 
@@ -53,8 +53,8 @@ class Affiliation extends Model
      */
     public function hasRor(): bool
     {
-        return $this->affiliation_identifier_scheme === 'ROR'
-            && $this->affiliation_identifier !== null;
+        return $this->identifier_scheme === 'ROR'
+            && $this->identifier !== null;
     }
 
     /**
@@ -62,6 +62,6 @@ class Affiliation extends Model
      */
     public function getRorIdAttribute(): ?string
     {
-        return $this->hasRor() ? $this->affiliation_identifier : null;
+        return $this->hasRor() ? $this->identifier : null;
     }
 }

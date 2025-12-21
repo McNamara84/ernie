@@ -213,8 +213,8 @@ class LandingPagePublicController extends Controller
                     'type' => class_basename($creator->creatorable_type),
                     'affiliations' => $creator->affiliations->map(fn ($aff) => [
                         'name' => $aff->name,
-                        'identifier' => $aff->affiliation_identifier,
-                        'scheme' => $aff->affiliation_identifier_scheme,
+                        'identifier' => $aff->identifier,
+                        'scheme' => $aff->identifier_scheme,
                     ])->toArray(),
                     'orcid' => ($creatorable->name_identifier_scheme ?? '') === 'ORCID'
                         ? $creatorable->name_identifier
