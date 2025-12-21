@@ -189,7 +189,7 @@ class ContactPersonDemoSeeder extends Seeder
         Title::create([
             'resource_id' => $resource->id,
             'value' => $title,
-            'title_type_id' => $titleType?->id ?? 1,
+            'title_type_id' => $titleType->id ?? 1,
         ]);
 
         // Add contact persons as creators with isContact = true

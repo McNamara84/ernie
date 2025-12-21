@@ -96,14 +96,12 @@ class LandingPagePublicController extends Controller
             $creatorData = [
                 'id' => $creator->id,
                 'position' => $creator->position,
-                'affiliations' => $creator->affiliations->map(function ($affiliation) {
-                    return [
-                        'id' => $affiliation->id,
-                        'name' => $affiliation->name,
-                        'affiliation_identifier' => $affiliation->affiliation_identifier,
-                        'affiliation_identifier_scheme' => $affiliation->affiliation_identifier_scheme,
-                    ];
-                })->toArray(),
+                'affiliations' => $creator->affiliations->map(fn (\App\Models\Affiliation $affiliation): array => [
+                    'id' => $affiliation->id,
+                    'name' => $affiliation->name,
+                    'affiliation_identifier' => $affiliation->identifier,
+                    'affiliation_identifier_scheme' => $affiliation->identifier_scheme,
+                ])->toArray(),
             ];
 
             // Add creatorable data (Person or Institution)
@@ -128,14 +126,12 @@ class LandingPagePublicController extends Controller
                 'id' => $contributor->id,
                 'position' => $contributor->position,
                 'contributor_type' => $contributor->contributorType->name,
-                'affiliations' => $contributor->affiliations->map(function ($affiliation) {
-                    return [
-                        'id' => $affiliation->id,
-                        'name' => $affiliation->name,
-                        'affiliation_identifier' => $affiliation->affiliation_identifier,
-                        'affiliation_identifier_scheme' => $affiliation->affiliation_identifier_scheme,
-                    ];
-                })->toArray(),
+                'affiliations' => $contributor->affiliations->map(fn (\App\Models\Affiliation $affiliation): array => [
+                    'id' => $affiliation->id,
+                    'name' => $affiliation->name,
+                    'affiliation_identifier' => $affiliation->identifier,
+                    'affiliation_identifier_scheme' => $affiliation->identifier_scheme,
+                ])->toArray(),
             ];
 
             // Add contributorable data (Person or Institution)

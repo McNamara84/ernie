@@ -342,8 +342,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 $allAffiliations = $group->flatMap(function ($creator) {
                     return $creator->affiliations;
                 })->unique(function ($affiliation) {
-                    // Unique by name and affiliation_identifier combination
-                    return $affiliation->name.'|'.($affiliation->affiliation_identifier ?? 'null');
+                    // Unique by name and identifier combination
+                    return $affiliation->name.'|'.($affiliation->identifier ?? 'null');
                 });
 
                 // All ResourceCreator entries are creators in DataCite 4.6
@@ -367,12 +367,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 }
 
                 // Add unique affiliations - map to frontend field names
-                $data['affiliations'] = $allAffiliations->map(function ($affiliation) {
-                    return [
-                        'value' => $affiliation->name,
-                        'rorId' => $affiliation->affiliation_identifier,
-                    ];
-                })->values()->toArray();
+                $data['affiliations'] = $allAffiliations->map(fn (\App\Models\Affiliation $affiliation): array => [
+                    'value' => $affiliation->name,
+                    'rorId' => $affiliation->identifier,
+                ])->values()->toArray();
 
                 $authors[] = $data;
             }
@@ -532,7 +530,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
                         'identifier' => $institution->name_identifier ?? '',
                         'name' => $institution->name ?? '',
                         'affiliation_name' => $affiliation->name ?? '',
-                        'affiliation_ror' => $affiliation->affiliation_identifier ?? '',
+                        'affiliation_ror' => $affiliation->identifier ?? '',
                         'position' => $creator->position,
                     ];
                 })

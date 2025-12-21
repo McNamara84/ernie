@@ -226,9 +226,9 @@ class DataCiteXmlExporter
         foreach ($creator->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->affiliation_identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+            if ($affiliation->identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
                 if ($affiliation->scheme_uri) {
                     $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
                 }
@@ -278,9 +278,9 @@ class DataCiteXmlExporter
         foreach ($creator->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->affiliation_identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+            if ($affiliation->identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
                 if ($affiliation->scheme_uri) {
                     $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
                 }
@@ -509,9 +509,9 @@ class DataCiteXmlExporter
         foreach ($contributor->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->affiliation_identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+            if ($affiliation->identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
                 if ($affiliation->scheme_uri) {
                     $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
                 }
@@ -582,9 +582,9 @@ class DataCiteXmlExporter
         foreach ($contributor->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->affiliation_identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+            if ($affiliation->identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
                 if ($affiliation->scheme_uri) {
                     $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
                 }
@@ -635,9 +635,9 @@ class DataCiteXmlExporter
         foreach ($contributor->affiliations as $affiliation) {
             $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
 
-            if ($affiliation->affiliation_identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->affiliation_identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->affiliation_identifier_scheme ?? 'ROR');
+            if ($affiliation->identifier) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
                 if ($affiliation->scheme_uri) {
                     $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
                 }
