@@ -55,7 +55,7 @@ class LandingPagePublicController extends Controller
             'contributors.contributorable',
             'contributors.contributorType',
             'contributors.affiliations',
-            'titles',
+            'titles.titleType',
             'descriptions.descriptionType',
             'rights',
             'subjects',
@@ -70,6 +70,16 @@ class LandingPagePublicController extends Controller
 
         // Prepare data for template
         $resourceData = $resource->toArray();
+
+        // Transform titles for frontend (expects 'title' and 'title_type' as string)
+        $resourceData['titles'] = $resource->titles->map(function ($title) {
+            return [
+                'id' => $title->id,
+                'title' => $title->value,
+                'title_type' => $title->titleType?->slug,
+                'language' => $title->language,
+            ];
+        })->toArray();
 
         // Ensure relatedIdentifiers are properly loaded
         $resourceData['related_identifiers'] = $resource->relatedIdentifiers->map(function ($relatedId) {
