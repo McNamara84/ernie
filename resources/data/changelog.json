@@ -1,902 +1,902 @@
 [
-  {
-    "version": "1.0.0b",
-    "date": "2025-11-25",
-    "features": [
-      {
-        "title": "Automatic Created/Updated Timestamps",
-        "description": "The 'Created' and 'Updated' date types are now automatically managed by the system and removed from the manual date entry form. 'Created' is set once when a resource is first saved and never overwritten. 'Updated' is automatically refreshed with the current datetime whenever resource data is modified. Both timestamps include full datetime precision for accurate audit trails."
-      },
-      {
-        "title": "Spatial Coverage with Polygons",
-        "description": "Draw and edit complex polygons for geographic coverage areas with interactive Google Maps integration. Enhanced coordinate handling and validation for precise spatial data representation. Supports both simple rectangles and complex multi-point polygons for flexible coverage definition."
-      },
-      {
-        "title": "CSV Upload for Free Keywords",
-        "description": "Bulk upload free-form keywords via CSV files for efficient metadata entry. Includes drag-and-drop interface, real-time validation, error reporting with line numbers, and preview before import. Automatic duplicate detection and normalization ensure data quality."
-      },
-      {
-        "title": "MSL Vocabulary Auto-Switch",
-        "description": "Automatic tab switching and notification system when MSL (Materials Science and Engineering) keywords are detected. Intelligent detection of MSL-relevant keywords triggers visual notifications and automatically switches to the MSL vocabulary tab for streamlined workflow."
-      },
-      {
-        "title": "Version Badge Links in Dashboard",
-        "description": "Quick access to release notes directly from dashboard version indicators. Clicking version badges navigates to the changelog with automatic scrolling to the relevant release section for convenient version history access."
-      },
-      {
-        "title": "Enhanced Rectangle Drawing",
-        "description": "Improved drag-and-drop interface for quickly defining rectangular coverage areas on the map. Visual feedback during drawing, automatic coordinate extraction, and validation ensure accurate spatial coverage definition."
-      },
-      {
-        "title": "Show Password Toggle on Login",
-        "description": "Toggle password visibility on login page for improved user experience. Reduces login errors from typos and improves accessibility by allowing users to verify their password input."
-      },
-      {
-        "title": "Detailed Related Works Statistics",
-        "description": "Comprehensive metrics and analytics for related publications and datasets. Enhanced statistics dashboard showing distribution by relation type, identifier type, and temporal patterns. Helps curators understand dataset relationships and identify common citation patterns."
-      },
-      {
-        "title": "Larger Font Size Setting",
-        "description": "User preference for increased text size in settings for better accessibility. Font size changes apply immediately across the application, supporting users with visual impairments or preference for larger text."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Streamlined Dates Form Section",
-        "description": "Simplified the Dates form section by removing the requirement for manual 'Created' date entry. The form now starts empty for new resources with an 'Add date' button for optional date types like 'Accepted', 'Issued', or 'Valid'. System-managed timestamps ensure consistent metadata without curator intervention."
-      },
-      {
-        "title": "Simplified Relation Types Dropdown",
-        "description": "Removed category headings (Citation, Documentation, Versions, Compilation, etc.) from the Relation Types dropdown in the Related Work form section. All 33 DataCite relation types are now displayed in a flat, alphabetically organized list for easier navigation."
-      },
-      {
-        "title": "Enhanced Search Trigger Timing",
-        "description": "Fixed premature search triggering in resource lists with improved debounce handling. Search now waits for user to finish typing before executing queries, reducing unnecessary API calls and improving performance."
-      },
-      {
-        "title": "Resource Filter Persistence",
-        "description": "Filters now correctly save selected options across sessions. User filter preferences are stored and restored when returning to resource lists, improving workflow continuity."
-      },
-      {
-        "title": "Better Sorting for Old Datasets",
-        "description": "Enhanced sorting options with new author column and improved query optimization. Server-side sorting with SQL-level optimization provides faster results and consistent ordering across pagination."
-      },
-      {
-        "title": "Reorganized Test Suites",
-        "description": "Restructured test suites for better maintainability with domain-based organization. Separated unit and integration tests, improved test isolation, and added comprehensive coverage across Pest, Vitest, and Playwright test frameworks."
-      },
-      {
-        "title": "PHPStan Level 8 Compliance",
-        "description": "Increased static analysis strictness to PHPStan Level 8 for improved code quality. Enhanced type safety, eliminated potential bugs, and improved IDE support with better type inference."
-      },
-      {
-        "title": "Deployment via Portainer",
-        "description": "Production-ready Docker configuration for container orchestration with Portainer support. Multi-stage builds optimize image sizes, health checks ensure service availability, and improved session management enhances production reliability."
-      },
-      {
-        "title": "Inline Validation for Mandatory Inputs",
-        "description": "Real-time validation feedback for required fields with visual indicators. Red borders and error messages appear immediately when users interact with mandatory fields, preventing form submission with incomplete data."
-      },
-      {
-        "title": "Better Main Menu Labels",
-        "description": "Improved clarity of navigation menu items with more intuitive naming. Renamed 'Curation' to 'Editor' throughout the application for better understanding of metadata editing functionality."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "Loading Old Datasets with Empty First Name",
-        "description": "Handle legacy records with missing author first names gracefully. Improved null value handling prevents errors when loading historical datasets with incomplete author information."
-      },
-      {
-        "title": "Error 414 on Old Dataset Loading",
-        "description": "Fixed URI too long errors when loading large legacy datasets. Implemented request payload optimization and chunking to handle datasets with extensive metadata without exceeding URL length limits."
-      },
-      {
-        "title": "ORCID Auto-Suggest Behavior",
-        "description": "Prevented unexpected opening of ORCID suggestion dropdown. Improved focus handling and event management ensures dropdown only appears when intended by user interaction."
-      },
-      {
-        "title": "Missing Keywords in Vocabularies",
-        "description": "Restored missing entries in controlled vocabulary lists. Fixed synchronization issues with GCMD and MSL vocabularies to ensure complete keyword coverage."
-      },
-      {
-        "title": "Wrong Naming in CSV Examples",
-        "description": "Corrected column headers in bulk upload example files. Updated documentation and example CSV files to match actual field names, preventing user confusion during bulk imports."
-      },
-      {
-        "title": "Show End Date Field Conditionally",
-        "description": "End date field now only appears for 'valid' date type. Improved form logic prevents confusion by hiding irrelevant fields based on selected date type."
-      },
-      {
-        "title": "Coverage Dates Validation",
-        "description": "Properly enforce required validation for coverage date fields. Improved validation feedback and error messages ensure temporal coverage data quality."
-      },
-      {
-        "title": "CSRF Token Mismatch",
-        "description": "Resolved session and token validation issues with improved token refresh mechanism. Enhanced session configuration for production environments with proper cookie settings and automatic retry logic."
-      }
-    ]
-  },
-  {
-    "version": "1.0.0a",
-    "date": "2025-11-05",
-    "features": [
-      {
-        "title": "DOI Registration Workflow",
-        "description": "Complete DOI registration integration with DataCite REST API v2. Support for both test and production DOI prefixes with automatic environment switching. Includes DOI status badges with copy-to-clipboard functionality, direct links to DataCite Fabrica, and comprehensive validation before registration. Features modal-based registration flow with prefix selection and optimistic UI updates."
-      },
-      {
-        "title": "Landing Pages System",
-        "description": "Full landing page workflow for published resources. Create, preview, and publish public landing pages with comprehensive metadata display. Landing pages are required before DOI registration and provide a permanent, citable entry point for datasets. Includes status management (draft/published) and integration with DOI registration workflow."
-      },
-      {
-        "title": "User Management Interface",
-        "description": "Comprehensive user management system with role-based access control. Admins and group leaders can manage users including role changes, account activation/deactivation, and password resets. Features hierarchical role system (admin, group_leader, curator, beginner) with appropriate permission checks. System user (ID 1) is protected from modifications. Users cannot modify their own role or deactivate themselves."
-      },
-      {
-        "title": "Unified Documentation System",
-        "description": "Complete rewrite of documentation as single-page application with role-based content filtering. Seven main sections covering quick start, curation workflow, landing pages, DOI registration, user management, system administration, and API documentation. Features interactive table of contents with clickable cards, smooth scroll navigation, copy-to-clipboard code snippets, and visual workflow guides with timeline design. Mobile-responsive with dark mode support."
-      },
-      {
-        "title": "Related Works Statistics",
-        "description": "Detailed analytics dashboard for related works showing metrics by relation type and identifier type. Includes total counts, distribution charts, and comprehensive breakdowns of all 33 DataCite relation types. Helps curators understand dataset relationships and identify common patterns."
-      },
-      {
-        "title": "Enhanced Map Drawing",
-        "description": "Improved spatial coverage editor with drag-and-drop rectangle drawing on Google Maps. Users can visually define rectangular coverage areas by clicking and dragging on the map. Automatic coordinate extraction and validation ensures data quality."
-      },
-      {
-        "title": "Show Password Toggle",
-        "description": "Added visibility toggle button on login page allowing users to reveal password input for easier verification. Improves user experience and reduces login errors from typos."
-      },
-      {
-        "title": "License Usage Sorting",
-        "description": "Sortable license statistics in editor settings showing license usage across all resources. Helps administrators understand which licenses are most commonly used and identify potential data quality issues."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "User Authorization System",
-        "description": "Implemented comprehensive authorization with UserPolicy enforcing hierarchical permissions. Role-based restrictions on DOI registration (beginners forced to test mode), user management (hierarchical promotion limits), and system protection (user ID 1 immutable). Self-modification prevention ensures users cannot change own role or deactivate themselves."
-      },
-      {
-        "title": "DOI Workflow Integration",
-        "description": "Complete integration of DOI registration with landing pages and resource metadata. Automatic validation of required fields before DOI registration, landing page requirement enforcement, and metadata synchronization with DataCite. Supports both test and production environments with appropriate restrictions based on user role."
-      },
-      {
-        "title": "Documentation Architecture",
-        "description": "Modular documentation components in resources/js/components/docs/ for maintainability. DocsSection component with icons and anchor links, DocsCodeBlock with copy functionality, WorkflowSteps for visual guides. Single route passes userRole prop for frontend role-based filtering."
-      },
-      {
-        "title": "Coverage Field Validation",
-        "description": "Made coverage date fields mandatory to ensure temporal data quality. Improved validation feedback and error messages for spatial-temporal coverage entries."
-      },
-      {
-        "title": "User Management CLI",
-        "description": "Enhanced add-user command for creating new users with automatic admin assignment for first user. Role logic properly separated from migrations for data integrity."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "Resource Loading in Editor",
-        "description": "Resolved critical issue preventing existing resources from loading into editor. Fixed query parameter handling and state management for proper form hydration with existing data."
-      },
-      {
-        "title": "Language Filter Removal",
-        "description": "Removed confusing language filter from old datasets and resources tables. Simplified filtering interface for better user experience."
-      },
-      {
-        "title": "Old Data Statistics Display",
-        "description": "Fixed statistics page for legacy datasets showing comprehensive metrics including resource type distribution, publication years, curator workload, and dataset status overview."
-      },
-      {
-        "title": "User Settings Font Size",
-        "description": "Enhanced user settings with configurable font size options (small, medium, large). Font changes apply immediately across application for improved accessibility."
-      }
-    ]
-  },
-  {
-    "version": "0.9.0",
-    "date": "2025-10-29",
-    "features": [
-      {
-        "title": "DataCite JSON Export",
-        "description": "Export resources as DataCite JSON files with full metadata support. Includes proper schema.org context, comprehensive identifier handling (DOI, ORCID, ROR), and complete metadata mapping following DataCite JSON schema specifications. Features download functionality with automatic filename generation."
-      },
-      {
-        "title": "DataCite XML Export",
-        "description": "Export resources as DataCite XML 4.5 compliant files with support for all metadata fields including creators, contributors, titles, descriptions, subjects, dates, spatial-temporal coverage, related identifiers, and funding references. Automatic validation against DataCite schema and proper namespace handling."
-      },
-      {
-        "title": "Resources Table Sorting and Filtering",
-        "description": "Advanced sorting options for resources including DOI, title, resource type, publication year, version, and language. Client-side sorting with persistent state, smooth UI transitions, and toast notifications for user feedback. Includes comprehensive loading states and skeleton displays during sort operations."
-      },
-      {
-        "title": "Old Data Statistics Dashboard",
-        "description": "New statistics page displaying comprehensive metrics from legacy datasets including total datasets, resource type distribution, publication year statistics, curator workload, and dataset status overview. Features interactive charts and data visualization for better insights into the old dataset collection."
-      },
-      {
-        "title": "Inline Validation for Mandatory Fields",
-        "description": "Real-time validation feedback for required fields in the curation form. Visual indicators (red borders, error messages) appear immediately when users interact with mandatory fields, preventing form submission with incomplete data. Improves data quality and user experience with clear, immediate feedback."
-      },
-      {
-        "title": "Improved Authors and Contributors UX",
-        "description": "Enhanced user experience with clearer visual distinction between authors and contributors, improved add/remove buttons with better positioning and styling, optimized spacing and layout for better readability, and more intuitive drag-and-drop reordering. Includes better accessibility with improved ARIA labels and keyboard navigation."
-      },
-      {
-        "title": "Timeline Navigation for Changelog",
-        "description": "Interactive timeline navigation for the changelog page with visual indicators for major/minor/patch releases, smooth scrolling to specific versions, keyboard navigation support (arrow keys, j/k, Home/End), and URL hash support for deep linking to specific versions. Features auto-expansion of the most visible release while scrolling."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Enhanced Main Menu Labels",
-        "description": "Renamed 'Curation' to 'Editor' across the entire application for clearer understanding of the metadata editing functionality. Updated all navigation elements, routes, and documentation to reflect the new terminology."
-      },
-      {
-        "title": "User Settings Enhancements",
-        "description": "Added configurable font size setting with options for small, medium, and large text. Improved settings page layout with better organization and visual hierarchy. Font size changes apply immediately across the application for better accessibility."
-      },
-      {
-        "title": "CSRF Token Handling",
-        "description": "Resolved CSRF token mismatch issues with improved token refresh mechanism, better error handling for token expiration, and automatic retry logic for failed requests. Enhanced session configuration for production environments with proper cookie settings."
-      },
-      {
-        "title": "Code Organization and Refactoring",
-        "description": "Major code refactoring to improve maintainability and consistency. Renamed components from 'Curation' to 'Editor' terminology throughout the codebase. Improved type safety with enhanced TypeScript definitions and better error handling patterns."
-      },
-      {
-        "title": "Production Docker Configuration",
-        "description": "Comprehensive Docker setup improvements including multi-stage builds for optimized image sizes, improved volume management for persistent data, health checks for all services, and better environment variable handling. Enhanced nginx configuration for better performance and security."
-      },
-      {
-        "title": "Documentation Updates",
-        "description": "Updated README with comprehensive API documentation, deployment instructions, and usage examples. Added detailed information about the DataCite export features, filtering and sorting capabilities, and MSL vocabulary integration. Improved inline code documentation throughout the application."
-      },
-      {
-        "title": "Dependency Updates",
-        "description": "Updated PHP dependencies via Composer and JavaScript dependencies via npm to their latest compatible versions. Ensures security patches, bug fixes, and performance improvements from upstream packages are incorporated. Maintains compatibility with Laravel 12 and React ecosystem."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "Resource Loading in Editor",
-        "description": "Fixed critical bug where existing resources could not be loaded into the editor for editing. Resolved query parameter handling and state management issues that prevented proper hydration of form fields with existing resource data."
-      },
-      {
-        "title": "Language Filter Removal",
-        "description": "Removed language filter from old datasets and resources tables as it was causing confusion and not providing significant value. Simplified the filtering interface for better user experience."
-      },
-      {
-        "title": "DataCite Export Validation",
-        "description": "Improved validation for DataCite exports to ensure all mandatory fields are present before allowing export. Added better error messages and visual feedback when exports cannot be generated due to missing or invalid data."
-      },
-      {
-        "title": "Session Configuration for Production",
-        "description": "Fixed session handling issues in production environment by properly configuring SESSION_PATH, SESSION_DOMAIN, and cookie settings. Resolved login persistence issues and improved overall session reliability."
-      },
-      {
-        "title": "Test Reliability Improvements",
-        "description": "Enhanced test reliability across Pest, Vitest, and Playwright test suites. Fixed flaky tests, improved test isolation, and added better assertions. Increased timeouts for CI environments and improved test data setup."
-      }
-    ]
-  },
-  {
-    "version": "0.8.0",
-    "date": "2025-10-14",
-    "features": [
-      {
-        "title": "Funding References Management",
-        "description": "Comprehensive support for managing funding information with funder name, ROR ID lookup, award number, award title, and award URI. Includes autocomplete dropdown with ROR funder search supporting multi-word matching and improved result scoring. Supports multiple funder identifier types (ROR, Crossref Funder ID, ISNI, GRID, Other) for improved interoperability. Features drag-and-drop reordering with @dnd-kit and automatic loading from legacy datasets."
-      },
-      {
-        "title": "Old Datasets Filtering",
-        "description": "Advanced filtering system for old datasets including resource type, curator, status, publication year range, creation date range, last update date range, and full-text search. Features debounced search input, filter badges showing active filters, and popover-based UI for date and year range selection. Includes API endpoint for dynamic filter options and comprehensive backend filter application logic."
-      },
-      {
-        "title": "MSL Vocabulary Integration",
-        "description": "Full integration of EPOS Multi-Scale Laboratories (MSL) vocabulary with download command to fetch and transform vocabulary from GitHub. Includes API endpoint for serving MSL vocabulary, support in curation forms with conditional display, and extraction from both XML uploads and legacy database. Features automatic transformation of legacy MSL keywords and validation to ensure current vocabulary usage."
-      },
-      {
-        "title": "MSL Laboratories Form Section",
-        "description": "Searchable field for selecting Multi-Scale Laboratories using data from Utrecht University's MSL Vocabularies. Automatically opens/closes accordion section based on relevant keywords. Supports extraction from XML uploads with remote vocabulary enrichment. MSL Labs are managed separately from regular contributors and stored with 'labid' identifier and 'hosting-institution' role."
-      },
-      {
-        "title": "Institution Identifier Support",
-        "description": "Generic identifier fields added to Institution model supporting multiple identifier types (ROR, labid, etc.). Enables proper handling of institutional identifiers beyond affiliations, particularly for MSL Laboratories and other specialized institutions."
-      },
-      {
-        "title": "Comprehensive Playwright Test Suite",
-        "description": "Complete rewrite of E2E testing with page object models for all major application pages (Login, Dashboard, Old Datasets, Curation, Resources, Settings). Includes workflow tests covering critical user journeys: authentication, old datasets management, XML upload, curation, resources management, and settings. Added comprehensive test helpers and fixtures for improved maintainability and reliability."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Test Organization",
-        "description": "Major restructuring of test files into domain-based directories under tests/pest (Api, Commands, OldDatasets, Resources, XmlUpload, Config, Controllers, Models, Seeders, Services, Transformers, Validators). Removed redundant and obsolete test files for improved clarity and maintainability. Separated unit and integration tests for better organization."
-      },
-      {
-        "title": "API Documentation",
-        "description": "Expanded README with comprehensive REST API documentation, ELMO integration details, and controlled vocabularies overview. Updated OpenAPI specification to version 0.3.0 with improved descriptions, examples, and schema documentation. Added link to interactive API documentation and streamlined endpoint descriptions."
-      },
-      {
-        "title": "Playwright Test Reliability",
-        "description": "Enhanced CI workflow to run Chromium-only for PRs and all browsers for main branch. Improved server wait step with better diagnostics. Increased test and action timeouts for slower CI environments. Added explicit waits for Inertia.js/React hydration and database verification before test execution."
-      },
-      {
-        "title": "Filter Performance",
-        "description": "Optimized old dataset queries with proper filter application including resource type, curator, status, and date ranges. Implemented efficient array parameter serialization and backend filter extraction. Added comprehensive unit tests for filter logic (22 tests) ensuring CI compatibility without external database dependencies."
-      },
-      {
-        "title": "ROR Funder Integration",
-        "description": "Enhanced ROR funder search with multi-word matching and improved relevance scoring. Increased suggestion limit to 20 funders. Auto-fill funder names from ROR IDs for consistency. Automatic clearing of ROR ID when funder name is manually edited. Support for both ROR identifiers and other funder identifier types."
-      },
-      {
-        "title": "Controlled Vocabularies Refactoring",
-        "description": "Replaced vocabularyType field with scheme throughout backend and frontend for GCMD keywords. Introduced helper functions for mapping between scheme and vocabulary type. Eliminated vocabulary_type column from database in favor of scheme-based discrimination. Updated all tests to use scheme-based validation."
-      },
-      {
-        "title": "Session Configuration",
-        "description": "Updated SESSION_PATH from '/' to '/ernie' in production Docker Compose configuration to properly scope session cookies for the application."
-      },
-      {
-        "title": "Development Dependencies",
-        "description": "Upgraded @types/react-dom, @typescript-eslint packages, electron-to-chromium, caniuse-lite, and related dependencies to latest versions. Added @radix-ui/react-popover (v1.1.15) for filter UI components and @dnd-kit for drag-and-drop functionality."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "Filter Options Optional Chaining",
-        "description": "Added optional chaining to resource_types, statuses, curators, and year_range properties in OldDatasetsFilters to prevent runtime errors when filter options are undefined. Fixed axios mocks in tests to ensure consistent filter options data."
-      },
-      {
-        "title": "Funder Selection Race Conditions",
-        "description": "Implemented atomic updates of funder name and identifier when selecting ROR suggestions to prevent race conditions. Added input blur after selection to ensure value updates. Prevented default behavior and event propagation on suggestion selection."
-      },
-      {
-        "title": "MSL Vocabulary Type Handling",
-        "description": "Added proper error handling for JSON encoding and empty file cases in MslVocabularyService. Improved type hints and removed duplicate return statements. Fixed handling of MSL keywords in both current and legacy formats with proper validation."
-      },
-      {
-        "title": "Test Database Dependencies",
-        "description": "Removed OldDatasetController feature tests that required live metaworks database connection, which caused CI failures. Replaced with comprehensive unit tests that are CI-compatible. Skipped old datasets workflow tests in CI due to external database requirements."
-      },
-      {
-        "title": "Playwright Strict Mode Violations",
-        "description": "Updated DashboardPage navigation checks to use .first() for strict mode compliance. Adjusted SettingsPage heading locator to avoid multiple element matches. Extended visibility timeouts to 30 seconds for critical elements in CI environments."
-      },
-      {
-        "title": "Element Hydration Timing",
-        "description": "Added explicit waits for Inertia.js/React hydration using waitForLoadState('networkidle') in Playwright tests. Improved element visibility checks to handle cases where pages may not be fully rendered before interaction attempts."
-      }
-    ]
-  },
-  {
-    "version": "0.7.0",
-    "date": "2025-10-12",
-    "features": [
-      {
-        "title": "Related Work Management",
-        "description": "Comprehensive system for managing related identifiers (DOI, URL, etc.) with support for all 33 DataCite relation types. Includes quick-add interface for common relations, advanced form with grouped relation types, and CSV bulk import with drag & drop. Features real-time DOI validation via DataCite API with fallback to doi.org, automatic identifier type detection, and duplicate prevention based on identifier and relation type combination."
-      },
-      {
-        "title": "Old Datasets Table Enhancements",
-        "description": "Major improvements to the old datasets listing including new 'First Author' column displaying author name and publication year, advanced sorting options (identifier, title, resource type, first author, publication year, curator, status), combined 'Curator Status' column for better space utilization, and smooth scroll-to-top on sort changes with toast notifications for user feedback."
-      },
-      {
-        "title": "Related Work CSV Bulk Import",
-        "description": "Import multiple related works via CSV file with drag & drop interface, real-time validation, error reporting, and preview before import. Includes automatic duplicate detection, identifier normalization, and comprehensive documentation with example files."
-      },
-      {
-        "title": "DOI Validation Proxy",
-        "description": "Backend proxy endpoint for DOI validation to avoid CORS issues. Validates DOIs via DataCite API with automatic fallback to doi.org for DOIs registered with other providers. Provides metadata resolution including titles for better user feedback."
-      },
-      {
-        "title": "Related Identifiers from Old Datasets",
-        "description": "Load related identifiers from legacy datasets into the curation form with automatic normalization of identifier types and relation types. Supports migration of historical data with proper position ordering and relationship mapping."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Enhanced Sorting Performance",
-        "description": "Optimized old dataset queries using window functions (ROW_NUMBER) instead of nested subqueries for first author selection. Server-side sorting with SQL-level optimization eliminates client-side sorting overhead. Parameterized queries prevent SQL injection and improve security."
-      },
-      {
-        "title": "Related Work UI/UX",
-        "description": "Streamlined interface with quick-add for common relation types, expandable advanced form for all 33 relation types grouped by category, visual list display with relation type badges, and one-click removal. CSV import includes progress indicators and detailed error reporting with line numbers."
-      },
-      {
-        "title": "Identifier Normalization",
-        "description": "Automatic detection and normalization of identifier types, especially for DOIs with URL prefixes (https://doi.org/). Consistent formatting across all entry methods (quick-add, advanced form, CSV import). Duplicate prevention using normalized identifiers."
-      },
-      {
-        "title": "Old Datasets Table Layout",
-        "description": "Redesigned table layout combining related columns (Curator + Status), adding first author information, and optimizing column widths. Added placeholder delete button for future functionality. Improved skeleton loading states during sorting operations."
-      },
-      {
-        "title": "Type Safety Enhancements",
-        "description": "Introduced comprehensive TypeScript types for related identifiers including RelatedIdentifierEntry, IdentifierType, and RelationType interfaces. Shared type definitions for sorting (SortKey, SortDirection, SortState) across components. Enhanced PHPDoc annotations in RelatedIdentifier model."
-      },
-      {
-        "title": "Test Coverage",
-        "description": "Comprehensive test suite for related works including Pest tests for model relationships, validation, and persistence. ResourceFactory for generating test data. Vitest tests for sorting logic and data structures. Multiple affiliations loading verification tests added."
-      },
-      {
-        "title": "Query Optimization",
-        "description": "Introduced ROLE_CREATOR constant for consistent role filtering. Optimized first author joins with better SQL handling of NULL values and whitespace trimming. Reduced N+1 query problems with eager loading of related identifiers."
-      },
-      {
-        "title": "User Feedback",
-        "description": "Added sonner (v2.0.7) for toast notifications. Sort changes now display confirmation toasts with current sort key and direction. Human-readable sort labels improve clarity. Better loading states and progress indicators across the application."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "ORCID Persistence",
-        "description": "Fixed issue where ORCID identifiers were not being saved correctly. Implemented normalization to remove URL prefixes from ORCID values, ensuring only the identifier is stored. Updated backend to return plain identifiers and frontend to handle both formats. Added comprehensive tests to verify normalization and persistence."
-      },
-      {
-        "title": "Multiple Affiliations Loading",
-        "description": "Fixed bug where multiple affiliations from old datasets appeared as a single tag. Changed affiliation joining from comma-space to comma-only to ensure proper tag separation in Tagify. Added tests to verify multiple affiliations render as separate tags."
-      },
-      {
-        "title": "Date Serialization",
-        "description": "Refactored date serialization in DataCiteForm to use explicit startDate and endDate fields instead of serializeDateEntry helper. Improved clarity and flexibility for date handling across save and load operations."
-      },
-      {
-        "title": "SQL Query Syntax",
-        "description": "Fixed SQL string literals to use single quotes for correct syntax. Improved first_author sorting with TRIM and COALESCE for consistent ordering and proper NULL value handling."
-      },
-      {
-        "title": "Duplicate Identifier Prevention",
-        "description": "Implemented normalization-based duplicate detection for related work identifiers. Allows same identifier with different relation types while preventing true duplicates. CSV import skips duplicates and displays warnings."
-      },
-      {
-        "title": "Input Validation Patterns",
-        "description": "Updated regex patterns for ID fields in AuthorField and ContributorField to use [0-9] instead of \\d for better compatibility. Removed anchors to improve validation consistency."
-      },
-      {
-        "title": "Related Work Query Parameters",
-        "description": "Encoded relatedWorks as JSON to prevent exceeding PHP's max_input_vars limit for large datasets. Normalized relatedWorks keys from camelCase to snake_case for frontend compatibility with legacy imports."
-      }
-    ]
-  },
-  {
-    "version": "0.6.0",
-    "date": "2025-10-11",
-    "features": [
-      {
-        "title": "Spatial and Temporal Coverage Management",
-        "description": "Comprehensive support for managing spatial and temporal coverage data for resources. Includes interactive map interface with Google Maps integration for selecting points or rectangular regions, coordinate input fields with validation (latitude: -90 to +90, longitude: -180 to +180), and support for unlimited coverage entries per resource."
-      },
-      {
-        "title": "Interactive Map Picker",
-        "description": "Integrated Google Maps to allow users to visually select coverage areas. Supports both single point selection and rectangular region drawing. Coordinates are automatically formatted to 6 decimal places for precision. Map displays current coverage area with visual markers and rectangles."
-      },
-      {
-        "title": "Temporal Coverage with Timezone Support",
-        "description": "Added support for temporal coverage including start/end dates (required), start/end times (optional), and timezone selection with common IANA timezone options (UTC, Europe/Berlin, America/New_York, etc.). Default timezone is automatically detected from user's system settings."
-      },
-      {
-        "title": "Import Spatial/Temporal Coverage from XML Uploads",
-        "description": "Automatically extract spatial and temporal coverage from uploaded DataCite XML files. Supports geoLocationPoint (single coordinates), geoLocationBox (rectangular regions), and geoLocationPlace (location descriptions). Temporal data is extracted from dates with type 'Collected'. Handles mixed coverage data with proper validation."
-      },
-      {
-        "title": "Load Coverage from Old Datasets",
-        "description": "New API endpoint to load spatial and temporal coverage data from legacy datasets into the curation form. Intelligent detection of point vs. rectangle coverage (empty max coordinates for points). Proper parsing and transformation of legacy date/time formats with timezone support."
-      },
-      {
-        "title": "Coverage Persistence",
-        "description": "Introduced ResourceCoverage model with database migration to store coverage data. Supports multiple coverage entries per resource with spatial coordinates, temporal information, timezone, and optional description. Includes cascading deletes and proper relationship management with resources."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Coverage Entry UI/UX",
-        "description": "Collapsible coverage cards with expandable sections to manage multiple entries efficiently. Visual preview of coordinates and dates in card headers for quick overview. Add/remove coverage entries with proper validation to ensure data quality. Responsive grid layout with map on left and input fields on right."
-      },
-      {
-        "title": "Coordinate Validation",
-        "description": "Real-time validation of latitude and longitude values with clear error messages. Automatic formatting to 6 decimal places for precision. Visual indicators for invalid coordinates (red border). Ensures coordinates are within valid ranges before submission."
-      },
-      {
-        "title": "Date and Time Handling",
-        "description": "Date inputs with HTML5 date picker support. Time inputs with HH:MM format validation. Proper handling of timezone-aware datetime values. Database stores dates as Carbon instances for consistent handling across the application."
-      },
-      {
-        "title": "Test Coverage",
-        "description": "Comprehensive test suite covering backend (Pest) and frontend (Vitest, Playwright) for spatial and temporal coverage. Tests include XML extraction, coordinate validation, map interactions, database persistence, cascading deletes, and form hydration. End-to-end tests verify complete workflows from XML upload to database storage."
-      },
-      {
-        "title": "Type Safety",
-        "description": "Enhanced TypeScript types for coverage entries including SpatialTemporalCoverageEntry interface with proper field definitions. Type-safe coordinate bounds and drawing modes for map interactions. Improved PHPDoc annotations for coverage models and controllers."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "Coverage Query Parameter Naming",
-        "description": "Standardized coverage query key prefix from 'spatialTemporalCoverages' to 'coverages' in curation query builder for consistency across API endpoints."
-      },
-      {
-        "title": "Point vs Rectangle Detection",
-        "description": "Fixed detection of point vs rectangle coverage in old datasets by comparing min/max coordinates. Points now correctly have empty max coordinates, rectangles have all four coordinates populated."
-      },
-      {
-        "title": "Temporal Coverage Parsing",
-        "description": "Improved parsing of legacy date/time formats from old database including support for ISO 8601 formats and various custom date formats. Proper handling of empty or null temporal values."
-      }
-    ]
-  },
-  {
-    "version": "0.5.0",
-    "date": "2025-10-10",
-    "features": [
-      {
-        "title": "Keywords Management System",
-        "description": "Comprehensive keywords management featuring both controlled vocabularies (GCMD) and free-form keywords. Includes NASA's Global Change Master Directory (GCMD) Keywords with hierarchical tree view for Science Keywords, Platforms, and Instruments. Features debounced search, auto-expansion of selected nodes, and intuitive UI with three vocabulary tabs."
-      },
-      {
-        "title": "Free Keywords Support",
-        "description": "Added support for free-form keywords with comma-separated input, automatic trimming and filtering, and proper preservation of keyword order. Includes dedicated FreeKeywordsField component integrated into the curation form."
-      },
-      {
-        "title": "GCMD Keywords from XML Uploads",
-        "description": "Automatic extraction of GCMD controlled vocabulary keywords from uploaded DataCite XML files. Keywords are parsed with full hierarchical paths and properly categorized by vocabulary type (science, platforms, instruments)."
-      },
-      {
-        "title": "Free Keywords from XML Uploads",
-        "description": "Extract free-form keywords from DataCite XML subject elements, with proper handling of whitespace, empty values, and special characters. Maintains keyword order and supports both single keywords and comma-separated lists."
-      },
-      {
-        "title": "Legacy Dataset Keywords API",
-        "description": "New endpoints to fetch both controlled and free keywords from old datasets. Includes intelligent keyword transformation with vocabulary type mapping for GCMD keywords and proper parsing of comma-separated free keywords from legacy formats."
-      },
-      {
-        "title": "Keywords Persistence",
-        "description": "Introduced ResourceKeyword and ResourceControlledKeyword models with proper database migrations. Keywords are saved with resources and support full CRUD operations. Controlled keywords include metadata like path, vocabulary type, and GCMD URI for comprehensive tracking."
-      },
-      {
-        "title": "Keywords Display in Dashboard",
-        "description": "Updated dashboard and old datasets views to display both free and controlled keywords with proper formatting and visual indicators. Keywords are displayed with their full hierarchical paths for controlled vocabularies."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "GCMD Vocabulary Tree Building",
-        "description": "Refactored concept hierarchy building logic with recursive tree-building function. Improved parent-child mapping and added validation to skip concepts without valid IDs. Enhanced handling of null values in hierarchy construction."
-      },
-      {
-        "title": "Search Functionality",
-        "description": "Added debounced search using custom useDebounce hook to optimize search input performance. Implemented minimum search length enforcement and search result highlighting in tree view. Memoized tree nodes for better performance."
-      },
-      {
-        "title": "GCMD URI Handling",
-        "description": "Introduced GcmdUriHelper utility for extracting and building GCMD concept URIs consistently across the application. Added parseGcmdPath function for hierarchical path parsing. Centralized URI handling logic for better maintainability."
-      },
-      {
-        "title": "Code Organization",
-        "description": "Extracted keyword extraction logic into dedicated XmlKeywordExtractor service for better separation of concerns and testability. Created OldDatasetKeywordTransformer service to handle legacy keyword format transformation. Improved code reusability across controllers."
-      },
-      {
-        "title": "Bulk Operations",
-        "description": "Optimized controlled keywords persistence using Eloquent's createMany for bulk insert operations, improving performance. Proper timestamp handling for bulk created keywords."
-      },
-      {
-        "title": "Type Safety",
-        "description": "Enhanced type annotations across keyword-related models and services. Added missing @property annotations and improved TypeScript types for GCMD vocabularies. Better handling of nullable values throughout the keyword system."
-      },
-      {
-        "title": "UI/UX Enhancements",
-        "description": "Relocated search input above vocabulary tabs for unified search experience across all vocabularies. Auto-expand tree nodes with selected descendants for better visibility. Streamlined controlled vocabularies field by removing redundant label and description."
-      },
-      {
-        "title": "Test Coverage",
-        "description": "Added comprehensive test suite covering backend (Pest) and frontend (Vitest, Playwright) for both free and controlled keywords. Tests cover XML extraction, old dataset parsing, query building, validation, UI interactions, and accessibility. Includes dedicated test documentation in FREE_KEYWORDS_TESTS.md."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "GCMD Vocabulary Hierarchy",
-        "description": "Fixed handling of concepts without valid IDs in hierarchy building. Improved grouping of children by parent ID to only include non-null broaderId values, preventing invalid concepts from entering the hierarchy."
-      },
-      {
-        "title": "Test Data Management",
-        "description": "Added committed GCMD test fixtures under storage/app/testing/ for reliable CI usage. Updated .gitignore to allow committed test data while excluding generated vocabularies."
-      },
-      {
-        "title": "Test Reliability",
-        "description": "Improved Playwright test reliability with explicit waits for tree items and tabs. Increased timeouts for long-running tests with multiple user interactions. Added helper functions for consistent accordion state handling across tests."
-      },
-      {
-        "title": "CI Test Skipping",
-        "description": "Configured GCMD vocabulary tests to skip in CI environment where full vocabulary data is not available. Feature tests requiring unavailable databases are properly skipped with clear documentation for local testing."
-      }
-    ]
-  },
-  {
-    "version": "0.4.0",
-    "date": "2025-10-09",
-    "features": [
-      {
-        "title": "Descriptions Management",
-        "description": "Added comprehensive support for resource descriptions with API endpoint to load descriptions from old datasets, automatic extraction from uploaded DataCite XML files, and complete persistence in the database. Supports multiple description types per resource with proper validation and form hydration."
-      },
-      {
-        "title": "Date Range Management",
-        "description": "Introduced date range functionality for resources with support for loading dates from old datasets, extraction from XML uploads including single dates and ranges, and storage with proper DataCite date type handling. Includes utilities for date serialization and validation with support for start/end date pairs."
-      },
-      {
-        "title": "GCMD Vocabulary Integration",
-        "description": "Integrated NASA's Global Change Master Directory (GCMD) Keywords Management System with new API endpoints for Science Keywords, Platforms, and Instruments vocabularies. Includes console commands to fetch and parse hierarchical RDF data from NASA KMS API with automatic JSON storage. Vocabularies are protected by API key authentication."
-      },
-      {
-        "title": "Import Metadata from XML Uploads",
-        "description": "Enhanced XML upload functionality to automatically extract and populate descriptions and dates from DataCite XML files. Includes proper handling of description types (PascalCase to kebab-case conversion) and date formats with comprehensive validation."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Production Session Security",
-        "description": "Improved session handling in production environment with secure cookies, proper HTTPS enforcement, Redis session driver support, and configurable session domain and path settings. Added SANCTUM_STATEFUL_DOMAINS configuration for better authentication."
-      },
-      {
-        "title": "Date Handling Utilities",
-        "description": "Extracted date serialization logic into reusable utility functions (hasValidDateValue, serializeDateEntry) for improved code clarity and maintainability across components."
-      },
-      {
-        "title": "GCMD Command Architecture",
-        "description": "Refactored GCMD vocabulary fetching commands to use a shared BaseGcmdCommand class, reducing code duplication and improving maintainability. Moved concept extraction and parsing logic to GcmdVocabularyParser for better separation of concerns."
-      },
-      {
-        "title": "Error Handling",
-        "description": "Enhanced error handling for GCMD vocabulary operations with checks for JSON encoding failures and null content. Improved type safety with better PHPDoc annotations."
-      },
-      {
-        "title": "Test Coverage",
-        "description": "Added comprehensive tests for descriptions and dates functionality including feature tests, unit tests, E2E Playwright tests, and Vitest serialization tests. Improved test reliability and validation strictness for XML uploads."
-      },
-      {
-        "title": "Documentation",
-        "description": "Added instructions for updating GCMD vocabularies from NASA's KMS API with recommended monthly update schedule to keep vocabularies current."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "Null Value Handling",
-        "description": "Fixed handling of null and undefined values in date fields throughout the application. Updated TypeScript interfaces to properly support nullable date fields and improved serialization to prevent runtime errors."
-      },
-      {
-        "title": "Description Type Normalization",
-        "description": "Normalized descriptionType values to lowercase kebab-case format for consistency and to prevent validation mismatches."
-      },
-      {
-        "title": "Session Configuration",
-        "description": "Resolved session handling issues in production environment through iterative improvements to SESSION_PATH, SESSION_DOMAIN, and SESSION_SECURE_COOKIE settings."
-      },
-      {
-        "title": "Test Reliability",
-        "description": "Improved test reliability by increasing timeouts for slower test environments, refactoring authentication requirements, and better test isolation. Skipped problematic CI tests while maintaining coverage through alternative test strategies."
-      }
-    ]
-  },
-  {
-    "version": "0.3.0",
-    "date": "2025-10-07",
-    "features": [
-      {
-        "title": "Contributors Management in Curation Form",
-        "description": "Added comprehensive contributors section to the DataCite form with support for persons and institutions, role management using Tagify-based inputs, and affiliation handling. Contributors are distinguished from authors and support various contributor types including research groups."
-      },
-      {
-        "title": "Save Contributors with Roles and Affiliations",
-        "description": "Complete persistence of contributor data alongside authors with form hydration using stored contributors, support for multiple roles per contributor, normalization of affiliation data, and reuse of existing institutions. Includes unified serialization logic for affiliations to reduce code duplication."
-      },
-      {
-        "title": "Import Contributors from DataCite XML",
-        "description": "Automatically extract contributors from uploaded DataCite XML files with role normalization, deduplication of contributors, and proper handling of research groups as institutions. Supports Work Package Leader and other contributor-specific roles."
-      },
-      {
-        "title": "API for Old Dataset Contributors",
-        "description": "New endpoint to fetch contributors (excluding authors) from legacy datasets with intelligent role mapping from legacy role names to new slugs. Includes enhanced person/institution detection logic with name parsing utilities, support for comma-separated names, and comprehensive tests (Vitest, Playwright)."
-      },
-      {
-        "title": "Roles API Endpoint",
-        "description": "New API endpoint to fetch available roles with metadata columns and activation flags. Includes author-specific and contributor-specific role filtering, OpenAPI documentation, and service-specific API key protection. Role configuration is frozen to ensure consistency."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Contributors Section UX",
-        "description": "Contributors accordion is now expanded by default on the curation form for better visibility and easier data entry."
-      },
-      {
-        "title": "API Documentation Refinement",
-        "description": "Restricted public API documentation to secured ELMO endpoints only, improving security and clarity of the API surface."
-      },
-      {
-        "title": "Code Organization",
-        "description": "Enforced consistent import sorting via ESLint, refactored import order across multiple components for improved readability, and extracted shared Tagify helpers for DataCite tests to reduce code duplication."
-      },
-      {
-        "title": "Affiliation Data Quality",
-        "description": "Enhanced affiliation serialization to trim whitespace, filter out empty affiliations, deduplicate entries, and normalize values to ensure data quality."
-      },
-      {
-        "title": "Database Schema Clarity",
-        "description": "Renamed author_role pivot table to resource_author_role for improved clarity and consistency in Eloquent relationships."
-      },
-      {
-        "title": "Session Management in Production",
-        "description": "Introduced SESSION_PATH environment variable to docker-compose.prod.yml for improved session handling in production environments."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "Author/Contributor Role Filtering",
-        "description": "Refactored role filtering logic to explicitly filter ResourceAuthors based on the 'applies_to' property at the controller level instead of in model relationships, improving accuracy and maintainability."
-      },
-      {
-        "title": "Playwright Test Selectors",
-        "description": "Scoped author Playwright selectors to authors panel and fixed author indexing to prevent test flakiness and improve test reliability."
-      },
-      {
-        "title": "Contributor Role Field",
-        "description": "Made roles input field required for contributors and disabled dropdown to enforce proper role selection through the tag input interface."
-      },
-      {
-        "title": "PHPStan Warnings",
-        "description": "Resolved PHPStan warnings in contributor deduplication logic and role scope annotations with Builder generics."
-      }
-    ]
-  },
-  {
-    "version": "0.2.0",
-    "date": "2025-10-06",
-    "features": [
-      {
-        "title": "Authors Management in Curation Form",
-        "description": "Added comprehensive authors section with support for persons and institutions, ORCID input fields, contact person functionality, role and affiliation management using Tagify-based inputs, and extensive end-to-end tests with Playwright. Includes accessible implementation with optimized aria-label usage."
-      },
-      {
-        "title": "ROR Affiliation Synchronization",
-        "description": "Integrated Research Organization Registry (ROR) with automatic data synchronization, autocomplete functionality for affiliations with ROR IDs, support for ZIP archives containing ROR data, and a new data structure using prefLabel, rorId, and otherLabel fields. Includes comprehensive tests for ROR data fetching and processing."
-      },
-      {
-        "title": "Import Authors from DataCite XML",
-        "description": "Automatically extract authors from uploaded DataCite XML files with proper handling of nested creator elements."
-      },
-      {
-        "title": "API for Old Dataset Authors",
-        "description": "New endpoint to fetch authors from legacy datasets with fuzzy matching for contact information and affiliations. Frontend integration automatically loads legacy authors into the curation form. Includes ORCID support, optimized queries to avoid N+1 problems, improved name normalization with diacritic removal, and comprehensive tests (Pest, Playwright, Vitest)."
-      },
-      {
-        "title": "ROR ID Badges for Affiliations",
-        "description": "Display ROR ID badges for matched affiliations with clickable links to ROR identifiers, improved normalization of affiliation data, and consistent formatting of ROR URLs."
-      },
-      {
-        "title": "Persistent Sorting for Old Datasets",
-        "description": "Added sorting controls for the old datasets table with lazy loading that respects server-side sorting and persistent storage of sort preferences."
-      },
-      {
-        "title": "Store Authors with Roles and Affiliations",
-        "description": "Complete persistence of author management data with form hydration using stored authors, support for ROR IDs for institutions, normalization of boolean values, and reuse of existing institutions."
-      },
-      {
-        "title": "API Key Authentication for ELMO Resource Types",
-        "description": "Protected ELMO endpoint with configurable API key using new ELMO_API_KEY environment variable. Configuration added to .env.example and stack.env with updated tests for consistent test environment."
-      },
-      {
-        "title": "Dashboard Statistics Card",
-        "description": "Show total datasets count on dashboard with new statistics card."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Test Timeout Adjustments",
-        "description": "Increased timeout for DataCiteForm author management tests to improve test reliability."
-      },
-      {
-        "title": "Layout and Accessibility Enhancements",
-        "description": "Improved layout and accessibility for author fields with optimized spacing and better screen reader support."
-      },
-      {
-        "title": "Query Optimization",
-        "description": "Optimized queries for contact information matching to reduce database load and improve performance."
-      },
-      {
-        "title": "Error Handling",
-        "description": "Enhanced error handling and messaging throughout the application for better user feedback."
-      }
-    ],
-    "fixes": [
-      {
-        "title": "DataCite Author Extraction",
-        "description": "Fixed DataCite author extraction to correctly ignore nested creator elements."
-      },
-      {
-        "title": "PHPStan Issues",
-        "description": "Resolved PHPStan issues for ROR synchronization and author affiliations."
-      },
-      {
-        "title": "JSON File Error Handling",
-        "description": "Improved error handling for JSON file read operations."
-      },
-      {
-        "title": "TagInputField Dropdown Settings",
-        "description": "Corrected dropdown settings merge in TagInputField component."
-      },
-      {
-        "title": "MockTagify Reset",
-        "description": "Fixed MockTagify removeAllTags method to correctly clear the value array."
-      }
-    ]
-  },
-  {
-    "version": "0.1.0",
-    "date": "2025-10-05",
-    "features": [
-      {
-        "title": "Resources workspace",
-        "description": "Browse curated resources with metadata badges, DOI links, pagination details, and quick edit or delete actions."
-      },
-      {
-        "title": "Dashboard overview",
-        "description": "Surface key statistics like the total resource count alongside shortcuts to curation and documentation."
-      },
-      {
-        "title": "Resource Information form group",
-        "description": "Added structured resource information section."
-      },
-      {
-        "title": "License and Rights form group",
-        "description": "Include license and rights details for resources."
-      },
-      {
-        "title": "Link to Dev Repository",
-        "description": "Added link to the development repository on GitHub for transparency."
-      },
-      {
-        "title": "Changelog",
-        "description": "Added a interactive changelog to track updates and changes."
-      },
-      {
-        "title": "User creation",
-        "description": "Added admin command to create new users."
-      },
-      {
-        "title": "User documentation",
-        "description": "Added new site for user documentation and help."
-      },
-      {
-        "title": "Footer",
-        "description": "Added a footer with link to legal notice, changelog and about page."
-      },
-      {
-        "title": "SPDX sync",
-        "description": "Added a new command for auto syncing SPDX licenses from spdx.org."
-      }
-    ],
-    "improvements": [
-      {
-        "title": "Framework Setup",
-        "description": "Set up Laravel 12 with React"
-      },
-      {
-        "title": "Testing Enhancements",
-        "description": "Improved test coverage and reliability with modern testing frameworks Pest, Vitest and Playwright."
-      },
-      {
-        "title": "Registration closed",
-        "description": "Closed registration so only admins can add new users."
-      },
-      {
-        "title": "Resource table layout",
-        "description": "Streamlined the resources list with clearer spacing, responsive formatting, and accessible typography."
-      },
-      {
-        "title": "Deletion confirmations",
-        "description": "Added confirm dialogs and loading states so resource removals stay intentional and transparent."
-      }
-    ]
-  }
+    {
+        "version": "1.0.0b",
+        "date": "2025-11-25",
+        "features": [
+            {
+                "title": "Automatic Created/Updated Timestamps",
+                "description": "The 'Created' and 'Updated' date types are now automatically managed by the system and removed from the manual date entry form. 'Created' is set once when a resource is first saved and never overwritten. 'Updated' is automatically refreshed with the current datetime whenever resource data is modified. Both timestamps include full datetime precision for accurate audit trails."
+            },
+            {
+                "title": "Spatial Coverage with Polygons",
+                "description": "Draw and edit complex polygons for geographic coverage areas with interactive Google Maps integration. Enhanced coordinate handling and validation for precise spatial data representation. Supports both simple rectangles and complex multi-point polygons for flexible coverage definition."
+            },
+            {
+                "title": "CSV Upload for Free Keywords",
+                "description": "Bulk upload free-form keywords via CSV files for efficient metadata entry. Includes drag-and-drop interface, real-time validation, error reporting with line numbers, and preview before import. Automatic duplicate detection and normalization ensure data quality."
+            },
+            {
+                "title": "MSL Vocabulary Auto-Switch",
+                "description": "Automatic tab switching and notification system when MSL (Materials Science and Engineering) keywords are detected. Intelligent detection of MSL-relevant keywords triggers visual notifications and automatically switches to the MSL vocabulary tab for streamlined workflow."
+            },
+            {
+                "title": "Version Badge Links in Dashboard",
+                "description": "Quick access to release notes directly from dashboard version indicators. Clicking version badges navigates to the changelog with automatic scrolling to the relevant release section for convenient version history access."
+            },
+            {
+                "title": "Enhanced Rectangle Drawing",
+                "description": "Improved drag-and-drop interface for quickly defining rectangular coverage areas on the map. Visual feedback during drawing, automatic coordinate extraction, and validation ensure accurate spatial coverage definition."
+            },
+            {
+                "title": "Show Password Toggle on Login",
+                "description": "Toggle password visibility on login page for improved user experience. Reduces login errors from typos and improves accessibility by allowing users to verify their password input."
+            },
+            {
+                "title": "Detailed Related Works Statistics",
+                "description": "Comprehensive metrics and analytics for related publications and datasets. Enhanced statistics dashboard showing distribution by relation type, identifier type, and temporal patterns. Helps curators understand dataset relationships and identify common citation patterns."
+            },
+            {
+                "title": "Larger Font Size Setting",
+                "description": "User preference for increased text size in settings for better accessibility. Font size changes apply immediately across the application, supporting users with visual impairments or preference for larger text."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Streamlined Dates Form Section",
+                "description": "Simplified the Dates form section by removing the requirement for manual 'Created' date entry. The form now starts empty for new resources with an 'Add date' button for optional date types like 'Accepted', 'Issued', or 'Valid'. System-managed timestamps ensure consistent metadata without curator intervention."
+            },
+            {
+                "title": "Simplified Relation Types Dropdown",
+                "description": "Removed category headings (Citation, Documentation, Versions, Compilation, etc.) from the Relation Types dropdown in the Related Work form section. All 33 DataCite relation types are now displayed in a flat, alphabetically organized list for easier navigation."
+            },
+            {
+                "title": "Enhanced Search Trigger Timing",
+                "description": "Fixed premature search triggering in resource lists with improved debounce handling. Search now waits for user to finish typing before executing queries, reducing unnecessary API calls and improving performance."
+            },
+            {
+                "title": "Resource Filter Persistence",
+                "description": "Filters now correctly save selected options across sessions. User filter preferences are stored and restored when returning to resource lists, improving workflow continuity."
+            },
+            {
+                "title": "Better Sorting for Old Datasets",
+                "description": "Enhanced sorting options with new author column and improved query optimization. Server-side sorting with SQL-level optimization provides faster results and consistent ordering across pagination."
+            },
+            {
+                "title": "Reorganized Test Suites",
+                "description": "Restructured test suites for better maintainability with domain-based organization. Separated unit and integration tests, improved test isolation, and added comprehensive coverage across Pest, Vitest, and Playwright test frameworks."
+            },
+            {
+                "title": "PHPStan Level 8 Compliance",
+                "description": "Increased static analysis strictness to PHPStan Level 8 for improved code quality. Enhanced type safety, eliminated potential bugs, and improved IDE support with better type inference."
+            },
+            {
+                "title": "Deployment via Portainer",
+                "description": "Production-ready Docker configuration for container orchestration with Portainer support. Multi-stage builds optimize image sizes, health checks ensure service availability, and improved session management enhances production reliability."
+            },
+            {
+                "title": "Inline Validation for Mandatory Inputs",
+                "description": "Real-time validation feedback for required fields with visual indicators. Red borders and error messages appear immediately when users interact with mandatory fields, preventing form submission with incomplete data."
+            },
+            {
+                "title": "Better Main Menu Labels",
+                "description": "Improved clarity of navigation menu items with more intuitive naming. Renamed 'Curation' to 'Editor' throughout the application for better understanding of metadata editing functionality."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Loading Old Datasets with Empty First Name",
+                "description": "Handle legacy records with missing author first names gracefully. Improved null value handling prevents errors when loading historical datasets with incomplete author information."
+            },
+            {
+                "title": "Error 414 on Old Dataset Loading",
+                "description": "Fixed URI too long errors when loading large legacy datasets. Implemented request payload optimization and chunking to handle datasets with extensive metadata without exceeding URL length limits."
+            },
+            {
+                "title": "ORCID Auto-Suggest Behavior",
+                "description": "Prevented unexpected opening of ORCID suggestion dropdown. Improved focus handling and event management ensures dropdown only appears when intended by user interaction."
+            },
+            {
+                "title": "Missing Keywords in Vocabularies",
+                "description": "Restored missing entries in controlled vocabulary lists. Fixed synchronization issues with GCMD and MSL vocabularies to ensure complete keyword coverage."
+            },
+            {
+                "title": "Wrong Naming in CSV Examples",
+                "description": "Corrected column headers in bulk upload example files. Updated documentation and example CSV files to match actual field names, preventing user confusion during bulk imports."
+            },
+            {
+                "title": "Show End Date Field Conditionally",
+                "description": "End date field now only appears for 'valid' date type. Improved form logic prevents confusion by hiding irrelevant fields based on selected date type."
+            },
+            {
+                "title": "Coverage Dates Validation",
+                "description": "Properly enforce required validation for coverage date fields. Improved validation feedback and error messages ensure temporal coverage data quality."
+            },
+            {
+                "title": "CSRF Token Mismatch",
+                "description": "Resolved session and token validation issues with improved token refresh mechanism. Enhanced session configuration for production environments with proper cookie settings and automatic retry logic."
+            }
+        ]
+    },
+    {
+        "version": "1.0.0a",
+        "date": "2025-11-05",
+        "features": [
+            {
+                "title": "DOI Registration Workflow",
+                "description": "Complete DOI registration integration with DataCite REST API v2. Support for both test and production DOI prefixes with automatic environment switching. Includes DOI status badges with copy-to-clipboard functionality, direct links to DataCite Fabrica, and comprehensive validation before registration. Features modal-based registration flow with prefix selection and optimistic UI updates."
+            },
+            {
+                "title": "Landing Pages System",
+                "description": "Full landing page workflow for published resources. Create, preview, and publish public landing pages with comprehensive metadata display. Landing pages are required before DOI registration and provide a permanent, citable entry point for datasets. Includes status management (draft/published) and integration with DOI registration workflow."
+            },
+            {
+                "title": "User Management Interface",
+                "description": "Comprehensive user management system with role-based access control. Admins and group leaders can manage users including role changes, account activation/deactivation, and password resets. Features hierarchical role system (admin, group_leader, curator, beginner) with appropriate permission checks. System user (ID 1) is protected from modifications. Users cannot modify their own role or deactivate themselves."
+            },
+            {
+                "title": "Unified Documentation System",
+                "description": "Complete rewrite of documentation as single-page application with role-based content filtering. Seven main sections covering quick start, curation workflow, landing pages, DOI registration, user management, system administration, and API documentation. Features interactive table of contents with clickable cards, smooth scroll navigation, copy-to-clipboard code snippets, and visual workflow guides with timeline design. Mobile-responsive with dark mode support."
+            },
+            {
+                "title": "Related Works Statistics",
+                "description": "Detailed analytics dashboard for related works showing metrics by relation type and identifier type. Includes total counts, distribution charts, and comprehensive breakdowns of all 33 DataCite relation types. Helps curators understand dataset relationships and identify common patterns."
+            },
+            {
+                "title": "Enhanced Map Drawing",
+                "description": "Improved spatial coverage editor with drag-and-drop rectangle drawing on Google Maps. Users can visually define rectangular coverage areas by clicking and dragging on the map. Automatic coordinate extraction and validation ensures data quality."
+            },
+            {
+                "title": "Show Password Toggle",
+                "description": "Added visibility toggle button on login page allowing users to reveal password input for easier verification. Improves user experience and reduces login errors from typos."
+            },
+            {
+                "title": "License Usage Sorting",
+                "description": "Sortable license statistics in editor settings showing license usage across all resources. Helps administrators understand which licenses are most commonly used and identify potential data quality issues."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "User Authorization System",
+                "description": "Implemented comprehensive authorization with UserPolicy enforcing hierarchical permissions. Role-based restrictions on DOI registration (beginners forced to test mode), user management (hierarchical promotion limits), and system protection (user ID 1 immutable). Self-modification prevention ensures users cannot change own role or deactivate themselves."
+            },
+            {
+                "title": "DOI Workflow Integration",
+                "description": "Complete integration of DOI registration with landing pages and resource metadata. Automatic validation of required fields before DOI registration, landing page requirement enforcement, and metadata synchronization with DataCite. Supports both test and production environments with appropriate restrictions based on user role."
+            },
+            {
+                "title": "Documentation Architecture",
+                "description": "Modular documentation components in resources/js/components/docs/ for maintainability. DocsSection component with icons and anchor links, DocsCodeBlock with copy functionality, WorkflowSteps for visual guides. Single route passes userRole prop for frontend role-based filtering."
+            },
+            {
+                "title": "Coverage Field Validation",
+                "description": "Made coverage date fields mandatory to ensure temporal data quality. Improved validation feedback and error messages for spatial-temporal coverage entries."
+            },
+            {
+                "title": "User Management CLI",
+                "description": "Enhanced add-user command for creating new users with automatic admin assignment for first user. Role logic properly separated from migrations for data integrity."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Resource Loading in Editor",
+                "description": "Resolved critical issue preventing existing resources from loading into editor. Fixed query parameter handling and state management for proper form hydration with existing data."
+            },
+            {
+                "title": "Language Filter Removal",
+                "description": "Removed confusing language filter from old datasets and resources tables. Simplified filtering interface for better user experience."
+            },
+            {
+                "title": "Old Data Statistics Display",
+                "description": "Fixed statistics page for legacy datasets showing comprehensive metrics including resource type distribution, publication years, curator workload, and dataset status overview."
+            },
+            {
+                "title": "User Settings Font Size",
+                "description": "Enhanced user settings with configurable font size options (small, medium, large). Font changes apply immediately across application for improved accessibility."
+            }
+        ]
+    },
+    {
+        "version": "0.9.0",
+        "date": "2025-10-29",
+        "features": [
+            {
+                "title": "DataCite JSON Export",
+                "description": "Export resources as DataCite JSON files with full metadata support. Includes proper schema.org context, comprehensive identifier handling (DOI, ORCID, ROR), and complete metadata mapping following DataCite JSON schema specifications. Features download functionality with automatic filename generation."
+            },
+            {
+                "title": "DataCite XML Export",
+                "description": "Export resources as DataCite XML 4.5 compliant files with support for all metadata fields including creators, contributors, titles, descriptions, subjects, dates, spatial-temporal coverage, related identifiers, and funding references. Automatic validation against DataCite schema and proper namespace handling."
+            },
+            {
+                "title": "Resources Table Sorting and Filtering",
+                "description": "Advanced sorting options for resources including DOI, title, resource type, publication year, version, and language. Client-side sorting with persistent state, smooth UI transitions, and toast notifications for user feedback. Includes comprehensive loading states and skeleton displays during sort operations."
+            },
+            {
+                "title": "Old Data Statistics Dashboard",
+                "description": "New statistics page displaying comprehensive metrics from legacy datasets including total datasets, resource type distribution, publication year statistics, curator workload, and dataset status overview. Features interactive charts and data visualization for better insights into the old dataset collection."
+            },
+            {
+                "title": "Inline Validation for Mandatory Fields",
+                "description": "Real-time validation feedback for required fields in the curation form. Visual indicators (red borders, error messages) appear immediately when users interact with mandatory fields, preventing form submission with incomplete data. Improves data quality and user experience with clear, immediate feedback."
+            },
+            {
+                "title": "Improved Authors and Contributors UX",
+                "description": "Enhanced user experience with clearer visual distinction between authors and contributors, improved add/remove buttons with better positioning and styling, optimized spacing and layout for better readability, and more intuitive drag-and-drop reordering. Includes better accessibility with improved ARIA labels and keyboard navigation."
+            },
+            {
+                "title": "Timeline Navigation for Changelog",
+                "description": "Interactive timeline navigation for the changelog page with visual indicators for major/minor/patch releases, smooth scrolling to specific versions, keyboard navigation support (arrow keys, j/k, Home/End), and URL hash support for deep linking to specific versions. Features auto-expansion of the most visible release while scrolling."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Enhanced Main Menu Labels",
+                "description": "Renamed 'Curation' to 'Editor' across the entire application for clearer understanding of the metadata editing functionality. Updated all navigation elements, routes, and documentation to reflect the new terminology."
+            },
+            {
+                "title": "User Settings Enhancements",
+                "description": "Added configurable font size setting with options for small, medium, and large text. Improved settings page layout with better organization and visual hierarchy. Font size changes apply immediately across the application for better accessibility."
+            },
+            {
+                "title": "CSRF Token Handling",
+                "description": "Resolved CSRF token mismatch issues with improved token refresh mechanism, better error handling for token expiration, and automatic retry logic for failed requests. Enhanced session configuration for production environments with proper cookie settings."
+            },
+            {
+                "title": "Code Organization and Refactoring",
+                "description": "Major code refactoring to improve maintainability and consistency. Renamed components from 'Curation' to 'Editor' terminology throughout the codebase. Improved type safety with enhanced TypeScript definitions and better error handling patterns."
+            },
+            {
+                "title": "Production Docker Configuration",
+                "description": "Comprehensive Docker setup improvements including multi-stage builds for optimized image sizes, improved volume management for persistent data, health checks for all services, and better environment variable handling. Enhanced nginx configuration for better performance and security."
+            },
+            {
+                "title": "Documentation Updates",
+                "description": "Updated README with comprehensive API documentation, deployment instructions, and usage examples. Added detailed information about the DataCite export features, filtering and sorting capabilities, and MSL vocabulary integration. Improved inline code documentation throughout the application."
+            },
+            {
+                "title": "Dependency Updates",
+                "description": "Updated PHP dependencies via Composer and JavaScript dependencies via npm to their latest compatible versions. Ensures security patches, bug fixes, and performance improvements from upstream packages are incorporated. Maintains compatibility with Laravel 12 and React ecosystem."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Resource Loading in Editor",
+                "description": "Fixed critical bug where existing resources could not be loaded into the editor for editing. Resolved query parameter handling and state management issues that prevented proper hydration of form fields with existing resource data."
+            },
+            {
+                "title": "Language Filter Removal",
+                "description": "Removed language filter from old datasets and resources tables as it was causing confusion and not providing significant value. Simplified the filtering interface for better user experience."
+            },
+            {
+                "title": "DataCite Export Validation",
+                "description": "Improved validation for DataCite exports to ensure all mandatory fields are present before allowing export. Added better error messages and visual feedback when exports cannot be generated due to missing or invalid data."
+            },
+            {
+                "title": "Session Configuration for Production",
+                "description": "Fixed session handling issues in production environment by properly configuring SESSION_PATH, SESSION_DOMAIN, and cookie settings. Resolved login persistence issues and improved overall session reliability."
+            },
+            {
+                "title": "Test Reliability Improvements",
+                "description": "Enhanced test reliability across Pest, Vitest, and Playwright test suites. Fixed flaky tests, improved test isolation, and added better assertions. Increased timeouts for CI environments and improved test data setup."
+            }
+        ]
+    },
+    {
+        "version": "0.8.0",
+        "date": "2025-10-14",
+        "features": [
+            {
+                "title": "Funding References Management",
+                "description": "Comprehensive support for managing funding information with funder name, ROR ID lookup, award number, award title, and award URI. Includes autocomplete dropdown with ROR funder search supporting multi-word matching and improved result scoring. Supports multiple funder identifier types (ROR, Crossref Funder ID, ISNI, GRID, Other) for improved interoperability. Features drag-and-drop reordering with @dnd-kit and automatic loading from legacy datasets."
+            },
+            {
+                "title": "Old Datasets Filtering",
+                "description": "Advanced filtering system for old datasets including resource type, curator, status, publication year range, creation date range, last update date range, and full-text search. Features debounced search input, filter badges showing active filters, and popover-based UI for date and year range selection. Includes API endpoint for dynamic filter options and comprehensive backend filter application logic."
+            },
+            {
+                "title": "MSL Vocabulary Integration",
+                "description": "Full integration of EPOS Multi-Scale Laboratories (MSL) vocabulary with download command to fetch and transform vocabulary from GitHub. Includes API endpoint for serving MSL vocabulary, support in curation forms with conditional display, and extraction from both XML uploads and legacy database. Features automatic transformation of legacy MSL keywords and validation to ensure current vocabulary usage."
+            },
+            {
+                "title": "MSL Laboratories Form Section",
+                "description": "Searchable field for selecting Multi-Scale Laboratories using data from Utrecht University's MSL Vocabularies. Automatically opens/closes accordion section based on relevant keywords. Supports extraction from XML uploads with remote vocabulary enrichment. MSL Labs are managed separately from regular contributors and stored with 'labid' identifier and 'hosting-institution' role."
+            },
+            {
+                "title": "Institution Identifier Support",
+                "description": "Generic identifier fields added to Institution model supporting multiple identifier types (ROR, labid, etc.). Enables proper handling of institutional identifiers beyond affiliations, particularly for MSL Laboratories and other specialized institutions."
+            },
+            {
+                "title": "Comprehensive Playwright Test Suite",
+                "description": "Complete rewrite of E2E testing with page object models for all major application pages (Login, Dashboard, Old Datasets, Curation, Resources, Settings). Includes workflow tests covering critical user journeys: authentication, old datasets management, XML upload, curation, resources management, and settings. Added comprehensive test helpers and fixtures for improved maintainability and reliability."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Test Organization",
+                "description": "Major restructuring of test files into domain-based directories under tests/pest (Api, Commands, OldDatasets, Resources, XmlUpload, Config, Controllers, Models, Seeders, Services, Transformers, Validators). Removed redundant and obsolete test files for improved clarity and maintainability. Separated unit and integration tests for better organization."
+            },
+            {
+                "title": "API Documentation",
+                "description": "Expanded README with comprehensive REST API documentation, ELMO integration details, and controlled vocabularies overview. Updated OpenAPI specification to version 0.3.0 with improved descriptions, examples, and schema documentation. Added link to interactive API documentation and streamlined endpoint descriptions."
+            },
+            {
+                "title": "Playwright Test Reliability",
+                "description": "Enhanced CI workflow to run Chromium-only for PRs and all browsers for main branch. Improved server wait step with better diagnostics. Increased test and action timeouts for slower CI environments. Added explicit waits for Inertia.js/React hydration and database verification before test execution."
+            },
+            {
+                "title": "Filter Performance",
+                "description": "Optimized old dataset queries with proper filter application including resource type, curator, status, and date ranges. Implemented efficient array parameter serialization and backend filter extraction. Added comprehensive unit tests for filter logic (22 tests) ensuring CI compatibility without external database dependencies."
+            },
+            {
+                "title": "ROR Funder Integration",
+                "description": "Enhanced ROR funder search with multi-word matching and improved relevance scoring. Increased suggestion limit to 20 funders. Auto-fill funder names from ROR IDs for consistency. Automatic clearing of ROR ID when funder name is manually edited. Support for both ROR identifiers and other funder identifier types."
+            },
+            {
+                "title": "Controlled Vocabularies Refactoring",
+                "description": "Replaced vocabularyType field with scheme throughout backend and frontend for GCMD keywords. Introduced helper functions for mapping between scheme and vocabulary type. Eliminated vocabulary_type column from database in favor of scheme-based discrimination. Updated all tests to use scheme-based validation."
+            },
+            {
+                "title": "Session Configuration",
+                "description": "Updated SESSION_PATH from '/' to '/ernie' in production Docker Compose configuration to properly scope session cookies for the application."
+            },
+            {
+                "title": "Development Dependencies",
+                "description": "Upgraded @types/react-dom, @typescript-eslint packages, electron-to-chromium, caniuse-lite, and related dependencies to latest versions. Added @radix-ui/react-popover (v1.1.15) for filter UI components and @dnd-kit for drag-and-drop functionality."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Filter Options Optional Chaining",
+                "description": "Added optional chaining to resource_types, statuses, curators, and year_range properties in OldDatasetsFilters to prevent runtime errors when filter options are undefined. Fixed axios mocks in tests to ensure consistent filter options data."
+            },
+            {
+                "title": "Funder Selection Race Conditions",
+                "description": "Implemented atomic updates of funder name and identifier when selecting ROR suggestions to prevent race conditions. Added input blur after selection to ensure value updates. Prevented default behavior and event propagation on suggestion selection."
+            },
+            {
+                "title": "MSL Vocabulary Type Handling",
+                "description": "Added proper error handling for JSON encoding and empty file cases in MslVocabularyService. Improved type hints and removed duplicate return statements. Fixed handling of MSL keywords in both current and legacy formats with proper validation."
+            },
+            {
+                "title": "Test Database Dependencies",
+                "description": "Removed OldDatasetController feature tests that required live metaworks database connection, which caused CI failures. Replaced with comprehensive unit tests that are CI-compatible. Skipped old datasets workflow tests in CI due to external database requirements."
+            },
+            {
+                "title": "Playwright Strict Mode Violations",
+                "description": "Updated DashboardPage navigation checks to use .first() for strict mode compliance. Adjusted SettingsPage heading locator to avoid multiple element matches. Extended visibility timeouts to 30 seconds for critical elements in CI environments."
+            },
+            {
+                "title": "Element Hydration Timing",
+                "description": "Added explicit waits for Inertia.js/React hydration using waitForLoadState('networkidle') in Playwright tests. Improved element visibility checks to handle cases where pages may not be fully rendered before interaction attempts."
+            }
+        ]
+    },
+    {
+        "version": "0.7.0",
+        "date": "2025-10-12",
+        "features": [
+            {
+                "title": "Related Work Management",
+                "description": "Comprehensive system for managing related identifiers (DOI, URL, etc.) with support for all 33 DataCite relation types. Includes quick-add interface for common relations, advanced form with grouped relation types, and CSV bulk import with drag & drop. Features real-time DOI validation via DataCite API with fallback to doi.org, automatic identifier type detection, and duplicate prevention based on identifier and relation type combination."
+            },
+            {
+                "title": "Old Datasets Table Enhancements",
+                "description": "Major improvements to the old datasets listing including new 'First Author' column displaying author name and publication year, advanced sorting options (identifier, title, resource type, first author, publication year, curator, status), combined 'Curator Status' column for better space utilization, and smooth scroll-to-top on sort changes with toast notifications for user feedback."
+            },
+            {
+                "title": "Related Work CSV Bulk Import",
+                "description": "Import multiple related works via CSV file with drag & drop interface, real-time validation, error reporting, and preview before import. Includes automatic duplicate detection, identifier normalization, and comprehensive documentation with example files."
+            },
+            {
+                "title": "DOI Validation Proxy",
+                "description": "Backend proxy endpoint for DOI validation to avoid CORS issues. Validates DOIs via DataCite API with automatic fallback to doi.org for DOIs registered with other providers. Provides metadata resolution including titles for better user feedback."
+            },
+            {
+                "title": "Related Identifiers from Old Datasets",
+                "description": "Load related identifiers from legacy datasets into the curation form with automatic normalization of identifier types and relation types. Supports migration of historical data with proper position ordering and relationship mapping."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Enhanced Sorting Performance",
+                "description": "Optimized old dataset queries using window functions (ROW_NUMBER) instead of nested subqueries for first author selection. Server-side sorting with SQL-level optimization eliminates client-side sorting overhead. Parameterized queries prevent SQL injection and improve security."
+            },
+            {
+                "title": "Related Work UI/UX",
+                "description": "Streamlined interface with quick-add for common relation types, expandable advanced form for all 33 relation types grouped by category, visual list display with relation type badges, and one-click removal. CSV import includes progress indicators and detailed error reporting with line numbers."
+            },
+            {
+                "title": "Identifier Normalization",
+                "description": "Automatic detection and normalization of identifier types, especially for DOIs with URL prefixes (https://doi.org/). Consistent formatting across all entry methods (quick-add, advanced form, CSV import). Duplicate prevention using normalized identifiers."
+            },
+            {
+                "title": "Old Datasets Table Layout",
+                "description": "Redesigned table layout combining related columns (Curator + Status), adding first author information, and optimizing column widths. Added placeholder delete button for future functionality. Improved skeleton loading states during sorting operations."
+            },
+            {
+                "title": "Type Safety Enhancements",
+                "description": "Introduced comprehensive TypeScript types for related identifiers including RelatedIdentifierEntry, IdentifierType, and RelationType interfaces. Shared type definitions for sorting (SortKey, SortDirection, SortState) across components. Enhanced PHPDoc annotations in RelatedIdentifier model."
+            },
+            {
+                "title": "Test Coverage",
+                "description": "Comprehensive test suite for related works including Pest tests for model relationships, validation, and persistence. ResourceFactory for generating test data. Vitest tests for sorting logic and data structures. Multiple affiliations loading verification tests added."
+            },
+            {
+                "title": "Query Optimization",
+                "description": "Introduced ROLE_CREATOR constant for consistent role filtering. Optimized first author joins with better SQL handling of NULL values and whitespace trimming. Reduced N+1 query problems with eager loading of related identifiers."
+            },
+            {
+                "title": "User Feedback",
+                "description": "Added sonner (v2.0.7) for toast notifications. Sort changes now display confirmation toasts with current sort key and direction. Human-readable sort labels improve clarity. Better loading states and progress indicators across the application."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "ORCID Persistence",
+                "description": "Fixed issue where ORCID identifiers were not being saved correctly. Implemented normalization to remove URL prefixes from ORCID values, ensuring only the identifier is stored. Updated backend to return plain identifiers and frontend to handle both formats. Added comprehensive tests to verify normalization and persistence."
+            },
+            {
+                "title": "Multiple Affiliations Loading",
+                "description": "Fixed bug where multiple affiliations from old datasets appeared as a single tag. Changed affiliation joining from comma-space to comma-only to ensure proper tag separation in Tagify. Added tests to verify multiple affiliations render as separate tags."
+            },
+            {
+                "title": "Date Serialization",
+                "description": "Refactored date serialization in DataCiteForm to use explicit startDate and endDate fields instead of serializeDateEntry helper. Improved clarity and flexibility for date handling across save and load operations."
+            },
+            {
+                "title": "SQL Query Syntax",
+                "description": "Fixed SQL string literals to use single quotes for correct syntax. Improved first_author sorting with TRIM and COALESCE for consistent ordering and proper NULL value handling."
+            },
+            {
+                "title": "Duplicate Identifier Prevention",
+                "description": "Implemented normalization-based duplicate detection for related work identifiers. Allows same identifier with different relation types while preventing true duplicates. CSV import skips duplicates and displays warnings."
+            },
+            {
+                "title": "Input Validation Patterns",
+                "description": "Updated regex patterns for ID fields in AuthorField and ContributorField to use [0-9] instead of \\d for better compatibility. Removed anchors to improve validation consistency."
+            },
+            {
+                "title": "Related Work Query Parameters",
+                "description": "Encoded relatedWorks as JSON to prevent exceeding PHP's max_input_vars limit for large datasets. Normalized relatedWorks keys from camelCase to snake_case for frontend compatibility with legacy imports."
+            }
+        ]
+    },
+    {
+        "version": "0.6.0",
+        "date": "2025-10-11",
+        "features": [
+            {
+                "title": "Spatial and Temporal Coverage Management",
+                "description": "Comprehensive support for managing spatial and temporal coverage data for resources. Includes interactive map interface with Google Maps integration for selecting points or rectangular regions, coordinate input fields with validation (latitude: -90 to +90, longitude: -180 to +180), and support for unlimited coverage entries per resource."
+            },
+            {
+                "title": "Interactive Map Picker",
+                "description": "Integrated Google Maps to allow users to visually select coverage areas. Supports both single point selection and rectangular region drawing. Coordinates are automatically formatted to 6 decimal places for precision. Map displays current coverage area with visual markers and rectangles."
+            },
+            {
+                "title": "Temporal Coverage with Timezone Support",
+                "description": "Added support for temporal coverage including start/end dates (required), start/end times (optional), and timezone selection with common IANA timezone options (UTC, Europe/Berlin, America/New_York, etc.). Default timezone is automatically detected from user's system settings."
+            },
+            {
+                "title": "Import Spatial/Temporal Coverage from XML Uploads",
+                "description": "Automatically extract spatial and temporal coverage from uploaded DataCite XML files. Supports geoLocationPoint (single coordinates), geoLocationBox (rectangular regions), and geoLocationPlace (location descriptions). Temporal data is extracted from dates with type 'Collected'. Handles mixed coverage data with proper validation."
+            },
+            {
+                "title": "Load Coverage from Old Datasets",
+                "description": "New API endpoint to load spatial and temporal coverage data from legacy datasets into the curation form. Intelligent detection of point vs. rectangle coverage (empty max coordinates for points). Proper parsing and transformation of legacy date/time formats with timezone support."
+            },
+            {
+                "title": "Coverage Persistence",
+                "description": "Introduced ResourceCoverage model with database migration to store coverage data. Supports multiple coverage entries per resource with spatial coordinates, temporal information, timezone, and optional description. Includes cascading deletes and proper relationship management with resources."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Coverage Entry UI/UX",
+                "description": "Collapsible coverage cards with expandable sections to manage multiple entries efficiently. Visual preview of coordinates and dates in card headers for quick overview. Add/remove coverage entries with proper validation to ensure data quality. Responsive grid layout with map on left and input fields on right."
+            },
+            {
+                "title": "Coordinate Validation",
+                "description": "Real-time validation of latitude and longitude values with clear error messages. Automatic formatting to 6 decimal places for precision. Visual indicators for invalid coordinates (red border). Ensures coordinates are within valid ranges before submission."
+            },
+            {
+                "title": "Date and Time Handling",
+                "description": "Date inputs with HTML5 date picker support. Time inputs with HH:MM format validation. Proper handling of timezone-aware datetime values. Database stores dates as Carbon instances for consistent handling across the application."
+            },
+            {
+                "title": "Test Coverage",
+                "description": "Comprehensive test suite covering backend (Pest) and frontend (Vitest, Playwright) for spatial and temporal coverage. Tests include XML extraction, coordinate validation, map interactions, database persistence, cascading deletes, and form hydration. End-to-end tests verify complete workflows from XML upload to database storage."
+            },
+            {
+                "title": "Type Safety",
+                "description": "Enhanced TypeScript types for coverage entries including SpatialTemporalCoverageEntry interface with proper field definitions. Type-safe coordinate bounds and drawing modes for map interactions. Improved PHPDoc annotations for coverage models and controllers."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Coverage Query Parameter Naming",
+                "description": "Standardized coverage query key prefix from 'spatialTemporalCoverages' to 'coverages' in curation query builder for consistency across API endpoints."
+            },
+            {
+                "title": "Point vs Rectangle Detection",
+                "description": "Fixed detection of point vs rectangle coverage in old datasets by comparing min/max coordinates. Points now correctly have empty max coordinates, rectangles have all four coordinates populated."
+            },
+            {
+                "title": "Temporal Coverage Parsing",
+                "description": "Improved parsing of legacy date/time formats from old database including support for ISO 8601 formats and various custom date formats. Proper handling of empty or null temporal values."
+            }
+        ]
+    },
+    {
+        "version": "0.5.0",
+        "date": "2025-10-10",
+        "features": [
+            {
+                "title": "Keywords Management System",
+                "description": "Comprehensive keywords management featuring both controlled vocabularies (GCMD) and free-form keywords. Includes NASA's Global Change Master Directory (GCMD) Keywords with hierarchical tree view for Science Keywords, Platforms, and Instruments. Features debounced search, auto-expansion of selected nodes, and intuitive UI with three vocabulary tabs."
+            },
+            {
+                "title": "Free Keywords Support",
+                "description": "Added support for free-form keywords with comma-separated input, automatic trimming and filtering, and proper preservation of keyword order. Includes dedicated FreeKeywordsField component integrated into the curation form."
+            },
+            {
+                "title": "GCMD Keywords from XML Uploads",
+                "description": "Automatic extraction of GCMD controlled vocabulary keywords from uploaded DataCite XML files. Keywords are parsed with full hierarchical paths and properly categorized by vocabulary type (science, platforms, instruments)."
+            },
+            {
+                "title": "Free Keywords from XML Uploads",
+                "description": "Extract free-form keywords from DataCite XML subject elements, with proper handling of whitespace, empty values, and special characters. Maintains keyword order and supports both single keywords and comma-separated lists."
+            },
+            {
+                "title": "Legacy Dataset Keywords API",
+                "description": "New endpoints to fetch both controlled and free keywords from old datasets. Includes intelligent keyword transformation with vocabulary type mapping for GCMD keywords and proper parsing of comma-separated free keywords from legacy formats."
+            },
+            {
+                "title": "Keywords Persistence",
+                "description": "Introduced ResourceKeyword and ResourceControlledKeyword models with proper database migrations. Keywords are saved with resources and support full CRUD operations. Controlled keywords include metadata like path, vocabulary type, and GCMD URI for comprehensive tracking."
+            },
+            {
+                "title": "Keywords Display in Dashboard",
+                "description": "Updated dashboard and old datasets views to display both free and controlled keywords with proper formatting and visual indicators. Keywords are displayed with their full hierarchical paths for controlled vocabularies."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "GCMD Vocabulary Tree Building",
+                "description": "Refactored concept hierarchy building logic with recursive tree-building function. Improved parent-child mapping and added validation to skip concepts without valid IDs. Enhanced handling of null values in hierarchy construction."
+            },
+            {
+                "title": "Search Functionality",
+                "description": "Added debounced search using custom useDebounce hook to optimize search input performance. Implemented minimum search length enforcement and search result highlighting in tree view. Memoized tree nodes for better performance."
+            },
+            {
+                "title": "GCMD URI Handling",
+                "description": "Introduced GcmdUriHelper utility for extracting and building GCMD concept URIs consistently across the application. Added parseGcmdPath function for hierarchical path parsing. Centralized URI handling logic for better maintainability."
+            },
+            {
+                "title": "Code Organization",
+                "description": "Extracted keyword extraction logic into dedicated XmlKeywordExtractor service for better separation of concerns and testability. Created OldDatasetKeywordTransformer service to handle legacy keyword format transformation. Improved code reusability across controllers."
+            },
+            {
+                "title": "Bulk Operations",
+                "description": "Optimized controlled keywords persistence using Eloquent's createMany for bulk insert operations, improving performance. Proper timestamp handling for bulk created keywords."
+            },
+            {
+                "title": "Type Safety",
+                "description": "Enhanced type annotations across keyword-related models and services. Added missing @property annotations and improved TypeScript types for GCMD vocabularies. Better handling of nullable values throughout the keyword system."
+            },
+            {
+                "title": "UI/UX Enhancements",
+                "description": "Relocated search input above vocabulary tabs for unified search experience across all vocabularies. Auto-expand tree nodes with selected descendants for better visibility. Streamlined controlled vocabularies field by removing redundant label and description."
+            },
+            {
+                "title": "Test Coverage",
+                "description": "Added comprehensive test suite covering backend (Pest) and frontend (Vitest, Playwright) for both free and controlled keywords. Tests cover XML extraction, old dataset parsing, query building, validation, UI interactions, and accessibility. Includes dedicated test documentation in FREE_KEYWORDS_TESTS.md."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "GCMD Vocabulary Hierarchy",
+                "description": "Fixed handling of concepts without valid IDs in hierarchy building. Improved grouping of children by parent ID to only include non-null broaderId values, preventing invalid concepts from entering the hierarchy."
+            },
+            {
+                "title": "Test Data Management",
+                "description": "Added committed GCMD test fixtures under storage/app/testing/ for reliable CI usage. Updated .gitignore to allow committed test data while excluding generated vocabularies."
+            },
+            {
+                "title": "Test Reliability",
+                "description": "Improved Playwright test reliability with explicit waits for tree items and tabs. Increased timeouts for long-running tests with multiple user interactions. Added helper functions for consistent accordion state handling across tests."
+            },
+            {
+                "title": "CI Test Skipping",
+                "description": "Configured GCMD vocabulary tests to skip in CI environment where full vocabulary data is not available. Feature tests requiring unavailable databases are properly skipped with clear documentation for local testing."
+            }
+        ]
+    },
+    {
+        "version": "0.4.0",
+        "date": "2025-10-09",
+        "features": [
+            {
+                "title": "Descriptions Management",
+                "description": "Added comprehensive support for resource descriptions with API endpoint to load descriptions from old datasets, automatic extraction from uploaded DataCite XML files, and complete persistence in the database. Supports multiple description types per resource with proper validation and form hydration."
+            },
+            {
+                "title": "Date Range Management",
+                "description": "Introduced date range functionality for resources with support for loading dates from old datasets, extraction from XML uploads including single dates and ranges, and storage with proper DataCite date type handling. Includes utilities for date serialization and validation with support for start/end date pairs."
+            },
+            {
+                "title": "GCMD Vocabulary Integration",
+                "description": "Integrated NASA's Global Change Master Directory (GCMD) Keywords Management System with new API endpoints for Science Keywords, Platforms, and Instruments vocabularies. Includes console commands to fetch and parse hierarchical RDF data from NASA KMS API with automatic JSON storage. Vocabularies are protected by API key authentication."
+            },
+            {
+                "title": "Import Metadata from XML Uploads",
+                "description": "Enhanced XML upload functionality to automatically extract and populate descriptions and dates from DataCite XML files. Includes proper handling of description types (PascalCase to kebab-case conversion) and date formats with comprehensive validation."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Production Session Security",
+                "description": "Improved session handling in production environment with secure cookies, proper HTTPS enforcement, Redis session driver support, and configurable session domain and path settings. Added SANCTUM_STATEFUL_DOMAINS configuration for better authentication."
+            },
+            {
+                "title": "Date Handling Utilities",
+                "description": "Extracted date serialization logic into reusable utility functions (hasValidDateValue, serializeDateEntry) for improved code clarity and maintainability across components."
+            },
+            {
+                "title": "GCMD Command Architecture",
+                "description": "Refactored GCMD vocabulary fetching commands to use a shared BaseGcmdCommand class, reducing code duplication and improving maintainability. Moved concept extraction and parsing logic to GcmdVocabularyParser for better separation of concerns."
+            },
+            {
+                "title": "Error Handling",
+                "description": "Enhanced error handling for GCMD vocabulary operations with checks for JSON encoding failures and null content. Improved type safety with better PHPDoc annotations."
+            },
+            {
+                "title": "Test Coverage",
+                "description": "Added comprehensive tests for descriptions and dates functionality including feature tests, unit tests, E2E Playwright tests, and Vitest serialization tests. Improved test reliability and validation strictness for XML uploads."
+            },
+            {
+                "title": "Documentation",
+                "description": "Added instructions for updating GCMD vocabularies from NASA's KMS API with recommended monthly update schedule to keep vocabularies current."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Null Value Handling",
+                "description": "Fixed handling of null and undefined values in date fields throughout the application. Updated TypeScript interfaces to properly support nullable date fields and improved serialization to prevent runtime errors."
+            },
+            {
+                "title": "Description Type Normalization",
+                "description": "Normalized descriptionType values to lowercase kebab-case format for consistency and to prevent validation mismatches."
+            },
+            {
+                "title": "Session Configuration",
+                "description": "Resolved session handling issues in production environment through iterative improvements to SESSION_PATH, SESSION_DOMAIN, and SESSION_SECURE_COOKIE settings."
+            },
+            {
+                "title": "Test Reliability",
+                "description": "Improved test reliability by increasing timeouts for slower test environments, refactoring authentication requirements, and better test isolation. Skipped problematic CI tests while maintaining coverage through alternative test strategies."
+            }
+        ]
+    },
+    {
+        "version": "0.3.0",
+        "date": "2025-10-07",
+        "features": [
+            {
+                "title": "Contributors Management in Curation Form",
+                "description": "Added comprehensive contributors section to the DataCite form with support for persons and institutions, role management using Tagify-based inputs, and affiliation handling. Contributors are distinguished from authors and support various contributor types including research groups."
+            },
+            {
+                "title": "Save Contributors with Roles and Affiliations",
+                "description": "Complete persistence of contributor data alongside authors with form hydration using stored contributors, support for multiple roles per contributor, normalization of affiliation data, and reuse of existing institutions. Includes unified serialization logic for affiliations to reduce code duplication."
+            },
+            {
+                "title": "Import Contributors from DataCite XML",
+                "description": "Automatically extract contributors from uploaded DataCite XML files with role normalization, deduplication of contributors, and proper handling of research groups as institutions. Supports Work Package Leader and other contributor-specific roles."
+            },
+            {
+                "title": "API for Old Dataset Contributors",
+                "description": "New endpoint to fetch contributors (excluding authors) from legacy datasets with intelligent role mapping from legacy role names to new slugs. Includes enhanced person/institution detection logic with name parsing utilities, support for comma-separated names, and comprehensive tests (Vitest, Playwright)."
+            },
+            {
+                "title": "Roles API Endpoint",
+                "description": "New API endpoint to fetch available roles with metadata columns and activation flags. Includes author-specific and contributor-specific role filtering, OpenAPI documentation, and service-specific API key protection. Role configuration is frozen to ensure consistency."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Contributors Section UX",
+                "description": "Contributors accordion is now expanded by default on the curation form for better visibility and easier data entry."
+            },
+            {
+                "title": "API Documentation Refinement",
+                "description": "Restricted public API documentation to secured ELMO endpoints only, improving security and clarity of the API surface."
+            },
+            {
+                "title": "Code Organization",
+                "description": "Enforced consistent import sorting via ESLint, refactored import order across multiple components for improved readability, and extracted shared Tagify helpers for DataCite tests to reduce code duplication."
+            },
+            {
+                "title": "Affiliation Data Quality",
+                "description": "Enhanced affiliation serialization to trim whitespace, filter out empty affiliations, deduplicate entries, and normalize values to ensure data quality."
+            },
+            {
+                "title": "Database Schema Clarity",
+                "description": "Renamed author_role pivot table to resource_author_role for improved clarity and consistency in Eloquent relationships."
+            },
+            {
+                "title": "Session Management in Production",
+                "description": "Introduced SESSION_PATH environment variable to docker-compose.prod.yml for improved session handling in production environments."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Author/Contributor Role Filtering",
+                "description": "Refactored role filtering logic to explicitly filter ResourceAuthors based on the 'applies_to' property at the controller level instead of in model relationships, improving accuracy and maintainability."
+            },
+            {
+                "title": "Playwright Test Selectors",
+                "description": "Scoped author Playwright selectors to authors panel and fixed author indexing to prevent test flakiness and improve test reliability."
+            },
+            {
+                "title": "Contributor Role Field",
+                "description": "Made roles input field required for contributors and disabled dropdown to enforce proper role selection through the tag input interface."
+            },
+            {
+                "title": "PHPStan Warnings",
+                "description": "Resolved PHPStan warnings in contributor deduplication logic and role scope annotations with Builder generics."
+            }
+        ]
+    },
+    {
+        "version": "0.2.0",
+        "date": "2025-10-06",
+        "features": [
+            {
+                "title": "Authors Management in Curation Form",
+                "description": "Added comprehensive authors section with support for persons and institutions, ORCID input fields, contact person functionality, role and affiliation management using Tagify-based inputs, and extensive end-to-end tests with Playwright. Includes accessible implementation with optimized aria-label usage."
+            },
+            {
+                "title": "ROR Affiliation Synchronization",
+                "description": "Integrated Research Organization Registry (ROR) with automatic data synchronization, autocomplete functionality for affiliations with ROR IDs, support for ZIP archives containing ROR data, and a new data structure using prefLabel, rorId, and otherLabel fields. Includes comprehensive tests for ROR data fetching and processing."
+            },
+            {
+                "title": "Import Authors from DataCite XML",
+                "description": "Automatically extract authors from uploaded DataCite XML files with proper handling of nested creator elements."
+            },
+            {
+                "title": "API for Old Dataset Authors",
+                "description": "New endpoint to fetch authors from legacy datasets with fuzzy matching for contact information and affiliations. Frontend integration automatically loads legacy authors into the curation form. Includes ORCID support, optimized queries to avoid N+1 problems, improved name normalization with diacritic removal, and comprehensive tests (Pest, Playwright, Vitest)."
+            },
+            {
+                "title": "ROR ID Badges for Affiliations",
+                "description": "Display ROR ID badges for matched affiliations with clickable links to ROR identifiers, improved normalization of affiliation data, and consistent formatting of ROR URLs."
+            },
+            {
+                "title": "Persistent Sorting for Old Datasets",
+                "description": "Added sorting controls for the old datasets table with lazy loading that respects server-side sorting and persistent storage of sort preferences."
+            },
+            {
+                "title": "Store Authors with Roles and Affiliations",
+                "description": "Complete persistence of author management data with form hydration using stored authors, support for ROR IDs for institutions, normalization of boolean values, and reuse of existing institutions."
+            },
+            {
+                "title": "API Key Authentication for ELMO Resource Types",
+                "description": "Protected ELMO endpoint with configurable API key using new ELMO_API_KEY environment variable. Configuration added to .env.example and stack.env with updated tests for consistent test environment."
+            },
+            {
+                "title": "Dashboard Statistics Card",
+                "description": "Show total datasets count on dashboard with new statistics card."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Test Timeout Adjustments",
+                "description": "Increased timeout for DataCiteForm author management tests to improve test reliability."
+            },
+            {
+                "title": "Layout and Accessibility Enhancements",
+                "description": "Improved layout and accessibility for author fields with optimized spacing and better screen reader support."
+            },
+            {
+                "title": "Query Optimization",
+                "description": "Optimized queries for contact information matching to reduce database load and improve performance."
+            },
+            {
+                "title": "Error Handling",
+                "description": "Enhanced error handling and messaging throughout the application for better user feedback."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "DataCite Author Extraction",
+                "description": "Fixed DataCite author extraction to correctly ignore nested creator elements."
+            },
+            {
+                "title": "PHPStan Issues",
+                "description": "Resolved PHPStan issues for ROR synchronization and author affiliations."
+            },
+            {
+                "title": "JSON File Error Handling",
+                "description": "Improved error handling for JSON file read operations."
+            },
+            {
+                "title": "TagInputField Dropdown Settings",
+                "description": "Corrected dropdown settings merge in TagInputField component."
+            },
+            {
+                "title": "MockTagify Reset",
+                "description": "Fixed MockTagify removeAllTags method to correctly clear the value array."
+            }
+        ]
+    },
+    {
+        "version": "0.1.0",
+        "date": "2025-10-05",
+        "features": [
+            {
+                "title": "Resources workspace",
+                "description": "Browse curated resources with metadata badges, DOI links, pagination details, and quick edit or delete actions."
+            },
+            {
+                "title": "Dashboard overview",
+                "description": "Surface key statistics like the total resource count alongside shortcuts to curation and documentation."
+            },
+            {
+                "title": "Resource Information form group",
+                "description": "Added structured resource information section."
+            },
+            {
+                "title": "License and Rights form group",
+                "description": "Include license and rights details for resources."
+            },
+            {
+                "title": "Link to Dev Repository",
+                "description": "Added link to the development repository on GitHub for transparency."
+            },
+            {
+                "title": "Changelog",
+                "description": "Added a interactive changelog to track updates and changes."
+            },
+            {
+                "title": "User creation",
+                "description": "Added admin command to create new users."
+            },
+            {
+                "title": "User documentation",
+                "description": "Added new site for user documentation and help."
+            },
+            {
+                "title": "Footer",
+                "description": "Added a footer with link to legal notice, changelog and about page."
+            },
+            {
+                "title": "SPDX sync",
+                "description": "Added a new command for auto syncing SPDX licenses from spdx.org."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Framework Setup",
+                "description": "Set up Laravel 12 with React"
+            },
+            {
+                "title": "Testing Enhancements",
+                "description": "Improved test coverage and reliability with modern testing frameworks Pest, Vitest and Playwright."
+            },
+            {
+                "title": "Registration closed",
+                "description": "Closed registration so only admins can add new users."
+            },
+            {
+                "title": "Resource table layout",
+                "description": "Streamlined the resources list with clearer spacing, responsive formatting, and accessible typography."
+            },
+            {
+                "title": "Deletion confirmations",
+                "description": "Added confirm dialogs and loading states so resource removals stay intentional and transparent."
+            }
+        ]
+    }
 ]

@@ -24,9 +24,9 @@ function parseArrayParam(params: URLSearchParams, paramName: string): string[] |
             indexedValues[index] = value;
         }
     }
-    
+
     // Filter out undefined values (in case of sparse arrays) and return
-    const filteredValues = indexedValues.filter(v => v !== undefined);
+    const filteredValues = indexedValues.filter((v) => v !== undefined);
     if (filteredValues.length > 0) {
         return filteredValues;
     }

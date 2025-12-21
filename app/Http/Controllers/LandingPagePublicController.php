@@ -7,7 +7,6 @@ namespace App\Http\Controllers;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
@@ -181,6 +180,51 @@ class LandingPagePublicController extends Controller
             ];
         })->toArray();
 
+        // Extract contact persons (creators with email addresses)
+        // Note: Email addresses are NOT sent to frontend for privacy
+        $resourceData['contact_persons'] = $resource->creators
+            ->filter(fn ($creator) => $creator->email !== null && $creator->email !== '')
+            ->sortBy('position')
+            ->values()
+            ->map(function ($creator) {
+                /** @var \App\Models\Person|\App\Models\Institution $creatorable */
+                $creatorable = $creator->creatorable;
+
+                // Check if it's a Person (has family_name property)
+                $isPerson = $creatorable instanceof \App\Models\Person;
+                $givenName = $isPerson ? $creatorable->given_name : null;
+                $familyName = $isPerson ? $creatorable->family_name : null;
+
+                // Build display name
+                $name = '';
+                if ($isPerson) {
+                    $name = $givenName
+                        ? $givenName.' '.$familyName
+                        : ($familyName ?? '');
+                } else {
+                    $name = $creatorable->name ?? '';
+                }
+
+                return [
+                    'id' => $creator->id,
+                    'name' => $name,
+                    'given_name' => $givenName,
+                    'family_name' => $familyName,
+                    'type' => class_basename($creator->creatorable_type),
+                    'affiliations' => $creator->affiliations->map(fn ($aff) => [
+                        'name' => $aff->name,
+                        'identifier' => $aff->affiliation_identifier,
+                        'scheme' => $aff->affiliation_identifier_scheme,
+                    ])->toArray(),
+                    'orcid' => ($creatorable->name_identifier_scheme ?? '') === 'ORCID'
+                        ? $creatorable->name_identifier
+                        : null,
+                    'website' => $creator->website,
+                    // NEVER send email to frontend!
+                    'has_email' => true,
+                ];
+            })->toArray();
+
         $data = [
             'resource' => $resourceData,
             'landingPage' => $landingPage->toArray(),
@@ -189,7 +233,7 @@ class LandingPagePublicController extends Controller
 
         // Use the template specified in landing page configuration
         $template = $landingPage->template ?? 'default_gfz';
-        
+
         return Inertia::render("LandingPages/{$template}", $data);
     }
 }

@@ -8,13 +8,7 @@ import type { SVGProps } from 'react';
  */
 export function DataCiteIcon(props: SVGProps<SVGSVGElement>) {
     return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 130 103.8"
-            fill="currentColor"
-            aria-hidden="true"
-            {...props}
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 103.8" fill="currentColor" aria-hidden="true" {...props}>
             <title>DataCite</title>
             <path
                 className="fill-[#3f3f3d] dark:fill-current"

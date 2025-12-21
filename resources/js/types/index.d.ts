@@ -135,7 +135,7 @@ export interface RelatedIdentifierFormData {
     relationType: string;
 }
 
-export type IdentifierType = 
+export type IdentifierType =
     | 'DOI'
     | 'URL'
     | 'Handle'

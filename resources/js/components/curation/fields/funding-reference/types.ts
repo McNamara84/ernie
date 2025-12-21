@@ -26,4 +26,4 @@ export const FUNDER_IDENTIFIER_TYPES = {
     OTHER: 'Other',
 } as const;
 
-export type FunderIdentifierType = typeof FUNDER_IDENTIFIER_TYPES[keyof typeof FUNDER_IDENTIFIER_TYPES];
+export type FunderIdentifierType = (typeof FUNDER_IDENTIFIER_TYPES)[keyof typeof FUNDER_IDENTIFIER_TYPES];

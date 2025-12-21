@@ -1,6 +1,6 @@
 /**
  * Type definitions for Author components
- * 
+ *
  * This file contains all TypeScript types and interfaces for the Author field group.
  * Migrated from author-field.tsx for better organization.
  */

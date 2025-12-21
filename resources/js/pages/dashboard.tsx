@@ -9,7 +9,7 @@ import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { latestVersion } from '@/lib/version';
-import { changelog as changelogRoute, dashboard,editor as editorRoute } from '@/routes';
+import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
 import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 
@@ -33,10 +33,10 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             headers: csrfHeaders,
             credentials: 'same-origin',
         });
-        
+
         if (!response.ok) {
             let message = 'Upload failed';
-            
+
             // Handle 419 CSRF token mismatch specifically
             if (response.status === 419) {
                 console.warn('CSRF token expired, reloading page...');
@@ -54,10 +54,10 @@ export const handleXmlFiles = async (files: File[]): Promise<void> => {
             }
             throw new Error(message);
         }
-        
+
         // Backend now returns a session key instead of all data
         const data: { sessionKey: string } = await response.json();
-        
+
         // Navigate to editor with session key
         router.get(editorRoute({ query: { xmlSession: data.sessionKey } }).url);
     } catch (error) {
@@ -124,23 +124,26 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
     }, []);
 
     // Easter Egg: Handle hover tracking
-    const handleCardHover = useCallback((cardName: 'welcome' | 'environment') => {
-        if (isEasterEggActive) return;
+    const handleCardHover = useCallback(
+        (cardName: 'welcome' | 'environment') => {
+            if (isEasterEggActive) return;
 
-        // Only count if switching between cards
-        const prevCard = lastHoveredCardRef.current;
-        if (prevCard !== null && prevCard !== cardName) {
-            hoverCountRef.current += 1;
-            
-            // Trigger easter egg after 10 switches
-            if (hoverCountRef.current >= 10) {
-                setIsEasterEggActive(true);
-                setUnicornCount(1);
+            // Only count if switching between cards
+            const prevCard = lastHoveredCardRef.current;
+            if (prevCard !== null && prevCard !== cardName) {
+                hoverCountRef.current += 1;
+
+                // Trigger easter egg after 10 switches
+                if (hoverCountRef.current >= 10) {
+                    setIsEasterEggActive(true);
+                    setUnicornCount(1);
+                }
             }
-        }
-        
-        lastHoveredCardRef.current = cardName;
-    }, [isEasterEggActive]);
+
+            lastHoveredCardRef.current = cardName;
+        },
+        [isEasterEggActive],
+    );
 
     // Easter Egg: Generate stable confetti configuration
     const confettiPieces = useMemo(() => {
@@ -149,7 +152,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
             left: Math.random() * 100,
             delay: Math.random() * 3,
             color: `hsl(${Math.random() * 360}, 70%, 60%)`,
-            horizontalMovement: Math.random()
+            horizontalMovement: Math.random(),
         }));
     }, []);
 
@@ -177,36 +180,36 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         setUnicorns((currentUnicorns) => {
             const currentCount = currentUnicorns.length;
             const newUnicornsToAdd = unicornCount - currentCount;
-            
+
             const additionalUnicorns: typeof currentUnicorns = [];
-            
+
             for (let i = 0; i < newUnicornsToAdd; i++) {
                 // Random position within viewport
                 const x = Math.random() * (viewportWidth - 100);
                 const y = Math.random() * (viewportHeight - 100);
-                
+
                 // Random size (80% - 120% of original)
                 const size = 0.8 + Math.random() * 0.4;
-                
+
                 // Random rotation (-15° to +15°)
                 const rotation = -15 + Math.random() * 30;
-                
+
                 // Generate unique ID using counter
                 unicornIdCounterRef.current += 1;
-                
+
                 additionalUnicorns.push({
                     id: unicornIdCounterRef.current,
                     x,
                     y,
                     size,
-                    rotation
+                    rotation,
                 });
             }
-            
+
             // ADD to existing unicorns instead of replacing
             return [...currentUnicorns, ...additionalUnicorns];
         });
-        
+
         // Double the count for next iteration, max 128
         if (unicornCount < 128) {
             easterEggTimeoutRef.current = setTimeout(() => {
@@ -215,7 +218,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
         } else {
             // Show confetti when we reach max
             setShowConfetti(true);
-            
+
             // Hide everything after 5 seconds
             easterEggTimeoutRef.current = setTimeout(() => {
                 resetEasterEgg();
@@ -296,8 +299,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             <CardTitle>Statistics</CardTitle>
                         </CardHeader>
                         <CardContent className="text-sm text-muted-foreground">
-                            <strong className="font-semibold text-foreground">{datasetCount}</strong>{' '}
-                            datasets from y data centers of z institutions
+                            <strong className="font-semibold text-foreground">{datasetCount}</strong> datasets from y data centers of z institutions
                         </CardContent>
                     </Card>
                     <Card onMouseEnter={() => handleCardHover('environment')}>
@@ -310,13 +312,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                     <tr>
                                         <td className="py-1">ERNIE Version</td>
                                         <td className="py-1 text-right">
-                                            <Link
-                                                href={changelogRoute().url}
-                                                aria-label={`View changelog for version ${latestVersion}`}
-                                            >
-                                                <Badge className="w-14 bg-[#003da6] text-white">
-                                                    {latestVersion}
-                                                </Badge>
+                                            <Link href={changelogRoute().url} aria-label={`View changelog for version ${latestVersion}`}>
+                                                <Badge className="w-14 bg-[#003da6] text-white">{latestVersion}</Badge>
                                             </Link>
                                         </td>
                                     </tr>
@@ -329,7 +326,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                                 rel="noopener noreferrer"
                                                 aria-label={`View PHP ${phpVersion.split('.').slice(0, 2).join('.')} release notes`}
                                             >
-                                                <Badge className="w-14 bg-[#777BB4] text-white hover:bg-[#666BA0] transition-colors">
+                                                <Badge className="w-14 bg-[#777BB4] text-white transition-colors hover:bg-[#666BA0]">
                                                     {phpVersion}
                                                 </Badge>
                                             </a>
@@ -344,7 +341,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                                 rel="noopener noreferrer"
                                                 aria-label={`View Laravel ${laravelVersion.split('.')[0]}.x release notes`}
                                             >
-                                                <Badge className="w-14 bg-[#FF2D20] text-white hover:bg-[#E6291C] transition-colors">
+                                                <Badge className="w-14 bg-[#FF2D20] text-white transition-colors hover:bg-[#E6291C]">
                                                     {laravelVersion}
                                                 </Badge>
                                             </a>
@@ -358,9 +355,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                 <Card className="flex flex-col items-center justify-center">
                     <CardHeader className="items-center text-center">
                         <CardTitle>Dropzone for XML files</CardTitle>
-                        <CardDescription>
-                            Here you can upload new XML files sent by ELMO for curation.
-                        </CardDescription>
+                        <CardDescription>Here you can upload new XML files sent by ELMO for curation.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
                         <div
@@ -372,37 +367,34 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             }`}
                         >
                             <p className="mb-4 text-sm text-muted-foreground">Drag &amp; drop XML files here</p>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".xml"
-                                className="hidden"
-                                onChange={handleFileSelect}
-                            />
-                            <Button type="button" onClick={() => fileInputRef.current?.click()}>Upload</Button>
+                            <input ref={fileInputRef} type="file" accept=".xml" className="hidden" onChange={handleFileSelect} />
+                            <Button type="button" onClick={() => fileInputRef.current?.click()}>
+                                Upload
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
             </div>
-            
+
             {/* Easter Egg: Unicorn overlay */}
-            {isEasterEggActive && unicorns.map((unicorn) => (
-                <img
-                    key={unicorn.id}
-                    src={withBasePath('/images/unicorn.png')}
-                    alt="🦄"
-                    className="pointer-events-none fixed z-50 animate-in fade-in zoom-in duration-300"
-                    style={{
-                        left: `${unicorn.x}px`,
-                        top: `${unicorn.y}px`,
-                        width: `${80 * unicorn.size}px`,
-                        height: `${80 * unicorn.size}px`,
-                        transform: `rotate(${unicorn.rotation}deg)`,
-                        opacity: 0.9
-                    }}
-                />
-            ))}
-            
+            {isEasterEggActive &&
+                unicorns.map((unicorn) => (
+                    <img
+                        key={unicorn.id}
+                        src={withBasePath('/images/unicorn.png')}
+                        alt="🦄"
+                        className="pointer-events-none fixed z-50 duration-300 animate-in fade-in zoom-in"
+                        style={{
+                            left: `${unicorn.x}px`,
+                            top: `${unicorn.y}px`,
+                            width: `${80 * unicorn.size}px`,
+                            height: `${80 * unicorn.size}px`,
+                            transform: `rotate(${unicorn.rotation}deg)`,
+                            opacity: 0.9,
+                        }}
+                    />
+                ))}
+
             {/* Easter Egg: Confetti effect */}
             {showConfetti && (
                 <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
@@ -411,12 +403,14 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             <div
                                 key={piece.id}
                                 className="confetti"
-                                style={{
-                                    left: `${piece.left}%`,
-                                    animationDelay: `${piece.delay}s`,
-                                    backgroundColor: piece.color,
-                                    '--random': piece.horizontalMovement
-                                } as React.CSSProperties & { '--random': number }}
+                                style={
+                                    {
+                                        left: `${piece.left}%`,
+                                        animationDelay: `${piece.delay}s`,
+                                        backgroundColor: piece.color,
+                                        '--random': piece.horizontalMovement,
+                                    } as React.CSSProperties & { '--random': number }
+                                }
                             />
                         ))}
                     </div>

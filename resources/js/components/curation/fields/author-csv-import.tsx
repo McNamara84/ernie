@@ -1,12 +1,12 @@
 /**
  * AuthorCsvImport Component
- * 
+ *
  * CSV bulk import for authors:
  * - Drag & drop or file selection
  * - Validation with detailed error reporting
  * - Preview of parsed data
  * - Example CSV template download
- * 
+ *
  * Based on related-work-csv-import.tsx design
  */
 
@@ -73,19 +73,21 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
 
         try {
             const text = await csvFile.text();
-            
+
             // Parse CSV with PapaParse
             Papa.parse<CsvRow>(text, {
                 header: true,
                 skipEmptyLines: true,
                 complete: (results) => {
                     if (results.data.length === 0) {
-                        setErrors([{
-                            row: 0,
-                            field: 'file',
-                            value: '',
-                            message: 'CSV file is empty or has no data rows',
-                        }]);
+                        setErrors([
+                            {
+                                row: 0,
+                                field: 'file',
+                                value: '',
+                                message: 'CSV file is empty or has no data rows',
+                            },
+                        ]);
                         setIsProcessing(false);
                         return;
                     }
@@ -94,43 +96,30 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                     const data: ParsedAuthor[] = [];
                     results.data.forEach((row, index) => {
                         const rowNum = index + 2; // +1 for header, +1 for 1-based
-                        
+
                         // Determine type
-                        const typeField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('type') || k.toLowerCase().includes('typ')
-                        );
+                        const typeField = Object.keys(row).find((k) => k.toLowerCase().includes('type') || k.toLowerCase().includes('typ'));
                         const typeValue = typeField ? row[typeField]?.trim().toLowerCase() : 'person';
-                        const type: 'person' | 'institution' = 
-                            typeValue === 'institution' 
-                                ? 'institution' 
-                                : 'person';
+                        const type: 'person' | 'institution' = typeValue === 'institution' ? 'institution' : 'person';
 
                         // Extract fields
-                        const firstNameField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('first') || 
-                            k.toLowerCase().includes('vorname') || 
-                            k.toLowerCase().includes('given')
+                        const firstNameField = Object.keys(row).find(
+                            (k) => k.toLowerCase().includes('first') || k.toLowerCase().includes('vorname') || k.toLowerCase().includes('given'),
                         );
-                        const lastNameField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('last') || 
-                            k.toLowerCase().includes('nachname') || 
-                            k.toLowerCase().includes('family')
+                        const lastNameField = Object.keys(row).find(
+                            (k) => k.toLowerCase().includes('last') || k.toLowerCase().includes('nachname') || k.toLowerCase().includes('family'),
                         );
-                        const orcidField = Object.keys(row).find(k => k.toLowerCase().includes('orcid'));
-                        const emailField = Object.keys(row).find(k => 
-                            k.toLowerCase().includes('email') || k.toLowerCase().includes('mail')
-                        );
-                        const institutionNameField = Object.keys(row).find(k => {
+                        const orcidField = Object.keys(row).find((k) => k.toLowerCase().includes('orcid'));
+                        const emailField = Object.keys(row).find((k) => k.toLowerCase().includes('email') || k.toLowerCase().includes('mail'));
+                        const institutionNameField = Object.keys(row).find((k) => {
                             const lower = k.toLowerCase();
-                            return lower === 'institution name' || 
-                                   lower === 'institution' ||
-                                   lower === 'institutionname';
+                            return lower === 'institution name' || lower === 'institution' || lower === 'institutionname';
                         });
-                        const affiliationsField = Object.keys(row).find(k => {
+                        const affiliationsField = Object.keys(row).find((k) => {
                             const lower = k.toLowerCase();
                             return lower.includes('affiliation');
                         });
-                        const contactField = Object.keys(row).find(k => k.toLowerCase().includes('contact'));
+                        const contactField = Object.keys(row).find((k) => k.toLowerCase().includes('contact'));
 
                         const firstName = firstNameField ? row[firstNameField]?.trim() : '';
                         const lastName = lastNameField ? row[lastNameField]?.trim() : '';
@@ -141,9 +130,12 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                         const contactRaw = contactField ? row[contactField]?.trim().toLowerCase() : '';
 
                         const affiliations = affiliationsRaw
-                            ? affiliationsRaw.split(',').map(a => a.trim()).filter(Boolean)
+                            ? affiliationsRaw
+                                  .split(',')
+                                  .map((a) => a.trim())
+                                  .filter(Boolean)
                             : [];
-                        
+
                         const isContact = ['yes', 'ja', 'true', '1'].includes(contactRaw);
 
                         // Validation
@@ -178,7 +170,7 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                         }
 
                         // If valid, add to data
-                        if (!validationErrors.some(e => e.row === rowNum)) {
+                        if (!validationErrors.some((e) => e.row === rowNum)) {
                             if (type === 'person') {
                                 data.push({
                                     type: 'person',
@@ -208,22 +200,26 @@ export default function AuthorCsvImport({ onImport, onClose }: AuthorCsvImportPr
                     setIsProcessing(false);
                 },
                 error: (error: Error) => {
-                    setErrors([{
-                        row: 0,
-                        field: 'file',
-                        value: '',
-                        message: error.message || 'Failed to parse CSV file',
-                    }]);
+                    setErrors([
+                        {
+                            row: 0,
+                            field: 'file',
+                            value: '',
+                            message: error.message || 'Failed to parse CSV file',
+                        },
+                    ]);
                     setIsProcessing(false);
                 },
             });
         } catch (error) {
-            setErrors([{
-                row: 0,
-                field: 'file',
-                value: '',
-                message: error instanceof Error ? error.message : 'Failed to parse CSV file',
-            }]);
+            setErrors([
+                {
+                    row: 0,
+                    field: 'file',
+                    value: '',
+                    message: error instanceof Error ? error.message : 'Failed to parse CSV file',
+                },
+            ]);
             setIsProcessing(false);
         }
     }, []);
@@ -285,9 +281,7 @@ person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Ha
             <div className="flex items-center justify-between">
                 <div className="space-y-1">
                     <Label className="text-base font-semibold">CSV Bulk Import</Label>
-                    <p className="text-sm text-muted-foreground">
-                        Import multiple authors from a CSV file
-                    </p>
+                    <p className="text-sm text-muted-foreground">Import multiple authors from a CSV file</p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close CSV import">
                     <X className="h-4 w-4" />
@@ -308,30 +302,18 @@ person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Ha
 
             {/* File Upload Area */}
             <div
-                className={`
-                    relative rounded-lg border-2 border-dashed p-8 text-center transition-colors
-                    ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-                    ${file ? 'bg-muted/50' : ''}
-                `}
+                className={`relative rounded-lg border-2 border-dashed p-8 text-center transition-colors ${isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'} ${file ? 'bg-muted/50' : ''} `}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
             >
-                <input
-                    type="file"
-                    id="csv-upload-authors"
-                    accept=".csv,text/csv"
-                    onChange={handleFileSelect}
-                    className="sr-only"
-                />
+                <input type="file" id="csv-upload-authors" accept=".csv,text/csv" onChange={handleFileSelect} className="sr-only" />
 
                 {!file ? (
                     <label htmlFor="csv-upload-authors" className="flex cursor-pointer flex-col items-center gap-2">
                         <Upload className="h-10 w-10 text-muted-foreground" />
                         <div className="space-y-1">
-                            <p className="text-sm font-medium">
-                                Drop your CSV file here or click to browse
-                            </p>
+                            <p className="text-sm font-medium">Drop your CSV file here or click to browse</p>
                             <p className="text-xs text-muted-foreground">
                                 Required: Type, First Name/Last Name (for persons) or Institution Name (for institutions)
                             </p>
@@ -342,9 +324,7 @@ person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Ha
                         <div className="flex items-center justify-center gap-2">
                             <FileUp className="h-5 w-5 text-green-600" />
                             <span className="font-medium">{file.name}</span>
-                            <span className="text-sm text-muted-foreground">
-                                ({(file.size / 1024).toFixed(2)} KB)
-                            </span>
+                            <span className="text-sm text-muted-foreground">({(file.size / 1024).toFixed(2)} KB)</span>
                         </div>
                         {isProcessing && (
                             <div className="space-y-2">
@@ -371,11 +351,7 @@ person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Ha
                                         Row {error.row}, {error.field}: {error.message}
                                     </li>
                                 ))}
-                                {errors.length > 10 && (
-                                    <li className="italic text-muted-foreground">
-                                        ... and {errors.length - 10} more errors
-                                    </li>
-                                )}
+                                {errors.length > 10 && <li className="text-muted-foreground italic">... and {errors.length - 10} more errors</li>}
                             </ul>
                         </div>
                     </AlertDescription>
@@ -388,8 +364,7 @@ person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Ha
                     <Info className="h-4 w-4 text-green-600" />
                     <AlertDescription>
                         <p className="text-sm text-green-800">
-                            ✓ Successfully parsed {parsedData.length} author{parsedData.length > 1 ? 's' : ''}. Ready
-                            to import!
+                            ✓ Successfully parsed {parsedData.length} author{parsedData.length > 1 ? 's' : ''}. Ready to import!
                         </p>
                         {parsedData.length > 0 && (
                             <div className="mt-2 max-h-40 overflow-y-auto rounded border bg-white p-2">
@@ -403,11 +378,7 @@ person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Ha
                                             {item.affiliations.length > 0 && ` - ${item.affiliations.join(', ')}`}
                                         </li>
                                     ))}
-                                    {parsedData.length > 5 && (
-                                        <li className="italic text-muted-foreground">
-                                            ... and {parsedData.length - 5} more
-                                        </li>
-                                    )}
+                                    {parsedData.length > 5 && <li className="text-muted-foreground italic">... and {parsedData.length - 5} more</li>}
                                 </ul>
                             </div>
                         )}
@@ -420,10 +391,7 @@ person,John,Doe,0000-0001-9876-5432,,,"Massachusetts Institute of Technology, Ha
                 <Button variant="outline" onClick={onClose}>
                     Cancel
                 </Button>
-                <Button
-                    onClick={handleImport}
-                    disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}
-                >
+                <Button onClick={handleImport} disabled={parsedData.length === 0 || errors.length > 0 || isProcessing}>
                     Import {parsedData.length > 0 && `${parsedData.length} Author${parsedData.length > 1 ? 's' : ''}`}
                 </Button>
             </div>

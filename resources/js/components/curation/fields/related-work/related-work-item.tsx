@@ -3,12 +3,7 @@ import { AlertCircle, CheckCircle2, ExternalLink, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
 import type { RelatedIdentifier, RelationType } from '@/types';
 
@@ -22,7 +17,7 @@ interface RelatedWorkItemProps {
 
 /**
  * RelatedWorkItem Component
- * 
+ *
  * Displays a single related work item with:
  * - Identifier with external link (if URL or DOI)
  * - Relation type with description tooltip
@@ -30,18 +25,10 @@ interface RelatedWorkItemProps {
  * - Validation status indicator
  * - Remove button
  */
-export default function RelatedWorkItem({
-    item,
-    index,
-    onRemove,
-    validationStatus,
-    validationMessage,
-}: RelatedWorkItemProps) {
+export default function RelatedWorkItem({ item, index, onRemove, validationStatus, validationMessage }: RelatedWorkItemProps) {
     // Determine if identifier is a clickable link
     const isClickable = item.identifier_type === 'DOI' || item.identifier_type === 'URL';
-    const linkUrl = item.identifier_type === 'DOI' 
-        ? `https://doi.org/${item.identifier}`
-        : item.identifier;
+    const linkUrl = item.identifier_type === 'DOI' ? `https://doi.org/${item.identifier}` : item.identifier;
 
     // Get relation type description
     const description = RELATION_TYPE_DESCRIPTIONS[item.relation_type as RelationType] || '';
@@ -49,7 +36,7 @@ export default function RelatedWorkItem({
     // Validation icon
     const ValidationIcon = () => {
         if (!validationStatus || validationStatus === 'validating') return null;
-        
+
         if (validationStatus === 'valid') {
             return (
                 <TooltipProvider>
@@ -103,9 +90,7 @@ export default function RelatedWorkItem({
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <span className="text-sm font-semibold text-foreground">
-                                        {item.relation_type}
-                                    </span>
+                                    <span className="text-sm font-semibold text-foreground">{item.relation_type}</span>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                     <p className="max-w-xs text-sm">{description}</p>
@@ -130,19 +115,13 @@ export default function RelatedWorkItem({
                                 <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                             </a>
                         ) : (
-                            <span className="text-sm text-muted-foreground break-all">
-                                {item.identifier}
-                            </span>
+                            <span className="text-sm break-all text-muted-foreground">{item.identifier}</span>
                         )}
                         <ValidationIcon />
                     </div>
 
                     {/* Optional: Related title from API */}
-                    {item.related_title && (
-                        <p className="text-xs text-muted-foreground italic">
-                            {item.related_title}
-                        </p>
-                    )}
+                    {item.related_title && <p className="text-xs text-muted-foreground italic">{item.related_title}</p>}
                 </div>
 
                 {/* Remove Button */}
@@ -152,7 +131,7 @@ export default function RelatedWorkItem({
                     size="icon"
                     onClick={() => onRemove(index)}
                     aria-label="Remove related work"
-                    className="flex-shrink-0 h-8 w-8"
+                    className="h-8 w-8 flex-shrink-0"
                 >
                     <Trash2 className="h-4 w-4" />
                 </Button>

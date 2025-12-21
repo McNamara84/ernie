@@ -3,27 +3,10 @@ import { AlertCircle, CheckCircle, Circle, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from '@/components/ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -44,11 +27,7 @@ import {
     validateYear,
 } from '@/utils/validation-rules';
 
-import AuthorField, {
-    type AuthorEntry,
-    type InstitutionAuthorEntry,
-    type PersonAuthorEntry,
-} from './fields/author';
+import AuthorField, { type AuthorEntry, type InstitutionAuthorEntry, type PersonAuthorEntry } from './fields/author';
 import ContributorField, {
     type ContributorEntry,
     type ContributorRoleTag,
@@ -76,17 +55,17 @@ const normalizeOrcid = (orcid: string | null | undefined): string => {
     if (!orcid || typeof orcid !== 'string') {
         return '';
     }
-    
+
     const trimmed = orcid.trim();
-    
+
     // Remove https://orcid.org/ prefix if present
     const orcidPattern = /^(?:https?:\/\/)?(?:www\.)?orcid\.org\/(.+)$/i;
     const match = trimmed.match(orcidPattern);
-    
+
     if (match && match[1]) {
         return match[1];
     }
-    
+
     return trimmed;
 };
 
@@ -94,14 +73,14 @@ const normalizeWebsiteUrl = (url: string | null | undefined): string => {
     if (!url || typeof url !== 'string') {
         return '';
     }
-    
+
     const trimmed = url.trim();
-    
+
     // If URL doesn't start with http:// or https://, add https://
     if (trimmed && !/^https?:\/\//i.test(trimmed)) {
         return `https://${trimmed}`;
     }
-    
+
     return trimmed;
 };
 
@@ -231,9 +210,7 @@ const createEmptyInstitutionContributor = (): InstitutionContributorEntry => ({
  * @param entry - An author or contributor entry containing affiliations to serialize
  * @returns An array of deduplicated affiliation objects with value and rorId properties
  */
-const serializeAffiliations = (
-    entry: AuthorEntry | ContributorEntry
-): SerializedAffiliation[] => {
+const serializeAffiliations = (entry: AuthorEntry | ContributorEntry): SerializedAffiliation[] => {
     const seen = new Set<string>();
 
     return entry.affiliations
@@ -302,9 +279,7 @@ export type InitialContributor =
           institutionName?: string | null;
       });
 
-const normaliseInitialAffiliations = (
-    affiliations?: (InitialAffiliationInput | null | undefined)[] | null,
-): AffiliationTag[] => {
+const normaliseInitialAffiliations = (affiliations?: (InitialAffiliationInput | null | undefined)[] | null): AffiliationTag[] => {
     if (!affiliations || !Array.isArray(affiliations)) {
         return [];
     }
@@ -316,24 +291,24 @@ const normaliseInitialAffiliations = (
             }
 
             // Try multiple property names for value
-            const rawValue =
-                ('value' in affiliation && typeof affiliation.value === 'string'
+            const rawValue = (
+                'value' in affiliation && typeof affiliation.value === 'string'
                     ? affiliation.value
                     : 'name' in affiliation && typeof (affiliation as Record<string, unknown>).name === 'string'
-                      ? (affiliation as Record<string, unknown>).name as string
+                      ? ((affiliation as Record<string, unknown>).name as string)
                       : ''
-                ).trim();
+            ).trim();
 
             // Try multiple property names for rorId
-            const rawRorId =
-                ('rorId' in affiliation && typeof affiliation.rorId === 'string'
+            const rawRorId = (
+                'rorId' in affiliation && typeof affiliation.rorId === 'string'
                     ? affiliation.rorId
                     : 'rorid' in affiliation && typeof (affiliation as Record<string, unknown>).rorid === 'string'
-                      ? (affiliation as Record<string, unknown>).rorid as string
+                      ? ((affiliation as Record<string, unknown>).rorid as string)
                       : 'identifier' in affiliation && typeof (affiliation as Record<string, unknown>).identifier === 'string'
-                        ? (affiliation as Record<string, unknown>).identifier as string
+                        ? ((affiliation as Record<string, unknown>).identifier as string)
                         : ''
-                ).trim();
+            ).trim();
 
             if (!rawValue && !rawRorId) {
                 return null;
@@ -347,27 +322,17 @@ const normaliseInitialAffiliations = (
         .filter((item): item is AffiliationTag => Boolean(item && item.value));
 };
 
-const normaliseInitialContributorRoles = (
-    roles: BaseInitialContributor['roles'],
-): ContributorRoleTag[] => {
+const normaliseInitialContributorRoles = (roles: BaseInitialContributor['roles']): ContributorRoleTag[] => {
     if (!roles) {
         return [];
     }
 
-    const rawRoles = Array.isArray(roles)
-        ? roles
-        : typeof roles === 'string'
-          ? [roles]
-          : typeof roles === 'object'
-            ? Object.values(roles)
-            : [];
+    const rawRoles = Array.isArray(roles) ? roles : typeof roles === 'string' ? [roles] : typeof roles === 'object' ? Object.values(roles) : [];
 
     const unique = new Set<string>();
 
     return rawRoles
-        .map((role) =>
-            typeof role === 'string' ? normaliseContributorRoleLabel(role) : '',
-        )
+        .map((role) => (typeof role === 'string' ? normaliseContributorRoleLabel(role) : ''))
         .filter((role) => role.length > 0)
         .filter((role) => {
             if (unique.has(role)) {
@@ -379,9 +344,7 @@ const normaliseInitialContributorRoles = (
         .map((role) => ({ value: role }));
 };
 
-const mapInitialContributorToEntry = (
-    contributor: InitialContributor,
-): ContributorEntry | null => {
+const mapInitialContributorToEntry = (contributor: InitialContributor): ContributorEntry | null => {
     if (!contributor || typeof contributor !== 'object') {
         return null;
     }
@@ -403,10 +366,7 @@ const mapInitialContributorToEntry = (
 
         return {
             ...base,
-            institutionName:
-                typeof institutionContributor.institutionName === 'string'
-                    ? institutionContributor.institutionName.trim()
-                    : '',
+            institutionName: typeof institutionContributor.institutionName === 'string' ? institutionContributor.institutionName.trim() : '',
             affiliations,
             affiliationsInput,
             roles,
@@ -448,10 +408,7 @@ const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
 
         return {
             ...base,
-            institutionName:
-                typeof author.institutionName === 'string'
-                    ? author.institutionName.trim()
-                    : '',
+            institutionName: typeof author.institutionName === 'string' ? author.institutionName.trim() : '',
             affiliations,
             affiliationsInput,
         } satisfies InstitutionAuthorEntry;
@@ -505,30 +462,15 @@ interface DataCiteFormProps {
 }
 
 export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
-    return (
-        titles.length < maxTitles &&
-        titles.length > 0 &&
-        !!titles[titles.length - 1].title
-    );
+    return titles.length < maxTitles && titles.length > 0 && !!titles[titles.length - 1].title;
 }
 
-export function canAddLicense(
-    licenseEntries: LicenseEntry[],
-    maxLicenses: number,
-) {
-    return (
-        licenseEntries.length < maxLicenses &&
-        licenseEntries.length > 0 &&
-        !!licenseEntries[licenseEntries.length - 1].license
-    );
+export function canAddLicense(licenseEntries: LicenseEntry[], maxLicenses: number) {
+    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && !!licenseEntries[licenseEntries.length - 1].license;
 }
 
 export function canAddDate(dates: DateEntry[], maxDates: number) {
-    return (
-        dates.length < maxDates &&
-        dates.length > 0 &&
-        (!!dates[dates.length - 1].startDate || !!dates[dates.length - 1].endDate)
-    );
+    return dates.length < maxDates && dates.length > 0 && (!!dates[dates.length - 1].startDate || !!dates[dates.length - 1].endDate);
 }
 
 export default function DataCiteForm({
@@ -564,30 +506,29 @@ export default function DataCiteForm({
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
-    
+
     // Date types that are automatically managed by the system and not editable by users
     // This is a constant array that never changes, so no useMemo needed
     const AUTO_MANAGED_DATE_TYPES = ['created', 'updated'] as const;
-    
+
     // MAX_DATES excludes auto-managed types since users can't select them
     // Simple calculation - dateTypes is stable from props, no memoization needed
-    const MAX_DATES = dateTypes.filter(
-        dt => !AUTO_MANAGED_DATE_TYPES.includes(dt.slug as typeof AUTO_MANAGED_DATE_TYPES[number])
-    ).length;
-    
+    const MAX_DATES = dateTypes.filter((dt) => !AUTO_MANAGED_DATE_TYPES.includes(dt.slug as (typeof AUTO_MANAGED_DATE_TYPES)[number])).length;
+
     // Transform dateTypes prop to the format used by the form
     // Note: 'Created' and 'Updated' are excluded as they are automatically managed
     const dateTypeOptions = useMemo(
-        () => dateTypes.map((dt) => ({
-            value: dt.slug,
-            label: dt.name,
-            description: dt.description ?? '',
-        })),
-        [dateTypes]
+        () =>
+            dateTypes.map((dt) => ({
+                value: dt.slug,
+                label: dt.name,
+                description: dt.description ?? '',
+            })),
+        [dateTypes],
     );
-    
+
     const errorRef = useRef<HTMLDivElement | null>(null);
-    
+
     // Refs for accordion sections (for auto-scroll on validation errors)
     const resourceInfoRef = useRef<HTMLDivElement | null>(null);
     const licensesRef = useRef<HTMLDivElement | null>(null);
@@ -595,11 +536,11 @@ export default function DataCiteForm({
     const descriptionsRef = useRef<HTMLDivElement | null>(null);
     const datesRef = useRef<HTMLDivElement | null>(null);
     const controlledVocabulariesRef = useRef<HTMLDivElement | null>(null);
-    
+
     // Tracking refs for MSL notification
     const hasNotifiedMslUnlock = useRef<boolean>(false);
     const hasInitialMslTriggers = useRef<boolean>(false);
-    
+
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
         year: initialYear,
@@ -629,9 +570,7 @@ export default function DataCiteForm({
 
     const [authors, setAuthors] = useState<AuthorEntry[]>(() => {
         if (initialAuthors.length > 0) {
-            const mapped = initialAuthors
-                .map((author) => mapInitialAuthorToEntry(author))
-                .filter((author): author is AuthorEntry => Boolean(author));
+            const mapped = initialAuthors.map((author) => mapInitialAuthorToEntry(author)).filter((author): author is AuthorEntry => Boolean(author));
 
             if (mapped.length > 0) {
                 return mapped;
@@ -685,16 +624,14 @@ export default function DataCiteForm({
     const [gcmdKeywords, setGcmdKeywords] = useState<SelectedKeyword[]>(() => {
         if (initialGcmdKeywords && initialGcmdKeywords.length > 0) {
             return initialGcmdKeywords
-                .filter((kw): kw is typeof kw & { scheme: string } => 
-                    typeof kw.scheme === 'string' && kw.scheme.length > 0
-                )
+                .filter((kw): kw is typeof kw & { scheme: string } => typeof kw.scheme === 'string' && kw.scheme.length > 0)
                 .map((kw) => ({
                     id: kw.id,
                     text: kw.text,
                     path: kw.path,
-                    language: ('language' in kw && typeof kw.language === 'string') ? kw.language : 'en',
+                    language: 'language' in kw && typeof kw.language === 'string' ? kw.language : 'en',
                     scheme: kw.scheme,
-                    schemeURI: ('schemeURI' in kw && typeof kw.schemeURI === 'string') ? kw.schemeURI : '',
+                    schemeURI: 'schemeURI' in kw && typeof kw.schemeURI === 'string' ? kw.schemeURI : '',
                     isLegacy: kw.isLegacy === 'true', // String from URL params
                 }));
         }
@@ -708,21 +645,17 @@ export default function DataCiteForm({
         }
         return [];
     });
-    
+
     // Check if initial free keywords contain MSL/EPOS triggers (to prevent notification on data load)
     useEffect(() => {
         if (initialFreeKeywords && initialFreeKeywords.length > 0) {
             const triggers = ['epos', 'multi-scale laboratories', 'multi scale laboratories', 'msl'];
-            const hasInitialTriggers = initialFreeKeywords.some((keyword) => 
-                triggers.some((trigger) => keyword.toLowerCase().includes(trigger))
-            );
+            const hasInitialTriggers = initialFreeKeywords.some((keyword) => triggers.some((trigger) => keyword.toLowerCase().includes(trigger)));
             hasInitialMslTriggers.current = hasInitialTriggers;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run only once on mount - initialFreeKeywords intentionally excluded
-    const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<
-        SpatialTemporalCoverageEntry[]
-    >(() => {
+    const [spatialTemporalCoverages, setSpatialTemporalCoverages] = useState<SpatialTemporalCoverageEntry[]>(() => {
         if (initialSpatialTemporalCoverages && initialSpatialTemporalCoverages.length > 0) {
             return initialSpatialTemporalCoverages;
         }
@@ -759,10 +692,10 @@ export default function DataCiteForm({
         'related-work',
         'funding-references',
     ]);
-    
+
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
-    
+
     // Stable callback for setting auto-switch state
     const setShouldAutoSwitchToMsl = useCallback((value: boolean) => {
         setAutoSwitchToMslState(value);
@@ -861,11 +794,7 @@ export default function DataCiteForm({
     ];
 
     // Title validation rules
-    const createTitleValidationRules = (
-        index: number,
-        titleType: string,
-        allTitles: TitleEntry[],
-    ): ValidationRule[] => [
+    const createTitleValidationRules = (index: number, titleType: string, allTitles: TitleEntry[]): ValidationRule[] => [
         {
             validate: (value) => {
                 const titleValue = String(value || '');
@@ -894,9 +823,7 @@ export default function DataCiteForm({
                 }
 
                 // Check uniqueness across all titles
-                const uniquenessResult = validateTitleUniqueness(
-                    allTitles.map((t) => ({ title: t.title, type: t.titleType })),
-                );
+                const uniquenessResult = validateTitleUniqueness(allTitles.map((t) => ({ title: t.title, type: t.titleType })));
                 if (!uniquenessResult.isValid && uniquenessResult.errors[index]) {
                     return {
                         severity: 'error',
@@ -927,31 +854,32 @@ export default function DataCiteForm({
         {
             validate: (value) => {
                 const text = String(value || '');
-                
+
                 // Required check
                 const requiredResult = validateRequired(text, 'Abstract');
                 if (!requiredResult.isValid) {
                     return { severity: 'error', message: requiredResult.error! };
                 }
-                
+
                 // Length check (50-17500 characters)
                 const lengthResult = validateTextLength(text, {
                     min: 50,
                     max: 17500,
-                    fieldName: 'Abstract'
+                    fieldName: 'Abstract',
                 });
                 if (!lengthResult.isValid) {
                     return { severity: 'error', message: lengthResult.error! };
                 }
-                
+
                 // Warning at 90% of max length
-                if (text.length > 15750) { // 90% of 17500
-                    return { 
-                        severity: 'warning', 
-                        message: `Abstract is very long (${text.length}/17500 characters). Consider condensing if possible.` 
+                if (text.length > 15750) {
+                    // 90% of 17500
+                    return {
+                        severity: 'warning',
+                        message: `Abstract is very long (${text.length}/17500 characters). Consider condensing if possible.`,
                     };
                 }
-                
+
                 return null;
             },
         },
@@ -1031,7 +959,7 @@ export default function DataCiteForm({
             const loadMslVocabulary = async () => {
                 try {
                     const response = await fetch(withBasePath('/vocabularies/msl'));
-                    
+
                     if (!response.ok) {
                         console.error('Failed to load MSL vocabulary', response.status);
                         return;
@@ -1058,43 +986,43 @@ export default function DataCiteForm({
     useEffect(() => {
         if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
-            
+
             // Only notify if this is NOT an initial data load and we haven't notified yet
             if (!hasInitialMslTriggers.current && !hasNotifiedMslUnlock.current) {
                 hasNotifiedMslUnlock.current = true;
-                
+
                 // Show toast notification
                 toast.info('MSL Vocabulary Available', {
                     description: 'EPOS/MSL keywords detected. The MSL Vocabulary tab is now available in Controlled Vocabularies.',
                     duration: 5000,
                 });
-                
+
                 // Trigger auto-switch to MSL tab
                 setShouldAutoSwitchToMsl(true);
-                
+
                 // Handle scroll and tab-switch with promise chain for better testability
                 const scrollAndSwitchTab = async () => {
                     // Wait for accordion animation
-                    await new Promise<void>(resolve => setTimeout(resolve, 300));
-                    
+                    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
                         setOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
                     }
-                    
+
                     // Scroll to the section
                     controlledVocabulariesRef.current?.scrollIntoView({
                         behavior: 'smooth',
                         block: 'start',
                     });
-                    
+
                     // Wait for scroll animation to complete
-                    await new Promise<void>(resolve => setTimeout(resolve, 500));
-                    
+                    await new Promise<void>((resolve) => setTimeout(resolve, 500));
+
                     // Reset auto-switch flag after animation completes
                     setShouldAutoSwitchToMsl(false);
                 };
-                
+
                 void scrollAndSwitchTab();
             }
         } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
@@ -1113,26 +1041,18 @@ export default function DataCiteForm({
         if (mslLaboratories.length === 0) {
             return {
                 severity: 'info' as const,
-                message: 'This dataset is tagged with EPOS/MSL keywords. Consider adding originating multi-scale laboratories to improve discoverability.',
+                message:
+                    'This dataset is tagged with EPOS/MSL keywords. Consider adding originating multi-scale laboratories to improve discoverability.',
             };
         }
 
         return null; // Laboratories are selected, all good
     }, [shouldShowMSLSection, mslLaboratories.length]);
-    
-    const contributorPersonRoleNames = useMemo(
-        () => contributorPersonRoles.map((role) => role.name),
-        [contributorPersonRoles],
-    );
-    const contributorInstitutionRoleNames = useMemo(
-        () => contributorInstitutionRoles.map((role) => role.name),
-        [contributorInstitutionRoles],
-    );
+
+    const contributorPersonRoleNames = useMemo(() => contributorPersonRoles.map((role) => role.name), [contributorPersonRoles]);
+    const contributorInstitutionRoleNames = useMemo(() => contributorInstitutionRoles.map((role) => role.name), [contributorInstitutionRoles]);
     const authorRoleNames = useMemo(
-        () =>
-            authorRoles
-                .map((role) => role.name.trim())
-                .filter((name): name is string => name.length > 0),
+        () => authorRoles.map((role) => role.name.trim()).filter((name): name is string => name.length > 0),
         [authorRoles],
     );
     const authorRoleSummary = useMemo(() => {
@@ -1152,8 +1072,7 @@ export default function DataCiteForm({
         const last = authorRoleNames[authorRoleNames.length - 1];
         return `${allButLast}, and ${last}`;
     }, [authorRoleNames]);
-    const authorRolesDescriptionId =
-        authorRoleNames.length > 0 ? 'author-roles-description' : undefined;
+    const authorRolesDescriptionId = authorRoleNames.length > 0 ? 'author-roles-description' : undefined;
     const { suggestions: affiliationSuggestions } = useRorAffiliations();
 
     const [isSaving, setIsSaving] = useState(false);
@@ -1165,7 +1084,7 @@ export default function DataCiteForm({
     // Compute author validation issues
     const authorValidationIssues = useMemo(() => {
         const issues: string[] = [];
-        
+
         if (authors.length === 0) {
             issues.push('At least one author is required');
         } else {
@@ -1184,7 +1103,7 @@ export default function DataCiteForm({
                 }
             });
         }
-        
+
         return issues;
     }, [authors]);
 
@@ -1192,47 +1111,46 @@ export default function DataCiteForm({
     // Note: 'Created' and 'Updated' dates are now auto-managed by the backend
     const dateValidationIssues = useMemo(() => {
         const issues: string[] = [];
-        
+
         // Validate each user-entered date
         dates.forEach((date, index) => {
             const dateIndex = index + 1;
-            
+
             // Validate start date if provided
             if (date.startDate && date.startDate.trim() !== '') {
                 const startDateValidation = validateDate(date.startDate, {
                     allowFuture: false,
                     minDate: new Date('1900-01-01'),
                 });
-                
+
                 if (!startDateValidation.isValid) {
                     issues.push(`Date ${dateIndex} (Start): ${startDateValidation.error}`);
                 }
             }
-            
+
             // Validate end date if provided
             if (date.endDate && date.endDate.trim() !== '') {
                 const endDateValidation = validateDate(date.endDate, {
                     allowFuture: false,
                     minDate: new Date('1900-01-01'),
                 });
-                
+
                 if (!endDateValidation.isValid) {
                     issues.push(`Date ${dateIndex} (End): ${endDateValidation.error}`);
                 }
             }
-            
+
             // Validate that end date is after start date (if both provided)
-            if (date.startDate && date.endDate && 
-                date.startDate.trim() !== '' && date.endDate.trim() !== '') {
+            if (date.startDate && date.endDate && date.startDate.trim() !== '' && date.endDate.trim() !== '') {
                 const start = new Date(date.startDate);
                 const end = new Date(date.endDate);
-                
+
                 if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end < start) {
                     issues.push(`Date ${dateIndex}: End date must be after start date`);
                 }
             }
         });
-        
+
         return issues;
     }, [dates]);
 
@@ -1254,25 +1172,15 @@ export default function DataCiteForm({
 
                 return Boolean(author.institutionName.trim());
             });
-        const abstractFilled = descriptions.some(
-            (desc) => desc.type === 'Abstract' && desc.value.trim() !== '',
-        );
+        const abstractFilled = descriptions.some((desc) => desc.type === 'Abstract' && desc.value.trim() !== '');
         // Note: 'Created' date is no longer required from user - it's auto-managed by the backend
 
-        return (
-            mainTitleFilled &&
-            yearFilled &&
-            resourceTypeSelected &&
-            languageSelected &&
-            primaryLicenseFilled &&
-            authorsValid &&
-            abstractFilled
-        );
+        return mainTitleFilled && yearFilled && resourceTypeSelected && languageSelected && primaryLicenseFilled && authorsValid && abstractFilled;
     }, [authors, descriptions, form.language, form.resourceType, form.year, licenseEntries, titles]);
 
     // Check if there are any legacy MSL keywords that need to be replaced
     const hasLegacyKeywords = useMemo(() => {
-        return gcmdKeywords.some(kw => kw.isLegacy === true);
+        return gcmdKeywords.some((kw) => kw.isLegacy === true);
     }, [gcmdKeywords]);
 
     // Collect all missing required fields for Save button tooltip
@@ -1460,10 +1368,7 @@ export default function DataCiteForm({
     const spatialTemporalCoverageStatus = useMemo(() => {
         // Spatial/temporal coverage is optional
         const hasAnyCoverage = spatialTemporalCoverages.some(
-            (coverage) =>
-                coverage.latMin.trim() !== '' ||
-                coverage.lonMin.trim() !== '' ||
-                coverage.startDate.trim() !== ''
+            (coverage) => coverage.latMin.trim() !== '' || coverage.lonMin.trim() !== '' || coverage.startDate.trim() !== '',
         );
 
         if (!hasAnyCoverage) {
@@ -1476,11 +1381,11 @@ export default function DataCiteForm({
     const datesStatus = useMemo(() => {
         // Dates section is now optional since 'Created' and 'Updated' are auto-managed
         const hasAnyDate = dates.some((date) => hasValidDateValue(date));
-        
+
         if (!hasAnyDate) {
             return 'optional-empty';
         }
-        
+
         if (dateValidationIssues.length > 0) {
             return 'invalid';
         }
@@ -1575,9 +1480,7 @@ export default function DataCiteForm({
                     // Focus the first field if selector provided
                     if (firstInvalidSection.focusSelector) {
                         setTimeout(() => {
-                            const fieldToFocus = document.querySelector(
-                                firstInvalidSection.focusSelector!
-                            ) as HTMLElement;
+                            const fieldToFocus = document.querySelector(firstInvalidSection.focusSelector!) as HTMLElement;
                             if (fieldToFocus) {
                                 fieldToFocus.focus();
                             }
@@ -1636,11 +1539,7 @@ export default function DataCiteForm({
         }
     };
 
-    const handleTitleChange = (
-        index: number,
-        field: keyof Omit<TitleEntry, 'id'>,
-        value: string,
-    ) => {
+    const handleTitleChange = (index: number, field: keyof Omit<TitleEntry, 'id'>, value: string) => {
         setTitles((prev) => {
             const next = [...prev];
             next[index] = { ...next[index], [field]: value };
@@ -1686,10 +1585,7 @@ export default function DataCiteForm({
     const addTitle = () => {
         if (titles.length >= MAX_TITLES) return;
         const defaultType = titleTypes.find((t) => t.slug !== 'main-title')?.slug ?? '';
-        setTitles((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), title: '', titleType: defaultType },
-        ]);
+        setTitles((prev) => [...prev, { id: crypto.randomUUID(), title: '', titleType: defaultType }]);
     };
 
     const removeTitle = (index: number) => {
@@ -1734,21 +1630,14 @@ export default function DataCiteForm({
 
     const addLicense = () => {
         if (licenseEntries.length >= MAX_LICENSES) return;
-        setLicenseEntries((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), license: '' },
-        ]);
+        setLicenseEntries((prev) => [...prev, { id: crypto.randomUUID(), license: '' }]);
     };
 
     const removeLicense = (index: number) => {
         setLicenseEntries((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const handleDateChange = (
-        index: number,
-        field: keyof Omit<DateEntry, 'id'>,
-        value: string,
-    ) => {
+    const handleDateChange = (index: number, field: keyof Omit<DateEntry, 'id'>, value: string) => {
         setDates((prev) => {
             const next = [...prev];
             next[index] = { ...next[index], [field]: value };
@@ -1761,10 +1650,7 @@ export default function DataCiteForm({
         // Find the first unused date type or default to 'other'
         const usedTypes = new Set(dates.map((d) => d.dateType));
         const availableType = dateTypeOptions.find((dt) => !usedTypes.has(dt.value))?.value ?? 'other';
-        setDates((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType },
-        ]);
+        setDates((prev) => [...prev, { id: crypto.randomUUID(), startDate: '', endDate: '', dateType: availableType }]);
     };
 
     const removeDate = (index: number) => {
@@ -1964,9 +1850,7 @@ export default function DataCiteForm({
                 title: entry.title,
                 titleType: entry.titleType,
             })),
-            licenses: licenseEntries
-                .map((entry) => entry.license)
-                .filter((license): license is string => Boolean(license)),
+            licenses: licenseEntries.map((entry) => entry.license).filter((license): license is string => Boolean(license)),
             authors: serializedAuthors,
             contributors: serializedContributors,
             mslLaboratories: mslLaboratories.map((lab) => ({
@@ -1981,16 +1865,12 @@ export default function DataCiteForm({
                     descriptionType: desc.type,
                     description: desc.value.trim(),
                 })),
-            dates: dates
-                .filter(hasValidDateValue)
-                .map((date) => ({
-                    dateType: date.dateType,
-                    startDate: date.startDate || null,
-                    endDate: date.endDate || null,
-                })),
-            freeKeywords: freeKeywords
-                .map((kw) => kw.value.trim())
-                .filter((kw) => kw.length > 0),
+            dates: dates.filter(hasValidDateValue).map((date) => ({
+                dateType: date.dateType,
+                startDate: date.startDate || null,
+                endDate: date.endDate || null,
+            })),
+            freeKeywords: freeKeywords.map((kw) => kw.value.trim()).filter((kw) => kw.length > 0),
             gcmdKeywords: gcmdKeywords.map((kw) => ({
                 id: kw.id,
                 text: kw.text,
@@ -2045,12 +1925,10 @@ export default function DataCiteForm({
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 const response = error.response;
-                
+
                 if (response?.status === 419) {
                     console.error('CSRF token mismatch detected');
-                    setErrorMessage(
-                        'Your session has expired. Please refresh the page and try again.',
-                    );
+                    setErrorMessage('Your session has expired. Please refresh the page and try again.');
                     // The axios interceptor in app.tsx will handle the page reload
                     return;
                 }
@@ -2059,7 +1937,9 @@ export default function DataCiteForm({
                     const defaultError = 'Unable to save resource. Please review the highlighted issues.';
                     const parsed = response.data as { message?: string; errors?: Record<string, string[]> } | null;
                     const messages = parsed?.errors
-                        ? Object.values(parsed.errors).flat().map((message) => String(message))
+                        ? Object.values(parsed.errors)
+                              .flat()
+                              .map((message) => String(message))
                         : [];
 
                     setValidationErrors(messages);
@@ -2067,7 +1947,7 @@ export default function DataCiteForm({
                     return;
                 }
             }
-            
+
             console.error('Failed to save resource', error);
             setErrorMessage('A network error prevented saving the resource. Please try again.');
         } finally {
@@ -2108,12 +1988,7 @@ export default function DataCiteForm({
                     )}
                 </div>
             )}
-            <Accordion
-                type="multiple"
-                value={openAccordionItems}
-                onValueChange={setOpenAccordionItems}
-                className="w-full"
-            >
+            <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
                 <AccordionItem value="resource-info">
                     <AccordionTrigger>
                         <div className="flex items-center gap-2">
@@ -2193,7 +2068,7 @@ export default function DataCiteForm({
                                 data-testid="language-select"
                             />
                         </div>
-                        <div className="space-y-4 mt-3">
+                        <div className="mt-3 space-y-4">
                             {titles.map((entry, index) => (
                                 <TitleField
                                     key={entry.id}
@@ -2201,26 +2076,19 @@ export default function DataCiteForm({
                                     title={entry.title}
                                     titleType={entry.titleType}
                                     options={titleTypes
-                                        .filter(
-                                            (t) =>
-                                                t.slug !== 'main-title' ||
-                                                !mainTitleUsed ||
-                                                entry.titleType === 'main-title',
-                                        )
+                                        .filter((t) => t.slug !== 'main-title' || !mainTitleUsed || entry.titleType === 'main-title')
                                         .map((t) => ({ value: t.slug, label: t.name }))}
-                                    onTitleChange={(val) =>
-                                        handleTitleChange(index, 'title', val)
-                                    }
-                                    onTypeChange={(val) =>
-                                        handleTitleChange(index, 'titleType', val)
-                                    }
+                                    onTitleChange={(val) => handleTitleChange(index, 'title', val)}
+                                    onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
                                     onAdd={addTitle}
                                     onRemove={() => removeTitle(index)}
                                     isFirst={index === 0}
                                     canAdd={canAddTitle(titles, MAX_TITLES)}
                                     validationMessages={getFieldState(`title-${index}`).messages}
                                     touched={getFieldState(`title-${index}`).touched}
-                                    onValidationBlur={() => handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))}
+                                    onValidationBlur={() =>
+                                        handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))
+                                    }
                                 />
                             ))}
                         </div>
@@ -2244,16 +2112,11 @@ export default function DataCiteForm({
                                         value: l.identifier,
                                         label: l.name,
                                     }))}
-                                    onLicenseChange={(val) =>
-                                        handleLicenseChange(index, val)
-                                    }
+                                    onLicenseChange={(val) => handleLicenseChange(index, val)}
                                     onAdd={addLicense}
                                     onRemove={() => removeLicense(index)}
                                     isFirst={index === 0}
-                                    canAdd={canAddLicense(
-                                        licenseEntries,
-                                        MAX_LICENSES,
-                                    )}
+                                    canAdd={canAddLicense(licenseEntries, MAX_LICENSES)}
                                     required={index === 0}
                                     validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
                                     touched={index === 0 ? getFieldState('license-0').touched : undefined}
@@ -2280,7 +2143,7 @@ export default function DataCiteForm({
                                 aria-live="polite"
                             >
                                 <strong>Required fields missing:</strong>
-                                <ul className="mt-2 list-disc pl-5 space-y-1">
+                                <ul className="mt-2 list-disc space-y-1 pl-5">
                                     {authorValidationIssues.map((issue, idx) => (
                                         <li key={idx}>{issue}</li>
                                     ))}
@@ -2288,21 +2151,11 @@ export default function DataCiteForm({
                             </div>
                         )}
                         {authorRoleNames.length > 0 && (
-                            <p
-                                id={authorRolesDescriptionId}
-                                className="mb-4 text-sm text-muted-foreground"
-                                data-testid="author-roles-availability"
-                            >
-                                {`The available author ${
-                                    authorRoleNames.length === 1 ? 'role is' : 'roles are'
-                                } ${authorRoleSummary}.`}
+                            <p id={authorRolesDescriptionId} className="mb-4 text-sm text-muted-foreground" data-testid="author-roles-availability">
+                                {`The available author ${authorRoleNames.length === 1 ? 'role is' : 'roles are'} ${authorRoleSummary}.`}
                             </p>
                         )}
-                        <AuthorField
-                            authors={authors}
-                            onChange={setAuthors}
-                            affiliationSuggestions={affiliationSuggestions}
-                        />
+                        <AuthorField authors={authors} onChange={setAuthors} affiliationSuggestions={affiliationSuggestions} />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="contributors">
@@ -2348,9 +2201,7 @@ export default function DataCiteForm({
                     </AccordionTrigger>
                     <AccordionContent>
                         {isLoadingVocabularies ? (
-                            <div className="text-center py-8 text-muted-foreground">
-                                Loading vocabularies...
-                            </div>
+                            <div className="py-8 text-center text-muted-foreground">Loading vocabularies...</div>
                         ) : (
                             <ControlledVocabulariesField
                                 scienceKeywords={gcmdVocabularies.science}
@@ -2373,10 +2224,7 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                        <FreeKeywordsField
-                            keywords={freeKeywords}
-                            onChange={setFreeKeywords}
-                        />
+                        <FreeKeywordsField keywords={freeKeywords} onChange={setFreeKeywords} />
                     </AccordionContent>
                 </AccordionItem>
                 {shouldShowMSLSection && (
@@ -2384,9 +2232,7 @@ export default function DataCiteForm({
                         <AccordionTrigger>
                             <div className="flex items-center gap-2">
                                 <span>🔬 Originating Multi-Scale Laboratories</span>
-                                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">
-                                    EPOS/MSL
-                                </span>
+                                <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-medium">EPOS/MSL</span>
                                 {renderStatusBadge(mslLaboratoriesStatus)}
                             </div>
                         </AccordionTrigger>
@@ -2419,10 +2265,7 @@ export default function DataCiteForm({
                                     </div>
                                 </div>
                             )}
-                            <MSLLaboratoriesField
-                                selectedLaboratories={mslLaboratories}
-                                onChange={setMslLaboratories}
-                            />
+                            <MSLLaboratoriesField selectedLaboratories={mslLaboratories} onChange={setMslLaboratories} />
                         </AccordionContent>
                     </AccordionItem>
                 )}
@@ -2456,7 +2299,7 @@ export default function DataCiteForm({
                                 aria-live="polite"
                             >
                                 <strong>Date validation issues:</strong>
-                                <ul className="mt-2 list-disc pl-5 space-y-1">
+                                <ul className="mt-2 list-disc space-y-1 pl-5">
                                     {dateValidationIssues.map((issue, idx) => (
                                         <li key={idx}>{issue}</li>
                                     ))}
@@ -2465,18 +2308,13 @@ export default function DataCiteForm({
                         )}
                         <div className="space-y-4">
                             {dates.length === 0 ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={addDate}
-                                    aria-label="Add date"
-                                >
+                                <Button type="button" variant="outline" onClick={addDate} aria-label="Add date">
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add date
                                 </Button>
                             ) : (
                                 dates.map((entry, index) => {
-                                    const selectedDateType = dateTypeOptions.find(dt => dt.value === entry.dateType);
+                                    const selectedDateType = dateTypeOptions.find((dt) => dt.value === entry.dateType);
                                     return (
                                         <DateField
                                             key={entry.id}
@@ -2486,19 +2324,11 @@ export default function DataCiteForm({
                                             dateType={entry.dateType}
                                             dateTypeDescription={selectedDateType?.description}
                                             options={dateTypeOptions.filter(
-                                                (dt) =>
-                                                    dt.value === entry.dateType ||
-                                                    !dates.some((d) => d.dateType === dt.value),
+                                                (dt) => dt.value === entry.dateType || !dates.some((d) => d.dateType === dt.value),
                                             )}
-                                            onStartDateChange={(val) =>
-                                                handleDateChange(index, 'startDate', val)
-                                            }
-                                            onEndDateChange={(val) =>
-                                                handleDateChange(index, 'endDate', val)
-                                            }
-                                            onTypeChange={(val) =>
-                                                handleDateChange(index, 'dateType', val)
-                                            }
+                                            onStartDateChange={(val) => handleDateChange(index, 'startDate', val)}
+                                            onEndDateChange={(val) => handleDateChange(index, 'endDate', val)}
+                                            onTypeChange={(val) => handleDateChange(index, 'dateType', val)}
                                             onAdd={addDate}
                                             onRemove={() => removeDate(index)}
                                             isFirst={index === 0}
@@ -2518,10 +2348,7 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                        <RelatedWorkField
-                            relatedWorks={relatedWorks}
-                            onChange={setRelatedWorks}
-                        />
+                        <RelatedWorkField relatedWorks={relatedWorks} onChange={setRelatedWorks} />
                     </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="funding-references">
@@ -2532,24 +2359,20 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent id="funding-references-section">
-                        <FundingReferenceField
-                            value={fundingReferences}
-                            onChange={setFundingReferences}
-                        />
+                        <FundingReferenceField value={fundingReferences} onChange={setFundingReferences} />
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
             {hasLegacyKeywords && (
-                <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4">
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
                     <div className="flex items-start gap-3">
-                        <span className="text-amber-600 dark:text-amber-400 text-xl">⚠️</span>
+                        <span className="text-xl text-amber-600 dark:text-amber-400">⚠️</span>
                         <div>
-                            <h3 className="font-semibold text-amber-900 dark:text-amber-100 mb-1">
-                                Legacy Keywords Detected
-                            </h3>
+                            <h3 className="mb-1 font-semibold text-amber-900 dark:text-amber-100">Legacy Keywords Detected</h3>
                             <p className="text-sm text-amber-800 dark:text-amber-200">
-                                This dataset contains MSL keywords from the old database that don't exist in the current vocabulary.
-                                Please review the highlighted keywords in the "Controlled Vocabularies" section and replace them with keywords from the current MSL vocabulary before saving.
+                                This dataset contains MSL keywords from the old database that don't exist in the current vocabulary. Please review the
+                                highlighted keywords in the "Controlled Vocabularies" section and replace them with keywords from the current MSL
+                                vocabulary before saving.
                             </p>
                         </div>
                     </div>
@@ -2571,27 +2394,17 @@ export default function DataCiteForm({
                             </span>
                         </TooltipTrigger>
                         {(!areRequiredFieldsFilled || hasLegacyKeywords) && !isSaving && (
-                            <TooltipContent
-                                side="top"
-                                align="end"
-                                className="max-w-sm"
-                            >
+                            <TooltipContent side="top" align="end" className="max-w-sm">
                                 <div className="space-y-2">
-                                    <p className="font-semibold text-sm">
-                                        {hasLegacyKeywords
-                                            ? 'Cannot save: Legacy keywords detected'
-                                            : 'Cannot save: Required fields missing'}
+                                    <p className="text-sm font-semibold">
+                                        {hasLegacyKeywords ? 'Cannot save: Legacy keywords detected' : 'Cannot save: Required fields missing'}
                                     </p>
                                     {hasLegacyKeywords ? (
-                                        <p className="text-xs">
-                                            Please replace all legacy MSL keywords with keywords from the current vocabulary.
-                                        </p>
+                                        <p className="text-xs">Please replace all legacy MSL keywords with keywords from the current vocabulary.</p>
                                     ) : (
                                         <>
-                                            <p className="text-xs text-muted-foreground">
-                                                Please complete the following required fields:
-                                            </p>
-                                            <ul className="text-xs space-y-1 list-disc pl-4">
+                                            <p className="text-xs text-muted-foreground">Please complete the following required fields:</p>
+                                            <ul className="list-disc space-y-1 pl-4 text-xs">
                                                 {missingRequiredFields.map((field, idx) => (
                                                     <li key={idx}>{field}</li>
                                                 ))}
@@ -2608,9 +2421,7 @@ export default function DataCiteForm({
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Successfully saved resource</DialogTitle>
-                        <DialogDescription>
-                            {successMessage}
-                        </DialogDescription>
+                        <DialogDescription>{successMessage}</DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button type="button" onClick={() => setShowSuccessModal(false)}>

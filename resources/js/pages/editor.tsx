@@ -1,10 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
-import DataCiteForm, {
-    type InitialAuthor,
-    type InitialContributor,
-} from '@/components/curation/datacite-form';
+import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/components/curation/datacite-form';
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
@@ -97,16 +94,7 @@ export default function Editor({
             fetch(withBasePath('/api/v1/roles/contributor-institutions/ernie')),
             fetch(withBasePath('/api/v1/roles/authors/ernie')),
         ])
-            .then(async ([
-                resTypes,
-                titleRes,
-                dateRes,
-                licenseRes,
-                languageRes,
-                contributorPersonRes,
-                contributorInstitutionRes,
-                authorRolesRes,
-            ]) => {
+            .then(async ([resTypes, titleRes, dateRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
                 if (
                     !resTypes.ok ||
                     !titleRes.ok ||
@@ -119,16 +107,7 @@ export default function Editor({
                 ) {
                     throw new Error('Network error');
                 }
-                const [
-                    rData,
-                    tData,
-                    dData,
-                    lData,
-                    langData,
-                    contributorPersonData,
-                    contributorInstitutionData,
-                    authorRoleData,
-                ] = await Promise.all([
+                const [rData, tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] = await Promise.all([
                     resTypes.json() as Promise<ResourceType[]>,
                     titleRes.json() as Promise<TitleType[]>,
                     dateRes.json() as Promise<DateType[]>,

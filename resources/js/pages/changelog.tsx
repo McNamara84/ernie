@@ -137,41 +137,41 @@ export default function Changelog() {
         return () => {
             window.removeEventListener('hashchange', processHash);
         };
-    }, [releases]);    // Helper function to find most visible release (extracted for reuse)
+    }, [releases]); // Helper function to find most visible release (extracted for reuse)
     const findMostVisibleRelease = useCallback(() => {
         let bestIndex = -1;
         let bestRatio = 0;
-        
+
         const viewportHeight = window.innerHeight;
         const centerViewport = viewportHeight * 0.3; // Wider viewport window
         const centerViewportBottom = viewportHeight * 0.7;
-        
+
         releaseRefs.current.forEach((ref, index) => {
             if (!ref) return;
             const rect = ref.getBoundingClientRect();
-            
+
             // Element is in viewport center zone
             if (rect.top < centerViewportBottom && rect.bottom > centerViewport) {
                 const visibleHeight = Math.min(rect.bottom, centerViewportBottom) - Math.max(rect.top, centerViewport);
                 const ratio = visibleHeight / (centerViewportBottom - centerViewport);
-                
+
                 if (ratio > bestRatio) {
                     bestRatio = ratio;
                     bestIndex = index;
                 }
             }
         });
-        
+
         return bestIndex;
     }, []);
 
     // Update active release based on visibility (extracted for reuse)
     const updateActiveRelease = useCallback(() => {
         const mostVisibleIndex = findMostVisibleRelease();
-        
+
         if (mostVisibleIndex !== -1) {
             setHighlightedIndex(mostVisibleIndex);
-            
+
             if (!userInteractedRef.current) {
                 setActive(mostVisibleIndex);
             }
@@ -231,7 +231,7 @@ export default function Changelog() {
             if (ref) observer.observe(ref);
         });
 
-        // Additional scroll listener for better reliability  
+        // Additional scroll listener for better reliability
         let scrollTimeout: ReturnType<typeof setTimeout>;
         const handleScroll = () => {
             window.clearTimeout(scrollTimeout);
@@ -259,12 +259,12 @@ export default function Changelog() {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 userInteractedRef.current = true;
                 setActive(index);
-                
+
                 // Manually trigger update after programmatic scroll
                 setTimeout(() => updateActiveRelease(), 400);
             }
         },
-        [releases, updateActiveRelease]
+        [releases, updateActiveRelease],
     );
 
     // Keyboard navigation
@@ -312,175 +312,177 @@ export default function Changelog() {
         <PublicLayout>
             <Head title="Changelog" />
             <ChangelogTimelineNav releases={releases} activeIndex={active} onNavigate={handleNavigate} />
-            
+
             {/* Screen reader announcements */}
             <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
                 {announcement}
             </div>
-            
+
             <h1 className="mb-6 text-2xl font-semibold">Changelog</h1>
             {error ? (
-                <div 
-                    role="alert" 
+                <div
+                    role="alert"
                     aria-atomic="true"
                     className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-950/20"
                 >
-                    <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">
-                        Failed to load changelog
-                    </h2>
+                    <h2 className="mb-2 text-lg font-semibold text-red-800 dark:text-red-400">Failed to load changelog</h2>
                     <p className="mb-4 text-red-700 dark:text-red-300">{error}</p>
-                    <button 
+                    <button
                         onClick={() => window.location.reload()}
-                        className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:bg-red-700 dark:hover:bg-red-800"
+                        className="rounded-md bg-red-600 px-4 py-2 text-white transition-colors hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:outline-none dark:bg-red-700 dark:hover:bg-red-800"
                     >
                         Reload page
                     </button>
                 </div>
             ) : (
-                <ul
-                    className="relative space-y-4 border-l border-gray-300 pl-6"
-                    aria-label="Changelog Timeline"
-                >
+                <ul className="relative space-y-4 border-l border-gray-300 pl-6" aria-label="Changelog Timeline">
                     {releases.map((release, index) => {
                         const isOpen = active === index;
                         const buttonId = `release-trigger-${index}`;
                         const panelId = `release-${index}`;
                         const prev = releases[index - 1];
                         const [currMajor, currMinor] = release.version.split('.').map(Number);
-                        const [prevMajor, prevMinor] = prev
-                            ? prev.version.split('.').map(Number)
-                            : [currMajor, currMinor];
+                        const [prevMajor, prevMinor] = prev ? prev.version.split('.').map(Number) : [currMajor, currMinor];
                         const ringColor = (() => {
                             if (!prev) return 'ring-green-500';
                             if (currMajor !== prevMajor) return 'ring-green-500';
                             if (currMinor !== prevMinor) return 'ring-blue-500';
                             return 'ring-red-500';
                         })();
-                        
+
                         const gradientBg = (() => {
                             if (!prev) return 'from-green-50 to-transparent dark:from-green-950/20';
                             if (currMajor !== prevMajor) return 'from-green-50 to-transparent dark:from-green-950/20';
                             if (currMinor !== prevMinor) return 'from-blue-50 to-transparent dark:from-blue-950/20';
                             return 'from-red-50 to-transparent dark:from-red-950/20';
                         })();
-                        
+
                         return (
-                        <motion.li 
-                            key={release.version} 
-                            className="relative"
-                            ref={(el) => {
-                                releaseRefs.current[index] = el;
-                            }}
-                            initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
-                            animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
-                            transition={prefersReducedMotion ? {} : { 
-                                duration: 0.4, 
-                                delay: index * 0.1,
-                                ease: 'easeOut'
-                            }}
-                        >
-                            <motion.div
-                                animate={prefersReducedMotion ? {} : {
-                                    scale: highlightedIndex === index ? 1.02 : 1,
+                            <motion.li
+                                key={release.version}
+                                className="relative"
+                                ref={(el) => {
+                                    releaseRefs.current[index] = el;
                                 }}
-                                transition={prefersReducedMotion ? {} : { duration: 0.3, ease: 'easeInOut' }}
-                                className={`rounded-lg bg-gradient-to-r p-1 ${gradientBg}`}
-                                style={{
-                                    opacity: highlightedIndex === null || highlightedIndex === index ? 1 : 0.6,
-                                }}
+                                initial={prefersReducedMotion ? {} : { opacity: 0, x: -20 }}
+                                animate={prefersReducedMotion ? {} : { opacity: 1, x: 0 }}
+                                transition={
+                                    prefersReducedMotion
+                                        ? {}
+                                        : {
+                                              duration: 0.4,
+                                              delay: index * 0.1,
+                                              ease: 'easeOut',
+                                          }
+                                }
                             >
-                            <span
-                                aria-hidden="true"
-                                data-testid="version-anchor"
-                                className={`absolute -left-3 top-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
-                            ></span>
-                            <button
-                                onClick={() => {
-                                    userInteractedRef.current = true;
-                                    const wasOpen = isOpen;
-                                    setActive(isOpen ? null : index);
-                                    
-                                    // Announce for screen readers
-                                    setAnnouncement(
-                                        wasOpen 
-                                            ? `Version ${release.version} eingeklappt` 
-                                            : `Version ${release.version} erweitert`
-                                    );
-                                    
-                                    // Scroll element into view after toggle
-                                    if (!isOpen) {
-                                        setTimeout(() => {
-                                            const element = releaseRefs.current[index];
-                                            if (element) {
-                                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                            }
-                                        }, 50);
+                                <motion.div
+                                    animate={
+                                        prefersReducedMotion
+                                            ? {}
+                                            : {
+                                                  scale: highlightedIndex === index ? 1.02 : 1,
+                                              }
                                     }
-                                }}
-                                id={buttonId}
-                                aria-expanded={isOpen}
-                                aria-controls={panelId}
-                                type="button"
-                                className="flex w-full items-center rounded px-2 py-3 text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-gray-800"
-                            >
-                                <span className="flex flex-1 items-center gap-2">
-                                    <span className="font-medium">Version {release.version}</span>
-                                    {isNewRelease(release.date, index) && (
-                                        <span 
-                                            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white"
-                                            style={{ backgroundColor: '#000200' }}
-                                        >
-                                            New
-                                        </span>
-                                    )}
-                                </span>
-                                <span className="ml-4 text-sm text-gray-700 dark:text-gray-300">{release.date}</span>
-                            </button>
-                            <AnimatePresence initial={false}>
-                                {isOpen && (
-                                    <motion.div
-                                        id={panelId}
-                                        initial={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
-                                        animate={prefersReducedMotion ? {} : { height: 'auto', opacity: 1 }}
-                                        exit={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
-                                        transition={prefersReducedMotion ? {} : { duration: 0.3 }}
-                                        className="ml-5 mt-2 border-l pl-4 text-sm text-gray-700"
-                                        role="region"
-                                        aria-labelledby={buttonId}
-                                    >
-                                        {(
-                                            Object.keys(sectionConfig) as Array<keyof typeof sectionConfig>
-                                        ).map((key) => {
-                                            const items = release[key];
-                                            if (!items || items.length === 0) return null;
-                                            const Icon = sectionConfig[key].icon;
-                                            const iconTestId = key === 'features' ? 'sparkles-icon' : key === 'improvements' ? 'trending-up-icon' : 'bug-icon';
-                                            return (
-                                                <section key={key} className="mb-4 last:mb-0">
-                                                    <h3
-                                                        className={`mb-1 flex items-center gap-1.5 font-semibold ${sectionConfig[key].color}`}
-                                                    >
-                                                        <Icon className="h-4 w-4" aria-hidden="true" data-testid={iconTestId} />
-                                                        {sectionConfig[key].label}
-                                                    </h3>
-                                                    <ul className="space-y-1">
-                                                        {items.map((item) => (
-                                                            <li key={item.title}>
-                                                                <p className="font-medium">{item.title}</p>
-                                                                <p>{item.description}</p>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </section>
+                                    transition={prefersReducedMotion ? {} : { duration: 0.3, ease: 'easeInOut' }}
+                                    className={`rounded-lg bg-gradient-to-r p-1 ${gradientBg}`}
+                                    style={{
+                                        opacity: highlightedIndex === null || highlightedIndex === index ? 1 : 0.6,
+                                    }}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        data-testid="version-anchor"
+                                        className={`absolute top-3 -left-3 h-3 w-3 rounded-full bg-white ring-2 ${ringColor}`}
+                                    ></span>
+                                    <button
+                                        onClick={() => {
+                                            userInteractedRef.current = true;
+                                            const wasOpen = isOpen;
+                                            setActive(isOpen ? null : index);
+
+                                            // Announce for screen readers
+                                            setAnnouncement(
+                                                wasOpen ? `Version ${release.version} eingeklappt` : `Version ${release.version} erweitert`,
                                             );
-                                        })}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                            </motion.div>
-                        </motion.li>
-                    );
-                })}
+
+                                            // Scroll element into view after toggle
+                                            if (!isOpen) {
+                                                setTimeout(() => {
+                                                    const element = releaseRefs.current[index];
+                                                    if (element) {
+                                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                    }
+                                                }, 50);
+                                            }
+                                        }}
+                                        id={buttonId}
+                                        aria-expanded={isOpen}
+                                        aria-controls={panelId}
+                                        type="button"
+                                        className="flex w-full items-center rounded px-2 py-3 text-left transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:hover:bg-gray-800"
+                                    >
+                                        <span className="flex flex-1 items-center gap-2">
+                                            <span className="font-medium">Version {release.version}</span>
+                                            {isNewRelease(release.date, index) && (
+                                                <span
+                                                    className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium text-white"
+                                                    style={{ backgroundColor: '#000200' }}
+                                                >
+                                                    New
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="ml-4 text-sm text-gray-700 dark:text-gray-300">{release.date}</span>
+                                    </button>
+                                    <AnimatePresence initial={false}>
+                                        {isOpen && (
+                                            <motion.div
+                                                id={panelId}
+                                                initial={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
+                                                animate={prefersReducedMotion ? {} : { height: 'auto', opacity: 1 }}
+                                                exit={prefersReducedMotion ? {} : { height: 0, opacity: 0 }}
+                                                transition={prefersReducedMotion ? {} : { duration: 0.3 }}
+                                                className="mt-2 ml-5 border-l pl-4 text-sm text-gray-700"
+                                                role="region"
+                                                aria-labelledby={buttonId}
+                                            >
+                                                {(Object.keys(sectionConfig) as Array<keyof typeof sectionConfig>).map((key) => {
+                                                    const items = release[key];
+                                                    if (!items || items.length === 0) return null;
+                                                    const Icon = sectionConfig[key].icon;
+                                                    const iconTestId =
+                                                        key === 'features'
+                                                            ? 'sparkles-icon'
+                                                            : key === 'improvements'
+                                                              ? 'trending-up-icon'
+                                                              : 'bug-icon';
+                                                    return (
+                                                        <section key={key} className="mb-4 last:mb-0">
+                                                            <h3
+                                                                className={`mb-1 flex items-center gap-1.5 font-semibold ${sectionConfig[key].color}`}
+                                                            >
+                                                                <Icon className="h-4 w-4" aria-hidden="true" data-testid={iconTestId} />
+                                                                {sectionConfig[key].label}
+                                                            </h3>
+                                                            <ul className="space-y-1">
+                                                                {items.map((item) => (
+                                                                    <li key={item.title}>
+                                                                        <p className="font-medium">{item.title}</p>
+                                                                        <p>{item.description}</p>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </section>
+                                                    );
+                                                })}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
+                            </motion.li>
+                        );
+                    })}
                 </ul>
             )}
         </PublicLayout>

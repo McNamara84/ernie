@@ -41,10 +41,7 @@ function extractRorId(rorUrl: string): string {
  * - Error handling and retry functionality
  * - Accessibility compliant (WCAG 2.1 AA)
  */
-export default function MSLLaboratoriesField({
-    selectedLaboratories,
-    onChange,
-}: MSLLaboratoriesFieldProps) {
+export default function MSLLaboratoriesField({ selectedLaboratories, onChange }: MSLLaboratoriesFieldProps) {
     const { laboratories, isLoading, error, refetch } = useMSLLaboratories();
     const [searchValue, setSearchValue] = useState('');
 
@@ -61,11 +58,7 @@ export default function MSLLaboratoriesField({
         if (!searchValue) return availableLaboratories;
 
         const search = searchValue.toLowerCase();
-        return availableLaboratories.filter(
-            (lab) =>
-                lab.name.toLowerCase().includes(search) ||
-                lab.affiliation_name.toLowerCase().includes(search),
-        );
+        return availableLaboratories.filter((lab) => lab.name.toLowerCase().includes(search) || lab.affiliation_name.toLowerCase().includes(search));
     }, [availableLaboratories, searchValue]);
 
     const handleSelectLaboratory = (laboratory: MSLLaboratory) => {
@@ -84,8 +77,7 @@ export default function MSLLaboratoriesField({
                 <div className="flex items-start gap-2">
                     <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" aria-hidden="true" />
                     <p className="text-sm text-blue-900">
-                        Select the multi-scale laboratories associated with this dataset. Data is
-                        sourced from the{' '}
+                        Select the multi-scale laboratories associated with this dataset. Data is sourced from the{' '}
                         <a
                             href="https://github.com/UtrechtUniversity/msl_vocabularies"
                             target="_blank"
@@ -106,12 +98,7 @@ export default function MSLLaboratoriesField({
                     <AlertTitle>Unable to load laboratory data</AlertTitle>
                     <AlertDescription className="flex items-center gap-2">
                         <span>Please check your internet connection and try again.</span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={refetch}
-                            className="ml-2 h-7 px-2"
-                        >
+                        <Button variant="outline" size="sm" onClick={refetch} className="ml-2 h-7 px-2">
                             Retry
                         </Button>
                     </AlertDescription>
@@ -126,7 +113,7 @@ export default function MSLLaboratoriesField({
 
                 {/* Search Input */}
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         id="msl-laboratory-search"
                         type="text"
@@ -152,7 +139,7 @@ export default function MSLLaboratoriesField({
                                         key={lab.identifier}
                                         type="button"
                                         onClick={() => handleSelectLaboratory(lab)}
-                                        className="w-full rounded-md p-3 text-left transition-colors hover:bg-accent focus:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                                        className="w-full rounded-md p-3 text-left transition-colors hover:bg-accent focus:bg-accent focus:ring-2 focus:ring-ring focus:outline-none"
                                     >
                                         <div className="flex flex-col gap-1">
                                             <span className="font-medium">{lab.name}</span>
@@ -170,9 +157,7 @@ export default function MSLLaboratoriesField({
 
                 {/* No results message */}
                 {searchValue && filteredLaboratories.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                        No laboratories found matching &quot;{searchValue}&quot;
-                    </p>
+                    <p className="text-sm text-muted-foreground">No laboratories found matching &quot;{searchValue}&quot;</p>
                 )}
             </div>
 
@@ -187,9 +172,7 @@ export default function MSLLaboratoriesField({
             {selectedLaboratories.length > 0 && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                        <Label className="text-base font-semibold">
-                            Selected Laboratories ({selectedLaboratories.length})
-                        </Label>
+                        <Label className="text-base font-semibold">Selected Laboratories ({selectedLaboratories.length})</Label>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
@@ -198,9 +181,7 @@ export default function MSLLaboratoriesField({
                                 <div className="space-y-3">
                                     {/* Laboratory Name with Remove Button */}
                                     <div className="flex items-start justify-between gap-2">
-                                        <h4 className="text-base font-semibold leading-tight">
-                                            🔬 {lab.name}
-                                        </h4>
+                                        <h4 className="text-base leading-tight font-semibold">🔬 {lab.name}</h4>
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -220,12 +201,7 @@ export default function MSLLaboratoriesField({
 
                                     {/* ROR Badge */}
                                     {lab.affiliation_ror ? (
-                                        <a
-                                            href={lab.affiliation_ror}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex"
-                                        >
+                                        <a href={lab.affiliation_ror} target="_blank" rel="noopener noreferrer" className="inline-flex">
                                             <Badge
                                                 variant="outline"
                                                 className="cursor-pointer text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -234,10 +210,7 @@ export default function MSLLaboratoriesField({
                                             </Badge>
                                         </a>
                                     ) : (
-                                        <Badge
-                                            variant="outline"
-                                            className="cursor-not-allowed text-xs opacity-50"
-                                        >
+                                        <Badge variant="outline" className="cursor-not-allowed text-xs opacity-50">
                                             ⚠️ No ROR ID available
                                         </Badge>
                                     )}
@@ -251,9 +224,7 @@ export default function MSLLaboratoriesField({
             {/* Empty State */}
             {!isLoading && !error && selectedLaboratories.length === 0 && (
                 <div className="rounded-lg border border-dashed p-8 text-center">
-                    <p className="text-sm text-muted-foreground">
-                        No laboratories selected yet. Use the search above to add laboratories.
-                    </p>
+                    <p className="text-sm text-muted-foreground">No laboratories selected yet. Use the search above to add laboratories.</p>
                 </div>
             )}
         </div>

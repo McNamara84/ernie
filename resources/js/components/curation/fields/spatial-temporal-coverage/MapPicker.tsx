@@ -1,21 +1,9 @@
-import {
-    AdvancedMarker,
-    APIProvider,
-    Map,
-    MapMouseEvent,
-    useMap,
-} from '@vis.gl/react-google-maps';
+import { AdvancedMarker, APIProvider, Map, MapMouseEvent, useMap } from '@vis.gl/react-google-maps';
 import { Maximize2 } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -353,9 +341,7 @@ function MapPickerContent({
                         type="button"
                         variant={drawingMode === 'point' ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() =>
-                            setDrawingMode(drawingMode === 'point' ? null : 'point')
-                        }
+                        onClick={() => setDrawingMode(drawingMode === 'point' ? null : 'point')}
                     >
                         📍 Point
                     </Button>
@@ -372,7 +358,7 @@ function MapPickerContent({
                                 // Reset drag state when exiting rectangle mode
                                 setIsDragging(false);
                                 rectangleStart.current = null;
-                                
+
                                 // Re-enable map dragging if it was explicitly disabled
                                 // Check for explicit false value (not undefined) to avoid re-enabling when already enabled
                                 if (map.get('draggable') === false) {
@@ -385,7 +371,7 @@ function MapPickerContent({
                     </Button>
                 )}
                 {drawingMode && (
-                    <span className="text-xs text-muted-foreground self-center">
+                    <span className="self-center text-xs text-muted-foreground">
                         {drawingMode === 'point'
                             ? 'Click on the map to place a marker'
                             : isDragging
@@ -396,7 +382,7 @@ function MapPickerContent({
             </div>
 
             {/* Map Container */}
-            <div className="relative h-64 rounded-lg overflow-hidden border">
+            <div className="relative h-64 overflow-hidden rounded-lg border">
                 <Map
                     mapId="spatial-coverage-map"
                     defaultCenter={{ lat: 48.137154, lng: 11.576124 }} // Munich as default
@@ -411,8 +397,7 @@ function MapPickerContent({
             </div>
 
             <p className="text-xs text-muted-foreground">
-                Use the drawing tools to select a point or rectangle on the map. The
-                coordinates will be automatically filled in the form.
+                Use the drawing tools to select a point or rectangle on the map. The coordinates will be automatically filled in the form.
             </p>
         </div>
     );
@@ -429,13 +414,8 @@ export default function MapPicker(props: MapPickerProps) {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">Map Picker</Label>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsFullscreen(true)}
-                >
-                    <Maximize2 className="h-4 w-4 mr-2" />
+                <Button type="button" variant="outline" size="sm" onClick={() => setIsFullscreen(true)}>
+                    <Maximize2 className="mr-2 h-4 w-4" />
                     Fullscreen
                 </Button>
             </div>
@@ -446,14 +426,12 @@ export default function MapPicker(props: MapPickerProps) {
 
             {/* Fullscreen Dialog */}
             <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-                <DialogContent className="max-w-5xl h-[80vh]">
+                <DialogContent className="h-[80vh] max-w-5xl">
                     <DialogHeader>
                         <DialogTitle>Map Picker - Fullscreen</DialogTitle>
-                        <DialogDescription>
-                            Select a point or rectangle to define the spatial coverage.
-                        </DialogDescription>
+                        <DialogDescription>Select a point or rectangle to define the spatial coverage.</DialogDescription>
                     </DialogHeader>
-                    <div className="flex-1 h-full">
+                    <div className="h-full flex-1">
                         <APIProvider apiKey={props.apiKey}>
                             <MapPickerContent {...props} />
                         </APIProvider>

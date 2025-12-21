@@ -18,9 +18,7 @@ export default function AbstractAnalysis({ data }: AbstractAnalysisProps) {
                 <div className="rounded-lg border bg-card p-4">
                     <div className="mb-2 flex items-center justify-between">
                         <h4 className="font-semibold">Longest Abstract</h4>
-                        <span className="text-sm text-muted-foreground">
-                            {data.longest_abstract.length.toLocaleString()} characters
-                        </span>
+                        <span className="text-sm text-muted-foreground">{data.longest_abstract.length.toLocaleString()} characters</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
                         {data.longest_abstract.preview}
@@ -33,13 +31,9 @@ export default function AbstractAnalysis({ data }: AbstractAnalysisProps) {
                 <div className="rounded-lg border bg-card p-4">
                     <div className="mb-2 flex items-center justify-between">
                         <h4 className="font-semibold">Shortest Abstract</h4>
-                        <span className="text-sm text-muted-foreground">
-                            {data.shortest_abstract.length.toLocaleString()} characters
-                        </span>
+                        <span className="text-sm text-muted-foreground">{data.shortest_abstract.length.toLocaleString()} characters</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        {data.shortest_abstract.preview}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{data.shortest_abstract.preview}</p>
                 </div>
             )}
         </div>

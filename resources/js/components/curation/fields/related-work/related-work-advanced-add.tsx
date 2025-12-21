@@ -3,18 +3,9 @@ import { Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useIdentifierValidation } from '@/hooks/use-identifier-validation';
-import {
-    getAllRelationTypes,
-    RELATION_TYPE_DESCRIPTIONS,
-} from '@/lib/related-identifiers';
+import { getAllRelationTypes, RELATION_TYPE_DESCRIPTIONS } from '@/lib/related-identifiers';
 import type { IdentifierType, RelatedIdentifierFormData, RelationType } from '@/types';
 
 interface RelatedWorkAdvancedAddProps {
@@ -29,7 +20,7 @@ interface RelatedWorkAdvancedAddProps {
 
 /**
  * RelatedWorkAdvancedAdd Component
- * 
+ *
  * Advanced mode showing all 33 DataCite relation types
  * grouped by category for better navigation.
  */
@@ -97,15 +88,10 @@ export default function RelatedWorkAdvancedAdd({
         <div className="space-y-4">
             {/* Header */}
             <div className="space-y-2">
-                <Label className="text-base font-semibold">
-                    Advanced Mode - All Relation Types
-                </Label>
+                <Label className="text-base font-semibold">Advanced Mode - All Relation Types</Label>
                 <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                    <p>
-                        Browse all 33 DataCite relation types organized by category.
-                        Select the precise relationship that matches your needs.
-                    </p>
+                    <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                    <p>Browse all 33 DataCite relation types organized by category. Select the precise relationship that matches your needs.</p>
                 </div>
             </div>
 
@@ -113,9 +99,7 @@ export default function RelatedWorkAdvancedAdd({
             <div className="grid gap-4 md:grid-cols-12">
                 {/* Identifier Input */}
                 <div className="md:col-span-5">
-                    <Label htmlFor="advanced-identifier">
-                        Identifier
-                    </Label>
+                    <Label htmlFor="advanced-identifier">Identifier</Label>
                     <div className="relative">
                         <Input
                             id="advanced-identifier"
@@ -135,16 +119,12 @@ export default function RelatedWorkAdvancedAdd({
                             }`}
                         />
                         {validation.status === 'validating' && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="absolute top-1/2 right-3 -translate-y-1/2">
                                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                             </div>
                         )}
                     </div>
-                    {validation.status === 'invalid' && (
-                        <p className="mt-1 text-xs text-red-600">
-                            Invalid {identifierType} format
-                        </p>
-                    )}
+                    {validation.status === 'invalid' && <p className="mt-1 text-xs text-red-600">Invalid {identifierType} format</p>}
                     {validation.status === 'warning' && (
                         <p className="mt-1 text-xs text-yellow-600">
                             <Info className="mr-1 inline h-3 w-3" />
@@ -152,21 +132,14 @@ export default function RelatedWorkAdvancedAdd({
                         </p>
                     )}
                     {validation.status === 'valid' && validation.metadata?.title && (
-                        <p className="mt-1 text-xs text-green-600">
-                            ✓ {validation.metadata.title}
-                        </p>
+                        <p className="mt-1 text-xs text-green-600">✓ {validation.metadata.title}</p>
                     )}
                 </div>
 
                 {/* Identifier Type Select */}
                 <div className="md:col-span-2">
-                    <Label htmlFor="advanced-identifier-type">
-                        Type
-                    </Label>
-                    <Select
-                        value={identifierType}
-                        onValueChange={(value) => onIdentifierTypeChange(value as IdentifierType)}
-                    >
+                    <Label htmlFor="advanced-identifier-type">Type</Label>
+                    <Select value={identifierType} onValueChange={(value) => onIdentifierTypeChange(value as IdentifierType)}>
                         <SelectTrigger id="advanced-identifier-type">
                             <SelectValue />
                         </SelectTrigger>
@@ -182,13 +155,8 @@ export default function RelatedWorkAdvancedAdd({
 
                 {/* Relation Type Select - Grouped */}
                 <div className="md:col-span-4">
-                    <Label htmlFor="advanced-relation-type">
-                        Relation Type
-                    </Label>
-                    <Select
-                        value={relationType}
-                        onValueChange={(value) => onRelationTypeChange(value as RelationType)}
-                    >
+                    <Label htmlFor="advanced-relation-type">Relation Type</Label>
+                    <Select value={relationType} onValueChange={(value) => onRelationTypeChange(value as RelationType)}>
                         <SelectTrigger id="advanced-relation-type">
                             <SelectValue />
                         </SelectTrigger>
@@ -197,9 +165,7 @@ export default function RelatedWorkAdvancedAdd({
                                 <SelectItem key={type} value={type}>
                                     <div className="flex flex-col items-start">
                                         <span className="font-medium">{type}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {RELATION_TYPE_DESCRIPTIONS[type]}
-                                        </span>
+                                        <span className="text-xs text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[type]}</span>
                                     </div>
                                 </SelectItem>
                             ))}
@@ -225,9 +191,7 @@ export default function RelatedWorkAdvancedAdd({
                 <div className="rounded-lg bg-muted/50 p-3">
                     <p className="text-sm">
                         <span className="font-semibold">{relationType}:</span>{' '}
-                        <span className="text-muted-foreground">
-                            {RELATION_TYPE_DESCRIPTIONS[relationType]}
-                        </span>
+                        <span className="text-muted-foreground">{RELATION_TYPE_DESCRIPTIONS[relationType]}</span>
                     </p>
                 </div>
             )}

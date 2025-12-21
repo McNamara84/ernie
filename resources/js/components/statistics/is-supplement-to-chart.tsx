@@ -58,26 +58,16 @@ export default function IsSupplementToChart({ data }: IsSupplementToChartProps) 
                                     <div className="rounded-lg border bg-background p-3 shadow-sm">
                                         <div className="grid gap-2">
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Category
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Category</span>
                                                 <span className="font-bold">{data.name}</span>
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Datasets
-                                                </span>
-                                                <span className="font-bold text-muted-foreground">
-                                                    {data.value.toLocaleString()}
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Datasets</span>
+                                                <span className="font-bold text-muted-foreground">{data.value.toLocaleString()}</span>
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Percentage
-                                                </span>
-                                                <span className="font-bold text-muted-foreground">
-                                                    {data.percentage}%
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Percentage</span>
+                                                <span className="font-bold text-muted-foreground">{data.percentage}%</span>
                                             </div>
                                         </div>
                                     </div>
@@ -94,32 +84,20 @@ export default function IsSupplementToChart({ data }: IsSupplementToChartProps) 
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="rounded-lg border p-4">
                     <div className="flex items-center gap-2">
-                        <div
-                            className="h-4 w-4 rounded"
-                            style={{ backgroundColor: COLORS.with }}
-                        />
+                        <div className="h-4 w-4 rounded" style={{ backgroundColor: COLORS.with }} />
                         <h4 className="text-sm font-medium">With IsSupplementTo</h4>
                     </div>
                     <p className="mt-2 text-2xl font-bold">{data.withIsSupplementTo.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">
-                        {data.percentageWith}% of all datasets
-                    </p>
+                    <p className="text-sm text-muted-foreground">{data.percentageWith}% of all datasets</p>
                 </div>
 
                 <div className="rounded-lg border p-4">
                     <div className="flex items-center gap-2">
-                        <div
-                            className="h-4 w-4 rounded"
-                            style={{ backgroundColor: COLORS.without }}
-                        />
+                        <div className="h-4 w-4 rounded" style={{ backgroundColor: COLORS.without }} />
                         <h4 className="text-sm font-medium">Without IsSupplementTo</h4>
                     </div>
-                    <p className="mt-2 text-2xl font-bold">
-                        {data.withoutIsSupplementTo.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        {data.percentageWithout}% of all datasets
-                    </p>
+                    <p className="mt-2 text-2xl font-bold">{data.withoutIsSupplementTo.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{data.percentageWithout}% of all datasets</p>
                 </div>
             </div>
         </div>

@@ -1,21 +1,14 @@
 /**
  * ContributorField Component (Main)
- * 
+ *
  * Main component for managing contributors in the DataCite form.
  * Coordinates between list, items, quick-add, and CSV import.
  */
 
-import React from 'react';
-
 import type { AffiliationSuggestion } from '@/types/affiliations';
 
 import ContributorList from './contributor-list';
-import type {
-    ContributorEntry,
-    ContributorType,
-    InstitutionContributorEntry,
-    PersonContributorEntry,
-} from './types';
+import type { ContributorEntry, ContributorType, InstitutionContributorEntry, PersonContributorEntry } from './types';
 import { MAX_CONTRIBUTORS } from './types';
 
 interface ContributorFieldProps {
@@ -74,7 +67,7 @@ export default function ContributorField({
 }: ContributorFieldProps) {
     const handleAdd = (type: ContributorType = 'person') => {
         if (contributors.length >= MAX_CONTRIBUTORS) return;
-        
+
         const newContributor = createEmptyContributor(type);
         onChange([...contributors, newContributor]);
     };
@@ -91,12 +84,12 @@ export default function ContributorField({
 
     const handleBulkAdd = (newContributors: ContributorEntry[]) => {
         const remainingSlots = MAX_CONTRIBUTORS - contributors.length;
-        
+
         if (newContributors.length > remainingSlots) {
             alert(
                 `Cannot add all ${newContributors.length} contributors. ` +
-                `Only ${remainingSlots} slot(s) available. ` +
-                `The first ${remainingSlots} will be imported.`
+                    `Only ${remainingSlots} slot(s) available. ` +
+                    `The first ${remainingSlots} will be imported.`,
             );
             const limitedContributors = newContributors.slice(0, remainingSlots);
             onChange([...contributors, ...limitedContributors]);
@@ -121,19 +114,11 @@ export default function ContributorField({
 
             {/* Max limit info */}
             {contributors.length > 0 && contributors.length >= MAX_CONTRIBUTORS && (
-                <p className="text-sm text-muted-foreground text-center">
-                    Maximum number of contributors ({MAX_CONTRIBUTORS}) reached.
-                </p>
+                <p className="text-center text-sm text-muted-foreground">Maximum number of contributors ({MAX_CONTRIBUTORS}) reached.</p>
             )}
         </div>
     );
 }
 
 // Re-export types for convenience
-export type {
-    ContributorEntry,
-    ContributorRoleTag,
-    ContributorType,
-    InstitutionContributorEntry,
-    PersonContributorEntry,
-} from './types';
+export type { ContributorEntry, ContributorRoleTag, ContributorType, InstitutionContributorEntry, PersonContributorEntry } from './types';

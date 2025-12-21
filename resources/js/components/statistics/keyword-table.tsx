@@ -1,19 +1,6 @@
 import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type KeywordTableProps = {
     data: {
@@ -39,9 +26,7 @@ export default function KeywordTable({ data }: KeywordTableProps) {
         <Card className="col-span-2">
             <CardHeader>
                 <CardTitle>Top Keywords</CardTitle>
-                <CardDescription>
-                    Most frequently used controlled keywords ({data.controlled.length} shown)
-                </CardDescription>
+                <CardDescription>Most frequently used controlled keywords ({data.controlled.length} shown)</CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="max-h-[400px] overflow-auto rounded-md border">
@@ -59,14 +44,8 @@ export default function KeywordTable({ data }: KeywordTableProps) {
                                 <TableRow key={index}>
                                     <TableCell className="font-medium">{index + 1}</TableCell>
                                     <TableCell>{item.keyword}</TableCell>
-                                    <TableCell>
-                                        {item.thesaurus && (
-                                            <Badge variant="outline">{item.thesaurus}</Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {item.count.toLocaleString()}
-                                    </TableCell>
+                                    <TableCell>{item.thesaurus && <Badge variant="outline">{item.thesaurus}</Badge>}</TableCell>
+                                    <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

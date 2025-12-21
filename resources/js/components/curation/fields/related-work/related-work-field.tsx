@@ -21,45 +21,45 @@ interface RelatedWorkFieldProps {
  */
 function detectIdentifierType(value: string): IdentifierType {
     const trimmed = value.trim();
-    
+
     // DOI with URL prefix
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
     if (doiUrlMatch) {
         return 'DOI';
     }
-    
+
     // DOI patterns (without URL prefix)
     if (trimmed.match(/^10\.\d{4,}/)) {
         return 'DOI';
     }
-    
+
     // Handle URL patterns (must be checked before generic URL)
     // Matches: http://hdl.handle.net/prefix/suffix or https://hdl.handle.net/prefix/suffix
     if (trimmed.match(/^https?:\/\/hdl\.handle\.net\/\S+/i)) {
         return 'Handle';
     }
-    
+
     // URL patterns
     if (trimmed.match(/^https?:\/\//i)) {
         return 'URL';
     }
-    
+
     // Handle patterns (bare format: prefix/suffix where prefix is numeric)
     if (trimmed.match(/^\d+\/\S+$/)) {
         return 'Handle';
     }
-    
+
     // Default to DOI if it looks like one
     if (trimmed.includes('/') && !trimmed.includes(' ')) {
         return 'DOI';
     }
-    
+
     return 'URL';
 }
 
 /**
  * RelatedWorkField Component
- * 
+ *
  * Main container for the Related Work functionality.
  * Manages state and coordinates between:
  * - Quick Add form (Top 5 most used)
@@ -86,15 +86,10 @@ function normalizeIdentifier(identifier: string, identifierType: string): string
  * A duplicate is only when BOTH identifier AND relation type are the same
  * (same identifier with different relation types is valid)
  */
-function isDuplicate(
-    identifier: string,
-    identifierType: string,
-    relationType: string,
-    existingItems: RelatedIdentifier[]
-): boolean {
+function isDuplicate(identifier: string, identifierType: string, relationType: string, existingItems: RelatedIdentifier[]): boolean {
     const normalized = normalizeIdentifier(identifier, identifierType);
-    
-    return existingItems.some(item => {
+
+    return existingItems.some((item) => {
         // Must match both identifier type AND relation type
         if (item.identifier_type !== identifierType || item.relation_type !== relationType) {
             return false;
@@ -104,14 +99,11 @@ function isDuplicate(
     });
 }
 
-export default function RelatedWorkField({
-    relatedWorks,
-    onChange,
-}: RelatedWorkFieldProps) {
+export default function RelatedWorkField({ relatedWorks, onChange }: RelatedWorkFieldProps) {
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [showCsvImport, setShowCsvImport] = useState(false);
     const [duplicateError, setDuplicateError] = useState<string | null>(null);
-    
+
     // Shared form state - persisted across mode switches
     const [identifier, setIdentifier] = useState('');
     const [identifierType, setIdentifierType] = useState<IdentifierType>('DOI');
@@ -128,8 +120,10 @@ export default function RelatedWorkField({
     const handleAdd = (data: RelatedIdentifierFormData) => {
         // Check for duplicates (same identifier AND same relation type)
         if (isDuplicate(data.identifier, data.identifierType, data.relationType, relatedWorks)) {
-            setDuplicateError(`This exact relation already exists in the list (same identifier and relation type). Note: You can add the same identifier with a different relation type.`);
-            
+            setDuplicateError(
+                `This exact relation already exists in the list (same identifier and relation type). Note: You can add the same identifier with a different relation type.`,
+            );
+
             // Clear error after 5 seconds
             setTimeout(() => setDuplicateError(null), 5000);
             return;
@@ -146,7 +140,7 @@ export default function RelatedWorkField({
         };
 
         onChange([...relatedWorks, newItem]);
-        
+
         // Reset form after successful add
         setIdentifier('');
         setIdentifierType('DOI');
@@ -177,7 +171,7 @@ export default function RelatedWorkField({
         // Show warning if duplicates were skipped
         if (skippedDuplicates.length > 0) {
             setDuplicateError(
-                `Skipped ${skippedDuplicates.length} duplicate(s) from CSV import: ${skippedDuplicates.slice(0, 3).join(', ')}${skippedDuplicates.length > 3 ? '...' : ''}`
+                `Skipped ${skippedDuplicates.length} duplicate(s) from CSV import: ${skippedDuplicates.slice(0, 3).join(', ')}${skippedDuplicates.length > 3 ? '...' : ''}`,
             );
             setTimeout(() => setDuplicateError(null), 8000);
         }
@@ -185,7 +179,7 @@ export default function RelatedWorkField({
 
     const handleRemove = (index: number) => {
         const updated = relatedWorks.filter((_, i) => i !== index);
-        
+
         // Re-assign positions after removal
         const reindexed = updated.map((item, i) => ({
             ...item,
@@ -211,10 +205,7 @@ export default function RelatedWorkField({
             {/* CSV Import Modal */}
             {showCsvImport ? (
                 <div className="rounded-lg border bg-card p-6">
-                    <RelatedWorkCsvImport
-                        onImport={handleBulkImport}
-                        onClose={() => setShowCsvImport(false)}
-                    />
+                    <RelatedWorkCsvImport onImport={handleBulkImport} onClose={() => setShowCsvImport(false)} />
                 </div>
             ) : (
                 <>
@@ -245,7 +236,7 @@ export default function RelatedWorkField({
                                 <button
                                     type="button"
                                     onClick={handleToggleAdvanced}
-                                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                                    className="text-xs text-muted-foreground underline hover:text-foreground"
                                 >
                                     ← Switch to simple mode
                                 </button>
@@ -255,12 +246,7 @@ export default function RelatedWorkField({
 
                     {/* CSV Import Button */}
                     <div className="flex justify-end">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowCsvImport(true)}
-                        >
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowCsvImport(true)}>
                             <FileUp className="mr-2 h-4 w-4" />
                             Import from CSV
                         </Button>
@@ -269,12 +255,7 @@ export default function RelatedWorkField({
             )}
 
             {/* List of Added Items */}
-            {relatedWorks.length > 0 && (
-                <RelatedWorkList
-                    items={relatedWorks}
-                    onRemove={handleRemove}
-                />
-            )}
+            {relatedWorks.length > 0 && <RelatedWorkList items={relatedWorks} onRemove={handleRemove} />}
         </div>
     );
 }

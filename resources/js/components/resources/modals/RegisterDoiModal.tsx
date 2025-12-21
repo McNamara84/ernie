@@ -7,22 +7,9 @@ import { toast } from 'sonner';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { withBasePath } from '@/lib/base-path';
 import { type User as AuthUser } from '@/types';
 
@@ -61,12 +48,7 @@ interface PrefixConfig {
     test_mode: boolean;
 }
 
-export default function RegisterDoiModal({
-    resource,
-    isOpen,
-    onClose,
-    onSuccess,
-}: RegisterDoiModalProps) {
+export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess }: RegisterDoiModalProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const [selectedPrefix, setSelectedPrefix] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,9 +78,7 @@ export default function RegisterDoiModal({
         setIsLoadingConfig(true);
         try {
             // Get prefix configuration from backend
-            const response = await axios.get<PrefixConfig>(
-                withBasePath('/api/datacite/prefixes')
-            );
+            const response = await axios.get<PrefixConfig>(withBasePath('/api/datacite/prefixes'));
 
             // Use test mode from backend configuration
             const testMode = response.data.test_mode;
@@ -141,25 +121,19 @@ export default function RegisterDoiModal({
         setIsSubmitting(true);
 
         try {
-            const response = await axios.post<DoiRegistrationResponse>(
-                withBasePath(`/resources/${resource.id}/register-doi`),
-                {
-                    prefix: selectedPrefix,
-                }
-            );
+            const response = await axios.post<DoiRegistrationResponse>(withBasePath(`/resources/${resource.id}/register-doi`), {
+                prefix: selectedPrefix,
+            });
 
             const { doi, updated, mode } = response.data;
 
             // Show success toast
             const modeLabel = mode === 'test' ? 'Test' : 'Production';
             const action = updated ? 'updated' : 'registered';
-            toast.success(
-                `DOI ${action} successfully`,
-                {
-                    description: `${modeLabel} DOI: ${doi}`,
-                    duration: 5000,
-                }
-            );
+            toast.success(`DOI ${action} successfully`, {
+                description: `${modeLabel} DOI: ${doi}`,
+                duration: 5000,
+            });
 
             // Close modal first to ensure UI is updated
             onClose();
@@ -174,11 +148,10 @@ export default function RegisterDoiModal({
                     // This helps debug issues in the callback implementation
                     console.warn(
                         'Warning: Error in DOI registration success callback. This may indicate a bug in the callback implementation.',
-                        callbackError
+                        callbackError,
                     );
                 }
             }
-
         } catch (err) {
             console.error('DOI registration failed:', err);
 
@@ -215,9 +188,7 @@ export default function RegisterDoiModal({
                         {hasExistingDoi ? 'Update DOI Metadata' : 'Register DOI with DataCite'}
                     </DialogTitle>
                     <DialogDescription>
-                        {hasExistingDoi
-                            ? `Update metadata for existing DOI: ${resource.doi}`
-                            : 'Register a new DOI for this resource with DataCite.'}
+                        {hasExistingDoi ? `Update metadata for existing DOI: ${resource.doi}` : 'Register a new DOI for this resource with DataCite.'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -228,8 +199,7 @@ export default function RegisterDoiModal({
                             <AlertCircle className="size-4" />
                             <AlertTitle>Landing Page Required</AlertTitle>
                             <AlertDescription>
-                                A landing page must be created before you can register a DOI. Please
-                                set up a landing page first using the eye icon.
+                                A landing page must be created before you can register a DOI. Please set up a landing page first using the eye icon.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -240,8 +210,8 @@ export default function RegisterDoiModal({
                             <AlertCircle className="size-4" />
                             <AlertTitle>Test Mode Active</AlertTitle>
                             <AlertDescription>
-                                You are using the DataCite test environment. DOIs registered in test
-                                mode are not permanent and should only be used for testing purposes.
+                                You are using the DataCite test environment. DOIs registered in test mode are not permanent and should only be used
+                                for testing purposes.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -252,7 +222,8 @@ export default function RegisterDoiModal({
                             <GraduationCap className="size-4" />
                             <AlertTitle>Beginner Mode</AlertTitle>
                             <AlertDescription>
-                                As a beginner user, you can only register test DOIs. Contact an admin or group leader to be promoted to curator role for production DOI registration.
+                                As a beginner user, you can only register test DOIs. Contact an admin or group leader to be promoted to curator role
+                                for production DOI registration.
                             </AlertDescription>
                         </Alert>
                     )}
@@ -274,16 +245,9 @@ export default function RegisterDoiModal({
                     {!hasExistingDoi && hasLandingPage && !isLoadingConfig && (
                         <div className="space-y-3">
                             <Label htmlFor="prefix-selection">
-                                Select DOI Prefix{' '}
-                                <span className="text-muted-foreground text-xs">
-                                    ({isTestMode ? 'Test' : 'Production'} Mode)
-                                </span>
+                                Select DOI Prefix <span className="text-xs text-muted-foreground">({isTestMode ? 'Test' : 'Production'} Mode)</span>
                             </Label>
-                            <Select
-                                value={selectedPrefix}
-                                onValueChange={setSelectedPrefix}
-                                disabled={isSubmitting}
-                            >
+                            <Select value={selectedPrefix} onValueChange={setSelectedPrefix} disabled={isSubmitting}>
                                 <SelectTrigger id="prefix-selection">
                                     <SelectValue placeholder="Select a prefix" />
                                 </SelectTrigger>
@@ -306,9 +270,7 @@ export default function RegisterDoiModal({
                     {/* Loading State */}
                     {isLoadingConfig && (
                         <div className="flex items-center justify-center py-4">
-                            <div className="animate-pulse text-muted-foreground">
-                                Loading configuration...
-                            </div>
+                            <div className="animate-pulse text-muted-foreground">Loading configuration...</div>
                         </div>
                     )}
 
@@ -328,19 +290,18 @@ export default function RegisterDoiModal({
                     </Button>
                     <Button
                         onClick={handleSubmit}
-                        disabled={
-                            isSubmitting ||
-                            !hasLandingPage ||
-                            (!hasExistingDoi && !selectedPrefix) ||
-                            isLoadingConfig
-                        }
+                        disabled={isSubmitting || !hasLandingPage || (!hasExistingDoi && !selectedPrefix) || isLoadingConfig}
                     >
                         {isSubmitting ? (
                             <>
                                 <span className="mr-2" aria-live="polite">
                                     Processing...
                                 </span>
-                                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" role="status" aria-label="Loading">
+                                <span
+                                    className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                                    role="status"
+                                    aria-label="Loading"
+                                >
                                     <span className="sr-only">Loading</span>
                                 </span>
                             </>

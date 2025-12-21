@@ -1,6 +1,6 @@
 /**
  * ContributorItem Component
- * 
+ *
  * Individual contributor entry with all fields.
  * Supports both person and institution types with roles and drag & drop reordering.
  * Migrated from contributor-field.tsx
@@ -61,14 +61,7 @@ export default function ContributorItem({
     const isPerson = contributor.type === 'person';
 
     // Drag & Drop
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-        isDragging,
-    } = useSortable({ id: contributor.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: contributor.id });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -91,7 +84,7 @@ export default function ContributorItem({
     // ORCID Auto-Fill State
     const [isVerifying, setIsVerifying] = useState(false);
     const [verificationError, setVerificationError] = useState<string | null>(null);
-    
+
     // ORCID Auto-Suggest State
     const [orcidSuggestions, setOrcidSuggestions] = useState<OrcidSearchResult[]>([]);
     const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
@@ -121,25 +114,21 @@ export default function ContributorItem({
     const affiliationsWithRorId = useMemo(() => {
         const seen = new Set<string>();
 
-        return contributor.affiliations.reduce<{ value: string; rorId: string }[]>(
-            (accumulator, affiliation) => {
-                const value = affiliation.value.trim();
-                const rorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
+        return contributor.affiliations.reduce<{ value: string; rorId: string }[]>((accumulator, affiliation) => {
+            const value = affiliation.value.trim();
+            const rorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
 
-                if (!value || !rorId || seen.has(rorId)) {
-                    return accumulator;
-                }
-
-                seen.add(rorId);
-                accumulator.push({ value, rorId });
+            if (!value || !rorId || seen.has(rorId)) {
                 return accumulator;
-            },
-            [],
-        );
+            }
+
+            seen.add(rorId);
+            accumulator.push({ value, rorId });
+            return accumulator;
+        }, []);
     }, [contributor.affiliations]);
 
-    const affiliationsDescriptionId =
-        affiliationsWithRorId.length > 0 ? `${contributor.id}-contributor-affiliations` : undefined;
+    const affiliationsDescriptionId = affiliationsWithRorId.length > 0 ? `${contributor.id}-contributor-affiliations` : undefined;
 
     const rolesHintId = `${contributor.id}-roles-hint`;
     const rolesUnavailableId = `${contributor.id}-roles-unavailable`;
@@ -152,12 +141,12 @@ export default function ContributorItem({
      */
     const handleOrcidSelect = async (orcid: string, searchResult: OrcidSearchResult) => {
         if (contributor.type !== 'person') return;
-        
+
         // Set the ORCID and clear any previous errors
         // Use onPersonFieldChange directly to avoid triggering hasUserInteracted
         onPersonFieldChange('orcid', orcid);
         setVerificationError(null);
-        
+
         // Auto-fill name fields if empty
         if (!contributor.firstName && searchResult.firstName) {
             onPersonFieldChange('firstName', searchResult.firstName);
@@ -165,21 +154,21 @@ export default function ContributorItem({
         if (!contributor.lastName && searchResult.lastName) {
             onPersonFieldChange('lastName', searchResult.lastName);
         }
-        
+
         // Now verify and fetch full details
         setIsVerifying(true);
-        
+
         try {
             const response = await OrcidService.fetchOrcidRecord(orcid);
-            
+
             if (!response.success || !response.data) {
                 setVerificationError(response.error || 'Failed to fetch ORCID data');
                 setIsVerifying(false);
                 return;
             }
-            
+
             const data = response.data;
-            
+
             // Update with complete ORCID data
             const updatedContributor: PersonContributorEntry = {
                 ...contributor,
@@ -193,26 +182,19 @@ export default function ContributorItem({
             // Auto-fill affiliations from full ORCID record
             if (data.affiliations.length > 0) {
                 const employmentAffiliations = data.affiliations
-                    .filter(aff => aff.type === 'employment' && aff.name)
-                    .map(aff => ({
+                    .filter((aff) => aff.type === 'employment' && aff.name)
+                    .map((aff) => ({
                         value: aff.name!,
                         rorId: null,
                     }));
 
                 if (employmentAffiliations.length > 0) {
-                    const existingValues = new Set(contributor.affiliations.map(a => a.value));
-                    const newAffiliations = employmentAffiliations.filter(
-                        a => !existingValues.has(a.value)
-                    );
+                    const existingValues = new Set(contributor.affiliations.map((a) => a.value));
+                    const newAffiliations = employmentAffiliations.filter((a) => !existingValues.has(a.value));
 
                     if (newAffiliations.length > 0) {
-                        updatedContributor.affiliations = [
-                            ...contributor.affiliations,
-                            ...newAffiliations as AffiliationTag[],
-                        ];
-                        updatedContributor.affiliationsInput = updatedContributor.affiliations
-                            .map((a: AffiliationTag) => a.value)
-                            .join(', ');
+                        updatedContributor.affiliations = [...contributor.affiliations, ...(newAffiliations as AffiliationTag[])];
+                        updatedContributor.affiliationsInput = updatedContributor.affiliations.map((a: AffiliationTag) => a.value).join(', ');
                     }
                 }
             }
@@ -225,7 +207,7 @@ export default function ContributorItem({
             setIsVerifying(false);
         }
     };
-    
+
     /**
      * Handle selecting an ORCID suggestion
      */
@@ -233,11 +215,11 @@ export default function ContributorItem({
         setShowSuggestions(false);
         await handleOrcidSelect(suggestion.orcid, suggestion);
     };
-    
+
     /**
      * Auto-suggest ORCIDs based on name and affiliations
      * Triggered when firstName + lastName are filled and ORCID is empty
-     * 
+     *
      * IMPORTANT: Only trigger after user interaction to prevent unwanted searches
      * when loading old records into the editor.
      */
@@ -267,7 +249,7 @@ export default function ContributorItem({
             try {
                 // Build search query: "FirstName LastName"
                 let searchQuery = `${contributor.firstName.trim()} ${contributor.lastName.trim()}`;
-                
+
                 // Add first affiliation if available to refine search
                 if (contributor.affiliations.length > 0 && contributor.affiliations[0].value) {
                     searchQuery += ` ${contributor.affiliations[0].value}`;
@@ -322,7 +304,7 @@ export default function ContributorItem({
             try {
                 // Validate ORCID exists
                 const validationResponse = await OrcidService.validateOrcid(contributor.orcid);
-                
+
                 if (!validationResponse.success || !validationResponse.data?.exists) {
                     setVerificationError('ORCID not found');
                     setIsVerifying(false);
@@ -352,26 +334,19 @@ export default function ContributorItem({
                 // Auto-fill affiliations from full ORCID record
                 if (data.affiliations.length > 0) {
                     const employmentAffiliations = data.affiliations
-                        .filter(aff => aff.type === 'employment' && aff.name)
-                        .map(aff => ({
+                        .filter((aff) => aff.type === 'employment' && aff.name)
+                        .map((aff) => ({
                             value: aff.name!,
                             rorId: null,
                         }));
 
                     if (employmentAffiliations.length > 0) {
-                        const existingValues = new Set(contributor.affiliations.map(a => a.value));
-                        const newAffiliations = employmentAffiliations.filter(
-                            a => !existingValues.has(a.value)
-                        );
+                        const existingValues = new Set(contributor.affiliations.map((a) => a.value));
+                        const newAffiliations = employmentAffiliations.filter((a) => !existingValues.has(a.value));
 
                         if (newAffiliations.length > 0) {
-                            updatedContributor.affiliations = [
-                                ...contributor.affiliations,
-                                ...newAffiliations as AffiliationTag[],
-                            ];
-                            updatedContributor.affiliationsInput = updatedContributor.affiliations
-                                .map((a: AffiliationTag) => a.value)
-                                .join(', ');
+                            updatedContributor.affiliations = [...contributor.affiliations, ...(newAffiliations as AffiliationTag[])];
+                            updatedContributor.affiliationsInput = updatedContributor.affiliations.map((a: AffiliationTag) => a.value).join(', ');
                         }
                     }
                 }
@@ -423,7 +398,7 @@ export default function ContributorItem({
                     {/* Drag Handle */}
                     <button
                         type="button"
-                        className="cursor-grab active:cursor-grabbing touch-none text-muted-foreground hover:text-foreground transition-colors"
+                        className="cursor-grab touch-none text-muted-foreground transition-colors hover:text-foreground active:cursor-grabbing"
                         {...attributes}
                         {...listeners}
                         aria-label={`Reorder contributor ${index + 1}`}
@@ -431,10 +406,7 @@ export default function ContributorItem({
                         <GripVertical className="h-5 w-5" />
                     </button>
                     <div>
-                        <h3
-                            id={`${contributor.id}-heading`}
-                            className="text-lg font-semibold leading-6 text-foreground"
-                        >
+                        <h3 id={`${contributor.id}-heading`} className="text-lg leading-6 font-semibold text-foreground">
                             Contributor {index + 1}
                         </h3>
                     </div>
@@ -486,11 +458,7 @@ export default function ContributorItem({
                                 })),
                             })
                         }
-                        placeholder={
-                            hasRoleOptions
-                                ? 'Select one or more roles'
-                                : 'No roles available for this contributor type'
-                        }
+                        placeholder={hasRoleOptions ? 'Select one or more roles' : 'No roles available for this contributor type'}
                         disabled={!hasRoleOptions}
                         containerProps={{
                             className: 'md:col-span-6 lg:col-span-8',
@@ -507,11 +475,7 @@ export default function ContributorItem({
                     Choose all roles that apply to this contributor.
                 </p>
                 {!hasRoleOptions && (
-                    <p
-                        id={rolesUnavailableId}
-                        className="text-sm text-muted-foreground md:col-span-6 lg:col-span-8"
-                        role="status"
-                    >
+                    <p id={rolesUnavailableId} className="text-sm text-muted-foreground md:col-span-6 lg:col-span-8" role="status">
                         No roles are available for {isPerson ? 'person' : 'institution'} contributors yet.
                     </p>
                 )}
@@ -521,19 +485,16 @@ export default function ContributorItem({
                     <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3">
                         {/* ORCID with Verify & Fill Button */}
                         <div className="relative flex flex-col gap-2 md:col-span-12 lg:col-span-4" data-testid={`contributor-${index}-orcid-field`}>
-                            <Label htmlFor={`${contributor.id}-orcid`} className="inline-flex items-baseline flex-wrap gap-x-2">
+                            <Label htmlFor={`${contributor.id}-orcid`} className="inline-flex flex-wrap items-baseline gap-x-2">
                                 <span>ORCID</span>
                                 {contributor.type === 'person' && contributor.orcidVerified && (
-                                    <Badge 
-                                        variant="outline" 
-                                        className="text-green-600 border-green-600 h-4 py-0 px-1.5 text-[10px] leading-none"
-                                    >
-                                        <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
+                                    <Badge variant="outline" className="h-4 border-green-600 px-1.5 py-0 text-[10px] leading-none text-green-600">
+                                        <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" />
                                         Verified
                                     </Badge>
                                 )}
                                 {isVerifying && (
-                                    <span className="text-[10px] text-muted-foreground inline-flex items-center gap-0.5">
+                                    <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
                                         <Loader2 className="h-2.5 w-2.5 animate-spin" />
                                         Verifying...
                                     </span>
@@ -544,92 +505,78 @@ export default function ContributorItem({
                                     id={`${contributor.id}-orcid`}
                                     type="text"
                                     value={contributor.orcid || ''}
-                                    onChange={(event) =>
-                                        handlePersonFieldChange('orcid', event.target.value)
-                                    }
+                                    onChange={(event) => handlePersonFieldChange('orcid', event.target.value)}
                                     placeholder="0000-0000-0000-0000"
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                     inputMode="text"
                                     pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]"
                                 />
                                 {contributor.type === 'person' && (
-                                    <OrcidSearchDialog
-                                        onSelect={handleSelectSuggestion}
-                                        triggerClassName="h-10 w-10 shrink-0"
-                                    />
+                                    <OrcidSearchDialog onSelect={handleSelectSuggestion} triggerClassName="h-10 w-10 shrink-0" />
                                 )}
                             </div>
-                            {verificationError && (
-                                <p className="text-sm text-red-600 mt-1">
-                                    {verificationError}
-                                </p>
-                            )}
+                            {verificationError && <p className="mt-1 text-sm text-red-600">{verificationError}</p>}
                             {contributor.orcid && OrcidService.isValidFormat(contributor.orcid) && (
                                 <a
                                     href={OrcidService.formatOrcidUrl(contributor.orcid)}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
+                                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
                                 >
                                     View on ORCID.org
                                     <ExternalLink className="h-3 w-3" />
                                 </a>
                             )}
-                            
+
                             {/* ORCID Auto-Suggestions */}
                             {showSuggestions && orcidSuggestions.length > 0 && (
-                                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
                                     {isLoadingSuggestions && (
-                                        <div className="p-3 text-sm text-gray-500 flex items-center gap-2">
+                                        <div className="flex items-center gap-2 p-3 text-sm text-gray-500">
                                             <Loader2 className="h-4 w-4 animate-spin" />
                                             Searching for matching ORCIDs...
                                         </div>
                                     )}
-                                    {!isLoadingSuggestions && orcidSuggestions.map((suggestion) => (
-                                        <button
-                                            key={suggestion.orcid}
-                                            type="button"
-                                            onClick={() => handleSelectSuggestion(suggestion)}
-                                            className="w-full text-left p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                                        >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-medium text-gray-900 truncate">
-                                                        {suggestion.creditName || `${suggestion.firstName} ${suggestion.lastName}`}
-                                                    </p>
-                                                    <p className="text-xs text-gray-600 font-mono mt-1">
-                                                        {suggestion.orcid}
-                                                    </p>
-                                                    {suggestion.institutions.length > 0 && (
-                                                        <p className="text-xs text-gray-500 mt-1 truncate">
-                                                            {suggestion.institutions.join(', ')}
+                                    {!isLoadingSuggestions &&
+                                        orcidSuggestions.map((suggestion) => (
+                                            <button
+                                                key={suggestion.orcid}
+                                                type="button"
+                                                onClick={() => handleSelectSuggestion(suggestion)}
+                                                className="w-full border-b border-gray-100 p-3 text-left transition-colors last:border-b-0 hover:bg-gray-50"
+                                            >
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate font-medium text-gray-900">
+                                                            {suggestion.creditName || `${suggestion.firstName} ${suggestion.lastName}`}
                                                         </p>
-                                                    )}
+                                                        <p className="mt-1 font-mono text-xs text-gray-600">{suggestion.orcid}</p>
+                                                        {suggestion.institutions.length > 0 && (
+                                                            <p className="mt-1 truncate text-xs text-gray-500">
+                                                                {suggestion.institutions.join(', ')}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <ExternalLink className="h-4 w-4 shrink-0 text-gray-400" />
                                                 </div>
-                                                <ExternalLink className="h-4 w-4 text-gray-400 shrink-0" />
-                                            </div>
-                                        </button>
-                                    ))}
+                                            </button>
+                                        ))}
                                 </div>
                             )}
                         </div>
-                        
+
                         <InputField
                             id={`${contributor.id}-firstName`}
                             label="First name"
                             value={contributor.firstName || ''}
-                            onChange={(event) =>
-                                handlePersonFieldChange('firstName', event.target.value)
-                            }
+                            onChange={(event) => handlePersonFieldChange('firstName', event.target.value)}
                             containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                         />
                         <InputField
                             id={`${contributor.id}-lastName`}
                             label="Last name"
                             value={contributor.lastName || ''}
-                            onChange={(event) =>
-                                handlePersonFieldChange('lastName', event.target.value)
-                            }
+                            onChange={(event) => handlePersonFieldChange('lastName', event.target.value)}
                             containerProps={{ className: 'md:col-span-6 lg:col-span-4' }}
                             required
                         />
@@ -648,10 +595,7 @@ export default function ContributorItem({
                 )}
 
                 {/* Affiliations */}
-                <div
-                    className="grid gap-y-4 md:grid-cols-12 md:gap-x-3"
-                    data-testid={`contributor-${index}-affiliations-grid`}
-                >
+                <div className="grid gap-y-4 md:grid-cols-12 md:gap-x-3" data-testid={`contributor-${index}-affiliations-grid`}>
                     <TagInputField
                         id={`${contributor.id}-affiliations`}
                         label="Affiliations"
@@ -661,10 +605,7 @@ export default function ContributorItem({
                                 raw: detail.raw,
                                 tags: detail.tags.map((tag) => ({
                                     value: tag.value,
-                                    rorId:
-                                        'rorId' in tag && typeof tag.rorId === 'string'
-                                            ? tag.rorId
-                                            : null,
+                                    rorId: 'rorId' in tag && typeof tag.rorId === 'string' ? tag.rorId : null,
                                 })),
                             })
                         }
@@ -686,19 +627,13 @@ export default function ContributorItem({
                             data-testid={`contributor-${index}-affiliations-ror-ids`}
                             aria-live="polite"
                         >
-                            <p className="text-sm font-medium text-muted-foreground">
-                                Linked ROR IDs
-                            </p>
-                            <div
-                                className="flex flex-wrap gap-2"
-                                role="list"
-                                aria-label="Selected ROR identifiers"
-                            >
+                            <p className="text-sm font-medium text-muted-foreground">Linked ROR IDs</p>
+                            <div className="flex flex-wrap gap-2" role="list" aria-label="Selected ROR identifiers">
                                 {affiliationsWithRorId.map((affiliation) => (
                                     <Badge
                                         key={`${affiliation.rorId}-${affiliation.value}`}
                                         variant="secondary"
-                                        className="gap-1 px-2 py-1 text-xs font-medium hover:bg-secondary/80 transition-colors"
+                                        className="gap-1 px-2 py-1 text-xs font-medium transition-colors hover:bg-secondary/80"
                                         role="listitem"
                                         asChild
                                     >

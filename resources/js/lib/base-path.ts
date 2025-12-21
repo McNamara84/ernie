@@ -14,9 +14,7 @@ const normalizeBasePath = (value: string): string => {
     }
 
     const prefixed = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-    const withoutTrailingSlash = prefixed.length > 1 && prefixed.endsWith('/')
-        ? prefixed.slice(0, -1)
-        : prefixed;
+    const withoutTrailingSlash = prefixed.length > 1 && prefixed.endsWith('/') ? prefixed.slice(0, -1) : prefixed;
 
     return withoutTrailingSlash === '/' ? '' : withoutTrailingSlash;
 };
@@ -26,9 +24,7 @@ const readMetaBasePath = (): string => {
         return '';
     }
 
-    const meta = document.querySelector<HTMLMetaElement>(
-        `meta[name="${BASE_PATH_META_NAME}"]`,
-    );
+    const meta = document.querySelector<HTMLMetaElement>(`meta[name="${BASE_PATH_META_NAME}"]`);
 
     return meta?.content ?? '';
 };
@@ -50,17 +46,11 @@ export const getBasePath = (): string => {
 
     // Prefer build-time configuration when available (SSR, tests)
     if (typeof import.meta !== 'undefined' && import.meta.env) {
-        basePath =
-            import.meta.env.VITE_APP_BASE_PATH ||
-            import.meta.env.APP_BASE_PATH ||
-            '';
+        basePath = import.meta.env.VITE_APP_BASE_PATH || import.meta.env.APP_BASE_PATH || '';
     }
 
     if (!basePath && typeof process !== 'undefined') {
-        basePath =
-            (process.env?.VITE_APP_BASE_PATH as string | undefined) ||
-            (process.env?.APP_BASE_PATH as string | undefined) ||
-            '';
+        basePath = (process.env?.VITE_APP_BASE_PATH as string | undefined) || (process.env?.APP_BASE_PATH as string | undefined) || '';
     }
 
     if (!basePath) {
@@ -72,8 +62,7 @@ export const getBasePath = (): string => {
     return cachedBasePath;
 };
 
-const alreadyPrefixed = (path: string, basePath: string) =>
-    basePath && (path === basePath || path.startsWith(`${basePath}/`));
+const alreadyPrefixed = (path: string, basePath: string) => basePath && (path === basePath || path.startsWith(`${basePath}/`));
 
 export const withBasePath = (path: string): string => {
     if (!path) {
@@ -122,8 +111,7 @@ const defineBasePathUrl = (definition: RouteWithDefinition['definition']) => {
         configurable: true,
         enumerable: true,
         get() {
-            const storedOriginal =
-                (this as typeof definition)[ORIGINAL_URL_SYMBOL] ?? originalUrl;
+            const storedOriginal = (this as typeof definition)[ORIGINAL_URL_SYMBOL] ?? originalUrl;
 
             return withBasePath(storedOriginal);
         },
@@ -133,9 +121,7 @@ const defineBasePathUrl = (definition: RouteWithDefinition['definition']) => {
     });
 };
 
-export const applyBasePathToRoutes = (
-    routes: Record<string, RouteWithDefinition | undefined>,
-): void => {
+export const applyBasePathToRoutes = (routes: Record<string, RouteWithDefinition | undefined>): void => {
     Object.values(routes).forEach((route) => {
         if (!route?.definition || typeof route.definition.url !== 'string') {
             return;
@@ -163,9 +149,7 @@ export const __testing = {
             return;
         }
 
-        let meta = document.querySelector<HTMLMetaElement>(
-            `meta[name="${BASE_PATH_META_NAME}"]`,
-        );
+        let meta = document.querySelector<HTMLMetaElement>(`meta[name="${BASE_PATH_META_NAME}"]`);
 
         if (!meta) {
             meta = document.createElement('meta');

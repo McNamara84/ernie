@@ -18,12 +18,7 @@ export default function PublicationYearChart({ data }: PublicationYearChartProps
                     </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis
-                    dataKey="year"
-                    className="text-xs"
-                    tick={{ fill: 'hsl(var(--foreground))' }}
-                    domain={['dataMin', 'dataMax']}
-                />
+                <XAxis dataKey="year" className="text-xs" tick={{ fill: 'hsl(var(--foreground))' }} domain={['dataMin', 'dataMax']} />
                 <YAxis className="text-xs" tick={{ fill: 'hsl(var(--foreground))' }} />
                 <Tooltip
                     contentStyle={{
@@ -32,14 +27,7 @@ export default function PublicationYearChart({ data }: PublicationYearChartProps
                         borderRadius: '6px',
                     }}
                 />
-                <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="hsl(var(--primary))"
-                    fillOpacity={1}
-                    fill="url(#colorCount)"
-                    name="Publications"
-                />
+                <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorCount)" name="Publications" />
             </AreaChart>
         </ResponsiveContainer>
     );

@@ -1,11 +1,4 @@
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type DescriptionStatsCardProps = {
@@ -46,9 +39,7 @@ export default function DescriptionStatsCard({ data }: DescriptionStatsCardProps
                             {data.by_type.map((item, index) => (
                                 <TableRow key={index}>
                                     <TableCell>{item.type_id}</TableCell>
-                                    <TableCell className="text-right">
-                                        {item.count.toLocaleString()}
-                                    </TableCell>
+                                    <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -61,9 +52,7 @@ export default function DescriptionStatsCard({ data }: DescriptionStatsCardProps
                     <div className="rounded-lg border bg-card p-4">
                         <div className="mb-2 flex items-center justify-between">
                             <h4 className="font-semibold">Longest Abstract</h4>
-                            <span className="text-sm text-muted-foreground">
-                                {data.longest_abstract.length.toLocaleString()} characters
-                            </span>
+                            <span className="text-sm text-muted-foreground">{data.longest_abstract.length.toLocaleString()} characters</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
                             {data.longest_abstract.preview}
@@ -76,13 +65,9 @@ export default function DescriptionStatsCard({ data }: DescriptionStatsCardProps
                     <div className="rounded-lg border bg-card p-4">
                         <div className="mb-2 flex items-center justify-between">
                             <h4 className="font-semibold">Shortest Abstract</h4>
-                            <span className="text-sm text-muted-foreground">
-                                {data.shortest_abstract.length.toLocaleString()} characters
-                            </span>
+                            <span className="text-sm text-muted-foreground">{data.shortest_abstract.length.toLocaleString()} characters</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                            {data.shortest_abstract.preview}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{data.shortest_abstract.preview}</p>
                     </div>
                 )}
             </TabsContent>

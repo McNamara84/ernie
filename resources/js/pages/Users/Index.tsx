@@ -7,25 +7,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { UserRoleBadge } from '@/components/user-role-badge';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
-import { type BreadcrumbItem, type User as AuthUser } from '@/types';
+import { type User as AuthUser, type BreadcrumbItem } from '@/types';
 
 interface UserData {
     id: number;
@@ -84,7 +71,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                 onFinish: () => {
                     setProcessingUserId(null);
                 },
-            }
+            },
         );
     };
 
@@ -108,7 +95,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                 onFinish: () => {
                     setProcessingUserId(null);
                 },
-            }
+            },
         );
     };
 
@@ -132,7 +119,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                 onFinish: () => {
                     setProcessingUserId(null);
                 },
-            }
+            },
         );
     };
 
@@ -156,7 +143,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                 onFinish: () => {
                     setProcessingUserId(null);
                 },
-            }
+            },
         );
     };
 
@@ -186,7 +173,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="User Management" />
 
-            <div className="container mx-auto py-6 space-y-6">
+            <div className="container mx-auto space-y-6 py-6">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -276,16 +263,12 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                     Deactivated
                                                                 </Badge>
                                                                 {user.deactivated_by && (
-                                                                    <p className="text-xs text-muted-foreground">
-                                                                        by {user.deactivated_by.name}
-                                                                    </p>
+                                                                    <p className="text-xs text-muted-foreground">by {user.deactivated_by.name}</p>
                                                                 )}
                                                             </div>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell className="text-sm text-muted-foreground">
-                                                        {formatDate(user.created_at)}
-                                                    </TableCell>
+                                                    <TableCell className="text-sm text-muted-foreground">{formatDate(user.created_at)}</TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
                                                             {user.id !== auth.user.id && user.id !== 1 && (
@@ -297,7 +280,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                             onClick={() => handleDeactivate(user.id)}
                                                                             disabled={isProcessing}
                                                                         >
-                                                                            <ShieldOff className="h-4 w-4 mr-1" />
+                                                                            <ShieldOff className="mr-1 h-4 w-4" />
                                                                             Deactivate
                                                                         </Button>
                                                                     ) : (
@@ -307,7 +290,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                                                                             onClick={() => handleReactivate(user.id)}
                                                                             disabled={isProcessing}
                                                                         >
-                                                                            <ShieldCheck className="h-4 w-4 mr-1" />
+                                                                            <ShieldCheck className="mr-1 h-4 w-4" />
                                                                             Reactivate
                                                                         </Button>
                                                                     )}

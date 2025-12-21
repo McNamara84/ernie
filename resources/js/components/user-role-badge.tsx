@@ -7,7 +7,7 @@ interface UserRoleBadgeProps {
 
 /**
  * Role to badge variant mapping
- * 
+ *
  * IMPORTANT: This mapping must be kept in sync with app/Enums/UserRole.php badgeVariant() method
  * Any changes to role variants must be reflected in both files
  */

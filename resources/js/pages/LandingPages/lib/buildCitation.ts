@@ -45,7 +45,7 @@ export function buildCitation(resource: Resource): string {
                         }
                     }
                 }
-                
+
                 // Fallback to old structure (for backward compatibility)
                 if (creator.institution_name) {
                     return creator.institution_name;
@@ -65,18 +65,13 @@ export function buildCitation(resource: Resource): string {
     const year = resource.year || resource.publication_year || 'n.d.';
 
     // Extract main title
-    const mainTitle =
-        resource.titles?.find(
-            (t) => !t.title_type || t.title_type === 'MainTitle',
-        )?.value || 'Untitled';
+    const mainTitle = resource.titles?.find((t) => !t.title_type || t.title_type === 'MainTitle')?.value || 'Untitled';
 
     // Extract publisher (default to GFZ Data Services)
     const publisher = resource.publisher || 'GFZ Data Services';
 
     // Extract DOI
-    const doi = resource.doi
-        ? `https://doi.org/${resource.doi}`
-        : 'DOI not available';
+    const doi = resource.doi ? `https://doi.org/${resource.doi}` : 'DOI not available';
 
     // Build citation in format: [Creators] ([Year]): [Title]. [Publisher]. [DOI URL]
     return `${creators} (${year}): ${mainTitle}. ${publisher}. ${doi}`;

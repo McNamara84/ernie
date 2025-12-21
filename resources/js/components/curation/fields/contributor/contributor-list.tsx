@@ -1,37 +1,17 @@
 /**
  * ContributorList Component
- * 
+ *
  * Displays a list of contributor entries with drag & drop reordering support.
  * Shows an empty state when no contributors are present.
  */
 
-import {
-    closestCenter,
-    DndContext,
-    type DragEndEvent,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, Upload } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import type { ParsedContributor } from '../contributor-csv-import';
@@ -71,21 +51,19 @@ export default function ContributorList({
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
-        })
+        }),
     );
 
     // Helper: Convert CSV parsed contributor to ContributorEntry
     const convertParsedContributorToEntry = (parsed: ParsedContributor): ContributorEntry => {
         const id = `contributor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-        
+
         if (parsed.type === 'institution') {
             return {
                 id,
                 type: 'institution',
                 institutionName: parsed.institutionName || '',
-                roles: parsed.contributorRole 
-                    ? [{ value: parsed.contributorRole }]
-                    : [],
+                roles: parsed.contributorRole ? [{ value: parsed.contributorRole }] : [],
                 rolesInput: parsed.contributorRole || '',
                 affiliations: parsed.affiliations.map((name: string) => ({
                     id: `aff-${Date.now()}-${Math.random()}`,
@@ -95,7 +73,7 @@ export default function ContributorList({
                 affiliationsInput: parsed.affiliations.join(', '),
             };
         }
-        
+
         // Person type
         return {
             id,
@@ -104,9 +82,7 @@ export default function ContributorList({
             firstName: parsed.firstName || '',
             lastName: parsed.lastName || '',
             orcidVerified: false,
-            roles: parsed.contributorRole 
-                ? [{ value: parsed.contributorRole }]
-                : [],
+            roles: parsed.contributorRole ? [{ value: parsed.contributorRole }] : [],
             rolesInput: parsed.contributorRole || '',
             affiliations: parsed.affiliations.map((name: string) => ({
                 id: `aff-${Date.now()}-${Math.random()}`,
@@ -145,46 +121,43 @@ export default function ContributorList({
         }
     };
 
-
     // Helper: Handle type change
     const handleTypeChange = (index: number, type: ContributorType) => {
         const contributor = contributors[index];
-        
+
         if (type === contributor.type) return;
-        
+
         // Create new contributor entry with correct type
-        const newContributor: ContributorEntry = type === 'person' 
-            ? {
-                id: contributor.id,
-                type: 'person',
-                orcid: '',
-                firstName: '',
-                lastName: '',
-                roles: contributor.roles,
-                rolesInput: contributor.rolesInput,
-                affiliations: contributor.affiliations,
-                affiliationsInput: contributor.affiliationsInput,
-            }
-            : {
-                id: contributor.id,
-                type: 'institution',
-                institutionName: '',
-                roles: contributor.roles,
-                rolesInput: contributor.rolesInput,
-                affiliations: contributor.affiliations,
-                affiliationsInput: contributor.affiliationsInput,
-            };
-        
+        const newContributor: ContributorEntry =
+            type === 'person'
+                ? {
+                      id: contributor.id,
+                      type: 'person',
+                      orcid: '',
+                      firstName: '',
+                      lastName: '',
+                      roles: contributor.roles,
+                      rolesInput: contributor.rolesInput,
+                      affiliations: contributor.affiliations,
+                      affiliationsInput: contributor.affiliationsInput,
+                  }
+                : {
+                      id: contributor.id,
+                      type: 'institution',
+                      institutionName: '',
+                      roles: contributor.roles,
+                      rolesInput: contributor.rolesInput,
+                      affiliations: contributor.affiliations,
+                      affiliationsInput: contributor.affiliationsInput,
+                  };
+
         onContributorChange(index, newContributor);
     };
 
     // Helper: Handle roles change
-    const handleRolesChange = (
-        index: number,
-        value: { raw: string; tags: ContributorRoleTag[] }
-    ) => {
+    const handleRolesChange = (index: number, value: { raw: string; tags: ContributorRoleTag[] }) => {
         const contributor = contributors[index];
-        
+
         onContributorChange(index, {
             ...contributor,
             roles: value.tags,
@@ -193,14 +166,10 @@ export default function ContributorList({
     };
 
     // Helper: Handle person field change
-    const handlePersonFieldChange = (
-        index: number,
-        field: 'orcid' | 'firstName' | 'lastName',
-        value: string
-    ) => {
+    const handlePersonFieldChange = (index: number, field: 'orcid' | 'firstName' | 'lastName', value: string) => {
         const contributor = contributors[index];
         if (contributor.type !== 'person') return;
-        
+
         onContributorChange(index, {
             ...contributor,
             [field]: value,
@@ -211,7 +180,7 @@ export default function ContributorList({
     const handleInstitutionNameChange = (index: number, value: string) => {
         const contributor = contributors[index];
         if (contributor.type !== 'institution') return;
-        
+
         onContributorChange(index, {
             ...contributor,
             institutionName: value,
@@ -219,12 +188,9 @@ export default function ContributorList({
     };
 
     // Helper: Handle affiliations change
-    const handleAffiliationsChange = (
-        index: number,
-        value: { raw: string; tags: AffiliationTag[] }
-    ) => {
+    const handleAffiliationsChange = (index: number, value: { raw: string; tags: AffiliationTag[] }) => {
         const contributor = contributors[index];
-        
+
         onContributorChange(index, {
             ...contributor,
             affiliations: value.tags,
@@ -235,40 +201,26 @@ export default function ContributorList({
     // Empty state
     if (contributors.length === 0) {
         return (
-            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg" role="status">
+            <div className="rounded-lg border-2 border-dashed py-8 text-center text-muted-foreground" role="status">
                 <p className="mb-4">No contributors yet.</p>
                 <div className="flex justify-center gap-2">
-                    <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={onAdd}
-                        aria-label="Add first contributor"
-                    >
-                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <Button type="button" variant="outline" onClick={onAdd} aria-label="Add first contributor">
+                        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                         Add First Contributor
                     </Button>
                     <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button 
-                                type="button" 
-                                variant="outline"
-                                aria-label="Import contributors from CSV file"
-                            >
-                                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
+                            <Button type="button" variant="outline" aria-label="Import contributors from CSV file">
+                                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
                                 Import CSV
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh]">
+                        <DialogContent className="max-h-[90vh] max-w-2xl">
                             <DialogHeader>
                                 <DialogTitle>Import Contributors from CSV</DialogTitle>
-                                <DialogDescription>
-                                    Upload a CSV file to add multiple contributors at once
-                                </DialogDescription>
+                                <DialogDescription>Upload a CSV file to add multiple contributors at once</DialogDescription>
                             </DialogHeader>
-                            <ContributorCsvImport
-                                onImport={handleCsvImport}
-                                onClose={() => setCsvDialogOpen(false)}
-                            />
+                            <ContributorCsvImport onImport={handleCsvImport} onClose={() => setCsvDialogOpen(false)} />
                         </DialogContent>
                     </Dialog>
                 </div>
@@ -278,17 +230,10 @@ export default function ContributorList({
 
     // List with contributors
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="space-y-4">
                 {/* Contributor items */}
-                <SortableContext
-                    items={contributors.map((contributor) => contributor.id)}
-                    strategy={verticalListSortingStrategy}
-                >
+                <SortableContext items={contributors.map((contributor) => contributor.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-4" role="list" aria-label="Contributors">
                         {contributors.map((contributor, index) => (
                             <ContributorItem
@@ -297,15 +242,9 @@ export default function ContributorList({
                                 index={index}
                                 onTypeChange={(type) => handleTypeChange(index, type)}
                                 onRolesChange={(value) => handleRolesChange(index, value)}
-                                onPersonFieldChange={(field, value) => 
-                                    handlePersonFieldChange(index, field, value)
-                                }
-                                onInstitutionNameChange={(value) => 
-                                    handleInstitutionNameChange(index, value)
-                                }
-                                onAffiliationsChange={(value) => 
-                                    handleAffiliationsChange(index, value)
-                                }
+                                onPersonFieldChange={(field, value) => handlePersonFieldChange(index, field, value)}
+                                onInstitutionNameChange={(value) => handleInstitutionNameChange(index, value)}
+                                onAffiliationsChange={(value) => handleAffiliationsChange(index, value)}
                                 onContributorChange={(updatedContributor) => onContributorChange(index, updatedContributor)}
                                 onRemove={() => onRemove(index)}
                                 canRemove={contributors.length > 1}
@@ -319,37 +258,23 @@ export default function ContributorList({
 
                 {/* Add button */}
                 <div className="flex justify-center gap-2">
-                    <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={onAdd}
-                        aria-label="Add another contributor"
-                    >
-                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <Button type="button" variant="outline" onClick={onAdd} aria-label="Add another contributor">
+                        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                         Add Contributor
                     </Button>
                     <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button 
-                                type="button" 
-                            variant="outline"
-                            aria-label="Import contributors from CSV file"
-                        >
-                            <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
-                            Import CSV
-                        </Button>
-                    </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh]">
+                            <Button type="button" variant="outline" aria-label="Import contributors from CSV file">
+                                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
+                                Import CSV
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-h-[90vh] max-w-2xl">
                             <DialogHeader>
                                 <DialogTitle>Import Contributors from CSV</DialogTitle>
-                                <DialogDescription>
-                                    Upload a CSV file to add multiple contributors at once
-                                </DialogDescription>
+                                <DialogDescription>Upload a CSV file to add multiple contributors at once</DialogDescription>
                             </DialogHeader>
-                            <ContributorCsvImport
-                                onImport={handleCsvImport}
-                                onClose={() => setCsvDialogOpen(false)}
-                            />
+                            <ContributorCsvImport onImport={handleCsvImport} onClose={() => setCsvDialogOpen(false)} />
                         </DialogContent>
                     </Dialog>
                 </div>

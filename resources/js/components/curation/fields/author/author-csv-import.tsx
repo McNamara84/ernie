@@ -1,11 +1,9 @@
 /**
  * AuthorCsvImport Component
- * 
+ *
  * CSV bulk import for authors.
  * Similar to related-work CSV import functionality.
  */
-
-import React from 'react';
 
 /**
  * AuthorCsvImport - CSV bulk import
@@ -16,10 +14,8 @@ import React from 'react';
 export default function AuthorCsvImport() {
     return (
         <div className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Import Authors from CSV</h3>
-            <p className="text-sm text-muted-foreground">
-                CSV Import functionality - Coming in Phase 5
-            </p>
+            <h3 className="mb-4 text-lg font-semibold">Import Authors from CSV</h3>
+            <p className="text-sm text-muted-foreground">CSV Import functionality - Coming in Phase 5</p>
         </div>
     );
 }

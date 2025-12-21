@@ -74,21 +74,21 @@ export interface UseFormValidationReturn {
 
 /**
  * Hook for form validation with real-time feedback
- * 
+ *
  * This hook manages the validation state of all form fields
  * and provides functions for validating individual fields.
- * 
+ *
  * @example
  * ```tsx
  * const { validateField, getFieldState, markFieldTouched } = useFormValidation();
- * 
+ *
  * // Validate field
  * validateField({
  *   fieldId: 'email',
  *   value: emailValue,
  *   rules: [emailValidationRule],
  * });
- * 
+ *
  * // Get field state
  * const fieldState = getFieldState('email');
  * ```
@@ -110,9 +110,7 @@ export function useFormValidation(): UseFormValidationReturn {
     const validateField = useCallback(
         <T = unknown>({ fieldId, value, rules, formData, immediate = false }: ValidateFieldOptions<T>) => {
             // Determine debounce time (longest time of all rules)
-            const debounceTime = immediate
-                ? 0
-                : Math.max(0, ...rules.map((rule) => rule.debounce ?? 0));
+            const debounceTime = immediate ? 0 : Math.max(0, ...rules.map((rule) => rule.debounce ?? 0));
 
             // Clear existing timer
             if (debounceTimers[fieldId]) {
@@ -123,7 +121,7 @@ export function useFormValidation(): UseFormValidationReturn {
             const executeValidation = () => {
                 // Remember the old status BEFORE the validating update
                 const oldStatusBeforeValidating = validationState.fields[fieldId]?.status;
-                
+
                 // Set status to "validating"
                 setValidationState((prev) => ({
                     ...prev,
@@ -243,35 +241,38 @@ export function useFormValidation(): UseFormValidationReturn {
     /**
      * Resets the validation of a field
      */
-    const resetFieldValidation = useCallback((fieldId: string) => {
-        // Clear debounce timer
-        if (debounceTimers[fieldId]) {
-            clearTimeout(debounceTimers[fieldId]);
-            delete debounceTimers[fieldId];
-        }
-
-        setValidationState((prev) => {
-            const oldFieldState = prev.fields[fieldId];
-            if (!oldFieldState) {
-                return prev;
+    const resetFieldValidation = useCallback(
+        (fieldId: string) => {
+            // Clear debounce timer
+            if (debounceTimers[fieldId]) {
+                clearTimeout(debounceTimers[fieldId]);
+                delete debounceTimers[fieldId];
             }
 
-            const wasInvalid = oldFieldState.status === 'invalid';
-            const wasTouched = oldFieldState.touched;
+            setValidationState((prev) => {
+                const oldFieldState = prev.fields[fieldId];
+                if (!oldFieldState) {
+                    return prev;
+                }
 
-            // Remove field from state
-            const newFields = { ...prev.fields };
-            delete newFields[fieldId];
+                const wasInvalid = oldFieldState.status === 'invalid';
+                const wasTouched = oldFieldState.touched;
 
-            return {
-                ...prev,
-                fields: newFields,
-                invalidCount: wasInvalid ? Math.max(0, prev.invalidCount - 1) : prev.invalidCount,
-                touchedCount: wasTouched ? Math.max(0, prev.touchedCount - 1) : prev.touchedCount,
-                isValid: wasInvalid ? prev.invalidCount - 1 === 0 : prev.isValid,
-            };
-        });
-    }, [debounceTimers]);
+                // Remove field from state
+                const newFields = { ...prev.fields };
+                delete newFields[fieldId];
+
+                return {
+                    ...prev,
+                    fields: newFields,
+                    invalidCount: wasInvalid ? Math.max(0, prev.invalidCount - 1) : prev.invalidCount,
+                    touchedCount: wasTouched ? Math.max(0, prev.touchedCount - 1) : prev.touchedCount,
+                    isValid: wasInvalid ? prev.invalidCount - 1 === 0 : prev.isValid,
+                };
+            });
+        },
+        [debounceTimers],
+    );
 
     /**
      * Resets all validation
@@ -338,8 +339,6 @@ export function createValidationRule<T = unknown>(
 /**
  * Helper function: Combines multiple validation rules
  */
-export function combineValidationRules<T = unknown>(
-    ...rules: ValidationRule<T>[]
-): ValidationRule<T>[] {
+export function combineValidationRules<T = unknown>(...rules: ValidationRule<T>[]): ValidationRule<T>[] {
     return rules;
 }

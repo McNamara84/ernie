@@ -1,11 +1,4 @@
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type KeywordTableProps = {
@@ -26,9 +19,7 @@ export default function KeywordTable({ data }: KeywordTableProps) {
         <Tabs defaultValue="free" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="free">Free Keywords ({data.free.length})</TabsTrigger>
-                <TabsTrigger value="controlled">
-                    Controlled Keywords ({data.controlled.length})
-                </TabsTrigger>
+                <TabsTrigger value="controlled">Controlled Keywords ({data.controlled.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="free" className="mt-4">
@@ -46,9 +37,7 @@ export default function KeywordTable({ data }: KeywordTableProps) {
                                 <TableRow key={index}>
                                     <TableCell className="font-medium">{index + 1}</TableCell>
                                     <TableCell>{item.keyword}</TableCell>
-                                    <TableCell className="text-right">
-                                        {item.count.toLocaleString()}
-                                    </TableCell>
+                                    <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -71,9 +60,7 @@ export default function KeywordTable({ data }: KeywordTableProps) {
                                 <TableRow key={index}>
                                     <TableCell className="font-medium">{index + 1}</TableCell>
                                     <TableCell>{item.keyword}</TableCell>
-                                    <TableCell className="text-right">
-                                        {item.count.toLocaleString()}
-                                    </TableCell>
+                                    <TableCell className="text-right">{item.count.toLocaleString()}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

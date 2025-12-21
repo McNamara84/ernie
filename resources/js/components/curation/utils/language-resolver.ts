@@ -22,13 +22,8 @@ const expandCandidate = (value?: string | null): string[] => {
     return [...candidates];
 };
 
-const findLanguageCode = (
-    languages: LanguageOption[],
-    ...rawCandidates: (string | null | undefined)[]
-): string => {
-    const candidates = new Set(
-        rawCandidates.flatMap((candidate) => expandCandidate(candidate)),
-    );
+const findLanguageCode = (languages: LanguageOption[], ...rawCandidates: (string | null | undefined)[]): string => {
+    const candidates = new Set(rawCandidates.flatMap((candidate) => expandCandidate(candidate)));
 
     if (!candidates.size) {
         return '';
@@ -39,17 +34,12 @@ const findLanguageCode = (
             const code = normalize(lang.code);
             const name = normalize(lang.name);
 
-            return (
-                (!!code && candidates.has(code)) || (!!name && candidates.has(name))
-            );
+            return (!!code && candidates.has(code)) || (!!name && candidates.has(name));
         })?.code ?? ''
     );
 };
 
-export function resolveInitialLanguageCode(
-    languages: LanguageOption[],
-    initialLanguage?: string | null,
-): string {
+export function resolveInitialLanguageCode(languages: LanguageOption[], initialLanguage?: string | null): string {
     const initialMatch = findLanguageCode(languages, initialLanguage);
     if (initialMatch) {
         return initialMatch;

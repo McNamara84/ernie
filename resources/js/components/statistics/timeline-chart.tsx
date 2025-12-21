@@ -47,26 +47,16 @@ export default function TimelineChart({ data }: TimelineChartProps) {
                                 <div className="rounded-lg border bg-background p-2 shadow-sm">
                                     <div className="grid gap-2">
                                         <div className="flex flex-col">
-                                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                Year
-                                            </span>
+                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Year</span>
                                             <span className="font-bold">{payload[0].payload.year}</span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                Publications
-                                            </span>
-                                            <span className="font-bold text-blue-500">
-                                                {payload[0].payload.publications}
-                                            </span>
+                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Publications</span>
+                                            <span className="font-bold text-blue-500">{payload[0].payload.publications}</span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                Datasets Created
-                                            </span>
-                                            <span className="font-bold text-green-500">
-                                                {payload[0].payload.created}
-                                            </span>
+                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Datasets Created</span>
+                                            <span className="font-bold text-green-500">{payload[0].payload.created}</span>
                                         </div>
                                     </div>
                                 </div>

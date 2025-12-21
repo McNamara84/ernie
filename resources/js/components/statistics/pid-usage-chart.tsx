@@ -55,15 +55,7 @@ export default function PidUsageChart({ data }: PidUsageChartProps) {
         <div className="space-y-4">
             <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                    <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                    >
+                    <Pie data={chartData} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="value">
                         {chartData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
@@ -76,26 +68,16 @@ export default function PidUsageChart({ data }: PidUsageChartProps) {
                                     <div className="rounded-lg border bg-background p-2 shadow-sm">
                                         <div className="grid gap-2">
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Identifier Type
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Identifier Type</span>
                                                 <span className="font-bold">{data.name}</span>
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Count
-                                                </span>
-                                                <span className="font-bold text-muted-foreground">
-                                                    {data.value.toLocaleString()}
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Count</span>
+                                                <span className="font-bold text-muted-foreground">{data.value.toLocaleString()}</span>
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    Percentage
-                                                </span>
-                                                <span className="font-bold text-muted-foreground">
-                                                    {data.percentage.toFixed(2)}%
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">Percentage</span>
+                                                <span className="font-bold text-muted-foreground">{data.percentage.toFixed(2)}%</span>
                                             </div>
                                         </div>
                                     </div>
@@ -121,10 +103,7 @@ export default function PidUsageChart({ data }: PidUsageChartProps) {
                         {data.map((item, index) => (
                             <tr key={item.type} className="border-t">
                                 <td className="flex items-center gap-2 p-2">
-                                    <div
-                                        className="h-3 w-3 rounded-sm"
-                                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                                    />
+                                    <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                                     {item.type}
                                 </td>
                                 <td className="p-2 text-right">{item.count.toLocaleString()}</td>

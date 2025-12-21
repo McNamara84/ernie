@@ -6,13 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { ValidationMessage } from '@/hooks/use-form-validation';
 
-export type DescriptionType =
-    | 'Abstract'
-    | 'Methods'
-    | 'SeriesInformation'
-    | 'TableOfContents'
-    | 'TechnicalInfo'
-    | 'Other';
+export type DescriptionType = 'Abstract' | 'Methods' | 'SeriesInformation' | 'TableOfContents' | 'TechnicalInfo' | 'Other';
 
 export interface DescriptionEntry {
     type: DescriptionType;
@@ -28,9 +22,9 @@ interface DescriptionFieldProps {
     onAbstractValidationBlur?: () => void;
 }
 
-const DESCRIPTION_TYPES: { 
-    value: DescriptionType; 
-    label: string; 
+const DESCRIPTION_TYPES: {
+    value: DescriptionType;
+    label: string;
     placeholder: string;
     required?: boolean;
     helpText?: string;
@@ -40,31 +34,36 @@ const DESCRIPTION_TYPES: {
         label: 'Abstract',
         placeholder: 'Enter a brief summary of the resource...',
         required: true,
-        helpText: 'A brief description of the resource and the context in which the resource was created. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
+        helpText:
+            'A brief description of the resource and the context in which the resource was created. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
     },
     {
         value: 'Methods',
         label: 'Methods',
         placeholder: 'Describe the methods used to create or collect this resource...',
-        helpText: 'The methodology employed for the study or research. Recommended for discovery. Full documentation about methods supports open science.',
+        helpText:
+            'The methodology employed for the study or research. Recommended for discovery. Full documentation about methods supports open science.',
     },
     {
         value: 'SeriesInformation',
         label: 'Series Information',
         placeholder: 'Provide information about the series this resource belongs to...',
-        helpText: 'Information about a repeating series, such as volume, issue, number. Note: This information should now be explicitly provided using the RelatedItem property with relationType "IsPublishedIn".',
+        helpText:
+            'Information about a repeating series, such as volume, issue, number. Note: This information should now be explicitly provided using the RelatedItem property with relationType "IsPublishedIn".',
     },
     {
         value: 'TableOfContents',
         label: 'Table of Contents',
         placeholder: 'Enter the table of contents...',
-        helpText: 'A listing of the Table of Contents. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
+        helpText:
+            'A listing of the Table of Contents. Use "<br>" to indicate a line break for improved rendering of multiple paragraphs, but otherwise no HTML markup.',
     },
     {
         value: 'TechnicalInfo',
         label: 'Technical Info',
         placeholder: 'Provide technical details about the resource...',
-        helpText: 'Detailed information that may be associated with design, implementation, operation, use, and/or maintenance of a process, system, or instrument. For software, this may include readme contents and environmental information.',
+        helpText:
+            'Detailed information that may be associated with design, implementation, operation, use, and/or maintenance of a process, system, or instrument. For software, this may include readme contents and environmental information.',
     },
     {
         value: 'Other',
@@ -74,8 +73,8 @@ const DESCRIPTION_TYPES: {
     },
 ];
 
-export default function DescriptionField({ 
-    descriptions, 
+export default function DescriptionField({
+    descriptions,
     onChange,
     abstractValidationMessages = [],
     abstractTouched = false,
@@ -115,11 +114,7 @@ export default function DescriptionField({
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DescriptionType)}>
                 <TabsList className="grid w-full grid-cols-6">
                     {DESCRIPTION_TYPES.map((desc) => (
-                        <TabsTrigger
-                            key={desc.value}
-                            value={desc.value}
-                            className="relative"
-                        >
+                        <TabsTrigger key={desc.value} value={desc.value} className="relative">
                             {desc.label}
                             {desc.required && (
                                 <span className="ml-0.5 text-destructive" aria-label="Required">
@@ -143,33 +138,23 @@ export default function DescriptionField({
                     const charCount = getCharacterCount(desc.value);
                     const isNearLimit = charCount > 15750; // 90% of 17500
                     const isTooShort = charCount > 0 && charCount < 50;
-                    
+
                     return (
                         <TabsContent key={desc.value} value={desc.value} className="space-y-2">
                             <div className="space-y-2">
                                 <Label htmlFor={`description-${desc.value}`}>
                                     {desc.label}
                                     {desc.required ? (
-                                        <span className="ml-2 text-sm font-normal text-destructive">
-                                            (Required)
-                                        </span>
+                                        <span className="ml-2 text-sm font-normal text-destructive">(Required)</span>
                                     ) : (
-                                        <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                            (Optional)
-                                        </span>
+                                        <span className="ml-2 text-sm font-normal text-muted-foreground">(Optional)</span>
                                     )}
                                 </Label>
-                                {desc.helpText && (
-                                    <p className="text-sm text-muted-foreground">
-                                        {desc.helpText}
-                                    </p>
-                                )}
+                                {desc.helpText && <p className="text-sm text-muted-foreground">{desc.helpText}</p>}
                                 <Textarea
                                     id={`description-${desc.value}`}
                                     value={getDescriptionValue(desc.value)}
-                                    onChange={(e) =>
-                                        handleDescriptionChange(desc.value, e.target.value)
-                                    }
+                                    onChange={(e) => handleDescriptionChange(desc.value, e.target.value)}
                                     onBlur={() => {
                                         if (isAbstract && onAbstractValidationBlur) {
                                             onAbstractValidationBlur();
@@ -183,26 +168,20 @@ export default function DescriptionField({
                                     required={desc.required}
                                     data-testid={isAbstract ? 'abstract-textarea' : undefined}
                                 />
-                                {isAbstract && abstractTouched && (
-                                    <FieldValidationFeedback 
-                                        messages={abstractValidationMessages}
-                                    />
-                                )}
+                                {isAbstract && abstractTouched && <FieldValidationFeedback messages={abstractValidationMessages} />}
                                 <div
                                     id={`description-${desc.value}-count`}
                                     className={`text-right text-sm ${
-                                        hasValidationError 
-                                            ? 'text-destructive' 
+                                        hasValidationError
+                                            ? 'text-destructive'
                                             : isNearLimit || isTooShort
-                                                ? 'text-yellow-600 font-medium' 
-                                                : 'text-muted-foreground'
+                                              ? 'font-medium text-yellow-600'
+                                              : 'text-muted-foreground'
                                     }`}
                                 >
                                     {charCount} characters
                                     {isAbstract && charCount > 0 && (
-                                        <span className="ml-1">
-                                            ({charCount < 50 ? `${50 - charCount} more needed` : `of 17,500`})
-                                        </span>
+                                        <span className="ml-1">({charCount < 50 ? `${50 - charCount} more needed` : `of 17,500`})</span>
                                     )}
                                 </div>
                             </div>

@@ -294,19 +294,10 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Old Database Statistics</h1>
-                        <p className="text-muted-foreground">
-                            Comprehensive analysis of legacy metaworks data
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Last updated: {formatDate(lastUpdated)}
-                        </p>
+                        <p className="text-muted-foreground">Comprehensive analysis of legacy metaworks data</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Last updated: {formatDate(lastUpdated)}</p>
                     </div>
-                    <Button
-                        onClick={handleRefresh}
-                        disabled={isRefreshing}
-                        variant="outline"
-                        size="sm"
-                    >
+                    <Button onClick={handleRefresh} disabled={isRefreshing} variant="outline" size="sm">
                         <RefreshCcw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                         Refresh Data
                     </Button>
@@ -363,9 +354,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <Card>
                     <CardHeader>
                         <CardTitle>📊 Top Publishing Institutions</CardTitle>
-                        <CardDescription>
-                            Institutions with the most published datasets (by affiliations)
-                        </CardDescription>
+                        <CardDescription>Institutions with the most published datasets (by affiliations)</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <InstitutionChart data={statistics.institutions} />
@@ -378,9 +367,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                     <Card>
                         <CardHeader>
                             <CardTitle>🔗 Related Works Distribution</CardTitle>
-                            <CardDescription>
-                                Datasets grouped by number of related identifiers
-                            </CardDescription>
+                            <CardDescription>Datasets grouped by number of related identifiers</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <RelatedWorksChart data={statistics.relatedWorks} />
@@ -391,9 +378,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                     <Card>
                         <CardHeader>
                             <CardTitle>🆔 Persistent Identifier Usage</CardTitle>
-                            <CardDescription>
-                                Distribution of identifier types in related works
-                            </CardDescription>
+                            <CardDescription>Distribution of identifier types in related works</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <PidUsageChart data={statistics.pidUsage} />
@@ -404,23 +389,15 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 {/* NEW: Related Works Quality Analysis Section */}
                 <div className="space-y-4">
                     <div>
-                        <h2 className="text-2xl font-bold tracking-tight">
-                            🔍 Related Works Quality Analysis
-                        </h2>
-                        <p className="text-muted-foreground">
-                            Detailed breakdown of relation types, IsSupplementTo usage, and data
-                            quality metrics
-                        </p>
+                        <h2 className="text-2xl font-bold tracking-tight">🔍 Related Works Quality Analysis</h2>
+                        <p className="text-muted-foreground">Detailed breakdown of relation types, IsSupplementTo usage, and data quality metrics</p>
                     </div>
 
                     {/* IsSupplementTo Analysis */}
                     <Card>
                         <CardHeader>
                             <CardTitle>📑 IsSupplementTo Relation Analysis</CardTitle>
-                            <CardDescription>
-                                Distribution of datasets with/without the IsSupplementTo relation
-                                type
-                            </CardDescription>
+                            <CardDescription>Distribution of datasets with/without the IsSupplementTo relation type</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <IsSupplementToChart data={statistics.relatedWorks.isSupplementTo} />
@@ -432,8 +409,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                         <CardHeader>
                             <CardTitle>📊 All Relation Types Distribution</CardTitle>
                             <CardDescription>
-                                Complete breakdown of all {statistics.relatedWorks.relationTypes.length}{' '}
-                                relation types used in the legacy database
+                                Complete breakdown of all {statistics.relatedWorks.relationTypes.length} relation types used in the legacy database
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -445,15 +421,10 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                     <Card>
                         <CardHeader>
                             <CardTitle>✅ Data Quality Metrics</CardTitle>
-                            <CardDescription>
-                                Analysis of placeholder values and overall data completeness
-                            </CardDescription>
+                            <CardDescription>Analysis of placeholder values and overall data completeness</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <DataQualityIndicators
-                                placeholders={statistics.relatedWorks.placeholders}
-                                quality={statistics.relatedWorks.quality}
-                            />
+                            <DataQualityIndicators placeholders={statistics.relatedWorks.placeholders} quality={statistics.relatedWorks.quality} />
                         </CardContent>
                     </Card>
 
@@ -461,15 +432,10 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                     <Card>
                         <CardHeader>
                             <CardTitle>📈 Coverage Analysis</CardTitle>
-                            <CardDescription>
-                                Overview of datasets by related works coverage level
-                            </CardDescription>
+                            <CardDescription>Overview of datasets by related works coverage level</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <CoverageAnalysis
-                                data={statistics.relatedWorks.coverage}
-                                totalDatasets={statistics.overview.totalDatasets}
-                            />
+                            <CoverageAnalysis data={statistics.relatedWorks.coverage} totalDatasets={statistics.overview.totalDatasets} />
                         </CardContent>
                     </Card>
 
@@ -481,9 +447,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <Card>
                     <CardHeader>
                         <CardTitle>✅ Data Completeness Metrics</CardTitle>
-                        <CardDescription>
-                            Percentage of datasets with complete metadata fields
-                        </CardDescription>
+                        <CardDescription>Percentage of datasets with complete metadata fields</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <CompletenessGauge data={statistics.completeness} />
@@ -496,9 +460,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                     <Card>
                         <CardHeader>
                             <CardTitle>👤 Top Curators</CardTitle>
-                            <CardDescription>
-                                Curators by number of datasets they supervised
-                            </CardDescription>
+                            <CardDescription>Curators by number of datasets they supervised</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <CuratorChart data={statistics.curators} />
@@ -521,9 +483,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <Card>
                     <CardHeader>
                         <CardTitle>📅 Publications Timeline</CardTitle>
-                        <CardDescription>
-                            Dataset publications and creation over time
-                        </CardDescription>
+                        <CardDescription>Dataset publications and creation over time</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <TimelineChart data={statistics.timeline} />
@@ -570,10 +530,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <Card>
                     <CardHeader>
                         <CardTitle>🆔 ROR & ORCID Identifier Coverage</CardTitle>
-                        <CardDescription>
-                            Percentage of affiliations with ROR-IDs and authors/contributors with
-                            ORCIDs
-                        </CardDescription>
+                        <CardDescription>Percentage of affiliations with ROR-IDs and authors/contributors with ORCIDs</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <IdentifierStatsCard data={statistics.identifiers} />
@@ -595,9 +552,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <Card>
                     <CardHeader>
                         <CardTitle>🏢 Affiliation Statistics</CardTitle>
-                        <CardDescription>
-                            Maximum and average affiliations per author/contributor
-                        </CardDescription>
+                        <CardDescription>Maximum and average affiliations per author/contributor</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <AffiliationStatsCard data={statistics.affiliations} />
@@ -611,9 +566,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <Card>
                     <CardHeader>
                         <CardTitle>🕐 Dataset Creation by Hour of Day</CardTitle>
-                        <CardDescription>
-                            When datasets were created (by hour, 0-23)
-                        </CardDescription>
+                        <CardDescription>When datasets were created (by hour, 0-23)</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <CreationTimeChart data={statistics.creation_time} />
@@ -652,9 +605,7 @@ export default function OldStatistics({ statistics, lastUpdated }: OldStatistics
                 <Card>
                     <CardHeader>
                         <CardTitle>📊 Publication Year Distribution</CardTitle>
-                        <CardDescription>
-                            Number of datasets by publication year over time
-                        </CardDescription>
+                        <CardDescription>Number of datasets by publication year over time</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <PublicationYearChart data={statistics.publication_years} />

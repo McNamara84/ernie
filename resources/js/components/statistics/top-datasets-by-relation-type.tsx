@@ -16,10 +16,7 @@ type TopDatasetsByRelationTypeProps = {
 };
 
 // Map relation types to descriptive labels and emojis
-const relationTypeInfo: Record<
-    string,
-    { label: string; emoji: string; ariaLabel: string; description: string }
-> = {
+const relationTypeInfo: Record<string, { label: string; emoji: string; ariaLabel: string; description: string }> = {
     Cites: {
         label: 'Cites',
         emoji: '📖',
@@ -106,9 +103,7 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                     </span>{' '}
                     Top 5 Datasets by Relation Type
                 </h2>
-                <p className="text-muted-foreground">
-                    Datasets with the highest usage of each relation type in the legacy database
-                </p>
+                <p className="text-muted-foreground">Datasets with the highest usage of each relation type in the legacy database</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -130,55 +125,34 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                                     </span>{' '}
                                     Top 5: {info.label}
                                 </CardTitle>
-                                <CardDescription className="text-xs">
-                                    {info.description}
-                                </CardDescription>
+                                <CardDescription className="text-xs">{info.description}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {datasets.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        No datasets found with this relation type.
-                                    </p>
+                                    <p className="text-sm text-muted-foreground">No datasets found with this relation type.</p>
                                 ) : (
                                     <div className="max-h-[300px] overflow-y-auto rounded-md border">
                                         <table className="w-full text-sm">
                                             <thead className="sticky top-0 bg-muted">
                                                 <tr>
-                                                    <th
-                                                        scope="col"
-                                                        className="p-2 text-left font-medium"
-                                                    >
+                                                    <th scope="col" className="p-2 text-left font-medium">
                                                         #
                                                     </th>
-                                                    <th
-                                                        scope="col"
-                                                        className="p-2 text-left font-medium"
-                                                    >
+                                                    <th scope="col" className="p-2 text-left font-medium">
                                                         Identifier
                                                     </th>
-                                                    <th
-                                                        scope="col"
-                                                        className="p-2 text-right font-medium"
-                                                    >
+                                                    <th scope="col" className="p-2 text-right font-medium">
                                                         Count
                                                     </th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {datasets.map((dataset, index) => (
-                                                    <tr
-                                                        key={dataset.id}
-                                                        className="border-t hover:bg-muted/50"
-                                                        title={dataset.title || undefined}
-                                                    >
-                                                        <td className="p-2 text-muted-foreground">
-                                                            {index + 1}
-                                                        </td>
+                                                    <tr key={dataset.id} className="border-t hover:bg-muted/50" title={dataset.title || undefined}>
+                                                        <td className="p-2 text-muted-foreground">{index + 1}</td>
                                                         <td className="p-2">
                                                             <div className="flex flex-col">
-                                                                <span className="font-mono text-xs">
-                                                                    {dataset.identifier}
-                                                                </span>
+                                                                <span className="font-mono text-xs">{dataset.identifier}</span>
                                                                 {dataset.title && (
                                                                     <span className="max-w-[200px] truncate text-xs text-muted-foreground">
                                                                         {dataset.title}
@@ -186,9 +160,7 @@ export default function TopDatasetsByRelationType({ data }: TopDatasetsByRelatio
                                                                 )}
                                                             </div>
                                                         </td>
-                                                        <td className="p-2 text-right font-bold">
-                                                            {dataset.count}
-                                                        </td>
+                                                        <td className="p-2 text-right font-bold">{dataset.count}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>

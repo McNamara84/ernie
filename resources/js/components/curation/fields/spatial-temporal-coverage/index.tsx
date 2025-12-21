@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 
@@ -65,10 +65,7 @@ const createEmptyCoverage = (): SpatialTemporalCoverageEntry => {
 /**
  * Checks if a coverage entry can be considered complete enough to allow adding another
  */
-const canAddCoverage = (
-    coverages: SpatialTemporalCoverageEntry[],
-    maxCoverages: number,
-): boolean => {
+const canAddCoverage = (coverages: SpatialTemporalCoverageEntry[], maxCoverages: number): boolean => {
     if (coverages.length >= maxCoverages) return false;
     if (coverages.length === 0) return true;
 
@@ -76,33 +73,22 @@ const canAddCoverage = (
 
     // For polygon type: require at least 3 points
     if (lastCoverage.type === 'polygon') {
-        return !!(
-            lastCoverage.polygonPoints &&
-            lastCoverage.polygonPoints.length >= 3
-        );
+        return !!(lastCoverage.polygonPoints && lastCoverage.polygonPoints.length >= 3);
     }
 
     // For point/box type: require latMin and lonMin
     // Temporal fields (startDate, endDate, timezone) are now optional
-    return !!(
-        lastCoverage.latMin &&
-        lastCoverage.lonMin
-    );
+    return !!(lastCoverage.latMin && lastCoverage.lonMin);
 };
 
 /**
  * Main component for managing spatial and temporal coverage entries
  */
-export default function SpatialTemporalCoverageField({
-    coverages,
-    apiKey,
-    onChange,
-    maxCoverages = 99,
-}: SpatialTemporalCoverageFieldProps) {
+export default function SpatialTemporalCoverageField({ coverages, apiKey, onChange, maxCoverages = 99 }: SpatialTemporalCoverageFieldProps) {
     // Normalize coverages on mount if they don't have type field
     // This runs only once with the initial coverages prop value to handle legacy data
     useEffect(() => {
-        const needsNormalization = coverages.some(c => !c.type);
+        const needsNormalization = coverages.some((c) => !c.type);
         if (needsNormalization) {
             const normalized = coverages.map(normalizeCoverage);
             onChange(normalized);
@@ -110,20 +96,13 @@ export default function SpatialTemporalCoverageField({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Intentionally empty: only normalize initial prop value on mount
 
-    const handleEntryChange = (
-        index: number,
-        field: keyof SpatialTemporalCoverageEntry,
-        value: string,
-    ) => {
+    const handleEntryChange = (index: number, field: keyof SpatialTemporalCoverageEntry, value: string) => {
         const updated = [...coverages];
         updated[index] = { ...updated[index], [field]: value };
         onChange(updated);
     };
 
-    const handleEntryBatchChange = (
-        index: number,
-        updates: Partial<SpatialTemporalCoverageEntry>,
-    ) => {
+    const handleEntryBatchChange = (index: number, updates: Partial<SpatialTemporalCoverageEntry>) => {
         const updated = [...coverages];
         updated[index] = { ...updated[index], ...updates };
         onChange(updated);
@@ -157,14 +136,10 @@ export default function SpatialTemporalCoverageField({
                     />
                 ))
             ) : (
-                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                <div className="rounded-lg border-2 border-dashed py-8 text-center text-muted-foreground">
                     <p className="mb-4">No spatial and temporal coverage entries yet.</p>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleAddCoverage}
-                    >
-                        <Plus className="h-4 w-4 mr-2" />
+                    <Button type="button" variant="outline" onClick={handleAddCoverage}>
+                        <Plus className="mr-2 h-4 w-4" />
                         Add First Coverage Entry
                     </Button>
                 </div>
@@ -173,12 +148,8 @@ export default function SpatialTemporalCoverageField({
             {/* Add Button */}
             {coverages.length > 0 && canAddCoverage(coverages, maxCoverages) && (
                 <div className="flex justify-center">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleAddCoverage}
-                    >
-                        <Plus className="h-4 w-4 mr-2" />
+                    <Button type="button" variant="outline" onClick={handleAddCoverage}>
+                        <Plus className="mr-2 h-4 w-4" />
                         Add Coverage Entry
                     </Button>
                 </div>
@@ -186,14 +157,12 @@ export default function SpatialTemporalCoverageField({
 
             {/* Max limit reached message */}
             {coverages.length >= maxCoverages && (
-                <p className="text-sm text-muted-foreground text-center">
-                    Maximum number of coverage entries ({maxCoverages}) reached.
-                </p>
+                <p className="text-center text-sm text-muted-foreground">Maximum number of coverage entries ({maxCoverages}) reached.</p>
             )}
 
             {/* Help text */}
             {coverages.length > 0 && !canAddCoverage(coverages, maxCoverages) && coverages.length < maxCoverages && (
-                <p className="text-sm text-muted-foreground text-center">
+                <p className="text-center text-sm text-muted-foreground">
                     Complete the required fields in the last entry to add more coverage entries.
                 </p>
             )}

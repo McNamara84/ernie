@@ -40,19 +40,10 @@ export default function InstitutionChart({ data }: InstitutionChartProps) {
 
     return (
         <ResponsiveContainer width="100%" height={400}>
-            <BarChart
-                data={chartData}
-                layout="vertical"
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-            >
+            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis type="number" className="text-xs" />
-                <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={200}
-                    className="text-xs"
-                />
+                <YAxis type="category" dataKey="name" width={200} className="text-xs" />
                 <Tooltip
                     content={({ active, payload }) => {
                         if (active && payload && payload.length) {
@@ -61,27 +52,17 @@ export default function InstitutionChart({ data }: InstitutionChartProps) {
                                 <div className="rounded-lg border bg-background p-2 shadow-sm">
                                     <div className="grid gap-2">
                                         <div className="flex flex-col">
-                                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                Institution
-                                            </span>
+                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Institution</span>
                                             <span className="font-bold">{data.fullName}</span>
                                         </div>
                                         <div className="flex flex-col">
-                                            <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                Datasets
-                                            </span>
-                                            <span className="font-bold text-muted-foreground">
-                                                {data.datasets}
-                                            </span>
+                                            <span className="text-[0.70rem] text-muted-foreground uppercase">Datasets</span>
+                                            <span className="font-bold text-muted-foreground">{data.datasets}</span>
                                         </div>
                                         {data.rorId && (
                                             <div className="flex flex-col">
-                                                <span className="text-[0.70rem] uppercase text-muted-foreground">
-                                                    ROR ID
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {data.rorId}
-                                                </span>
+                                                <span className="text-[0.70rem] text-muted-foreground uppercase">ROR ID</span>
+                                                <span className="text-xs text-muted-foreground">{data.rorId}</span>
                                             </div>
                                         )}
                                     </div>

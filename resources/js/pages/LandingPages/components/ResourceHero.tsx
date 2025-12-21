@@ -12,13 +12,7 @@ interface ResourceHeroProps {
     citation: string;
 }
 
-export function ResourceHero({
-    resourceType,
-    status,
-    mainTitle,
-    subtitle,
-    citation,
-}: ResourceHeroProps) {
+export function ResourceHero({ resourceType, status, mainTitle, subtitle, citation }: ResourceHeroProps) {
     const [copied, setCopied] = useState(false);
 
     const ResourceTypeIcon = getResourceTypeIcon(resourceType);
@@ -42,59 +36,36 @@ export function ResourceHero({
                 {/* Left: Resource Type */}
                 <div className="flex flex-col items-center gap-1.5">
                     <ResourceTypeIcon className="h-8 w-8 text-gray-700" strokeWidth={1.5} />
-                    <span className="text-xs text-gray-600 text-center">
-                        {resourceType}
-                    </span>
+                    <span className="text-center text-xs text-gray-600">{resourceType}</span>
                 </div>
 
                 {/* Center: Title + Subtitle */}
-                <div className="flex-1 text-center space-y-1">
-                    <h1 className="text-xl font-bold text-gray-900 leading-tight">
-                        {mainTitle}
-                    </h1>
-                    {subtitle && (
-                        <h2 className="text-base italic text-gray-600 font-normal">
-                            {subtitle}
-                        </h2>
-                    )}
+                <div className="flex-1 space-y-1 text-center">
+                    <h1 className="text-xl leading-tight font-bold text-gray-900">{mainTitle}</h1>
+                    {subtitle && <h2 className="text-base font-normal text-gray-600 italic">{subtitle}</h2>}
                 </div>
 
                 {/* Right: Status */}
                 <div className="flex flex-col items-center gap-1.5">
-                    <StatusIcon
-                        className={`h-8 w-8 ${statusConfig.color}`}
-                        strokeWidth={1.5}
-                    />
-                    <span
-                        className={`text-xs text-center font-medium ${statusConfig.textColor}`}
-                    >
-                        {statusConfig.label}
-                    </span>
+                    <StatusIcon className={`h-8 w-8 ${statusConfig.color}`} strokeWidth={1.5} />
+                    <span className={`text-center text-xs font-medium ${statusConfig.textColor}`}>{statusConfig.label}</span>
                 </div>
             </div>
 
             {/* Bottom: Citation */}
             <div className="border-t border-gray-200 pt-4">
                 <div className="flex items-start gap-3">
-                    <p className="flex-1 text-sm leading-relaxed text-gray-700">
-                        {citation}
-                    </p>
+                    <p className="flex-1 text-sm leading-relaxed text-gray-700">{citation}</p>
                     <button
                         onClick={handleCopy}
                         className="shrink-0 rounded p-2 transition-colors hover:bg-gray-100"
                         title={copied ? 'Copied!' : 'Copy citation'}
                         aria-label="Copy citation to clipboard"
                     >
-                        <Copy
-                            className={`h-4 w-4 ${copied ? 'text-green-600' : 'text-gray-600'}`}
-                        />
+                        <Copy className={`h-4 w-4 ${copied ? 'text-green-600' : 'text-gray-600'}`} />
                     </button>
                 </div>
-                {copied && (
-                    <p className="mt-2 text-right text-xs text-green-600">
-                        Citation copied to clipboard!
-                    </p>
-                )}
+                {copied && <p className="mt-2 text-right text-xs text-green-600">Citation copied to clipboard!</p>}
             </div>
         </div>
     );

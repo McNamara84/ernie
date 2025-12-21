@@ -9,13 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import type { GCMDKeyword, GCMDVocabularyType, SelectedKeyword } from '@/types/gcmd';
-import { getSchemeFromVocabularyType,getVocabularyTypeFromScheme } from '@/types/gcmd';
+import { getSchemeFromVocabularyType, getVocabularyTypeFromScheme } from '@/types/gcmd';
 
 import { GCMDTree } from './gcmd-tree';
 
 /**
  * Minimum number of characters required before triggering vocabulary search.
- * 
+ *
  * Rationale: Short search queries (1-2 characters) produce too many results in hierarchical
  * GCMD vocabularies, degrading user experience. Three characters provides a good balance:
  * - Reduces result set to manageable size
@@ -41,7 +41,7 @@ interface ControlledVocabulariesFieldProps {
  */
 function searchKeywords(keywords: GCMDKeyword[], query: string): GCMDKeyword[] {
     if (!query) return keywords;
-    
+
     const results: GCMDKeyword[] = [];
     const lowerQuery = query.toLowerCase();
 
@@ -79,35 +79,32 @@ export default function ControlledVocabulariesField({
 }: ControlledVocabulariesFieldProps) {
     const [activeTab, setActiveTab] = useState<GCMDVocabularyType>('science');
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     // Track if auto-switch has already occurred to prevent interference with manual tab changes
     const hasAutoSwitched = useRef(false);
-    
+
     // Auto-switch to MSL tab when it becomes available (triggered by parent notification logic)
     useEffect(() => {
         if (autoSwitchToMsl && showMslTab && !hasAutoSwitched.current) {
             hasAutoSwitched.current = true;
             setActiveTab('msl');
         }
-        
+
         // Reset flag when MSL tab is hidden
         if (!showMslTab) {
             hasAutoSwitched.current = false;
         }
     }, [autoSwitchToMsl, showMslTab]);
-    
+
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
-    
+
     // Apply minimum search length threshold (defined at module level)
-    const effectiveSearchQuery = debouncedSearchQuery.trim().length >= MIN_SEARCH_LENGTH 
-        ? debouncedSearchQuery.trim() 
-        : '';
-    
+    const effectiveSearchQuery = debouncedSearchQuery.trim().length >= MIN_SEARCH_LENGTH ? debouncedSearchQuery.trim() : '';
+
     // Show loading state while debouncing
-    const isSearching = searchQuery.trim().length >= MIN_SEARCH_LENGTH && 
-                       searchQuery !== debouncedSearchQuery;
+    const isSearching = searchQuery.trim().length >= MIN_SEARCH_LENGTH && searchQuery !== debouncedSearchQuery;
 
     // Get the appropriate keyword tree based on active tab
     const currentKeywords = useMemo(() => {
@@ -138,11 +135,7 @@ export default function ControlledVocabulariesField({
     const selectedIdsForCurrentVocabulary = useMemo(() => {
         // Filter keywords by scheme matching the active tab
         const targetScheme = getSchemeFromVocabularyType(activeTab);
-        return new Set(
-            selectedKeywords
-                .filter((k) => k.scheme.toLowerCase().includes(targetScheme.toLowerCase().split(' ')[0]))
-                .map((k) => k.id),
-        );
+        return new Set(selectedKeywords.filter((k) => k.scheme.toLowerCase().includes(targetScheme.toLowerCase().split(' ')[0])).map((k) => k.id));
     }, [selectedKeywords, activeTab]);
 
     // Handle keyword toggle (select/deselect)
@@ -207,73 +200,79 @@ export default function ControlledVocabulariesField({
             {/* Selected Keywords Display */}
             {selectedKeywords.length > 0 && (
                 <div className="space-y-3">
-                    {(['science', 'platforms', 'instruments', ...(showMslTab ? ['msl' as const] : [])] as GCMDVocabularyType[]).map(
-                        (type) => {
-                            const keywords = keywordsByVocabulary[type];
-                            if (keywords.length === 0) return null;
+                    {(['science', 'platforms', 'instruments', ...(showMslTab ? ['msl' as const] : [])] as GCMDVocabularyType[]).map((type) => {
+                        const keywords = keywordsByVocabulary[type];
+                        if (keywords.length === 0) return null;
 
-                            const typeLabels: Record<GCMDVocabularyType, string> = {
-                                science: 'Science Keywords',
-                                platforms: 'Platforms',
-                                instruments: 'Instruments',
-                                msl: 'MSL Vocabulary',
-                            };
+                        const typeLabels: Record<GCMDVocabularyType, string> = {
+                            science: 'Science Keywords',
+                            platforms: 'Platforms',
+                            instruments: 'Instruments',
+                            msl: 'MSL Vocabulary',
+                        };
 
-                            // Check if there are any legacy keywords
-                            const legacyKeywords = keywords.filter(kw => kw.isLegacy);
-                            const hasLegacyKeywords = legacyKeywords.length > 0;
+                        // Check if there are any legacy keywords
+                        const legacyKeywords = keywords.filter((kw) => kw.isLegacy);
+                        const hasLegacyKeywords = legacyKeywords.length > 0;
 
-                            return (
-                                <div key={type}>
-                                    <Label className="text-xs font-medium text-muted-foreground mb-2 block">
-                                        {typeLabels[type]}:
-                                        {hasLegacyKeywords && (
-                                            <span className="ml-2 text-xs text-amber-600 dark:text-amber-400 font-semibold" title="Some keywords are from the old database and don't exist in the current vocabulary. Please review and replace with current keywords.">
-                                                ⚠️ {legacyKeywords.length} Legacy Keyword{legacyKeywords.length > 1 ? 's' : ''} - Please Review
-                                            </span>
-                                        )}
-                                    </Label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {keywords.map((keyword) => (
-                                            <Badge
-                                                key={keyword.id}
-                                                variant={keyword.isLegacy ? "destructive" : "secondary"}
-                                                className={cn(
-                                                    "gap-1.5 pr-1.5",
-                                                    keyword.isLegacy && "bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700"
-                                                )}
-                                                title={keyword.isLegacy ? `⚠️ Legacy keyword from old database: "${keyword.path}"\nThis keyword doesn't exist in the current vocabulary.\nPlease remove and select a replacement from the current MSL vocabulary.` : keyword.path}
+                        return (
+                            <div key={type}>
+                                <Label className="mb-2 block text-xs font-medium text-muted-foreground">
+                                    {typeLabels[type]}:
+                                    {hasLegacyKeywords && (
+                                        <span
+                                            className="ml-2 text-xs font-semibold text-amber-600 dark:text-amber-400"
+                                            title="Some keywords are from the old database and don't exist in the current vocabulary. Please review and replace with current keywords."
+                                        >
+                                            ⚠️ {legacyKeywords.length} Legacy Keyword{legacyKeywords.length > 1 ? 's' : ''} - Please Review
+                                        </span>
+                                    )}
+                                </Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {keywords.map((keyword) => (
+                                        <Badge
+                                            key={keyword.id}
+                                            variant={keyword.isLegacy ? 'destructive' : 'secondary'}
+                                            className={cn(
+                                                'gap-1.5 pr-1.5',
+                                                keyword.isLegacy &&
+                                                    'border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100',
+                                            )}
+                                            title={
+                                                keyword.isLegacy
+                                                    ? `⚠️ Legacy keyword from old database: "${keyword.path}"\nThis keyword doesn't exist in the current vocabulary.\nPlease remove and select a replacement from the current MSL vocabulary.`
+                                                    : keyword.path
+                                            }
+                                        >
+                                            {keyword.isLegacy && <span className="text-amber-600 dark:text-amber-400">⚠️</span>}
+                                            <span className="max-w-md truncate">{keyword.path}</span>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-4 w-4 p-0 hover:bg-transparent"
+                                                onClick={() => handleRemove(keyword.id)}
+                                                aria-label={`Remove ${keyword.path}`}
                                             >
-                                                {keyword.isLegacy && <span className="text-amber-600 dark:text-amber-400">⚠️</span>}
-                                                <span className="max-w-md truncate">
-                                                    {keyword.path}
-                                                </span>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-4 w-4 p-0 hover:bg-transparent"
-                                                    onClick={() => handleRemove(keyword.id)}
-                                                    aria-label={`Remove ${keyword.path}`}
-                                                >
-                                                    <X className="h-3 w-3" />
-                                                </Button>
-                                            </Badge>
-                                        ))}
-                                    </div>
+                                                <X className="h-3 w-3" />
+                                            </Button>
+                                        </Badge>
+                                    ))}
                                 </div>
-                            );
-                        },
-                    )}
+                            </div>
+                        );
+                    })}
                 </div>
             )}
 
             {/* Search Input - searches across all vocabulary types */}
             <div className="relative">
-                <Search className={cn(
-                    "absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4",
-                    isSearching ? "text-primary animate-pulse" : "text-muted-foreground"
-                )} />
+                <Search
+                    className={cn(
+                        'absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform',
+                        isSearching ? 'animate-pulse text-primary' : 'text-muted-foreground',
+                    )}
+                />
                 <Input
                     type="text"
                     placeholder={`Search all vocabularies (min. ${MIN_SEARCH_LENGTH} characters)...`}
@@ -286,7 +285,7 @@ export default function ControlledVocabulariesField({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+                        className="absolute top-1/2 right-1 h-7 w-7 -translate-y-1/2 transform p-0"
                         onClick={() => setSearchQuery('')}
                         aria-label="Clear search"
                     >
@@ -297,7 +296,7 @@ export default function ControlledVocabulariesField({
 
             {/* Tabs for vocabulary types */}
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
-                <TabsList className={cn("grid w-full", showMslTab ? "grid-cols-4" : "grid-cols-3")}>
+                <TabsList className={cn('grid w-full', showMslTab ? 'grid-cols-4' : 'grid-cols-3')}>
                     <TabsTrigger value="science" className="relative">
                         Science Keywords
                         {hasKeywords('science') && (
@@ -342,11 +341,11 @@ export default function ControlledVocabulariesField({
                     )}
                 </TabsList>
 
-                <TabsContent value={activeTab} className="space-y-4 mt-4">
+                <TabsContent value={activeTab} className="mt-4 space-y-4">
                     {/* Tree View */}
                     {effectiveSearchQuery ? (
                         <div>
-                            <p className="text-xs text-muted-foreground mb-2">
+                            <p className="mb-2 text-xs text-muted-foreground">
                                 {isSearching ? (
                                     <span className="italic">Searching...</span>
                                 ) : (

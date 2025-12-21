@@ -1,37 +1,17 @@
 /**
  * AuthorList Component
- * 
+ *
  * Displays a list of author entries with drag & drop reordering support.
  * Shows an empty state when no authors are present.
  */
 
-import {
-    closestCenter,
-    DndContext,
-    type DragEndEvent,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus, Upload } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import type { ParsedAuthor } from '../author-csv-import';
@@ -51,14 +31,7 @@ interface AuthorListProps {
 /**
  * AuthorList - Manages the list of authors with empty state and drag & drop reordering
  */
-export default function AuthorList({
-    authors,
-    onAdd,
-    onRemove,
-    onAuthorChange,
-    onBulkAdd,
-    affiliationSuggestions,
-}: AuthorListProps) {
+export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, onBulkAdd, affiliationSuggestions }: AuthorListProps) {
     // State for CSV import dialog
     const [csvDialogOpen, setCsvDialogOpen] = useState(false);
 
@@ -67,13 +40,13 @@ export default function AuthorList({
         useSensor(PointerSensor),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
-        })
+        }),
     );
 
     // Helper: Convert CSV row to AuthorEntry
     const convertParsedAuthorToEntry = (parsed: ParsedAuthor): AuthorEntry => {
         const id = `author-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-        
+
         if (parsed.type === 'institution') {
             return {
                 id,
@@ -87,7 +60,7 @@ export default function AuthorList({
                 affiliationsInput: parsed.affiliations.join(', '),
             };
         }
-        
+
         // Person type
         return {
             id,
@@ -139,43 +112,40 @@ export default function AuthorList({
     // Helper: Handle type change
     const handleTypeChange = (index: number, type: AuthorType) => {
         const author = authors[index];
-        
+
         if (type === author.type) return;
-        
+
         // Create new author entry with correct type
-        const newAuthor: AuthorEntry = type === 'person' 
-            ? {
-                id: author.id,
-                type: 'person',
-                orcid: '',
-                firstName: '',
-                lastName: '',
-                email: '',
-                website: '',
-                isContact: false,
-                affiliations: author.affiliations,
-                affiliationsInput: author.affiliationsInput,
-            }
-            : {
-                id: author.id,
-                type: 'institution',
-                institutionName: '',
-                affiliations: author.affiliations,
-                affiliationsInput: author.affiliationsInput,
-            };
-        
+        const newAuthor: AuthorEntry =
+            type === 'person'
+                ? {
+                      id: author.id,
+                      type: 'person',
+                      orcid: '',
+                      firstName: '',
+                      lastName: '',
+                      email: '',
+                      website: '',
+                      isContact: false,
+                      affiliations: author.affiliations,
+                      affiliationsInput: author.affiliationsInput,
+                  }
+                : {
+                      id: author.id,
+                      type: 'institution',
+                      institutionName: '',
+                      affiliations: author.affiliations,
+                      affiliationsInput: author.affiliationsInput,
+                  };
+
         onAuthorChange(index, newAuthor);
     };
 
     // Helper: Handle person field change
-    const handlePersonFieldChange = (
-        index: number,
-        field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website',
-        value: string
-    ) => {
+    const handlePersonFieldChange = (index: number, field: 'orcid' | 'firstName' | 'lastName' | 'email' | 'website', value: string) => {
         const author = authors[index];
         if (author.type !== 'person') return;
-        
+
         onAuthorChange(index, {
             ...author,
             [field]: value,
@@ -186,7 +156,7 @@ export default function AuthorList({
     const handleInstitutionNameChange = (index: number, value: string) => {
         const author = authors[index];
         if (author.type !== 'institution') return;
-        
+
         onAuthorChange(index, {
             ...author,
             institutionName: value,
@@ -197,7 +167,7 @@ export default function AuthorList({
     const handleContactChange = (index: number, checked: boolean) => {
         const author = authors[index];
         if (author.type !== 'person') return;
-        
+
         onAuthorChange(index, {
             ...author,
             isContact: checked,
@@ -205,12 +175,9 @@ export default function AuthorList({
     };
 
     // Helper: Handle affiliations change
-    const handleAffiliationsChange = (
-        index: number,
-        value: { raw: string; tags: AffiliationTag[] }
-    ) => {
+    const handleAffiliationsChange = (index: number, value: { raw: string; tags: AffiliationTag[] }) => {
         const author = authors[index];
-        
+
         onAuthorChange(index, {
             ...author,
             affiliations: value.tags,
@@ -221,40 +188,26 @@ export default function AuthorList({
     // Empty state
     if (authors.length === 0) {
         return (
-            <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg" role="status">
+            <div className="rounded-lg border-2 border-dashed py-8 text-center text-muted-foreground" role="status">
                 <p className="mb-4">No authors yet.</p>
                 <div className="flex justify-center gap-2">
-                    <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={onAdd}
-                        aria-label="Add first author"
-                    >
-                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <Button type="button" variant="outline" onClick={onAdd} aria-label="Add first author">
+                        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                         Add First Author
                     </Button>
                     <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button 
-                                type="button" 
-                                variant="outline"
-                                aria-label="Import authors from CSV file"
-                            >
-                                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
+                            <Button type="button" variant="outline" aria-label="Import authors from CSV file">
+                                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
                                 Import CSV
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh]">
+                        <DialogContent className="max-h-[90vh] max-w-2xl">
                             <DialogHeader>
                                 <DialogTitle>Import Authors from CSV</DialogTitle>
-                                <DialogDescription>
-                                    Upload a CSV file to add multiple authors at once
-                                </DialogDescription>
+                                <DialogDescription>Upload a CSV file to add multiple authors at once</DialogDescription>
                             </DialogHeader>
-                            <AuthorCsvImport
-                                onImport={handleCsvImport}
-                                onClose={() => setCsvDialogOpen(false)}
-                            />
+                            <AuthorCsvImport onImport={handleCsvImport} onClose={() => setCsvDialogOpen(false)} />
                         </DialogContent>
                     </Dialog>
                 </div>
@@ -264,36 +217,27 @@ export default function AuthorList({
 
     // List with authors
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <div className="space-y-4">
                 {/* Author items */}
-                <SortableContext
-                    items={authors.map((author) => author.id)}
-                    strategy={verticalListSortingStrategy}
-                >
-                    <div className="space-y-4" role="list" aria-label="Authors" aria-describedby="author-roles-description" data-testid="author-entries-group">
+                <SortableContext items={authors.map((author) => author.id)} strategy={verticalListSortingStrategy}>
+                    <div
+                        className="space-y-4"
+                        role="list"
+                        aria-label="Authors"
+                        aria-describedby="author-roles-description"
+                        data-testid="author-entries-group"
+                    >
                         {authors.map((author, index) => (
                             <AuthorItem
                                 key={author.id}
                                 author={author}
                                 index={index}
                                 onTypeChange={(type) => handleTypeChange(index, type)}
-                                onPersonFieldChange={(field, value) => 
-                                    handlePersonFieldChange(index, field, value)
-                                }
-                                onInstitutionNameChange={(value) => 
-                                    handleInstitutionNameChange(index, value)
-                                }
-                                onContactChange={(checked) => 
-                                    handleContactChange(index, checked)
-                                }
-                                onAffiliationsChange={(value) => 
-                                    handleAffiliationsChange(index, value)
-                                }
+                                onPersonFieldChange={(field, value) => handlePersonFieldChange(index, field, value)}
+                                onInstitutionNameChange={(value) => handleInstitutionNameChange(index, value)}
+                                onContactChange={(checked) => handleContactChange(index, checked)}
+                                onAffiliationsChange={(value) => handleAffiliationsChange(index, value)}
                                 onAuthorChange={(updatedAuthor) => onAuthorChange(index, updatedAuthor)}
                                 onRemove={() => onRemove(index)}
                                 canRemove={authors.length > 1}
@@ -305,37 +249,23 @@ export default function AuthorList({
 
                 {/* Add button */}
                 <div className="flex justify-center gap-2">
-                    <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={onAdd}
-                        aria-label="Add another author"
-                    >
-                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                    <Button type="button" variant="outline" onClick={onAdd} aria-label="Add another author">
+                        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                         Add Author
                     </Button>
                     <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
                         <DialogTrigger asChild>
-                            <Button 
-                                type="button" 
-                                variant="outline"
-                                aria-label="Import authors from CSV file"
-                            >
-                                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
+                            <Button type="button" variant="outline" aria-label="Import authors from CSV file">
+                                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
                                 Import CSV
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[90vh]">
+                        <DialogContent className="max-h-[90vh] max-w-2xl">
                             <DialogHeader>
                                 <DialogTitle>Import Authors from CSV</DialogTitle>
-                                <DialogDescription>
-                                    Upload a CSV file to add multiple authors at once
-                                </DialogDescription>
+                                <DialogDescription>Upload a CSV file to add multiple authors at once</DialogDescription>
                             </DialogHeader>
-                            <AuthorCsvImport
-                                onImport={handleCsvImport}
-                                onClose={() => setCsvDialogOpen(false)}
-                            />
+                            <AuthorCsvImport onImport={handleCsvImport} onClose={() => setCsvDialogOpen(false)} />
                         </DialogContent>
                     </Dialog>
                 </div>

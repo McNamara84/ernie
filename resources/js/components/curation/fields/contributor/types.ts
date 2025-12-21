@@ -1,6 +1,6 @@
 /**
  * Type definitions for Contributor components
- * 
+ *
  * This file contains all TypeScript types and interfaces for the Contributor field group.
  * Migrated from contributor-field.tsx for better organization.
  */

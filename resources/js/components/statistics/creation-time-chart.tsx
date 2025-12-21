@@ -1,12 +1,4 @@
-import {
-    CartesianGrid,
-    Line,
-    LineChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 type CreationTimeChartProps = {
     data: Array<{
@@ -29,14 +21,7 @@ export default function CreationTimeChart({ data }: CreationTimeChartProps) {
         <ResponsiveContainer width="100%" height={350}>
             <LineChart data={hourlyData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis
-                    dataKey="hour"
-                    className="text-xs"
-                    tick={{ fill: 'hsl(var(--foreground))' }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                />
+                <XAxis dataKey="hour" className="text-xs" tick={{ fill: 'hsl(var(--foreground))' }} angle={-45} textAnchor="end" height={80} />
                 <YAxis className="text-xs" tick={{ fill: 'hsl(var(--foreground))' }} />
                 <Tooltip
                     contentStyle={{

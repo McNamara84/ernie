@@ -101,7 +101,7 @@ export function FundingReferenceItem({
                 inputRef.current.blur();
             }
         },
-        [onFieldsChange]
+        [onFieldsChange],
     );
 
     const handleFunderNameChange = useCallback(
@@ -117,7 +117,7 @@ export function FundingReferenceItem({
                 onFunderNameChange(value);
             }
         },
-        [funding.funderIdentifier, onFieldsChange, onFunderNameChange]
+        [funding.funderIdentifier, onFieldsChange, onFunderNameChange],
     );
 
     return (
@@ -129,23 +129,14 @@ export function FundingReferenceItem({
             <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                     {/* Title */}
-                    <h3
-                        id={`${funding.id}-heading`}
-                        className="text-lg font-semibold leading-6 text-foreground"
-                    >
+                    <h3 id={`${funding.id}-heading`} className="text-lg leading-6 font-semibold text-foreground">
                         Funding #{index + 1}
                     </h3>
                 </div>
 
                 {/* Remove Button */}
                 {canRemove && (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={onRemove}
-                        aria-label={`Remove funding ${index + 1}`}
-                    >
+                    <Button type="button" variant="outline" size="icon" onClick={onRemove} aria-label={`Remove funding ${index + 1}`}>
                         <Trash2 className="h-4 w-4" />
                     </Button>
                 )}
@@ -199,7 +190,7 @@ export function FundingReferenceItem({
                                         e.stopPropagation();
                                         handleSelectSuggestion(suggestion);
                                     }}
-                                    className="flex w-full cursor-pointer flex-col gap-1 border-b border-border px-4 py-3 text-left transition hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none last:border-b-0"
+                                    className="flex w-full cursor-pointer flex-col gap-1 border-b border-border px-4 py-3 text-left transition last:border-b-0 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none"
                                     role="option"
                                     aria-selected={false}
                                     tabIndex={0}
@@ -211,14 +202,8 @@ export function FundingReferenceItem({
                                     }}
                                 >
                                     <div className="font-medium">{suggestion.prefLabel}</div>
-                                    {suggestion.otherLabel && (
-                                        <div className="text-xs text-muted-foreground">
-                                            {suggestion.otherLabel}
-                                        </div>
-                                    )}
-                                    <div className="text-xs text-muted-foreground">
-                                        🏛️ {suggestion.rorId}
-                                    </div>
+                                    {suggestion.otherLabel && <div className="text-xs text-muted-foreground">{suggestion.otherLabel}</div>}
+                                    <div className="text-xs text-muted-foreground">🏛️ {suggestion.rorId}</div>
                                 </button>
                             ))}
                         </div>
@@ -228,14 +213,9 @@ export function FundingReferenceItem({
                 {/* Funder Identifier Badge (ROR, Crossref Funder ID, etc.) */}
                 {funding.funderIdentifier && funding.funderIdentifierType && (
                     <div className="flex items-center gap-2">
-                        <a
-                            href={funding.funderIdentifier}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex"
-                        >
-                            <Badge 
-                                variant="outline" 
+                        <a href={funding.funderIdentifier} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                            <Badge
+                                variant="outline"
                                 className="cursor-pointer text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
                             >
                                 {funding.funderIdentifierType === 'ROR' && '🏛️ '}
@@ -250,13 +230,7 @@ export function FundingReferenceItem({
                 )}
 
                 {/* Toggle Award Details */}
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={onToggleExpanded}
-                    className="gap-2"
-                >
+                <Button type="button" variant="ghost" size="sm" onClick={onToggleExpanded} className="gap-2">
                     {funding.isExpanded ? (
                         <>
                             <ChevronDown className="h-4 w-4" />
@@ -282,9 +256,7 @@ export function FundingReferenceItem({
                         />
 
                         <div className="space-y-2">
-                            <Label htmlFor={`${funding.id}-award-uri`}>
-                                Award URI
-                            </Label>
+                            <Label htmlFor={`${funding.id}-award-uri`}>Award URI</Label>
                             <Input
                                 id={`${funding.id}-award-uri`}
                                 type="url"

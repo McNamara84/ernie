@@ -56,13 +56,13 @@ export function DateField({
     // Clear endDate when switching away from 'valid' date type to prevent stale data
     useEffect(() => {
         const prevDateType = prevDateTypeRef.current;
-        
+
         // Only clear endDate when transitioning FROM 'valid' TO a non-'valid' type
         // This prevents race conditions and unnecessary calls when endDate is already empty
         if (prevDateType === 'valid' && dateType !== 'valid' && endDate) {
             onEndDateChange('');
         }
-        
+
         // Update the ref for the next render
         prevDateTypeRef.current = dateType;
     }, [dateType, endDate, onEndDateChange]);
@@ -100,32 +100,15 @@ export function DateField({
                     hideLabel={!isFirst}
                     required
                 />
-                {dateTypeDescription && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        {dateTypeDescription}
-                    </p>
-                )}
+                {dateTypeDescription && <p className="mt-1 text-xs text-muted-foreground">{dateTypeDescription}</p>}
             </div>
             <div className="flex items-end md:col-span-1">
                 {isFirst ? (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Add date"
-                        onClick={onAdd}
-                        disabled={!canAdd}
-                    >
+                    <Button type="button" variant="outline" size="icon" aria-label="Add date" onClick={onAdd} disabled={!canAdd}>
                         <Plus className="h-4 w-4" />
                     </Button>
                 ) : (
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        aria-label="Remove date"
-                        onClick={onRemove}
-                    >
+                    <Button type="button" variant="outline" size="icon" aria-label="Remove date" onClick={onRemove}>
                         <Minus className="h-4 w-4" />
                     </Button>
                 )}

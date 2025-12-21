@@ -194,7 +194,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Editor Settings" />
-            <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-4">
                 <Button type="submit" className="self-start" disabled={processing}>
                     Save
                 </Button>
@@ -207,20 +207,20 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr className="text-left">
-                                    <th className="border-b p-2">ID</th>
-                                    <th className="border-b p-2">Identifier</th>
-                                    <th className="border-b p-2">Name</th>
-                                    <th className="border-b p-2 text-center">
-                                        ERNIE
-                                        <br />
-                                        active
-                                    </th>
-                                    <th className="border-b p-2 text-center">
-                                        ELMO
-                                        <br />
-                                        active
-                                    </th>
-                                </tr>
+                                        <th className="border-b p-2">ID</th>
+                                        <th className="border-b p-2">Identifier</th>
+                                        <th className="border-b p-2">Name</th>
+                                        <th className="border-b p-2 text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                        </th>
+                                        <th className="border-b p-2 text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                        </th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {data.licenses.map((license, index) => (
@@ -263,19 +263,19 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr className="text-left">
-                                    <th className="border-b p-2">ID</th>
-                                    <th className="border-b p-2">Name</th>
-                                    <th className="border-b p-2 text-center">
-                                        ERNIE
-                                        <br />
-                                        active
-                                    </th>
-                                    <th className="border-b p-2 text-center">
-                                        ELMO
-                                        <br />
-                                        active
-                                    </th>
-                                </tr>
+                                        <th className="border-b p-2">ID</th>
+                                        <th className="border-b p-2">Name</th>
+                                        <th className="border-b p-2 text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                        </th>
+                                        <th className="border-b p-2 text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                        </th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {data.resourceTypes.map((type, index) => (
@@ -326,19 +326,19 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr className="text-left">
-                                    <th className="border-b p-2">ID</th>
-                                    <th className="border-b p-2">Name</th>
-                                    <th className="border-b p-2">Slug</th>
-                                    <th className="border-b p-2 text-center">
-                                        ERNIE
-                                        <br />
-                                        active
-                                    </th>
-                                    <th className="border-b p-2 text-center">
-                                        ELMO
-                                        <br />
-                                        active
-                                    </th>
+                                        <th className="border-b p-2">ID</th>
+                                        <th className="border-b p-2">Name</th>
+                                        <th className="border-b p-2">Slug</th>
+                                        <th className="border-b p-2 text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                        </th>
+                                        <th className="border-b p-2 text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -400,19 +400,19 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                             <table className="w-full border-collapse">
                                 <thead>
                                     <tr className="text-left">
-                                    <th className="border-b p-2">ID</th>
-                                    <th className="border-b p-2">Code</th>
-                                    <th className="border-b p-2">Name</th>
-                                    <th className="border-b p-2 text-center">
-                                        ERNIE
-                                        <br />
-                                        active
-                                    </th>
-                                    <th className="border-b p-2 text-center">
-                                        ELMO
-                                        <br />
-                                        active
-                                    </th>
+                                        <th className="border-b p-2">ID</th>
+                                        <th className="border-b p-2">Code</th>
+                                        <th className="border-b p-2">Name</th>
+                                        <th className="border-b p-2 text-center">
+                                            ERNIE
+                                            <br />
+                                            active
+                                        </th>
+                                        <th className="border-b p-2 text-center">
+                                            ELMO
+                                            <br />
+                                            active
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
