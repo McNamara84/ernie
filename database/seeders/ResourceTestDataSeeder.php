@@ -90,6 +90,8 @@ class ResourceTestDataSeeder extends Seeder
 
     private FunderIdentifierType $rorFunderType;
 
+    private Right $ccByLicense;
+
     /** @var array<int, int> */
     private array $createdResourceIds = [];
 
@@ -230,6 +232,9 @@ class ResourceTestDataSeeder extends Seeder
             ['slug' => 'ROR'],
             ['name' => 'ROR', 'slug' => 'ROR']
         );
+
+        // Get CC-BY-4.0 license for mandatory license tests
+        $this->ccByLicense = Right::where('identifier', 'CC-BY-4.0')->firstOrFail();
     }
 
     // =========================================================================
@@ -243,7 +248,26 @@ class ResourceTestDataSeeder extends Seeder
     {
         $resource = $this->createBaseResource('TEST: Mandatory Fields Only');
 
-        $this->addCreator($resource, 'Jane', 'Doe');
+        // Creator with contact person (mandatory: at least one creator as contact with email)
+        $this->addCreator(
+            $resource,
+            'Jane',
+            'Doe',
+            null,
+            1,
+            true,  // isContact
+            'jane.doe@example.com'  // email (required for contact person)
+        );
+
+        // Primary License is mandatory in ERNIE
+        $resource->rights()->attach($this->ccByLicense->id);
+
+        // Abstract is mandatory in ERNIE (min 50 characters)
+        Description::create([
+            'resource_id' => $resource->id,
+            'value' => 'This is a minimal test resource containing only the mandatory fields required by the DataCite schema and ERNIE metadata editor. It demonstrates the baseline requirements for publishing research data.',
+            'description_type_id' => $this->abstractType->id,
+        ]);
 
         $this->createLandingPage($resource, 'mandatory-fields-only');
 
@@ -319,10 +343,10 @@ class ResourceTestDataSeeder extends Seeder
             'point_latitude' => 52.3806,
         ]);
 
-        // Related Identifier
+        // Related Identifier - using real DOI for citation testing
         RelatedIdentifier::create([
             'resource_id' => $resource->id,
-            'identifier' => '10.1234/related.dataset',
+            'identifier' => '10.5880/igets.su.l1.001',
             'identifier_type_id' => $this->doiType->id,
             'relation_type_id' => $this->citesType->id,
             'position' => 1,
@@ -1086,7 +1110,10 @@ class ResourceTestDataSeeder extends Seeder
         string $givenName,
         string $familyName,
         ?string $orcid = null,
-        int $position = 1
+        int $position = 1,
+        bool $isContact = false,
+        ?string $email = null,
+        ?string $website = null
     ): ResourceCreator {
         // If ORCID is provided, search by ORCID first (unique constraint)
         if ($orcid) {
@@ -1117,6 +1144,9 @@ class ResourceTestDataSeeder extends Seeder
             'creatorable_type' => Person::class,
             'creatorable_id' => $person->id,
             'position' => $position,
+            'is_contact' => $isContact,
+            'email' => $email,
+            'website' => $website,
         ]);
     }
 

@@ -85,9 +85,9 @@ class LandingPagePublicController extends Controller
         $resourceData['related_identifiers'] = $resource->relatedIdentifiers->map(function ($relatedId) {
             return [
                 'id' => $relatedId->id,
-                'identifier' => $relatedId->related_identifier,
-                'identifier_type' => $relatedId->relatedIdentifierType->name,
-                'relation_type' => $relatedId->relationType->name,
+                'identifier' => $relatedId->identifier,
+                'identifier_type' => $relatedId->relatedIdentifierType?->name,
+                'relation_type' => $relatedId->relationType?->name,
                 'position' => $relatedId->position,
             ];
         })->toArray();
@@ -97,7 +97,7 @@ class LandingPagePublicController extends Controller
             return [
                 'id' => $desc->id,
                 'value' => $desc->value,
-                'description_type' => $desc->descriptionType->name,
+                'description_type' => $desc->descriptionType?->name,
             ];
         })->toArray();
 
@@ -135,7 +135,7 @@ class LandingPagePublicController extends Controller
             $contributorData = [
                 'id' => $contributor->id,
                 'position' => $contributor->position,
-                'contributor_type' => $contributor->contributorType->name,
+                'contributor_type' => $contributor->contributorType?->name,
                 'affiliations' => $contributor->affiliations->map(fn (\App\Models\Affiliation $affiliation): array => [
                     'id' => $affiliation->id,
                     'name' => $affiliation->name,
@@ -178,7 +178,7 @@ class LandingPagePublicController extends Controller
         $resourceData['subjects'] = $resource->subjects->map(function ($subject) {
             return [
                 'id' => $subject->id,
-                'subject' => $subject->subject,
+                'subject' => $subject->value,
                 'subject_scheme' => $subject->subject_scheme,
                 'scheme_uri' => $subject->scheme_uri,
                 'value_uri' => $subject->value_uri,
@@ -186,10 +186,25 @@ class LandingPagePublicController extends Controller
             ];
         })->toArray();
 
-        // Extract contact persons (creators with email addresses)
+        // Ensure geoLocations coordinates are properly cast to floats for JavaScript
+        $resourceData['geo_locations'] = $resource->geoLocations->map(function ($geo) {
+            return [
+                'id' => $geo->id,
+                'place' => $geo->place,
+                'point_longitude' => $geo->point_longitude !== null ? (float) $geo->point_longitude : null,
+                'point_latitude' => $geo->point_latitude !== null ? (float) $geo->point_latitude : null,
+                'west_bound_longitude' => $geo->west_bound_longitude !== null ? (float) $geo->west_bound_longitude : null,
+                'east_bound_longitude' => $geo->east_bound_longitude !== null ? (float) $geo->east_bound_longitude : null,
+                'south_bound_latitude' => $geo->south_bound_latitude !== null ? (float) $geo->south_bound_latitude : null,
+                'north_bound_latitude' => $geo->north_bound_latitude !== null ? (float) $geo->north_bound_latitude : null,
+                'polygon_points' => $geo->polygon_points,
+            ];
+        })->toArray();
+
+        // Extract contact persons (creators marked as contact with email addresses)
         // Note: Email addresses are NOT sent to frontend for privacy
         $resourceData['contact_persons'] = $resource->creators
-            ->filter(fn ($creator) => $creator->email !== null && $creator->email !== '')
+            ->filter(fn ($creator) => $creator->is_contact && $creator->email !== null && $creator->email !== '')
             ->sortBy('position')
             ->values()
             ->map(function ($creator) {
