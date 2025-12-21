@@ -76,7 +76,7 @@ export function ContactSection({ contactPersons, resourceId, datasetTitle }: Con
                                 {/* ORCID icon */}
                                 {person.orcid && (
                                     <a
-                                        href={person.orcid}
+                                        href={`https://orcid.org/${person.orcid}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         title="ORCID Profile"
@@ -103,17 +103,26 @@ export function ContactSection({ contactPersons, resourceId, datasetTitle }: Con
 
                             {/* Affiliations */}
                             {person.affiliations.length > 0 && (
-                                <div className="ml-5 text-xs text-gray-500">
+                                <div className="ml-5 flex flex-wrap items-center gap-x-1 text-xs text-gray-500">
                                     {person.affiliations.map((aff, idx) => (
-                                        <span key={idx}>
-                                            {aff.identifier && aff.scheme === 'ROR' ? (
-                                                <a href={aff.identifier} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                                    {aff.name}
+                                        <span key={idx} className="inline-flex items-center gap-0.5">
+                                            {aff.name}
+                                            {aff.identifier && aff.scheme === 'ROR' && (
+                                                <a
+                                                    href={aff.identifier}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    title="ROR Profile"
+                                                    className="inline-flex items-center transition-opacity hover:opacity-80"
+                                                >
+                                                    <img
+                                                        src="https://raw.githubusercontent.com/ror-community/ror-logos/main/ror-icon-rgb.svg"
+                                                        alt="ROR"
+                                                        className="h-3 w-3"
+                                                    />
                                                 </a>
-                                            ) : (
-                                                aff.name
                                             )}
-                                            {idx < person.affiliations.length - 1 && ', '}
+                                            {idx < person.affiliations.length - 1 && ','}
                                         </span>
                                     ))}
                                 </div>
