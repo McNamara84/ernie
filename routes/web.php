@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
@@ -56,6 +57,12 @@ Route::get('/changelog', function () {
 Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
     ->where('resourceId', '[0-9]+');
+
+// Contact form for landing pages (public, rate-limited)
+Route::post('datasets/{resourceId}/contact', [ContactMessageController::class, 'store'])
+    ->name('landing-page.contact')
+    ->where('resourceId', '[0-9]+')
+    ->middleware('throttle:10,1'); // Additional Laravel throttle: 10 requests per minute
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
