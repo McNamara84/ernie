@@ -234,7 +234,13 @@ class ResourceTestDataSeeder extends Seeder
         );
 
         // Get CC-BY-4.0 license for mandatory license tests
-        $this->ccByLicense = Right::where('identifier', 'CC-BY-4.0')->firstOrFail();
+        // Note: Requires RightsSeeder to have been run first (via DatabaseSeeder)
+        $this->ccByLicense = Right::where('identifier', 'CC-BY-4.0')->firstOr(
+            fn () => throw new \RuntimeException(
+                'CC-BY-4.0 license not found. Please run DatabaseSeeder first to populate the Rights table: '
+                .'php artisan db:seed --class=DatabaseSeeder'
+            )
+        );
     }
 
     // =========================================================================
@@ -1016,20 +1022,28 @@ class ResourceTestDataSeeder extends Seeder
         // Main author (not contact)
         $this->addCreator($resource, 'Main', 'Author', '0000-0004-1111-1111', 1);
 
-        // Contact persons with email and website
-        $creator1 = $this->addCreator($resource, 'Anna', 'Contact', '0000-0004-2222-2222', 2);
-        $creator1->update([
-            'is_contact' => true,
-            'email' => 'anna.contact@gfz-potsdam.de',
-            'website' => 'https://www.gfz-potsdam.de/staff/anna-contact',
-        ]);
+        // Contact persons with email and website - using addCreator parameters directly
+        $creator1 = $this->addCreator(
+            $resource,
+            'Anna',
+            'Contact',
+            '0000-0004-2222-2222',
+            2,
+            true,  // isContact
+            'anna.contact@gfz-potsdam.de',
+            'https://www.gfz-potsdam.de/staff/anna-contact'
+        );
         $this->addAffiliation($creator1, 'GFZ German Research Centre for Geosciences', 'https://ror.org/04z8jg394', 'ROR');
 
-        $creator2 = $this->addCreator($resource, 'Bruno', 'Kontakt', '0000-0004-3333-3333', 3);
-        $creator2->update([
-            'is_contact' => true,
-            'email' => 'bruno.kontakt@uni-potsdam.de',
-        ]);
+        $creator2 = $this->addCreator(
+            $resource,
+            'Bruno',
+            'Kontakt',
+            '0000-0004-3333-3333',
+            3,
+            true,  // isContact
+            'bruno.kontakt@uni-potsdam.de'
+        );
         $this->addAffiliation($creator2, 'University of Potsdam', 'https://ror.org/03bnmw459', 'ROR');
 
         $this->createLandingPage($resource, 'contact-persons');

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $resource_id
- * @property string $subject
+ * @property string $value
  * @property string|null $subject_scheme
  * @property string|null $scheme_uri
  * @property string|null $value_uri
@@ -34,7 +34,7 @@ class Subject extends Model
 
     protected $fillable = [
         'resource_id',
-        'subject',
+        'value',
         'subject_scheme',
         'scheme_uri',
         'value_uri',
