@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
+import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
 import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -71,6 +72,7 @@ interface ResourcesProps {
     pagination: PaginationInfo;
     error?: string;
     sort: ResourceSortState;
+    canImportFromDataCite?: boolean;
 }
 
 interface SortOption {
@@ -287,12 +289,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-function ResourcesPage({ resources: initialResources, pagination: initialPagination, error, sort: initialSort }: ResourcesProps) {
+function ResourcesPage({ resources: initialResources, pagination: initialPagination, error, sort: initialSort, canImportFromDataCite }: ResourcesProps) {
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
     const [loading, setLoading] = useState(false);
     const [loadingError, setLoadingError] = useState<string | null>(null);
+    const [showImportModal, setShowImportModal] = useState(false);
     const [filters, setFilters] = useState<ResourceFilterState>(() => {
         // SSR-safe: Only access window.location on the client side
         if (typeof window === 'undefined') {
@@ -525,6 +528,11 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         router.reload({ only: ['resources'] });
 
         toast.success(`DOI ${doi} successfully registered!`);
+    }, []);
+
+    const handleImportSuccess = useCallback(() => {
+        // Refresh the resources list to show imported resources
+        router.reload({ only: ['resources', 'pagination'] });
     }, []);
 
     /**
@@ -1018,10 +1026,24 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle asChild>
-                            <h1 className="text-2xl font-semibold tracking-tight">Resources</h1>
-                        </CardTitle>
-                        <CardDescription>Overview of curated resources in ERNIE</CardDescription>
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <CardTitle asChild>
+                                    <h1 className="text-2xl font-semibold tracking-tight">Resources</h1>
+                                </CardTitle>
+                                <CardDescription>Overview of curated resources in ERNIE</CardDescription>
+                            </div>
+                            {canImportFromDataCite && (
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowImportModal(true)}
+                                    className="flex items-center gap-2"
+                                >
+                                    <DataCiteIcon className="size-4" aria-hidden="true" />
+                                    Import from DataCite
+                                </Button>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {error ? (
@@ -1271,6 +1293,13 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                     onSuccess={handleDoiSuccess}
                 />
             )}
+
+            {/* Import from DataCite Modal */}
+            <ImportFromDataCiteModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
+                onSuccess={handleImportSuccess}
+            />
         </AppLayout>
     );
 }
