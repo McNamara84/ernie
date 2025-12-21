@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { UserRoleBadge } from '@/components/user-role-badge';
 import AppLayout from '@/layouts/app-layout';
 import { withBasePath } from '@/lib/base-path';
-import { type User as AuthUser, type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem,type User as AuthUser } from '@/types';
 
 interface UserData {
     id: number;
