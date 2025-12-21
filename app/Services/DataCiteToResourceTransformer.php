@@ -115,10 +115,18 @@ class DataCiteToResourceTransformer
         $typeGeneral = $types['resourceTypeGeneral'] ?? null;
 
         if ($typeGeneral === null) {
-            return null;
+            // Default to 'Other' if no type is provided
+            return $this->getLookupId(ResourceType::class, 'slug', 'other');
         }
 
-        return $this->getLookupId(ResourceType::class, 'slug', $typeGeneral);
+        // Convert PascalCase to kebab-case for slug matching
+        // e.g., "Dataset" -> "dataset", "JournalArticle" -> "journal-article"
+        $slug = strtolower((string) preg_replace('/(?<!^)[A-Z]/', '-$0', $typeGeneral));
+
+        $typeId = $this->getLookupId(ResourceType::class, 'slug', $slug);
+
+        // Fall back to 'Other' if type is not found
+        return $typeId ?? $this->getLookupId(ResourceType::class, 'slug', 'other');
     }
 
     /**
@@ -184,9 +192,14 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $titleTypeId = null;
-            if (isset($titleData['titleType'])) {
-                $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $titleData['titleType']);
+            // Get title type - default to MainTitle if not specified
+            $titleType = $titleData['titleType'] ?? 'MainTitle';
+            $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $titleType);
+
+            // Fall back to MainTitle or Other if not found
+            if ($titleTypeId === null) {
+                $titleTypeId = $this->getLookupId(TitleType::class, 'slug', 'MainTitle')
+                    ?? $this->getLookupId(TitleType::class, 'slug', 'Other');
             }
 
             Title::create([
@@ -365,7 +378,7 @@ class DataCiteToResourceTransformer
                     $existing->update([
                         'name_identifier' => $orcid,
                         'name_identifier_scheme' => $scheme,
-                        'name_identifier_scheme_uri' => $schemeUri,
+                        'scheme_uri' => $schemeUri,
                     ]);
                 }
 
@@ -379,7 +392,7 @@ class DataCiteToResourceTransformer
             'family_name' => $familyName,
             'name_identifier' => $orcid,
             'name_identifier_scheme' => $scheme,
-            'name_identifier_scheme_uri' => $schemeUri,
+            'scheme_uri' => $schemeUri,
         ]);
     }
 
@@ -426,7 +439,7 @@ class DataCiteToResourceTransformer
                 $existing->update([
                     'name_identifier' => $ror,
                     'name_identifier_scheme' => $scheme,
-                    'name_identifier_scheme_uri' => $schemeUri,
+                    'scheme_uri' => $schemeUri,
                 ]);
             }
 
@@ -438,7 +451,7 @@ class DataCiteToResourceTransformer
             'name' => $name,
             'name_identifier' => $ror,
             'name_identifier_scheme' => $scheme,
-            'name_identifier_scheme_uri' => $schemeUri,
+            'scheme_uri' => $schemeUri,
         ]);
     }
 
