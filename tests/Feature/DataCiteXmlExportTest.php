@@ -177,8 +177,8 @@ describe('DataCite XML Export - HTTP Endpoint', function () {
         ]);
 
         // Add keywords (subjects)
-        $resource->subjects()->create(['subject' => 'testing']);
-        $resource->subjects()->create(['subject' => 'datacite']);
+        $resource->subjects()->create(['value' => 'testing']);
+        $resource->subjects()->create(['value' => 'datacite']);
 
         // Add description
         $abstractType = \App\Models\DescriptionType::where('slug', 'Abstract')->first();

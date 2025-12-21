@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $creatorable_type
  * @property int $creatorable_id
  * @property int $position
+ * @property bool $is_contact
  * @property string|null $email
  * @property string|null $website
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -39,12 +40,14 @@ class ResourceCreator extends Model
         'creatorable_type',
         'creatorable_id',
         'position',
+        'is_contact',
         'email',
         'website',
     ];
 
     protected $casts = [
         'position' => 'integer',
+        'is_contact' => 'boolean',
     ];
 
     /** @return BelongsTo<Resource, static> */

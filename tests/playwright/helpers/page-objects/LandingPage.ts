@@ -1,0 +1,310 @@
+import { expect, type Locator, type Page } from '@playwright/test';
+
+/**
+ * Page Object Model for the public Landing Page
+ *
+ * Handles all interactions with the landing page components:
+ * - Header section (title, DOI, citation)
+ * - Abstract section
+ * - Creators/Authors section
+ * - Contributors section
+ * - Related Works section
+ * - Funding section
+ * - GeoLocation/Map section
+ * - Subjects/Keywords section
+ * - License section
+ */
+export class LandingPage {
+  readonly page: Page;
+
+  // Header section
+  readonly title: Locator;
+  readonly doi: Locator;
+  readonly citationButton: Locator;
+  readonly citationModal: Locator;
+
+  // Abstract section
+  readonly abstractSection: Locator;
+  readonly abstractText: Locator;
+
+  // Creators section
+  readonly creatorsSection: Locator;
+  readonly creatorsList: Locator;
+
+  // Contributors section
+  readonly contributorsSection: Locator;
+  readonly contributorsList: Locator;
+
+  // Related Works section
+  readonly relatedWorksSection: Locator;
+  readonly relatedWorksList: Locator;
+
+  // Funding section
+  readonly fundingSection: Locator;
+  readonly fundingList: Locator;
+
+  // GeoLocation section
+  readonly geoLocationSection: Locator;
+  readonly mapContainer: Locator;
+
+  // Subjects/Keywords section
+  readonly subjectsSection: Locator;
+  readonly keywordsList: Locator;
+
+  // License section
+  readonly licenseSection: Locator;
+
+  // Files section
+  readonly filesSection: Locator;
+
+  constructor(page: Page) {
+    this.page = page;
+
+    // Header elements
+    this.title = page.locator('h1').first();
+    this.doi = page.locator('[data-testid="doi-badge"], a[href*="doi.org"]').first();
+    this.citationButton = page.getByRole('button', { name: /Cite|Citation/i });
+    this.citationModal = page.locator('[role="dialog"]');
+
+    // Abstract section
+    this.abstractSection = page.locator('[data-testid="abstract-section"], section:has-text("Abstract")').first();
+    this.abstractText = this.abstractSection.locator('p, [data-testid="abstract-text"]').first();
+
+    // Creators section
+    this.creatorsSection = page.locator('[data-testid="creators-section"], section:has-text("Authors")').first();
+    this.creatorsList = this.creatorsSection.locator('ul, [data-testid="creators-list"]');
+
+    // Contributors section
+    this.contributorsSection = page.locator('[data-testid="contributors-section"], section:has-text("Contributors")').first();
+    this.contributorsList = this.contributorsSection.locator('ul, [data-testid="contributors-list"]');
+
+    // Related Works section
+    this.relatedWorksSection = page.locator('[data-testid="related-works-section"], section:has-text("Related")').first();
+    this.relatedWorksList = this.relatedWorksSection.locator('ul, [data-testid="related-works-list"]');
+
+    // Funding section
+    this.fundingSection = page.locator('[data-testid="funding-section"], section:has-text("Funding")').first();
+    this.fundingList = this.fundingSection.locator('ul, [data-testid="funding-list"]');
+
+    // GeoLocation section
+    this.geoLocationSection = page.locator('[data-testid="geolocation-section"], section:has-text("Location")').first();
+    this.mapContainer = page.locator('.leaflet-container, [data-testid="map-container"]').first();
+
+    // Subjects/Keywords section
+    this.subjectsSection = page.locator('[data-testid="subjects-section"], section:has-text("Keywords")').first();
+    this.keywordsList = this.subjectsSection.locator('[data-testid="keywords-list"], .flex.flex-wrap');
+
+    // License section
+    this.licenseSection = page.locator('[data-testid="license-section"], section:has-text("License")').first();
+
+    // Files section
+    this.filesSection = page.locator('[data-testid="files-section"], section:has-text("Files")').first();
+  }
+
+  /**
+   * Navigate to a landing page by slug
+   */
+  async goto(slug: string) {
+    await this.page.goto(`/landing/${slug}`);
+  }
+
+  /**
+   * Navigate to a landing page by resource ID
+   */
+  async gotoByResourceId(resourceId: number) {
+    await this.page.goto(`/datasets/${resourceId}`);
+  }
+
+  /**
+   * Verify the page has loaded successfully
+   */
+  async verifyPageLoaded() {
+    await expect(this.title).toBeVisible({ timeout: 10000 });
+  }
+
+  /**
+   * Verify the title matches expected text
+   */
+  async verifyTitle(expectedTitle: string) {
+    await expect(this.title).toContainText(expectedTitle);
+  }
+
+  /**
+   * Verify abstract section is visible and contains text
+   */
+  async verifyAbstractVisible(expectedText?: string) {
+    await expect(this.abstractSection).toBeVisible();
+    if (expectedText) {
+      await expect(this.abstractText).toContainText(expectedText);
+    }
+  }
+
+  /**
+   * Verify abstract section is NOT visible (for control cases)
+   */
+  async verifyAbstractNotVisible() {
+    await expect(this.abstractSection).not.toBeVisible();
+  }
+
+  /**
+   * Verify creators section shows expected number of creators
+   */
+  async verifyCreatorsCount(expectedCount: number) {
+    await expect(this.creatorsSection).toBeVisible();
+    const creatorItems = this.creatorsSection.locator('li, [data-testid="creator-item"]');
+    await expect(creatorItems).toHaveCount(expectedCount);
+  }
+
+  /**
+   * Verify a specific creator is displayed
+   */
+  async verifyCreatorDisplayed(name: string) {
+    await expect(this.creatorsSection).toBeVisible();
+    await expect(this.creatorsSection).toContainText(name);
+  }
+
+  /**
+   * Verify ORCID icons are displayed for creators
+   */
+  async verifyOrcidIconsDisplayed(expectedCount: number) {
+    const orcidIcons = this.creatorsSection.locator('a[href*="orcid.org"], [data-testid="orcid-link"]');
+    await expect(orcidIcons).toHaveCount(expectedCount);
+  }
+
+  /**
+   * Verify contributors section shows expected number
+   */
+  async verifyContributorsCount(expectedCount: number) {
+    await expect(this.contributorsSection).toBeVisible();
+    const contributorItems = this.contributorsSection.locator('li, [data-testid="contributor-item"]');
+    await expect(contributorItems).toHaveCount(expectedCount);
+  }
+
+  /**
+   * Verify contributors section is NOT visible
+   */
+  async verifyContributorsNotVisible() {
+    await expect(this.contributorsSection).not.toBeVisible();
+  }
+
+  /**
+   * Verify related works section shows expected number
+   */
+  async verifyRelatedWorksCount(expectedCount: number) {
+    await expect(this.relatedWorksSection).toBeVisible();
+    const relatedItems = this.relatedWorksSection.locator('li, [data-testid="related-work-item"]');
+    await expect(relatedItems).toHaveCount(expectedCount);
+  }
+
+  /**
+   * Verify a related work DOI is displayed and clickable
+   */
+  async verifyRelatedWorkDoi(doi: string) {
+    const doiLink = this.relatedWorksSection.locator(`a[href*="${doi}"]`);
+    await expect(doiLink).toBeVisible();
+  }
+
+  /**
+   * Verify related works section is NOT visible
+   */
+  async verifyRelatedWorksNotVisible() {
+    await expect(this.relatedWorksSection).not.toBeVisible();
+  }
+
+  /**
+   * Verify funding section shows expected number of funders
+   */
+  async verifyFundingCount(expectedCount: number) {
+    await expect(this.fundingSection).toBeVisible();
+    const fundingItems = this.fundingSection.locator('li, [data-testid="funding-item"]');
+    await expect(fundingItems).toHaveCount(expectedCount);
+  }
+
+  /**
+   * Verify funding section is NOT visible
+   */
+  async verifyFundingNotVisible() {
+    await expect(this.fundingSection).not.toBeVisible();
+  }
+
+  /**
+   * Verify geo-location section and map are visible
+   */
+  async verifyMapVisible() {
+    await expect(this.geoLocationSection).toBeVisible();
+    await expect(this.mapContainer).toBeVisible();
+  }
+
+  /**
+   * Verify geo-location section is NOT visible (for resources without locations)
+   */
+  async verifyMapNotVisible() {
+    await expect(this.geoLocationSection).not.toBeVisible();
+  }
+
+  /**
+   * Verify keywords section shows expected number
+   */
+  async verifyKeywordsCount(expectedCount: number) {
+    await expect(this.subjectsSection).toBeVisible();
+    const keywordItems = this.subjectsSection.locator('[data-testid="keyword-badge"], .inline-flex, span');
+    // Keywords might be rendered differently, so we check for at least the expected count
+    const count = await keywordItems.count();
+    expect(count).toBeGreaterThanOrEqual(expectedCount);
+  }
+
+  /**
+   * Verify a specific keyword is displayed
+   */
+  async verifyKeywordDisplayed(keyword: string) {
+    await expect(this.subjectsSection).toBeVisible();
+    await expect(this.subjectsSection).toContainText(keyword);
+  }
+
+  /**
+   * Verify keywords section is NOT visible
+   */
+  async verifyKeywordsNotVisible() {
+    await expect(this.subjectsSection).not.toBeVisible();
+  }
+
+  /**
+   * Verify license section is visible
+   */
+  async verifyLicenseVisible(licenseName?: string) {
+    await expect(this.licenseSection).toBeVisible();
+    if (licenseName) {
+      await expect(this.licenseSection).toContainText(licenseName);
+    }
+  }
+
+  /**
+   * Verify license section is NOT visible
+   */
+  async verifyLicenseNotVisible() {
+    await expect(this.licenseSection).not.toBeVisible();
+  }
+
+  /**
+   * Open citation modal
+   */
+  async openCitationModal() {
+    await this.citationButton.click();
+    await expect(this.citationModal).toBeVisible();
+  }
+
+  /**
+   * Verify citation contains expected text
+   */
+  async verifyCitationContains(text: string) {
+    await this.openCitationModal();
+    await expect(this.citationModal).toContainText(text);
+  }
+
+  /**
+   * Get the current page URL
+   */
+  async getCurrentUrl(): Promise<string> {
+    return this.page.url();
+  }
+}

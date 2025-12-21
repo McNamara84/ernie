@@ -295,7 +295,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                     'dates',
                     'subjects',
                     'geoLocations',
-                    'relatedIdentifiers',
+                    'relatedIdentifiers.identifierType',
+                    'relatedIdentifiers.relationType',
                     'fundingReferences',
                 ])
                 ->findOrFail($resourceId);
@@ -445,7 +446,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Transform subjects - separate free keywords and GCMD controlled keywords
             $freeKeywords = $resource->subjects
                 ->filter(fn ($subject) => empty($subject->subject_scheme))
-                ->pluck('subject')
+                ->pluck('value')
                 ->toArray();
 
             // Transform controlled keywords (GCMD)
@@ -454,8 +455,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 ->map(function ($subject) {
                     return [
                         'id' => $subject->classification_code ?? '',
-                        'text' => $subject->subject,
-                        'path' => $subject->subject, // Path may need to be extracted from subject text
+                        'text' => $subject->value,
+                        'path' => $subject->value, // Path may need to be extracted from subject text
                         'scheme' => $subject->subject_scheme ?? '',
                         'schemeURI' => $subject->scheme_uri ?? '',
                         'language' => 'en',
@@ -483,17 +484,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Transform related identifiers
             $relatedWorks = $resource->relatedIdentifiers
                 ->sortBy('position')
-                ->map(function ($relatedId) {
-                    return [
-                        'identifier' => $relatedId->related_identifier,
-                        // @phpstan-ignore nullCoalesce.expr (defensive coding)
-                        'identifier_type' => $relatedId->relatedIdentifierType?->name ?? '',
-                        // @phpstan-ignore nullCoalesce.expr (defensive coding)
-                        'relation_type' => $relatedId->relationType?->name ?? '',
-                    ];
-                })
+                ->map(fn (\App\Models\RelatedIdentifier $relatedId): array => [
+                    'identifier' => $relatedId->identifier,
+                    'identifier_type' => $relatedId->identifierType->name,
+                    'relation_type' => $relatedId->relationType->name,
+                ])
                 ->values()
-                ->toArray();            // Transform funding references
+                ->toArray();
+
+            // Transform funding references
             $fundingReferences = $resource->fundingReferences
                 ->sortBy('position')
                 ->map(function ($funding) {

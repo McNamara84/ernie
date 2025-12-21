@@ -13,7 +13,12 @@ interface Creator {
 }
 
 interface Title {
-    value: string;
+    title: string;
+    /**
+     * @deprecated Use 'title' instead. This field is only kept for backward
+     * compatibility with legacy data structures and will be removed in a future version.
+     */
+    value?: string;
     title_type?: string | null;
 }
 
@@ -64,8 +69,9 @@ export function buildCitation(resource: Resource): string {
     // Extract year (check both field names for compatibility)
     const year = resource.year || resource.publication_year || 'n.d.';
 
-    // Extract main title
-    const mainTitle = resource.titles?.find((t) => !t.title_type || t.title_type === 'MainTitle')?.value || 'Untitled';
+    // Extract main title (check both field names for compatibility)
+    const mainTitleObj = resource.titles?.find((t) => !t.title_type || t.title_type === 'MainTitle');
+    const mainTitle = mainTitleObj?.title || mainTitleObj?.value || 'Untitled';
 
     // Extract publisher (default to GFZ Data Services)
     const publisher = resource.publisher || 'GFZ Data Services';

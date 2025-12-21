@@ -13,8 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $resource_id
- * @property string $related_identifier
- * @property int $related_identifier_type_id
+ * @property string $identifier
+ * @property int $identifier_type_id
  * @property int $relation_type_id
  * @property string|null $resource_type_general
  * @property int $position
@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
  * @property-read Resource $resource
- * @property-read IdentifierType $relatedIdentifierType
+ * @property-read IdentifierType $identifierType
  * @property-read RelationType $relationType
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/relatedidentifier/
@@ -34,8 +34,8 @@ class RelatedIdentifier extends Model
 
     protected $fillable = [
         'resource_id',
-        'related_identifier',
-        'related_identifier_type_id',
+        'identifier',
+        'identifier_type_id',
         'relation_type_id',
         'resource_type_general',
         'position',
@@ -97,10 +97,10 @@ class RelatedIdentifier extends Model
     }
 
     /** @return BelongsTo<IdentifierType, static> */
-    public function relatedIdentifierType(): BelongsTo
+    public function identifierType(): BelongsTo
     {
         /** @var BelongsTo<IdentifierType, static> $relation */
-        $relation = $this->belongsTo(IdentifierType::class, 'related_identifier_type_id');
+        $relation = $this->belongsTo(IdentifierType::class, 'identifier_type_id');
 
         return $relation;
     }

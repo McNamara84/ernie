@@ -65,7 +65,7 @@ class DataCiteXmlExporter
             'subjects',
             'geoLocations.polygons',
             'rights',
-            'relatedIdentifiers.relatedIdentifierType',
+            'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
             'fundingReferences.funderIdentifierType',
             'sizes',
@@ -401,7 +401,7 @@ class DataCiteXmlExporter
         $subjects = $this->dom->createElement('subjects');
 
         foreach ($resource->subjects as $subjectModel) {
-            $subject = $this->dom->createElement('subject', htmlspecialchars($subjectModel->subject));
+            $subject = $this->dom->createElement('subject', htmlspecialchars($subjectModel->value));
 
             if ($subjectModel->subject_scheme) {
                 $subject->setAttribute('subjectScheme', htmlspecialchars($subjectModel->subject_scheme));
@@ -721,9 +721,9 @@ class DataCiteXmlExporter
         foreach ($resource->relatedIdentifiers as $relatedIdentifier) {
             $relatedElement = $this->dom->createElement(
                 'relatedIdentifier',
-                htmlspecialchars($relatedIdentifier->related_identifier)
+                htmlspecialchars($relatedIdentifier->identifier)
             );
-            $relatedElement->setAttribute('relatedIdentifierType', $relatedIdentifier->relatedIdentifierType->slug ?? 'DOI');
+            $relatedElement->setAttribute('relatedIdentifierType', $relatedIdentifier->identifierType->slug ?? 'DOI');
             $relatedElement->setAttribute('relationType', $relatedIdentifier->relationType->slug ?? 'References');
 
             // Add resourceTypeGeneral if available
