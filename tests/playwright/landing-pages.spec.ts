@@ -76,10 +76,10 @@ test.describe('Landing Page - Creators', () => {
     // Verify title
     await landingPage.verifyTitle('TEST: Many Creators All with ORCID');
 
-    // Verify 8 creators are displayed
-    await landingPage.verifyCreatorsCount(8);
+    // Verify 9 creators are displayed (1 default contact + 8 with ORCID)
+    await landingPage.verifyCreatorsCount(9);
 
-    // Verify ORCID links are present (should be 8)
+    // Verify ORCID links are present (8 creators have ORCID, default contact does not)
     await landingPage.verifyOrcidIconsDisplayed(8);
   });
 
@@ -88,10 +88,10 @@ test.describe('Landing Page - Creators', () => {
     await landingPage.goto('creators-without-orcid');
     await landingPage.verifyPageLoaded();
 
-    // Verify 3 creators are displayed
-    await landingPage.verifyCreatorsCount(3);
+    // Verify 4 creators are displayed (1 default contact + 3 without ORCID)
+    await landingPage.verifyCreatorsCount(4);
 
-    // No ORCID links
+    // No ORCID links (none of the creators have ORCID)
     await landingPage.verifyOrcidIconsDisplayed(0);
   });
 
@@ -100,10 +100,10 @@ test.describe('Landing Page - Creators', () => {
     await landingPage.goto('mixed-orcid-creators');
     await landingPage.verifyPageLoaded();
 
-    // Verify 5 creators are displayed
-    await landingPage.verifyCreatorsCount(5);
+    // Verify 6 creators are displayed (1 default contact + 5 mixed)
+    await landingPage.verifyCreatorsCount(6);
 
-    // Some have ORCID, some don't - we expect 3 with ORCID
+    // 3 of the 5 scenario creators have ORCID, default contact does not
     await landingPage.verifyOrcidIconsDisplayed(3);
   });
 

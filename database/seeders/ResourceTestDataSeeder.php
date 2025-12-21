@@ -363,7 +363,10 @@ class ResourceTestDataSeeder extends Seeder
             'award_title' => 'Research Project XYZ',
         ]);
 
-        // Note: CC-BY-4.0 license is already added by createBaseResource\n\n        // Sizes and Formats\n        Size::create(['resource_id' => $resource->id, 'value' => '1.5 GB']);
+        // Note: CC-BY-4.0 license is already added by createBaseResource
+
+        // Sizes and Formats
+        Size::create(['resource_id' => $resource->id, 'value' => '1.5 GB']);
         Format::create(['resource_id' => $resource->id, 'value' => 'application/zip']);
 
         $this->createLandingPage($resource, 'fully-populated');

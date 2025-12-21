@@ -203,9 +203,9 @@ class LandingPagePublicController extends Controller
 
         // Extract contact persons (creators marked as contact with email addresses)
         // Note: Email addresses are NOT sent to frontend for privacy
-        // Using !empty() for robust validation (handles null, empty string, and falsy values)
+        // Using explicit null/empty check for semantically correct email validation
         $resourceData['contact_persons'] = $resource->creators
-            ->filter(fn ($creator) => $creator->is_contact && ! empty($creator->email))
+            ->filter(fn ($creator) => $creator->is_contact && $creator->email !== null && $creator->email !== '')
             ->sortBy('position')
             ->values()
             ->map(function ($creator) {
