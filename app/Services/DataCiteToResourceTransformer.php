@@ -599,16 +599,21 @@ class DataCiteToResourceTransformer
             $endDate = null;
 
             if (str_contains($date, '/')) {
-                // Date range format: YYYY-MM-DD/YYYY-MM-DD
-                // RKMS-ISO8601 allows open-ended ranges where end date is omitted (e.g., "2020-01-01/")
-                // We store these with startDate set and endDate as null.
-                // Note: isRange() only returns true for CLOSED ranges (both dates present).
-                // For open-ended ranges, use isOpenEndedRange() which returns true when
-                // start_date is set but end_date is null. In DataCite export, open-ended
-                // ranges are treated as single dates (using just the start_date).
+                // Date range format: YYYY-MM-DD/YYYY-MM-DD or open-ended "YYYY-MM-DD/"
+                // RKMS-ISO8601 allows open-ended ranges where end date is omitted.
+                //
+                // Parsing logic for "2020-01-01/":
+                //   explode('/', '2020-01-01/', 2) => ['2020-01-01', '']
+                //   parts[1] is empty string, so endDate becomes null
+                //   Result: startDate='2020-01-01', endDate=null (stored as open-ended range)
+                //
+                // Note: isRange() returns true only for CLOSED ranges (both dates present).
+                // isOpenEndedRange() returns true when start_date is set but end_date is null.
+                // During export, open-ended ranges are exported as single dates because
+                // DataCite's schema doesn't support the trailing slash format.
                 $parts = explode('/', $date, 2);
                 $startDate = $this->parseDate($parts[0]);
-                // Only parse end date if it's non-empty (handles open-ended ranges like "2020-01-01/")
+                // Empty string after trailing slash results in null endDate (intentional)
                 $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1]) : null;
             } else {
                 $dateValue = $this->parseDate($date);

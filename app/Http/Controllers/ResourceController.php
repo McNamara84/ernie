@@ -1447,28 +1447,20 @@ class ResourceController extends Controller
 
         // Get DataCite dates (Created/Updated) from the dates relation instead of Eloquent timestamps
         // This preserves the original creation/update dates from imported datasets
-        $createdDate = null;
-        $updatedDate = null;
-        // Sort dates by date_value/start_date to ensure we get chronologically correct values
-        // For Updated dates, we want the most recent one (sorted descending)
-        $sortedDates = $resource->dates->sortByDesc(function ($date) {
-            return $date->date_value ?? $date->start_date ?? '';
-        });
-        foreach ($sortedDates as $date) {
-            $slug = $date->dateType->slug;
-            // Take the first Created date (there should only be one)
-            if ($slug === 'Created' && $createdDate === null) {
-                $createdDate = $date->date_value ?? $date->start_date;
-            }
-            // Take the first Updated date in descending order (most recent)
-            if ($slug === 'Updated' && $updatedDate === null) {
-                $updatedDate = $date->date_value ?? $date->start_date;
-            }
-            // Early exit if we found both
-            if ($createdDate !== null && $updatedDate !== null) {
-                break;
-            }
-        }
+        // Use filtered queries instead of sorting all dates for better performance
+        $createdDateRecord = $resource->dates->first(fn ($date) => $date->dateType->slug === 'Created');
+        $createdDate = $createdDateRecord !== null
+            ? ($createdDateRecord->date_value ?? $createdDateRecord->start_date)
+            : null;
+
+        // For Updated dates, get the most recent one by sorting only Updated dates
+        $updatedDateRecord = $resource->dates
+            ->filter(fn ($date) => $date->dateType->slug === 'Updated')
+            ->sortByDesc(fn ($date) => $date->date_value ?? $date->start_date ?? '')
+            ->first();
+        $updatedDate = $updatedDateRecord !== null
+            ? ($updatedDateRecord->date_value ?? $updatedDateRecord->start_date)
+            : null;
 
         return [
             'id' => $resource->id,

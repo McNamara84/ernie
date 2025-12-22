@@ -106,10 +106,21 @@ class DataCiteImportService
             ->timeout(30)
             ->retry(3, 500, function (\Exception $exception): bool {
                 // Retry on connection-related exceptions (timeouts, network errors)
-                // Use exception type checking for more robust retry logic
+                //
+                // Note on HTTP client dependency:
+                // Laravel's Http facade uses Guzzle as the default HTTP client. We check for
+                // Guzzle-specific exceptions (ConnectException, TransferException) for precise
+                // retry control. If a different HTTP client is configured, the message-based
+                // fallback below ensures retries still work for common connection issues.
+                //
+                // Exception hierarchy when using Guzzle:
+                //   \Exception
+                //     └── TransferException (Guzzle base for HTTP errors)
+                //           ├── ConnectException (connection failures, DNS, timeouts)
+                //           └── RequestException (HTTP response errors)
+                //
                 if (! ($exception instanceof RequestException)) {
-                    // Check for specific connection exception types
-                    // Guzzle wraps connection issues in ConnectException
+                    // Check for Guzzle-specific connection exceptions
                     if ($exception instanceof \GuzzleHttp\Exception\ConnectException) {
                         return true;
                     }
@@ -117,7 +128,8 @@ class DataCiteImportService
                     if ($exception instanceof \GuzzleHttp\Exception\TransferException) {
                         return true;
                     }
-                    // Fallback: check message for connection patterns (for other HTTP clients)
+                    // Fallback for non-Guzzle HTTP clients: check error message patterns
+                    // This ensures retry logic works even if Laravel is configured with a different client
                     $message = strtolower($exception->getMessage());
                     $retryablePatterns = ['connection', 'timeout', 'timed out', 'reset by peer', 'could not resolve'];
                     foreach ($retryablePatterns as $pattern) {

@@ -621,14 +621,19 @@ class DataCiteJsonExporter
             // Format date value according to DataCite schema:
             // - Single date: use date_value or start_date
             // - Closed range: start_date/end_date
-            // - Open-ended range (start_date only, null end_date): use start_date only
-            //   DataCite schema treats dates without end as single dates, not as open ranges
+            // - Open-ended range (start_date only, null end_date): exported as single date
+            //
+            // Note on open-ended ranges: While RKMS-ISO8601 allows "YYYY-MM-DD/" format for
+            // open-ended ranges, DataCite's schema and API validation treat dates without
+            // an end component as single dates. Exporting "2020-01-01/" would fail validation.
+            // Therefore, open-ended ranges are intentionally exported as single dates.
+            // The range information is preserved in the database for potential future use.
             $dateValue = null;
             if ($date->isRange()) {
                 // Closed range with both dates
                 $dateValue = $date->start_date . '/' . $date->end_date;
             } elseif ($date->isOpenEndedRange()) {
-                // Open-ended range - DataCite treats as single date (the start date)
+                // Open-ended range - exported as single date (DataCite doesn't support trailing slash)
                 $dateValue = $date->start_date;
             } else {
                 // Single date

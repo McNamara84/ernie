@@ -42,12 +42,22 @@ class ImportFromDataCiteJob implements ShouldQueue
      * Create a new job instance.
      *
      * @param  int  $userId  The user who initiated the import
-     * @param  string  $importId  Unique identifier for progress tracking
+     * @param  string  $importId  Unique identifier for progress tracking (UUID format)
+     *
+     * @throws \InvalidArgumentException If importId is not a valid UUID
      */
     public function __construct(
         private int $userId,
         private string $importId
-    ) {}
+    ) {
+        // Validate UUID format to prevent cache key collisions or unexpected behavior.
+        // The importId is used as part of the cache key and must be unique.
+        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $importId)) {
+            throw new \InvalidArgumentException(
+                "Invalid importId format. Expected UUID, got: {$importId}"
+            );
+        }
+    }
 
     /**
      * Execute the job.
@@ -96,14 +106,18 @@ class ImportFromDataCiteJob implements ShouldQueue
             // Process DOIs one by one using the generator
             // Each DOI is processed in its own transaction for resilience
             foreach ($importService->fetchAllDois() as $doiRecord) {
-                // Check if import was cancelled
-                $currentStatus = Cache::get($this->getCacheKey());
-                if (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled') {
-                    Log::info('Import cancelled by user', ['import_id' => $this->importId, 'processed' => $processed]);
-                    break;
-                }
-
                 $processed++;
+
+                // Check if import was cancelled (every 50 iterations to reduce cache load)
+                // For 10,000 DOIs this results in ~200 cache reads instead of 10,000.
+                // This matches the progress update frequency for consistency.
+                if ($processed % 50 === 1) {
+                    $currentStatus = Cache::get($this->getCacheKey());
+                    if (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled') {
+                        Log::info('Import cancelled by user', ['import_id' => $this->importId, 'processed' => $processed - 1]);
+                        break;
+                    }
+                }
 
                 $doi = $doiRecord['attributes']['doi'] ?? $doiRecord['id'] ?? null;
 
@@ -261,32 +275,54 @@ class ImportFromDataCiteJob implements ShouldQueue
         // When total is a multiple of 50, the last batch update and final update coincide,
         // so no redundant writes occur.
         if ($processed % 50 === 0 || $processed === $total) {
-            $currentProgress = Cache::get($this->getCacheKey(), []);
-
-            $this->updateProgress(array_merge($currentProgress, [
+            // Update only the changing keys to avoid unnecessary array copies
+            $this->updateProgressKeys([
                 'processed' => $processed,
                 'imported' => $imported,
                 'skipped' => $skipped,
                 'failed' => $failed,
                 'skipped_dois' => $skippedDois,
                 'failed_dois' => $failedDois,
-            ]));
+            ]);
         }
     }
 
     /**
-     * Update the progress cache.
+     * Update the progress cache with a complete progress array.
      *
-     * @param  array<string, mixed>  $data
+     * Use this for initial setup where all keys are provided.
+     *
+     * @param  array<string, mixed>  $data  Complete progress data
      */
     private function updateProgress(array $data): void
     {
+        Cache::put(
+            $this->getCacheKey(),
+            $data,
+            now()->addHours(24)
+        );
+    }
+
+    /**
+     * Update specific keys in the progress cache.
+     *
+     * Use this for incremental updates where only some keys change.
+     * More efficient than updateProgress when modifying existing state.
+     *
+     * @param  array<string, mixed>  $data  Keys to update
+     */
+    private function updateProgressKeys(array $data): void
+    {
         $currentProgress = Cache::get($this->getCacheKey(), []);
-        $mergedProgress = array_merge($currentProgress, $data);
+
+        // Directly assign new values to avoid array_merge overhead
+        foreach ($data as $key => $value) {
+            $currentProgress[$key] = $value;
+        }
 
         Cache::put(
             $this->getCacheKey(),
-            $mergedProgress,
+            $currentProgress,
             now()->addHours(24)
         );
     }

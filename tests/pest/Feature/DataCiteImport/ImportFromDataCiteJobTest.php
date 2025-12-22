@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\DataCiteImportService;
 use App\Services\DataCiteToResourceTransformer;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     // Create a user for the import
@@ -62,7 +63,7 @@ describe('ImportFromDataCiteJob', function () {
             ->twice()
             ->andReturn(Resource::factory()->make());
 
-        $importId = 'test-import-123';
+        $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
         $job->handle($this->importService, $this->transformer);
 
@@ -96,7 +97,7 @@ describe('ImportFromDataCiteJob', function () {
         // Transformer should not be called for existing DOIs
         $this->transformer->shouldReceive('transform')->never();
 
-        $importId = 'test-skip-existing';
+        $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
         $job->handle($this->importService, $this->transformer);
 
@@ -137,7 +138,7 @@ describe('ImportFromDataCiteJob', function () {
             ->once()
             ->andReturn(Resource::factory()->make());
 
-        $importId = 'test-cancel-check';
+        $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
         $job->handle($this->importService, $this->transformer);
 
@@ -176,7 +177,7 @@ describe('ImportFromDataCiteJob', function () {
             ->times(150)
             ->andThrow(new \Exception('Transform failed'));
 
-        $importId = 'test-limit-arrays';
+        $importId = Str::uuid()->toString();
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
         $job->handle($this->importService, $this->transformer);
 
@@ -184,5 +185,17 @@ describe('ImportFromDataCiteJob', function () {
         // Failed DOIs array should be capped at 100
         expect(count($status['failed_dois']))->toBeLessThanOrEqual(100);
         expect($status['failed'])->toBe(150);
+    });
+
+    it('validates importId is a valid UUID', function () {
+        expect(fn () => new ImportFromDataCiteJob($this->user->id, 'invalid-id'))
+            ->toThrow(\InvalidArgumentException::class, 'Invalid importId format');
+    });
+
+    it('accepts valid UUID format for importId', function () {
+        $validUuid = '550e8400-e29b-41d4-a716-446655440000';
+        $job = new ImportFromDataCiteJob($this->user->id, $validUuid);
+
+        expect($job->getImportId())->toBe($validUuid);
     });
 });
