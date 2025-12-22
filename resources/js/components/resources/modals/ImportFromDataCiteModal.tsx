@@ -57,51 +57,60 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         }
     }, [isOpen]);
 
-    // Poll for progress updates with adaptive interval
-    // Uses timeout-based adjustment to avoid race conditions
+    // Poll for progress updates with adaptive interval using setTimeout chains.
+    // This approach avoids race conditions that can occur with setInterval + clearInterval,
+    // as each poll schedules the next one only after completion.
     useEffect(() => {
         if (!importId || modalState !== 'running') {
             return;
         }
 
-        let pollInterval: ReturnType<typeof setInterval>;
         let isCancelled = false;
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const startTime = Date.now();
 
         const poll = async () => {
             if (isCancelled) return;
 
             try {
                 const response = await axios.get<ImportProgress>(withBasePath(`/datacite/import/${importId}/status`));
+
+                if (isCancelled) return; // Check again after async operation
+
                 setProgress(response.data);
 
                 if (response.data.status === 'completed') {
                     setModalState('completed');
-                    clearInterval(pollInterval);
+                    return; // Stop polling
                 } else if (response.data.status === 'failed' || response.data.status === 'cancelled') {
                     setModalState('failed');
                     setError(response.data.error || 'Import failed');
-                    clearInterval(pollInterval);
+                    return; // Stop polling
                 }
+
+                // Schedule next poll with adaptive delay:
+                // - 2s for the first 60 seconds
+                // - 5s afterward to reduce server load during long imports
+                const elapsed = Date.now() - startTime;
+                const delay = elapsed < 60000 ? 2000 : 5000;
+                timeoutId = setTimeout(poll, delay);
             } catch (err) {
                 console.error('Failed to fetch import status:', err);
+                // Continue polling even on error, with the current delay
+                if (!isCancelled) {
+                    const elapsed = Date.now() - startTime;
+                    const delay = elapsed < 60000 ? 2000 : 5000;
+                    timeoutId = setTimeout(poll, delay);
+                }
             }
         };
 
-        // Start with fast polling (2s)
+        // Start polling immediately
         poll();
-        pollInterval = setInterval(poll, 2000);
-
-        // After 1 minute, switch to slower polling (5s) to reduce server load during long imports
-        const adjustIntervalTimeout = setTimeout(() => {
-            if (isCancelled) return;
-            clearInterval(pollInterval);
-            pollInterval = setInterval(poll, 5000);
-        }, 60000);
 
         return () => {
             isCancelled = true;
-            clearInterval(pollInterval);
-            clearTimeout(adjustIntervalTimeout);
+            clearTimeout(timeoutId);
         };
     }, [importId, modalState]);
 
