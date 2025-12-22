@@ -935,9 +935,15 @@ class DataCiteToResourceTransformer
             if (checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
                 return $date;
             }
-            // Invalid calendar date - try Carbon as fallback
+            // Invalid calendar date - try Carbon as fallback, but log a warning
+            // as this may introduce data quality issues (e.g., 2024-02-30 -> 2024-03-01)
             try {
-                return \Carbon\Carbon::parse($date)->format('Y-m-d');
+                $correctedDate = \Carbon\Carbon::parse($date)->format('Y-m-d');
+                Log::warning('DataCite import: Invalid calendar date corrected by Carbon', [
+                    'original' => $date,
+                    'corrected' => $correctedDate,
+                ]);
+                return $correctedDate;
             } catch (\Exception) {
                 return null;
             }

@@ -9,6 +9,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use DOMDocument;
 use DOMElement;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service for exporting Resource data to DataCite XML format (v4.6)
@@ -650,7 +651,11 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Build dates element (optional)
+     * Build dates element (optional).
+     *
+     * Note: This method requires the dateType relation to be eager loaded on ResourceDate
+     * objects. The ResourceController's baseQuery() does this, but if using this exporter
+     * in other contexts, ensure dates are loaded with: ->with(['dates.dateType']).
      */
     private function buildDates(Resource $resource): void
     {
@@ -662,9 +667,15 @@ class DataCiteXmlExporter
         $hasDates = false;
 
         foreach ($resource->dates as $date) {
-            // Skip if no date type (should not happen in normal usage)
+            // Skip if no date type - this could happen if:
+            // 1. The dateType relation isn't eager loaded (N+1 query will occur)
+            // 2. The date type was deleted (orphaned data)
             // @phpstan-ignore booleanNot.alwaysFalse
             if (! $date->dateType) {
+                Log::warning('DataCite export: Date without dateType relation', [
+                    'date_id' => $date->id,
+                    'resource_id' => $resource->id,
+                ]);
                 continue;
             }
 

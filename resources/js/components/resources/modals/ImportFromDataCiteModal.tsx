@@ -169,11 +169,12 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
 
     const handleClose = useCallback(() => {
         if (modalState === 'completed') {
-            // Call onSuccess callback and reload page data to show newly imported resources
+            // Call onSuccess callback to refresh the resources list.
+            // Note: The onSuccess callback (from resources.tsx) already handles
+            // page reload, so we don't call router.reload() here to avoid duplicates.
             if (onSuccess) {
                 onSuccess();
             }
-            router.reload();
         }
         onClose();
     }, [modalState, onClose, onSuccess]);
@@ -193,6 +194,14 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         return `${minutes}m ${remainingSeconds}s`;
     };
 
+    /**
+     * Calculate estimated remaining time based on current processing rate.
+     *
+     * Note: This estimate assumes uniform processing time per DOI. In practice,
+     * skipped DOIs are processed faster than imported ones, so the estimate may
+     * be less accurate when there are many skipped DOIs. For simplicity, we use
+     * an average rate rather than tracking imported vs skipped times separately.
+     */
     const formatRemainingTime = (startedAt?: string, processed?: number, total?: number): string => {
         if (!startedAt || !processed || !total || processed === 0) return '';
 

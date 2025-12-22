@@ -120,21 +120,13 @@ class DataCiteImportService
                 //           └── RequestException (HTTP response errors)
                 //
                 if (! ($exception instanceof RequestException)) {
-                    // Check for Guzzle-specific connection exceptions.
-                    // We use class_exists() checks to gracefully handle cases where Guzzle
-                    // is not installed (e.g., Laravel configured with a different HTTP client).
-                    // Without these checks, instanceof would throw a fatal "Class not found" error.
-                    if (class_exists(\GuzzleHttp\Exception\ConnectException::class)
-                        && $exception instanceof \GuzzleHttp\Exception\ConnectException) {
-                        return true;
-                    }
-                    // TransferException is the base for all Guzzle HTTP errors
-                    if (class_exists(\GuzzleHttp\Exception\TransferException::class)
-                        && $exception instanceof \GuzzleHttp\Exception\TransferException) {
-                        return true;
-                    }
-                    // Fallback for non-Guzzle HTTP clients: check error message patterns
-                    // This ensures retry logic works even if Laravel is configured with a different client
+                    // Check for connection-related exceptions that should trigger retries.
+                    //
+                    // Strategy: Check message patterns FIRST (works for all HTTP clients),
+                    // then add Guzzle-specific checks as optimizations. This makes the code
+                    // more maintainable and less dependent on specific HTTP client internals.
+                    //
+                    // Message-based detection (works with any HTTP client)
                     $message = strtolower($exception->getMessage());
                     $retryablePatterns = ['connection', 'timeout', 'timed out', 'reset by peer', 'could not resolve'];
                     foreach ($retryablePatterns as $pattern) {
@@ -142,6 +134,20 @@ class DataCiteImportService
                             return true;
                         }
                     }
+
+                    // Guzzle-specific exception types (optimization for when Guzzle is used).
+                    // These provide more precise retry control when the default HTTP client is Guzzle.
+                    // We use class_exists() checks to gracefully handle cases where Guzzle
+                    // is not installed (e.g., Laravel configured with a different HTTP client).
+                    if (class_exists(\GuzzleHttp\Exception\ConnectException::class)
+                        && $exception instanceof \GuzzleHttp\Exception\ConnectException) {
+                        return true;
+                    }
+                    if (class_exists(\GuzzleHttp\Exception\TransferException::class)
+                        && $exception instanceof \GuzzleHttp\Exception\TransferException) {
+                        return true;
+                    }
+
                     // Don't retry unknown exceptions
                     return false;
                 }

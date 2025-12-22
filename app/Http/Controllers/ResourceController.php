@@ -551,6 +551,15 @@ class ResourceController extends Controller
         ], $status);
     }
 
+    /**
+     * Delete a resource.
+     *
+     * @param Request $request The HTTP request - needed for user() access to check authorization.
+     *                         While Laravel's route model binding could inject User directly,
+     *                         using Request allows for consistent null-safety checks and follows
+     *                         the pattern used in other controller methods.
+     * @param Resource $resource The resource to delete (injected via route model binding).
+     */
     public function destroy(Request $request, Resource $resource): RedirectResponse
     {
         // Authorize deletion using ResourcePolicy - only Admin/GroupLeader can delete
@@ -1448,9 +1457,16 @@ class ResourceController extends Controller
             $publicStatus = $resource->landingPage->is_published ? 'published' : 'review';
         }
 
-        // Get DataCite dates (Created/Updated) from the dates relation instead of Eloquent timestamps
-        // This preserves the original creation/update dates from imported datasets
-        // Use filtered queries instead of sorting all dates for better performance
+        // Get DataCite dates (Created/Updated) from the dates relation instead of Eloquent timestamps.
+        // This preserves the original creation/update dates from imported datasets.
+        //
+        // Performance note: The dates relation is eager loaded by baseQuery() with only the
+        // necessary columns (id, resource_id, date_type_id, date_value, start_date, end_date)
+        // and the dateType relation. Filtering is done on the in-memory collection which is
+        // efficient for the typical small number of dates per resource (usually <10).
+        //
+        // If resources commonly have many dates, consider indexing dates by type during
+        // eager loading using a custom accessor or query scope.
         $createdDateRecord = $resource->dates->first(fn ($date) => $date->dateType->slug === 'Created');
         $createdDate = $createdDateRecord !== null
             ? ($createdDateRecord->date_value ?? $createdDateRecord->start_date)

@@ -9,6 +9,16 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     *
+     * Supported databases: MySQL/MariaDB, SQLite
+     *
+     * Note: PostgreSQL is not currently supported by this migration. The raw SQL
+     * statements use MySQL-specific syntax (DROP INDEX IF EXISTS ... ON ...,
+     * MODIFY column). If PostgreSQL support is needed, add a condition for
+     * $driver === 'pgsql' with equivalent PostgreSQL syntax:
+     * - ALTER TABLE ... ALTER COLUMN ... TYPE TEXT;
+     * - DROP INDEX IF EXISTS idx_affiliations_name;
+     * - CREATE INDEX idx_affiliations_name ON affiliations (name);
      */
     public function up(): void
     {

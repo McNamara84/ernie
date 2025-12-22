@@ -145,8 +145,15 @@ class ImportFromDataCiteJob implements ShouldQueue
 
                 try {
                     // Use database transaction to ensure atomicity of the check-then-insert operation.
-                    // Note: This relies on the database's default isolation level (typically READ COMMITTED)
-                    // to prevent duplicate inserts. The DOI column has a unique constraint as additional protection.
+                    //
+                    // Design decision: We use SELECT + INSERT rather than INSERT IGNORE because:
+                    // 1. We need to know which DOIs were skipped for user feedback (skipped_dois list)
+                    // 2. INSERT IGNORE would silently succeed, making it impossible to track skips
+                    // 3. The unique constraint on DOI provides protection against race conditions
+                    // 4. Most imports won't have many duplicates, so the SELECT overhead is minimal
+                    //
+                    // Note: This relies on the database's default isolation level (typically READ COMMITTED).
+                    // The DOI column has a unique constraint as additional protection against duplicates.
                     $result = DB::transaction(function () use ($transformer, $doiRecord, $doi) {
                         // Check inside transaction - unique constraint on DOI provides ultimate protection
                         if (Resource::where('doi', $doi)->exists()) {
