@@ -125,7 +125,7 @@ class ResourceController extends Controller
                 'key' => $sortKey,
                 'direction' => $sortDirection,
             ],
-            'canImportFromDataCite' => $request->user()?->role->canManageUsers() ?? false,
+            'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
         ]);
     }
 

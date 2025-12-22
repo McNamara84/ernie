@@ -1,16 +1,17 @@
+import { router } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { AlertCircle, CheckCircle2, Download, Loader2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
-import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { withBasePath } from '@/lib/base-path';
+import { buildCsrfHeaders } from '@/lib/csrf-token';
 
 interface ImportProgress {
     status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
@@ -56,16 +57,20 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         }
     }, [isOpen]);
 
-    // Poll for progress updates
+    // Poll for progress updates with adaptive interval
     useEffect(() => {
         if (!importId || modalState !== 'running') {
             return;
         }
 
-        const pollInterval = setInterval(async () => {
+        let pollCount = 0;
+        let pollInterval: ReturnType<typeof setInterval>;
+
+        const poll = async () => {
             try {
                 const response = await axios.get<ImportProgress>(withBasePath(`/datacite/import/${importId}/status`));
                 setProgress(response.data);
+                pollCount++;
 
                 if (response.data.status === 'completed') {
                     setModalState('completed');
@@ -78,9 +83,28 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
             } catch (err) {
                 console.error('Failed to fetch import status:', err);
             }
-        }, 2000);
+        };
 
-        return () => clearInterval(pollInterval);
+        // Start with fast polling (2s), then back off to slower polling (5s) after 30 polls (~1 minute)
+        // This provides responsive feedback initially while reducing server load during long imports
+        const getPollingInterval = () => (pollCount < 30 ? 2000 : 5000);
+
+        // Initial poll
+        poll();
+
+        // Set up adaptive polling
+        pollInterval = setInterval(poll, getPollingInterval());
+
+        // Adjust interval after initial fast period
+        const adjustIntervalTimeout = setTimeout(() => {
+            clearInterval(pollInterval);
+            pollInterval = setInterval(poll, 5000);
+        }, 60000); // After 1 minute, switch to 5s polling
+
+        return () => {
+            clearInterval(pollInterval);
+            clearTimeout(adjustIntervalTimeout);
+        };
     }, [importId, modalState]);
 
     const startImport = useCallback(async () => {
@@ -120,7 +144,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                     toast.error('Session expired', {
                         description: 'Reloading page to refresh session...',
                     });
-                    setTimeout(() => window.location.reload(), 1500);
+                    setTimeout(() => router.reload(), 1500);
                     return;
                 } else if (err.response?.status === 403) {
                     errorMessage = 'You do not have permission to import from DataCite.';
@@ -138,8 +162,9 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
 
     const handleClose = useCallback(() => {
         if (modalState === 'completed') {
-            // Reload page to show newly imported resources
-            window.location.reload();
+            // Reload page data to show newly imported resources
+            router.reload();
+            onClose();
             return;
         }
         if (onSuccess) {

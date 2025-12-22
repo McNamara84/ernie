@@ -63,8 +63,22 @@ class DataCiteImportService
         $config = Config::get('datacite.production');
 
         $this->endpoint = $config['endpoint'];
-        $this->clientId = $config['client_id'] ?? 'tib.gfz';
+        $this->clientId = $config['client_id'];
         $this->prefixes = $config['prefixes'];
+
+        // Validate endpoint uses HTTPS in production
+        if (! str_starts_with($this->endpoint, 'https://')) {
+            throw new \RuntimeException(
+                'DataCite production endpoint must use HTTPS. Current: '.$this->endpoint
+            );
+        }
+
+        // Validate client ID is configured
+        if (empty($this->clientId)) {
+            throw new \RuntimeException(
+                'DataCite client_id is not configured. Please set DATACITE_CLIENT_ID.'
+            );
+        }
 
         $username = $config['username'];
         $password = $config['password'];
@@ -91,12 +105,18 @@ class DataCiteImportService
             ])
             ->timeout(30)
             ->retry(3, 500, function (\Exception $exception): bool {
-                // Only retry on connection errors or 5xx responses
-                if ($exception instanceof RequestException) {
-                    return $exception->response->status() >= 500;
+                // Retry on connection errors (no response object)
+                if (! ($exception instanceof RequestException)) {
+                    return true;
                 }
 
-                return true;
+                // Retry on 5xx server errors
+                if ($exception->response !== null && $exception->response->status() >= 500) {
+                    return true;
+                }
+
+                // Don't retry on 4xx client errors
+                return false;
             });
 
         Log::debug('DataCite import service initialized', [
@@ -175,9 +195,9 @@ class DataCiteImportService
             $pageCount++;
 
             try {
-                $result = $this->fetchDoiPage($prefix, $cursor, self::PAGE_SIZE);
-                $data = $result['data'];
-                $nextCursor = $result['next_cursor'];
+                $pageResult = $this->fetchDoiPage($prefix, $cursor, self::PAGE_SIZE);
+                $data = $pageResult['data'];
+                $nextCursor = $pageResult['next_cursor'];
 
                 Log::debug('Fetched DOI page', [
                     'prefix' => $prefix,
@@ -192,7 +212,9 @@ class DataCiteImportService
 
                 $cursor = $nextCursor;
 
-                // Small delay to avoid rate limiting
+                // Delay between pages to respect DataCite rate limits (~6 req/sec)
+                // 100ms delay = max 10 requests/second, well under the limit
+                // See https://support.datacite.org/docs/is-there-a-rate-limit-for-making-requests-against-the-datacite-apis
                 if ($cursor !== null) {
                     usleep(100000); // 100ms delay between pages
                 }

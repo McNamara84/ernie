@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -26,8 +27,11 @@ class ImportFromDataCiteJob implements ShouldQueue
 
     /**
      * The maximum number of seconds the job can run.
+     *
+     * Import rate is approximately 100-200 DOIs per minute depending on network.
+     * For 10,000 DOIs, expect ~60-90 minutes processing time.
      */
-    public int $timeout = 3600; // 1 hour
+    public int $timeout = 7200; // 2 hours
 
     /**
      * The number of times the job may be attempted.
@@ -86,18 +90,31 @@ class ImportFromDataCiteJob implements ShouldQueue
             /** @var array<int, array{doi: string, error: string}> */
             $failedDois = [];
 
+            // Maximum entries to store in cache (to prevent memory issues)
+            $maxStoredDois = 100;
+
             // Process DOIs one by one using the generator
+            // Each DOI is processed in its own transaction for resilience
             foreach ($importService->fetchAllDois() as $doiRecord) {
+                // Check if import was cancelled
+                $currentStatus = Cache::get($this->getCacheKey());
+                if (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled') {
+                    Log::info('Import cancelled by user', ['import_id' => $this->importId, 'processed' => $processed]);
+                    break;
+                }
+
                 $processed++;
 
                 $doi = $doiRecord['attributes']['doi'] ?? $doiRecord['id'] ?? null;
 
                 if ($doi === null) {
                     $failed++;
-                    $failedDois[] = [
-                        'doi' => 'unknown',
-                        'error' => 'No DOI found in record',
-                    ];
+                    if (count($failedDois) < $maxStoredDois) {
+                        $failedDois[] = [
+                            'doi' => 'unknown',
+                            'error' => 'No DOI found in record',
+                        ];
+                    }
                     $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
 
                     continue;
@@ -107,7 +124,9 @@ class ImportFromDataCiteJob implements ShouldQueue
                     // Check if DOI already exists
                     if (Resource::where('doi', $doi)->exists()) {
                         $skipped++;
-                        $skippedDois[] = $doi;
+                        if (count($skippedDois) < $maxStoredDois) {
+                            $skippedDois[] = $doi;
+                        }
 
                         Log::debug('Skipping existing DOI', ['doi' => $doi]);
 
@@ -116,18 +135,22 @@ class ImportFromDataCiteJob implements ShouldQueue
                         continue;
                     }
 
-                    // Transform and save
-                    $transformer->transform($doiRecord, $this->userId);
+                    // Transform and save in individual transaction for resilience
+                    DB::transaction(function () use ($transformer, $doiRecord) {
+                        $transformer->transform($doiRecord, $this->userId);
+                    });
                     $imported++;
 
                     Log::debug('Imported DOI', ['doi' => $doi]);
 
                 } catch (\Exception $e) {
                     $failed++;
-                    $failedDois[] = [
-                        'doi' => $doi,
-                        'error' => $e->getMessage(),
-                    ];
+                    if (count($failedDois) < $maxStoredDois) {
+                        $failedDois[] = [
+                            'doi' => $doi,
+                            'error' => $e->getMessage(),
+                        ];
+                    }
 
                     Log::warning('Failed to import DOI', [
                         'doi' => $doi,
@@ -194,8 +217,9 @@ class ImportFromDataCiteJob implements ShouldQueue
         array $failedDois,
         int $total
     ): void {
-        // Only update cache every 10 records or when complete
-        if ($processed % 10 === 0 || $processed === $total) {
+        // Only update cache every 50 records to reduce cache load
+        // For 10,000 DOIs this results in ~200 cache writes instead of 1,000
+        if ($processed % 50 === 0 || $processed === $total) {
             $currentProgress = Cache::get($this->getCacheKey(), []);
 
             $this->updateProgress(array_merge($currentProgress, [
