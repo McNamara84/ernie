@@ -148,15 +148,20 @@ class DataCiteToResourceTransformer
      */
     private function resolvePublisher(string|array|null $publisher): ?int
     {
+        // For imported datasets, use DataCite publisher if provided
+        // If not provided, fall back to the default publisher (e.g., 'GFZ Data Services')
         if ($publisher === null) {
-            return null;
+            $defaultPublisher = Publisher::getDefault();
+            return $defaultPublisher?->id;
         }
 
         // DataCite 4.5+ returns publisher as object
         $publisherName = is_array($publisher) ? ($publisher['name'] ?? null) : $publisher;
 
         if ($publisherName === null) {
-            return null;
+            // Fall back to default publisher if name couldn't be extracted
+            $defaultPublisher = Publisher::getDefault();
+            return $defaultPublisher?->id;
         }
 
         $existing = Publisher::where('name', $publisherName)->first();
@@ -320,6 +325,11 @@ class DataCiteToResourceTransformer
                 : ($affiliationData['name'] ?? null);
 
             if ($name === null) {
+                Log::warning('Skipping affiliation with missing name', [
+                    'parent_type' => $parent::class,
+                    'parent_id' => $parent->id,
+                    'affiliation_data' => is_array($affiliationData) ? $affiliationData : 'string without name',
+                ]);
                 continue;
             }
 
@@ -386,7 +396,12 @@ class DataCiteToResourceTransformer
             }
         }
 
-        // Try to find by name
+        // Try to find by name with strict matching
+        // Note: We intentionally use strict matching (family_name + given_name) to avoid
+        // incorrectly merging different people with the same family name. For example,
+        // "John Smith" and "Jane Smith" should not be merged. If only family_name matches
+        // but given_name differs, we create a new Person record. This is the safer approach
+        // for research data where author identity matters.
         if ($familyName !== null) {
             $query = Person::where('family_name', $familyName);
 
@@ -396,6 +411,7 @@ class DataCiteToResourceTransformer
                 $query->where('given_name', $givenName);
             } else {
                 // If incoming givenName is null, only match persons with null given_name
+                // This prevents matching "Smith" (null given_name) with "John Smith"
                 $query->whereNull('given_name');
             }
 

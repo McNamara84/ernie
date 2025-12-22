@@ -105,12 +105,21 @@ class DataCiteImportService
             ])
             ->timeout(30)
             ->retry(3, 500, function (\Exception $exception): bool {
-                // Only retry on connection-related exceptions (timeouts, network errors)
-                // Don't retry on non-recoverable errors like SSL failures or malformed responses
+                // Retry on connection-related exceptions (timeouts, network errors)
+                // Use exception type checking for more robust retry logic
                 if (! ($exception instanceof RequestException)) {
-                    // Check if it's a connection-related exception that might succeed on retry
+                    // Check for specific connection exception types
+                    // Guzzle wraps connection issues in ConnectException
+                    if ($exception instanceof \GuzzleHttp\Exception\ConnectException) {
+                        return true;
+                    }
+                    // TransferException is the base for all Guzzle HTTP errors
+                    if ($exception instanceof \GuzzleHttp\Exception\TransferException) {
+                        return true;
+                    }
+                    // Fallback: check message for connection patterns (for other HTTP clients)
                     $message = strtolower($exception->getMessage());
-                    $retryablePatterns = ['connection', 'timeout', 'timed out', 'reset by peer'];
+                    $retryablePatterns = ['connection', 'timeout', 'timed out', 'reset by peer', 'could not resolve'];
                     foreach ($retryablePatterns as $pattern) {
                         if (str_contains($message, $pattern)) {
                             return true;

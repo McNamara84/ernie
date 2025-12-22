@@ -172,3 +172,47 @@ describe('ResourceController canImportFromDataCite', function () {
         );
     });
 });
+
+describe('ResourceController destroy authorization', function () {
+    it('allows admin to delete resources', function () {
+        $resource = \App\Models\Resource::factory()->create();
+
+        $response = $this->actingAs($this->adminUser)
+            ->delete("/resources/{$resource->id}");
+
+        $response->assertRedirect('/resources');
+        expect(\App\Models\Resource::find($resource->id))->toBeNull();
+    });
+
+    it('allows group leader to delete resources', function () {
+        $resource = \App\Models\Resource::factory()->create();
+
+        $response = $this->actingAs($this->groupLeader)
+            ->delete("/resources/{$resource->id}");
+
+        $response->assertRedirect('/resources');
+        expect(\App\Models\Resource::find($resource->id))->toBeNull();
+    });
+
+    it('denies curator from deleting resources', function () {
+        $resource = \App\Models\Resource::factory()->create();
+
+        $response = $this->actingAs($this->curator)
+            ->delete("/resources/{$resource->id}");
+
+        $response->assertForbidden();
+        // Resource should still exist
+        expect(\App\Models\Resource::find($resource->id))->not->toBeNull();
+    });
+
+    it('denies beginner from deleting resources', function () {
+        $resource = \App\Models\Resource::factory()->create();
+
+        $response = $this->actingAs($this->beginner)
+            ->delete("/resources/{$resource->id}");
+
+        $response->assertForbidden();
+        // Resource should still exist
+        expect(\App\Models\Resource::find($resource->id))->not->toBeNull();
+    });
+});

@@ -551,8 +551,13 @@ class ResourceController extends Controller
         ], $status);
     }
 
-    public function destroy(Resource $resource): RedirectResponse
+    public function destroy(Request $request, Resource $resource): RedirectResponse
     {
+        // Authorize deletion using ResourcePolicy - only Admin/GroupLeader can delete
+        if ($request->user()?->cannot('delete', $resource)) {
+            abort(403, 'You are not authorized to delete this resource.');
+        }
+
         $resource->delete();
 
         return redirect()
@@ -1125,7 +1130,7 @@ class ResourceController extends Controller
                 },
                 'rights:id,identifier,name',
                 'dates' => function ($query): void {
-                    $query->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date'])
+                    $query->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date', 'end_date'])
                         ->with(['dateType:id,slug']);
                 },
                 'creators' => function ($query): void {
@@ -1444,17 +1449,24 @@ class ResourceController extends Controller
         // This preserves the original creation/update dates from imported datasets
         $createdDate = null;
         $updatedDate = null;
-        // Note: We iterate through all dates because:
-        // 1. We need the first 'Created' date (there should only be one, but we take the first)
-        // 2. We need the last 'Updated' date (if multiple exist, the last one is most recent)
-        foreach ($resource->dates as $date) {
+        // Sort dates by date_value/start_date to ensure we get chronologically correct values
+        // For Updated dates, we want the most recent one (sorted descending)
+        $sortedDates = $resource->dates->sortByDesc(function ($date) {
+            return $date->date_value ?? $date->start_date ?? '';
+        });
+        foreach ($sortedDates as $date) {
             $slug = $date->dateType->slug;
+            // Take the first Created date (there should only be one)
             if ($slug === 'Created' && $createdDate === null) {
                 $createdDate = $date->date_value ?? $date->start_date;
-                // Continue iterating to find Updated dates
-            } elseif ($slug === 'Updated') {
-                // Take the last Updated date (most recent) - intentionally overwrites previous values
+            }
+            // Take the first Updated date in descending order (most recent)
+            if ($slug === 'Updated' && $updatedDate === null) {
                 $updatedDate = $date->date_value ?? $date->start_date;
+            }
+            // Early exit if we found both
+            if ($createdDate !== null && $updatedDate !== null) {
+                break;
             }
         }
 
