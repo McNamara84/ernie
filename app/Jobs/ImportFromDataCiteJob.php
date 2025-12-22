@@ -149,6 +149,21 @@ class ImportFromDataCiteJob implements ShouldQueue
 
                     Log::debug('Imported DOI', ['doi' => $doi]);
 
+                } catch (\Illuminate\Database\QueryException $e) {
+                    // Handle unique constraint violations (race condition: DOI was inserted by another process)
+                    // SQLSTATE 23000 = Integrity constraint violation (covers MySQL, MariaDB, PostgreSQL)
+                    if (isset($e->errorInfo[0]) && $e->errorInfo[0] === '23000') {
+                        $skipped++;
+                        if (count($skippedDois) < $maxStoredDois) {
+                            $skippedDois[] = $doi;
+                        }
+                        Log::debug('Skipping DOI due to concurrent insert (race condition)', ['doi' => $doi]);
+                        $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
+                        continue;
+                    }
+
+                    // Re-throw other database errors to be caught by the generic handler
+                    throw $e;
                 } catch (\Exception $e) {
                     $failed++;
                     if (count($failedDois) < $maxStoredDois) {

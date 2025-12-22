@@ -65,11 +65,33 @@ class ResourceDate extends Model
     }
 
     /**
-     * Check if this is a date range.
+     * Check if this is a closed date range (both start and end dates set).
+     *
+     * Note: This only returns true for ranges with BOTH start_date AND end_date.
+     * For open-ended ranges (only start_date), use isOpenEndedRange().
      */
     public function isRange(): bool
     {
         return $this->start_date !== null && $this->end_date !== null;
+    }
+
+    /**
+     * Check if this is an open-ended date range (start_date set, but no end_date).
+     *
+     * Open-ended ranges represent "from date X onwards" without a defined end.
+     * In DataCite export, these are typically treated as single dates.
+     */
+    public function isOpenEndedRange(): bool
+    {
+        return $this->start_date !== null && $this->end_date === null && $this->date_value === null;
+    }
+
+    /**
+     * Check if this date has any range component (closed or open-ended).
+     */
+    public function hasRangeStart(): bool
+    {
+        return $this->start_date !== null;
     }
 
     /**

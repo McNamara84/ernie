@@ -668,7 +668,22 @@ class DataCiteXmlExporter
                 continue;
             }
 
-            $dateValue = $date->isRange() ? $date->start_date . '/' . $date->end_date : ($date->date_value ?? $date->start_date);
+            // Format date value according to DataCite schema:
+            // - Single date: use date_value or start_date
+            // - Closed range: start_date/end_date
+            // - Open-ended range (start_date only, null end_date): use start_date only (not with trailing /)
+            //   DataCite schema treats dates without end as single dates, not as open ranges
+            $dateValue = null;
+            if ($date->isRange()) {
+                // Closed range with both dates
+                $dateValue = $date->start_date . '/' . $date->end_date;
+            } elseif ($date->isOpenEndedRange()) {
+                // Open-ended range - DataCite treats as single date (the start date)
+                $dateValue = $date->start_date;
+            } else {
+                // Single date
+                $dateValue = $date->date_value ?? $date->start_date;
+            }
             $dateElement = $this->dom->createElement('date', htmlspecialchars($dateValue ?? ''));
             $dateElement->setAttribute('dateType', $date->dateType->slug);
 

@@ -600,8 +600,12 @@ class DataCiteToResourceTransformer
 
             if (str_contains($date, '/')) {
                 // Date range format: YYYY-MM-DD/YYYY-MM-DD
-                // Note: RKMS-ISO8601 allows open-ended ranges where end date is omitted (e.g., "2020-01-01/")
-                // In this case, we store startDate with null endDate to represent an ongoing/open range
+                // RKMS-ISO8601 allows open-ended ranges where end date is omitted (e.g., "2020-01-01/")
+                // We store these with startDate set and endDate as null.
+                // Note: isRange() only returns true for CLOSED ranges (both dates present).
+                // For open-ended ranges, use isOpenEndedRange() which returns true when
+                // start_date is set but end_date is null. In DataCite export, open-ended
+                // ranges are treated as single dates (using just the start_date).
                 $parts = explode('/', $date, 2);
                 $startDate = $this->parseDate($parts[0]);
                 // Only parse end date if it's non-empty (handles open-ended ranges like "2020-01-01/")
@@ -869,20 +873,22 @@ class DataCiteToResourceTransformer
         }
 
         // Try to parse the date - DataCite allows various ISO 8601 formats
+        // Note: Using [0-9] instead of \d for strict ASCII digit matching
+        // as required by ISO 8601 standard (prevents matching Unicode digits)
         $date = trim($date);
 
         // Full date: YYYY-MM-DD
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        if (preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $date)) {
             return $date;
         }
 
         // Year and month: YYYY-MM -> YYYY-MM-01
-        if (preg_match('/^\d{4}-\d{2}$/', $date)) {
+        if (preg_match('/^[0-9]{4}-[0-9]{2}$/', $date)) {
             return $date . '-01';
         }
 
         // Year only: YYYY -> YYYY-01-01
-        if (preg_match('/^\d{4}$/', $date)) {
+        if (preg_match('/^[0-9]{4}$/', $date)) {
             return $date . '-01-01';
         }
 
