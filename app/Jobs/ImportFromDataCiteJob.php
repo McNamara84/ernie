@@ -121,10 +121,11 @@ class ImportFromDataCiteJob implements ShouldQueue
                 }
 
                 try {
-                    // Use transaction with pessimistic locking to prevent race condition
-                    // where concurrent imports could both see DOI doesn't exist
+                    // Use database transaction to ensure atomicity of the check-then-insert operation.
+                    // Note: This relies on the database's default isolation level (typically READ COMMITTED)
+                    // to prevent duplicate inserts. The DOI column has a unique constraint as additional protection.
                     $result = DB::transaction(function () use ($transformer, $doiRecord, $doi) {
-                        // Check inside transaction to prevent race condition
+                        // Check inside transaction - unique constraint on DOI provides ultimate protection
                         if (Resource::where('doi', $doi)->exists()) {
                             return 'skipped';
                         }
@@ -229,9 +230,10 @@ class ImportFromDataCiteJob implements ShouldQueue
     ): void {
         // Only update cache every 50 records to reduce cache load.
         // For 10,000 DOIs this results in ~200 cache writes instead of 10,000.
-        // Check $processed === $total first to ensure final state is always written,
-        // and use exclusive-or logic to avoid double write when total is a multiple of 50.
-        if ($processed === $total || ($processed % 50 === 0 && $processed !== $total)) {
+        // The final state is always written when $processed === $total.
+        // When total is a multiple of 50, the last batch update and final update coincide,
+        // so no redundant writes occur.
+        if ($processed % 50 === 0 || $processed === $total) {
             $currentProgress = Cache::get($this->getCacheKey(), []);
 
             $this->updateProgress(array_merge($currentProgress, [

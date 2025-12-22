@@ -1444,12 +1444,16 @@ class ResourceController extends Controller
         // This preserves the original creation/update dates from imported datasets
         $createdDate = null;
         $updatedDate = null;
+        // Note: We iterate through all dates because:
+        // 1. We need the first 'Created' date (there should only be one, but we take the first)
+        // 2. We need the last 'Updated' date (if multiple exist, the last one is most recent)
         foreach ($resource->dates as $date) {
             $slug = $date->dateType->slug;
             if ($slug === 'Created' && $createdDate === null) {
                 $createdDate = $date->date_value ?? $date->start_date;
+                // Continue iterating to find Updated dates
             } elseif ($slug === 'Updated') {
-                // Take the last Updated date (most recent)
+                // Take the last Updated date (most recent) - intentionally overwrites previous values
                 $updatedDate = $date->date_value ?? $date->start_date;
             }
         }
@@ -1772,6 +1776,16 @@ class ResourceController extends Controller
                 throw new \RuntimeException(
                     "Relation '{$relation}' not loaded on Resource #{$resource->id}. N+1 query detected! ".
                     'Ensure baseQuery() eager loads all required relationships.'
+                );
+            }
+        }
+
+        // Check that dateType is loaded on dates to prevent N+1 when accessing $date->dateType->slug
+        if ($resource->dates->isNotEmpty()) {
+            $firstDate = $resource->dates->first();
+            if (! $firstDate->relationLoaded('dateType')) {
+                throw new \RuntimeException(
+                    'Relation dateType not loaded on ResourceDate. N+1 query detected!'
                 );
             }
         }

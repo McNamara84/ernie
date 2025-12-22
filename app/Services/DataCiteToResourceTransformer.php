@@ -390,8 +390,13 @@ class DataCiteToResourceTransformer
         if ($familyName !== null) {
             $query = Person::where('family_name', $familyName);
 
+            // Handle given_name matching - must explicitly handle null cases
+            // to avoid creating duplicates when one side has null given_name
             if ($givenName !== null) {
                 $query->where('given_name', $givenName);
+            } else {
+                // If incoming givenName is null, only match persons with null given_name
+                $query->whereNull('given_name');
             }
 
             $existing = $query->first();
@@ -579,9 +584,12 @@ class DataCiteToResourceTransformer
 
             if (str_contains($date, '/')) {
                 // Date range format: YYYY-MM-DD/YYYY-MM-DD
+                // Note: RKMS-ISO8601 allows open-ended ranges where end date is omitted (e.g., "2020-01-01/")
+                // In this case, we store startDate with null endDate to represent an ongoing/open range
                 $parts = explode('/', $date, 2);
                 $startDate = $this->parseDate($parts[0]);
-                $endDate = $this->parseDate($parts[1] ?? null);
+                // Only parse end date if it's non-empty (handles open-ended ranges like "2020-01-01/")
+                $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1]) : null;
             } else {
                 $dateValue = $this->parseDate($date);
             }

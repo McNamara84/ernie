@@ -26,7 +26,8 @@ return new class extends Migration
             });
         } else {
             // MySQL/MariaDB: Need to drop index, modify column, recreate with prefix
-            DB::statement('DROP INDEX idx_affiliations_name ON affiliations');
+            // Use IF EXISTS to handle cases where index might not exist (e.g., failed migration, manual changes)
+            DB::statement('DROP INDEX IF EXISTS idx_affiliations_name ON affiliations');
             DB::statement('ALTER TABLE affiliations MODIFY name TEXT NOT NULL');
             DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name(191))');
         }
@@ -50,7 +51,8 @@ return new class extends Migration
             // MySQL/MariaDB: Revert to VARCHAR(255)
             // Note: Original schema used a regular index on VARCHAR(255), which doesn't require a prefix.
             // This correctly restores the previous state.
-            DB::statement('DROP INDEX idx_affiliations_name ON affiliations');
+            // Use IF EXISTS to handle cases where index might not exist
+            DB::statement('DROP INDEX IF EXISTS idx_affiliations_name ON affiliations');
             DB::statement('ALTER TABLE affiliations MODIFY name VARCHAR(255) NOT NULL');
             DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name)');
         }

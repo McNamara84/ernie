@@ -105,17 +105,27 @@ class DataCiteImportService
             ])
             ->timeout(30)
             ->retry(3, 500, function (\Exception $exception): bool {
-                // Retry on connection errors (no response object)
+                // Only retry on connection-related exceptions (timeouts, network errors)
+                // Don't retry on non-recoverable errors like SSL failures or malformed responses
                 if (! ($exception instanceof RequestException)) {
-                    return true;
+                    // Check if it's a connection-related exception that might succeed on retry
+                    $message = strtolower($exception->getMessage());
+                    $retryablePatterns = ['connection', 'timeout', 'timed out', 'reset by peer'];
+                    foreach ($retryablePatterns as $pattern) {
+                        if (str_contains($message, $pattern)) {
+                            return true;
+                        }
+                    }
+                    // Don't retry unknown exceptions
+                    return false;
                 }
 
-                // Retry on 5xx server errors
+                // Retry on 5xx server errors (temporary server issues)
                 if ($exception->response !== null && $exception->response->status() >= 500) {
                     return true;
                 }
 
-                // Don't retry on 4xx client errors
+                // Don't retry on 4xx client errors (permanent failures)
                 return false;
             });
 
@@ -139,7 +149,9 @@ class DataCiteImportService
                 $response = $this->client->get("{$this->endpoint}/dois", [
                     'client-id' => $this->clientId,
                     'prefix' => $prefix,
-                    'page[size]' => 0, // We only need the count
+                    // Use page[size]=1 instead of 0 to ensure a valid API response
+                    // while still minimizing data transfer - we only need the meta.total count
+                    'page[size]' => 1,
                 ]);
 
                 if ($response->successful()) {
@@ -213,10 +225,10 @@ class DataCiteImportService
                 $cursor = $nextCursor;
 
                 // Delay between pages to respect DataCite rate limits (~6 req/sec)
-                // 200ms delay = max 5 requests/second, safely under the limit
+                // Calculation: 1000ms / 200ms = 5 requests/second, safely under the 6 req/sec limit
                 // See https://support.datacite.org/docs/is-there-a-rate-limit-for-making-requests-against-the-datacite-apis
                 if ($cursor !== null) {
-                    usleep(200000); // 200ms delay between pages
+                    usleep(200000); // 200ms delay = max 5 req/sec
                 }
 
             } catch (\Exception $e) {
