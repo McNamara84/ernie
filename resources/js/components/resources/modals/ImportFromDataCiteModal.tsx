@@ -137,7 +137,12 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     }, []);
 
     const handleClose = useCallback(() => {
-        if (modalState === 'completed' && onSuccess) {
+        if (modalState === 'completed') {
+            // Reload page to show newly imported resources
+            window.location.reload();
+            return;
+        }
+        if (onSuccess) {
             onSuccess();
         }
         onClose();

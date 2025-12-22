@@ -276,6 +276,21 @@ class DataCiteToResourceTransformer
                     'slug',
                     'Other'
                 );
+
+                // If still null, query directly (shouldn't happen but safety net)
+                if ($contributorTypeId === null) {
+                    $contributorTypeId = ContributorType::where('slug', 'Other')->value('id');
+                }
+            }
+
+            // Skip this contributor if we still can't find a valid type
+            if ($contributorTypeId === null) {
+                Log::warning('Skipping contributor without valid type', [
+                    'resource_id' => $resource->id,
+                    'contributor_type' => $contributorData['contributorType'] ?? 'null',
+                ]);
+
+                continue;
             }
 
             $resourceContributor = ResourceContributor::create([
@@ -321,7 +336,7 @@ class DataCiteToResourceTransformer
             Affiliation::create([
                 'affiliatable_type' => $parent::class,
                 'affiliatable_id' => $parent->id,
-                'name' => mb_substr($name, 0, 255),
+                'name' => $name,
                 'identifier' => $identifier,
                 'identifier_scheme' => $scheme,
                 'scheme_uri' => $schemeUri,
