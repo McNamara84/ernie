@@ -668,7 +668,8 @@ class DataCiteXmlExporter
                 continue;
             }
 
-            $dateElement = $this->dom->createElement('date', htmlspecialchars($date->date));
+            $dateValue = $date->isRange() ? $date->start_date . '/' . $date->end_date : ($date->date_value ?? $date->start_date);
+            $dateElement = $this->dom->createElement('date', htmlspecialchars($dateValue ?? ''));
             $dateElement->setAttribute('dateType', $date->dateType->slug);
 
             if ($date->date_information) {
@@ -752,7 +753,7 @@ class DataCiteXmlExporter
         $sizes = $this->dom->createElement('sizes');
 
         foreach ($resource->sizes as $size) {
-            $sizeElement = $this->dom->createElement('size', htmlspecialchars($size->size));
+            $sizeElement = $this->dom->createElement('size', htmlspecialchars($size->value));
             $sizes->appendChild($sizeElement);
         }
 
@@ -771,7 +772,7 @@ class DataCiteXmlExporter
         $formats = $this->dom->createElement('formats');
 
         foreach ($resource->formats as $format) {
-            $formatElement = $this->dom->createElement('format', htmlspecialchars($format->format));
+            $formatElement = $this->dom->createElement('format', htmlspecialchars($format->value));
             $formats->appendChild($formatElement);
         }
 
@@ -841,7 +842,7 @@ class DataCiteXmlExporter
         $descriptions = $this->dom->createElement('descriptions');
 
         foreach ($resource->descriptions as $description) {
-            $descriptionElement = $this->dom->createElement('description', htmlspecialchars($description->description));
+            $descriptionElement = $this->dom->createElement('description', htmlspecialchars($description->value));
             $descriptionElement->setAttribute('descriptionType', $description->descriptionType->slug ?? 'Abstract');
 
             if ($resource->language) {

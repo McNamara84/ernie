@@ -587,7 +587,7 @@ class DataCiteJsonExporter
 
         foreach ($resource->descriptions as $description) {
             $descriptionData = [
-                'description' => $description->description,
+                'description' => $description->value,
                 'descriptionType' => $description->descriptionType->slug ?? 'Other',
             ];
 
@@ -620,7 +620,7 @@ class DataCiteJsonExporter
 
             $dateData = [
                 'dateType' => $date->dateType->name,
-                'date' => $date->date,
+                'date' => $date->isRange() ? $date->start_date . '/' . $date->end_date : ($date->date_value ?? $date->start_date),
             ];
 
             // Add date information if available
