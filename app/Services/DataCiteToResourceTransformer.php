@@ -269,6 +269,15 @@ class DataCiteToResourceTransformer
                 );
             }
 
+            // Fallback to 'Other' if contributor type not found
+            if ($contributorTypeId === null) {
+                $contributorTypeId = $this->getLookupId(
+                    ContributorType::class,
+                    'slug',
+                    'Other'
+                );
+            }
+
             $resourceContributor = ResourceContributor::create([
                 'resource_id' => $resource->id,
                 'contributorable_type' => $entityType,
@@ -312,7 +321,7 @@ class DataCiteToResourceTransformer
             Affiliation::create([
                 'affiliatable_type' => $parent::class,
                 'affiliatable_id' => $parent->id,
-                'name' => $name,
+                'name' => mb_substr($name, 0, 255),
                 'identifier' => $identifier,
                 'identifier_scheme' => $scheme,
                 'scheme_uri' => $schemeUri,

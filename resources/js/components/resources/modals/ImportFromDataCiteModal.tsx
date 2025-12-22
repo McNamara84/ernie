@@ -158,6 +158,27 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         return `${minutes}m ${remainingSeconds}s`;
     };
 
+    const formatRemainingTime = (startedAt?: string, processed?: number, total?: number): string => {
+        if (!startedAt || !processed || !total || processed === 0) return '';
+
+        const start = new Date(startedAt);
+        const now = new Date();
+        const elapsedSeconds = (now.getTime() - start.getTime()) / 1000;
+
+        // Calculate rate (DOIs per second)
+        const rate = processed / elapsedSeconds;
+        if (rate === 0) return '';
+
+        // Calculate remaining time
+        const remaining = total - processed;
+        const remainingSeconds = Math.round(remaining / rate);
+
+        if (remainingSeconds < 60) return `~${remainingSeconds}s remaining`;
+        const minutes = Math.floor(remainingSeconds / 60);
+        const secs = remainingSeconds % 60;
+        return `~${minutes}m ${secs}s remaining`;
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
             <DialogContent className="max-w-lg">
@@ -233,9 +254,12 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                             </div>
 
                             {progress.started_at && (
-                                <p className="text-center text-xs text-muted-foreground">
-                                    Duration: {formatDuration(progress.started_at)}
-                                </p>
+                                <div className="text-center text-xs text-muted-foreground space-y-1">
+                                    <p>Elapsed: {formatDuration(progress.started_at)}</p>
+                                    {progress.processed > 0 && progress.total > 0 && progress.processed < progress.total && (
+                                        <p className="text-primary">{formatRemainingTime(progress.started_at, progress.processed, progress.total)}</p>
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}
