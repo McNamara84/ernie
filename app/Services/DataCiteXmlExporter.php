@@ -9,6 +9,7 @@ use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
 use DOMDocument;
 use DOMElement;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service for exporting Resource data to DataCite XML format (v4.6)
@@ -650,7 +651,11 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Build dates element (optional)
+     * Build dates element (optional).
+     *
+     * Note: This method requires the dateType relation to be eager loaded on ResourceDate
+     * objects. The ResourceController's baseQuery() does this, but if using this exporter
+     * in other contexts, ensure dates are loaded with: ->with(['dates.dateType']).
      */
     private function buildDates(Resource $resource): void
     {
@@ -662,13 +667,46 @@ class DataCiteXmlExporter
         $hasDates = false;
 
         foreach ($resource->dates as $date) {
-            // Skip if no date type (should not happen in normal usage)
+            // Skip if no date type - this could happen if:
+            // 1. The dateType relation isn't eager loaded (N+1 query will occur)
+            // 2. The date type was deleted (orphaned data)
             // @phpstan-ignore booleanNot.alwaysFalse
             if (! $date->dateType) {
+                Log::warning('DataCite export: Date without dateType relation', [
+                    'date_id' => $date->id,
+                    'resource_id' => $resource->id,
+                ]);
                 continue;
             }
 
-            $dateElement = $this->dom->createElement('date', htmlspecialchars($date->date));
+            // Format date value according to DataCite schema:
+            // - Single date: use date_value or start_date
+            // - Closed range: start_date/end_date
+            // - Open-ended range (start_date only, null end_date): exported as single date
+            //
+            // Note on open-ended ranges: While RKMS-ISO8601 allows "YYYY-MM-DD/" format for
+            // open-ended ranges, DataCite's XSD schema and API validation treat dates without
+            // an end component as single dates. Exporting "2020-01-01/" would fail validation.
+            // Therefore, open-ended ranges are intentionally exported as single dates.
+            // The range information is preserved in the database for potential future use.
+            $dateValue = null;
+            if ($date->isRange()) {
+                // Closed range with both dates
+                $dateValue = $date->start_date . '/' . $date->end_date;
+            } elseif ($date->isOpenEndedRange()) {
+                // Open-ended range - exported as single date (DataCite doesn't support trailing slash)
+                $dateValue = $date->start_date;
+            } else {
+                // Single date
+                $dateValue = $date->date_value ?? $date->start_date;
+            }
+
+            // Skip dates where no value could be determined to avoid empty XML elements
+            if ($dateValue === null || $dateValue === '') {
+                continue;
+            }
+
+            $dateElement = $this->dom->createElement('date', htmlspecialchars($dateValue));
             $dateElement->setAttribute('dateType', $date->dateType->slug);
 
             if ($date->date_information) {
@@ -752,7 +790,7 @@ class DataCiteXmlExporter
         $sizes = $this->dom->createElement('sizes');
 
         foreach ($resource->sizes as $size) {
-            $sizeElement = $this->dom->createElement('size', htmlspecialchars($size->size));
+            $sizeElement = $this->dom->createElement('size', htmlspecialchars($size->value));
             $sizes->appendChild($sizeElement);
         }
 
@@ -771,7 +809,7 @@ class DataCiteXmlExporter
         $formats = $this->dom->createElement('formats');
 
         foreach ($resource->formats as $format) {
-            $formatElement = $this->dom->createElement('format', htmlspecialchars($format->format));
+            $formatElement = $this->dom->createElement('format', htmlspecialchars($format->value));
             $formats->appendChild($formatElement);
         }
 
@@ -841,7 +879,7 @@ class DataCiteXmlExporter
         $descriptions = $this->dom->createElement('descriptions');
 
         foreach ($resource->descriptions as $description) {
-            $descriptionElement = $this->dom->createElement('description', htmlspecialchars($description->description));
+            $descriptionElement = $this->dom->createElement('description', htmlspecialchars($description->value));
             $descriptionElement->setAttribute('descriptionType', $description->descriptionType->slug ?? 'Abstract');
 
             if ($resource->language) {

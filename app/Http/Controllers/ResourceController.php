@@ -125,6 +125,7 @@ class ResourceController extends Controller
                 'key' => $sortKey,
                 'direction' => $sortDirection,
             ],
+            'canImportFromDataCite' => $request->user()?->can('importFromDataCite', Resource::class) ?? false,
         ]);
     }
 
@@ -550,8 +551,22 @@ class ResourceController extends Controller
         ], $status);
     }
 
-    public function destroy(Resource $resource): RedirectResponse
+    /**
+     * Delete a resource.
+     *
+     * @param Request $request The HTTP request - needed for user() access to check authorization.
+     *                         While Laravel's route model binding could inject User directly,
+     *                         using Request allows for consistent null-safety checks and follows
+     *                         the pattern used in other controller methods.
+     * @param Resource $resource The resource to delete (injected via route model binding).
+     */
+    public function destroy(Request $request, Resource $resource): RedirectResponse
     {
+        // Authorize deletion using ResourcePolicy - only Admin/GroupLeader can delete
+        if ($request->user()?->cannot('delete', $resource)) {
+            abort(403, 'You are not authorized to delete this resource.');
+        }
+
         $resource->delete();
 
         return redirect()
@@ -1123,11 +1138,18 @@ class ResourceController extends Controller
                         ->orderBy('id');
                 },
                 'rights:id,identifier,name',
+                // Eager load dates with the dateType relation.
+                // Note: date_type_id MUST be included in the select() for the dateType relation
+                // to work, as Eloquent uses it as the foreign key for the belongsTo relation.
+                'dates' => function ($query): void {
+                    $query->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date', 'end_date'])
+                        ->with(['dateType:id,slug']);
+                },
                 'creators' => function ($query): void {
                     $query
                         ->with([
                             'creatorable', // Eager load Person or Institution
-                            'affiliations.institution:id,name,ror_id', // Eager load affiliations and their institutions
+                            'affiliations', // Eager load affiliations
                         ])
                         ->orderBy('position');
                 },
@@ -1136,7 +1158,7 @@ class ResourceController extends Controller
                         ->with([
                             'contributorType',
                             'contributorable', // Eager load Person or Institution
-                            'affiliations.institution:id,name,ror_id', // Eager load affiliations and their institutions
+                            'affiliations', // Eager load affiliations
                         ])
                         ->orderBy('position');
                 },
@@ -1435,13 +1457,38 @@ class ResourceController extends Controller
             $publicStatus = $resource->landingPage->is_published ? 'published' : 'review';
         }
 
+        // Get DataCite dates (Created/Updated) from the dates relation instead of Eloquent timestamps.
+        // This preserves the original creation/update dates from imported datasets.
+        //
+        // Performance note: The dates relation is eager loaded by baseQuery() with only the
+        // necessary columns (id, resource_id, date_type_id, date_value, start_date, end_date)
+        // and the dateType relation. Filtering is done on the in-memory collection which is
+        // efficient for the typical small number of dates per resource (usually <10).
+        //
+        // If resources commonly have many dates, consider indexing dates by type during
+        // eager loading using a custom accessor or query scope.
+        $createdDateRecord = $resource->dates->first(fn ($date) => $date->dateType->slug === 'Created');
+        $createdDate = $createdDateRecord !== null
+            ? ($createdDateRecord->date_value ?? $createdDateRecord->start_date)
+            : null;
+
+        // For Updated dates, get the most recent one by sorting only Updated dates
+        $updatedDateRecord = $resource->dates
+            ->filter(fn ($date) => $date->dateType->slug === 'Updated')
+            ->sortByDesc(fn ($date) => $date->date_value ?? $date->start_date ?? '')
+            ->first();
+        $updatedDate = $updatedDateRecord !== null
+            ? ($updatedDateRecord->date_value ?? $updatedDateRecord->start_date)
+            : null;
+
         return [
             'id' => $resource->id,
             'doi' => $resource->doi,
             'year' => $resource->publication_year,
             'version' => $resource->version,
-            'created_at' => $resource->created_at?->toIso8601String(),
-            'updated_at' => $resource->updated_at?->toIso8601String(),
+            // Use DataCite dates if available, otherwise fall back to Eloquent timestamps
+            'created_at' => $createdDate ?? $resource->created_at?->toIso8601String(),
+            'updated_at' => $updatedDate ?? $resource->updated_at?->toIso8601String(),
             'curator' => $resource->updatedBy?->name ?? $resource->createdBy?->name, // @phpstan-ignore nullsafe.neverNull (updatedBy can be null if updated_by_user_id is null)
             'publicstatus' => $publicStatus,
             'resourcetypegeneral' => $resource->resourceType?->name,
@@ -1739,6 +1786,7 @@ class ResourceController extends Controller
             'contributors',
             'titles',
             'rights',
+            'dates',
             'resourceType',
             'language',
             'createdBy',
@@ -1755,6 +1803,16 @@ class ResourceController extends Controller
             }
         }
 
+        // Check that dateType is loaded on dates to prevent N+1 when accessing $date->dateType->slug
+        if ($resource->dates->isNotEmpty()) {
+            $firstDate = $resource->dates->first();
+            if (! $firstDate->relationLoaded('dateType')) {
+                throw new \RuntimeException(
+                    'Relation dateType not loaded on ResourceDate. N+1 query detected!'
+                );
+            }
+        }
+
         // Check nested relations on creators if creators exist
         if ($resource->creators->isNotEmpty()) {
             $firstCreator = $resource->creators->first();
@@ -1763,19 +1821,12 @@ class ResourceController extends Controller
                     'Relation creatorable not loaded on ResourceCreator. N+1 query detected!'
                 );
             }
-            // Also check affiliations and their nested institution relation
+            // Also check affiliations relation (note: affiliations are polymorphic and store
+            // affiliation data directly - they don't have a separate institution relation)
             if (! $firstCreator->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceCreator. N+1 query detected!'
                 );
-            }
-            if ($firstCreator->affiliations->isNotEmpty()) {
-                $firstAffiliation = $firstCreator->affiliations->first();
-                if (! $firstAffiliation->relationLoaded('institution')) {
-                    throw new \RuntimeException(
-                        'Relation institution not loaded on Affiliation. N+1 query detected!'
-                    );
-                }
             }
         }
 
@@ -1792,19 +1843,12 @@ class ResourceController extends Controller
                     'Relation contributorType not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
-            // Also check affiliations and their nested institution relation
+            // Also check affiliations relation (note: affiliations are polymorphic and store
+            // affiliation data directly - they don't have a separate institution relation)
             if (! $firstContributor->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceContributor. N+1 query detected!'
                 );
-            }
-            if ($firstContributor->affiliations->isNotEmpty()) {
-                $firstAffiliation = $firstContributor->affiliations->first();
-                if (! $firstAffiliation->relationLoaded('institution')) {
-                    throw new \RuntimeException(
-                        'Relation institution not loaded on Affiliation. N+1 query detected!'
-                    );
-                }
             }
         }
     }

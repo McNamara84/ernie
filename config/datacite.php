@@ -26,9 +26,10 @@ return [
         'endpoint' => env('DATACITE_ENDPOINT', 'https://api.datacite.org'),
         'username' => env('DATACITE_USERNAME'),
         'password' => env('DATACITE_PASSWORD'),
+        'client_id' => env('DATACITE_CLIENT_ID', 'tib.gfz'),
         'prefixes' => [
             '10.5880',
-            '10.26026',
+            '10.1594',
             '10.14470',
         ],
     ],

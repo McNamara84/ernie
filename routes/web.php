@@ -140,6 +140,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('resources/{resource}', [ResourceController::class, 'destroy'])
         ->name('resources.destroy');
 
+    // DataCite Import (Admin/Group Leader only)
+    Route::post('datacite/import/start', [App\Http\Controllers\DataCiteImportController::class, 'start'])
+        ->name('datacite.import.start');
+
+    Route::get('datacite/import/{importId}/status', [App\Http\Controllers\DataCiteImportController::class, 'status'])
+        ->name('datacite.import.status');
+
+    Route::post('datacite/import/{importId}/cancel', [App\Http\Controllers\DataCiteImportController::class, 'cancel'])
+        ->name('datacite.import.cancel');
+
     // Landing Page Management (Admin)
     Route::post('resources/{resource}/landing-page', [LandingPageController::class, 'store'])
         ->name('landing-page.store');

@@ -14,7 +14,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $resource_id
- * @property string $date
+ * @property string|null $date_value
+ * @property string|null $start_date
+ * @property string|null $end_date
  * @property int $date_type_id
  * @property string|null $date_information
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -37,7 +39,9 @@ class ResourceDate extends Model
 
     protected $fillable = [
         'resource_id',
-        'date',
+        'date_value',
+        'start_date',
+        'end_date',
         'date_type_id',
         'date_information',
     ];
@@ -61,11 +65,33 @@ class ResourceDate extends Model
     }
 
     /**
-     * Check if this is a date range (RKMS-ISO8601 format with /).
+     * Check if this is a closed date range (both start and end dates set).
+     *
+     * Note: This only returns true for ranges with BOTH start_date AND end_date.
+     * For open-ended ranges (only start_date), use isOpenEndedRange().
      */
     public function isRange(): bool
     {
-        return str_contains($this->date, '/');
+        return $this->start_date !== null && $this->end_date !== null;
+    }
+
+    /**
+     * Check if this is an open-ended date range (start_date set, but no end_date).
+     *
+     * Open-ended ranges represent "from date X onwards" without a defined end.
+     * In DataCite export, these are typically treated as single dates.
+     */
+    public function isOpenEndedRange(): bool
+    {
+        return $this->start_date !== null && $this->end_date === null && $this->date_value === null;
+    }
+
+    /**
+     * Check if this date has any range component (closed or open-ended).
+     */
+    public function hasRangeStart(): bool
+    {
+        return $this->start_date !== null;
     }
 
     /**
@@ -73,13 +99,11 @@ class ResourceDate extends Model
      */
     public function getStartDate(): ?string
     {
-        if (! $this->isRange()) {
-            return $this->date;
+        if ($this->start_date !== null) {
+            return $this->start_date;
         }
 
-        $parts = explode('/', $this->date);
-
-        return $parts[0] ?: null;
+        return $this->date_value;
     }
 
     /**
@@ -87,13 +111,7 @@ class ResourceDate extends Model
      */
     public function getEndDate(): ?string
     {
-        if (! $this->isRange()) {
-            return null;
-        }
-
-        $parts = explode('/', $this->date);
-
-        return $parts[1] ?? null;
+        return $this->end_date;
     }
 
     /**

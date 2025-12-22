@@ -233,6 +233,7 @@ services:
       - DB_USERNAME=ernie
       - DB_PASSWORD=secret
       - REDIS_HOST=redis
+      - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
     command: php artisan queue:work --sleep=3 --tries=3
 
