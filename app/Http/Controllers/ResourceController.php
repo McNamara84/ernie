@@ -1764,19 +1764,11 @@ class ResourceController extends Controller
                     'Relation creatorable not loaded on ResourceCreator. N+1 query detected!'
                 );
             }
-            // Also check affiliations and their nested institution relation
+            // Also check affiliations relation
             if (! $firstCreator->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceCreator. N+1 query detected!'
                 );
-            }
-            if ($firstCreator->affiliations->isNotEmpty()) {
-                $firstAffiliation = $firstCreator->affiliations->first();
-                if (! $firstAffiliation->relationLoaded('institution')) {
-                    throw new \RuntimeException(
-                        'Relation institution not loaded on Affiliation. N+1 query detected!'
-                    );
-                }
             }
         }
 
@@ -1793,19 +1785,11 @@ class ResourceController extends Controller
                     'Relation contributorType not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
-            // Also check affiliations and their nested institution relation
+            // Also check affiliations relation
             if (! $firstContributor->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceContributor. N+1 query detected!'
                 );
-            }
-            if ($firstContributor->affiliations->isNotEmpty()) {
-                $firstAffiliation = $firstContributor->affiliations->first();
-                if (! $firstAffiliation->relationLoaded('institution')) {
-                    throw new \RuntimeException(
-                        'Relation institution not loaded on Affiliation. N+1 query detected!'
-                    );
-                }
             }
         }
     }

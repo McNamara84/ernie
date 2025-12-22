@@ -115,7 +115,14 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
 
             let errorMessage = 'Failed to start import';
             if (isAxiosError(err)) {
-                if (err.response?.status === 403) {
+                if (err.response?.status === 419) {
+                    // CSRF token mismatch - reload page to get fresh token
+                    toast.error('Session expired', {
+                        description: 'Reloading page to refresh session...',
+                    });
+                    setTimeout(() => window.location.reload(), 1500);
+                    return;
+                } else if (err.response?.status === 403) {
                     errorMessage = 'You do not have permission to import from DataCite.';
                 } else {
                     errorMessage = err.response?.data?.message || err.message;
