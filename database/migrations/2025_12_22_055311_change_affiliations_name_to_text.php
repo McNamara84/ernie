@@ -40,13 +40,12 @@ return new class extends Migration
         $driver = DB::getDriverName();
 
         if ($driver === 'sqlite') {
-            // SQLite: Just recreate the index
-            Schema::table('affiliations', function (Blueprint $table) {
-                $table->dropIndex('idx_affiliations_name');
-            });
-            Schema::table('affiliations', function (Blueprint $table) {
-                $table->index('name', 'idx_affiliations_name');
-            });
+            // SQLite: this migration is effectively a no-op for the schema.
+            // The 'name' column type is already compatible and the index definition
+            // does not change, so there is no meaningful "previous state" to restore.
+            // We intentionally leave this as a no-op to document that the migration
+            // is idempotent rather than strictly reversible on SQLite.
+            return;
         } else {
             // MySQL/MariaDB: Revert to VARCHAR(255)
             DB::statement('DROP INDEX idx_affiliations_name ON affiliations');

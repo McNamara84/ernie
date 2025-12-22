@@ -120,8 +120,8 @@ class DataCiteToResourceTransformer
         }
 
         // Convert PascalCase to kebab-case for slug matching
-        // e.g., "Dataset" -> "dataset", "JournalArticle" -> "journal-article"
-        $slug = strtolower((string) preg_replace('/(?<!^)[A-Z]/', '-$0', $typeGeneral));
+        // e.g., "Dataset" -> "dataset", "JournalArticle" -> "journal-article", "XMLSchema" -> "xml-schema"
+        $slug = strtolower((string) preg_replace('/(?<!^)(?=[A-Z][a-z])|(?<=[a-z])(?=[A-Z])/', '-', $typeGeneral));
 
         $typeId = $this->getLookupId(ResourceType::class, 'slug', $slug);
 

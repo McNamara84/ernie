@@ -217,8 +217,12 @@ class ImportFromDataCiteJob implements ShouldQueue
         array $failedDois,
         int $total
     ): void {
-        // Only update cache every 50 records to reduce cache load
-        // For 10,000 DOIs this results in ~200 cache writes instead of 1,000
+        // Only update cache every 50 records to reduce cache load.
+        // For 10,000 DOIs this results in ~200 cache writes instead of 10,000.
+        // Note: When the total is not a multiple of 50, this condition can trigger
+        // once for the last multiple of 50 and once when $processed === $total.
+        // This extra write at completion is intentional to ensure the final state
+        // (including all counters and DOIs) is always persisted.
         if ($processed % 50 === 0 || $processed === $total) {
             $currentProgress = Cache::get($this->getCacheKey(), []);
 

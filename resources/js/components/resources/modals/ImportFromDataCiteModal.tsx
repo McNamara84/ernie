@@ -58,19 +58,21 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
     }, [isOpen]);
 
     // Poll for progress updates with adaptive interval
+    // Uses timeout-based adjustment to avoid race conditions
     useEffect(() => {
         if (!importId || modalState !== 'running') {
             return;
         }
 
-        let pollCount = 0;
         let pollInterval: ReturnType<typeof setInterval>;
+        let isCancelled = false;
 
         const poll = async () => {
+            if (isCancelled) return;
+
             try {
                 const response = await axios.get<ImportProgress>(withBasePath(`/datacite/import/${importId}/status`));
                 setProgress(response.data);
-                pollCount++;
 
                 if (response.data.status === 'completed') {
                     setModalState('completed');
@@ -85,23 +87,19 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
             }
         };
 
-        // Start with fast polling (2s), then back off to slower polling (5s) after 30 polls (~1 minute)
-        // This provides responsive feedback initially while reducing server load during long imports
-        const getPollingInterval = () => (pollCount < 30 ? 2000 : 5000);
-
-        // Initial poll
+        // Start with fast polling (2s)
         poll();
+        pollInterval = setInterval(poll, 2000);
 
-        // Set up adaptive polling
-        pollInterval = setInterval(poll, getPollingInterval());
-
-        // Adjust interval after initial fast period
+        // After 1 minute, switch to slower polling (5s) to reduce server load during long imports
         const adjustIntervalTimeout = setTimeout(() => {
+            if (isCancelled) return;
             clearInterval(pollInterval);
             pollInterval = setInterval(poll, 5000);
-        }, 60000); // After 1 minute, switch to 5s polling
+        }, 60000);
 
         return () => {
+            isCancelled = true;
             clearInterval(pollInterval);
             clearTimeout(adjustIntervalTimeout);
         };
@@ -162,13 +160,11 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
 
     const handleClose = useCallback(() => {
         if (modalState === 'completed') {
-            // Reload page data to show newly imported resources
+            // Call onSuccess callback and reload page data to show newly imported resources
+            if (onSuccess) {
+                onSuccess();
+            }
             router.reload();
-            onClose();
-            return;
-        }
-        if (onSuccess) {
-            onSuccess();
         }
         onClose();
     }, [modalState, onClose, onSuccess]);
@@ -284,10 +280,10 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                             </div>
 
                             {progress.started_at && (
-                                <div className="text-center text-xs text-muted-foreground space-y-1">
+                                <div className="text-center text-xs text-muted-foreground">
                                     <p>Elapsed: {formatDuration(progress.started_at)}</p>
                                     {progress.processed > 0 && progress.total > 0 && progress.processed < progress.total && (
-                                        <p className="text-primary">{formatRemainingTime(progress.started_at, progress.processed, progress.total)}</p>
+                                        <p className="mt-1 text-primary">{formatRemainingTime(progress.started_at, progress.processed, progress.total)}</p>
                                     )}
                                 </div>
                             )}

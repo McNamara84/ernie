@@ -1784,7 +1784,8 @@ class ResourceController extends Controller
                     'Relation creatorable not loaded on ResourceCreator. N+1 query detected!'
                 );
             }
-            // Also check affiliations relation
+            // Also check affiliations relation (note: affiliations are polymorphic and store
+            // affiliation data directly - they don't have a separate institution relation)
             if (! $firstCreator->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceCreator. N+1 query detected!'
@@ -1805,7 +1806,8 @@ class ResourceController extends Controller
                     'Relation contributorType not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
-            // Also check affiliations relation
+            // Also check affiliations relation (note: affiliations are polymorphic and store
+            // affiliation data directly - they don't have a separate institution relation)
             if (! $firstContributor->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceContributor. N+1 query detected!'
