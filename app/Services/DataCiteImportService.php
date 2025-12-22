@@ -31,6 +31,11 @@ class DataCiteImportService
     private string $endpoint;
 
     /**
+     * The DataCite client ID for filtering DOIs.
+     */
+    private string $clientId;
+
+    /**
      * DOI prefixes to import.
      *
      * @var array<int, string>
@@ -58,6 +63,7 @@ class DataCiteImportService
         $config = Config::get('datacite.production');
 
         $this->endpoint = $config['endpoint'];
+        $this->clientId = $config['client_id'] ?? 'tib.gfz';
         $this->prefixes = $config['prefixes'];
 
         $username = $config['username'];
@@ -111,6 +117,7 @@ class DataCiteImportService
         foreach ($this->prefixes as $prefix) {
             try {
                 $response = $this->client->get("{$this->endpoint}/dois", [
+                    'client-id' => $this->clientId,
                     'prefix' => $prefix,
                     'page[size]' => 0, // We only need the count
                 ]);
@@ -225,6 +232,7 @@ class DataCiteImportService
         $pageSize = min($pageSize, self::MAX_PAGE_SIZE);
 
         $response = $this->client->get("{$this->endpoint}/dois", [
+            'client-id' => $this->clientId,
             'prefix' => $prefix,
             'page[cursor]' => $cursor,
             'page[size]' => $pageSize,
