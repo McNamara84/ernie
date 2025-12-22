@@ -60,7 +60,8 @@ describe('ImportFromDataCiteJob', function () {
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['status'])->toBe('completed');
         expect($status['processed'])->toBe(2);
-        // May be imported or failed depending on database seed data
+        // The exact split between imported and failed depends on seeded reference data
+        // (ResourceTypes, DateTypes, etc.) - we verify total count is correct
         expect($status['imported'] + $status['failed'])->toBe(2);
     });
 

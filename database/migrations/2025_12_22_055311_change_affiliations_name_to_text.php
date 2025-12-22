@@ -48,6 +48,8 @@ return new class extends Migration
             return;
         } else {
             // MySQL/MariaDB: Revert to VARCHAR(255)
+            // Note: Original schema used a regular index on VARCHAR(255), which doesn't require a prefix.
+            // This correctly restores the previous state.
             DB::statement('DROP INDEX idx_affiliations_name ON affiliations');
             DB::statement('ALTER TABLE affiliations MODIFY name VARCHAR(255) NOT NULL');
             DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name)');

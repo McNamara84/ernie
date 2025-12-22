@@ -121,24 +121,29 @@ class ImportFromDataCiteJob implements ShouldQueue
                 }
 
                 try {
-                    // Check if DOI already exists
-                    if (Resource::where('doi', $doi)->exists()) {
+                    // Use transaction with pessimistic locking to prevent race condition
+                    // where concurrent imports could both see DOI doesn't exist
+                    $result = DB::transaction(function () use ($transformer, $doiRecord, $doi) {
+                        // Check inside transaction to prevent race condition
+                        if (Resource::where('doi', $doi)->exists()) {
+                            return 'skipped';
+                        }
+
+                        $transformer->transform($doiRecord, $this->userId);
+
+                        return 'imported';
+                    });
+
+                    if ($result === 'skipped') {
                         $skipped++;
                         if (count($skippedDois) < $maxStoredDois) {
                             $skippedDois[] = $doi;
                         }
-
                         Log::debug('Skipping existing DOI', ['doi' => $doi]);
-
                         $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
-
                         continue;
                     }
 
-                    // Transform and save in individual transaction for resilience
-                    DB::transaction(function () use ($transformer, $doiRecord) {
-                        $transformer->transform($doiRecord, $this->userId);
-                    });
                     $imported++;
 
                     Log::debug('Imported DOI', ['doi' => $doi]);
@@ -161,9 +166,14 @@ class ImportFromDataCiteJob implements ShouldQueue
                 $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
             }
 
-            // Mark as completed
+            // Determine final status - preserve 'cancelled' if user cancelled during processing
+            $currentStatus = Cache::get($this->getCacheKey());
+            $finalStatus = (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled')
+                ? 'cancelled'
+                : 'completed';
+
             $this->updateProgress([
-                'status' => 'completed',
+                'status' => $finalStatus,
                 'total' => $total,
                 'processed' => $processed,
                 'imported' => $imported,
@@ -219,11 +229,9 @@ class ImportFromDataCiteJob implements ShouldQueue
     ): void {
         // Only update cache every 50 records to reduce cache load.
         // For 10,000 DOIs this results in ~200 cache writes instead of 10,000.
-        // Note: When the total is not a multiple of 50, this condition can trigger
-        // once for the last multiple of 50 and once when $processed === $total.
-        // This extra write at completion is intentional to ensure the final state
-        // (including all counters and DOIs) is always persisted.
-        if ($processed % 50 === 0 || $processed === $total) {
+        // Check $processed === $total first to ensure final state is always written,
+        // and use exclusive-or logic to avoid double write when total is a multiple of 50.
+        if ($processed === $total || ($processed % 50 === 0 && $processed !== $total)) {
             $currentProgress = Cache::get($this->getCacheKey(), []);
 
             $this->updateProgress(array_merge($currentProgress, [

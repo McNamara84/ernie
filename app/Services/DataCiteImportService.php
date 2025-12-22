@@ -213,10 +213,10 @@ class DataCiteImportService
                 $cursor = $nextCursor;
 
                 // Delay between pages to respect DataCite rate limits (~6 req/sec)
-                // 100ms delay = max 10 requests/second, well under the limit
+                // 200ms delay = max 5 requests/second, safely under the limit
                 // See https://support.datacite.org/docs/is-there-a-rate-limit-for-making-requests-against-the-datacite-apis
                 if ($cursor !== null) {
-                    usleep(100000); // 100ms delay between pages
+                    usleep(200000); // 200ms delay between pages
                 }
 
             } catch (\Exception $e) {
