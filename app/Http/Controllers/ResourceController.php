@@ -1124,6 +1124,10 @@ class ResourceController extends Controller
                         ->orderBy('id');
                 },
                 'rights:id,identifier,name',
+                'dates' => function ($query): void {
+                    $query->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date'])
+                        ->with(['dateType:id,slug']);
+                },
                 'creators' => function ($query): void {
                     $query
                         ->with([
@@ -1436,13 +1440,28 @@ class ResourceController extends Controller
             $publicStatus = $resource->landingPage->is_published ? 'published' : 'review';
         }
 
+        // Get DataCite dates (Created/Updated) from the dates relation instead of Eloquent timestamps
+        // This preserves the original creation/update dates from imported datasets
+        $createdDate = null;
+        $updatedDate = null;
+        foreach ($resource->dates as $date) {
+            $slug = $date->dateType->slug;
+            if ($slug === 'Created' && $createdDate === null) {
+                $createdDate = $date->date_value ?? $date->start_date;
+            } elseif ($slug === 'Updated') {
+                // Take the last Updated date (most recent)
+                $updatedDate = $date->date_value ?? $date->start_date;
+            }
+        }
+
         return [
             'id' => $resource->id,
             'doi' => $resource->doi,
             'year' => $resource->publication_year,
             'version' => $resource->version,
-            'created_at' => $resource->created_at?->toIso8601String(),
-            'updated_at' => $resource->updated_at?->toIso8601String(),
+            // Use DataCite dates if available, otherwise fall back to Eloquent timestamps
+            'created_at' => $createdDate ?? $resource->created_at?->toIso8601String(),
+            'updated_at' => $updatedDate ?? $resource->updated_at?->toIso8601String(),
             'curator' => $resource->updatedBy?->name ?? $resource->createdBy?->name, // @phpstan-ignore nullsafe.neverNull (updatedBy can be null if updated_by_user_id is null)
             'publicstatus' => $publicStatus,
             'resourcetypegeneral' => $resource->resourceType?->name,
@@ -1740,6 +1759,7 @@ class ResourceController extends Controller
             'contributors',
             'titles',
             'rights',
+            'dates',
             'resourceType',
             'language',
             'createdBy',
