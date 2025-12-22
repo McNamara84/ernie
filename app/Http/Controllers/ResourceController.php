@@ -1128,7 +1128,7 @@ class ResourceController extends Controller
                     $query
                         ->with([
                             'creatorable', // Eager load Person or Institution
-                            'affiliations.institution:id,name,ror_id', // Eager load affiliations and their institutions
+                            'affiliations', // Eager load affiliations
                         ])
                         ->orderBy('position');
                 },
@@ -1137,7 +1137,7 @@ class ResourceController extends Controller
                         ->with([
                             'contributorType',
                             'contributorable', // Eager load Person or Institution
-                            'affiliations.institution:id,name,ror_id', // Eager load affiliations and their institutions
+                            'affiliations', // Eager load affiliations
                         ])
                         ->orderBy('position');
                 },
