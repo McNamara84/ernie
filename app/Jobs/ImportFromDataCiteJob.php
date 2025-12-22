@@ -42,7 +42,7 @@ class ImportFromDataCiteJob implements ShouldQueue
      * Create a new job instance.
      *
      * @param  int  $userId  The user who initiated the import
-     * @param  string  $importId  Unique identifier for progress tracking (UUID format)
+     * @param  string  $importId  Unique identifier for progress tracking (UUID format, lowercase)
      *
      * @throws \InvalidArgumentException If importId is not a valid UUID
      */
@@ -52,10 +52,17 @@ class ImportFromDataCiteJob implements ShouldQueue
     ) {
         // Validate UUID format to prevent cache key collisions or unexpected behavior.
         // The importId is used as part of the cache key and must be unique.
-        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $importId)) {
-            throw new \InvalidArgumentException(
-                "Invalid importId format. Expected UUID, got: {$importId}"
-            );
+        // We enforce lowercase UUIDs for consistency (RFC 4122 recommends lowercase).
+        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $importId)) {
+            // Check if it's a valid UUID with uppercase letters
+            if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $importId)) {
+                // Normalize to lowercase for consistency
+                $this->importId = strtolower($importId);
+            } else {
+                throw new \InvalidArgumentException(
+                    "Invalid importId format. Expected UUID, got: {$importId}"
+                );
+            }
         }
     }
 
@@ -108,9 +115,11 @@ class ImportFromDataCiteJob implements ShouldQueue
             foreach ($importService->fetchAllDois() as $doiRecord) {
                 $processed++;
 
-                // Check if import was cancelled (every 50 iterations to reduce cache load)
+                // Check if import was cancelled (at record 1, then every 50 records: 1, 51, 101, ...)
+                // Using '% 50 === 1' instead of '% 50 === 0' ensures:
+                // 1. Early cancellation detection at the very first record
+                // 2. Consistent interval of 50 records between subsequent checks
                 // For 10,000 DOIs this results in ~200 cache reads instead of 10,000.
-                // This matches the progress update frequency for consistency.
                 if ($processed % 50 === 1) {
                     $currentStatus = Cache::get($this->getCacheKey());
                     if (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled') {

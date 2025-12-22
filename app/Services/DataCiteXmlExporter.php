@@ -689,7 +689,13 @@ class DataCiteXmlExporter
                 // Single date
                 $dateValue = $date->date_value ?? $date->start_date;
             }
-            $dateElement = $this->dom->createElement('date', htmlspecialchars($dateValue ?? ''));
+
+            // Skip dates where no value could be determined to avoid empty XML elements
+            if ($dateValue === null || $dateValue === '') {
+                continue;
+            }
+
+            $dateElement = $this->dom->createElement('date', htmlspecialchars($dateValue));
             $dateElement->setAttribute('dateType', $date->dateType->slug);
 
             if ($date->date_information) {

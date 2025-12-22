@@ -198,4 +198,11 @@ describe('ImportFromDataCiteJob', function () {
 
         expect($job->getImportId())->toBe($validUuid);
     });
+
+    it('normalizes uppercase UUID to lowercase', function () {
+        $uppercaseUuid = '550E8400-E29B-41D4-A716-446655440000';
+        $job = new ImportFromDataCiteJob($this->user->id, $uppercaseUuid);
+
+        expect($job->getImportId())->toBe(strtolower($uppercaseUuid));
+    });
 });

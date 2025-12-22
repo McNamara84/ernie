@@ -833,18 +833,46 @@ class DataCiteToResourceTransformer
      * Parse a person name string into family and given name parts.
      *
      * Handles formats like "Family, Given" or "Given Family".
+     * Also handles names with suffixes like "Smith Jr., John" by detecting
+     * common suffixes before the comma.
      *
      * @return array{family: string|null, given: string|null}
      */
     private function parsePersonName(string $name): array
     {
+        // Common name suffixes that might appear before a comma
+        // e.g., "Smith Jr., John" should be parsed as family="Smith Jr.", given="John"
+        $suffixes = ['Jr.', 'Jr', 'Sr.', 'Sr', 'II', 'III', 'IV', 'V', 'PhD', 'Ph.D.', 'MD', 'M.D.'];
+
         // Try "Family, Given" format first
         if (str_contains($name, ',')) {
             $parts = explode(',', $name, 2);
+            $potentialFamily = trim($parts[0]);
+            $potentialGiven = isset($parts[1]) ? trim($parts[1]) : null;
+
+            // Check if what we think is the given name is actually a suffix
+            // This handles cases like "Smith, Jr." which is NOT family/given format
+            $isSuffixOnly = false;
+            if ($potentialGiven !== null) {
+                foreach ($suffixes as $suffix) {
+                    if (strcasecmp($potentialGiven, $suffix) === 0) {
+                        $isSuffixOnly = true;
+                        break;
+                    }
+                }
+            }
+
+            // If the part after comma is just a suffix, treat the whole name as family name
+            if ($isSuffixOnly) {
+                return [
+                    'family' => $name,
+                    'given' => null,
+                ];
+            }
 
             return [
-                'family' => trim($parts[0]),
-                'given' => isset($parts[1]) ? trim($parts[1]) : null,
+                'family' => $potentialFamily,
+                'given' => $potentialGiven,
             ];
         }
 
@@ -870,6 +898,7 @@ class DataCiteToResourceTransformer
      * Parse a date string into a format suitable for database storage.
      *
      * Handles various DataCite date formats like YYYY, YYYY-MM, YYYY-MM-DD.
+     * Validates that parsed dates are real calendar dates (e.g., rejects 2024-02-30).
      */
     private function parseDate(?string $date): ?string
     {
@@ -883,17 +912,31 @@ class DataCiteToResourceTransformer
         $date = trim($date);
 
         // Full date: YYYY-MM-DD
-        if (preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $date)) {
-            return $date;
+        if (preg_match('/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/', $date, $matches)) {
+            // Validate this is a real calendar date (e.g., reject 2024-02-30)
+            if (checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1])) {
+                return $date;
+            }
+            // Invalid calendar date - try Carbon as fallback
+            try {
+                return \Carbon\Carbon::parse($date)->format('Y-m-d');
+            } catch (\Exception) {
+                return null;
+            }
         }
 
         // Year and month: YYYY-MM -> YYYY-MM-01
-        if (preg_match('/^[0-9]{4}-[0-9]{2}$/', $date)) {
-            return $date . '-01';
+        if (preg_match('/^([0-9]{4})-([0-9]{2})$/', $date, $matches)) {
+            // Validate month is valid (01-12)
+            $month = (int) $matches[2];
+            if ($month >= 1 && $month <= 12) {
+                return $date . '-01';
+            }
+            return null;
         }
 
         // Year only: YYYY -> YYYY-01-01
-        if (preg_match('/^[0-9]{4}$/', $date)) {
+        if (preg_match('/^([0-9]{4})$/', $date)) {
             return $date . '-01-01';
         }
 

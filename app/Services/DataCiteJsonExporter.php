@@ -640,6 +640,11 @@ class DataCiteJsonExporter
                 $dateValue = $date->date_value ?? $date->start_date;
             }
 
+            // Skip dates where no value could be determined
+            if ($dateValue === null || $dateValue === '') {
+                continue;
+            }
+
             $dateData = [
                 'dateType' => $date->dateType->name,
                 'date' => $dateValue,
