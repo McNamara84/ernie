@@ -15,6 +15,10 @@ beforeEach(function () {
     // Mock the import service
     $this->importService = Mockery::mock(DataCiteImportService::class);
     $this->app->instance(DataCiteImportService::class, $this->importService);
+
+    // Mock the transformer for isolated job testing
+    $this->transformer = Mockery::mock(DataCiteToResourceTransformer::class);
+    $this->app->instance(DataCiteToResourceTransformer::class, $this->transformer);
 });
 
 afterEach(function () {
@@ -52,23 +56,22 @@ describe('ImportFromDataCiteJob', function () {
                 ];
             })());
 
+        // Mock transformer to simulate successful import
+        $this->transformer
+            ->shouldReceive('transform')
+            ->twice()
+            ->andReturn(Resource::factory()->make());
+
         $importId = 'test-import-123';
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, new DataCiteToResourceTransformer());
+        $job->handle($this->importService, $this->transformer);
 
         // Check final cache state
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['status'])->toBe('completed');
         expect($status['processed'])->toBe(2);
-        // The exact split between imported and failed depends on seeded reference data
-        // (ResourceTypes, DateTypes, etc.) - we verify total count is correct
-        expect($status['imported'] + $status['failed'])->toBe(2);
-
-        // Verify that resources are actually created in the database (end-to-end verification)
-        // Note: The actual number created depends on whether required reference data (ResourceTypes, etc.)
-        // is seeded. We verify that at least one attempt was made to create resources.
-        $resourceCount = Resource::where('doi', 'like', '10.5880/test.%')->count();
-        expect($resourceCount)->toBeLessThanOrEqual(2);
+        expect($status['imported'])->toBe(2);
+        expect($status['failed'])->toBe(0);
     });
 
     it('skips existing DOIs', function () {
@@ -90,9 +93,12 @@ describe('ImportFromDataCiteJob', function () {
                 ];
             })());
 
+        // Transformer should not be called for existing DOIs
+        $this->transformer->shouldReceive('transform')->never();
+
         $importId = 'test-skip-existing';
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, new DataCiteToResourceTransformer());
+        $job->handle($this->importService, $this->transformer);
 
         $status = Cache::get("datacite_import:{$importId}");
         expect($status['skipped'])->toBe(1);
@@ -125,9 +131,15 @@ describe('ImportFromDataCiteJob', function () {
                 ];
             })());
 
+        // Mock transformer to simulate successful import
+        $this->transformer
+            ->shouldReceive('transform')
+            ->once()
+            ->andReturn(Resource::factory()->make());
+
         $importId = 'test-cancel-check';
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, new DataCiteToResourceTransformer());
+        $job->handle($this->importService, $this->transformer);
 
         // Verify the cache was written with status tracking
         $status = Cache::get("datacite_import:{$importId}");
@@ -158,9 +170,15 @@ describe('ImportFromDataCiteJob', function () {
                 }
             })());
 
+        // Mock transformer to throw exception (simulating transform failure)
+        $this->transformer
+            ->shouldReceive('transform')
+            ->times(150)
+            ->andThrow(new \Exception('Transform failed'));
+
         $importId = 'test-limit-arrays';
         $job = new ImportFromDataCiteJob($this->user->id, $importId);
-        $job->handle($this->importService, new DataCiteToResourceTransformer());
+        $job->handle($this->importService, $this->transformer);
 
         $status = Cache::get("datacite_import:{$importId}");
         // Failed DOIs array should be capped at 100

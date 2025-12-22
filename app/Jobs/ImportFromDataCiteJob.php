@@ -151,8 +151,20 @@ class ImportFromDataCiteJob implements ShouldQueue
 
                 } catch (\Illuminate\Database\QueryException $e) {
                     // Handle unique constraint violations (race condition: DOI was inserted by another process)
-                    // SQLSTATE 23000 = Integrity constraint violation (covers MySQL, MariaDB, PostgreSQL)
-                    if (isset($e->errorInfo[0]) && $e->errorInfo[0] === '23000') {
+                    // MySQL/MariaDB error code 1062 = Duplicate entry for unique key
+                    // SQLite error code 19 with "UNIQUE constraint failed" in message
+                    // We must be specific to avoid catching NOT NULL or other integrity constraints
+                    $isDuplicateEntry = false;
+                    if (isset($e->errorInfo[1])) {
+                        // MySQL/MariaDB: error code 1062
+                        $isDuplicateEntry = $e->errorInfo[1] === 1062;
+                    }
+                    // SQLite: check error message for UNIQUE constraint
+                    if (! $isDuplicateEntry && str_contains($e->getMessage(), 'UNIQUE constraint failed')) {
+                        $isDuplicateEntry = true;
+                    }
+
+                    if ($isDuplicateEntry) {
                         $skipped++;
                         if (count($skippedDois) < $maxStoredDois) {
                             $skippedDois[] = $doi;
