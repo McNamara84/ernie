@@ -120,12 +120,17 @@ class DataCiteImportService
                 //           └── RequestException (HTTP response errors)
                 //
                 if (! ($exception instanceof RequestException)) {
-                    // Check for Guzzle-specific connection exceptions
-                    if ($exception instanceof \GuzzleHttp\Exception\ConnectException) {
+                    // Check for Guzzle-specific connection exceptions.
+                    // We use class_exists() checks to gracefully handle cases where Guzzle
+                    // is not installed (e.g., Laravel configured with a different HTTP client).
+                    // Without these checks, instanceof would throw a fatal "Class not found" error.
+                    if (class_exists(\GuzzleHttp\Exception\ConnectException::class)
+                        && $exception instanceof \GuzzleHttp\Exception\ConnectException) {
                         return true;
                     }
                     // TransferException is the base for all Guzzle HTTP errors
-                    if ($exception instanceof \GuzzleHttp\Exception\TransferException) {
+                    if (class_exists(\GuzzleHttp\Exception\TransferException::class)
+                        && $exception instanceof \GuzzleHttp\Exception\TransferException) {
                         return true;
                     }
                     // Fallback for non-Guzzle HTTP clients: check error message patterns

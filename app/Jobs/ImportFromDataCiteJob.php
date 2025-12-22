@@ -115,12 +115,12 @@ class ImportFromDataCiteJob implements ShouldQueue
             foreach ($importService->fetchAllDois() as $doiRecord) {
                 $processed++;
 
-                // Check if import was cancelled (at record 1, then every 50 records: 1, 51, 101, ...)
-                // Using '% 50 === 1' instead of '% 50 === 0' ensures:
-                // 1. Early cancellation detection at the very first record
-                // 2. Consistent interval of 50 records between subsequent checks
-                // For 10,000 DOIs this results in ~200 cache reads instead of 10,000.
-                if ($processed % 50 === 1) {
+                // Check for cancellation and update progress at aligned intervals.
+                // Both checks use the same condition (% 50 === 0 OR first record) to ensure:
+                // 1. Early cancellation detection and progress visibility at the very first record
+                // 2. Symmetric behavior - progress is always updated when cancellation is checked
+                // For 10,000 DOIs this results in ~200 cache operations instead of 10,000.
+                if ($processed === 1 || $processed % 50 === 0) {
                     $currentStatus = Cache::get($this->getCacheKey());
                     if (isset($currentStatus['status']) && $currentStatus['status'] === 'cancelled') {
                         Log::info('Import cancelled by user', ['import_id' => $this->importId, 'processed' => $processed - 1]);
@@ -280,10 +280,10 @@ class ImportFromDataCiteJob implements ShouldQueue
     ): void {
         // Only update cache every 50 records to reduce cache load.
         // For 10,000 DOIs this results in ~200 cache writes instead of 10,000.
+        // The condition ($processed === 1 || % 50 === 0) matches the cancellation check
+        // in the main loop, ensuring progress is always updated when cancellation is checked.
         // The final state is always written when $processed === $total.
-        // When total is a multiple of 50, the last batch update and final update coincide,
-        // so no redundant writes occur.
-        if ($processed % 50 === 0 || $processed === $total) {
+        if ($processed === 1 || $processed % 50 === 0 || $processed === $total) {
             // Update only the changing keys to avoid unnecessary array copies
             $this->updateProgressKeys([
                 'processed' => $processed,

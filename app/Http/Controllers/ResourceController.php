@@ -1129,6 +1129,9 @@ class ResourceController extends Controller
                         ->orderBy('id');
                 },
                 'rights:id,identifier,name',
+                // Eager load dates with the dateType relation.
+                // Note: date_type_id MUST be included in the select() for the dateType relation
+                // to work, as Eloquent uses it as the foreign key for the belongsTo relation.
                 'dates' => function ($query): void {
                     $query->select(['id', 'resource_id', 'date_type_id', 'date_value', 'start_date', 'end_date'])
                         ->with(['dateType:id,slug']);

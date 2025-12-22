@@ -607,6 +607,11 @@ class DataCiteToResourceTransformer
                 //   parts[1] is empty string, so endDate becomes null
                 //   Result: startDate='2020-01-01', endDate=null (stored as open-ended range)
                 //
+                // Malformed input handling:
+                // - "2020-01-01//" -> explode limit=2 yields ['2020-01-01', '/'], parseDate('/') returns null
+                // - "//" -> explode limit=2 yields ['', '/'], both parsed as null
+                // - Empty or only slashes result in null dates, which are handled gracefully below.
+                //
                 // Note: isRange() returns true only for CLOSED ranges (both dates present).
                 // isOpenEndedRange() returns true when start_date is set but end_date is null.
                 // During export, open-ended ranges are exported as single dates because
@@ -841,7 +846,17 @@ class DataCiteToResourceTransformer
     private function parsePersonName(string $name): array
     {
         // Common name suffixes that might appear before a comma
-        // e.g., "Smith Jr., John" should be parsed as family="Smith Jr.", given="John"
+        // Used to detect cases like "Smith, Jr." which should NOT be split as family/given.
+        //
+        // Name parsing behavior:
+        // - "Smith Jr., John" -> family="Smith Jr.", given="John" (suffix is part of family name)
+        // - "Smith, John" -> family="Smith", given="John" (standard family/given format)
+        // - "Smith, Jr." -> family="Smith, Jr.", given=null (suffix-only after comma, keep intact)
+        // - "John Smith" -> family="Smith", given="John" (space-separated format)
+        //
+        // The suffix is intentionally kept with the family name to preserve the original data.
+        // This ensures consistent person matching, as DataCite records typically store suffixes
+        // with the family name.
         $suffixes = ['Jr.', 'Jr', 'Sr.', 'Sr', 'II', 'III', 'IV', 'V', 'PhD', 'Ph.D.', 'MD', 'M.D.'];
 
         // Try "Family, Given" format first
@@ -850,8 +865,10 @@ class DataCiteToResourceTransformer
             $potentialFamily = trim($parts[0]);
             $potentialGiven = isset($parts[1]) ? trim($parts[1]) : null;
 
-            // Check if what we think is the given name is actually a suffix
-            // This handles cases like "Smith, Jr." which is NOT family/given format
+            // Check if what we think is the given name is actually just a suffix.
+            // This handles cases like "Smith, Jr." where "Jr." is not a given name.
+            // For "Smith Jr., John", potentialGiven="John" which is not a suffix,
+            // so we correctly parse it as family="Smith Jr.", given="John".
             $isSuffixOnly = false;
             if ($potentialGiven !== null) {
                 foreach ($suffixes as $suffix) {
@@ -862,7 +879,8 @@ class DataCiteToResourceTransformer
                 }
             }
 
-            // If the part after comma is just a suffix, treat the whole name as family name
+            // If the part after comma is just a suffix, treat the whole name as family name.
+            // This prevents "Smith, Jr." from being incorrectly split.
             if ($isSuffixOnly) {
                 return [
                     'family' => $name,
