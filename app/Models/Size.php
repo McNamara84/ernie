@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $resource_id
- * @property string $size
+ * @property string $value
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
@@ -28,7 +28,7 @@ class Size extends Model
 
     protected $fillable = [
         'resource_id',
-        'size',
+        'value',
     ];
 
     /** @return BelongsTo<Resource, static> */

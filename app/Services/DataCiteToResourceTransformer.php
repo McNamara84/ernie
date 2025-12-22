@@ -465,7 +465,8 @@ class DataCiteToResourceTransformer
         foreach ($descriptions as $descriptionData) {
             $description = $descriptionData['description'] ?? null;
 
-            if ($description === null) {
+            // Skip if description is null or empty
+            if ($description === null || trim((string) $description) === '') {
                 continue;
             }
 
@@ -488,16 +489,11 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $languageId = null;
-            if (isset($descriptionData['lang'])) {
-                $languageId = $this->getLookupId(Language::class, 'code', $descriptionData['lang']);
-            }
-
             Description::create([
                 'resource_id' => $resource->id,
-                'description' => $description,
+                'value' => $description,
                 'description_type_id' => $descriptionTypeId,
-                'language_id' => $languageId,
+                'language' => $descriptionData['lang'] ?? null,
             ]);
         }
     }
@@ -516,19 +512,14 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            $languageId = null;
-            if (isset($subjectData['lang'])) {
-                $languageId = $this->getLookupId(Language::class, 'code', $subjectData['lang']);
-            }
-
             Subject::create([
                 'resource_id' => $resource->id,
                 'value' => $value,
+                'language' => $subjectData['lang'] ?? 'en',
                 'subject_scheme' => $subjectData['subjectScheme'] ?? null,
                 'scheme_uri' => $subjectData['schemeUri'] ?? null,
                 'value_uri' => $subjectData['valueUri'] ?? null,
                 'classification_code' => $subjectData['classificationCode'] ?? null,
-                'language_id' => $languageId,
             ]);
         }
     }
@@ -557,9 +548,25 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
+            // Parse the date - DataCite uses RKMS-ISO8601 which can be a range with /
+            $dateValue = null;
+            $startDate = null;
+            $endDate = null;
+
+            if (str_contains($date, '/')) {
+                // Date range format: YYYY-MM-DD/YYYY-MM-DD
+                $parts = explode('/', $date, 2);
+                $startDate = $this->parseDate($parts[0]);
+                $endDate = $this->parseDate($parts[1] ?? null);
+            } else {
+                $dateValue = $this->parseDate($date);
+            }
+
             ResourceDate::create([
                 'resource_id' => $resource->id,
-                'date' => $date,
+                'date_value' => $dateValue,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'date_type_id' => $dateTypeId,
                 'date_information' => $dateData['dateInformation'] ?? null,
             ]);
@@ -632,7 +639,9 @@ class DataCiteToResourceTransformer
                 'identifier' => $identifier,
                 'identifier_type_id' => $identifierTypeId,
                 'relation_type_id' => $relationTypeId,
-                'resource_type_general' => $relIdData['resourceTypeGeneral'] ?? null,
+                'related_metadata_scheme' => $relIdData['relatedMetadataScheme'] ?? null,
+                'scheme_uri' => $relIdData['schemeUri'] ?? null,
+                'scheme_type' => $relIdData['schemeType'] ?? null,
                 'position' => $position + 1,
             ]);
         }
@@ -666,7 +675,7 @@ class DataCiteToResourceTransformer
                 'funder_name' => $funderName,
                 'funder_identifier' => $fundingData['funderIdentifier'] ?? null,
                 'funder_identifier_type_id' => $funderIdentifierTypeId,
-                'funder_identifier_scheme_uri' => $fundingData['schemeUri'] ?? null,
+                'scheme_uri' => $fundingData['schemeUri'] ?? null,
                 'award_number' => $fundingData['awardNumber'] ?? null,
                 'award_uri' => $fundingData['awardUri'] ?? null,
                 'award_title' => $fundingData['awardTitle'] ?? null,
@@ -798,5 +807,42 @@ class DataCiteToResourceTransformer
             'family' => $name,
             'given' => null,
         ];
+    }
+
+    /**
+     * Parse a date string into a format suitable for database storage.
+     *
+     * Handles various DataCite date formats like YYYY, YYYY-MM, YYYY-MM-DD.
+     */
+    private function parseDate(?string $date): ?string
+    {
+        if ($date === null || $date === '') {
+            return null;
+        }
+
+        // Try to parse the date - DataCite allows various ISO 8601 formats
+        $date = trim($date);
+
+        // Full date: YYYY-MM-DD
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return $date;
+        }
+
+        // Year and month: YYYY-MM -> YYYY-MM-01
+        if (preg_match('/^\d{4}-\d{2}$/', $date)) {
+            return $date . '-01';
+        }
+
+        // Year only: YYYY -> YYYY-01-01
+        if (preg_match('/^\d{4}$/', $date)) {
+            return $date . '-01-01';
+        }
+
+        // Try to parse with Carbon for other formats
+        try {
+            return \Carbon\Carbon::parse($date)->format('Y-m-d');
+        } catch (\Exception) {
+            return null;
+        }
     }
 }
