@@ -11,7 +11,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
-import { withBasePath } from '@/lib/base-path';
 import { cn } from '@/lib/utils';
 import { dashboard, settings } from '@/routes';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
@@ -27,7 +26,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'Editor',
-        href: withBasePath('/editor'),
+        href: '/editor',
         icon: Database,
     },
 ];
@@ -40,17 +39,17 @@ const rightNavItems: NavItem[] = [
     },
     {
         title: 'Changelog',
-        href: withBasePath('/changelog'),
+        href: '/changelog',
         icon: History,
     },
     {
         title: 'Documentation',
-        href: withBasePath('/docs'),
+        href: '/docs',
         icon: BookOpen,
     },
     {
         title: 'API Documentation',
-        href: withBasePath('/api/v1/doc'),
+        href: '/api/v1/doc',
         icon: FileText,
     },
 ];

@@ -2,7 +2,6 @@ import { Link } from '@inertiajs/react';
 import { Fragment } from 'react';
 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { withBasePath } from '@/lib/base-path';
 import { type BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
 export function Breadcrumbs({ breadcrumbs }: { breadcrumbs: BreadcrumbItemType[] }) {
@@ -20,7 +19,7 @@ export function Breadcrumbs({ breadcrumbs }: { breadcrumbs: BreadcrumbItemType[]
                                             <BreadcrumbPage>{item.title}</BreadcrumbPage>
                                         ) : (
                                             <BreadcrumbLink asChild>
-                                                <Link href={withBasePath(item.href)}>{item.title}</Link>
+                                                <Link href={item.href}>{item.title}</Link>
                                             </BreadcrumbLink>
                                         )}
                                     </BreadcrumbItem>

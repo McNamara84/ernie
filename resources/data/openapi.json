@@ -4,7 +4,7 @@
         "title": "ERNIE API",
         "version": "0.3.0",
         "description": "REST API for ERNIE (Earth Research Notary for Information Editing) - A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences. This API provides read-only access to metadata types and controlled vocabularies for integration with ELMO and other external systems.",
-        "termsOfService": "https://env.rz-vm182.gfz.de/ernie/legal-notice",
+        "termsOfService": "https://ernie.rz-vm182.gfz.de/legal-notice",
         "contact": {
             "name": "Holger Ehrmann",
             "url": "https://www.gfz.de/staff/holger.ehrmann/sec51",
@@ -22,7 +22,7 @@
     },
     "servers": [
         {
-            "url": "https://env.rz-vm182.gfz.de/ernie",
+            "url": "https://ernie.rz-vm182.gfz.de",
             "description": "Production server"
         }
     ],

@@ -14,8 +14,6 @@ beforeEach(function () {
 describe('DataCiteImportController', function () {
     describe('authorization', function () {
         it('allows admin to start import', function () {
-            $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-
             $response = $this->actingAs($this->adminUser)
                 ->postJson('/datacite/import/start');
 
@@ -24,8 +22,6 @@ describe('DataCiteImportController', function () {
         });
 
         it('allows group leader to start import', function () {
-            $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-
             $response = $this->actingAs($this->groupLeader)
                 ->postJson('/datacite/import/start');
 
@@ -33,8 +29,6 @@ describe('DataCiteImportController', function () {
         });
 
         it('denies curator from starting import', function () {
-            $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-
             $response = $this->actingAs($this->curator)
                 ->postJson('/datacite/import/start');
 
@@ -42,8 +36,6 @@ describe('DataCiteImportController', function () {
         });
 
         it('denies beginner from starting import', function () {
-            $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-
             $response = $this->actingAs($this->beginner)
                 ->postJson('/datacite/import/start');
 
@@ -51,8 +43,6 @@ describe('DataCiteImportController', function () {
         });
 
         it('requires authentication', function () {
-            $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-
             $response = $this->postJson('/datacite/import/start');
 
             // Either 401 or redirect (302)
@@ -98,8 +88,6 @@ describe('DataCiteImportController', function () {
 
     describe('cancel endpoint', function () {
         it('sets import status to cancelled', function () {
-            $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-
             $importId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5f';
 
             cache()->put("datacite_import:{$importId}", [
@@ -118,8 +106,6 @@ describe('DataCiteImportController', function () {
         });
 
         it('requires admin or group leader to cancel', function () {
-            $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-
             $importId = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c60';
 
             cache()->put("datacite_import:{$importId}", [

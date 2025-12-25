@@ -43,8 +43,6 @@ test('authenticated users can view editor settings page', function () {
 });
 
 test('authenticated users can update resource and title types and settings', function () {
-    $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-    
     $user = User::factory()->create();
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
     $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);
@@ -107,8 +105,6 @@ test('authenticated users can update resource and title types and settings', fun
 });
 
 test('updating settings with invalid data returns errors', function () {
-    $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
-    
     $user = User::factory()->create();
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
     $title = TitleType::create(['name' => 'Main Title', 'slug' => 'MainTitle', 'is_active' => true, 'is_elmo_active' => true]);

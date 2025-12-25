@@ -1,7 +1,7 @@
 services:
   # Traefik Reverse Proxy - mirrors production environment
+  # Serves application on https://localhost:3333 (no prefix)
   # On Windows: Docker provider disabled, uses static routes.yml
-  # Labels retained for production compatibility reference
   traefik:
     image: traefik:v3.2
     container_name: ernie-traefik
@@ -51,20 +51,12 @@ services:
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
-      - APP_URL=https://localhost:3333/ernie
-      - ASSET_URL=https://localhost:3333/ernie
-      - VITE_APP_BASE_PATH=/ernie
+      - APP_URL=https://localhost:3333
       - VITE_DEV_SERVER_URL=https://localhost:3333
       # =========================================================================
       # Session Configuration (Docker Development)
       # =========================================================================
-      # These settings are required for Docker development with Traefik:
-      # - SESSION_PATH=/ : Traefik strips /ernie prefix before forwarding to Laravel
-      # - SESSION_SECURE_COOKIE=false : Self-signed certificates aren't trusted
-      #
-      # Note: These settings won't negatively impact local development (composer run dev)
-      # when Docker is not used, as they only apply to this Docker environment.
-      #
+      # SESSION_SECURE_COOKIE=false because self-signed certificates aren't trusted
       # WARNING: In production, SESSION_SECURE_COOKIE must be true!
       # =========================================================================
       - SESSION_DRIVER=database
@@ -102,22 +94,11 @@ services:
       - app
     labels:
       - "traefik.enable=true"
-      # API router (WITHOUT Forward-Auth) - higher priority
-      - "traefik.http.routers.ernie-api.rule=Host(`localhost`) && PathPrefix(`/ernie/api/v1`)"
-      - "traefik.http.routers.ernie-api.entrypoints=https"
-      - "traefik.http.routers.ernie-api.priority=100"
-      - "traefik.http.routers.ernie-api.middlewares=ernie-api-stripprefix"
-      - "traefik.http.routers.ernie-api.service=ernie-service"
-      - "traefik.http.routers.ernie-api.tls=true"
-      - "traefik.http.middlewares.ernie-api-stripprefix.stripprefix.prefixes=/ernie"
-      # Web router - lower priority
-      - "traefik.http.routers.ernie-router.rule=Host(`localhost`) && PathPrefix(`/ernie`)"
+      # Main application router (subdomain-based, no prefix)
+      - "traefik.http.routers.ernie-router.rule=Host(`localhost`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
-      - "traefik.http.routers.ernie-router.priority=10"
-      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
       - "traefik.http.routers.ernie-router.service=ernie-service"
       - "traefik.http.routers.ernie-router.tls=true"
-      - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
       # Service
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
 
@@ -143,7 +124,7 @@ services:
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
-      - APP_URL=https://localhost:3333/ernie
+      - APP_URL=https://localhost:3333
       - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306
@@ -151,7 +132,6 @@ services:
       - DB_USERNAME=ernie
       - DB_PASSWORD=secret
       - VITE_APP_NAME=ERNIE
-      - VITE_APP_BASE_PATH=/ernie
       - VITE_DEV_SERVER_URL=https://localhost:3333
       - VITE_HMR_HOST=localhost
       - VITE_HMR_PORT=3333
@@ -162,8 +142,7 @@ services:
       - "traefik.enable=true"
       # Note: These labels are for documentation/reference only.
       # Actual routing is defined in docker/traefik/dynamic/routes.yml
-      # (Docker provider is disabled on Windows for socket compatibility)
-      - "traefik.http.routers.ernie-vite.rule=Host(`localhost`) && PathPrefix(`/ernie/@vite`)"
+      - "traefik.http.routers.ernie-vite.rule=Host(`localhost`) && PathPrefix(`/@vite`)"
       - "traefik.http.routers.ernie-vite.entrypoints=https"
       - "traefik.http.routers.ernie-vite.priority=200"
       - "traefik.http.routers.ernie-vite.service=ernie-vite-service"

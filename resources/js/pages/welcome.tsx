@@ -1,7 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 
 import PublicLayout from '@/layouts/public-layout';
-import { withBasePath } from '@/lib/base-path';
 
 export default function Welcome() {
     return (
@@ -12,7 +11,7 @@ export default function Welcome() {
                 <p>A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geosciences.</p>
                 <p className="mt-6">
                     <Link
-                        href={withBasePath('/api/v1/doc')}
+                        href="/api/v1/doc"
                         className="rounded-sm border px-5 py-1.5 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     >
                         API Documentation

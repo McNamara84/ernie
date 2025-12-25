@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChangelogTimelineNav } from '@/components/changelog-timeline-nav';
 import PublicLayout from '@/layouts/public-layout';
-import { withBasePath } from '@/lib/base-path';
 
 // Type declaration for test helpers exposed on window object
 declare global {
@@ -75,7 +74,7 @@ export default function Changelog() {
 
     // Fetch changelog data on mount
     useEffect(() => {
-        fetch(withBasePath('/api/changelog'))
+        fetch('/api/changelog')
             .then((res) => {
                 if (!res.ok) {
                     throw new Error('Failed to fetch changelog');
