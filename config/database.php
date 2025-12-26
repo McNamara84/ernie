@@ -98,12 +98,14 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? (static function (): array {
                 $sslCa = env('DB_SUMARIOPMD_SSL_CA');
+                $connectTimeoutSeconds = (int) env('DB_SUMARIOPMD_CONNECT_TIMEOUT', 5);
 
                 if ($sslCa === null || $sslCa === false || $sslCa === '') {
                     $sslCa = '/etc/ssl/certs/ca-certificates.crt';
                 }
 
                 return [
+                    \PDO::ATTR_TIMEOUT => max(1, $connectTimeoutSeconds),
                     \Pdo\Mysql::ATTR_SSL_CA => $sslCa,
                     \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
                 ];

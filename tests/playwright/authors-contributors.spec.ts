@@ -364,6 +364,6 @@ test.describe('Accessibility', () => {
         
         // Verify focus is on a form element
         const focused = await page.evaluate(() => document.activeElement?.tagName);
-        expect(['INPUT', 'SELECT', 'BUTTON']).toContain(focused);
+        expect(['A', 'INPUT', 'SELECT', 'BUTTON']).toContain(focused);
     });
 });

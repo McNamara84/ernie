@@ -111,14 +111,8 @@ test.describe('Landing Page Contact Section', () => {
                 // Try to submit empty form
                 await page.click('button:has-text("Send Message")');
 
-                // Should show validation error
-                await expect(
-                    page.locator('text=Please enter your name').or(
-                        page.locator('text=Please enter a valid email')
-                    ).or(
-                        page.locator('text=Please enter a message')
-                    )
-                ).toBeVisible();
+                // Should show validation error (custom, not native HTML5 bubble)
+                await expect(page.getByText(/please enter your name/i)).toBeVisible();
             }
         });
 
@@ -142,7 +136,7 @@ test.describe('Landing Page Contact Section', () => {
                 await page.click('button:has-text("Send Message")');
 
                 // Should show email validation error
-                await expect(page.locator('text=valid email')).toBeVisible();
+                await expect(page.getByText(/valid email address/i)).toBeVisible();
             }
         });
 
@@ -166,9 +160,7 @@ test.describe('Landing Page Contact Section', () => {
                 await page.click('button:has-text("Send Message")');
 
                 // Should show message length error
-                await expect(page.locator('text=at least 10 characters').or(
-                    page.locator('text=minimum')
-                )).toBeVisible();
+                await expect(page.getByText(/at least 10 characters/i)).toBeVisible();
             }
         });
 
@@ -259,9 +251,8 @@ test.describe('Landing Page Contact Section', () => {
                 await submitButton.click();
 
                 // Should show "Sending..." or similar loading indicator
-                await expect(
-                    page.locator('text=Sending').or(page.locator('svg.animate-spin'))
-                ).toBeVisible();
+                await expect(page.getByRole('button', { name: /sending\.\.\./i })).toBeVisible();
+                await expect(page.getByRole('button', { name: /sending\.\.\./i })).toBeDisabled();
             }
         });
     });

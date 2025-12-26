@@ -142,7 +142,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                         </p>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} noValidate className="space-y-4">
                         {/* Recipient selection - only show if multiple persons and not pre-selected for all */}
                         {contactPersons.length > 1 && selectedPerson !== null && (
                             <div className="space-y-2">
