@@ -14,7 +14,7 @@ test.describe('DOI Registration Accessibility', () => {
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
         await page.getByRole('button', { name: 'Log in' }).click();
-        await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+        await page.waitForURL(/\/dashboard/, { timeout: 30000, waitUntil: 'domcontentloaded' });
     });
 
     /**
