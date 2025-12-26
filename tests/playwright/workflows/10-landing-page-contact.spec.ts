@@ -73,10 +73,11 @@ test.describe('Landing Page Contact Section', () => {
                 // Modal should appear
                 await expect(page.locator('text=Contact Request')).toBeVisible();
 
-                // Form fields should be visible
-                await expect(page.getByLabel('Your name')).toBeVisible();
-                await expect(page.getByLabel('Your email')).toBeVisible();
-                await expect(page.getByLabel('Message')).toBeVisible();
+                // Form fields should be visible - use regex to match labels with or without asterisk
+                await expect(page.getByLabel(/Your name/)).toBeVisible();
+                await expect(page.getByLabel(/Your email/)).toBeVisible();
+                // Use more specific selector to avoid matching checkbox label
+                await expect(page.getByRole('textbox', { name: /Message/ })).toBeVisible();
             }
         });
 
@@ -108,17 +109,24 @@ test.describe('Landing Page Contact Section', () => {
                 await contactLink.click();
                 await expect(page.locator('text=Contact Request')).toBeVisible();
 
-                // Try to submit empty form
-                await page.click('button:has-text("Send Message")');
+                // Try to submit empty form - browser native validation will trigger first
+                // The submit button should be visible and clickable
+                const submitButton = page.locator('button:has-text("Send Message")');
+                await expect(submitButton).toBeVisible();
 
-                // Should show validation error
-                await expect(
-                    page.locator('text=Please enter your name').or(
-                        page.locator('text=Please enter a valid email')
-                    ).or(
-                        page.locator('text=Please enter a message')
-                    )
-                ).toBeVisible();
+                // Click submit - browser validation will prevent actual submission for empty required fields
+                await submitButton.click();
+
+                // Verify the form is still open (not submitted) due to validation
+                await expect(page.locator('text=Contact Request')).toBeVisible();
+
+                // At least one of the required fields should be in an invalid state
+                // We use evaluate to check the validity state since Playwright doesn't directly expose :invalid
+                const hasInvalidField = await page.evaluate(() => {
+                    const inputs = document.querySelectorAll('input:required, textarea:required');
+                    return Array.from(inputs).some(input => !(input as HTMLInputElement).validity.valid);
+                });
+                expect(hasInvalidField).toBe(true);
             }
         });
 
@@ -133,16 +141,25 @@ test.describe('Landing Page Contact Section', () => {
                 await contactLink.click();
                 await expect(page.locator('text=Contact Request')).toBeVisible();
 
-                // Fill form with invalid email
-                await page.getByLabel('Your name').fill('Test User');
-                await page.getByLabel('Your email').fill('invalid-email');
-                await page.getByLabel('Message').fill('This is a test message with enough characters.');
+                // Fill form with invalid email (fill all required fields to bypass browser validation on name/message)
+                await page.getByLabel(/Your name/).first().fill('Test User');
+                const emailInput = page.getByLabel(/Your email/).first();
+                await emailInput.fill('invalid-email');
+                // Use more specific selector to avoid matching checkbox label
+                await page.getByRole('textbox', { name: /Message/ }).fill('This is a test message with enough characters.');
 
                 // Try to submit
                 await page.click('button:has-text("Send Message")');
 
-                // Should show email validation error
-                await expect(page.locator('text=valid email')).toBeVisible();
+                // Verify the form is still open since validation failed
+                await expect(page.locator('text=Contact Request')).toBeVisible();
+
+                // Verify the email field is in an invalid validation state
+                // Check for HTML5 validation or custom validation error
+                const emailIsInvalid = await emailInput.evaluate((input: HTMLInputElement) => {
+                    return !input.validity.valid || input.getAttribute('aria-invalid') === 'true';
+                });
+                expect(emailIsInvalid).toBe(true);
             }
         });
 
@@ -157,18 +174,21 @@ test.describe('Landing Page Contact Section', () => {
                 await contactLink.click();
                 await expect(page.locator('text=Contact Request')).toBeVisible();
 
-                // Fill form with short message
-                await page.getByLabel('Your name').fill('Test User');
-                await page.getByLabel('Your email').fill('test@example.com');
-                await page.getByLabel('Message').fill('Short');
+                // Fill form with short message - use regex for label matching
+                await page.getByLabel(/Your name/).first().fill('Test User');
+                await page.getByLabel(/Your email/).first().fill('test@example.com');
+                // Use more specific selector to avoid matching checkbox label
+                await page.getByRole('textbox', { name: /Message/ }).fill('Short');
 
                 // Try to submit
                 await page.click('button:has-text("Send Message")');
 
-                // Should show message length error
+                // Should show message length error - use .first() to avoid strict mode in WebKit
                 await expect(page.locator('text=at least 10 characters').or(
-                    page.locator('text=minimum')
-                )).toBeVisible();
+                    page.locator('text=minimum').or(
+                        page.locator('text=Minimum 10 characters')
+                    )
+                ).first()).toBeVisible();
             }
         });
 
@@ -225,10 +245,11 @@ test.describe('Landing Page Contact Section', () => {
                 await contactLink.click();
                 await expect(page.locator('text=Contact Request')).toBeVisible();
 
-                // Fill valid form
-                await page.getByLabel('Your name').fill('E2E Test User');
-                await page.getByLabel('Your email').fill('e2e-test@example.com');
-                await page.getByLabel('Message').fill('This is an automated E2E test message. Please ignore this message if received.');
+                // Fill valid form - use regex for label matching
+                await page.getByLabel(/Your name/).first().fill('E2E Test User');
+                await page.getByLabel(/Your email/).first().fill('e2e-test@example.com');
+                // Use more specific selector to avoid matching checkbox label
+                await page.getByRole('textbox', { name: /Message/ }).fill('This is an automated E2E test message. Please ignore this message if received.');
 
                 // Submit form
                 await page.click('button:has-text("Send Message")');
@@ -250,18 +271,17 @@ test.describe('Landing Page Contact Section', () => {
                 await expect(page.locator('text=Contact Request')).toBeVisible();
 
                 // Fill valid form
-                await page.getByLabel('Your name').fill('E2E Test User');
-                await page.getByLabel('Your email').fill('e2e-test@example.com');
-                await page.getByLabel('Message').fill('This is an automated E2E test message for loading state test.');
+                await page.getByLabel(/Your name/).first().fill('E2E Test User');
+                await page.getByLabel(/Your email/).first().fill('e2e-test@example.com');
+                // Use more specific selector to avoid matching checkbox label
+                await page.getByRole('textbox', { name: /Message/ }).fill('This is an automated E2E test message for loading state test.');
 
-                // Submit and check for loading state
+                // Submit and check for loading state - use .first() since both button and svg match
                 const submitButton = page.locator('button:has-text("Send Message")');
                 await submitButton.click();
 
-                // Should show "Sending..." or similar loading indicator
-                await expect(
-                    page.locator('text=Sending').or(page.locator('svg.animate-spin'))
-                ).toBeVisible();
+                // Should show "Sending..." text on the button
+                await expect(page.getByRole('button', { name: 'Sending...' })).toBeVisible();
             }
         });
     });

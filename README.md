@@ -284,7 +284,7 @@ The project includes a complete Docker development environment that mirrors the 
    ```
 
 4. **Access the application**:
-   - **Application**: https://localhost:3333/ernie/
+   - **Application**: https://localhost:3333/
    - **Traefik Dashboard**: http://localhost:8080
 
 5. **Run initial setup** (first time or after database reset):
@@ -310,13 +310,13 @@ The Docker development environment includes:
 
 ### URL Routing
 
-The development environment replicates the production Traefik configuration:
+The development environment uses subdomain-based routing:
 
-- `https://localhost:3333/ernie/` → Main application
-- `https://localhost:3333/ernie/api/v1/` → API endpoints (no Forward-Auth)
-- `https://localhost:3333/ernie/@vite/` → Vite HMR (proxied)
+- `https://localhost:3333/` → Main application
+- `https://localhost:3333/api/v1/` → API endpoints
+- `https://localhost:3333/@vite/` → Vite HMR (proxied)
 
-This mirrors the production URL `https://env.rz-vm182.gfz.de/ernie/`.
+This mirrors the production URL `https://ernie.rz-vm182.gfz.de/`.
 
 ### Trust SSL Certificate (Windows)
 
@@ -623,7 +623,7 @@ npx playwright show-report
 
 ERNIE provides a **read-only REST API** (OpenAPI 3.1.0) for integration with external systems like ELMO. The API offers access to metadata types, roles, controlled vocabularies, and researcher identification services.
 
-**📖 [View Interactive API Documentation](https://env.rz-vm182.gfz.de/ernie/api/v1/doc)**
+**📖 [View Interactive API Documentation](https://ernie.rz-vm182.gfz.de/api/v1/doc)**
 
 The API documentation includes:
 - All available endpoints with request/response examples
@@ -696,7 +696,7 @@ ernie/
 
 ### API Routes
 - `/api/changelog` – Changelog data (public, no authentication required)
-- `/api/v1/doc` – [Interactive API documentation](https://env.rz-vm182.gfz.de/ernie/api/v1/doc) (OpenAPI/Swagger UI)
+- `/api/v1/doc` – [Interactive API documentation](https://ernie.rz-vm182.gfz.de/api/v1/doc) (OpenAPI/Swagger UI)
 - `/api/v1/resource-types` – Resource type definitions
 - `/api/v1/title-types` – Title type definitions
 - `/api/v1/licenses` – License information

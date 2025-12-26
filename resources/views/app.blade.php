@@ -4,7 +4,6 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <meta name="app-base-path" content="{{ parse_url(config('app.url'), PHP_URL_PATH) ?? '' }}">
 
         {{-- Inline script to detect system dark mode preference and apply it immediately --}}
         <script>
@@ -44,27 +43,8 @@
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
-        
-        {{-- Additional script to configure Inertia after it loads --}}
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                console.log('App URL:', '{{ config('app.url') }}');
-                console.log('Environment:', '{{ app()->environment() }}');
-            });
-        </script>
     </head>
     <body class="font-sans antialiased">
         @inertia
-        
-        {{-- Debug information for production --}}
-        @if(app()->environment('production'))
-        <script>
-            console.log('Production Debug Info:');
-            console.log('APP_URL:', '{{ config('app.url') }}');
-            console.log('Current URL:', window.location.href);
-            console.log('Meta base-path:', document.querySelector('meta[name="app-base-path"]')?.content);
-            console.log('Inertia page data:', document.getElementById('app')?.getAttribute('data-page') ? JSON.parse(document.getElementById('app').getAttribute('data-page')) : 'No data-page found');
-        </script>
-        @endif
     </body>
 </html>

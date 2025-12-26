@@ -1,5 +1,3 @@
-import { withBasePath } from '@/lib/base-path';
-
 interface ResourceTypeReference {
     id: number;
     name: string;
@@ -207,7 +205,7 @@ const fetchResourceTypes = async (): Promise<ResourceTypeReference[]> => {
     }
 
     try {
-        const response = await fetch(withBasePath('/api/v1/resource-types/ernie'));
+        const response = await fetch('/api/v1/resource-types/ernie');
 
         if (!response.ok) {
             return [];

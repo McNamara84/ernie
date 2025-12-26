@@ -4,8 +4,6 @@
  * Provides methods to interact with the ORCID backend API
  */
 
-import { withBasePath } from '@/lib/base-path';
-
 /**
  * ORCID Person Data from API
  */
@@ -75,7 +73,7 @@ export class OrcidService {
         error?: string;
     }> {
         try {
-            const response = await fetch(withBasePath(`/api/v1/orcid/${encodeURIComponent(orcid)}`), {
+            const response = await fetch(`/api/v1/orcid/${encodeURIComponent(orcid)}`, {
                 method: 'GET',
                 headers: {
                     Accept: 'application/json',
@@ -124,7 +122,7 @@ export class OrcidService {
         error?: string;
     }> {
         try {
-            const response = await fetch(withBasePath(`/api/v1/orcid/validate/${encodeURIComponent(orcid)}`), {
+            const response = await fetch(`/api/v1/orcid/validate/${encodeURIComponent(orcid)}`, {
                 method: 'GET',
                 headers: {
                     Accept: 'application/json',
@@ -177,7 +175,7 @@ export class OrcidService {
                 limit: Math.min(limit, 50).toString(),
             });
 
-            const response = await fetch(withBasePath(`/api/v1/orcid/search?${params.toString()}`), {
+            const response = await fetch(`/api/v1/orcid/search?${params.toString()}`, {
                 method: 'GET',
                 headers: {
                     Accept: 'application/json',

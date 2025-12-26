@@ -8,7 +8,7 @@ import { testIgnorePatterns, testMatchPatterns, timeoutSettings } from './tests/
  * Usage: npx playwright test --config=playwright.docker.config.ts
  * 
  * This configuration:
- * - Uses https://localhost:3333/ernie/ as base URL
+ * - Uses https://localhost:3333/ as base URL
  * - Ignores self-signed certificate errors
  * - No webServer (Docker containers are already running)
  */
@@ -39,8 +39,8 @@ export default defineConfig({
   
   /* Shared settings for all the projects below */
   use: {
-    /* Docker development URL with /ernie prefix */
-    baseURL: 'https://localhost:3333/ernie',
+    /* Docker development URL */
+    baseURL: 'https://localhost:3333',
 
     /* Accept self-signed certificates */
     ignoreHTTPSErrors: true,

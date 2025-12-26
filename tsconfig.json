@@ -111,7 +111,7 @@
         "paths": {
             "@/*": ["./resources/js/*"],
             "@/routes": ["./resources/js/routes.ts"],
-            "@/routes/*": ["./resources/js/routes-wrappers/*"],
+            "@/routes/*": ["./resources/js/routes/*"],
             "@data/*": ["./resources/data/*"],
             "@tests/*": ["./tests/*"]
         },

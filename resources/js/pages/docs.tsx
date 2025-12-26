@@ -5,7 +5,6 @@ import { DocsCodeBlock } from '@/components/docs/docs-code-block';
 import { DocsSection } from '@/components/docs/docs-section';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
 import AppLayout from '@/layouts/app-layout';
-import { withBasePath } from '@/lib/base-path';
 import { type BreadcrumbItem, type UserRole } from '@/types';
 
 interface DocsProps {
@@ -24,7 +23,7 @@ export default function Docs({ userRole }: DocsProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Documentation',
-            href: withBasePath('/docs'),
+            href: '/docs',
         },
     ];
 
@@ -443,7 +442,7 @@ DATACITE_PRODUCTION_ENDPOINT=https://api.datacite.org`}
                     <p>Explore the full API documentation with interactive Swagger UI:</p>
                     <p className="my-4">
                         <a
-                            href={withBasePath('/api/v1/doc')}
+                            href="/api/v1/doc"
                             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                             target="_blank"
                             rel="noopener noreferrer"

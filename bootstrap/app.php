@@ -30,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'can.manage.users' => EnsureUserCanManageUsers::class,
         ]);
 
-        // Use custom CSRF middleware for PathPrefix compatibility
+        // CSRF token validation - using standard Laravel middleware
         $middleware->validateCsrfTokens(except: [
             // Add any routes that should be excluded from CSRF verification
         ]);

@@ -3,9 +3,8 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
-import { afterEach, beforeEach, describe, expect, it, Mock,vi } from 'vitest';
+import { beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
-import { __testing as basePathTesting } from '@/lib/base-path';
 import Changelog from '@/pages/changelog';
 
 vi.mock('@/layouts/public-layout', () => ({
@@ -146,11 +145,6 @@ describe('Changelog', () => {
         })) as unknown as typeof IntersectionObserver;
     });
 
-    afterEach(() => {
-        document.head.innerHTML = '';
-        basePathTesting.resetBasePathCache();
-    });
-
     it('renders releases on a timeline, expands the latest by default, and toggles grouped details', async () => {
         const user = userEvent.setup();
         render(<Changelog />);
@@ -190,8 +184,7 @@ describe('Changelog', () => {
         expect(alert).toHaveTextContent(/unable to load changelog/i);
     });
 
-    it('fetches releases using the configured base path', async () => {
-        basePathTesting.setMetaBasePath('/ernie');
+    it('fetches releases from /api/changelog', async () => {
         const fetchSpy = global.fetch as unknown as Mock;
 
         render(<Changelog />);
@@ -199,7 +192,7 @@ describe('Changelog', () => {
         await screen.findByRole('list', { name: /changelog timeline/i });
 
         await vi.waitFor(() => {
-            expect(fetchSpy).toHaveBeenCalledWith('/ernie/api/changelog');
+            expect(fetchSpy).toHaveBeenCalledWith('/api/changelog');
         });
     });
 });

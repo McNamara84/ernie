@@ -1,7 +1,5 @@
 import { FileCode, FileJson } from 'lucide-react';
 
-import { withBasePath } from '@/lib/base-path';
-
 interface Description {
     id: number;
     value: string;
@@ -116,7 +114,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                                             className="shrink-0"
                                             title={`ORCID: ${creatorable.name_identifier}`}
                                         >
-                                            <img src={withBasePath('/images/pid-icons/orcid-icon.png')} alt="ORCID" className="h-4 w-4" />
+                                            <img src="/images/pid-icons/orcid-icon.png" alt="ORCID" className="h-4 w-4" />
                                         </a>
                                     )}
 
@@ -136,7 +134,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                                                     className="shrink-0"
                                                     title={`ROR ID: ${firstAffiliation.affiliation_identifier}`}
                                                 >
-                                                    <img src={withBasePath('/images/pid-icons/ror-icon.png')} alt="ROR" className="h-4 w-4" />
+                                                    <img src="/images/pid-icons/ror-icon.png" alt="ROR" className="h-4 w-4" />
                                                 </a>
                                             )}
                                         </>
@@ -167,7 +165,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                                         className="shrink-0"
                                         title={`ROR ID: ${funding.funder_identifier}`}
                                     >
-                                        <img src={withBasePath('/images/pid-icons/ror-icon.png')} alt="ROR" className="h-4 w-4" />
+                                        <img src="/images/pid-icons/ror-icon.png" alt="ROR" className="h-4 w-4" />
                                     </a>
                                 )}
 
@@ -181,7 +179,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                                         title={`Crossref Funder ID: ${funding.funder_identifier}`}
                                     >
                                         <img
-                                            src={withBasePath('/images/pid-icons/crossref-funder.png')}
+                                            src="/images/pid-icons/crossref-funder.png"
                                             alt="Crossref Funder ID"
                                             className="h-4 w-4"
                                         />
@@ -288,11 +286,11 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                 <h3 className="text-lg font-semibold text-gray-900">Download Metadata</h3>
                 <div className="flex items-center gap-4">
                     {/* DataCite Logo */}
-                    <img src={withBasePath('/images/datacite-logo.png')} alt="DataCite" className="h-8" />
+                    <img src="/images/datacite-logo.png" alt="DataCite" className="h-8" />
 
                     {/* XML Download Button */}
                     <a
-                        href={withBasePath(`/resources/${resourceId}/export-datacite-xml`)}
+                        href={`/resources/${resourceId}/export-datacite-xml`}
                         className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                         title="Download as DataCite XML"
                     >
@@ -302,7 +300,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
 
                     {/* JSON Download Button */}
                     <a
-                        href={withBasePath(`/resources/${resourceId}/export-datacite-json`)}
+                        href={`/resources/${resourceId}/export-datacite-json`}
                         className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
                         title="Download as DataCite JSON"
                     >

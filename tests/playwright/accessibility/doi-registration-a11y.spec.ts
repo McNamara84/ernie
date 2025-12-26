@@ -64,9 +64,15 @@ test.describe('DOI Registration Accessibility', () => {
         // Wait for modal to be visible
         await expect(page.getByRole('dialog')).toBeVisible();
 
-        // Run accessibility scan
+        // Wait for the loading animation to complete (the content may be a form or an error message)
+        // The loading state uses animate-pulse class
+        await expect(page.locator('[role="dialog"] .animate-pulse')).toHaveCount(0, { timeout: 10000 });
+
+        // Run accessibility scan on the fully loaded dialog content
+        // Exclude any loading animation elements that might still be present
         const accessibilityScanResults = await new AxeBuilder({ page })
             .include('[role="dialog"]')
+            .exclude('.animate-pulse') // Exclude loading animation elements
             .analyze();
 
         expect(accessibilityScanResults.violations).toEqual([]);

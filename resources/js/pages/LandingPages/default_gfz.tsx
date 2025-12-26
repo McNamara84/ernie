@@ -1,8 +1,6 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { usePage } from '@inertiajs/react';
 
-import { withBasePath } from '@/lib/base-path';
-
 import { AbstractSection } from './components/AbstractSection';
 import { ContactSection } from './components/ContactSection';
 import { FilesSection } from './components/FilesSection';
@@ -32,13 +30,13 @@ export default function DefaultGfzTemplate() {
                 <header className="px-4 py-2">
                     {/* Legal Notice - ganz oben rechts */}
                     <div className="mb-1 flex justify-end">
-                        <a href={withBasePath('/legal-notice')} className="text-xs text-gray-600 hover:text-gray-900 hover:underline">
+                        <a href="/legal-notice" className="text-xs text-gray-600 hover:text-gray-900 hover:underline">
                             Legal Notice
                         </a>
                     </div>
                     {/* Logo - zentriert */}
                     <div className="flex justify-center">
-                        <img src={withBasePath('/images/gfz-ds-logo.png')} alt="GFZ Data Services" className="h-16" />
+                        <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className="h-16" />
                     </div>
                 </header>
 
@@ -75,10 +73,10 @@ export default function DefaultGfzTemplate() {
                 <footer className="border-t border-gray-300 px-4 py-6">
                     <div className="flex items-center justify-between">
                         <a href="https://www.gfz.de" target="_blank" rel="noopener noreferrer">
-                            <img src={withBasePath('/images/gfz-logo-en.gif')} alt="GFZ" className="h-12" />
+                            <img src="/images/gfz-logo-en.gif" alt="GFZ" className="h-12" />
                         </a>
                         <a href="https://www.helmholtz.de" target="_blank" rel="noopener noreferrer">
-                            <img src={withBasePath('/images/helmholtz-logo-blue.png')} alt="Helmholtz" className="h-8" />
+                            <img src="/images/helmholtz-logo-blue.png" alt="Helmholtz" className="h-8" />
                         </a>
                     </div>
                 </footer>

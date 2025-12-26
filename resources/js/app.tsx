@@ -8,7 +8,6 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
 import { buildCsrfHeaders } from './lib/csrf-token';
-import { setupUrlTransformation } from './url-fix';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -61,9 +60,6 @@ axios.interceptors.response.use(
         return Promise.reject(error);
     },
 );
-
-// Setup URL transformation for production
-setupUrlTransformation();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
