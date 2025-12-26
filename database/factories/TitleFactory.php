@@ -31,7 +31,7 @@ class TitleFactory extends Factory
 
         return [
             'resource_id' => Resource::factory(),
-            'value' => fake()->sentence(4),
+            'value' => $this->faker->sentence(4),
             'title_type_id' => $titleType->id,
             'language' => 'en',
         ];

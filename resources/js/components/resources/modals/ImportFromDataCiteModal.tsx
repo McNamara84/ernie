@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { withBasePath } from '@/lib/base-path';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 
 interface ImportProgress {
@@ -73,7 +72,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
             if (isCancelled) return;
 
             try {
-                const response = await axios.get<ImportProgress>(withBasePath(`/datacite/import/${importId}/status`));
+                const response = await axios.get<ImportProgress>(`/datacite/import/${importId}/status`);
 
                 if (isCancelled) return; // Check again after async operation
 
@@ -120,7 +119,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
 
         try {
             const response = await axios.post<{ import_id: string; message: string }>(
-                withBasePath('/datacite/import/start'),
+                '/datacite/import/start',
                 {},
                 { headers: buildCsrfHeaders() }
             );

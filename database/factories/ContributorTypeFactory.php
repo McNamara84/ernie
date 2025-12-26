@@ -31,11 +31,11 @@ class ContributorTypeFactory extends Factory
             ['name' => 'Researcher', 'slug' => 'Researcher'],
         ];
 
-        $type = fake()->randomElement($types);
+        $type = $this->faker->randomElement($types);
 
         return [
             'name' => $type['name'],
-            'slug' => $type['slug'].'-'.fake()->unique()->randomNumber(5),
+            'slug' => $type['slug'].'-'.$this->faker->unique()->randomNumber(5),
             'is_active' => true,
         ];
     }

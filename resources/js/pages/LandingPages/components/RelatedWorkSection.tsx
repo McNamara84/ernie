@@ -123,17 +123,18 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
     }
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div data-testid="related-works-section" className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Related Work</h3>
 
             <div className="space-y-6">
                 {sortedTypes.map((relationType) => (
                     <div key={relationType}>
                         <h4 className="mb-3 text-sm font-semibold text-gray-700">{formatRelationType(relationType)}</h4>
-                        <ul className="space-y-2">
+                        <ul data-testid="related-works-list" className="space-y-2">
                             {groupedByType[relationType].map((rel) => {
                                 const key = `${rel.id}`;
                                 const citationData = citations.get(key);
+                                const href = `https://doi.org/${rel.identifier}`;
 
                                 // Nur DOIs anzeigen
                                 if (rel.identifier_type !== 'DOI') {
@@ -142,48 +143,26 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
 
                                 return (
                                     <li key={rel.id}>
-                                        {citationData?.loading && (
-                                            <div className="flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-500">
-                                                <div className="mt-0.5 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
-                                                <span>Loading citation...</span>
-                                            </div>
-                                        )}
-
-                                        {!citationData?.loading && citationData?.citation && (
-                                            <a
-                                                href={`https://doi.org/${rel.identifier}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                            >
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                                                <span className="flex-1">{citationData.citation}</span>
-                                            </a>
-                                        )}
-
-                                        {!citationData?.loading && citationData?.error && citationData?.relatedTitle && (
-                                            <a
-                                                href={`https://doi.org/${rel.identifier}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                            >
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                                                <span className="flex-1">{citationData.relatedTitle}</span>
-                                            </a>
-                                        )}
-
-                                        {!citationData?.loading && citationData?.error && !citationData?.relatedTitle && (
-                                            <a
-                                                href={`https://doi.org/${rel.identifier}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                            >
-                                                <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
-                                                <span className="flex-1">DOI: {rel.identifier}</span>
-                                            </a>
-                                        )}
+                                        <a
+                                            href={href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-sm text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50"
+                                        >
+                                            <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-colors group-hover:text-gray-600" />
+                                            <span className="flex-1">
+                                                {citationData?.loading && (
+                                                    <span className="inline-flex items-center gap-2 text-gray-500">
+                                                        <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                                                        <span>Loading citation...</span>
+                                                    </span>
+                                                )}
+                                                {!citationData?.loading && citationData?.citation && citationData.citation}
+                                                {!citationData?.loading && citationData?.error && citationData?.relatedTitle && citationData.relatedTitle}
+                                                {!citationData?.loading && citationData?.error && !citationData?.relatedTitle && `DOI: ${rel.identifier}`}
+                                                {!citationData && `DOI: ${rel.identifier}`}
+                                            </span>
+                                        </a>
                                     </li>
                                 );
                             })}

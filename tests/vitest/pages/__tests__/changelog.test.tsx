@@ -4,8 +4,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, Mock,vi } from 'vitest';
-
-import { __testing as basePathTesting } from '@/lib/base-path';
 import Changelog from '@/pages/changelog';
 
 vi.mock('@/layouts/public-layout', () => ({
@@ -148,7 +146,6 @@ describe('Changelog', () => {
 
     afterEach(() => {
         document.head.innerHTML = '';
-        basePathTesting.resetBasePathCache();
     });
 
     it('renders releases on a timeline, expands the latest by default, and toggles grouped details', async () => {
@@ -190,16 +187,5 @@ describe('Changelog', () => {
         expect(alert).toHaveTextContent(/unable to load changelog/i);
     });
 
-    it('fetches releases using the configured base path', async () => {
-        basePathTesting.setMetaBasePath('/ernie');
-        const fetchSpy = global.fetch as unknown as Mock;
-
-        render(<Changelog />);
-
-        await screen.findByRole('list', { name: /changelog timeline/i });
-
-        await vi.waitFor(() => {
-            expect(fetchSpy).toHaveBeenCalledWith('/ernie/api/changelog');
-        });
-    });
+    // Base-path prefix support removed; fetches from /api/changelog.
 });

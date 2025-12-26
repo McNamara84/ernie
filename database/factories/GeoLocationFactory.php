@@ -24,7 +24,7 @@ class GeoLocationFactory extends Factory
     {
         return [
             'resource_id' => Resource::factory(),
-            'place' => fake()->city().', '.fake()->country(),
+            'place' => $this->faker->city().', '.$this->faker->country(),
             'point_longitude' => null,
             'point_latitude' => null,
             'west_bound_longitude' => null,
@@ -43,8 +43,8 @@ class GeoLocationFactory extends Factory
     public function withPoint(?float $longitude = null, ?float $latitude = null): static
     {
         return $this->state(fn (array $attributes) => [
-            'point_longitude' => $longitude ?? fake()->longitude(),
-            'point_latitude' => $latitude ?? fake()->latitude(),
+            'point_longitude' => $longitude ?? $this->faker->longitude(),
+            'point_latitude' => $latitude ?? $this->faker->latitude(),
         ]);
     }
 
@@ -58,10 +58,10 @@ class GeoLocationFactory extends Factory
         ?float $north = null
     ): static {
         return $this->state(fn (array $attributes) => [
-            'west_bound_longitude' => $west ?? fake()->longitude(-180, 0),
-            'east_bound_longitude' => $east ?? fake()->longitude(0, 180),
-            'south_bound_latitude' => $south ?? fake()->latitude(-90, 0),
-            'north_bound_latitude' => $north ?? fake()->latitude(0, 90),
+            'west_bound_longitude' => $west ?? $this->faker->longitude(-180, 0),
+            'east_bound_longitude' => $east ?? $this->faker->longitude(0, 180),
+            'south_bound_latitude' => $south ?? $this->faker->latitude(-90, 0),
+            'north_bound_latitude' => $north ?? $this->faker->latitude(0, 90),
         ]);
     }
 
@@ -75,8 +75,8 @@ class GeoLocationFactory extends Factory
         return $this->state(function (array $attributes) use ($points) {
             if ($points === null) {
                 // Create a simple triangle
-                $centerLon = fake()->longitude();
-                $centerLat = fake()->latitude();
+                $centerLon = $this->faker->longitude();
+                $centerLat = $this->faker->latitude();
                 $points = [
                     ['longitude' => $centerLon, 'latitude' => $centerLat + 0.1],
                     ['longitude' => $centerLon + 0.1, 'latitude' => $centerLat - 0.1],

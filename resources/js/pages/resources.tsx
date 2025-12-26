@@ -16,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import { withBasePath } from '@/lib/base-path';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import {
@@ -336,7 +335,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 }
             });
 
-            const response = await axios.get(withBasePath('/resources/load-more'), { params });
+            const response = await axios.get('/resources/load-more', { params });
 
             setResources((prev) => [...prev, ...(response.data.resources || [])]);
             setPagination(response.data.pagination);
@@ -360,7 +359,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
     useEffect(() => {
         const loadFilterOptions = async () => {
             try {
-                const response = await axios.get(withBasePath('/resources/filter-options'));
+                const response = await axios.get('/resources/filter-options');
                 setFilterOptions(response.data);
             } catch (err) {
                 console.error('Failed to load filter options:', err);
@@ -419,7 +418,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             });
 
             // Navigate to same page with new query params
-            router.visit(withBasePath(`/resources?${params.toString()}`), {
+            router.visit(`/resources?${params.toString()}`, {
                 preserveState: false,
                 replace: true,
             });
@@ -449,7 +448,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             });
 
             // Navigate to same page with new query params
-            router.visit(withBasePath(`/resources?${params.toString()}`), {
+            router.visit(`/resources?${params.toString()}`, {
                 preserveState: false,
                 replace: true,
             });
@@ -592,7 +591,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         setExportingResources((prev) => new Set(prev).add(resource.id!));
 
         try {
-            const response = await axios.get(withBasePath(`/resources/${resource.id}/export-datacite-json`), {
+            const response = await axios.get(`/resources/${resource.id}/export-datacite-json`, {
                 responseType: 'blob', // Important for file download
             });
 
@@ -659,7 +658,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
         setExportingXmlResources((prev) => new Set(prev).add(resource.id!));
 
         try {
-            const response = await axios.get(withBasePath(`/resources/${resource.id}/export-datacite-xml`), {
+            const response = await axios.get(`/resources/${resource.id}/export-datacite-xml`, {
                 responseType: 'blob', // Important for file download
             });
 

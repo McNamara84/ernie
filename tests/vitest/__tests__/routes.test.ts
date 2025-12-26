@@ -1,12 +1,8 @@
 import { expectUrlToBe,normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach,describe, expect, it, vi } from 'vitest';
 
-import { __testing as basePathTesting } from '@/lib/base-path';
-
 describe('generated routes', () => {
   afterEach(() => {
-    basePathTesting.setMetaBasePath('');
-    basePathTesting.resetBasePathCache();
     vi.resetModules();
   });
 
@@ -31,28 +27,6 @@ describe('generated routes', () => {
     expect({...logout(), url: normalizeTestUrl(logout().url)}).toEqual({ url: '/logout', method: 'post' });
     expectUrlToBe(logout.url({ query: { ref: 'x' } }), '/logout?ref=x');
     expect(normalizeTestUrl(logout.form.post({ query: { token: 'abc' } }).action)).toBe('/logout?token=abc');
-  });
-
-  it('applies the configured base path to generated routes', async () => {
-    basePathTesting.setMetaBasePath('/ernie');
-    basePathTesting.resetBasePathCache();
-    vi.resetModules();
-
-    const routes = await import('@/routes');
-    expectUrlToBe(routes.home.url(), '/ernie/');
-    expectUrlToBe(routes.logout.url(), '/ernie/logout');
-  });
-
-  it('updates route URLs when the base path meta changes after initial load', async () => {
-    basePathTesting.setMetaBasePath('');
-    basePathTesting.resetBasePathCache();
-    vi.resetModules();
-
-    const routes = await import('@/routes');
-    expectUrlToBe(routes.home.url(), '/');
-
-    basePathTesting.setMetaBasePath('/ernie');
-    expectUrlToBe(routes.home.url(), '/ernie/');
   });
 });
 

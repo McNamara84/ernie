@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { UserRoleBadge } from '@/components/user-role-badge';
 import AppLayout from '@/layouts/app-layout';
-import { withBasePath } from '@/lib/base-path';
 import { type BreadcrumbItem,type User as AuthUser } from '@/types';
 
 interface UserData {
@@ -47,7 +46,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Users',
-            href: withBasePath('/users'),
+            href: '/users',
         },
     ];
 
@@ -57,7 +56,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         setProcessingUserId(userId);
 
         router.patch(
-            withBasePath(`/users/${userId}/role`),
+            `/users/${userId}/role`,
             { role: newRole },
             {
                 preserveScroll: true,
@@ -81,7 +80,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         setProcessingUserId(userId);
 
         router.post(
-            withBasePath(`/users/${userId}/deactivate`),
+            `/users/${userId}/deactivate`,
             {},
             {
                 preserveScroll: true,
@@ -105,7 +104,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         setProcessingUserId(userId);
 
         router.post(
-            withBasePath(`/users/${userId}/reactivate`),
+            `/users/${userId}/reactivate`,
             {},
             {
                 preserveScroll: true,
@@ -129,7 +128,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
         setProcessingUserId(userId);
 
         router.post(
-            withBasePath(`/users/${userId}/reset-password`),
+            `/users/${userId}/reset-password`,
             {},
             {
                 preserveScroll: true,

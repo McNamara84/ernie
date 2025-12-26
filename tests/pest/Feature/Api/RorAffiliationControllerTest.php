@@ -1,8 +1,13 @@
 <?php
 
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+
+beforeEach(function () {
+    Cache::flush();
+});
 
 it('returns cached ROR affiliations when available', function () {
     Storage::fake('local');

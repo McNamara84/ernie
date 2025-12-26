@@ -4,8 +4,6 @@ import { render, screen, within } from '@testing-library/react';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import type { ComponentProps } from 'react';
 import { afterEach,beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { __testing as basePathTesting, withBasePath } from '@/lib/base-path';
 import type { BreadcrumbItem } from '@/types';
 
 const usePageMock = vi.fn();
@@ -84,8 +82,6 @@ vi.mock('lucide-react', () => ({
 }));
 describe('AppHeader', () => {
     afterEach(() => {
-        basePathTesting.setMetaBasePath('');
-        basePathTesting.resetBasePathCache();
         vi.resetModules();
     });
 
@@ -109,17 +105,17 @@ describe('AppHeader', () => {
         );
         screen
             .getAllByRole('link', { name: /dashboard/i })
-            .forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe(withBasePath('/dashboard')));
+            .forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe('/dashboard'));
         const changelogLinks = screen.getAllByRole('link', { name: /changelog/i });
-        changelogLinks.forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe(withBasePath('/changelog')));
+        changelogLinks.forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe('/changelog'));
         const docLinks = screen.getAllByRole('link', { name: /^documentation$/i });
-        docLinks.forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe(withBasePath('/docs')));
+        docLinks.forEach((link) => expect(normalizeTestUrl(link.getAttribute('href') || '')).toBe('/docs'));
         const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
-        apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/api/v1/doc')));
+        apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', '/api/v1/doc'));
         const editorLinks = screen.getAllByRole('link', { name: /^editor$/i });
-        editorLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/editor')));
+        editorLinks.forEach((link) => expect(link).toHaveAttribute('href', '/editor'));
         const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
-        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', withBasePath('/settings')));
+        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/settings'));
         const navs = screen.getAllByRole('navigation');
         expect(
             within(navs[0]).queryByRole('link', { name: /editor settings/i })
@@ -135,37 +131,4 @@ describe('AppHeader', () => {
         expect(screen.getByTestId('breadcrumbs')).toBeInTheDocument();
     });
 
-    it('applies the base path to navigation links when configured', async () => {
-        basePathTesting.setMetaBasePath('/ernie');
-        basePathTesting.resetBasePathCache();
-
-        vi.resetModules();
-        const routes = await import('@/routes');
-        const { applyBasePathToRoutes } = await import('@/lib/base-path');
-        applyBasePathToRoutes({
-            dashboard: routes.dashboard,
-            changelog: routes.changelog,
-            docs: routes.docs,
-            settings: routes.settings,
-            home: routes.home,
-            login: routes.login,
-        });
-        const { AppHeader } = await import('@/components/app-header');
-
-        render(<AppHeader breadcrumbs={[]} />);
-
-        screen
-            .getAllByRole('link', { name: /dashboard/i })
-            .forEach((link) => expect(link).toHaveAttribute('href', '/ernie/dashboard'));
-        const editorLinks = screen.getAllByRole('link', { name: /^editor$/i });
-        editorLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/editor'));
-        const apiDocLinks = screen.getAllByRole('link', { name: /api documentation/i });
-        apiDocLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/api/v1/doc'));
-        const changelogLinks = screen.getAllByRole('link', { name: /changelog/i });
-        changelogLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/changelog'));
-        const docsLinks = screen.getAllByRole('link', { name: /^documentation$/i });
-        docsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/docs'));
-        const settingsLinks = screen.getAllByRole('link', { name: /editor settings/i });
-        settingsLinks.forEach((link) => expect(link).toHaveAttribute('href', '/ernie/settings'));
-    });
 });

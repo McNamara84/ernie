@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { withBasePath } from '@/lib/base-path';
 
 interface ContactPerson {
     id: number;
@@ -87,7 +86,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
         setErrorMessage('');
 
         try {
-            const response = await fetch(withBasePath(`/datasets/${resourceId}/contact`), {
+            const response = await fetch(`/datasets/${resourceId}/contact`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -143,7 +142,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
                         </p>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} noValidate className="space-y-4">
                         {/* Recipient selection - only show if multiple persons and not pre-selected for all */}
                         {contactPersons.length > 1 && selectedPerson !== null && (
                             <div className="space-y-2">

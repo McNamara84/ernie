@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { withBasePath } from '@/lib/base-path';
 import { type User as AuthUser } from '@/types';
 
 interface Resource {
@@ -78,7 +77,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         setIsLoadingConfig(true);
         try {
             // Get prefix configuration from backend
-            const response = await axios.get<PrefixConfig>(withBasePath('/api/datacite/prefixes'));
+            const response = await axios.get<PrefixConfig>('/api/datacite/prefixes');
 
             // Use test mode from backend configuration
             const testMode = response.data.test_mode;
@@ -121,7 +120,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         setIsSubmitting(true);
 
         try {
-            const response = await axios.post<DoiRegistrationResponse>(withBasePath(`/resources/${resource.id}/register-doi`), {
+            const response = await axios.post<DoiRegistrationResponse>(`/resources/${resource.id}/register-doi`, {
                 prefix: selectedPrefix,
             });
 
@@ -270,7 +269,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
                     {/* Loading State */}
                     {isLoadingConfig && (
                         <div className="flex items-center justify-center py-4">
-                            <div className="animate-pulse text-muted-foreground">Loading configuration...</div>
+                            <div className="animate-pulse text-foreground">Loading configuration...</div>
                         </div>
                     )}
 

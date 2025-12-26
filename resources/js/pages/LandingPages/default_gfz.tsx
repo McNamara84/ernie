@@ -1,8 +1,6 @@
 ﻿/* eslint-disable @typescript-eslint/no-explicit-any */
 import { usePage } from '@inertiajs/react';
 
-import { withBasePath } from '@/lib/base-path';
-
 import { AbstractSection } from './components/AbstractSection';
 import { ContactSection } from './components/ContactSection';
 import { FilesSection } from './components/FilesSection';
@@ -32,13 +30,13 @@ export default function DefaultGfzTemplate() {
                 <header className="px-4 py-2">
                     {/* Legal Notice - ganz oben rechts */}
                     <div className="mb-1 flex justify-end">
-                        <a href={withBasePath('/legal-notice')} className="text-xs text-gray-600 hover:text-gray-900 hover:underline">
+                        <a href="/legal-notice" className="text-xs text-gray-600 hover:text-gray-900 hover:underline">
                             Legal Notice
                         </a>
                     </div>
                     {/* Logo - zentriert */}
                     <div className="flex justify-center">
-                        <img src={withBasePath('/images/gfz-ds-logo.png')} alt="GFZ Data Services" className="h-16" />
+                        <img src="/images/gfz-ds-logo.png" alt="GFZ Data Services" className="h-16" />
                     </div>
                 </header>
 
@@ -51,7 +49,15 @@ export default function DefaultGfzTemplate() {
                     <div className="mx-8 mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                         {/* Left Column - 1/3 width */}
                         <div className="space-y-6 lg:col-span-1">
-                            <FilesSection downloadUrl={landingPage?.ftp_url || '#'} licenses={resource.licenses || []} />
+                            <FilesSection
+                                downloadUrl={landingPage?.ftp_url || '#'}
+                                licenses={(resource.rights || []).map((right: any) => ({
+                                    id: right.id,
+                                    name: right.name,
+                                    spdx_id: right.identifier,
+                                    reference: right.uri,
+                                }))}
+                            />
                             <ModelDescriptionSection relatedIdentifiers={resource.related_identifiers || []} />
                             <RelatedWorkSection relatedIdentifiers={resource.related_identifiers || []} />
                             <ContactSection contactPersons={resource.contact_persons || []} resourceId={resource.id} datasetTitle={mainTitle} />
@@ -62,6 +68,7 @@ export default function DefaultGfzTemplate() {
                             <AbstractSection
                                 descriptions={resource.descriptions || []}
                                 creators={resource.creators || []}
+                                contributors={resource.contributors || []}
                                 fundingReferences={resource.funding_references || []}
                                 subjects={resource.subjects || []}
                                 resourceId={resource.id}
@@ -75,10 +82,10 @@ export default function DefaultGfzTemplate() {
                 <footer className="border-t border-gray-300 px-4 py-6">
                     <div className="flex items-center justify-between">
                         <a href="https://www.gfz.de" target="_blank" rel="noopener noreferrer">
-                            <img src={withBasePath('/images/gfz-logo-en.gif')} alt="GFZ" className="h-12" />
+                            <img src="/images/gfz-logo-en.gif" alt="GFZ" className="h-12" />
                         </a>
                         <a href="https://www.helmholtz.de" target="_blank" rel="noopener noreferrer">
-                            <img src={withBasePath('/images/helmholtz-logo-blue.png')} alt="Helmholtz" className="h-8" />
+                            <img src="/images/helmholtz-logo-blue.png" alt="Helmholtz" className="h-8" />
                         </a>
                     </div>
                 </footer>

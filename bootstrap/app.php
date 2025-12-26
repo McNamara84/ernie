@@ -30,13 +30,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'can.manage.users' => EnsureUserCanManageUsers::class,
         ]);
 
-        // Use custom CSRF middleware for PathPrefix compatibility
+        // CSRF middleware
         $middleware->validateCsrfTokens(except: [
             // Add any routes that should be excluded from CSRF verification
         ]);
 
         $middleware->web(append: [
-            \App\Http\Middleware\SetUrlRoot::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

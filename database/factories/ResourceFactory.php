@@ -43,9 +43,9 @@ class ResourceFactory extends Factory
         );
 
         return [
-            'doi' => '10.'.fake()->numberBetween(1000, 9999).'/'.fake()->slug(2),
+            'doi' => '10.'.$this->faker->numberBetween(1000, 9999).'/'.$this->faker->slug(2),
             'identifier_type' => 'DOI',
-            'publication_year' => (int) fake()->year(),
+            'publication_year' => (int) $this->faker->year(),
             'resource_type_id' => $resourceType->id,
             'version' => '1.0',
             'language_id' => $language->id,

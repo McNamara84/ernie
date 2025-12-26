@@ -22,7 +22,7 @@ class PublisherFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->company().' Data Services',
+            'name' => $this->faker->company().' Data Services',
             'identifier' => null,
             'identifier_scheme' => null,
             'scheme_uri' => null,

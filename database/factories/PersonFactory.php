@@ -22,8 +22,8 @@ class PersonFactory extends Factory
     public function definition(): array
     {
         return [
-            'given_name' => fake()->firstName(),
-            'family_name' => fake()->lastName(),
+            'given_name' => $this->faker->firstName(),
+            'family_name' => $this->faker->lastName(),
             'name_identifier' => null,
             'name_identifier_scheme' => null,
             'scheme_uri' => null,
@@ -36,7 +36,7 @@ class PersonFactory extends Factory
     public function withOrcid(?string $orcid = null): static
     {
         return $this->state(fn (array $attributes) => [
-            'name_identifier' => $orcid ?? 'https://orcid.org/'.fake()->regexify('[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]'),
+            'name_identifier' => $orcid ?? 'https://orcid.org/'.$this->faker->regexify('[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]'),
             'name_identifier_scheme' => 'ORCID',
             'scheme_uri' => 'https://orcid.org/',
         ]);
