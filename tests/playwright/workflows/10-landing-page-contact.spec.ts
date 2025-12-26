@@ -120,12 +120,6 @@ test.describe('Landing Page Contact Section', () => {
                 // Verify the form is still open (not submitted) due to validation
                 await expect(page.locator('text=Contact Request')).toBeVisible();
 
-                // Verify that required fields show validation state
-                // Check for HTML5 validation pseudo-class :invalid on required inputs
-                const nameInput = page.getByLabel(/Your name/).first();
-                const emailInput = page.getByLabel(/Your email/).first();
-                const messageInput = page.getByRole('textbox', { name: /Message/ });
-
                 // At least one of the required fields should be in an invalid state
                 // We use evaluate to check the validity state since Playwright doesn't directly expose :invalid
                 const hasInvalidField = await page.evaluate(() => {
