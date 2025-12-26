@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Check if an index exists on a table (MySQL/MariaDB compatible).
+     * Check if an index exists on a table.
+     *
+     * Note: This method uses MySQL/MariaDB-specific INFORMATION_SCHEMA queries.
+     * It is only called in the MySQL/MariaDB code path (not for SQLite).
      */
     private function indexExists(string $table, string $indexName): bool
     {
@@ -23,15 +26,14 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
-     * Supported databases: MySQL/MariaDB, SQLite
+     * Supported databases: MySQL/MariaDB
      *
-     * Note: PostgreSQL is not currently supported by this migration. The raw SQL
-     * statements use MySQL-specific syntax (DROP INDEX ... ON ...,
-     * MODIFY column). If PostgreSQL support is needed, add a condition for
-     * $driver === 'pgsql' with equivalent PostgreSQL syntax:
-     * - ALTER TABLE ... ALTER COLUMN ... TYPE TEXT;
-     * - DROP INDEX IF EXISTS idx_affiliations_name;
-     * - CREATE INDEX idx_affiliations_name ON affiliations (name);
+     * Note: SQLite support is limited - the column type change is a no-op since SQLite
+     * uses dynamic typing, and the index is simply recreated. The indexExists() method
+     * is MySQL-specific but is only called in the MySQL code path.
+     *
+     * PostgreSQL is not currently supported. If needed, add a condition for
+     * $driver === 'pgsql' with equivalent PostgreSQL syntax.
      */
     public function up(): void
     {
