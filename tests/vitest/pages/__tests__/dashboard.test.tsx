@@ -3,9 +3,9 @@ import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { latestVersion } from '@/lib/version';
 import Dashboard, { handleXmlFiles } from '@/pages/dashboard';
-import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
 
 const usePageMock = vi.fn();
 const handleXmlFilesSpy = vi.fn();
