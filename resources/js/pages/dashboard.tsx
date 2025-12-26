@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import { withBasePath } from '@/lib/base-path';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { latestVersion } from '@/lib/version';
 import { changelog as changelogRoute, dashboard, editor as editorRoute } from '@/routes';
@@ -381,7 +380,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                 unicorns.map((unicorn) => (
                     <img
                         key={unicorn.id}
-                        src={withBasePath('/images/unicorn.png')}
+                        src="/images/unicorn.png"
                         alt="🦄"
                         className="pointer-events-none fixed z-50 duration-300 animate-in fade-in zoom-in"
                         style={{

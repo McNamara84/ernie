@@ -3,8 +3,6 @@ import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { normalizeTestUrl } from '@tests/vitest/utils/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { __testing as basePathTesting,applyBasePathToRoutes } from '@/lib/base-path';
 import { latestVersion } from '@/lib/version';
 import Dashboard, { handleXmlFiles } from '@/pages/dashboard';
 import { uploadXml as uploadXmlRoute } from '@/routes/dashboard';
@@ -38,10 +36,8 @@ vi.mock('@/layouts/app-layout', () => ({
 }));
 
 vi.mock('@/routes', async () => {
-    const { withBasePath } = await import('@/lib/base-path');
-
     const makeRoute = (path: string, queryParams?: Record<string, string | number>) => {
-        let url = withBasePath(path);
+        let url = path;
         if (queryParams && Object.keys(queryParams).length > 0) {
             const searchParams = new URLSearchParams();
             Object.entries(queryParams).forEach(([key, value]) => {
@@ -77,7 +73,6 @@ describe('Dashboard', () => {
 
     afterEach(() => {
         document.head.innerHTML = '';
-        basePathTesting.resetBasePathCache();
     });
 
     it('greets the user by name', () => {
@@ -248,7 +243,6 @@ describe('handleXmlFiles', () => {
     beforeEach(() => {
         routerMock.get.mockReset();
         document.head.innerHTML = '<meta name="csrf-token" content="test-token">';
-        basePathTesting.resetBasePathCache();
         document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     });
 
@@ -301,30 +295,6 @@ describe('handleXmlFiles', () => {
         expect(headers['X-XSRF-TOKEN']).toBe('cookie-token');
         expect(routerMock.get).toHaveBeenCalledWith(`/editor?xmlSession=${sessionKey}`);
 
-        fetchMock.mockRestore();
-        routerMock.get.mockReset();
-    });
-
-    it('honors a configured base path for uploads and redirects', async () => {
-        basePathTesting.setMetaBasePath('/ernie');
-        applyBasePathToRoutes({ uploadXml: uploadXmlRoute });
-        const file = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
-        const sessionKey = 'xml_upload_basepath123';
-        const fetchMock = vi
-            .spyOn(global, 'fetch')
-            .mockResolvedValue(
-                {
-                    ok: true,
-                    json: async () => ({ sessionKey }),
-                } as Response,
-            );
-
-        await handleXmlFiles([file]);
-
-        expect(fetchMock).toHaveBeenCalled();
-        const [url] = fetchMock.mock.calls[0];
-        expect(normalizeTestUrl(url as string)).toBe('/ernie/dashboard/upload-xml');
-        expect(routerMock.get).toHaveBeenCalledWith(`/ernie/editor?xmlSession=${sessionKey}`);
         fetchMock.mockRestore();
         routerMock.get.mockReset();
     });

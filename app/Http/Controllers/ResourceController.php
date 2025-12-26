@@ -669,8 +669,8 @@ class ResourceController extends Controller
             ->all();
 
         // Get year range
-        $yearMin = Resource::query()->min('year');
-        $yearMax = Resource::query()->max('year');
+        $yearMin = Resource::query()->min('publication_year');
+        $yearMax = Resource::query()->max('publication_year');
 
         // Available publication statuses
         $statuses = ['curation', 'review', 'published'];

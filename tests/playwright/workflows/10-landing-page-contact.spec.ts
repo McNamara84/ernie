@@ -76,7 +76,7 @@ test.describe('Landing Page Contact Section', () => {
                 // Form fields should be visible
                 await expect(page.getByLabel('Your name')).toBeVisible();
                 await expect(page.getByLabel('Your email')).toBeVisible();
-                await expect(page.getByLabel('Message')).toBeVisible();
+                await expect(page.getByRole('textbox', { name: /^Message/i })).toBeVisible();
             }
         });
 
@@ -136,7 +136,7 @@ test.describe('Landing Page Contact Section', () => {
                 // Fill form with invalid email
                 await page.getByLabel('Your name').fill('Test User');
                 await page.getByLabel('Your email').fill('invalid-email');
-                await page.getByLabel('Message').fill('This is a test message with enough characters.');
+                await page.getByRole('textbox', { name: /^Message/i }).fill('This is a test message with enough characters.');
 
                 // Try to submit
                 await page.click('button:has-text("Send Message")');
@@ -160,7 +160,7 @@ test.describe('Landing Page Contact Section', () => {
                 // Fill form with short message
                 await page.getByLabel('Your name').fill('Test User');
                 await page.getByLabel('Your email').fill('test@example.com');
-                await page.getByLabel('Message').fill('Short');
+                await page.getByRole('textbox', { name: /^Message/i }).fill('Short');
 
                 // Try to submit
                 await page.click('button:has-text("Send Message")');
@@ -228,7 +228,7 @@ test.describe('Landing Page Contact Section', () => {
                 // Fill valid form
                 await page.getByLabel('Your name').fill('E2E Test User');
                 await page.getByLabel('Your email').fill('e2e-test@example.com');
-                await page.getByLabel('Message').fill('This is an automated E2E test message. Please ignore this message if received.');
+                await page.getByRole('textbox', { name: /^Message/i }).fill('This is an automated E2E test message. Please ignore this message if received.');
 
                 // Submit form
                 await page.click('button:has-text("Send Message")');
@@ -252,7 +252,7 @@ test.describe('Landing Page Contact Section', () => {
                 // Fill valid form
                 await page.getByLabel('Your name').fill('E2E Test User');
                 await page.getByLabel('Your email').fill('e2e-test@example.com');
-                await page.getByLabel('Message').fill('This is an automated E2E test message for loading state test.');
+                await page.getByRole('textbox', { name: /^Message/i }).fill('This is an automated E2E test message for loading state test.');
 
                 // Submit and check for loading state
                 const submitButton = page.locator('button:has-text("Send Message")');

@@ -14,7 +14,7 @@ interface FilesSectionProps {
 
 export function FilesSection({ downloadUrl, licenses }: FilesSectionProps) {
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div data-testid="files-section" className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Files</h3>
 
             <div className="space-y-3">
@@ -32,7 +32,7 @@ export function FilesSection({ downloadUrl, licenses }: FilesSectionProps) {
 
                 {/* License Badges */}
                 {licenses.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div data-testid="license-section" className="flex flex-wrap gap-2">
                         {licenses.map((license) => (
                             <a
                                 key={license.id}
@@ -41,7 +41,7 @@ export function FilesSection({ downloadUrl, licenses }: FilesSectionProps) {
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200"
                             >
-                                {license.name}
+                                {license.spdx_id || license.name}
                             </a>
                         ))}
                     </div>

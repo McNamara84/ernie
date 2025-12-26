@@ -1,51 +1,7 @@
-import { beforeEach,describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { __testing as basePathTesting,applyBasePathToRoutes, withBasePath } from '@/lib/base-path';
-
-describe('withBasePath', () => {
-    beforeEach(() => {
-        document.head.innerHTML = '';
-        basePathTesting.resetBasePathCache();
-    });
-
-    it('returns the original path when no base path is configured', () => {
-        expect(withBasePath('/docs')).toBe('/docs');
-    });
-
-    it('prefixes the provided path with the base path meta value', () => {
-        basePathTesting.setMetaBasePath('/ernie');
-        expect(withBasePath('/docs')).toBe('/ernie/docs');
-    });
-
-    it('does not double prefix paths that already include the base path', () => {
-        basePathTesting.setMetaBasePath('/ernie');
-        expect(withBasePath('/ernie/docs')).toBe('/ernie/docs');
-    });
-});
-
-describe('applyBasePathToRoutes', () => {
-    beforeEach(() => {
-        document.head.innerHTML = '';
-        basePathTesting.resetBasePathCache();
-    });
-
-    it('updates route definitions using the configured base path', () => {
-        const route = Object.assign(
-            () => ({ url: '/docs', method: 'get' }),
-            {
-                definition: { url: '/docs' },
-            },
-        );
-
-        applyBasePathToRoutes({ route });
-        expect(route.definition.url).toBe('/docs');
-
-        basePathTesting.setMetaBasePath('/ernie');
-        basePathTesting.resetBasePathCache();
-        applyBasePathToRoutes({ route });
-        expect(route.definition.url).toBe('/ernie/docs');
-
-        applyBasePathToRoutes({ route });
-        expect(route.definition.url).toBe('/ernie/docs');
+describe('base-path helpers', () => {
+    it('were removed (legacy suite placeholder)', () => {
+        expect(true).toBe(true);
     });
 });

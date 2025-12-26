@@ -22,7 +22,7 @@ class InstitutionFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->company(),
+            'name' => $this->faker->company(),
             'name_identifier' => null,
             'name_identifier_scheme' => null,
             'scheme_uri' => null,
@@ -35,7 +35,7 @@ class InstitutionFactory extends Factory
     public function withRor(?string $ror = null): static
     {
         return $this->state(fn (array $attributes) => [
-            'name_identifier' => $ror ?? 'https://ror.org/'.fake()->regexify('[0-9a-z]{9}'),
+            'name_identifier' => $ror ?? 'https://ror.org/'.$this->faker->regexify('[0-9a-z]{9}'),
             'name_identifier_scheme' => 'ROR',
             'scheme_uri' => 'https://ror.org/',
         ]);

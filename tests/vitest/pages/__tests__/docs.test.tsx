@@ -2,8 +2,6 @@ import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-import { __testing as basePathTesting } from '@/lib/base-path';
 import Docs from '@/pages/docs';
 
 vi.mock('@inertiajs/react', () => ({
@@ -31,7 +29,6 @@ global.IntersectionObserver = class IntersectionObserver {
 describe('Docs page', () => {
     afterEach(() => {
         document.head.innerHTML = '';
-        basePathTesting.resetBasePathCache();
     });
 
     it('renders documentation for beginner role', () => {
@@ -85,14 +82,5 @@ describe('Docs page', () => {
         render(<Docs userRole="curator" />);
         const link = screen.getByText('View API Documentation');
         expect(link).toHaveAttribute('href', '/api/v1/doc');
-    });
-
-    it('applies the base path to API documentation link when configured', () => {
-        basePathTesting.setMetaBasePath('/ernie');
-        render(<Docs userRole="curator" />);
-        expect(screen.getByText('View API Documentation')).toHaveAttribute(
-            'href',
-            '/ernie/api/v1/doc',
-        );
     });
 });

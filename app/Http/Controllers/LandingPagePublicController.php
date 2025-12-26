@@ -20,6 +20,19 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 class LandingPagePublicController extends Controller
 {
     /**
+     * Display a public landing page by landing page slug.
+     */
+    public function showBySlug(Request $request, string $slug): Response
+    {
+        $landingPage = LandingPage::where('slug', $slug)->first();
+
+        // Landing page must exist
+        abort_if(! $landingPage, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+
+        return $this->show($request, (int) $landingPage->resource_id);
+    }
+
+    /**
      * Display a public landing page for a resource
      */
     public function show(Request $request, int $resourceId): Response

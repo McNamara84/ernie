@@ -5,7 +5,6 @@ import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/com
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
-import { withBasePath } from '@/lib/base-path';
 import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
@@ -85,14 +84,14 @@ export default function Editor({
 
     useEffect(() => {
         Promise.all([
-            fetch(withBasePath('/api/v1/resource-types/ernie')),
-            fetch(withBasePath('/api/v1/title-types/ernie')),
-            fetch(withBasePath('/api/v1/date-types/ernie')),
-            fetch(withBasePath('/api/v1/licenses/ernie')),
-            fetch(withBasePath('/api/v1/languages/ernie')),
-            fetch(withBasePath('/api/v1/roles/contributor-persons/ernie')),
-            fetch(withBasePath('/api/v1/roles/contributor-institutions/ernie')),
-            fetch(withBasePath('/api/v1/roles/authors/ernie')),
+            fetch('/api/v1/resource-types/ernie'),
+            fetch('/api/v1/title-types/ernie'),
+            fetch('/api/v1/date-types/ernie'),
+            fetch('/api/v1/licenses/ernie'),
+            fetch('/api/v1/languages/ernie'),
+            fetch('/api/v1/roles/contributor-persons/ernie'),
+            fetch('/api/v1/roles/contributor-institutions/ernie'),
+            fetch('/api/v1/roles/authors/ernie'),
         ])
             .then(async ([resTypes, titleRes, dateRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
                 if (

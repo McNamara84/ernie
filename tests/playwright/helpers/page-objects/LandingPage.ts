@@ -60,6 +60,30 @@ export class LandingPage {
   constructor(page: Page) {
     this.page = page;
 
+    const pageWithDebug = page as Page & { __landingPageDebugHooksInstalled?: boolean };
+    if (!pageWithDebug.__landingPageDebugHooksInstalled) {
+      pageWithDebug.__landingPageDebugHooksInstalled = true;
+      page.on('pageerror', (error) => {
+        // Intentionally no rethrow: we just want visibility in test output
+        // eslint-disable-next-line no-console
+        console.error('[Playwright][pageerror]', error.message);
+      });
+      page.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          // eslint-disable-next-line no-console
+          console.error('[Playwright][console.error]', msg.text());
+        }
+      });
+
+      page.on('response', (response) => {
+        const status = response.status();
+        if (status >= 500) {
+          // eslint-disable-next-line no-console
+          console.error('[Playwright][response]', status, response.url());
+        }
+      });
+    }
+
     // Header elements
     this.title = page.locator('h1').first();
     this.doi = page.locator('[data-testid="doi-badge"], a[href*="doi.org"]').first();

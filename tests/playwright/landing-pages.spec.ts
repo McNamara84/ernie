@@ -12,7 +12,9 @@ import { LandingPage } from './helpers/page-objects/LandingPage';
  * - Maps and interactive elements work
  * - Edge cases (no data) are handled gracefully
  *
- * Prerequisites: Run `php artisan db:seed --class=ResourceTestDataSeeder` before testing.
+ * Prerequisites:
+ * - Docker E2E (`npm run test:e2e:docker`): seeded automatically via Playwright global setup.
+ * - Local E2E (`npm run test:e2e`): run `php artisan db:seed --class=ResourceTestDataSeeder` before testing.
  */
 
 test.describe('Landing Page - Basic Display', () => {

@@ -7,14 +7,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    private function dropIndexIfExistsMySql(string $table, string $indexName): void
+    {
+        $exists = DB::table('information_schema.statistics')
+            ->where('table_schema', DB::raw('DATABASE()'))
+            ->where('table_name', $table)
+            ->where('index_name', $indexName)
+            ->exists();
+
+        if ($exists) {
+            DB::statement("DROP INDEX {$indexName} ON {$table}");
+        }
+    }
+
     /**
      * Run the migrations.
      *
      * Supported databases: MySQL/MariaDB, SQLite
      *
-     * Note: PostgreSQL is not currently supported by this migration. The raw SQL
-     * statements use MySQL-specific syntax (DROP INDEX IF EXISTS ... ON ...,
-     * MODIFY column). If PostgreSQL support is needed, add a condition for
+    * Note: PostgreSQL is not currently supported by this migration. The raw SQL
+    * statements use MySQL-specific syntax (DROP INDEX ... ON ..., MODIFY column).
+    * If PostgreSQL support is needed, add a condition for
      * $driver === 'pgsql' with equivalent PostgreSQL syntax:
      * - ALTER TABLE ... ALTER COLUMN ... TYPE TEXT;
      * - DROP INDEX IF EXISTS idx_affiliations_name;
@@ -27,17 +40,20 @@ return new class extends Migration
         if ($driver === 'sqlite') {
             // SQLite doesn't support modifying columns, but TEXT is the default for strings anyway
             // Just drop and recreate the index (SQLite syntax differs from MySQL)
-            Schema::table('affiliations', function (Blueprint $table) {
-                $table->dropIndex('idx_affiliations_name');
-            });
+            try {
+                Schema::table('affiliations', function (Blueprint $table) {
+                    $table->dropIndex('idx_affiliations_name');
+                });
+            } catch (\Throwable) {
+                // ignore
+            }
             // SQLite doesn't support prefix indexes, so just recreate without prefix
             Schema::table('affiliations', function (Blueprint $table) {
                 $table->index('name', 'idx_affiliations_name');
             });
         } else {
             // MySQL/MariaDB: Need to drop index, modify column, recreate with prefix
-            // Use IF EXISTS to handle cases where index might not exist (e.g., failed migration, manual changes)
-            DB::statement('DROP INDEX IF EXISTS idx_affiliations_name ON affiliations');
+            $this->dropIndexIfExistsMySql('affiliations', 'idx_affiliations_name');
             DB::statement('ALTER TABLE affiliations MODIFY name TEXT NOT NULL');
             DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name(191))');
         }
@@ -61,8 +77,7 @@ return new class extends Migration
             // MySQL/MariaDB: Revert to VARCHAR(255)
             // Note: Original schema used a regular index on VARCHAR(255), which doesn't require a prefix.
             // This correctly restores the previous state.
-            // Use IF EXISTS to handle cases where index might not exist
-            DB::statement('DROP INDEX IF EXISTS idx_affiliations_name ON affiliations');
+            $this->dropIndexIfExistsMySql('affiliations', 'idx_affiliations_name');
             DB::statement('ALTER TABLE affiliations MODIFY name VARCHAR(255) NOT NULL');
             DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name)');
         }

@@ -29,10 +29,10 @@ class RightFactory extends Factory
             ['identifier' => 'Apache-2.0', 'name' => 'Apache License 2.0', 'uri' => 'https://www.apache.org/licenses/LICENSE-2.0'],
         ];
 
-        $license = fake()->randomElement($licenses);
+        $license = $this->faker->randomElement($licenses);
 
         return [
-            'identifier' => $license['identifier'].'-'.fake()->unique()->randomNumber(5),
+            'identifier' => $license['identifier'].'-'.$this->faker->unique()->randomNumber(5),
             'name' => $license['name'],
             'uri' => $license['uri'],
             'scheme_uri' => 'https://spdx.org/licenses/',

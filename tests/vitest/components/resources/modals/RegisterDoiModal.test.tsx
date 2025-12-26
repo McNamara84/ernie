@@ -23,11 +23,6 @@ vi.mock('sonner', () => ({
     },
 }));
 
-// Mock withBasePath
-vi.mock('@/lib/base-path', () => ({
-    withBasePath: (path: string) => path,
-}));
-
 // Mock Inertia usePage
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();

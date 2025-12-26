@@ -19,18 +19,18 @@ class LandingPageFactory extends Factory
      */
     public function definition(): array
     {
-        $isPublished = fake()->boolean(50);
+        $isPublished = $this->faker->boolean(50);
 
         return [
             'resource_id' => Resource::factory(),
-            'slug' => fake()->unique()->slug(),
+            'slug' => $this->faker->unique()->slug(),
             'template' => 'default_gfz', // Only template that exists currently
-            'ftp_url' => fake()->optional(0.3)->url(),
+            'ftp_url' => $this->faker->optional(0.3)->url(),
             'is_published' => $isPublished,
             'preview_token' => Str::random(64),
-            'published_at' => $isPublished ? fake()->dateTimeBetween('-1 year', 'now') : null,
-            'view_count' => fake()->numberBetween(0, 1000),
-            'last_viewed_at' => fake()->optional(0.7)->dateTimeBetween('-1 month', 'now'),
+            'published_at' => $isPublished ? $this->faker->dateTimeBetween('-1 year', 'now') : null,
+            'view_count' => $this->faker->numberBetween(0, 1000),
+            'last_viewed_at' => $this->faker->optional(0.7)->dateTimeBetween('-1 month', 'now'),
         ];
     }
 

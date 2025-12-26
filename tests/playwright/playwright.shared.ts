@@ -14,6 +14,8 @@
 export const testMatchPatterns = [
   // Critical smoke tests run first
   'tests/playwright/critical/**/*.spec.ts',
+  // Root-level specs (e.g. landing-pages, authors-contributors)
+  'tests/playwright/*.spec.ts',
   // Workflow tests (excluding user-management)
   'tests/playwright/workflows/!(user-management).spec.ts',
   // Accessibility tests

@@ -1,12 +1,14 @@
 <?php
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 
 use function Pest\Laravel\getJson;
 
 beforeEach(function () {
     config(['services.elmo.api_key' => null]);
     Storage::fake();
+    Cache::flush();
 });
 
 function createTestInstrumentsVocabularyFile(): void

@@ -10,7 +10,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import { withBasePath } from '@/lib/base-path';
 import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { hasValidDateValue } from '@/lib/date-utils';
 import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
@@ -903,9 +902,9 @@ export default function DataCiteForm({
         const loadVocabularies = async () => {
             try {
                 const [scienceRes, platformsRes, instrumentsRes] = await Promise.all([
-                    fetch(withBasePath('/vocabularies/gcmd-science-keywords')),
-                    fetch(withBasePath('/vocabularies/gcmd-platforms')),
-                    fetch(withBasePath('/vocabularies/gcmd-instruments')),
+                    fetch('/vocabularies/gcmd-science-keywords'),
+                    fetch('/vocabularies/gcmd-platforms'),
+                    fetch('/vocabularies/gcmd-instruments'),
                 ]);
 
                 if (!scienceRes.ok || !platformsRes.ok || !instrumentsRes.ok) {
@@ -958,7 +957,7 @@ export default function DataCiteForm({
         if (shouldShowMSLSection && gcmdVocabularies.msl.length === 0) {
             const loadMslVocabulary = async () => {
                 try {
-                    const response = await fetch(withBasePath('/vocabularies/msl'));
+                    const response = await fetch('/vocabularies/msl');
 
                     if (!response.ok) {
                         console.error('Failed to load MSL vocabulary', response.status);
@@ -1663,7 +1662,7 @@ export default function DataCiteForm({
         }
     }, [errorMessage]);
 
-    const saveUrl = useMemo(() => withBasePath('/editor/resources'), []);
+    const saveUrl = useMemo(() => '/editor/resources', []);
 
     const resolvedResourceId = useMemo(() => {
         if (!initialResourceId) {

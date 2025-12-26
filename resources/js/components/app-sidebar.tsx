@@ -5,7 +5,6 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { withBasePath } from '@/lib/base-path';
 import { dashboard, settings } from '@/routes';
 import { type NavItem,type User as AuthUser } from '@/types';
 
@@ -22,35 +21,35 @@ export function AppSidebar() {
         },
         {
             title: 'Data Editor',
-            href: withBasePath('/editor'),
+            href: '/editor',
             icon: FileText,
             separator: true,
         },
         {
             title: 'Old Datasets',
-            href: withBasePath('/old-datasets'),
+            href: '/old-datasets',
             icon: Database,
         },
         {
             title: 'Statistics (old)',
-            href: withBasePath('/old-statistics'),
+            href: '/old-statistics',
             icon: BarChart3,
         },
         {
             title: 'Resources',
-            href: withBasePath('/resources'),
+            href: '/resources',
             icon: Layers,
         },
         {
             title: 'IGSNs',
-            href: withBasePath('/igsns'),
+            href: '/igsns',
             icon: FlaskConical,
             disabled: true,
             separator: true,
         },
         {
             title: 'IGSN Editor',
-            href: withBasePath('/igsn-editor'),
+            href: '/igsn-editor',
             icon: ClipboardEdit,
             disabled: true,
         },
@@ -62,7 +61,7 @@ export function AppSidebar() {
             ? [
                   {
                       title: 'Users',
-                      href: withBasePath('/users'),
+                      href: '/users',
                       icon: Users,
                   } as NavItem,
               ]
@@ -74,12 +73,12 @@ export function AppSidebar() {
         },
         {
             title: 'Changelog',
-            href: withBasePath('/changelog'),
+            href: '/changelog',
             icon: History,
         },
         {
             title: 'Documentation',
-            href: withBasePath('/docs'),
+            href: '/docs',
             icon: BookOpen,
         },
     ];

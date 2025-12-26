@@ -24,7 +24,7 @@ class SubjectFactory extends Factory
     {
         return [
             'resource_id' => Resource::factory(),
-            'value' => fake()->word(),
+            'value' => $this->faker->word(),
             'language' => 'en',
             'subject_scheme' => null,
             'scheme_uri' => null,
@@ -42,7 +42,7 @@ class SubjectFactory extends Factory
             'value' => 'EARTH SCIENCE > ATMOSPHERE > ATMOSPHERIC CHEMISTRY',
             'subject_scheme' => 'GCMD Science Keywords',
             'scheme_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concepts/concept_scheme/sciencekeywords',
-            'value_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/'.fake()->uuid(),
+            'value_uri' => 'https://gcmd.earthdata.nasa.gov/kms/concept/'.$this->faker->uuid(),
         ]);
     }
 
@@ -55,7 +55,7 @@ class SubjectFactory extends Factory
             'value' => 'Geochemistry',
             'subject_scheme' => 'MSL Vocabularies',
             'scheme_uri' => 'https://epos-msl.uu.nl/voc/',
-            'value_uri' => 'https://epos-msl.uu.nl/voc/'.fake()->uuid(),
+            'value_uri' => 'https://epos-msl.uu.nl/voc/'.$this->faker->uuid(),
         ]);
     }
 }

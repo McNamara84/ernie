@@ -8,12 +8,13 @@ import { testIgnorePatterns, testMatchPatterns, timeoutSettings } from './tests/
  * Usage: npx playwright test --config=playwright.docker.config.ts
  * 
  * This configuration:
- * - Uses https://localhost:3333/ernie/ as base URL
+ * - Uses https://localhost:3333/ as base URL
  * - Ignores self-signed certificate errors
  * - No webServer (Docker containers are already running)
  */
 export default defineConfig({
   testDir: './tests/playwright',
+  globalSetup: './tests/playwright/global-setup-docker.ts',
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -23,7 +24,7 @@ export default defineConfig({
   /* Workers - use fewer workers since Docker may have limited resources */
   workers: 2,
   /* Reporter to use */
-  reporter: 'html',
+  reporter: process.env.PLAYWRIGHT_REPORTER ?? (process.env.CI ? 'github' : 'line'),
   /* Global timeout for each test */
   timeout: timeoutSettings.testTimeout,
   /* Global timeout for expect() */
@@ -39,8 +40,8 @@ export default defineConfig({
   
   /* Shared settings for all the projects below */
   use: {
-    /* Docker development URL with /ernie prefix */
-    baseURL: 'https://localhost:3333/ernie',
+    /* Docker development URL */
+    baseURL: 'https://localhost:3333',
 
     /* Accept self-signed certificates */
     ignoreHTTPSErrors: true,

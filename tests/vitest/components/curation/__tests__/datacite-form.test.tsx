@@ -321,12 +321,9 @@ describe('DataCiteForm', () => {
             status: 200,
             json: () => Promise.resolve([]),
         } as Response;
-        
-        (global.fetch as unknown as ReturnType<typeof vi.fn>)
-            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-science-keywords
-            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-platforms
-            .mockResolvedValueOnce(emptyVocabularyResponse) // gcmd-instruments
-            .mockResolvedValueOnce(emptyVocabularyResponse); // ror-funders
+
+        // Return an empty list for any controlled vocabulary fetch.
+        (global.fetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(emptyVocabularyResponse);
         
         document.head.innerHTML = '<meta name="csrf-token" content="test-csrf-token">';
         clearXsrfCookie();

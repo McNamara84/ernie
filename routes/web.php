@@ -54,6 +54,9 @@ Route::get('/changelog', function () {
 })->name('changelog');
 
 // Public Landing Pages (accessible without authentication)
+Route::get('landing/{slug}', [LandingPagePublicController::class, 'showBySlug'])
+    ->name('landing-page.show-by-slug');
+
 Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
     ->where('resourceId', '[0-9]+');
