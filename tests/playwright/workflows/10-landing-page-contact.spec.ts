@@ -119,6 +119,20 @@ test.describe('Landing Page Contact Section', () => {
 
                 // Verify the form is still open (not submitted) due to validation
                 await expect(page.locator('text=Contact Request')).toBeVisible();
+
+                // Verify that required fields show validation state
+                // Check for HTML5 validation pseudo-class :invalid on required inputs
+                const nameInput = page.getByLabel(/Your name/).first();
+                const emailInput = page.getByLabel(/Your email/).first();
+                const messageInput = page.getByRole('textbox', { name: /Message/ });
+
+                // At least one of the required fields should be in an invalid state
+                // We use evaluate to check the validity state since Playwright doesn't directly expose :invalid
+                const hasInvalidField = await page.evaluate(() => {
+                    const inputs = document.querySelectorAll('input:required, textarea:required');
+                    return Array.from(inputs).some(input => !(input as HTMLInputElement).validity.valid);
+                });
+                expect(hasInvalidField).toBe(true);
             }
         });
 
@@ -135,16 +149,23 @@ test.describe('Landing Page Contact Section', () => {
 
                 // Fill form with invalid email (fill all required fields to bypass browser validation on name/message)
                 await page.getByLabel(/Your name/).first().fill('Test User');
-                await page.getByLabel(/Your email/).first().fill('invalid-email');
+                const emailInput = page.getByLabel(/Your email/).first();
+                await emailInput.fill('invalid-email');
                 // Use more specific selector to avoid matching checkbox label
                 await page.getByRole('textbox', { name: /Message/ }).fill('This is a test message with enough characters.');
 
                 // Try to submit
                 await page.click('button:has-text("Send Message")');
 
-                // Browser's native email validation or our custom validation should show an error
-                // The form should remain open since validation failed
+                // Verify the form is still open since validation failed
                 await expect(page.locator('text=Contact Request')).toBeVisible();
+
+                // Verify the email field is in an invalid validation state
+                // Check for HTML5 validation or custom validation error
+                const emailIsInvalid = await emailInput.evaluate((input: HTMLInputElement) => {
+                    return !input.validity.valid || input.getAttribute('aria-invalid') === 'true';
+                });
+                expect(emailIsInvalid).toBe(true);
             }
         });
 
