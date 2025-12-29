@@ -101,7 +101,7 @@ interface TitleEntry {
 
 const MAIN_TITLE_SLUG = 'main-title';
 
-const normaliseTitleTypeSlug = (value: string | null | undefined): string => {
+const normalizeTitleTypeSlug = (value: string | null | undefined): string => {
     if (!value) {
         return '';
     }
@@ -111,7 +111,7 @@ const normaliseTitleTypeSlug = (value: string | null | undefined): string => {
         return '';
     }
 
-    // Convert TitleCase/PascalCase to kebab-case, then normalise.
+    // Convert TitleCase/PascalCase to kebab-case, then normalize.
     // Examples: MainTitle -> main-title, AlternativeTitle -> alternative-title
     const withHyphens = trimmed.replace(/([a-z0-9])([A-Z])/g, '$1-$2');
 
@@ -581,8 +581,8 @@ export default function DataCiteForm({
         let mainTitleAssigned = false;
 
         return initialTitles.map((t, index) => {
-            const normalised = normaliseTitleTypeSlug(t.titleType);
-            const wantsMainTitle = normalised === MAIN_TITLE_SLUG || (!normalised && index === 0);
+            const normalized = normalizeTitleTypeSlug(t.titleType);
+            const wantsMainTitle = normalized === MAIN_TITLE_SLUG || (!normalized && index === 0);
 
             if (wantsMainTitle && !mainTitleAssigned) {
                 mainTitleAssigned = true;
@@ -596,7 +596,7 @@ export default function DataCiteForm({
             return {
                 id: crypto.randomUUID(),
                 title: t.title,
-                titleType: normalised || defaultSecondaryType,
+                titleType: normalized || defaultSecondaryType,
             };
         });
     });

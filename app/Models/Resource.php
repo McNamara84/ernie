@@ -251,7 +251,12 @@ class Resource extends Model
      */
     public function getMainTitleAttribute(): ?string
     {
-        $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
+        $mainTitle = $this->titles->first(fn (Title $t) => $t->title_type_id === null);
+
+        if ($mainTitle === null) {
+            $this->loadMissing('titles.titleType');
+            $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
+        }
 
         return $mainTitle?->value;
     }
