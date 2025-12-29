@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { initializeFontSize } from './hooks/use-font-size';
 import { buildCsrfHeaders } from './lib/csrf-token';
+import { normalizeUrlLike } from './lib/url-normalizer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -32,6 +33,32 @@ applyAxiosCsrfHeaders();
 // Add axios interceptor to refresh CSRF token on each request
 axios.interceptors.request.use(
     function (config) {
+        if (typeof config.baseURL === 'string') {
+            const normalizedBaseUrl = normalizeUrlLike(config.baseURL);
+
+            if (normalizedBaseUrl !== config.baseURL && import.meta.env.DEV) {
+                console.debug('[Axios] Normalized baseURL', {
+                    from: config.baseURL,
+                    to: normalizedBaseUrl,
+                });
+            }
+
+            config.baseURL = normalizedBaseUrl;
+        }
+
+        if (typeof config.url === 'string') {
+            const normalizedUrl = normalizeUrlLike(config.url);
+
+            if (normalizedUrl !== config.url && import.meta.env.DEV) {
+                console.debug('[Axios] Normalized url', {
+                    from: config.url,
+                    to: normalizedUrl,
+                });
+            }
+
+            config.url = normalizedUrl;
+        }
+
         // Get fresh CSRF token for each request
         const freshHeaders = buildCsrfHeaders();
         config.headers = config.headers ?? {};
