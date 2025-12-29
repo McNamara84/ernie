@@ -2,11 +2,13 @@
 
 namespace App\Http\Requests;
 
+use App\Models\TitleType;
 use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Illuminate\Support\Str;
 
 class StoreResourceRequest extends FormRequest
 {
@@ -144,6 +146,17 @@ class StoreResourceRequest extends FormRequest
         /** @var array<int, array<string, mixed>|mixed> $rawTitles */
         $rawTitles = $this->input('titles', []);
 
+        /**
+         * Accept both kebab-case (frontend/API) and legacy TitleCase DB slugs.
+         * We map the incoming value to the actual DB slug so the exists() rule can validate.
+         *
+         * @var array<string, string> $titleTypeSlugLookup
+         */
+        $titleTypeSlugLookup = TitleType::query()
+            ->pluck('slug')
+            ->mapWithKeys(fn (string $slug): array => [Str::kebab($slug) => $slug])
+            ->all();
+
         $titles = [];
 
         foreach ($rawTitles as $title) {
@@ -151,9 +164,15 @@ class StoreResourceRequest extends FormRequest
                 $title = [];
             }
 
+            $titleType = isset($title['titleType']) ? trim((string) $title['titleType']) : null;
+            if ($titleType !== null && $titleType !== '') {
+                $normalised = Str::kebab($titleType);
+                $titleType = $titleTypeSlugLookup[$normalised] ?? $titleType;
+            }
+
             $titles[] = [
                 'title' => isset($title['title']) ? trim((string) $title['title']) : null,
-                'titleType' => isset($title['titleType']) ? trim((string) $title['titleType']) : null,
+                'titleType' => $titleType,
             ];
         }
 
@@ -694,7 +713,8 @@ class StoreResourceRequest extends FormRequest
                         continue;
                     }
 
-                    if (($title['titleType'] ?? null) === 'main-title') {
+                    $candidate = $title['titleType'] ?? null;
+                    if (is_string($candidate) && Str::kebab($candidate) === 'main-title') {
                         $hasMainTitle = true;
                         break;
                     }

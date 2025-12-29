@@ -146,7 +146,7 @@ class ResourceController extends Controller
 
                 $attributes = [
                     'doi' => $validated['doi'] ?? null,
-                    'year' => $validated['year'],
+                    'publication_year' => $validated['year'],
                     'resource_type_id' => $validated['resourceType'],
                     'version' => $validated['version'] ?? null,
                     'language_id' => $languageId,
@@ -214,21 +214,16 @@ class ResourceController extends Controller
 
                 $resource->titles()->createMany($resourceTitles);
 
-                // Delete existing rights and create new ones based on the validated licenses
-                $resource->rights()->delete();
+                // Sync rights (pivot table) based on the validated license identifiers.
                 $licenseIdentifiers = $validated['licenses'] ?? [];
-                foreach ($licenseIdentifiers as $licenseIdentifier) {
-                    $rightData = Right::query()
-                        ->where('identifier', $licenseIdentifier)
-                        ->first();
-                    if ($rightData) {
-                        $resource->rights()->create([
-                            'identifier' => $rightData->identifier,
-                            'name' => $rightData->name,
-                            'uri' => $rightData->uri,
-                        ]);
-                    }
-                }
+
+                /** @var array<int, int> $rightsIds */
+                $rightsIds = Right::query()
+                    ->whereIn('identifier', $licenseIdentifiers)
+                    ->pluck('id')
+                    ->all();
+
+                $resource->rights()->sync($rightsIds);
 
                 $resource->creators()->delete();
 
