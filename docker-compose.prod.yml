@@ -17,6 +17,10 @@ services:
       - APP_URL=https://ernie.rz-vm499.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
+      - DATACITE_ENDPOINT=${DATACITE_ENDPOINT:-https://api.datacite.org}
+      - DATACITE_CLIENT_ID=${DATACITE_CLIENT_ID:-tib.gfz}
+      - DATACITE_USERNAME=${DATACITE_USERNAME}
+      - DATACITE_PASSWORD=${DATACITE_PASSWORD}
       - SESSION_DRIVER=file
       - SESSION_LIFETIME=120
       - SESSION_PATH=/
@@ -109,6 +113,10 @@ services:
       - APP_URL=https://ernie.rz-vm499.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
+      - DATACITE_ENDPOINT=${DATACITE_ENDPOINT:-https://api.datacite.org}
+      - DATACITE_CLIENT_ID=${DATACITE_CLIENT_ID:-tib.gfz}
+      - DATACITE_USERNAME=${DATACITE_USERNAME}
+      - DATACITE_PASSWORD=${DATACITE_PASSWORD}
       - DB_HOST=db
       - DB_DATABASE=${DB_DATABASE}
       - DB_USERNAME=${DB_USERNAME}
