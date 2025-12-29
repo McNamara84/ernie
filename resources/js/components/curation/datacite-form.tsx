@@ -922,11 +922,13 @@ export default function DataCiteForm({
                     instrumentsRes.json(),
                 ]);
 
-                console.log('Loaded GCMD vocabularies:', {
-                    science: scienceData.data?.length || 0,
-                    platforms: platformsData.data?.length || 0,
-                    instruments: instrumentsData.data?.length || 0,
-                });
+                if (import.meta.env.DEV) {
+                    console.debug('Loaded GCMD vocabularies:', {
+                        science: scienceData.data?.length || 0,
+                        platforms: platformsData.data?.length || 0,
+                        instruments: instrumentsData.data?.length || 0,
+                    });
+                }
 
                 setGcmdVocabularies({
                     science: scienceData.data || [],
@@ -965,7 +967,10 @@ export default function DataCiteForm({
                     }
 
                     const data = await response.json();
-                    console.log('Loaded MSL vocabulary:', data.length || 0, 'root nodes');
+
+                    if (import.meta.env.DEV) {
+                        console.debug('Loaded MSL vocabulary:', data.length || 0, 'root nodes');
+                    }
 
                     setGcmdVocabularies((prev) => ({
                         ...prev,

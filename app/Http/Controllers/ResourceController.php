@@ -31,6 +31,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -637,40 +638,86 @@ class ResourceController extends Controller
      */
     public function getFilterOptions(): JsonResponse
     {
+        $resourceTypes = [];
+        $curators = [];
+        $yearMin = null;
+        $yearMax = null;
+
         // Get distinct resource types
-        $resourceTypes = \App\Models\ResourceType::query()
-            ->whereHas('resources')
-            ->orderBy('name')
-            ->get(['name', 'slug'])
-            ->map(fn ($type) => ['name' => $type->name, 'slug' => $type->slug])
-            ->all();
+        try {
+            $resourceTypes = \App\Models\ResourceType::query()
+                ->whereHas('resources')
+                ->orderBy('name')
+                ->get(['name', 'slug'])
+                ->map(fn ($type) => ['name' => $type->name, 'slug' => $type->slug])
+                ->all();
+        } catch (Throwable $e) {
+            Log::warning('Failed to load resource type filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         // Get distinct curators (users who updated or created resources)
         // Prioritize updatedBy, fallback to createdBy if never updated
-        $updatedByIds = Resource::query()
-            ->whereNotNull('updated_by_user_id')
-            ->distinct()
-            ->pluck('updated_by_user_id');
+        try {
+            $resourceQuery = Resource::query();
+            $hasUpdatedBy = Schema::hasColumn('resources', 'updated_by_user_id');
+            $hasCreatedBy = Schema::hasColumn('resources', 'created_by_user_id');
 
-        $createdByIdsWithoutUpdates = Resource::query()
-            ->whereNull('updated_by_user_id')
-            ->whereNotNull('created_by_user_id')
-            ->distinct()
-            ->pluck('created_by_user_id');
+            $updatedByIds = collect();
+            $createdByIdsWithoutUpdates = collect();
 
-        $curatorIds = $updatedByIds->merge($createdByIdsWithoutUpdates)->unique();
+            if ($hasUpdatedBy) {
+                $updatedByIds = (clone $resourceQuery)
+                    ->whereNotNull('updated_by_user_id')
+                    ->distinct()
+                    ->pluck('updated_by_user_id');
+            }
 
-        $curators = User::query()
-            ->whereIn('id', $curatorIds)
-            ->orderBy('name')
-            ->pluck('name')
-            ->unique()
-            ->values()
-            ->all();
+            if ($hasCreatedBy) {
+                $createdByQuery = clone $resourceQuery;
+
+                if ($hasUpdatedBy) {
+                    $createdByQuery->whereNull('updated_by_user_id');
+                }
+
+                $createdByIdsWithoutUpdates = $createdByQuery
+                    ->whereNotNull('created_by_user_id')
+                    ->distinct()
+                    ->pluck('created_by_user_id');
+            }
+
+            $curatorIds = $updatedByIds->merge($createdByIdsWithoutUpdates)->unique()->values();
+
+            if ($curatorIds->isNotEmpty()) {
+                $curators = User::query()
+                    ->whereIn('id', $curatorIds->all())
+                    ->orderBy('name')
+                    ->pluck('name')
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
+        } catch (Throwable $e) {
+            Log::warning('Failed to load curator filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         // Get year range
-        $yearMin = Resource::query()->min('year');
-        $yearMax = Resource::query()->max('year');
+        try {
+            if (Schema::hasColumn('resources', 'year')) {
+                $yearMin = Resource::query()->min('year');
+                $yearMax = Resource::query()->max('year');
+            }
+        } catch (Throwable $e) {
+            Log::warning('Failed to load year range filter options', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         // Available publication statuses
         $statuses = ['curation', 'review', 'published'];
