@@ -386,11 +386,15 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                     <Input
                                         id="year-from"
                                         type="number"
-                                        placeholder={filterOptions?.year_range?.min.toString()}
+                                        placeholder={
+                                            filterOptions?.year_range?.min === null || filterOptions?.year_range?.min === undefined
+                                                ? undefined
+                                                : String(filterOptions.year_range.min)
+                                        }
                                         value={filters.year_from || ''}
                                         onChange={(e) => handleYearFromChange(e.target.value)}
-                                        min={filterOptions?.year_range?.min}
-                                        max={filterOptions?.year_range?.max}
+                                        min={filterOptions?.year_range?.min ?? undefined}
+                                        max={filterOptions?.year_range?.max ?? undefined}
                                         className="h-9"
                                     />
                                 </div>
@@ -401,11 +405,15 @@ export function ResourcesFilters({ filters, onFilterChange, filterOptions, resul
                                     <Input
                                         id="year-to"
                                         type="number"
-                                        placeholder={filterOptions?.year_range?.max.toString()}
+                                        placeholder={
+                                            filterOptions?.year_range?.max === null || filterOptions?.year_range?.max === undefined
+                                                ? undefined
+                                                : String(filterOptions.year_range.max)
+                                        }
                                         value={filters.year_to || ''}
                                         onChange={(e) => handleYearToChange(e.target.value)}
-                                        min={filterOptions?.year_range?.min}
-                                        max={filterOptions?.year_range?.max}
+                                        min={filterOptions?.year_range?.min ?? undefined}
+                                        max={filterOptions?.year_range?.max ?? undefined}
                                         className="h-9"
                                     />
                                 </div>

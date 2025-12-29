@@ -712,6 +712,14 @@ class ResourceController extends Controller
                 $yearMin = Resource::query()->min('year');
                 $yearMax = Resource::query()->max('year');
             }
+
+            // When there are no resources yet, min/max can be null.
+            // Keep the API shape stable (numbers) to avoid frontend crashes.
+            if ($yearMin === null || $yearMax === null) {
+                $currentYear = (int) now()->year;
+                $yearMin = $currentYear;
+                $yearMax = $currentYear;
+            }
         } catch (Throwable $e) {
             Log::warning('Failed to load year range filter options', [
                 'exception' => $e::class,
