@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\UrlNormalizer;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -18,8 +19,8 @@ class SetUrlRoot
     {
         // In production, always set the correct URL root
         if (app()->environment('production')) {
-            $appUrl = config('app.url');
-            if ($appUrl) {
+            $appUrl = UrlNormalizer::normalizeAppUrl(config('app.url'));
+            if ($appUrl !== null) {
                 URL::forceRootUrl($appUrl);
 
                 // Force HTTPS scheme if the app URL uses HTTPS

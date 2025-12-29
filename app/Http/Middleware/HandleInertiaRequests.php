@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\UrlNormalizer;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -72,8 +73,8 @@ class HandleInertiaRequests extends Middleware
         try {
             // In production behind proxy, use the configured URL
             if (app()->environment('production')) {
-                $appUrl = config('app.url');
-                if ($appUrl) {
+                $appUrl = UrlNormalizer::normalizeAppUrl(config('app.url'));
+                if ($appUrl !== null) {
                     return $appUrl;
                 }
             }
@@ -93,17 +94,19 @@ class HandleInertiaRequests extends Middleware
         try {
             // In production, extract path prefix from configured URL
             if (app()->environment('production')) {
-                $appUrl = config('app.url');
-                if ($appUrl) {
+                $appUrl = UrlNormalizer::normalizeAppUrl(config('app.url'));
+                if ($appUrl !== null) {
                     $parsedUrl = parse_url($appUrl);
+                    $path = $parsedUrl['path'] ?? '';
+                    $path = rtrim($path, '/');
 
-                    return $parsedUrl['path'] ?? '/';
+                    return $path === '' ? '' : $path;
                 }
             }
 
-            return '/';
+            return '';
         } catch (\Exception $e) {
-            return '/';
+            return '';
         }
     }
 }
