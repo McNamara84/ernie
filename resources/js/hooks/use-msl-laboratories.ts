@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 
-import { withBasePath } from '@/lib/base-path';
 import type { MSLLaboratory } from '@/types';
 
 interface UseMSLLaboratoriesReturn {
@@ -30,7 +29,7 @@ export function useMSLLaboratories(): UseMSLLaboratoriesReturn {
 
             try {
                 // First, get the vocabulary URL from the backend to ensure consistency
-                const urlResponse = await fetch(withBasePath('/vocabularies/msl-vocabulary-url'));
+                const urlResponse = await fetch('/vocabularies/msl-vocabulary-url');
                 if (!urlResponse.ok) {
                     throw new Error(`Failed to fetch vocabulary URL: ${urlResponse.status}`);
                 }

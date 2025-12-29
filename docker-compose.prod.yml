@@ -14,13 +14,13 @@ services:
     depends_on:
       - db
     environment:
-      - APP_URL=https://env.rz-vm182.gfz.de/ernie
+      - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
       - SESSION_DRIVER=file
       - SESSION_LIFETIME=120
       - SESSION_PATH=/
-      - SESSION_DOMAIN=.env.rz-vm182.gfz.de
+      - SESSION_DOMAIN=ernie.rz-vm182.gfz.de
       - SESSION_SECURE_COOKIE=true
       - SESSION_SAME_SITE=lax
       - DB_HOST=db
@@ -31,7 +31,7 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - SANCTUM_STATEFUL_DOMAINS=env.rz-vm182.gfz.de
+      - SANCTUM_STATEFUL_DOMAINS=ernie.rz-vm182.gfz.de
       - DB_SUMARIOPMD_HOST=${DB_SUMARIOPMD_HOST}
       - DB_SUMARIOPMD_PORT=${DB_SUMARIOPMD_PORT:-3306}
       - DB_SUMARIOPMD_NAME=${DB_SUMARIOPMD_NAME}
@@ -56,20 +56,10 @@ services:
       - app
     labels:
       - "traefik.enable=true"
-      # API router (WITHOUT Forward-Auth) - higher priority so API requests are checked first
-      - "traefik.http.routers.ernie-api.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie/api/v1`)"
-      - "traefik.http.routers.ernie-api.entrypoints=https"
-      - "traefik.http.routers.ernie-api.priority=100"
-      - "traefik.http.routers.ernie-api.middlewares=ernie-api-stripprefix"
-      - "traefik.http.routers.ernie-api.service=ernie-service"
-      - "traefik.http.middlewares.ernie-api-stripprefix.stripprefix.prefixes=/ernie"
-      # Web router (with Forward-Auth) - lower priority
-      - "traefik.http.routers.ernie-router.rule=Host(`env.rz-vm182.gfz.de`) && PathPrefix(`/ernie`)"
+      # Router for the application (subdomain-based, no prefix needed)
+      - "traefik.http.routers.ernie-router.rule=Host(`ernie.rz-vm182.gfz.de`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
-      - "traefik.http.routers.ernie-router.priority=10"
-      - "traefik.http.routers.ernie-router.middlewares=ernie-stripprefix"
       - "traefik.http.routers.ernie-router.service=ernie-service"
-      - "traefik.http.middlewares.ernie-stripprefix.stripprefix.prefixes=/ernie"
       # Service
       - "traefik.http.services.ernie-service.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
@@ -116,7 +106,7 @@ services:
       - db
       - redis
     environment:
-      - APP_URL=https://env.rz-vm182.gfz.de/ernie
+      - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
       - DB_HOST=db

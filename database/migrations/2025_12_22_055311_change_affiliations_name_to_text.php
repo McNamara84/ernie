@@ -8,17 +8,38 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
+     * Check if an index exists on a table.
+     *
+     * Note: This method uses MySQL/MariaDB-specific INFORMATION_SCHEMA queries.
+     * It is only called in the MySQL/MariaDB code path (not for SQLite).
+     */
+    private function indexExists(string $table, string $indexName): bool
+    {
+        try {
+            $result = DB::select(
+                'SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
+                [$table, $indexName]
+            );
+
+            return (int) ($result[0]->cnt ?? 0) > 0;
+        } catch (Throwable) {
+            // Be defensive: in unexpected MySQL/MariaDB configurations this query could fail.
+            // Returning false avoids breaking the migration due to the existence check itself.
+            return false;
+        }
+    }
+
+    /**
      * Run the migrations.
      *
-     * Supported databases: MySQL/MariaDB, SQLite
+     * Supported databases: MySQL/MariaDB
      *
-     * Note: PostgreSQL is not currently supported by this migration. The raw SQL
-     * statements use MySQL-specific syntax (DROP INDEX IF EXISTS ... ON ...,
-     * MODIFY column). If PostgreSQL support is needed, add a condition for
-     * $driver === 'pgsql' with equivalent PostgreSQL syntax:
-     * - ALTER TABLE ... ALTER COLUMN ... TYPE TEXT;
-     * - DROP INDEX IF EXISTS idx_affiliations_name;
-     * - CREATE INDEX idx_affiliations_name ON affiliations (name);
+     * Note: SQLite support is limited - the column type change is a no-op since SQLite
+     * uses dynamic typing, and the index is simply recreated. The indexExists() method
+     * is MySQL-specific but is only called in the MySQL code path.
+     *
+     * PostgreSQL is not currently supported. If needed, add a condition for
+     * $driver === 'pgsql' with equivalent PostgreSQL syntax.
      */
     public function up(): void
     {
@@ -36,8 +57,10 @@ return new class extends Migration
             });
         } else {
             // MySQL/MariaDB: Need to drop index, modify column, recreate with prefix
-            // Use IF EXISTS to handle cases where index might not exist (e.g., failed migration, manual changes)
-            DB::statement('DROP INDEX IF EXISTS idx_affiliations_name ON affiliations');
+            // Check if index exists before dropping (MySQL doesn't support IF EXISTS for DROP INDEX)
+            if ($this->indexExists('affiliations', 'idx_affiliations_name')) {
+                DB::statement('DROP INDEX idx_affiliations_name ON affiliations');
+            }
             DB::statement('ALTER TABLE affiliations MODIFY name TEXT NOT NULL');
             DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name(191))');
         }
@@ -61,8 +84,10 @@ return new class extends Migration
             // MySQL/MariaDB: Revert to VARCHAR(255)
             // Note: Original schema used a regular index on VARCHAR(255), which doesn't require a prefix.
             // This correctly restores the previous state.
-            // Use IF EXISTS to handle cases where index might not exist
-            DB::statement('DROP INDEX IF EXISTS idx_affiliations_name ON affiliations');
+            // Check if index exists before dropping (MySQL doesn't support IF EXISTS for DROP INDEX)
+            if ($this->indexExists('affiliations', 'idx_affiliations_name')) {
+                DB::statement('DROP INDEX idx_affiliations_name ON affiliations');
+            }
             DB::statement('ALTER TABLE affiliations MODIFY name VARCHAR(255) NOT NULL');
             DB::statement('CREATE INDEX idx_affiliations_name ON affiliations (name)');
         }

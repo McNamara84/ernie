@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { withBasePath } from '@/lib/base-path';
 import { getDefaultTemplate, getTemplateOptions, type LandingPageConfig } from '@/types/landing-page';
 
 interface Resource {
@@ -64,7 +63,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
     const loadLandingPageConfig = async () => {
         setIsLoading(true);
         try {
-            const response = await axios.get<{ landing_page: LandingPageConfig }>(withBasePath(`/resources/${resource.id}/landing-page`));
+            const response = await axios.get<{ landing_page: LandingPageConfig }>(`/resources/${resource.id}/landing-page`);
             const config = response.data.landing_page;
             setCurrentConfig(config);
             setTemplate(config.template);
@@ -103,7 +102,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 status: isPublished ? 'published' : 'draft',
             };
 
-            const url = withBasePath(`/resources/${resource.id}/landing-page`);
+            const url = `/resources/${resource.id}/landing-page`;
 
             // Determine if we should update or create
             const shouldUpdate = currentConfig !== null;
@@ -131,7 +130,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
             // Clear session-based preview if it exists
             try {
-                await axios.delete(withBasePath(`/resources/${resource.id}/landing-page/preview`));
+                await axios.delete(`/resources/${resource.id}/landing-page/preview`);
             } catch {
                 // Ignore errors from clearing preview session
             }
@@ -176,14 +175,14 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                     status: 'draft',
                 };
 
-                await axios.put(withBasePath(`/resources/${resource.id}/landing-page`), payload);
+                await axios.put(`/resources/${resource.id}/landing-page`, payload);
 
                 setIsPublished(false);
                 toast.success('Landing page depublished successfully');
                 onSuccess?.();
             } else {
                 // Draft: delete completely
-                await axios.delete(withBasePath(`/resources/${resource.id}/landing-page`));
+                await axios.delete(`/resources/${resource.id}/landing-page`);
                 setCurrentConfig(null);
                 setPreviewUrl('');
                 toast.success('Landing page preview removed successfully');
@@ -217,7 +216,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
         // If published, use public URL
         if (currentConfig && isPublished && resource.id) {
-            window.open(withBasePath(`/datasets/${resource.id}`), '_blank');
+            window.open(`/datasets/${resource.id}`, '_blank');
             return;
         }
 
@@ -230,10 +229,10 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 };
 
                 // Store preview in session and get preview URL
-                await axios.post(withBasePath(`/resources/${resource.id}/landing-page/preview`), payload);
+                await axios.post(`/resources/${resource.id}/landing-page/preview`, payload);
 
                 // Open preview in new tab
-                const previewUrl = withBasePath(`/resources/${resource.id}/landing-page/preview`);
+                const previewUrl = `/resources/${resource.id}/landing-page/preview`;
                 window.open(previewUrl, '_blank');
             } catch (error) {
                 console.error('Failed to create temporary preview:', error);
@@ -341,7 +340,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                 <div className="flex gap-2">
                                     <Input
                                         readOnly
-                                        value={withBasePath(`/datasets/${resource.id}`)}
+                                        value={`/datasets/${resource.id}`}
                                         className="bg-white font-mono text-xs dark:bg-gray-950"
                                     />
                                     <Button
@@ -349,7 +348,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                         size="icon"
                                         variant="outline"
                                         onClick={() =>
-                                            copyToClipboard(window.location.origin + withBasePath(`/datasets/${resource.id}`), 'Public URL')
+                                            copyToClipboard(window.location.origin + `/datasets/${resource.id}`, 'Public URL')
                                         }
                                         title="Copy public URL"
                                     >

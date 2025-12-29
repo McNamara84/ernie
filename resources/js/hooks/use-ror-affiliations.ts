@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { withBasePath } from '@/lib/base-path';
 import type { AffiliationSuggestion } from '@/types/affiliations';
 
 interface UseRorAffiliationsResult {
@@ -49,7 +48,7 @@ export function useRorAffiliations(): UseRorAffiliationsResult {
             setError(null);
 
             try {
-                const response = await fetch(withBasePath('/api/v1/ror-affiliations'), {
+                const response = await fetch('/api/v1/ror-affiliations', {
                     headers: {
                         Accept: 'application/json',
                     },

@@ -1,10 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 
 import { render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import AppFooter from '@/components/app-footer';
-import { __testing as basePathTesting } from '@/lib/base-path';
 import { latestVersion } from '@/lib/version';
 
 vi.mock('@inertiajs/react', () => ({
@@ -24,21 +23,14 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 
-vi.mock('@/routes', async () => {
-    const { withBasePath } = await import('@/lib/base-path');
-
-    const makeRoute = (path: string) => ({ url: withBasePath(path) });
+vi.mock('@/routes', () => {
+    const makeRoute = (path: string) => ({ url: path });
 
     return {
         about: () => makeRoute('/about'),
         legalNotice: () => makeRoute('/legal-notice'),
         changelog: () => makeRoute('/changelog'),
     };
-});
-
-afterEach(() => {
-    document.head.innerHTML = '';
-    basePathTesting.resetBasePathCache();
 });
 
 describe('AppFooter', () => {
@@ -51,17 +43,6 @@ describe('AppFooter', () => {
         expect(versionLink).toHaveAttribute('href', '/changelog');
         expect(screen.getByRole('link', { name: /about/i })).toHaveAttribute('href', '/about');
         expect(screen.getByRole('link', { name: /legal notice/i })).toHaveAttribute('href', '/legal-notice');
-    });
-
-    it('prefixes links with the configured base path', () => {
-        basePathTesting.setMetaBasePath('/ernie');
-        render(<AppFooter />);
-        const versionLink = screen.getByRole('link', {
-            name: new RegExp(`view changelog for version ${latestVersion}`, 'i'),
-        });
-        expect(versionLink).toHaveAttribute('href', '/ernie/changelog');
-        expect(screen.getByRole('link', { name: /about/i })).toHaveAttribute('href', '/ernie/about');
-        expect(screen.getByRole('link', { name: /legal notice/i })).toHaveAttribute('href', '/ernie/legal-notice');
     });
 });
 

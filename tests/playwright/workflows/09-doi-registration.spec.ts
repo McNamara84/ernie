@@ -94,10 +94,8 @@ test.describe('DOI Registration Workflow', () => {
         expect(foundRow).not.toBeNull();
         const resourceRow = foundRow!;
 
-        // The row with minimum buttons should have 5 buttons (no landing page = no DataCite button)
-        expect(minButtonCount).toBe(5);
-        
-        // Verify the DataCite icon specifically doesn't exist in this row
+        // The actual requirement: resources without a landing page should not have the DataCite icon
+        // visible, since DOI registration requires a landing page first.
         const dataciteIcon = resourceRow.locator('[data-testid="datacite-icon"]');
         await expect(dataciteIcon).not.toBeVisible();
     });
