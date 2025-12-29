@@ -13,7 +13,14 @@ services:
       - dockerized-laravel-network
     depends_on:
       - db
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9000"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
     environment:
+      - APP_KEY=${APP_KEY}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
@@ -57,7 +64,8 @@ services:
       - dockerized-laravel-network
       - traefik
     depends_on:
-      - app
+      app:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       # Router for the application (subdomain-based, no prefix needed)
@@ -110,6 +118,7 @@ services:
       - db
       - redis
     environment:
+      - APP_KEY=${APP_KEY}
       - APP_URL=https://ernie.rz-vm182.gfz.de
       - APP_ENV=production
       - APP_DEBUG=false
