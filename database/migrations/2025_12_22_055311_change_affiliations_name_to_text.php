@@ -15,12 +15,18 @@ return new class extends Migration
      */
     private function indexExists(string $table, string $indexName): bool
     {
-        $result = DB::select(
-            'SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
-            [$table, $indexName]
-        );
+        try {
+            $result = DB::select(
+                'SELECT COUNT(*) as cnt FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?',
+                [$table, $indexName]
+            );
 
-        return $result[0]->cnt > 0;
+            return (int) ($result[0]->cnt ?? 0) > 0;
+        } catch (Throwable) {
+            // Be defensive: in unexpected MySQL/MariaDB configurations this query could fail.
+            // Returning false avoids breaking the migration due to the existence check itself.
+            return false;
+        }
     }
 
     /**
