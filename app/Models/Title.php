@@ -59,6 +59,17 @@ class Title extends Model
      */
     public function isMainTitle(): bool
     {
-        return $this->title_type_id === null;
+        if ($this->title_type_id === null) {
+            return true;
+        }
+
+        $slug = $this->titleType?->slug;
+        if ($slug === null) {
+            return false;
+        }
+
+        $normalised = \Illuminate\Support\Str::kebab($slug);
+
+        return $normalised === 'main-title';
     }
 }

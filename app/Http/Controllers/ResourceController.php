@@ -174,21 +174,37 @@ class ResourceController extends Controller
                 $titleTypeSlugs = [];
 
                 foreach ($validated['titles'] as $titleData) {
-                    $titleTypeSlugs[] = $titleData['titleType'];
+                    $normalised = Str::kebab($titleData['titleType'] ?? '');
+
+                    // 'main-title' is represented by a NULL title_type_id in the DB.
+                    if ($normalised !== 'main-title' && $normalised !== '') {
+                        $titleTypeSlugs[] = $normalised;
+                    }
                 }
 
-                /** @var array<string, int> $titleTypeMap */
+                /**
+                 * Map frontend kebab-case slugs to DB title type IDs.
+                 * The DB may store TitleCase slugs (e.g. AlternativeTitle), so we normalise the DB values too.
+                 *
+                 * @var array<string, int> $titleTypeMap
+                 */
                 $titleTypeMap = TitleType::query()
-                    ->whereIn('slug', $titleTypeSlugs)
-                    ->pluck('id', 'slug')
+                    ->get(['id', 'slug'])
+                    ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
                     ->all();
 
                 $resourceTitles = [];
 
+                $fallbackOtherId = $titleTypeMap['other'] ?? null;
+
                 foreach ($validated['titles'] as $title) {
+                    $normalised = Str::kebab($title['titleType'] ?? '');
+
                     $resourceTitles[] = [
                         'value' => $title['title'],
-                        'title_type_id' => $titleTypeMap[$title['titleType']],
+                        'title_type_id' => $normalised === '' || $normalised === 'main-title'
+                            ? null
+                            : ($titleTypeMap[$normalised] ?? $fallbackOtherId),
                     ];
                 }
 
