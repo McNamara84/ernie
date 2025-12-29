@@ -607,7 +607,9 @@ export default function OldDatasets({
                 const response = await axios.get('/old-datasets/filter-options');
                 setFilterOptions(response.data);
             } catch (err) {
-                console.error('Failed to load filter options:', err);
+                if (import.meta.env.DEV) {
+                    console.error('Failed to load filter options:', err);
+                }
 
                 // Provide empty fallback so filters don't stay disabled forever
                 setFilterOptions({

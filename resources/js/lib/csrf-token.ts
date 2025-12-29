@@ -25,7 +25,9 @@ const safeDecode = (value: string): string => {
     try {
         return decodeURIComponent(value);
     } catch (error) {
-        console.warn('Failed to decode CSRF cookie value.', error);
+        if (import.meta.env.DEV) {
+            console.warn('Failed to decode CSRF cookie value.', error);
+        }
         return value;
     }
 };

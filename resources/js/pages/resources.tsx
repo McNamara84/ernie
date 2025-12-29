@@ -362,7 +362,9 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                 const response = await axios.get('/resources/filter-options');
                 setFilterOptions(response.data);
             } catch (err) {
-                console.error('Failed to load filter options:', err);
+                if (import.meta.env.DEV) {
+                    console.error('Failed to load filter options:', err);
+                }
             }
         };
 
