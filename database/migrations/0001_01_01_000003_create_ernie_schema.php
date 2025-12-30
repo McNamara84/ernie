@@ -226,6 +226,7 @@ return new class extends Migration
                 ->cascadeOnDelete()
                 ->cascadeOnUpdate();
             $table->foreignId('title_type_id')
+                ->nullable()
                 ->constrained('title_types')
                 ->cascadeOnUpdate()
                 ->restrictOnDelete();

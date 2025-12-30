@@ -99,6 +99,30 @@ interface TitleEntry {
     titleType: string;
 }
 
+const MAIN_TITLE_SLUG = 'main-title';
+
+const normalizeTitleTypeSlug = (value: string | null | undefined): string => {
+    // Note: TitleType API responses are normalized to kebab-case by the backend.
+    // This helper is defensive for legacy values (e.g. TitleCase) and ensures null/empty inputs stay empty.
+    if (value == null) {
+        return '';
+    }
+
+    const trimmed = value.trim();
+    if (trimmed === '') {
+        return '';
+    }
+
+    return trimmed
+        .replace(/_/g, '-')
+        .replace(/\s+/g, '-')
+        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+        .replace(/[^a-zA-Z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .toLowerCase();
+};
+
 interface LicenseEntry {
     id: string;
     license: string;
@@ -548,15 +572,37 @@ export default function DataCiteForm({
         language: resolveInitialLanguageCode(languages, initialLanguage),
     });
 
-    const [titles, setTitles] = useState<TitleEntry[]>(
-        initialTitles.length
-            ? initialTitles.map((t) => ({
-                  id: crypto.randomUUID(),
-                  title: t.title,
-                  titleType: t.titleType,
-              }))
-            : [{ id: crypto.randomUUID(), title: '', titleType: 'main-title' }],
-    );
+    const [titles, setTitles] = useState<TitleEntry[]>(() => {
+        if (!initialTitles.length) {
+            return [{ id: crypto.randomUUID(), title: '', titleType: MAIN_TITLE_SLUG }];
+        }
+
+        // Ensure we never produce empty titleType strings.
+        const defaultSecondaryType = titleTypes.find((t) => t.slug !== MAIN_TITLE_SLUG)?.slug ?? MAIN_TITLE_SLUG;
+        let mainTitleAssigned = false;
+
+        return initialTitles.map((t, index) => {
+            const normalized = normalizeTitleTypeSlug(t.titleType);
+            const wantsMainTitle = normalized === MAIN_TITLE_SLUG || (!normalized && index === 0);
+
+            if (wantsMainTitle && !mainTitleAssigned) {
+                mainTitleAssigned = true;
+                return {
+                    id: crypto.randomUUID(),
+                    title: t.title,
+                    titleType: MAIN_TITLE_SLUG,
+                };
+            }
+
+            return {
+                id: crypto.randomUUID(),
+                title: t.title,
+                // If the first entry had an empty type but a main title is already assigned elsewhere,
+                // fall back to a non-main type instead of keeping it empty.
+                titleType: normalized || defaultSecondaryType,
+            };
+        });
+    });
 
     const [licenseEntries, setLicenseEntries] = useState<LicenseEntry[]>(
         initialLicenses.length

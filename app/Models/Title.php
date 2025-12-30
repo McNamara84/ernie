@@ -55,10 +55,31 @@ class Title extends Model
     }
 
     /**
-     * Check if this is the main title (no type specified).
+     * Check if this is the main title.
+     *
+     * Main titles are represented as a NULL title_type_id.
+     *
+     * Note: This method intentionally does NOT lazy-load the titleType relation.
+     * If the relation is not loaded and title_type_id is not NULL, this returns false.
+     * Callers that need to detect legacy "MainTitle" rows should eager load `titleType`.
      */
     public function isMainTitle(): bool
     {
-        return $this->title_type_id === null;
+        if ($this->title_type_id === null) {
+            return true;
+        }
+
+        if (! $this->relationLoaded('titleType')) {
+            return false;
+        }
+
+        $slug = $this->titleType?->slug;
+        if ($slug === null) {
+            return false;
+        }
+
+        $normalised = \Illuminate\Support\Str::kebab($slug);
+
+        return $normalised === 'main-title';
     }
 }

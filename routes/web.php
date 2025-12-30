@@ -13,6 +13,7 @@ use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Services\OldDatasetEditorLoader;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -313,9 +314,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             // Transform resource data for editor
             $titles = $resource->titles->map(function ($title) {
+                $titleTypeSlug = $title->titleType?->slug;
+
                 return [
                     'title' => $title->value,
-                    'titleType' => $title->titleType->slug ?? '',
+                    // Frontend uses kebab-case slugs; main title is represented as 'main-title'
+                    'titleType' => $title->isMainTitle()
+                        ? 'main-title'
+                        : Str::kebab($titleTypeSlug ?: ''),
                 ];
             })->toArray();
 

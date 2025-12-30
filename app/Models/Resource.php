@@ -247,11 +247,21 @@ class Resource extends Model
     // =========================================================================
 
     /**
-     * Get the main title (title without type).
+     * Get the main title.
+     *
+     * Main titles are represented as a NULL title_type_id.
+     *
+     * Performance note: If no NULL-based main title exists, this method performs a one-time
+     * loadMissing('titles.titleType') to detect legacy rows that used a TitleType slug like "MainTitle".
      */
     public function getMainTitleAttribute(): ?string
     {
-        $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
+        $mainTitle = $this->titles->first(fn (Title $t) => $t->title_type_id === null);
+
+        if ($mainTitle === null) {
+            $this->loadMissing('titles.titleType');
+            $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
+        }
 
         return $mainTitle?->value;
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TitleType;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 
 class TitleTypeController extends Controller
 {
@@ -16,7 +17,13 @@ class TitleTypeController extends Controller
             ->orderByName()
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($types);
+        return response()->json(
+            $types->map(fn (TitleType $type): array => [
+                'id' => $type->id,
+                'name' => $type->name,
+                'slug' => Str::kebab($type->slug),
+            ])
+        );
     }
 
     /**
@@ -30,7 +37,13 @@ class TitleTypeController extends Controller
             ->orderByName()
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($types);
+        return response()->json(
+            $types->map(fn (TitleType $type): array => [
+                'id' => $type->id,
+                'name' => $type->name,
+                'slug' => Str::kebab($type->slug),
+            ])
+        );
     }
 
     /**
@@ -43,6 +56,12 @@ class TitleTypeController extends Controller
             ->orderByName()
             ->get(['id', 'name', 'slug']);
 
-        return response()->json($types);
+        return response()->json(
+            $types->map(fn (TitleType $type): array => [
+                'id' => $type->id,
+                'name' => $type->name,
+                'slug' => Str::kebab($type->slug),
+            ])
+        );
     }
 }
