@@ -247,7 +247,12 @@ class Resource extends Model
     // =========================================================================
 
     /**
-     * Get the main title (title without type).
+     * Get the main title.
+     *
+     * Main titles are represented as a NULL title_type_id.
+     *
+     * Performance note: If no NULL-based main title exists, this method performs a one-time
+     * loadMissing('titles.titleType') to detect legacy rows that used a TitleType slug like "MainTitle".
      */
     public function getMainTitleAttribute(): ?string
     {

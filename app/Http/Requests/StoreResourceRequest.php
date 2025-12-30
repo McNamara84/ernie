@@ -12,6 +12,21 @@ use Illuminate\Support\Str;
 
 class StoreResourceRequest extends FormRequest
 {
+    /**
+     * Map of normalized (kebab-case) title type slugs to the actual DB slug.
+     * Populated in prepareForValidation() only when non-main title types are present.
+     *
+     * @var array<string, string>
+     */
+    private array $titleTypeSlugLookup = [];
+
+    /**
+     * Set of valid DB title type slugs for quick in-request validation.
+     *
+     * @var array<string, true>
+     */
+    private array $titleTypeDbSlugSet = [];
+
     public function authorize(): bool
     {
         return true;
@@ -31,7 +46,8 @@ class StoreResourceRequest extends FormRequest
             'language' => ['nullable', 'string', Rule::exists('languages', 'code')],
             'titles' => ['required', 'array', 'min:1'],
             'titles.*.title' => ['required', 'string', 'max:255'],
-            'titles.*.titleType' => ['required', 'string', Rule::exists('title_types', 'slug')],
+            // Title types are validated in after(): allow 'main-title' even if there is no DB TitleType row.
+            'titles.*.titleType' => ['required', 'string', 'max:255'],
             'licenses' => ['required', 'array', 'min:1'],
             'licenses.*' => ['string', 'distinct', Rule::exists('rights', 'identifier')],
             'authors' => ['required', 'array', 'min:1'],
@@ -146,16 +162,43 @@ class StoreResourceRequest extends FormRequest
         /** @var array<int, array<string, mixed>|mixed> $rawTitles */
         $rawTitles = $this->input('titles', []);
 
-        /**
-         * Accept both kebab-case (frontend/API) and legacy TitleCase DB slugs.
-         * We map the incoming value to the actual DB slug so the exists() rule can validate.
-         *
-         * @var array<string, string> $titleTypeSlugLookup
-         */
-        $titleTypeSlugLookup = TitleType::query()
-            ->pluck('slug')
-            ->mapWithKeys(fn (string $slug): array => [Str::kebab($slug) => $slug])
-            ->all();
+        // Only load TitleType slugs if we actually have non-main title types.
+        $needsTitleTypeLookup = false;
+        foreach ($rawTitles as $title) {
+            if (! is_array($title)) {
+                continue;
+            }
+
+            $candidate = isset($title['titleType']) ? trim((string) $title['titleType']) : '';
+            if ($candidate === '') {
+                continue;
+            }
+
+            $normalized = Str::kebab($candidate);
+            if ($normalized !== '' && $normalized !== 'main-title') {
+                $needsTitleTypeLookup = true;
+                break;
+            }
+        }
+
+        /** @var array<string, string> $titleTypeSlugLookup */
+        $titleTypeSlugLookup = [];
+
+        /** @var array<string, true> $titleTypeDbSlugSet */
+        $titleTypeDbSlugSet = [];
+
+        if ($needsTitleTypeLookup) {
+            /** @var array<int, string> $dbSlugs */
+            $dbSlugs = TitleType::query()->pluck('slug')->all();
+
+            foreach ($dbSlugs as $slug) {
+                $titleTypeDbSlugSet[$slug] = true;
+                $titleTypeSlugLookup[Str::kebab($slug)] = $slug;
+            }
+        }
+
+        $this->titleTypeSlugLookup = $titleTypeSlugLookup;
+        $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
 
         $titles = [];
 
@@ -166,8 +209,15 @@ class StoreResourceRequest extends FormRequest
 
             $titleType = isset($title['titleType']) ? trim((string) $title['titleType']) : null;
             if ($titleType !== null && $titleType !== '') {
-                $normalised = Str::kebab($titleType);
-                $titleType = $titleTypeSlugLookup[$normalised] ?? $titleType;
+                $normalized = Str::kebab($titleType);
+
+                // Main title uses NULL title_type_id in the DB and does not require a TitleType row.
+                if ($normalized === 'main-title') {
+                    $titleType = 'main-title';
+                } elseif ($normalized !== '' && isset($titleTypeSlugLookup[$normalized])) {
+                    // Map kebab-case input to the actual DB slug (supports legacy TitleCase slugs).
+                    $titleType = $titleTypeSlugLookup[$normalized];
+                }
             }
 
             $titles[] = [
@@ -702,6 +752,39 @@ class StoreResourceRequest extends FormRequest
     public function after(): array
     {
         return [
+            function (Validator $validator): void {
+                /** @var mixed $candidateTitles */
+                $candidateTitles = $this->input('titles', []);
+
+                if (! is_array($candidateTitles)) {
+                    return;
+                }
+
+                foreach ($candidateTitles as $index => $title) {
+                    if (! is_array($title)) {
+                        continue;
+                    }
+
+                    $candidate = $title['titleType'] ?? null;
+                    if (! is_string($candidate) || trim($candidate) === '') {
+                        continue;
+                    }
+
+                    $normalized = Str::kebab($candidate);
+                    if ($normalized === 'main-title') {
+                        // Special case: main titles are represented as NULL title_type_id.
+                        continue;
+                    }
+
+                    // For non-main titles, we expect an actual DB slug (prepareForValidation maps legacy input).
+                    if (! isset($this->titleTypeDbSlugSet[$candidate])) {
+                        $validator->errors()->add(
+                            "titles.$index.titleType",
+                            'Unknown title type. Please select a valid title type.',
+                        );
+                    }
+                }
+            },
             function (Validator $validator): void {
                 /** @var mixed $candidateTitles */
                 $candidateTitles = $this->input('titles', []);

@@ -171,40 +171,64 @@ class ResourceController extends Controller
                     $resource = Resource::query()->create($attributes);
                 }
 
-                $titleTypeSlugs = [];
+                /**
+                 * Collect the DB slugs for non-main title types.
+                 * Main titles are represented as NULL title_type_id and do not require a TitleType row.
+                 *
+                 * @var array<int, string> $dbTitleTypeSlugs
+                 */
+                $dbTitleTypeSlugs = [];
 
                 foreach ($validated['titles'] as $titleData) {
-                    $normalised = Str::kebab($titleData['titleType'] ?? '');
+                    $normalized = Str::kebab($titleData['titleType'] ?? '');
 
-                    // 'main-title' is represented by a NULL title_type_id in the DB.
-                    if ($normalised !== 'main-title' && $normalised !== '') {
-                        $titleTypeSlugs[] = $normalised;
+                    if ($normalized !== '' && $normalized !== 'main-title' && ! empty($titleData['titleType'])) {
+                        $dbTitleTypeSlugs[] = (string) $titleData['titleType'];
                     }
                 }
 
+                $dbTitleTypeSlugs = array_values(array_unique($dbTitleTypeSlugs));
+
                 /**
-                 * Map frontend kebab-case slugs to DB title type IDs.
-                 * The DB may store TitleCase slugs (e.g. AlternativeTitle), so we normalise the DB values too.
+                 * Map normalized (kebab-case) slugs to DB title type IDs.
                  *
                  * @var array<string, int> $titleTypeMap
                  */
-                $titleTypeMap = TitleType::query()
-                    ->get(['id', 'slug'])
-                    ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
-                    ->all();
+                $titleTypeMap = [];
+
+                if (count($dbTitleTypeSlugs) > 0) {
+                    $titleTypeMap = TitleType::query()
+                        ->whereIn('slug', $dbTitleTypeSlugs)
+                        ->get(['id', 'slug'])
+                        ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
+                        ->all();
+                }
 
                 $resourceTitles = [];
 
-                $fallbackOtherId = $titleTypeMap['other'] ?? null;
+                foreach ($validated['titles'] as $index => $title) {
+                    $normalized = Str::kebab($title['titleType'] ?? '');
 
-                foreach ($validated['titles'] as $title) {
-                    $normalised = Str::kebab($title['titleType'] ?? '');
+                    if ($normalized === '' || $normalized === 'main-title') {
+                        $resourceTitles[] = [
+                            'value' => $title['title'],
+                            'title_type_id' => null,
+                        ];
+
+                        continue;
+                    }
+
+                    $titleTypeId = $titleTypeMap[$normalized] ?? null;
+                    if ($titleTypeId === null) {
+                        // This should be prevented by StoreResourceRequest validation, but keep a safe failure mode.
+                        throw ValidationException::withMessages([
+                            "titles.$index.titleType" => 'Unknown title type. Please select a valid title type.',
+                        ]);
+                    }
 
                     $resourceTitles[] = [
                         'value' => $title['title'],
-                        'title_type_id' => $normalised === '' || $normalised === 'main-title'
-                            ? null
-                            : ($titleTypeMap[$normalised] ?? $fallbackOtherId),
+                        'title_type_id' => $titleTypeId,
                     ];
                 }
 

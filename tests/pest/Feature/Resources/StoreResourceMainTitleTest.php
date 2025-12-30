@@ -40,7 +40,7 @@ test('storing a resource with main-title persists title_type_id as null and sets
     ]);
 
     // Legacy DB slug (TitleCase). API/frontend uses kebab-case 'main-title'.
-    TitleType::create([
+    $legacyMainTitleType = TitleType::create([
         'name' => 'Main Title',
         'slug' => 'MainTitle',
         'is_active' => true,
@@ -93,4 +93,5 @@ test('storing a resource with main-title persists title_type_id as null and sets
 
     $title = $resource->titles()->firstOrFail();
     expect($title->title_type_id)->toBeNull();
+    expect($title->title_type_id)->not->toBe($legacyMainTitleType->id);
 });

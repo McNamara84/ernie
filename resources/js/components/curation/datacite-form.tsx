@@ -102,25 +102,25 @@ interface TitleEntry {
 const MAIN_TITLE_SLUG = 'main-title';
 
 const normalizeTitleTypeSlug = (value: string | null | undefined): string => {
-    if (!value) {
+    // Note: The backend already normalizes slugs to kebab-case. This helper is defensive
+    // for legacy values (e.g. TitleCase) and ensures null/empty inputs stay empty.
+    if (value == null) {
         return '';
     }
 
     const trimmed = value.trim();
-    if (!trimmed) {
+    if (trimmed === '') {
         return '';
     }
 
-    // Convert TitleCase/PascalCase to kebab-case, then normalize.
-    // Examples: MainTitle -> main-title, AlternativeTitle -> alternative-title
-    const withHyphens = trimmed.replace(/([a-z0-9])([A-Z])/g, '$1-$2');
-
-    return withHyphens
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
+    return trimmed
+        .replace(/_/g, '-')
         .replace(/\s+/g, '-')
+        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+        .replace(/[^a-zA-Z0-9-]/g, '-')
         .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
+        .replace(/^-|-$/g, '')
+        .toLowerCase();
 };
 
 interface LicenseEntry {
