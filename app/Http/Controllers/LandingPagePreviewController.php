@@ -27,7 +27,7 @@ class LandingPagePreviewController extends Controller
     ];
 
     /**
-    * Store preview data in session and return a preview URL
+     * Store preview data in session and return a preview URL
      */
     public function store(Request $request, Resource $resource): JsonResponse
     {
