@@ -13,14 +13,6 @@ use Illuminate\Support\Str;
 class StoreResourceRequest extends FormRequest
 {
     /**
-     * Map of normalized (kebab-case) title type slugs to the actual DB slug.
-     * Populated in prepareForValidation() only when non-main title types are present.
-     *
-     * @var array<string, string>
-     */
-    private array $titleTypeSlugLookup = [];
-
-    /**
      * Set of valid DB title type slugs for quick in-request validation.
      *
      * @var array<string, true>
@@ -197,7 +189,6 @@ class StoreResourceRequest extends FormRequest
             }
         }
 
-        $this->titleTypeSlugLookup = $titleTypeSlugLookup;
         $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
 
         $titles = [];
