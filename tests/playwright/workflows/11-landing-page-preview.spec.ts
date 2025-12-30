@@ -20,15 +20,31 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
 
         // Vite can take a while to boot in Docker (Wayfinder generation, warmup).
         // If tests start while Vite is still starting, JS/CSS requests may 502 and the page won't render.
+        // In CI we often serve built assets (no Vite dev server) where `/@vite/client` is expected to be 404.
+        // We treat 200 (Vite dev) OR 404 (built assets) as "ready" and keep retrying on 502/503.
         await expect
             .poll(async () => {
                 const response = await request.get('/@vite/client');
-                return response.status();
+                const status = response.status();
+
+                if (status === 200) {
+                    return 'vite';
+                }
+
+                if (status === 404) {
+                    return 'built';
+                }
+
+                if (status === 502 || status === 503) {
+                    return 'booting';
+                }
+
+                return `unexpected:${status}`;
             }, {
                 timeout: 60_000,
                 intervals: [500, 1000, 2000, 5000],
             })
-            .toBe(200);
+            .toMatch(/^(vite|built)$/);
 
         await page.goto('/login');
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
