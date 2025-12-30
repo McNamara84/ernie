@@ -26,6 +26,8 @@ class PlaywrightTestSeeder extends Seeder
      */
     private const TEST_PASSWORD = 'password';
 
+    private const PLAYWRIGHT_PREVIEW_RESOURCE_DOI = '10.1234/playwright-preview';
+
     /**
      * Hashed password, computed once for efficiency.
      */
@@ -91,15 +93,19 @@ class PlaywrightTestSeeder extends Seeder
             ]
         );
 
-        $this->seedMinimalResourceIfMissing($testUser);
+        $this->seedPlaywrightPreviewResourceIfMissing($testUser);
 
         $this->command->info('Playwright test users created successfully!');
     }
 
-    private function seedMinimalResourceIfMissing(User $testUser): void
+    private function seedPlaywrightPreviewResourceIfMissing(User $testUser): void
     {
-        if (Resource::query()->exists()) {
-            $this->command->info('Resources already exist, skipping Playwright resource seed.');
+        $resource = Resource::query()
+            ->where('doi', self::PLAYWRIGHT_PREVIEW_RESOURCE_DOI)
+            ->first();
+
+        if ($resource) {
+            $this->command->info('Playwright preview resource already exists, skipping resource seed.');
 
             return;
         }
@@ -115,7 +121,7 @@ class PlaywrightTestSeeder extends Seeder
         }
 
         $resource = Resource::factory()
-            ->withDoi('10.1234/playwright-preview')
+            ->withDoi(self::PLAYWRIGHT_PREVIEW_RESOURCE_DOI)
             ->create($resourceAttributes);
 
         Title::factory()->create([

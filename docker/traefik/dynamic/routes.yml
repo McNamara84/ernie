@@ -19,7 +19,7 @@ http:
     # Must be routed before the main app router, otherwise Traefik will send it
     # to Laravel and the Vite client will crash on a non-101 response.
     ernie-vite-hmr-ws:
-      rule: "Host(`localhost`) && HeaderRegexp(`Connection`, `(?i).*upgrade.*`) && HeaderRegexp(`Upgrade`, `(?i)websocket`)"
+      rule: "Host(`localhost`) && HeaderRegexp(`Connection`, `(?i)(^|,\\s*)upgrade(\\s*,|$)`) && HeaderRegexp(`Upgrade`, `(?i)^websocket$`)"
       entryPoints:
         - https
       priority: 210

@@ -15,7 +15,7 @@ use Inertia\Response;
 class LandingPagePreviewController extends Controller
 {
     /**
-     * Store preview data in session and redirect to preview
+    * Store preview data in session and return a preview URL
      */
     public function store(Request $request, Resource $resource): JsonResponse
     {
@@ -49,14 +49,14 @@ class LandingPagePreviewController extends Controller
             abort(404, 'Preview session expired. Please open preview again from the setup modal.');
         }
 
-        $template = is_string($previewData['template'] ?? null) ? $previewData['template'] : 'default_gfz';
-        if ($template !== 'default_gfz') {
-            // Defensive fallback: only templates that actually exist in this codebase.
-            $template = 'default_gfz';
+        if (! is_array($previewData)) {
+            abort(404, 'Preview session is invalid. Please open preview again from the setup modal.');
         }
 
+        $template = is_string($previewData['template'] ?? null) ? $previewData['template'] : 'default_gfz';
+
         // Load the same shape used for public landing pages, because the React template expects it.
-        $resource = Resource::with([
+        $resource->load([
             'creators.creatorable',
             'creators.affiliations',
             'contributors.contributorable',
@@ -73,7 +73,7 @@ class LandingPagePreviewController extends Controller
             'fundingReferences.funderIdentifierType',
             'resourceType',
             'language',
-        ])->findOrFail($resource->id);
+        ]);
 
         // Prepare the same frontend payload as LandingPagePublicController
         $resourceData = $resource->toArray();
@@ -236,6 +236,7 @@ class LandingPagePreviewController extends Controller
                 ];
             })->toArray();
 
+        // Temporary landing page array for preview rendering.
         $tempLandingPage = [
             'id' => null,
             'resource_id' => $resource->id,
