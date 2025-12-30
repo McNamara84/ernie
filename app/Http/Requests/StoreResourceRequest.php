@@ -154,42 +154,13 @@ class StoreResourceRequest extends FormRequest
         /** @var array<int, array<string, mixed>|mixed> $rawTitles */
         $rawTitles = $this->input('titles', []);
 
-        // Only load TitleType slugs if we actually have non-main title types.
-        $needsTitleTypeLookup = false;
-        foreach ($rawTitles as $title) {
-            if (! is_array($title)) {
-                continue;
-            }
-
-            $candidate = isset($title['titleType']) ? trim((string) $title['titleType']) : '';
-            if ($candidate === '') {
-                continue;
-            }
-
-            $normalized = Str::kebab($candidate);
-            if ($normalized !== '' && $normalized !== 'main-title') {
-                $needsTitleTypeLookup = true;
-                break;
-            }
-        }
-
         /** @var array<string, string> $titleTypeSlugLookup */
         $titleTypeSlugLookup = [];
 
         /** @var array<string, true> $titleTypeDbSlugSet */
         $titleTypeDbSlugSet = [];
 
-        if ($needsTitleTypeLookup) {
-            /** @var array<int, string> $dbSlugs */
-            $dbSlugs = TitleType::query()->pluck('slug')->all();
-
-            foreach ($dbSlugs as $slug) {
-                $titleTypeDbSlugSet[$slug] = true;
-                $titleTypeSlugLookup[Str::kebab($slug)] = $slug;
-            }
-        }
-
-        $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
+        $titleTypeLookupLoaded = false;
 
         $titles = [];
 
@@ -205,9 +176,24 @@ class StoreResourceRequest extends FormRequest
                 // Main title uses NULL title_type_id in the DB and does not require a TitleType row.
                 if ($normalized === 'main-title') {
                     $titleType = 'main-title';
-                } elseif ($normalized !== '' && isset($titleTypeSlugLookup[$normalized])) {
-                    // Map kebab-case input to the actual DB slug (supports legacy TitleCase slugs).
-                    $titleType = $titleTypeSlugLookup[$normalized];
+                } elseif ($normalized !== '') {
+                    // Load lookup lazily on first non-main title type.
+                    if (! $titleTypeLookupLoaded) {
+                        /** @var array<int, string> $dbSlugs */
+                        $dbSlugs = TitleType::query()->pluck('slug')->all();
+
+                        foreach ($dbSlugs as $slug) {
+                            $titleTypeDbSlugSet[$slug] = true;
+                            $titleTypeSlugLookup[Str::kebab($slug)] = $slug;
+                        }
+
+                        $titleTypeLookupLoaded = true;
+                    }
+
+                    if (isset($titleTypeSlugLookup[$normalized])) {
+                        // Map kebab-case input to the actual DB slug (supports legacy TitleCase slugs).
+                        $titleType = $titleTypeSlugLookup[$normalized];
+                    }
                 }
             }
 
@@ -737,6 +723,8 @@ class StoreResourceRequest extends FormRequest
             'relatedIdentifiers' => $relatedIdentifiers,
             'fundingReferences' => $fundingReferences,
         ]);
+
+        $this->titleTypeDbSlugSet = $titleTypeDbSlugSet;
     }
 
     /** @return array<int, callable(Validator): void> */
@@ -767,7 +755,8 @@ class StoreResourceRequest extends FormRequest
                         continue;
                     }
 
-                    // For non-main titles, we expect an actual DB slug (prepareForValidation maps legacy input).
+                    // For non-main titles, we expect an actual DB slug.
+                    // prepareForValidation() attempts to map incoming kebab-case/legacy values to DB slugs.
                     if (! isset($this->titleTypeDbSlugSet[$candidate])) {
                         $validator->errors()->add(
                             "titles.$index.titleType",

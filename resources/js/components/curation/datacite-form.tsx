@@ -102,8 +102,8 @@ interface TitleEntry {
 const MAIN_TITLE_SLUG = 'main-title';
 
 const normalizeTitleTypeSlug = (value: string | null | undefined): string => {
-    // Note: The backend already normalizes slugs to kebab-case. This helper is defensive
-    // for legacy values (e.g. TitleCase) and ensures null/empty inputs stay empty.
+    // Note: TitleType API responses are normalized to kebab-case by the backend.
+    // This helper is defensive for legacy values (e.g. TitleCase) and ensures null/empty inputs stay empty.
     if (value == null) {
         return '';
     }
@@ -577,7 +577,8 @@ export default function DataCiteForm({
             return [{ id: crypto.randomUUID(), title: '', titleType: MAIN_TITLE_SLUG }];
         }
 
-        const defaultSecondaryType = titleTypes.find((t) => t.slug !== MAIN_TITLE_SLUG)?.slug ?? '';
+        // Ensure we never produce empty titleType strings.
+        const defaultSecondaryType = titleTypes.find((t) => t.slug !== MAIN_TITLE_SLUG)?.slug ?? MAIN_TITLE_SLUG;
         let mainTitleAssigned = false;
 
         return initialTitles.map((t, index) => {
@@ -596,6 +597,8 @@ export default function DataCiteForm({
             return {
                 id: crypto.randomUUID(),
                 title: t.title,
+                // If the first entry had an empty type but a main title is already assigned elsewhere,
+                // fall back to a non-main type instead of keeping it empty.
                 titleType: normalized || defaultSecondaryType,
             };
         });

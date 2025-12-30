@@ -172,22 +172,23 @@ class ResourceController extends Controller
                 }
 
                 /**
-                 * Collect the DB slugs for non-main title types.
+                 * Collect post-normalization titleType values for non-main titles.
+                 * prepareForValidation() maps incoming values to DB slugs where possible.
                  * Main titles are represented as NULL title_type_id and do not require a TitleType row.
                  *
-                 * @var array<int, string> $dbTitleTypeSlugs
+                 * @var array<int, string> $titleTypeInputValues
                  */
-                $dbTitleTypeSlugs = [];
+                $titleTypeInputValues = [];
 
                 foreach ($validated['titles'] as $titleData) {
                     $normalized = Str::kebab($titleData['titleType'] ?? '');
 
-                    if ($normalized !== '' && $normalized !== 'main-title' && ! empty($titleData['titleType'])) {
-                        $dbTitleTypeSlugs[] = (string) $titleData['titleType'];
+                    if ($normalized !== '' && $normalized !== 'main-title') {
+                        $titleTypeInputValues[] = (string) ($titleData['titleType'] ?? '');
                     }
                 }
 
-                $dbTitleTypeSlugs = array_values(array_unique($dbTitleTypeSlugs));
+                $titleTypeInputValues = array_values(array_unique($titleTypeInputValues));
 
                 /**
                  * Map normalized (kebab-case) slugs to DB title type IDs.
@@ -196,9 +197,9 @@ class ResourceController extends Controller
                  */
                 $titleTypeMap = [];
 
-                if (count($dbTitleTypeSlugs) > 0) {
+                if (count($titleTypeInputValues) > 0) {
                     $titleTypeMap = TitleType::query()
-                        ->whereIn('slug', $dbTitleTypeSlugs)
+                    ->whereIn('slug', $titleTypeInputValues)
                         ->get(['id', 'slug'])
                         ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
                         ->all();
@@ -241,13 +242,22 @@ class ResourceController extends Controller
                 // Sync rights (pivot table) based on the validated license identifiers.
                 $licenseIdentifiers = $validated['licenses'] ?? [];
 
-                /** @var array<int, int> $rightsIds */
-                $rightsIds = Right::query()
+                /**
+                 * @var array<string, int> $rightsByIdentifier
+                 */
+                $rightsByIdentifier = Right::query()
                     ->whereIn('identifier', $licenseIdentifiers)
-                    ->pluck('id')
+                    ->pluck('id', 'identifier')
                     ->all();
 
-                $resource->rights()->sync($rightsIds);
+                $missingLicenses = array_values(array_diff($licenseIdentifiers, array_keys($rightsByIdentifier)));
+                if (count($missingLicenses) > 0) {
+                    throw ValidationException::withMessages([
+                        'licenses' => 'Some provided licenses are unknown: '.implode(', ', $missingLicenses),
+                    ]);
+                }
+
+                $resource->rights()->sync(array_values($rightsByIdentifier));
 
                 $resource->creators()->delete();
 
