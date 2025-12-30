@@ -60,7 +60,11 @@ export default defineConfig(() => {
                 // When running in Docker with Traefik, HMR uses WebSocket through the proxy
                 protocol: 'wss',
                 host: process.env.VITE_HMR_HOST || 'localhost',
-                port: process.env.VITE_HMR_PORT ? parseInt(process.env.VITE_HMR_PORT) : 3333,
+                // IMPORTANT:
+                // - `port` is the *Vite server* port (inside Docker / behind Traefik)
+                // - `clientPort` is the *public proxy* port the browser connects to
+                // If `port` != Vite's server port, Vite starts a separate WS server and HMR breaks.
+                port: 5173,
                 clientPort: process.env.VITE_HMR_PORT ? parseInt(process.env.VITE_HMR_PORT) : 3333,
             },
             cors: true,

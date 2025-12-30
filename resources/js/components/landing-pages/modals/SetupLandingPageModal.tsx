@@ -229,11 +229,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 };
 
                 // Store preview in session and get preview URL
-                await axios.post(`/resources/${resource.id}/landing-page/preview`, payload);
+                const response = await axios.post<{ preview_url: string }>(`/resources/${resource.id}/landing-page/preview`, payload);
 
                 // Open preview in new tab
-                const previewUrl = `/resources/${resource.id}/landing-page/preview`;
-                window.open(previewUrl, '_blank');
+                const previewUrlFromServer = response.data?.preview_url;
+                const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
+                window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank');
             } catch (error) {
                 console.error('Failed to create temporary preview:', error);
 
