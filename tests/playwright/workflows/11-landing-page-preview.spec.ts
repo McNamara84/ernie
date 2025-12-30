@@ -7,13 +7,11 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
     test.beforeEach(async ({ page, request }) => {
         page.on('pageerror', (error) => {
             // Keep output minimal: only unexpected runtime errors
-            // eslint-disable-next-line no-console
             console.error('Page error:', error);
         });
 
         page.on('console', (msg) => {
             if (msg.type() === 'error') {
-                // eslint-disable-next-line no-console
                 console.error('Console error:', msg.text());
             }
         });
@@ -22,8 +20,12 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // If tests start while Vite is still starting, JS/CSS requests may 502 and the page won't render.
         // In CI we often serve built assets (no Vite dev server) where `/@vite/client` is expected to be 404.
         // We treat 200 (Vite dev) OR 404 (built assets) as "ready" and keep retrying on 502/503.
-        await expect
-            .poll(async () => {
+        const assetMode = await (async () => {
+            const start = Date.now();
+            const intervals = [500, 1000, 2000, 5000];
+            let attempt = 0;
+
+            while (Date.now() - start < 60_000) {
                 const response = await request.get('/@vite/client');
                 const status = response.status();
 
@@ -35,18 +37,37 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
                     return 'built';
                 }
 
-                if (status === 502 || status === 503) {
-                    return 'booting';
+                if (status !== 502 && status !== 503) {
+                    return `unexpected:${status}`;
                 }
 
-                return `unexpected:${status}`;
-            }, {
-                timeout: 60_000,
-                intervals: [500, 1000, 2000, 5000],
-            })
-            .toMatch(/^(vite|built)$/);
+                const waitMs = intervals[Math.min(attempt, intervals.length - 1)];
+                attempt += 1;
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+            }
 
-        await page.goto('/login');
+            return 'timeout';
+        })();
+
+        expect(assetMode).toMatch(/^(vite|built)$/);
+
+        // Extra safety for Docker/Vite mode: ensure the actual app modules are served with a JS MIME type.
+        // This avoids flakiness where Vite is up but module requests still return empty/incorrect content-type.
+        if (assetMode === 'vite') {
+            await expect
+                .poll(async () => {
+                    const response = await request.get('/resources/js/pages/auth/login.tsx');
+                    const status = response.status();
+                    const contentType = response.headers()['content-type'] ?? '';
+                    return `${status}:${contentType}`;
+                }, {
+                    timeout: 60_000,
+                    intervals: [500, 1000, 2000, 5000],
+                })
+                .toMatch(/^200:.*javascript/i);
+        }
+
+        await page.goto('/login', { waitUntil: 'domcontentloaded', timeout: 60_000 });
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
         await page.getByRole('button', { name: 'Log in' }).click();
@@ -92,7 +113,7 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // Depending on environment/config, the preview can open either:
         // - the internal preview route: /resources/{id}/landing-page/preview
         // - the public landing page in preview mode: /datasets/{id}?preview=...
-        await expect(previewPage).toHaveURL(/\/(resources\/\d+\/landing-page\/preview|datasets\/\d+\?preview=)/);
+        await expect(previewPage).toHaveURL(/\/(resources\/\d+\/landing-page\/preview|datasets\/\d+\?preview)/);
 
         // The default template shows this banner in preview mode
         await expect(previewPage.getByText('Preview Mode')).toBeVisible({ timeout: 15000 });
