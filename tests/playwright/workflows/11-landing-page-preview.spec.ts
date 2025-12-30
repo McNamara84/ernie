@@ -89,7 +89,10 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         ]);
 
         await previewPage.waitForLoadState('domcontentloaded');
-        await expect(previewPage).toHaveURL(/\/resources\/\d+\/landing-page\/preview/);
+        // Depending on environment/config, the preview can open either:
+        // - the internal preview route: /resources/{id}/landing-page/preview
+        // - the public landing page in preview mode: /datasets/{id}?preview=...
+        await expect(previewPage).toHaveURL(/\/(resources\/\d+\/landing-page\/preview|datasets\/\d+\?preview=)/);
 
         // The default template shows this banner in preview mode
         await expect(previewPage.getByText('Preview Mode')).toBeVisible({ timeout: 15000 });
