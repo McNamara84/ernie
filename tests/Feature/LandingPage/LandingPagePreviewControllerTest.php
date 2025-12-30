@@ -24,7 +24,8 @@ describe('Session Preview Creation', function () {
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test.zip',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(201)
+            ->assertJsonStructure(['preview_url']);
 
         $sessionKey = "landing_page_preview.{$this->resource->id}";
         expect(Session::has($sessionKey))->toBeTrue();

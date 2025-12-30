@@ -7,6 +7,7 @@ use App\Services\LandingPageResourceTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,12 +17,22 @@ use Inertia\Response;
 class LandingPagePreviewController extends Controller
 {
     /**
+     * When adding a new landing page template, update this list.
+     * The value must match an Inertia page under resources/js/Pages/LandingPages/.
+     *
+     * @var array<int, string>
+     */
+    private const ALLOWED_TEMPLATES = [
+        'default_gfz',
+    ];
+
+    /**
     * Store preview data in session and return a preview URL
      */
     public function store(Request $request, Resource $resource): JsonResponse
     {
         $validated = $request->validate([
-            'template' => 'required|string|in:default_gfz',
+            'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => 'nullable|url|max:2048',
         ]);
 
@@ -55,6 +66,9 @@ class LandingPagePreviewController extends Controller
         }
 
         $template = is_string($previewData['template'] ?? null) ? $previewData['template'] : 'default_gfz';
+        if (! in_array($template, self::ALLOWED_TEMPLATES, true)) {
+            $template = 'default_gfz';
+        }
 
         // Load the same shape used for public landing pages, because the React template expects it.
         $resource->load($transformer->requiredRelations());
@@ -68,7 +82,7 @@ class LandingPagePreviewController extends Controller
             'resource_id' => $resource->id,
             'template' => $template,
             'ftp_url' => $previewData['ftp_url'] ?? null,
-            'status' => 'draft',
+            'status' => 'preview',
             'preview_token' => null,
             'published_at' => null,
             'view_count' => 0,

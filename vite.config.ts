@@ -5,6 +5,8 @@ import laravel from 'laravel-vite-plugin';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig(() => {
+    const viteServerPort = parseInt(process.env.VITE_SERVER_PORT ?? '5173');
+
     return {
         plugins: [
             laravel({
@@ -50,7 +52,7 @@ export default defineConfig(() => {
             },
             // Docker development configuration
             host: '0.0.0.0',
-            port: 5173,
+            port: viteServerPort,
             strictPort: true,
             // Configure origin for Docker/Traefik setup
             origin: process.env.VITE_DEV_SERVER_URL || undefined,
@@ -64,7 +66,7 @@ export default defineConfig(() => {
                 // - `port` is the *Vite server* port (inside Docker / behind Traefik)
                 // - `clientPort` is the *public proxy* port the browser connects to
                 // If `port` != Vite's server port, Vite starts a separate WS server and HMR breaks.
-                port: 5173,
+                port: viteServerPort,
                 clientPort: process.env.VITE_HMR_PORT ? parseInt(process.env.VITE_HMR_PORT) : 3333,
             },
             cors: true,
