@@ -178,9 +178,17 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
         }
     };
 
+    const handleOpenChange = (open: boolean) => {
+        // Radix calls onOpenChange for both opening and closing.
+        // We only want to close when the dialog is requesting to close.
+        if (!open) {
+            handleClose();
+        }
+    };
+
     return (
-        <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="sm:max-w-[525px]">
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+            <DialogContent className="sm:max-w-131.25">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DataCiteIcon className="size-5" />

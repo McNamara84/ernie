@@ -51,8 +51,10 @@ services:
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
-      - APP_URL=https://localhost:3333
-      - VITE_DEV_SERVER_URL=https://localhost:3333
+      # You can emulate production-style subdomains locally using e.g. https://ernie.localhost:3333
+      # (certificate SAN already includes *.localhost). Override via ERNIE_DEV_HOST if needed.
+      - APP_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}
+      - VITE_DEV_SERVER_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}
       # =========================================================================
       # Session Configuration (Docker Development)
       # =========================================================================
@@ -62,7 +64,8 @@ services:
       - SESSION_DRIVER=database
       - SESSION_LIFETIME=120
       - SESSION_PATH=/
-      - SESSION_DOMAIN=localhost
+      # If you use a subdomain like ernie.localhost, set ERNIE_DEV_SESSION_DOMAIN=.localhost
+      - SESSION_DOMAIN=${ERNIE_DEV_SESSION_DOMAIN:-ernie.localhost}
       - SESSION_SECURE_COOKIE=false
       - SESSION_SAME_SITE=lax
       - DB_CONNECTION=mysql
@@ -75,7 +78,8 @@ services:
       - BROADCAST_DRIVER=log
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
-      - SANCTUM_STATEFUL_DOMAINS=localhost:3333
+      # If you use a subdomain like ernie.localhost, set ERNIE_DEV_STATEFUL_DOMAINS=ernie.localhost:3333
+      - SANCTUM_STATEFUL_DOMAINS=${ERNIE_DEV_STATEFUL_DOMAINS:-ernie.localhost:3333,localhost:3333}
 
   # Nginx Webserver
   webserver:
@@ -95,7 +99,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Main application router (subdomain-based, no prefix)
-      - "traefik.http.routers.ernie-router.rule=Host(`localhost`)"
+      - "traefik.http.routers.ernie-router.rule=HostRegexp(`{host:localhost(:[0-9]+)?|[a-z0-9-]+\\.localhost(:[0-9]+)?}`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.service=ernie-service"
       - "traefik.http.routers.ernie-router.tls=true"
@@ -124,7 +128,7 @@ services:
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
-      - APP_URL=https://localhost:3333
+      - APP_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}
       - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306
@@ -132,9 +136,9 @@ services:
       - DB_USERNAME=ernie
       - DB_PASSWORD=secret
       - VITE_APP_NAME=ERNIE
-      - VITE_DEV_SERVER_URL=https://localhost:3333
-      - VITE_HMR_HOST=localhost
-      - VITE_HMR_PORT=3333
+      - VITE_DEV_SERVER_URL=https://${ERNIE_DEV_HOST:-ernie.localhost}:${ERNIE_DEV_HTTPS_PORT:-3333}
+      - VITE_HMR_HOST=${ERNIE_DEV_HOST:-ernie.localhost}
+      - VITE_HMR_PORT=${ERNIE_DEV_HTTPS_PORT:-3333}
       - VITE_USE_POLLING=true
     entrypoint: [""]
     command: ["/bin/sh", "/var/www/html/docker/vite-entrypoint.sh"]

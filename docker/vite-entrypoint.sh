@@ -16,7 +16,8 @@ fi
 # This tells Laravel where to load Vite assets from
 HOT_FILE="/var/www/html/public/hot"
 echo "Creating hot file at $HOT_FILE..."
-echo "https://localhost:3333" > "$HOT_FILE"
+HOT_URL="${VITE_DEV_SERVER_URL:-${APP_URL:-https://ernie.localhost:3333}}"
+echo "$HOT_URL" > "$HOT_FILE"
 
 # Start Vite dev server
 echo "Starting Vite development server..."

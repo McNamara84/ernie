@@ -84,7 +84,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
   - Core: `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `tokenizer`, `xml`, `xmlwriter`
   - Database: `pdo`, `pdo_mysql`
   - Additional: `intl`, `simplexml`, `sodium`, `xsl`
-- **Node.js 18+** and npm
+- **Node.js 20/22 (LTS recommended)** and npm (Playwright is not guaranteed to work on non-LTS Node versions)
 - **MySQL 8.0+** or **MariaDB 10.6+**
 - **Composer 2.x**
 
@@ -284,8 +284,13 @@ The project includes a complete Docker development environment that mirrors the 
    ```
 
 4. **Access the application**:
-   - **Application**: https://localhost:3333/
+   - **Application (recommended / stage-like)**: https://ernie.localhost:3333/
+   - **Application (fallback)**: https://localhost:3333/
    - **Traefik Dashboard**: http://localhost:8080
+
+   If `ernie.localhost` does not resolve on your system, add it to your hosts file (Windows: `C:\Windows\System32\drivers\etc\hosts`) as `127.0.0.1 ernie.localhost`.
+
+   Note: The dev stack uses `SESSION_DOMAIN=ernie.localhost` by default. Some browsers reject cookies with `Domain=.localhost`, which can lead to `419 Page Expired` on login.
 
 5. **Run initial setup** (first time or after database reset):
    ```powershell
@@ -312,9 +317,13 @@ The Docker development environment includes:
 
 The development environment uses subdomain-based routing:
 
-- `https://localhost:3333/` → Main application
-- `https://localhost:3333/api/v1/` → API endpoints
-- `https://localhost:3333/@vite/` → Vite HMR (proxied)
+- Recommended (stage/prod-like):
+   - `https://ernie.localhost:3333/` → Main application
+
+- Fallback:
+   - `https://localhost:3333/` → Main application
+   - `https://localhost:3333/api/v1/` → API endpoints
+   - `https://localhost:3333/@vite/` → Vite HMR (proxied)
 
 This mirrors the production URL `https://ernie.rz-vm182.gfz.de/`.
 
@@ -335,6 +344,16 @@ Import-Certificate -FilePath ".\docker\traefik\certs\localhost.crt" -CertStoreLo
 ```
 
 ### Development Commands
+
+#### Playwright E2E (local dev stack)
+
+If you run the Docker dev stack via Traefik on `https://ernie.localhost:3333`, use:
+
+```powershell
+npm run test:e2e:devstack
+```
+
+This uses [playwright.devstack.config.ts](playwright.devstack.config.ts) and does not affect CI.
 
 ```powershell
 # Start environment

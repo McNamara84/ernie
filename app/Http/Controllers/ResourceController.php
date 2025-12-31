@@ -155,7 +155,7 @@ class ResourceController extends Controller
                 $isUpdate = ! empty($validated['resourceId']);
 
                 if ($isUpdate) {
-                    /** @var resource $resource */
+                    /** @var Resource $resource */
                     $resource = Resource::query()
                         ->lockForUpdate()
                         ->findOrFail($validated['resourceId']);
@@ -343,16 +343,21 @@ class ResourceController extends Controller
 
                 // Pre-fetch description type IDs
                 /** @var array<string, int> $descriptionTypeLookup */
-                $descriptionTypeLookup = DescriptionType::pluck('id', 'slug')->all();
+                $descriptionTypeLookup = DescriptionType::query()
+                    ->get(['id', 'slug'])
+                    ->mapWithKeys(fn (DescriptionType $type): array => [Str::kebab($type->slug) => $type->id])
+                    ->all();
 
                 $descriptions = $validated['descriptions'] ?? [];
 
                 foreach ($descriptions as $description) {
-                    $descTypeId = $descriptionTypeLookup[$description['descriptionType']] ?? null;
+                    $descTypeKey = Str::kebab((string) ($description['descriptionType'] ?? ''));
+                    $descTypeId = $descriptionTypeLookup[$descTypeKey] ?? null;
                     if ($descTypeId) {
                         $resource->descriptions()->create([
                             'description_type_id' => $descTypeId,
-                            'description' => $description['description'],
+                            'value' => $description['description'],
+                            'language' => null,
                         ]);
                     }
                 }
@@ -364,7 +369,10 @@ class ResourceController extends Controller
                 // Pre-fetch all date type IDs in a single query to avoid N+1 queries
                 // This lookup map is used for both system date types and user-provided dates
                 /** @var array<string, int> $dateTypeLookup */
-                $dateTypeLookup = DateType::pluck('id', 'slug')->all();
+                $dateTypeLookup = DateType::query()
+                    ->get(['id', 'slug'])
+                    ->mapWithKeys(fn (DateType $type): array => [Str::kebab($type->slug) => $type->id])
+                    ->all();
                 $createdDateTypeId = $dateTypeLookup['created'] ?? null;
                 $updatedDateTypeId = $dateTypeLookup['updated'] ?? null;
 
@@ -385,12 +393,13 @@ class ResourceController extends Controller
 
                 foreach ($dates as $date) {
                     // Skip 'created' and 'updated' date types - these are auto-managed
-                    if (in_array(strtolower($date['dateType']), ['created', 'updated'], true)) {
+                    if (in_array(Str::kebab((string) ($date['dateType'] ?? '')), ['created', 'updated'], true)) {
                         continue;
                     }
 
                     // Use the pre-fetched lookup map instead of querying for each date
-                    $dateTypeId = $dateTypeLookup[strtolower($date['dateType'])] ?? null;
+                    $dateTypeKey = Str::kebab((string) ($date['dateType'] ?? ''));
+                    $dateTypeId = $dateTypeLookup[$dateTypeKey] ?? null;
 
                     if ($dateTypeId === null) {
                         // Throw validation exception for unknown date type to prevent silent data loss
@@ -404,7 +413,11 @@ class ResourceController extends Controller
 
                     $resource->dates()->create([
                         'date_type_id' => $dateTypeId,
-                        'date' => $this->formatDateValue($date),
+                        'date_value' => ($date['startDate'] ?? null) && ($date['endDate'] ?? null)
+                            ? null
+                            : ($date['startDate'] ?? $date['endDate'] ?? null),
+                        'start_date' => ($date['startDate'] ?? null) && ($date['endDate'] ?? null) ? $date['startDate'] : null,
+                        'end_date' => ($date['startDate'] ?? null) && ($date['endDate'] ?? null) ? $date['endDate'] : null,
                         'date_information' => $date['dateInformation'] ?? null,
                     ]);
                 }
@@ -414,7 +427,9 @@ class ResourceController extends Controller
                     // Create a 'created' date with current timestamp for new resources
                     $resource->dates()->create([
                         'date_type_id' => $createdDateTypeId,
-                        'date' => now()->format('Y-m-d'),
+                        'date_value' => now()->format('Y-m-d'),
+                        'start_date' => null,
+                        'end_date' => null,
                         'date_information' => null,
                     ]);
                 }
@@ -426,7 +441,9 @@ class ResourceController extends Controller
                     // (any existing 'updated' entry was already deleted above)
                     $resource->dates()->create([
                         'date_type_id' => $updatedDateTypeId,
-                        'date' => now()->format('Y-m-d'),
+                        'date_value' => now()->format('Y-m-d'),
+                        'start_date' => null,
+                        'end_date' => null,
                         'date_information' => null,
                     ]);
                 }
@@ -475,10 +492,6 @@ class ResourceController extends Controller
 
                 // Save geo locations (spatial and temporal coverages)
                 if ($isUpdate) {
-                    // Delete polygons first (child records)
-                    foreach ($resource->geoLocations as $geoLocation) {
-                        $geoLocation->polygons()->delete();
-                    }
                     $resource->geoLocations()->delete();
                 }
 
@@ -488,42 +501,41 @@ class ResourceController extends Controller
                     $type = $coverage['type'] ?? 'point';
 
                     // Only save coverage if it has at least one meaningful field
-                    $hasData = ! empty($coverage['latMin']) || ! empty($coverage['lonMin']) ||
-                               ! empty($coverage['polygonPoints']) ||
-                               ! empty($coverage['description']);
+                    $hasData = ($coverage['latMin'] ?? null) !== null && (string) ($coverage['latMin'] ?? '') !== ''
+                        || ($coverage['lonMin'] ?? null) !== null && (string) ($coverage['lonMin'] ?? '') !== ''
+                        || ! empty($coverage['polygonPoints'])
+                        || ! empty($coverage['description']);
 
                     if ($hasData) {
                         $geoLocationData = [
-                            'geo_location_place' => $coverage['description'] ?? null,
+                            'place' => $coverage['description'] ?? null,
                         ];
 
-                        // For polygon type, store polygon points separately
-                        if ($type === 'polygon' && ! empty($coverage['polygonPoints'])) {
-                            $geoLocation = $resource->geoLocations()->create($geoLocationData);
+                        // For polygon type, store polygon points as JSON (geo_locations.polygon_points)
+                        if ($type === 'polygon' && ! empty($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
+                            $geoLocationData['polygon_points'] = array_values(array_map(
+                                static fn (array $point): array => [
+                                    'longitude' => (float) ($point['longitude'] ?? $point['lon'] ?? 0),
+                                    'latitude' => (float) ($point['latitude'] ?? $point['lat'] ?? 0),
+                                ],
+                                array_filter(
+                                    $coverage['polygonPoints'],
+                                    static fn (mixed $point): bool => is_array($point)
+                                )
+                            ));
 
-                            // Parse and store polygon points
-                            $points = json_decode($coverage['polygonPoints'], true);
-                            if (is_array($points)) {
-                                foreach ($points as $index => $point) {
-                                    $geoLocation->polygons()->create([
-                                        'point_longitude' => $point['longitude'] ?? $point['lon'] ?? 0,
-                                        'point_latitude' => $point['latitude'] ?? $point['lat'] ?? 0,
-                                        'position' => $index,
-                                        'is_in_polygon_point' => false,
-                                    ]);
-                                }
-                            }
+                            $resource->geoLocations()->create($geoLocationData);
                         } elseif ($type === 'point') {
                             // Point type
-                            $geoLocationData['geo_location_point_longitude'] = $coverage['lonMin'] ?? null;
-                            $geoLocationData['geo_location_point_latitude'] = $coverage['latMin'] ?? null;
+                            $geoLocationData['point_longitude'] = $coverage['lonMin'] ?? null;
+                            $geoLocationData['point_latitude'] = $coverage['latMin'] ?? null;
                             $resource->geoLocations()->create($geoLocationData);
                         } else {
                             // Box type
-                            $geoLocationData['geo_location_box_west_bound_longitude'] = $coverage['lonMin'] ?? null;
-                            $geoLocationData['geo_location_box_east_bound_longitude'] = $coverage['lonMax'] ?? null;
-                            $geoLocationData['geo_location_box_south_bound_latitude'] = $coverage['latMin'] ?? null;
-                            $geoLocationData['geo_location_box_north_bound_latitude'] = $coverage['latMax'] ?? null;
+                            $geoLocationData['west_bound_longitude'] = $coverage['lonMin'] ?? null;
+                            $geoLocationData['east_bound_longitude'] = $coverage['lonMax'] ?? null;
+                            $geoLocationData['south_bound_latitude'] = $coverage['latMin'] ?? null;
+                            $geoLocationData['north_bound_latitude'] = $coverage['latMax'] ?? null;
                             $resource->geoLocations()->create($geoLocationData);
                         }
                     }
@@ -546,8 +558,8 @@ class ResourceController extends Controller
                     // Only save if identifier is not empty
                     if (! empty(trim($relatedIdentifier['identifier']))) {
                         $resource->relatedIdentifiers()->create([
-                            'related_identifier' => trim($relatedIdentifier['identifier']),
-                            'related_identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
+                            'identifier' => trim($relatedIdentifier['identifier']),
+                            'identifier_type_id' => $relatedIdTypeLookup[$relatedIdentifier['identifierType']] ?? null,
                             'relation_type_id' => $relationTypeLookup[$relatedIdentifier['relationType']] ?? null,
                             'position' => $index,
                         ]);
@@ -578,6 +590,11 @@ class ResourceController extends Controller
 
                 return [$resource->load(['titles', 'rights', 'creators', 'contributors', 'descriptions', 'dates', 'subjects', 'geoLocations', 'relatedIdentifiers', 'fundingReferences']), $isUpdate];
             });
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'message' => 'Unable to save resource. Please review the highlighted issues.',
+                'errors' => $exception->errors(),
+            ], 422);
         } catch (Throwable $exception) {
             report($exception);
 
@@ -1520,12 +1537,12 @@ class ResourceController extends Controller
         }
     }
 
-    /**
-     * Serialize a Resource model to an array for API responses.
-     *
-     * @param  resource  $resource  The resource to serialize (must have titles, rights, creators relationships loaded)
-     * @return array<string, mixed> The serialized resource data
-     */
+     /**
+      * Serialize a Resource model to an array for API responses.
+      *
+      * @param  Resource  $resource  The resource to serialize (must have titles, rights, creators relationships loaded)
+      * @return array<string, mixed> The serialized resource data
+      */
     private function serializeResource(Resource $resource): array
     {
         // In development, assert all required relations are loaded to detect N+1 queries
@@ -1951,25 +1968,6 @@ class ResourceController extends Controller
                 );
             }
         }
-    }
-
-    /**
-     * Format date value from frontend format to DataCite RKMS-ISO8601 format.
-     *
-     * DataCite supports date ranges with the format: startDate/endDate
-     *
-     * @param  array<string, mixed>  $date
-     */
-    private function formatDateValue(array $date): string
-    {
-        $startDate = $date['startDate'] ?? null;
-        $endDate = $date['endDate'] ?? null;
-
-        if ($startDate && $endDate) {
-            return "{$startDate}/{$endDate}";
-        }
-
-        return $startDate ?? $endDate ?? now()->format('Y-m-d');
     }
 
     /**
