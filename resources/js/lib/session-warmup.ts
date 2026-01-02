@@ -31,22 +31,42 @@ export interface WarmupFailure {
 
 export type WarmupResponse<T = unknown> = WarmupResult<T> | WarmupFailure;
 
+/**
+ * Cache validity duration in milliseconds.
+ * After this time, the cached warmup result is considered stale and will be refreshed.
+ * 5 minutes provides a good balance between avoiding duplicate requests and ensuring
+ * the session state remains fresh during longer browsing sessions.
+ */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
 let warmupSucceeded = false;
 let warmupPromise: Promise<WarmupResponse> | null = null;
 let cachedData: unknown = null;
+let cacheTimestamp: number | null = null;
+
+/**
+ * Check if the cached warmup data is still valid based on TTL.
+ */
+function isCacheValid(): boolean {
+    if (!warmupSucceeded || cachedData === null || cacheTimestamp === null) {
+        return false;
+    }
+    return Date.now() - cacheTimestamp < CACHE_TTL_MS;
+}
 
 /**
  * Performs a lightweight request to initialize the session and CSRF token.
  * This should be called early in the page lifecycle before any form submissions.
  *
- * The function allows retries after failures - only successful warmups are cached.
- * This handles transient network issues while preventing unnecessary duplicate requests.
+ * The function uses time-based cache invalidation (5 minute TTL) to ensure
+ * session state remains fresh during longer browsing sessions while avoiding
+ * unnecessary duplicate requests during normal navigation.
  *
  * @returns Promise with success status and fetched data (resource types)
  */
 export async function warmupSession<T = unknown>(): Promise<WarmupResponse<T>> {
-    // Already successfully warmed up - return cached data
-    if (warmupSucceeded && cachedData !== null) {
+    // Return cached data if still valid (within TTL)
+    if (isCacheValid()) {
         return { success: true, data: cachedData as T };
     }
 
@@ -72,6 +92,7 @@ async function performWarmup<T>(): Promise<WarmupResponse<T>> {
 
         warmupSucceeded = true;
         cachedData = response.data;
+        cacheTimestamp = Date.now();
 
         if (import.meta.env.DEV) {
             console.debug('[Session] Warmup completed successfully');
@@ -93,17 +114,19 @@ async function performWarmup<T>(): Promise<WarmupResponse<T>> {
 }
 
 /**
- * Check if the session warmup was successful.
+ * Check if the session warmup was successful and cache is still valid.
  */
 export function isSessionWarmedUp(): boolean {
-    return warmupSucceeded;
+    return isCacheValid();
 }
 
 /**
- * Reset the warmup state (useful for testing).
+ * Reset the warmup state. Called automatically when cache expires,
+ * but can also be called manually (e.g., for testing or after logout).
  */
 export function resetWarmupState(): void {
     warmupSucceeded = false;
     warmupPromise = null;
     cachedData = null;
+    cacheTimestamp = null;
 }

@@ -544,7 +544,6 @@ class ResourceController extends Controller
 
                         // For polygon type, store polygon points as JSON (geo_locations.polygon_points)
                         if ($type === 'polygon' && ! empty($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
-                            $originalCount = count($coverage['polygonPoints']);
                             $invalidPoints = [];
 
                             // Filter and transform polygon points, tracking rejected points for feedback.
