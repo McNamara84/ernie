@@ -210,7 +210,20 @@ class PlaywrightTestSeeder extends Seeder
             $reviewResource->save();
         }
 
-        // Ensure title exists and does not contain \"Review\" to avoid Playwright :text(\"Review\")\n        // selectors matching the resource title instead of the status badge.\n        // The \"Playwright:\" prefix is intentional and used consistently across all test fixtures\n        // for easy identification, but won't collide with status badge selectors.\n        $reviewTitle = Title::query()->where('resource_id', $reviewResource->id)->first();\n        if ($reviewTitle === null) {\n            Title::factory()->create([\n                'resource_id' => $reviewResource->id,\n                'value' => 'Playwright: QA Resource',\n            ]);\n        } elseif (str_contains($reviewTitle->value, 'Review')) {\n            $reviewTitle->value = 'Playwright: QA Resource';\n            $reviewTitle->save();\n        }
+        // Ensure title exists and does not contain "Review" to avoid Playwright :text("Review")
+        // selectors matching the resource title instead of the status badge.
+        // The "Playwright:" prefix is intentional and used consistently across all test fixtures
+        // for easy identification, but won't collide with status badge selectors.
+        $reviewTitle = Title::query()->where('resource_id', $reviewResource->id)->first();
+        if ($reviewTitle === null) {
+            Title::factory()->create([
+                'resource_id' => $reviewResource->id,
+                'value' => 'Playwright: QA Resource',
+            ]);
+        } elseif (str_contains($reviewTitle->value, 'Review')) {
+            $reviewTitle->value = 'Playwright: QA Resource';
+            $reviewTitle->save();
+        }
 
         $reviewLandingPage = LandingPage::query()->updateOrCreate(
             ['slug' => 'playwright-review'],

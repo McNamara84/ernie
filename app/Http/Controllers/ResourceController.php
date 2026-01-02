@@ -541,6 +541,12 @@ class ResourceController extends Controller
                                 }
                             );
 
+                            // A valid polygon requires at least 3 points to form a closed shape.
+                            // Skip creating the geo location if we don't have enough valid points.
+                            if (count($validPoints) < 3) {
+                                continue;
+                            }
+
                             $geoLocationData['polygon_points'] = array_values(array_map(
                                 static fn (array $point): array => [
                                     'longitude' => (float) ($point['longitude'] ?? $point['lon']),

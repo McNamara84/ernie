@@ -86,7 +86,11 @@ export default function Editor({
     useEffect(() => {
         // Warmup session first to ensure CSRF token is initialized
         // This prevents 419 errors on fresh container starts
-        warmupSession().then(() => {
+        warmupSession().then((success) => {
+            if (!success && import.meta.env.DEV) {
+                console.warn('[Editor] Session warmup failed - CSRF errors may occur on first form submission');
+            }
+
             Promise.all([
                 fetch('/api/v1/resource-types/ernie'),
                 fetch('/api/v1/title-types/ernie'),
