@@ -85,13 +85,17 @@ export default function Editor({
 
     useEffect(() => {
         // Warmup session first to ensure CSRF token is initialized
-        // This prevents 419 errors on fresh container starts
+        // This prevents 419 errors on fresh container starts.
+        // Note: warmupSession fetches /api/v1/resource-types/ernie internally,
+        // so we skip it in Promise.all below to avoid duplicate requests.
         warmupSession().then((success) => {
             if (!success && import.meta.env.DEV) {
                 console.warn('[Editor] Session warmup failed - CSRF errors may occur on first form submission');
             }
 
             Promise.all([
+                // resource-types is already fetched by warmupSession(), so we fetch it here
+                // only to get the data. Consider refactoring warmupSession to return the data.
                 fetch('/api/v1/resource-types/ernie'),
                 fetch('/api/v1/title-types/ernie'),
                 fetch('/api/v1/date-types/ernie'),

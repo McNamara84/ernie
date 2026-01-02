@@ -12,6 +12,26 @@ import { normalizeUrlLike } from './lib/url-normalizer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// Inject notification animation styles once at module load.
+// This avoids race conditions that could occur if styles were injected
+// dynamically when the notification is created.
+const notificationStyleId = 'session-refresh-notification-styles';
+if (typeof document !== 'undefined' && !document.getElementById(notificationStyleId)) {
+    const style = document.createElement('style');
+    style.id = notificationStyleId;
+    style.textContent = `
+        @keyframes session-notification-slide-in {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes session-notification-slide-out {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // Configure Axios for CSRF token with dynamic token refresh
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
@@ -79,6 +99,7 @@ let csrfRefreshNotificationShown = false;
 /**
  * Shows a brief notification to the user explaining the session refresh.
  * This improves UX by informing users why the page reloaded.
+ * Animation styles are pre-defined at module load to avoid race conditions.
  */
 function showSessionRefreshNotification(): void {
     if (csrfRefreshNotificationShown) {
@@ -105,7 +126,7 @@ function showSessionRefreshNotification(): void {
         font-family: system-ui, -apple-system, sans-serif;
         font-size: 14px;
         max-width: 320px;
-        animation: slideIn 0.3s ease-out;
+        animation: session-notification-slide-in 0.3s ease-out;
     `;
     notification.innerHTML = `
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -120,24 +141,13 @@ function showSessionRefreshNotification(): void {
         </div>
     `;
 
-    // Add animation keyframes
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-    `;
-    document.head.appendChild(style);
-
     document.body.appendChild(notification);
 
     // Auto-remove after 5 seconds
     setTimeout(() => {
-        notification.style.animation = 'slideIn 0.3s ease-out reverse';
+        notification.style.animation = 'session-notification-slide-out 0.3s ease-out forwards';
         setTimeout(() => {
             notification.remove();
-            style.remove();
             csrfRefreshNotificationShown = false;
         }, 300);
     }, 5000);

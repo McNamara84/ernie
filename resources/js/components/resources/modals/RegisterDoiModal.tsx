@@ -179,8 +179,9 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
     };
 
     const handleOpenChange = (open: boolean) => {
-        // Radix calls onOpenChange for both opening and closing.
-        // We only want to close when the dialog is requesting to close.
+        // Radix Dialog calls onOpenChange for both opening and closing events.
+        // We only handle close requests here because the parent controls opening
+        // via the isOpen prop. This also prevents closing during submission.
         if (!open) {
             handleClose();
         }

@@ -2,8 +2,9 @@ FROM php:8.4-fpm AS app
 
 WORKDIR /var/www/html
 
-# Set up NodeSource repository for Node.js 24
-# This only configures apt sources; actual installation happens in apt-get install below
+# Set up NodeSource repository for Node.js 24.
+# This only configures apt sources; actual installation happens in apt-get install below.
+# The NodeSource package includes npm, so no separate npm installation is needed.
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 
 RUN apt-get update && apt-get install -y \

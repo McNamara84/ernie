@@ -11,7 +11,6 @@
 import axios from 'axios';
 
 let warmupSucceeded = false;
-let warmupAttempted = false;
 let warmupPromise: Promise<boolean> | null = null;
 
 /**
@@ -50,7 +49,6 @@ async function performWarmup(): Promise<boolean> {
         });
 
         warmupSucceeded = true;
-        warmupAttempted = true;
 
         if (import.meta.env.DEV) {
             console.debug('[Session] Warmup completed successfully');
@@ -63,9 +61,8 @@ async function performWarmup(): Promise<boolean> {
             console.warn('[Session] Warmup request failed, session may not be initialized:', error);
         }
 
-        // Mark as attempted but NOT succeeded, allowing retry on next call
-        // This handles transient network issues while preventing infinite loops
-        warmupAttempted = true;
+        // Return false but allow retry on next call.
+        // This handles transient network issues while preventing infinite loops.
         return false;
     } finally {
         warmupPromise = null;
@@ -80,17 +77,9 @@ export function isSessionWarmedUp(): boolean {
 }
 
 /**
- * Check if a warmup was attempted (regardless of success).
- */
-export function wasWarmupAttempted(): boolean {
-    return warmupAttempted;
-}
-
-/**
  * Reset the warmup state (useful for testing).
  */
 export function resetWarmupState(): void {
     warmupSucceeded = false;
-    warmupAttempted = false;
     warmupPromise = null;
 }

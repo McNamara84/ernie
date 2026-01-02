@@ -526,8 +526,9 @@ class ResourceController extends Controller
 
                         // For polygon type, store polygon points as JSON (geo_locations.polygon_points)
                         if ($type === 'polygon' && ! empty($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
-                            // Filter and transform polygon points, skipping any with missing coordinates
-                            // to prevent storing invalid (0, 0) points at the Prime Meridian/Equator intersection
+                            // Filter and transform polygon points, skipping any with missing or out-of-range coordinates
+                            // to prevent storing invalid (0, 0) points or coordinates outside valid ranges.
+                            // Valid ranges: latitude -90 to 90, longitude -180 to 180
                             $validPoints = array_filter(
                                 $coverage['polygonPoints'],
                                 static function (mixed $point): bool {
@@ -536,8 +537,23 @@ class ResourceController extends Controller
                                     }
                                     $lon = $point['longitude'] ?? $point['lon'] ?? null;
                                     $lat = $point['latitude'] ?? $point['lat'] ?? null;
-                                    // Only include points with both valid longitude and latitude
-                                    return $lon !== null && $lon !== '' && $lat !== null && $lat !== '';
+
+                                    // Must have both values present and non-empty
+                                    if ($lon === null || $lon === '' || $lat === null || $lat === '') {
+                                        return false;
+                                    }
+
+                                    // Must be valid numeric values
+                                    if (! is_numeric($lon) || ! is_numeric($lat)) {
+                                        return false;
+                                    }
+
+                                    // Validate coordinate ranges per WGS84 specification
+                                    $lonFloat = (float) $lon;
+                                    $latFloat = (float) $lat;
+
+                                    return $latFloat >= -90 && $latFloat <= 90
+                                        && $lonFloat >= -180 && $lonFloat <= 180;
                                 }
                             );
 
