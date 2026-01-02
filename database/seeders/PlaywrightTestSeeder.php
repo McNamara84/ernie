@@ -283,7 +283,8 @@ class PlaywrightTestSeeder extends Seeder
                 'template' => 'default_gfz',
                 'is_published' => true,
                 'published_at' => now(),
-                // Ensure predictable review/preview URLs are possible
+                // Enable preview functionality for this curation fixture.
+                // Used by E2E tests to verify landing page preview URLs work correctly.
                 'preview_token' => Str::random(64),
             ]);
         }

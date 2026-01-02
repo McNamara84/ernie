@@ -353,17 +353,26 @@ class ResourceController extends Controller
                 foreach ($descriptions as $description) {
                     $descTypeKey = Str::kebab((string) ($description['descriptionType'] ?? ''));
                     $descTypeId = $descriptionTypeLookup[$descTypeKey] ?? null;
-                    if ($descTypeId) {
-                        $resource->descriptions()->create([
-                            'description_type_id' => $descTypeId,
-                            'value' => $description['description'],
-                            // Language defaults to null because per-description language selection
-                            // is not currently needed for GFZ's DataCite workflow. The resource-level
-                            // language field (DataCite #9) serves this purpose. This field is reserved
-                            // for future internationalization if multi-language descriptions are needed.
-                            'language' => $description['language'] ?? null,
+
+                    if ($descTypeId === null) {
+                        // Throw validation exception for unknown description type to prevent silent data loss.
+                        // This matches the date type handling behavior for consistency.
+                        Log::warning('Unknown description type slug: ' . ($description['descriptionType'] ?? 'empty'));
+
+                        throw ValidationException::withMessages([
+                            'descriptions' => ["Unknown description type: {$description['descriptionType']}. Please select a valid description type."],
                         ]);
                     }
+
+                    $resource->descriptions()->create([
+                        'description_type_id' => $descTypeId,
+                        'value' => $description['description'],
+                        // Language defaults to null because per-description language selection
+                        // is not currently needed for GFZ's DataCite workflow. The resource-level
+                        // language field (DataCite #9) serves this purpose. This field is reserved
+                        // for future internationalization if multi-language descriptions are needed.
+                        'language' => $description['language'] ?? null,
+                    ]);
                 }
 
                 // Save dates
@@ -512,9 +521,16 @@ class ResourceController extends Controller
                     $type = $coverage['type'] ?? 'point';
 
                     // Only save coverage if it has at least one meaningful field.
-                    // Use a helper closure for consistent coordinate checking.
-                    // Note: This correctly accepts 0 as a valid coordinate (Equator/Prime Meridian).
-                    $isCoordinateProvided = static fn (mixed $value): bool => $value !== null && (string) $value !== '';
+                    // Helper closure to check if a coordinate value is provided.
+                    // Accepts: numeric 0, string "0", floats, integers.
+                    // Rejects: null, empty string, non-numeric values.
+                    $isCoordinateProvided = static function (mixed $value): bool {
+                        if ($value === null || $value === '') {
+                            return false;
+                        }
+                        // Accept any numeric value (including 0)
+                        return is_numeric($value);
+                    };
 
                     $hasData = $isCoordinateProvided($coverage['latMin'] ?? null)
                         || $isCoordinateProvided($coverage['lonMin'] ?? null)
@@ -528,25 +544,25 @@ class ResourceController extends Controller
 
                         // For polygon type, store polygon points as JSON (geo_locations.polygon_points)
                         if ($type === 'polygon' && ! empty($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
-                            // Filter and transform polygon points, skipping any with missing or out-of-range coordinates
-                            // to prevent storing invalid (0, 0) points or coordinates outside valid ranges.
+                            $originalCount = count($coverage['polygonPoints']);
+                            $invalidPoints = [];
+
+                            // Filter and transform polygon points, tracking rejected points for feedback.
                             // Valid ranges: latitude -90 to 90, longitude -180 to 180
                             $validPoints = array_filter(
                                 $coverage['polygonPoints'],
-                                static function (mixed $point): bool {
+                                static function (mixed $point, int $index) use (&$invalidPoints): bool {
                                     if (! is_array($point)) {
+                                        $invalidPoints[] = "Point " . ($index + 1) . ": not a valid coordinate pair";
                                         return false;
                                     }
                                     $lon = $point['longitude'] ?? $point['lon'] ?? null;
                                     $lat = $point['latitude'] ?? $point['lat'] ?? null;
 
-                                    // Must have both values present and non-empty
-                                    if ($lon === null || $lon === '' || $lat === null || $lat === '') {
-                                        return false;
-                                    }
-
-                                    // Must be valid numeric values
+                                    // Must have both values present.
+                                    // Use is_numeric() to correctly accept 0 (Equator/Prime Meridian).
                                     if (! is_numeric($lon) || ! is_numeric($lat)) {
+                                        $invalidPoints[] = "Point " . ($index + 1) . ": missing or non-numeric coordinates";
                                         return false;
                                     }
 
@@ -554,17 +570,33 @@ class ResourceController extends Controller
                                     $lonFloat = (float) $lon;
                                     $latFloat = (float) $lat;
 
-                                    return $latFloat >= -90 && $latFloat <= 90
-                                        && $lonFloat >= -180 && $lonFloat <= 180;
-                                }
+                                    if ($latFloat < -90 || $latFloat > 90 || $lonFloat < -180 || $lonFloat > 180) {
+                                        $invalidPoints[] = "Point " . ($index + 1) . ": coordinates out of range (lat: {$latFloat}, lon: {$lonFloat})";
+                                        return false;
+                                    }
+
+                                    return true;
+                                },
+                                ARRAY_FILTER_USE_BOTH
                             );
 
                             // A valid polygon requires at least 3 points to form a closed shape.
-                            // Skip creating the geo location if we don't have enough valid points.
+                            // Throw validation error if we don't have enough valid points to prevent
+                            // silent data loss where a polygon "disappears" without explanation.
                             // Note: GeoJSON/DataCite polygon semantics auto-close the shape (first point
                             // implicitly connects to last point), so explicit closure is not required.
                             if (count($validPoints) < 3) {
-                                continue;
+                                $message = "Polygon requires at least 3 valid points, but only " . count($validPoints) . " valid point(s) found.";
+                                if (! empty($invalidPoints)) {
+                                    $message .= " Rejected points: " . implode('; ', array_slice($invalidPoints, 0, 5));
+                                    if (count($invalidPoints) > 5) {
+                                        $message .= " and " . (count($invalidPoints) - 5) . " more.";
+                                    }
+                                }
+
+                                throw ValidationException::withMessages([
+                                    'coverages' => [$message],
+                                ]);
                             }
 
                             $geoLocationData['polygon_points'] = array_values(array_map(
