@@ -17,6 +17,10 @@ use Illuminate\Support\Str;
  * 
  * Usage: php artisan db:seed --class=PlaywrightTestSeeder
  * 
+ * All E2E test fixtures use a "Playwright:" prefix for easy identification.
+ * Fixtures may include additional descriptive text in parentheses to clarify their purpose
+ * (e.g., "Playwright: Curation Resource (no landing page)").
+ *
  * SECURITY WARNING: Creates users with simple passwords ('password').
  * Only use in development environments, never in production!
  */
@@ -49,19 +53,25 @@ class PlaywrightTestSeeder extends Seeder
         // This also ensures UI dropdowns (e.g. Rights/SPDX licenses) are populated for E2E tests.
         // Note: All called seeders are idempotent - they use firstOrCreate/updateOrCreate
         // patterns and can safely be re-run without creating duplicates.
-        $this->call([
-            ResourceTypeSeeder::class,
-            TitleTypeSeeder::class,
-            DateTypeSeeder::class,
-            DescriptionTypeSeeder::class,
-            ContributorTypeSeeder::class,
-            IdentifierTypeSeeder::class,
-            RelationTypeSeeder::class,
-            FunderIdentifierTypeSeeder::class,
-            LanguageSeeder::class,
-            RightsSeeder::class,
-            PublisherSeeder::class,
-        ]);
+        try {
+            $this->call([
+                ResourceTypeSeeder::class,
+                TitleTypeSeeder::class,
+                DateTypeSeeder::class,
+                DescriptionTypeSeeder::class,
+                ContributorTypeSeeder::class,
+                IdentifierTypeSeeder::class,
+                RelationTypeSeeder::class,
+                FunderIdentifierTypeSeeder::class,
+                LanguageSeeder::class,
+                RightsSeeder::class,
+                PublisherSeeder::class,
+            ]);
+            $this->command->info('Lookup table seeders completed successfully.');
+        } catch (\Throwable $e) {
+            $this->command->error('Failed to seed lookup tables: ' . $e->getMessage());
+            throw $e;
+        }
 
         // Hash password once for all users
         $this->hashedPassword = bcrypt(self::TEST_PASSWORD);

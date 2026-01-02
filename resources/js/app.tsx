@@ -171,8 +171,11 @@ axios.interceptors.response.use(
                 // still work, users just won't see the explanatory notification.
             }
 
-            // Force page reload to get new CSRF token
+            // Force page reload to get new CSRF token.
+            // Return a never-resolving promise to prevent downstream error handlers
+            // from processing this error (which could cause duplicate reloads or unwanted UI).
             window.location.reload();
+            return new Promise(() => {});
         }
         return Promise.reject(error);
     },

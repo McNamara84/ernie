@@ -84,73 +84,69 @@ export default function Editor({
     ];
 
     useEffect(() => {
-        // Warmup session first to ensure CSRF token is initialized
+        // Warmup session first to ensure CSRF token is initialized.
         // This prevents 419 errors on fresh container starts.
-        // Note: warmupSession fetches /api/v1/resource-types/ernie internally,
-        // so we skip it in Promise.all below to avoid duplicate requests.
-        warmupSession().then((success) => {
-            if (!success && import.meta.env.DEV) {
-                console.warn('[Editor] Session warmup failed - CSRF errors may occur on first form submission');
-            }
+        // Note: warmupSession also fetches /api/v1/resource-types/ernie, resulting in a
+        // duplicate request. This is acceptable as the warmup ensures the session exists
+        // before the data-fetching requests. A future optimization could have warmupSession
+        // return the fetched data to eliminate this duplication.
+        warmupSession()
+            .then((success) => {
+                if (!success && import.meta.env.DEV) {
+                    console.warn('[Editor] Session warmup failed - CSRF errors may occur on first form submission');
+                }
+            })
+            .catch((err) => {
+                // Handle unexpected warmup errors gracefully.
+                // The session might still work, so we continue with data fetching.
+                console.error('[Editor] Unexpected warmup error:', err);
+            });
 
-            Promise.all([
-                // resource-types is already fetched by warmupSession(), so we fetch it here
-                // only to get the data. Consider refactoring warmupSession to return the data.
-                fetch('/api/v1/resource-types/ernie'),
-                fetch('/api/v1/title-types/ernie'),
-                fetch('/api/v1/date-types/ernie'),
-                fetch('/api/v1/licenses/ernie'),
-                fetch('/api/v1/languages/ernie'),
-                fetch('/api/v1/roles/contributor-persons/ernie'),
-                fetch('/api/v1/roles/contributor-institutions/ernie'),
-                fetch('/api/v1/roles/authors/ernie'),
-            ])
-                .then(
-                    async ([
-                        resTypes,
-                        titleRes,
-                        dateRes,
-                        licenseRes,
-                        languageRes,
-                        contributorPersonRes,
-                        contributorInstitutionRes,
-                        authorRolesRes,
-                    ]) => {
-                        if (
-                            !resTypes.ok ||
-                            !titleRes.ok ||
-                            !dateRes.ok ||
-                            !licenseRes.ok ||
-                            !languageRes.ok ||
-                            !contributorPersonRes.ok ||
-                            !contributorInstitutionRes.ok ||
-                            !authorRolesRes.ok
-                        ) {
-                            throw new Error('Network error');
-                        }
-                        const [rData, tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] =
-                            await Promise.all([
-                                resTypes.json() as Promise<ResourceType[]>,
-                                titleRes.json() as Promise<TitleType[]>,
-                                dateRes.json() as Promise<DateType[]>,
-                                licenseRes.json() as Promise<License[]>,
-                                languageRes.json() as Promise<Language[]>,
-                                contributorPersonRes.json() as Promise<Role[]>,
-                                contributorInstitutionRes.json() as Promise<Role[]>,
-                                authorRolesRes.json() as Promise<Role[]>,
-                            ]);
-                        setResourceTypes(rData);
-                        setTitleTypes(tData);
-                        setDateTypes(dData);
-                        setLicenses(lData);
-                        setLanguages(langData);
-                        setContributorPersonRoles(contributorPersonData);
-                        setContributorInstitutionRoles(contributorInstitutionData);
-                        setAuthorRoles(authorRoleData);
-                    },
-                )
-                .catch(() => setError(true));
-        });
+        // Fetch all required data for the editor form.
+        // This runs regardless of warmup success since the warmup is best-effort.
+        Promise.all([
+            fetch('/api/v1/resource-types/ernie'),
+            fetch('/api/v1/title-types/ernie'),
+            fetch('/api/v1/date-types/ernie'),
+            fetch('/api/v1/licenses/ernie'),
+            fetch('/api/v1/languages/ernie'),
+            fetch('/api/v1/roles/contributor-persons/ernie'),
+            fetch('/api/v1/roles/contributor-institutions/ernie'),
+            fetch('/api/v1/roles/authors/ernie'),
+        ])
+            .then(async ([resTypes, titleRes, dateRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
+                if (
+                    !resTypes.ok ||
+                    !titleRes.ok ||
+                    !dateRes.ok ||
+                    !licenseRes.ok ||
+                    !languageRes.ok ||
+                    !contributorPersonRes.ok ||
+                    !contributorInstitutionRes.ok ||
+                    !authorRolesRes.ok
+                ) {
+                    throw new Error('Network error');
+                }
+                const [rData, tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] = await Promise.all([
+                    resTypes.json() as Promise<ResourceType[]>,
+                    titleRes.json() as Promise<TitleType[]>,
+                    dateRes.json() as Promise<DateType[]>,
+                    licenseRes.json() as Promise<License[]>,
+                    languageRes.json() as Promise<Language[]>,
+                    contributorPersonRes.json() as Promise<Role[]>,
+                    contributorInstitutionRes.json() as Promise<Role[]>,
+                    authorRolesRes.json() as Promise<Role[]>,
+                ]);
+                setResourceTypes(rData);
+                setTitleTypes(tData);
+                setDateTypes(dData);
+                setLicenses(lData);
+                setLanguages(langData);
+                setContributorPersonRoles(contributorPersonData);
+                setContributorInstitutionRoles(contributorInstitutionData);
+                setAuthorRoles(authorRoleData);
+            })
+            .catch(() => setError(true));
     }, []);
 
     return (

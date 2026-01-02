@@ -357,10 +357,11 @@ class ResourceController extends Controller
                         $resource->descriptions()->create([
                             'description_type_id' => $descTypeId,
                             'value' => $description['description'],
-                            // Language is always null because the frontend editor does not currently
-                            // support per-description language selection. The field is reserved for
-                            // future internationalization support.
-                            'language' => null,
+                            // Language defaults to null because per-description language selection
+                            // is not currently needed for GFZ's DataCite workflow. The resource-level
+                            // language field (DataCite #9) serves this purpose. This field is reserved
+                            // for future internationalization if multi-language descriptions are needed.
+                            'language' => $description['language'] ?? null,
                         ]);
                     }
                 }
@@ -511,11 +512,12 @@ class ResourceController extends Controller
                     $type = $coverage['type'] ?? 'point';
 
                     // Only save coverage if it has at least one meaningful field.
-                    // Use a helper closure for consistent non-empty coordinate checking.
-                    $hasNonEmptyValue = static fn (mixed $value): bool => $value !== null && (string) $value !== '';
+                    // Use a helper closure for consistent coordinate checking.
+                    // Note: This correctly accepts 0 as a valid coordinate (Equator/Prime Meridian).
+                    $isCoordinateProvided = static fn (mixed $value): bool => $value !== null && (string) $value !== '';
 
-                    $hasData = $hasNonEmptyValue($coverage['latMin'] ?? null)
-                        || $hasNonEmptyValue($coverage['lonMin'] ?? null)
+                    $hasData = $isCoordinateProvided($coverage['latMin'] ?? null)
+                        || $isCoordinateProvided($coverage['lonMin'] ?? null)
                         || ! empty($coverage['polygonPoints'])
                         || ! empty($coverage['description']);
 
@@ -559,6 +561,8 @@ class ResourceController extends Controller
 
                             // A valid polygon requires at least 3 points to form a closed shape.
                             // Skip creating the geo location if we don't have enough valid points.
+                            // Note: GeoJSON/DataCite polygon semantics auto-close the shape (first point
+                            // implicitly connects to last point), so explicit closure is not required.
                             if (count($validPoints) < 3) {
                                 continue;
                             }
