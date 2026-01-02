@@ -1248,7 +1248,7 @@ class ResourceController extends Controller
                 'language:id,code,name',
                 'createdBy:id,name',
                 'updatedBy:id,name',
-                'landingPage:id,resource_id,is_published,published_at',
+                'landingPage:id,resource_id,is_published,published_at,preview_token',
                 'titles' => function ($query): void {
                     $query->select(['id', 'resource_id', 'value', 'title_type_id'])
                         ->with(['titleType:id,name,slug'])
