@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20 <23",
-    "npm": ">=9"
+    "node": ">=22 <25",
+    "npm": ">=10"
   },
   "scripts": {
     "build": "vite build",
