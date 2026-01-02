@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Schema;
  * This migration creates the complete database schema for ERNIE,
  * aligned with the DataCite Metadata Schema 4.6 standard.
  *
+ * Column Naming Convention:
+ * - Column names use concise, canonical names (e.g., `value` instead of
+ *   `description_value`, `place` instead of `geo_location_place`) for brevity.
+ * - These names were chosen intentionally from the initial schema design.
+ *   No column renaming migrations are needed.
+ *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
  */
 return new class extends Migration

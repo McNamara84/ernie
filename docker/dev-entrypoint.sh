@@ -77,6 +77,14 @@ php artisan config:clear 2>/dev/null || true
 php artisan route:clear 2>/dev/null || true
 php artisan view:clear 2>/dev/null || true
 
+# Remove production build assets in dev mode
+# In dev mode, assets should be served by Vite dev server, not from build/
+# If build/ exists from a previous production build, Laravel may use it as fallback
+if [ -d "$APP_PATH/public/build" ]; then
+    echo "Removing production build assets (dev mode uses Vite HMR)..."
+    rm -rf "$APP_PATH/public/build"
+fi
+
 # Generate app key if not set
 if ! grep -q "^APP_KEY=base64:" "$APP_PATH/.env" 2>/dev/null; then
     echo "Generating application key..."

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -46,6 +47,13 @@ test('updating a resource syncs licenses (removes old, adds new)', function () {
         'is_active' => true,
         'is_elmo_active' => true,
         'usage_count' => 0,
+    ]);
+
+    DescriptionType::create([
+        'name' => 'Abstract',
+        'slug' => 'Abstract',
+        'is_active' => true,
+        'is_elmo_active' => true,
     ]);
 
     $createPayload = [

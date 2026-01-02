@@ -12,6 +12,26 @@ import { normalizeUrlLike } from './lib/url-normalizer';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+// Inject notification animation styles once at module load.
+// This avoids race conditions that could occur if styles were injected
+// dynamically when the notification is created.
+const notificationStyleId = 'session-refresh-notification-styles';
+if (typeof document !== 'undefined' && !document.getElementById(notificationStyleId)) {
+    const style = document.createElement('style');
+    style.id = notificationStyleId;
+    style.textContent = `
+        @keyframes session-notification-slide-in {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes session-notification-slide-out {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // Configure Axios for CSRF token with dynamic token refresh
 axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
@@ -73,6 +93,66 @@ axios.interceptors.request.use(
     },
 );
 
+// Track if we've shown the CSRF refresh notification to avoid spamming
+let csrfRefreshNotificationShown = false;
+
+/**
+ * Shows a brief notification to the user explaining the session refresh.
+ * This improves UX by informing users why the page reloaded.
+ * Animation styles are pre-defined at module load to avoid race conditions.
+ */
+function showSessionRefreshNotification(): void {
+    if (csrfRefreshNotificationShown) {
+        return;
+    }
+
+    csrfRefreshNotificationShown = true;
+
+    // Create a toast-like notification
+    const notification = document.createElement('div');
+    notification.id = 'session-refresh-notification';
+    notification.setAttribute('role', 'alert');
+    notification.setAttribute('aria-live', 'polite');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #1f2937;
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        z-index: 9999;
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 14px;
+        max-width: 320px;
+        animation: session-notification-slide-in 0.3s ease-out;
+    `;
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+            </svg>
+            <div>
+                <strong style="display: block; margin-bottom: 4px;">Session refreshed</strong>
+                <span style="opacity: 0.9;">Please try your action again.</span>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(notification);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        notification.style.animation = 'session-notification-slide-out 0.3s ease-out forwards';
+        setTimeout(() => {
+            notification.remove();
+            csrfRefreshNotificationShown = false;
+        }, 300);
+    }, 5000);
+}
+
 // Add response interceptor to handle CSRF token refresh on 419 errors
 axios.interceptors.response.use(
     function (response) {
@@ -81,12 +161,42 @@ axios.interceptors.response.use(
     function (error) {
         if (error.response && error.response.status === 419) {
             console.warn('CSRF token mismatch, attempting to refresh...');
-            // Force page reload to get new CSRF token
+
+            // Store flag in sessionStorage so we can show notification after reload
+            try {
+                sessionStorage.setItem('csrf_refresh_pending', 'true');
+            } catch {
+                // Intentionally ignored: sessionStorage may be unavailable in private
+                // browsing mode or when storage quota is exceeded. The page reload will
+                // still work, users just won't see the explanatory notification.
+            }
+
+            // Force page reload to get new CSRF token.
+            // Return a never-resolving promise to prevent downstream error handlers
+            // from processing this error (which could cause duplicate reloads or unwanted UI).
             window.location.reload();
+            return new Promise(() => {});
         }
         return Promise.reject(error);
     },
 );
+
+// Check if we just refreshed due to CSRF mismatch and show notification
+try {
+    if (sessionStorage.getItem('csrf_refresh_pending') === 'true') {
+        sessionStorage.removeItem('csrf_refresh_pending');
+        // Show notification after DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showSessionRefreshNotification);
+        } else {
+            setTimeout(showSessionRefreshNotification, 100);
+        }
+    }
+} catch {
+    // Intentionally ignored: sessionStorage may be unavailable in private browsing
+    // mode or when storage quota is exceeded. This only affects the notification
+    // display, not the core session refresh functionality.
+}
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -101,20 +211,6 @@ createInertiaApp({
     },
     progress: {
         color: '#4B5563',
-    },
-    onError: (errors) => {
-        console.error('[Inertia] Error:', errors);
-
-        // Check if it's a 419 CSRF error
-        if (typeof errors === 'object' && errors !== null) {
-            const errorObj = errors as { response?: { status?: number }; status?: number };
-            if (errorObj.response?.status === 419 || errorObj.status === 419) {
-                console.warn('[Inertia] CSRF token expired (419), reloading page...');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 100);
-            }
-        }
     },
 });
 

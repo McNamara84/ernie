@@ -12,11 +12,9 @@ if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
     npm install
 fi
 
-# Create the hot file with the correct Vite dev server URL
-# This tells Laravel where to load Vite assets from
-HOT_FILE="/var/www/html/public/hot"
-echo "Creating hot file at $HOT_FILE..."
-echo "https://localhost:3333" > "$HOT_FILE"
+# Note: The Laravel Vite plugin automatically creates/manages the public/hot file.
+# It writes the Vite dev server URL (from VITE_DEV_SERVER_URL env var) on startup
+# and removes it on shutdown. No manual hot file creation needed here.
 
 # Start Vite dev server
 echo "Starting Vite development server..."

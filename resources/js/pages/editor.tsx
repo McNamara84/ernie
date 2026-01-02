@@ -5,6 +5,7 @@ import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/com
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
+import { warmupSession, type WarmupResponse } from '@/lib/session-warmup';
 import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
@@ -83,19 +84,40 @@ export default function Editor({
     ];
 
     useEffect(() => {
-        Promise.all([
-            fetch('/api/v1/resource-types/ernie'),
-            fetch('/api/v1/title-types/ernie'),
-            fetch('/api/v1/date-types/ernie'),
-            fetch('/api/v1/licenses/ernie'),
-            fetch('/api/v1/languages/ernie'),
-            fetch('/api/v1/roles/contributor-persons/ernie'),
-            fetch('/api/v1/roles/contributor-institutions/ernie'),
-            fetch('/api/v1/roles/authors/ernie'),
-        ])
-            .then(async ([resTypes, titleRes, dateRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
+        // Warmup session and fetch resource types in a single request.
+        // This prevents 419 errors on fresh container starts and avoids duplicate requests.
+        warmupSession<ResourceType[]>()
+            .then((warmupResult: WarmupResponse<ResourceType[]>) => {
+                if (!warmupResult.success) {
+                    if (import.meta.env.DEV) {
+                        console.warn('[Editor] Session warmup failed - CSRF errors may occur on first form submission');
+                    }
+                    // Warmup failed, but we still need to fetch resource types
+                    return fetch('/api/v1/resource-types/ernie')
+                        .then((res) => {
+                            if (!res.ok) throw new Error('Failed to fetch resource types');
+                            return res.json() as Promise<ResourceType[]>;
+                        });
+                }
+                // Warmup succeeded - use the cached resource types data
+                return warmupResult.data;
+            })
+            .then((resourceTypesData) => {
+                setResourceTypes(resourceTypesData);
+
+                // Fetch remaining data (resource types already fetched via warmup)
+                return Promise.all([
+                    fetch('/api/v1/title-types/ernie'),
+                    fetch('/api/v1/date-types/ernie'),
+                    fetch('/api/v1/licenses/ernie'),
+                    fetch('/api/v1/languages/ernie'),
+                    fetch('/api/v1/roles/contributor-persons/ernie'),
+                    fetch('/api/v1/roles/contributor-institutions/ernie'),
+                    fetch('/api/v1/roles/authors/ernie'),
+                ]);
+            })
+            .then(async ([titleRes, dateRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
                 if (
-                    !resTypes.ok ||
                     !titleRes.ok ||
                     !dateRes.ok ||
                     !licenseRes.ok ||
@@ -106,8 +128,7 @@ export default function Editor({
                 ) {
                     throw new Error('Network error');
                 }
-                const [rData, tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] = await Promise.all([
-                    resTypes.json() as Promise<ResourceType[]>,
+                const [tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] = await Promise.all([
                     titleRes.json() as Promise<TitleType[]>,
                     dateRes.json() as Promise<DateType[]>,
                     licenseRes.json() as Promise<License[]>,
@@ -116,7 +137,6 @@ export default function Editor({
                     contributorInstitutionRes.json() as Promise<Role[]>,
                     authorRolesRes.json() as Promise<Role[]>,
                 ]);
-                setResourceTypes(rData);
                 setTitleTypes(tData);
                 setDateTypes(dData);
                 setLicenses(lData);
@@ -125,7 +145,10 @@ export default function Editor({
                 setContributorInstitutionRoles(contributorInstitutionData);
                 setAuthorRoles(authorRoleData);
             })
-            .catch(() => setError(true));
+            .catch((err) => {
+                console.error('[Editor] Failed to load editor data:', err);
+                setError(true);
+            });
     }, []);
 
     return (

@@ -938,7 +938,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                             aria-label={ariaLabel}
                             title={ariaLabel}
                         >
-                            {statusLabel}
+                            <span>{statusLabel}</span>
                         </span>
                     </div>
                 );

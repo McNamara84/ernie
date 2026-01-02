@@ -12,8 +12,8 @@ FROM php:8.4-fpm AS app
 
 WORKDIR /var/www/html
 
-# Install system dependencies and Node.js in a single layer for efficiency
-# Node.js 22 LTS is required for the Wayfinder plugin (php artisan integration)
+# Install system dependencies and Node.js in a single layer for efficiency.
+# Node.js 24 LTS is installed from NodeSource, which includes npm.
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -30,10 +30,11 @@ RUN apt-get update && apt-get install -y \
     netcat-traditional \
     ca-certificates \
     gnupg \
-    # Install Node.js 22 LTS in the same layer to reduce image size
+    # Install Node.js 24 from NodeSource. This package includes npm,
+    # so no separate npm installation is needed.
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
     && apt-get update \
     && apt-get install -y nodejs \
     && apt-get clean \
@@ -98,7 +99,7 @@ EXPOSE 80
 # because the Wayfinder plugin requires php artisan access. This stage is
 # kept for potential future use with a standalone Vite setup.
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS vite
+FROM node:24-alpine AS vite
 
 WORKDIR /var/www/html
 
