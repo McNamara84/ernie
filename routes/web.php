@@ -661,6 +661,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['can.manage.users'])->prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\UserController::class, 'index'])
             ->name('users.index');
+        Route::post('/', [App\Http\Controllers\UserController::class, 'store'])
+            ->name('users.store');
         Route::patch('{user}/role', [App\Http\Controllers\UserController::class, 'updateRole'])
             ->name('users.update-role');
         Route::post('{user}/deactivate', [App\Http\Controllers\UserController::class, 'deactivate'])

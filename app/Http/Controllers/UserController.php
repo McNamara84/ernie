@@ -6,11 +6,13 @@ use App\Enums\UserRole;
 use App\Http\Requests\DeactivateUserRequest;
 use App\Http\Requests\ReactivateUserRequest;
 use App\Http\Requests\ResetUserPasswordRequest;
+use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRoleRequest;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -56,7 +58,38 @@ class UserController extends Controller
                 'label' => $role->label(),
             ])->toArray(),
             'can_promote_to_group_leader' => $authUser->role->canPromoteToGroupLeader(),
+            'can_create_users' => $authUser->canManageUsers(),
         ]);
+    }
+
+    /**
+     * Store a newly created user.
+     * Creates user with Beginner role and sends password reset email.
+     */
+    public function store(StoreUserRequest $request): RedirectResponse
+    {
+        $this->authorize('create', User::class);
+
+        // Create user with random password (will be reset via email)
+        $user = User::create([
+            'name' => $request->validated()['name'],
+            'email' => $request->validated()['email'],
+            'password' => Str::random(32),
+            'role' => UserRole::BEGINNER,
+            'is_active' => true,
+        ]);
+
+        // Send password reset email
+        $status = Password::sendResetLink([
+            'email' => $user->email,
+        ]);
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return redirect()->back()->with('success', "User '{$user->name}' has been created. A password reset link has been sent to their email.");
+        }
+
+        // User was created but email failed - still success but with warning
+        return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent. Please use the password reset button to send it manually.");
     }
 
     /**
