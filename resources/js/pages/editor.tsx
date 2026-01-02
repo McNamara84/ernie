@@ -5,7 +5,7 @@ import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/com
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
-import { warmupSession, type WarmupResponse } from '@/lib/session-warmup';
+import { type WarmupResponse, warmupSession } from '@/lib/session-warmup';
 import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
@@ -93,11 +93,10 @@ export default function Editor({
                         console.warn('[Editor] Session warmup failed - CSRF errors may occur on first form submission');
                     }
                     // Warmup failed, but we still need to fetch resource types
-                    return fetch('/api/v1/resource-types/ernie')
-                        .then((res) => {
-                            if (!res.ok) throw new Error('Failed to fetch resource types');
-                            return res.json() as Promise<ResourceType[]>;
-                        });
+                    return fetch('/api/v1/resource-types/ernie').then((res) => {
+                        if (!res.ok) throw new Error('Failed to fetch resource types');
+                        return res.json() as Promise<ResourceType[]>;
+                    });
                 }
                 // Warmup succeeded - use the cached resource types data
                 return warmupResult.data;

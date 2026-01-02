@@ -118,11 +118,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
         setError(null);
 
         try {
-            const response = await axios.post<{ import_id: string; message: string }>(
-                '/datacite/import/start',
-                {},
-                { headers: buildCsrfHeaders() }
-            );
+            const response = await axios.post<{ import_id: string; message: string }>('/datacite/import/start', {}, { headers: buildCsrfHeaders() });
 
             setImportId(response.data.import_id);
             setModalState('running');
@@ -300,7 +296,9 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                                 <div className="text-center text-xs text-muted-foreground">
                                     <p>Elapsed: {formatDuration(progress.started_at)}</p>
                                     {progress.processed > 0 && progress.total > 0 && progress.processed < progress.total && (
-                                        <p className="mt-1 text-primary">{formatRemainingTime(progress.started_at, progress.processed, progress.total)}</p>
+                                        <p className="mt-1 text-primary">
+                                            {formatRemainingTime(progress.started_at, progress.processed, progress.total)}
+                                        </p>
                                     )}
                                 </div>
                             )}
@@ -418,9 +416,7 @@ export default function ImportFromDataCiteModal({ isOpen, onClose, onSuccess }: 
                         </Button>
                     )}
 
-                    {(modalState === 'completed' || modalState === 'failed') && (
-                        <Button onClick={handleClose}>Close</Button>
-                    )}
+                    {(modalState === 'completed' || modalState === 'failed') && <Button onClick={handleClose}>Close</Button>}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

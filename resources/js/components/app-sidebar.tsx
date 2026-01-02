@@ -6,7 +6,7 @@ import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { dashboard, settings } from '@/routes';
-import { type NavItem,type User as AuthUser } from '@/types';
+import { type User as AuthUser, type NavItem } from '@/types';
 
 import AppLogo from './app-logo';
 

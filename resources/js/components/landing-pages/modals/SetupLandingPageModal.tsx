@@ -339,18 +339,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
                                 <Label className="text-green-900 dark:text-green-100">Public URL</Label>
                                 <div className="flex gap-2">
-                                    <Input
-                                        readOnly
-                                        value={`/datasets/${resource.id}`}
-                                        className="bg-white font-mono text-xs dark:bg-gray-950"
-                                    />
+                                    <Input readOnly value={`/datasets/${resource.id}`} className="bg-white font-mono text-xs dark:bg-gray-950" />
                                     <Button
                                         type="button"
                                         size="icon"
                                         variant="outline"
-                                        onClick={() =>
-                                            copyToClipboard(window.location.origin + `/datasets/${resource.id}`, 'Public URL')
-                                        }
+                                        onClick={() => copyToClipboard(window.location.origin + `/datasets/${resource.id}`, 'Public URL')}
                                         title="Copy public URL"
                                     >
                                         <Copy className="size-4" />

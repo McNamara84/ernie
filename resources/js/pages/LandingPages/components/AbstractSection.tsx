@@ -178,11 +178,7 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
                                         className="shrink-0"
                                         title={`Crossref Funder ID: ${funding.funder_identifier}`}
                                     >
-                                        <img
-                                            src="/images/pid-icons/crossref-funder.png"
-                                            alt="Crossref Funder ID"
-                                            className="h-4 w-4"
-                                        />
+                                        <img src="/images/pid-icons/crossref-funder.png" alt="Crossref Funder ID" className="h-4 w-4" />
                                     </a>
                                 )}
                             </li>
