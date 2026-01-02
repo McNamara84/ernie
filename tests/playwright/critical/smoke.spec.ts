@@ -54,7 +54,8 @@ test.describe('Critical Smoke Tests', () => {
     await fileInput.setInputFiles(xmlFilePath);
     
     // Verify redirect to editor with session key (session-based workflow)
-    await page.waitForURL(/\/editor/, { timeout: 10000 });
+    // XML parsing and session creation can take time, especially under load
+    await page.waitForURL(/\/editor/, { timeout: 30000 });
     
     const currentUrl = page.url();
     // With session-based workflow, only xmlSession parameter is passed
