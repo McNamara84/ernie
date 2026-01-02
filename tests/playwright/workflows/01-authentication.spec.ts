@@ -12,7 +12,10 @@ test.describe('Authentication', () => {
 
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
-    await page.getByRole('button', { name: 'Log in' }).click();
+
+    const loginButton = page.getByRole('button', { name: 'Log in' });
+    await expect(loginButton).toBeEnabled({ timeout: 15000 });
+    await loginButton.click();
 
     await page.waitForURL(/\/dashboard/, { timeout: 15000 });
     await expect(page.getByText(TEST_USER_GREETING)).toBeVisible();
@@ -23,7 +26,10 @@ test.describe('Authentication', () => {
 
     await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
     await page.getByLabel('Password').fill(INVALID_PASSWORD);
-    await page.getByRole('button', { name: 'Log in' }).click();
+
+    const loginButton = page.getByRole('button', { name: 'Log in' });
+    await expect(loginButton).toBeEnabled({ timeout: 15000 });
+    await loginButton.click();
 
     await expect(page.getByText('These credentials do not match our records.')).toBeVisible();
     await expect(page).toHaveURL(/\/login/);
