@@ -290,7 +290,7 @@ The project includes a complete Docker development environment that mirrors the 
 
    If `ernie.localhost` does not resolve on your system, add it to your hosts file (Windows: `C:\Windows\System32\drivers\etc\hosts`) as `127.0.0.1 ernie.localhost`.
 
-   Note: The dev stack uses `SESSION_DOMAIN=ernie.localhost` by default. Some browsers reject cookies with `Domain=.localhost`, which can lead to `419 Page Expired` on login.
+   Note: The dev stack uses `SESSION_DOMAIN=ernie.localhost` by default. If you experience `419 Page Expired` errors on login, this may be due to browser cookie handling for the `.localhost` TLD. Try accessing via `https://localhost:3333/` as a fallback, or adjust `ERNIE_DEV_SESSION_DOMAIN` in your environment.
 
 5. **Run initial setup** (first time or after database reset):
    ```powershell

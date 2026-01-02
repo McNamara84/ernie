@@ -357,6 +357,9 @@ class ResourceController extends Controller
                         $resource->descriptions()->create([
                             'description_type_id' => $descTypeId,
                             'value' => $description['description'],
+                            // Language is always null because the frontend editor does not currently
+                            // support per-description language selection. The field is reserved for
+                            // future internationalization support.
                             'language' => null,
                         ]);
                     }
@@ -411,13 +414,20 @@ class ResourceController extends Controller
                         ]);
                     }
 
+                    // Date storage strategy:
+                    // - When BOTH startDate AND endDate are provided: store as a date range
+                    //   (date_value=null, start_date/end_date populated)
+                    // - When only ONE date is provided: store as a single date
+                    //   (date_value=the provided date, start_date/end_date=null)
+                    // This allows the model to distinguish between point-in-time dates
+                    // and date ranges while maintaining backward compatibility.
+                    $hasRange = ($date['startDate'] ?? null) && ($date['endDate'] ?? null);
+
                     $resource->dates()->create([
                         'date_type_id' => $dateTypeId,
-                        'date_value' => ($date['startDate'] ?? null) && ($date['endDate'] ?? null)
-                            ? null
-                            : ($date['startDate'] ?? $date['endDate'] ?? null),
-                        'start_date' => ($date['startDate'] ?? null) && ($date['endDate'] ?? null) ? $date['startDate'] : null,
-                        'end_date' => ($date['startDate'] ?? null) && ($date['endDate'] ?? null) ? $date['endDate'] : null,
+                        'date_value' => $hasRange ? null : ($date['startDate'] ?? $date['endDate'] ?? null),
+                        'start_date' => $hasRange ? $date['startDate'] : null,
+                        'end_date' => $hasRange ? $date['endDate'] : null,
                         'date_information' => $date['dateInformation'] ?? null,
                     ]);
                 }
@@ -500,9 +510,12 @@ class ResourceController extends Controller
                 foreach ($coverages as $coverage) {
                     $type = $coverage['type'] ?? 'point';
 
-                    // Only save coverage if it has at least one meaningful field
-                    $hasData = ($coverage['latMin'] ?? null) !== null && (string) ($coverage['latMin'] ?? '') !== ''
-                        || ($coverage['lonMin'] ?? null) !== null && (string) ($coverage['lonMin'] ?? '') !== ''
+                    // Only save coverage if it has at least one meaningful field.
+                    // Use a helper closure for consistent non-empty coordinate checking.
+                    $hasNonEmptyValue = static fn (mixed $value): bool => $value !== null && (string) $value !== '';
+
+                    $hasData = $hasNonEmptyValue($coverage['latMin'] ?? null)
+                        || $hasNonEmptyValue($coverage['lonMin'] ?? null)
                         || ! empty($coverage['polygonPoints'])
                         || ! empty($coverage['description']);
 
@@ -513,15 +526,27 @@ class ResourceController extends Controller
 
                         // For polygon type, store polygon points as JSON (geo_locations.polygon_points)
                         if ($type === 'polygon' && ! empty($coverage['polygonPoints']) && is_array($coverage['polygonPoints'])) {
+                            // Filter and transform polygon points, skipping any with missing coordinates
+                            // to prevent storing invalid (0, 0) points at the Prime Meridian/Equator intersection
+                            $validPoints = array_filter(
+                                $coverage['polygonPoints'],
+                                static function (mixed $point): bool {
+                                    if (! is_array($point)) {
+                                        return false;
+                                    }
+                                    $lon = $point['longitude'] ?? $point['lon'] ?? null;
+                                    $lat = $point['latitude'] ?? $point['lat'] ?? null;
+                                    // Only include points with both valid longitude and latitude
+                                    return $lon !== null && $lon !== '' && $lat !== null && $lat !== '';
+                                }
+                            );
+
                             $geoLocationData['polygon_points'] = array_values(array_map(
                                 static fn (array $point): array => [
-                                    'longitude' => (float) ($point['longitude'] ?? $point['lon'] ?? 0),
-                                    'latitude' => (float) ($point['latitude'] ?? $point['lat'] ?? 0),
+                                    'longitude' => (float) ($point['longitude'] ?? $point['lon']),
+                                    'latitude' => (float) ($point['latitude'] ?? $point['lat']),
                                 ],
-                                array_filter(
-                                    $coverage['polygonPoints'],
-                                    static fn (mixed $point): bool => is_array($point)
-                                )
+                                $validPoints
                             ));
 
                             $resource->geoLocations()->create($geoLocationData);

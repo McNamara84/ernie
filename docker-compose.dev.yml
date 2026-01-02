@@ -98,8 +98,8 @@ services:
       - app
     labels:
       - "traefik.enable=true"
-      # Main application router (subdomain-based, no prefix)
-      - "traefik.http.routers.ernie-router.rule=HostRegexp(`{host:localhost(:[0-9]+)?|[a-z0-9-]+\\.localhost(:[0-9]+)?}`)"
+      # Main application router (subdomain-based, no prefix)      # The broad regex allows localhost and any *.localhost subdomain for development flexibility.
+      # This enables testing with different subdomains without config changes (e.g., ernie.localhost, test.localhost).      - "traefik.http.routers.ernie-router.rule=HostRegexp(`{host:localhost(:[0-9]+)?|[a-z0-9-]+\\.localhost(:[0-9]+)?}`)"
       - "traefik.http.routers.ernie-router.entrypoints=https"
       - "traefik.http.routers.ernie-router.service=ernie-service"
       - "traefik.http.routers.ernie-router.tls=true"

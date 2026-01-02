@@ -31,7 +31,8 @@ class PlaywrightTestSeeder extends Seeder
     private const PLAYWRIGHT_PUBLISHED_RESOURCE_DOI = '10.1234/playwright-published';
 
     // Review fixture must have a DOI + an unpublished landing page to surface as publicstatus=review.
-    // Keep the DOI free of the substring "review" to avoid Playwright text-selector collisions.
+    // Avoid "review" substring in DOI to prevent Playwright :text() selectors from matching
+    // the DOI badge when searching for "Review" status badges in the UI.
     private const PLAYWRIGHT_REVIEW_RESOURCE_DOI = '10.1234/playwright-qa';
 
     // Legacy: older seeds created a "review" fixture with a DOI. Keep this for cleanup/idempotency.
@@ -46,6 +47,8 @@ class PlaywrightTestSeeder extends Seeder
     {
         // Seed essential lookup tables to keep the dev stack close to stage/prod.
         // This also ensures UI dropdowns (e.g. Rights/SPDX licenses) are populated for E2E tests.
+        // Note: All called seeders are idempotent - they use firstOrCreate/updateOrCreate
+        // patterns and can safely be re-run without creating duplicates.
         $this->call([
             ResourceTypeSeeder::class,
             TitleTypeSeeder::class,
@@ -207,17 +210,7 @@ class PlaywrightTestSeeder extends Seeder
             $reviewResource->save();
         }
 
-        // Ensure title exists and does not contain "Review" to avoid Playwright selectors matching the title.
-        $reviewTitle = Title::query()->where('resource_id', $reviewResource->id)->first();
-        if ($reviewTitle === null) {
-            Title::factory()->create([
-                'resource_id' => $reviewResource->id,
-                'value' => 'Playwright: QA Resource',
-            ]);
-        } elseif (str_contains($reviewTitle->value, 'Review')) {
-            $reviewTitle->value = 'Playwright: QA Resource';
-            $reviewTitle->save();
-        }
+        // Ensure title exists and does not contain \"Review\" to avoid Playwright :text(\"Review\")\n        // selectors matching the resource title instead of the status badge.\n        // The \"Playwright:\" prefix is intentional and used consistently across all test fixtures\n        // for easy identification, but won't collide with status badge selectors.\n        $reviewTitle = Title::query()->where('resource_id', $reviewResource->id)->first();\n        if ($reviewTitle === null) {\n            Title::factory()->create([\n                'resource_id' => $reviewResource->id,\n                'value' => 'Playwright: QA Resource',\n            ]);\n        } elseif (str_contains($reviewTitle->value, 'Review')) {\n            $reviewTitle->value = 'Playwright: QA Resource';\n            $reviewTitle->save();\n        }
 
         $reviewLandingPage = LandingPage::query()->updateOrCreate(
             ['slug' => 'playwright-review'],

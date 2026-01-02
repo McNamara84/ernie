@@ -10,21 +10,22 @@
 
 import axios from 'axios';
 
-let sessionWarmedUp = false;
+let warmupSucceeded = false;
+let warmupAttempted = false;
 let warmupPromise: Promise<boolean> | null = null;
 
 /**
  * Performs a lightweight request to initialize the session and CSRF token.
  * This should be called early in the page lifecycle before any form submissions.
  *
- * The function is idempotent - subsequent calls return immediately if the
- * session has already been warmed up.
+ * The function allows retries after failures - only successful warmups are cached.
+ * This handles transient network issues while preventing unnecessary duplicate requests.
  *
  * @returns Promise<boolean> - true if warmup succeeded, false otherwise
  */
 export async function warmupSession(): Promise<boolean> {
-    // Already warmed up
-    if (sessionWarmedUp) {
+    // Already successfully warmed up - no need to retry
+    if (warmupSucceeded) {
         return true;
     }
 
@@ -48,7 +49,8 @@ async function performWarmup(): Promise<boolean> {
             timeout: 5000,
         });
 
-        sessionWarmedUp = true;
+        warmupSucceeded = true;
+        warmupAttempted = true;
 
         if (import.meta.env.DEV) {
             console.debug('[Session] Warmup completed successfully');
@@ -61,8 +63,9 @@ async function performWarmup(): Promise<boolean> {
             console.warn('[Session] Warmup request failed, session may not be initialized:', error);
         }
 
-        // Still mark as attempted to avoid repeated failures
-        sessionWarmedUp = true;
+        // Mark as attempted but NOT succeeded, allowing retry on next call
+        // This handles transient network issues while preventing infinite loops
+        warmupAttempted = true;
         return false;
     } finally {
         warmupPromise = null;
@@ -70,16 +73,24 @@ async function performWarmup(): Promise<boolean> {
 }
 
 /**
- * Check if the session has been warmed up.
+ * Check if the session warmup was successful.
  */
 export function isSessionWarmedUp(): boolean {
-    return sessionWarmedUp;
+    return warmupSucceeded;
+}
+
+/**
+ * Check if a warmup was attempted (regardless of success).
+ */
+export function wasWarmupAttempted(): boolean {
+    return warmupAttempted;
 }
 
 /**
  * Reset the warmup state (useful for testing).
  */
 export function resetWarmupState(): void {
-    sessionWarmedUp = false;
+    warmupSucceeded = false;
+    warmupAttempted = false;
     warmupPromise = null;
 }

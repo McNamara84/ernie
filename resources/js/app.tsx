@@ -156,7 +156,9 @@ axios.interceptors.response.use(
             try {
                 sessionStorage.setItem('csrf_refresh_pending', 'true');
             } catch {
-                // Ignore sessionStorage errors (e.g., private browsing)
+                // Intentionally ignored: sessionStorage may be unavailable in private
+                // browsing mode or when storage quota is exceeded. The page reload will
+                // still work, users just won't see the explanatory notification.
             }
 
             // Force page reload to get new CSRF token
@@ -178,7 +180,9 @@ try {
         }
     }
 } catch {
-    // Ignore sessionStorage errors
+    // Intentionally ignored: sessionStorage may be unavailable in private browsing
+    // mode or when storage quota is exceeded. This only affects the notification
+    // display, not the core session refresh functionality.
 }
 
 createInertiaApp({
