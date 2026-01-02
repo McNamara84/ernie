@@ -5,6 +5,7 @@ import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/com
 import { type FundingReferenceEntry } from '@/components/curation/fields/funding-reference';
 import { type SpatialTemporalCoverageEntry } from '@/components/curation/fields/spatial-temporal-coverage/types';
 import AppLayout from '@/layouts/app-layout';
+import { warmupSession } from '@/lib/session-warmup';
 import { editor } from '@/routes';
 import {
     type BreadcrumbItem,
@@ -83,49 +84,65 @@ export default function Editor({
     ];
 
     useEffect(() => {
-        Promise.all([
-            fetch('/api/v1/resource-types/ernie'),
-            fetch('/api/v1/title-types/ernie'),
-            fetch('/api/v1/date-types/ernie'),
-            fetch('/api/v1/licenses/ernie'),
-            fetch('/api/v1/languages/ernie'),
-            fetch('/api/v1/roles/contributor-persons/ernie'),
-            fetch('/api/v1/roles/contributor-institutions/ernie'),
-            fetch('/api/v1/roles/authors/ernie'),
-        ])
-            .then(async ([resTypes, titleRes, dateRes, licenseRes, languageRes, contributorPersonRes, contributorInstitutionRes, authorRolesRes]) => {
-                if (
-                    !resTypes.ok ||
-                    !titleRes.ok ||
-                    !dateRes.ok ||
-                    !licenseRes.ok ||
-                    !languageRes.ok ||
-                    !contributorPersonRes.ok ||
-                    !contributorInstitutionRes.ok ||
-                    !authorRolesRes.ok
-                ) {
-                    throw new Error('Network error');
-                }
-                const [rData, tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] = await Promise.all([
-                    resTypes.json() as Promise<ResourceType[]>,
-                    titleRes.json() as Promise<TitleType[]>,
-                    dateRes.json() as Promise<DateType[]>,
-                    licenseRes.json() as Promise<License[]>,
-                    languageRes.json() as Promise<Language[]>,
-                    contributorPersonRes.json() as Promise<Role[]>,
-                    contributorInstitutionRes.json() as Promise<Role[]>,
-                    authorRolesRes.json() as Promise<Role[]>,
-                ]);
-                setResourceTypes(rData);
-                setTitleTypes(tData);
-                setDateTypes(dData);
-                setLicenses(lData);
-                setLanguages(langData);
-                setContributorPersonRoles(contributorPersonData);
-                setContributorInstitutionRoles(contributorInstitutionData);
-                setAuthorRoles(authorRoleData);
-            })
-            .catch(() => setError(true));
+        // Warmup session first to ensure CSRF token is initialized
+        // This prevents 419 errors on fresh container starts
+        warmupSession().then(() => {
+            Promise.all([
+                fetch('/api/v1/resource-types/ernie'),
+                fetch('/api/v1/title-types/ernie'),
+                fetch('/api/v1/date-types/ernie'),
+                fetch('/api/v1/licenses/ernie'),
+                fetch('/api/v1/languages/ernie'),
+                fetch('/api/v1/roles/contributor-persons/ernie'),
+                fetch('/api/v1/roles/contributor-institutions/ernie'),
+                fetch('/api/v1/roles/authors/ernie'),
+            ])
+                .then(
+                    async ([
+                        resTypes,
+                        titleRes,
+                        dateRes,
+                        licenseRes,
+                        languageRes,
+                        contributorPersonRes,
+                        contributorInstitutionRes,
+                        authorRolesRes,
+                    ]) => {
+                        if (
+                            !resTypes.ok ||
+                            !titleRes.ok ||
+                            !dateRes.ok ||
+                            !licenseRes.ok ||
+                            !languageRes.ok ||
+                            !contributorPersonRes.ok ||
+                            !contributorInstitutionRes.ok ||
+                            !authorRolesRes.ok
+                        ) {
+                            throw new Error('Network error');
+                        }
+                        const [rData, tData, dData, lData, langData, contributorPersonData, contributorInstitutionData, authorRoleData] =
+                            await Promise.all([
+                                resTypes.json() as Promise<ResourceType[]>,
+                                titleRes.json() as Promise<TitleType[]>,
+                                dateRes.json() as Promise<DateType[]>,
+                                licenseRes.json() as Promise<License[]>,
+                                languageRes.json() as Promise<Language[]>,
+                                contributorPersonRes.json() as Promise<Role[]>,
+                                contributorInstitutionRes.json() as Promise<Role[]>,
+                                authorRolesRes.json() as Promise<Role[]>,
+                            ]);
+                        setResourceTypes(rData);
+                        setTitleTypes(tData);
+                        setDateTypes(dData);
+                        setLicenses(lData);
+                        setLanguages(langData);
+                        setContributorPersonRoles(contributorPersonData);
+                        setContributorInstitutionRoles(contributorInstitutionData);
+                        setAuthorRoles(authorRoleData);
+                    },
+                )
+                .catch(() => setError(true));
+        });
     }, []);
 
     return (

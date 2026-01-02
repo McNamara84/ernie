@@ -84,7 +84,7 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
   - Core: `ctype`, `curl`, `dom`, `fileinfo`, `filter`, `hash`, `iconv`, `json`, `libxml`, `mbstring`, `openssl`, `tokenizer`, `xml`, `xmlwriter`
   - Database: `pdo`, `pdo_mysql`
   - Additional: `intl`, `simplexml`, `sodium`, `xsl`
-- **Node.js 20/22 (LTS recommended)** and npm (Playwright is not guaranteed to work on non-LTS Node versions)
+- **Node.js 24** and npm
 - **MySQL 8.0+** or **MariaDB 10.6+**
 - **Composer 2.x**
 

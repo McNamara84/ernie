@@ -188,7 +188,7 @@ export default function RegisterDoiModal({ resource, isOpen, onClose, onSuccess 
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="sm:max-w-131.25">
+            <DialogContent className="sm:max-w-[525px]">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <DataCiteIcon className="size-5" />
