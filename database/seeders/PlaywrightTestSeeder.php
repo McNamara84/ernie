@@ -51,8 +51,12 @@ class PlaywrightTestSeeder extends Seeder
     {
         // Seed essential lookup tables to keep the dev stack close to stage/prod.
         // This also ensures UI dropdowns (e.g. Rights/SPDX licenses) are populated for E2E tests.
-        // Note: All called seeders are idempotent - they use firstOrCreate/updateOrCreate
-        // patterns and can safely be re-run without creating duplicates.
+        // VERIFIED: All called seeders use firstOrCreate/updateOrCreate patterns:
+        // - ResourceTypeSeeder, TitleTypeSeeder, DateTypeSeeder, DescriptionTypeSeeder,
+        //   ContributorTypeSeeder, IdentifierTypeSeeder, RelationTypeSeeder,
+        //   FunderIdentifierTypeSeeder, LanguageSeeder use firstOrCreate
+        // - RightsSeeder, PublisherSeeder use updateOrCreate
+        // If a new seeder is added, verify it's idempotent before including here.
         try {
             $this->call([
                 ResourceTypeSeeder::class,
@@ -220,17 +224,17 @@ class PlaywrightTestSeeder extends Seeder
             $reviewResource->save();
         }
 
-        // Ensure title exists and does not contain "Review" to avoid Playwright :text("Review")
-        // selectors matching the resource title instead of the status badge.
-        // The "Playwright:" prefix is intentional and used consistently across all test fixtures
-        // for easy identification, but won't collide with status badge selectors.
+        // Ensure title exists and does not contain "Review" (case-insensitive) to avoid
+        // Playwright :text("Review") selectors matching the resource title instead of the
+        // status badge. The "Playwright:" prefix is intentional and used consistently across
+        // all test fixtures for easy identification, but won't collide with status badge selectors.
         $reviewTitle = Title::query()->where('resource_id', $reviewResource->id)->first();
         if ($reviewTitle === null) {
             Title::factory()->create([
                 'resource_id' => $reviewResource->id,
                 'value' => 'Playwright: QA Resource',
             ]);
-        } elseif (str_contains($reviewTitle->value, 'Review')) {
+        } elseif (stripos($reviewTitle->value, 'review') !== false) {
             $reviewTitle->value = 'Playwright: QA Resource';
             $reviewTitle->save();
         }

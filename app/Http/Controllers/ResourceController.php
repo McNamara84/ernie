@@ -367,11 +367,11 @@ class ResourceController extends Controller
                     $resource->descriptions()->create([
                         'description_type_id' => $descTypeId,
                         'value' => $description['description'],
-                        // Language defaults to null because per-description language selection
-                        // is not currently needed for GFZ's DataCite workflow. The resource-level
-                        // language field (DataCite #9) serves this purpose. This field is reserved
-                        // for future internationalization if multi-language descriptions are needed.
-                        'language' => $description['language'] ?? null,
+                        // Language is always null because per-description language selection
+                        // is not part of the current API contract. The resource-level language
+                        // field (DataCite #9) serves this purpose. Any 'language' key in the
+                        // request payload is intentionally ignored.
+                        'language' => null,
                     ]);
                 }
 
@@ -566,12 +566,19 @@ class ResourceController extends Controller
                                         return false;
                                     }
 
-                                    // Validate coordinate ranges per WGS84 specification
+                                    // Validate coordinate ranges per WGS84 specification.
+                                    // Normalize to float early so error messages show sanitized values,
+                                    // not raw user input (security best practice).
                                     $lonFloat = (float) $lon;
                                     $latFloat = (float) $lat;
 
-                                    if ($latFloat < -90 || $latFloat > 90 || $lonFloat < -180 || $lonFloat > 180) {
-                                        $invalidPoints[] = "Point " . ($index + 1) . ": coordinates out of range (lat: {$latFloat}, lon: {$lonFloat})";
+                                    if ($latFloat < -90.0 || $latFloat > 90.0 || $lonFloat < -180.0 || $lonFloat > 180.0) {
+                                        $invalidPoints[] = sprintf(
+                                            'Point %d: coordinates out of range (lat: %.6f, lon: %.6f)',
+                                            $index + 1,
+                                            $latFloat,
+                                            $lonFloat
+                                        );
                                         return false;
                                     }
 
