@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\DescriptionType;
 use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceType;
@@ -52,6 +53,12 @@ test('storing a resource with main-title persists title_type_id as null and sets
         'slug' => 'Other',
         'is_active' => true,
         'is_elmo_active' => true,
+    ]);
+
+    DescriptionType::create([
+        'name' => 'Abstract',
+        'slug' => 'Abstract',
+        'is_active' => true,
     ]);
 
     $payload = [
