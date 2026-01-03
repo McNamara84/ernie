@@ -5,9 +5,13 @@ use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
+use function Pest\Laravel\withoutVite;
+
 uses()->group('landing-pages');
 
 beforeEach(function () {
+    withoutVite();
+
     $this->user = User::factory()->create();
     $this->resource = Resource::factory()->create();
 });

@@ -119,10 +119,10 @@ class LandingPage extends Model
                 $landingPage->slug = $landingPage->generateSlugFromResource();
             }
 
-            // Capture DOI prefix from resource if not explicitly set
-            // Note: In the 'creating' event, we only need to check if the value is null
-            // since isDirty() always returns false for new models during creation
-            if ($landingPage->doi_prefix === null) {
+            // Capture DOI prefix from resource only if not explicitly provided.
+            // Use array_key_exists to distinguish between "not set" and "explicitly set to null".
+            // When factory uses withoutDoi(), doi_prefix is explicitly set to null and should remain null.
+            if (! array_key_exists('doi_prefix', $landingPage->getAttributes())) {
                 $landingPage->doi_prefix = $landingPage->getDOIPrefixFromResource();
             }
         });
@@ -148,7 +148,7 @@ class LandingPage extends Model
 
         // Use main title or fallback to generic slug with resource ID
         $fallbackSlug = 'dataset-'.$resource->id;
-        $titleValue = $mainTitle?->value ?? $fallbackSlug;
+        $titleValue = $mainTitle->value ?? $fallbackSlug;
 
         /** @var SlugGeneratorService $slugGenerator */
         $slugGenerator = app(SlugGeneratorService::class);
