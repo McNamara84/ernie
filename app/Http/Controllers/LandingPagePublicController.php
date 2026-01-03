@@ -50,7 +50,17 @@ class LandingPagePublicController extends Controller
         // Since route constraints should have already filtered invalid slugs,
         // reaching this point with an invalid slug indicates routing misconfiguration
         // or potential tampering. Log and return 500 instead of 400.
-        if (preg_match(self::SLUG_PATTERN, $slug) !== 1) {
+        $pregResult = preg_match(self::SLUG_PATTERN, $slug);
+        if ($pregResult === false) {
+            // preg_match failed due to PCRE error - this is an internal error
+            \Illuminate\Support\Facades\Log::error(
+                'LandingPagePublicController: preg_match failed with PCRE error',
+                ['doi_prefix' => $doiPrefix, 'slug' => $slug, 'pattern' => self::SLUG_PATTERN]
+            );
+            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
+        }
+        if ($pregResult === 0) {
+            // Slug doesn't match pattern - indicates routing misconfiguration
             \Illuminate\Support\Facades\Log::warning(
                 'LandingPagePublicController: Invalid slug bypassed route constraint',
                 ['doi_prefix' => $doiPrefix, 'slug' => $slug]
@@ -83,12 +93,27 @@ class LandingPagePublicController extends Controller
         int $resourceId,
         string $slug
     ): Response {
-        // Validate slug format explicitly (defense in depth)
-        abort_unless(
-            preg_match(self::SLUG_PATTERN, $slug) === 1,
-            HttpResponse::HTTP_BAD_REQUEST,
-            'Invalid slug format'
-        );
+        // Validate slug format explicitly (defense in depth).
+        // Since route constraints should have already filtered invalid slugs,
+        // reaching this point with an invalid slug indicates routing misconfiguration
+        // or potential tampering. Log and return 500 instead of 400.
+        $pregResult = preg_match(self::SLUG_PATTERN, $slug);
+        if ($pregResult === false) {
+            // preg_match failed due to PCRE error - this is an internal error
+            \Illuminate\Support\Facades\Log::error(
+                'LandingPagePublicController: preg_match failed with PCRE error',
+                ['slug' => $slug, 'pattern' => self::SLUG_PATTERN]
+            );
+            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
+        }
+        if ($pregResult === 0) {
+            // Slug doesn't match pattern - indicates routing misconfiguration
+            \Illuminate\Support\Facades\Log::warning(
+                'LandingPagePublicController: Invalid slug bypassed route constraint',
+                ['resource_id' => $resourceId, 'slug' => $slug]
+            );
+            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
+        }
 
         $previewToken = $request->query('preview');
 
@@ -127,9 +152,12 @@ class LandingPagePublicController extends Controller
         LandingPageResourceTransformer $transformer,
         ?string $previewToken
     ): Response {
+        // Normalize preview token: treat empty string as null for consistent checks
+        $previewToken = $this->normalizePreviewToken($previewToken);
+
         // Check access permissions
         if (! $landingPage->isPublished()) {
-            if ($previewToken === null || $previewToken === '') {
+            if ($previewToken === null) {
                 abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
             }
             if ($previewToken !== $landingPage->preview_token) {
@@ -138,7 +166,7 @@ class LandingPagePublicController extends Controller
         }
 
         // Increment view count only for published pages without preview token
-        if ($landingPage->isPublished() && ($previewToken === null || $previewToken === '')) {
+        if ($landingPage->isPublished() && $previewToken === null) {
             $landingPage->incrementViewCount();
         }
 
@@ -158,5 +186,14 @@ class LandingPagePublicController extends Controller
         $template = $landingPage->template ?? 'default_gfz';
 
         return Inertia::render("LandingPages/{$template}", $data);
+    }
+
+    /**
+     * Normalize preview token: treat empty string as null.
+     * This ensures consistent null checks throughout the controller.
+     */
+    private function normalizePreviewToken(?string $token): ?string
+    {
+        return $token === '' ? null : $token;
     }
 }

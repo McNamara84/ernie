@@ -163,10 +163,10 @@ class LandingPageController extends Controller
 
         $landingPage->save();
 
-        // Handle publication status change (support both 'status' and 'is_published' fields)
-        // Determine if publication status was explicitly provided in the request.
-        // Wrap in transaction to ensure consistency if publish()/unpublish() involves
-        // multiple database operations.
+        // Handle publication status change (support both 'status' and 'is_published' fields).
+        // Currently publish()/unpublish() only update a single row, so the transaction is
+        // technically optional. However, we keep it as these methods may evolve to include
+        // additional operations (e.g., notification dispatch, audit logging) in the future.
         if (isset($validated['status'])) {
             $shouldPublish = $validated['status'] === 'published';
             DB::transaction(function () use ($landingPage, $shouldPublish): void {

@@ -57,7 +57,7 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Berlin',
         ]);
 
-        $response = $this->get("$this->landingPageUrl");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -71,7 +71,7 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Germany',
         ]);
 
-        $response = $this->get("$this->landingPageUrl");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -96,7 +96,7 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Lake Constance',
         ]);
 
-        $response = $this->get("$this->landingPageUrl");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -106,7 +106,7 @@ describe('Landing Page with GeoLocations', function () {
     });
 
     test('returns empty geo_locations array when none exist', function () {
-        $response = $this->get("$this->landingPageUrl");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -122,7 +122,7 @@ describe('Landing Page with GeoLocations', function () {
             'point_latitude' => null,
         ]);
 
-        $response = $this->get("$this->landingPageUrl");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -157,7 +157,7 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Alps',
         ]);
 
-        $response = $this->get("$this->landingPageUrl");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page

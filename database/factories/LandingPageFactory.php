@@ -34,7 +34,10 @@ class LandingPageFactory extends Factory
         return [
             'resource_id' => Resource::factory(),
             'doi_prefix' => $hasDoi ? "10.5880/{$doiSuffix}" : null,
-            'slug' => fake()->unique()->slug(),
+            // Note: Not using unique() for slug since the combination of doi_prefix+slug
+            // or resource_id+slug is what needs to be unique, not the slug alone.
+            // If tests require unique slugs, use ->state() to set specific slugs.
+            'slug' => fake()->slug(),
             'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),
             'is_published' => $isPublished,

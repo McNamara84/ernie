@@ -146,8 +146,10 @@ class LandingPage extends Model
     {
         $resource = $this->resource ?? Resource::find($this->resource_id);
 
+        // If resource not found, return a minimal valid slug.
+        // Using just 'dataset' without ID to ensure consistent slug format.
         if (! $resource) {
-            return 'dataset-'.$this->resource_id;
+            return 'dataset';
         }
 
         // Load titles if not already loaded (avoids reloading if relationship exists)
@@ -157,10 +159,10 @@ class LandingPage extends Model
         $mainTitle = $resource->titles
             ->first(fn (Title $title) => $title->isMainTitle());
 
-        // If no main title exists, return a simple fallback slug directly
-        // without passing it through SlugGeneratorService (unnecessary processing)
+        // If no main title exists, return a minimal valid slug.
+        // Using just 'dataset' to maintain consistent slug format (lowercase, no special chars).
         if ($mainTitle === null) {
-            return 'dataset-'.$resource->id;
+            return 'dataset';
         }
 
         /** @var SlugGeneratorService $slugGenerator */

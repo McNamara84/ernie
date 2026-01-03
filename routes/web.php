@@ -119,12 +119,9 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
  */
 if (app()->environment('local', 'testing')) {
     Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
-        // Additional runtime check for defense in depth - ensures this never
-        // accidentally runs in production even if route registration check fails
-        abort_if(
-            ! app()->environment('local', 'testing'),
-            \Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND
-        );
+        // Note: No additional runtime check needed here. If APP_ENV is not 'local'
+        // or 'testing', this route is never registered and this code is unreachable.
+        // The environment check at route registration (line above) is sufficient.
 
         $landingPage = \App\Models\LandingPage::where('slug', $slug)->first();
         if (! $landingPage) {
