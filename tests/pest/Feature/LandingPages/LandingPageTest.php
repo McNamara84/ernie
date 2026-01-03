@@ -385,20 +385,21 @@ describe('Preview Token Generation', function () {
 
 describe('Landing Page Model', function () {
     test('has correct public_url attribute for resource with DOI', function () {
-        // Use published() factory state which includes a DOI prefix
-        $landingPage = LandingPage::factory()->published()->create([
+        // Use published() and withDoi() factory states to ensure DOI prefix is set
+        $landingPage = LandingPage::factory()->published()->withDoi('10.5880/test.example.001')->create([
             'resource_id' => $this->resource->id,
         ]);
 
         // Should be semantic URL: /{doi_prefix}/{slug}
         expect($landingPage->doi_prefix)->not->toBeNull();
+        expect($landingPage->doi_prefix)->toBe('10.5880/test.example.001');
         expect($landingPage->public_url)->toContain("/{$landingPage->doi_prefix}/");
         expect($landingPage->public_url)->toContain($landingPage->slug);
     });
 
     test('has correct public_url attribute for draft resource without DOI', function () {
-        // Use draft() factory state which has no DOI prefix
-        $landingPage = LandingPage::factory()->draft()->create([
+        // Use draft() and withoutDoi() factory states to create a draft without DOI
+        $landingPage = LandingPage::factory()->draft()->withoutDoi()->create([
             'resource_id' => $this->resource->id,
         ]);
 
