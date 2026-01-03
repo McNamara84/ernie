@@ -27,12 +27,12 @@ class UserPolicy
     }
 
     /**
-     * Determine whether the user can create models.
-     * User creation is handled by registration, not by admins.
+     * Determine whether the user can create new users.
+     * Only admins and group leaders can create users.
      */
     public function create(User $user): bool
     {
-        return false;
+        return $user->canManageUsers();
     }
 
     /**

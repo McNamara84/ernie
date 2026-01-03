@@ -48,9 +48,9 @@ class DatabaseSeeder extends Seeder
      */
     private function createTestDataForAutomatedTests(): void
     {
-        // Create test user for automated tests
+        // Create test user for automated tests (ADMIN role for full test coverage)
         // WARNING: Uses default password 'password' - only safe in testing environment
-        $testUser = User::factory()->create([
+        $testUser = User::factory()->admin()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);

@@ -8,9 +8,9 @@ import { toast } from 'sonner';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
+import { ResourcesFilters } from '@/components/resources-filters';
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
-import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -288,7 +288,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-function ResourcesPage({ resources: initialResources, pagination: initialPagination, error, sort: initialSort, canImportFromDataCite }: ResourcesProps) {
+function ResourcesPage({
+    resources: initialResources,
+    pagination: initialPagination,
+    error,
+    sort: initialSort,
+    canImportFromDataCite,
+}: ResourcesProps) {
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
@@ -1035,11 +1041,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
                                 <CardDescription>Overview of curated resources in ERNIE</CardDescription>
                             </div>
                             {canImportFromDataCite && (
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setShowImportModal(true)}
-                                    className="flex items-center gap-2"
-                                >
+                                <Button variant="outline" onClick={() => setShowImportModal(true)} className="flex items-center gap-2">
                                     <DataCiteIcon className="size-4" aria-hidden="true" />
                                     Import from DataCite
                                 </Button>
@@ -1296,11 +1298,7 @@ function ResourcesPage({ resources: initialResources, pagination: initialPaginat
             )}
 
             {/* Import from DataCite Modal */}
-            <ImportFromDataCiteModal
-                isOpen={showImportModal}
-                onClose={() => setShowImportModal(false)}
-                onSuccess={handleImportSuccess}
-            />
+            <ImportFromDataCiteModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={handleImportSuccess} />
         </AppLayout>
     );
 }

@@ -39,8 +39,8 @@ export default defineConfig({
   
   /* Shared settings for all the projects below */
   use: {
-    /* Docker development URL */
-    baseURL: 'https://localhost:3333',
+    /* Docker development URL - must match SESSION_DOMAIN in docker-compose.dev.yml */
+    baseURL: 'https://ernie.localhost:3333',
 
     /* Accept self-signed certificates */
     ignoreHTTPSErrors: true,

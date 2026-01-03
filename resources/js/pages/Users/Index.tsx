@@ -3,6 +3,7 @@ import { KeyRound, Mail, ShieldCheck, ShieldOff, UserCog, Users as UsersIcon } f
 import { useState } from 'react';
 import { toast } from 'sonner';
 
+import { AddUserDialog } from '@/components/add-user-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { UserRoleBadge } from '@/components/user-role-badge';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem,type User as AuthUser } from '@/types';
+import { type User as AuthUser, type BreadcrumbItem } from '@/types';
 
 interface UserData {
     id: number;
@@ -37,9 +38,10 @@ interface UsersIndexProps {
     users: UserData[];
     available_roles: RoleOption[];
     can_promote_to_group_leader: boolean;
+    can_create_users: boolean;
 }
 
-export default function Index({ users, available_roles, can_promote_to_group_leader }: UsersIndexProps) {
+export default function Index({ users, available_roles, can_promote_to_group_leader, can_create_users }: UsersIndexProps) {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
     const [processingUserId, setProcessingUserId] = useState<number | null>(null);
 
@@ -175,13 +177,18 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
             <div className="container mx-auto space-y-6 py-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <UsersIcon className="h-5 w-5" />
-                            User Management
-                        </CardTitle>
-                        <CardDescription>
-                            Manage user roles, permissions, and account status. Only admins and group leaders can access this page.
-                        </CardDescription>
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <CardTitle className="flex items-center gap-2">
+                                    <UsersIcon className="h-5 w-5" />
+                                    User Management
+                                </CardTitle>
+                                <CardDescription>
+                                    Manage user roles, permissions, and account status. Only admins and group leaders can access this page.
+                                </CardDescription>
+                            </div>
+                            {can_create_users && <AddUserDialog disabled={!!processingUserId} />}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {users.length === 0 ? (
