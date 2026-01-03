@@ -136,11 +136,9 @@ class LandingPage extends Model
     /**
      * Generate a URL-friendly slug from the associated resource's main title.
      *
-     * Performance Note: This method may trigger a database query if the 'resource'
-     * relationship is not already loaded. When called during the 'creating' event,
-     * this is typically a single query per creation which is acceptable.
+     * Performance Note: This method may trigger database queries if relationships
+     * are not already loaded. For bulk operations, ensure resources are pre-loaded:
      *
-     * For bulk landing page creation, ensure resources are eager-loaded to avoid N+1:
      * ```php
      * $resources = Resource::with('titles.titleType')->whereIn('id', $ids)->get();
      * foreach ($resources as $resource) {
@@ -150,11 +148,15 @@ class LandingPage extends Model
      * }
      * ```
      *
-     * Alternatively, consider using a queue job for bulk operations.
+     * The method explicitly checks if relationships are loaded before calling
+     * loadMissing() to make the N+1 potential more obvious in query logs.
      */
     public function generateSlugFromResource(): string
     {
-        $resource = $this->resource ?? Resource::find($this->resource_id);
+        // Check if resource relationship is already loaded
+        $resource = $this->relationLoaded('resource')
+            ? $this->resource
+            : Resource::find($this->resource_id);
 
         // If resource not found, return a unique fallback slug.
         // Include resource_id to prevent collisions when multiple landing pages
@@ -165,8 +167,10 @@ class LandingPage extends Model
             return "dataset-{$uniqueSuffix}";
         }
 
-        // Load titles if not already loaded (avoids reloading if relationship exists)
-        $resource->loadMissing('titles.titleType');
+        // Only load titles if not already loaded (avoids N+1 in batch operations)
+        if (! $resource->relationLoaded('titles')) {
+            $resource->load('titles.titleType');
+        }
 
         // Find main title (title_type_id is NULL or titleType slug is 'main-title')
         $mainTitle = $resource->titles

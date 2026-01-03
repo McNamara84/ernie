@@ -166,20 +166,28 @@ class SlugGeneratorService
 
         // Use iconv for any remaining non-ASCII characters.
         // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars.
-        // We use the @ operator to suppress expected notices from iconv() when it
-        // encounters characters it cannot transliterate. This is cleaner than custom
-        // error handlers which rely on fragile string matching in error messages.
-        // The @ operator here is safe because:
-        // - We check for false return value to detect actual failures
-        // - iconv notices for untranslatable chars are expected, not errors
-        // - Logging is done on actual failures (false return)
+        //
+        // Error handling approach:
+        // We capture the last error before iconv to distinguish new errors from pre-existing ones.
+        // This provides better debugging information when transliteration fails.
+        // The @ operator is still needed because iconv generates notices for untranslatable
+        // characters that we want to suppress (they're expected, not errors).
+        $previousError = error_get_last();
         $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        $currentError = error_get_last();
 
         if ($transliterated === false) {
-            // Log transliteration failure for debugging (locale-dependent)
+            // Log transliteration failure with error details for debugging
+            $errorMsg = ($currentError !== $previousError && $currentError !== null)
+                ? $currentError['message']
+                : 'Unknown error (possibly locale-dependent)';
+
             \Illuminate\Support\Facades\Log::debug(
-                'SlugGeneratorService: iconv transliteration failed, using original text',
-                ['original_text_length' => mb_strlen($text)]
+                'SlugGeneratorService: iconv transliteration failed',
+                [
+                    'original_text_length' => mb_strlen($text),
+                    'error' => $errorMsg,
+                ]
             );
 
             return $text;

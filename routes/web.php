@@ -7,6 +7,7 @@ use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\ResourceController;
+use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
@@ -121,33 +122,10 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
 // app()->environment() can be unreliable if APP_ENV was different when config was cached.
 if (in_array(config('app.env'), ['local', 'testing'], true)) {
     Route::middleware(['ensure.test-environment', 'throttle:60,1'])->group(function () {
-        Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
-            // Defense-in-depth: Additional runtime check using config() for consistency.
-            // This is the third layer of protection after route registration and middleware.
-            if (!in_array(config('app.env'), ['local', 'testing'], true)) {
-                abort(\Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
-            }
-
-            // Use latest() to get the most recently created landing page if multiple
-            // share the same slug (can happen with draft pages). Document this behavior.
-            // Limitation: Multiple drafts with same slug return the newest one.
-            $landingPage = \App\Models\LandingPage::where('slug', $slug)
-                ->latest('id')
-                ->first();
-
-            if (! $landingPage) {
-                // Return 404 with HTML to match browser-facing error pages.
-                // For API-style usage, Playwright checks response.ok() first anyway.
-                abort(\Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND, 'Landing page not found');
-            }
-
-            return response()->json([
-                'public_url' => $landingPage->public_url,
-                'preview_url' => $landingPage->preview_url,
-                'doi_prefix' => $landingPage->doi_prefix,
-                'slug' => $landingPage->slug,
-            ]);
-        })->name('test.landing-page-by-slug');
+        // Using a dedicated controller instead of a closure allows route caching
+        // and provides better consistency with the rest of the codebase.
+        Route::get('_test/landing-page-by-slug/{slug}', [TestHelperController::class, 'getLandingPageBySlug'])
+            ->name('test.landing-page-by-slug');
     });
 }
 

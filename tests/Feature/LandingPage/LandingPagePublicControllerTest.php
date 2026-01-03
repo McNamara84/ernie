@@ -144,22 +144,21 @@ describe('Preview Token Access', function () {
 });
 
 describe('Landing Page Caching', function () {
-    /*
-     * Note: This test is skipped because the caching implementation uses
-     * the old URL structure (resource ID-based cache keys). With the new
-     * semantic URL structure (DOI-based), the cache key generation needs
-     * to be updated to use doi_prefix + slug as the cache key.
+    /**
+     * Caching for semantic URLs is not yet implemented.
      *
-     * TODO: Update LandingPagePublicController to use semantic URL-based
-     * cache keys: "landing_page.{doi_prefix}.{slug}" or similar.
+     * Current state: The controller does NOT cache responses.
+     * When implementing caching, the cache key should use the semantic URL
+     * components (doi_prefix + slug) instead of resource_id.
+     *
+     * These tests document the expected behavior and verify that current
+     * behavior (no caching) doesn't break anything. They should be updated
+     * when caching is implemented.
+     *
+     * @see https://github.com/McNamara84/ernie/issues/XXX (create tracking issue)
      */
-    // Test removed - caching implementation needs to be updated first.
-    // When implementing semantic URL caching, add tests that verify:
-    // 1. Cache key format uses DOI/slug instead of resource ID
-    // 2. Cache invalidation works with new URL structure
-    // 3. Draft pages are not cached
 
-    test('does not cache draft previews', function () {
+    test('draft previews are not cached (no cache key created)', function () {
         $landingPage = LandingPage::factory()
             ->draft()
             ->create([
@@ -173,11 +172,11 @@ describe('Landing Page Caching', function () {
         expect(Cache::has("landing_page.{$this->resource->id}"))->toBeFalse();
     });
 
-    test('serves cached response for published pages', function () {
-        // Skip: This test verifies caching behavior but the current implementation
-        // doesn't cache responses. When implementing semantic URL caching, update
-        // this test to verify the cache key format uses DOI/slug.
-        // @see ResourceObserver for cache invalidation logic
+    test('published pages return fresh data (caching not yet implemented)', function () {
+        // This test verifies current behavior: no caching.
+        // When caching is implemented, update this test to verify:
+        // - Cache key format: "landing-page.{doi_prefix}.{slug}"
+        // - Cache is invalidated when landing page is updated
         $landingPage = LandingPage::factory()
             ->published()
             ->create([
@@ -198,11 +197,7 @@ describe('Landing Page Caching', function () {
         // Both responses should be valid
         $response1->assertStatus(200);
         $response2->assertStatus(200);
-
-        // Note: When caching is implemented, add assertions to verify:
-        // - Cache key format: "landing-page.{doi_prefix}.{slug}"
-        // - Response contains updated data after cache invalidation
-    })->skip('Caching implementation pending - test documents expected behavior for future implementation');
+    });
 
     test('cache respects published status check before serving', function () {
         $landingPage = LandingPage::factory()

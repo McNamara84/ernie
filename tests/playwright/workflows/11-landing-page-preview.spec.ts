@@ -115,16 +115,14 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // - the internal preview route: /resources/{id}/landing-page/preview
         // - semantic URL with preview token: /{doi}/{slug}?preview=... or /draft-{id}/{slug}?preview=...
         //
-        // The regex matches route constraints from web.php exactly:
-        // - DOI prefix: 10.NNNN/suffix (lowercase alphanumeric with dots, slashes, hyphens)
-        // - Slug: lowercase alphanumeric with hyphens only [a-z0-9-]+
-        // Note: DOI suffix can contain uppercase in theory, but GFZ uses lowercase.
+        // We use a simplified pattern that validates the general structure without
+        // duplicating the exact regex from route constraints. This reduces maintenance
+        // burden - if route patterns change, this test only needs updating if the
+        // general URL structure changes.
         const previewUrl = previewPage.url();
-        const slugPattern = '[a-z0-9-]+';
-        // DOI pattern matches web.php: 10\.[0-9]+/[a-zA-Z0-9._/-]+
-        const doiPattern = '10\\.\\d+/[a-zA-Z0-9._/-]+';
         const previewUrlRegex = new RegExp(
-            `/(resources/\\d+/landing-page/preview|${doiPattern}/${slugPattern}\\?preview=|draft-\\d+/${slugPattern}\\?preview=)`
+            // Match: /resources/N/landing-page/preview OR /10.NNNN/path/slug?preview= OR /draft-N/slug?preview=
+            '/(resources/\\d+/landing-page/preview|10\\.\\d+/.+/[a-z0-9-]+\\?preview=|draft-\\d+/[a-z0-9-]+\\?preview=)'
         );
         const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
         expect(

@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Models\LandingPage;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * Test Helper Controller
+ *
+ * Provides helper endpoints for Playwright E2E tests.
+ * These endpoints are ONLY available in local/testing environments.
+ *
+ * SECURITY: Multiple layers of protection ensure these routes never run in production:
+ * 1. Route registration check: config('app.env') in ['local', 'testing']
+ * 2. Middleware check: EnsureTestEnvironment middleware
+ * 3. Runtime check: Additional config() check inside each method
+ *
+ * @see routes/web.php for route registration
+ * @see tests/playwright/helpers/page-objects/LandingPage.ts for usage
+ */
+class TestHelperController extends Controller
+{
+    /**
+     * Look up a landing page by its slug.
+     *
+     * Returns the landing page's URLs for Playwright tests to navigate
+     * to semantic URLs without knowing the full DOI path in advance.
+     *
+     * If multiple landing pages share the same slug (possible with drafts),
+     * returns the most recently created one.
+     *
+     * @param  string  $slug  The URL slug to look up
+     */
+    public function getLandingPageBySlug(string $slug): JsonResponse
+    {
+        // Defense-in-depth: Additional runtime check using config() for consistency.
+        // This is the third layer of protection after route registration and middleware.
+        if (! in_array(config('app.env'), ['local', 'testing'], true)) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        // Use latest() to get the most recently created landing page if multiple
+        // share the same slug (can happen with draft pages).
+        $landingPage = LandingPage::where('slug', $slug)
+            ->latest('id')
+            ->first();
+
+        if (! $landingPage) {
+            return response()->json([
+                'error' => 'Landing page not found',
+                'hint' => 'Make sure test data is seeded (run: php artisan db:seed --class=PlaywrightTestSeeder)',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        return response()->json([
+            'public_url' => $landingPage->public_url,
+            'preview_url' => $landingPage->preview_url,
+            'doi_prefix' => $landingPage->doi_prefix,
+            'slug' => $landingPage->slug,
+        ]);
+    }
+}

@@ -155,11 +155,10 @@ class LandingPagePublicController extends Controller
      *
      * Since route constraints should have already filtered invalid slugs,
      * reaching this point with an invalid slug indicates routing misconfiguration
-     * or potential tampering. We return 500 instead of 400 because:
-     * - 400 (Bad Request) would imply the client made an invalid request, but the
-     *   route regex should prevent such requests from reaching this controller
-     * - 500 correctly signals this is an unexpected server-side issue
-     * - This helps distinguish genuine bugs from client errors in error monitoring
+     * or potential tampering. We return 404 instead of 500 because:
+     * - The end result is the same (resource not found)
+     * - 404 won't pollute error monitoring with false alarms
+     * - We still log a warning to help debug routing issues
      *
      * @param  string  $slug  The slug to validate
      * @param  array<string, int|string>  $context  Additional context for logging (no sensitive data)
@@ -185,12 +184,13 @@ class LandingPagePublicController extends Controller
         }
 
         if ($pregResult === 0) {
-            // Slug doesn't match pattern - indicates routing misconfiguration.
+            // Slug doesn't match pattern - log warning but return 404 to user.
+            // This avoids polluting error monitoring while still aiding debugging.
             \Illuminate\Support\Facades\Log::warning(
                 'LandingPagePublicController: Invalid slug bypassed route constraint',
                 $logContext
             );
-            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
+            abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
         }
     }
 

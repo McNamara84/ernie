@@ -167,7 +167,27 @@ export class LandingPage {
       );
     }
 
-    const data = await response.json();
+    // Parse JSON response with error handling for malformed responses
+    let data: { public_url: string };
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      const responseText = await response.text().catch(() => '<unable to read response body>');
+      throw new Error(
+        `Failed to parse JSON response from test helper API for slug "${slug}". ` +
+        `The server returned a 200 OK but the response was not valid JSON. ` +
+        `This may indicate a server-side error or misconfiguration. ` +
+        `Response body (truncated): ${responseText.substring(0, 200)}`
+      );
+    }
+
+    if (!data.public_url) {
+      throw new Error(
+        `Test helper API returned invalid data for slug "${slug}": missing public_url field. ` +
+        `Response: ${JSON.stringify(data)}`
+      );
+    }
+
     await this.page.goto(data.public_url);
   }
 

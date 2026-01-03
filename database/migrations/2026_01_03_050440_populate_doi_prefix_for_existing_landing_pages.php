@@ -45,6 +45,14 @@ return new class extends Migration
 
         // Use database-agnostic subquery syntax that works with both MySQL and SQLite.
         // SQLite doesn't support UPDATE ... JOIN, so we use a subquery instead.
+        //
+        // Edge case handling: If there were multiple landing pages per resource_id,
+        // all of them would be updated with the same DOI. However, this edge case
+        // cannot occur because the landing_pages table has a unique constraint on
+        // resource_id (from the main schema migration). This ensures exactly one
+        // landing page per resource, so the subquery always updates exactly one row
+        // per matching resource.
+        //
         // Note: We migrate all DOIs including malformed ones to maintain data consistency.
         // Validation/correction should happen at the application layer, not during migration.
         $updated = DB::update('

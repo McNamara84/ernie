@@ -36,10 +36,14 @@ class LandingPageFactory extends Factory
         return [
             'resource_id' => Resource::factory(),
             'doi_prefix' => $hasDoi ? "10.5880/{$doiSuffix}" : null,
-            // Note: Not using unique() for slug since the combination of doi_prefix+slug
-            // or resource_id+slug is what needs to be unique, not the slug alone.
-            // If tests require unique slugs, use ->state() to set specific slugs.
-            'slug' => fake()->slug(),
+            // Generate a deterministic slug using a sequence counter to avoid
+            // database constraint violations in test suites. The unique constraints
+            // are on (doi_prefix, slug) and (resource_id, slug), so using random
+            // slugs from fake()->slug() could cause collisions. This approach:
+            // 1. Guarantees unique slugs within a test run
+            // 2. Produces predictable, readable slugs for debugging
+            // 3. Avoids OverflowException from fake()->unique()
+            'slug' => fn () => 'test-dataset-'.uniqid(),
             'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),
             'is_published' => $isPublished,

@@ -61,6 +61,10 @@ class LandingPageController extends Controller
 
     /**
      * Store a newly created landing page configuration.
+     *
+     * The entire creation is wrapped in a transaction to ensure atomicity:
+     * - Landing page creation and observer hooks (e.g., DOI sync) either all succeed or all fail
+     * - Prevents partial state where landing page exists but related operations failed
      */
     public function store(Request $request, Resource $resource, SlugGeneratorService $slugGenerator): JsonResponse
     {
@@ -95,38 +99,39 @@ class LandingPageController extends Controller
             ], 409);
         }
 
-        // Load titles for slug generation
-        $resource->load('titles.titleType');
+        // Wrap entire creation in transaction for atomicity
+        $landingPage = DB::transaction(function () use ($validated, $resource, $slugGenerator) {
+            // Load titles for slug generation
+            $resource->load('titles.titleType');
 
-        // Get main title for slug generation
-        $mainTitle = $resource->titles
-            ->first(fn ($title) => $title->isMainTitle());
-        $titleValue = $mainTitle !== null ? $mainTitle->value : "dataset-{$resource->id}";
+            // Get main title for slug generation
+            $mainTitle = $resource->titles
+                ->first(fn ($title) => $title->isMainTitle());
+            $titleValue = $mainTitle !== null ? $mainTitle->value : "dataset-{$resource->id}";
 
-        // Generate slug using the SlugGeneratorService
-        $slug = $slugGenerator->generateFromTitle($titleValue);
+            // Generate slug using the SlugGeneratorService
+            $slug = $slugGenerator->generateFromTitle($titleValue);
 
-        // Determine publication status.
-        // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
-        // If both are provided, 'status' takes precedence (logged above if conflicting).
-        // This maintains backward compatibility while encouraging migration to 'status'.
-        $isPublished = false;
-        if (isset($validated['status'])) {
-            $isPublished = $validated['status'] === 'published';
-        } elseif (isset($validated['is_published'])) {
-            $isPublished = $validated['is_published'];
-        }
+            // Determine publication status.
+            // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
+            $isPublished = false;
+            if (isset($validated['status'])) {
+                $isPublished = $validated['status'] === 'published';
+            } elseif (isset($validated['is_published'])) {
+                $isPublished = $validated['is_published'];
+            }
 
-        // Create landing page.
-        // Note: doi_prefix is set automatically in the model's boot() method
-        // from the resource's DOI. We don't set it here to avoid redundancy.
-        $landingPage = $resource->landingPage()->create([
-            'slug' => $slug,
-            'template' => $validated['template'],
-            'ftp_url' => $validated['ftp_url'] ?? null,
-            'is_published' => $isPublished,
-            'published_at' => $isPublished ? now() : null,
-        ]);
+            // Create landing page.
+            // Note: doi_prefix is set automatically in the model's boot() method
+            // from the resource's DOI. We don't set it here to avoid redundancy.
+            return $resource->landingPage()->create([
+                'slug' => $slug,
+                'template' => $validated['template'],
+                'ftp_url' => $validated['ftp_url'] ?? null,
+                'is_published' => $isPublished,
+                'published_at' => $isPublished ? now() : null,
+            ]);
+        });
 
         $landingPage->refresh();
 
