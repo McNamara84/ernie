@@ -351,9 +351,9 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 // Check for the label
                 expect(screen.getByText(/Preview URL/i)).toBeInTheDocument();
-                // Check that the URL input field exists and contains the preview URL
+                // Check that the URL input field exists and contains the preview URL (semantic URL with preview token)
                 const urlInputs = screen.getAllByDisplayValue(
-                    new RegExp(`/datasets/${mockResource.id}\\?preview=`),
+                    new RegExp(`\\?preview=preview-token-123`),
                 );
                 expect(urlInputs.length).toBeGreaterThan(0);
             });
@@ -373,9 +373,9 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 // Check for the label
                 expect(screen.getByText(/Public URL/i)).toBeInTheDocument();
-                // Check that the URL input field exists
+                // Check that the URL input field exists with semantic URL (DOI-based)
                 const urlInput = screen.getByDisplayValue(
-                    new RegExp(`/datasets/${mockResource.id}`),
+                    new RegExp(`10\\.5880/GFZ\\.TEST\\.2025\\.001/test-resource-title`),
                 );
                 expect(urlInput).toBeInTheDocument();
             });
@@ -485,8 +485,9 @@ describe('SetupLandingPageModal', () => {
             expect(previewButton).toBeDefined();
             await user.click(previewButton!);
 
+            // Should open the preview_url from the config (semantic URL with preview token)
             expect(mockOpen).toHaveBeenCalledWith(
-                expect.stringContaining(`/datasets/${mockResource.id}`),
+                expect.stringContaining('10.5880/GFZ.TEST.2025.001/test-resource-title'),
                 '_blank',
             );
 
