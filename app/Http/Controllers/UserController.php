@@ -68,9 +68,10 @@ class UserController extends Controller
      */
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        $this->authorize('create', User::class);
+        // Authorization is handled by StoreUserRequest::authorize()
 
-        // Create user with random password (will be reset via email)
+        // Create user with intentionally unusable random password.
+        // Users must set their password via the reset link sent to their email.
         $user = User::create([
             'name' => $request->validated()['name'],
             'email' => $request->validated()['email'],

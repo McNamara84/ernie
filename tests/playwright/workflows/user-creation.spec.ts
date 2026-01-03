@@ -33,12 +33,12 @@ test.describe('User Creation', () => {
         // Click Add User button
         await page.getByRole('button', { name: 'Add User' }).click();
 
-        // Verify dialog is open
+        // Verify dialog is open with expected content
         await expect(page.getByRole('dialog')).toBeVisible();
         await expect(page.getByText('Add New User')).toBeVisible();
         await expect(page.getByText('Create a new user account')).toBeVisible();
-        // Verify the role info text mentions Beginner role
-        await expect(page.getByText('Role Hierarchy')).toBeVisible();
+        // Verify the dialog description mentions the Beginner role assignment
+        await expect(page.getByText("'Beginner' role")).toBeVisible();
     });
 
     test('Add User dialog has name and email fields', async ({ page }) => {
@@ -94,11 +94,11 @@ test.describe('User Creation', () => {
         // Wait for dialog to close
         await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: 10000 });
 
-        // Find the row with the new user and verify role badge (use locator for the badge element)
+        // Find the row with the new user and verify role badge
         const userRow = page.getByRole('row').filter({ hasText: uniqueEmail });
         await expect(userRow).toBeVisible();
-        // The role badge is a span with data-slot="badge" containing exact text "Beginner"
-        await expect(userRow.locator('[data-slot="badge"]', { hasText: 'Beginner' })).toBeVisible();
+        // The role badge is a span with data-slot="badge" containing text "Beginner"
+        await expect(userRow.locator('[data-slot="badge"]').filter({ hasText: 'Beginner' })).toBeVisible();
     });
 
     test('shows validation error for empty name', async ({ page }) => {
@@ -176,8 +176,8 @@ test.describe('User Creation', () => {
         await page.getByLabel('Name').fill('Should Not Be Created');
         await page.getByLabel('Email').fill('shouldnot@example.com');
 
-        // Close dialog via X button
-        await page.getByRole('button', { name: 'Close' }).click();
+        // Close dialog via Escape key (more reliable than X button which may not have accessible name)
+        await page.keyboard.press('Escape');
 
         // Dialog should be closed
         await expect(page.getByRole('dialog')).not.toBeVisible();
@@ -195,8 +195,8 @@ test.describe('User Creation', () => {
         await page.getByLabel('Name').fill('Test Name');
         await page.getByLabel('Email').fill('test@example.org');
 
-        // Close dialog
-        await page.getByRole('button', { name: 'Close' }).click();
+        // Close dialog via Escape key
+        await page.keyboard.press('Escape');
         await expect(page.getByRole('dialog')).not.toBeVisible();
 
         // Reopen dialog

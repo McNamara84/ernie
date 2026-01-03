@@ -38,8 +38,14 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
             { name, email },
             {
                 preserveScroll: true,
-                onSuccess: () => {
-                    toast.success('User created successfully. A password reset link has been sent to their email.');
+                onSuccess: (page) => {
+                    // Use flash messages from backend to handle both success and warning cases
+                    const flash = page.props.flash as { success?: string; warning?: string } | undefined;
+                    if (flash?.warning) {
+                        toast.warning(flash.warning);
+                    } else if (flash?.success) {
+                        toast.success(flash.success);
+                    }
                     setOpen(false);
                     resetForm();
                 },
@@ -73,7 +79,7 @@ export function AddUserDialog({ disabled }: AddUserDialogProps) {
                         <DialogTitle>Add New User</DialogTitle>
                         <DialogDescription>
                             Create a new user account. They will receive an email with a link to set their password. New users are automatically
-                            assigned the &quot;Beginner&quot; role.
+                            assigned the 'Beginner' role.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
