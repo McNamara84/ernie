@@ -84,7 +84,8 @@ describe('Landing Page Creation', function () {
         $response = $this->postJson("/resources/{$this->resource->id}/landing-page", []);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['template', 'status']);
+            ->assertJsonValidationErrors(['template']);
+        // Note: 'status' is optional and defaults to 'draft'
     });
 
     test('validates template value', function () {
@@ -121,9 +122,8 @@ describe('Landing Page Creation', function () {
 
 describe('Landing Page Updates', function () {
     beforeEach(function () {
-        $this->landingPage = LandingPage::factory()->create([
+        $this->landingPage = LandingPage::factory()->draft()->create([
             'resource_id' => $this->resource->id,
-            'status' => 'draft',
         ]);
     });
 
@@ -157,7 +157,6 @@ describe('Landing Page Updates', function () {
     });
 
     test('can depublish landing page', function () {
-        $this->landingPage->update(['status' => 'published']);
         $this->landingPage->publish();
 
         $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [

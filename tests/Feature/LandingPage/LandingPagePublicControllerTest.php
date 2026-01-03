@@ -14,12 +14,12 @@ beforeEach(function () {
 
 describe('Public Landing Page Access', function () {
     test('can access published landing page', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-            'template' => 'default_gfz',
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'template' => 'default_gfz',
+            ]);
 
         $response = $this->get("/datasets/{$this->resource->id}");
 
@@ -33,10 +33,11 @@ describe('Public Landing Page Access', function () {
     });
 
     test('cannot access draft landing page without token', function () {
-        LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'draft',
-        ]);
+        LandingPage::factory()
+            ->draft()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         $response = $this->get("/datasets/{$this->resource->id}");
 
@@ -44,11 +45,11 @@ describe('Public Landing Page Access', function () {
     });
 
     test('cannot access depublished landing page', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         // Depublish
         $landingPage->unpublish();
@@ -67,11 +68,12 @@ describe('Public Landing Page Access', function () {
 
 describe('Preview Token Access', function () {
     test('can access draft with valid preview token', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'draft',
-            'template' => 'default_gfz',
-        ]);
+        $landingPage = LandingPage::factory()
+            ->draft()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'template' => 'default_gfz',
+            ]);
 
         $response = $this->get("/datasets/{$this->resource->id}?preview={$landingPage->preview_token}");
 
@@ -83,10 +85,11 @@ describe('Preview Token Access', function () {
     });
 
     test('cannot access draft with invalid preview token', function () {
-        LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'draft',
-        ]);
+        LandingPage::factory()
+            ->draft()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         $response = $this->get("/datasets/{$this->resource->id}?preview=invalid-token");
 
@@ -94,11 +97,11 @@ describe('Preview Token Access', function () {
     });
 
     test('can access published page with preview token', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         $response = $this->get("/datasets/{$this->resource->id}?preview={$landingPage->preview_token}");
 
@@ -108,11 +111,11 @@ describe('Preview Token Access', function () {
 
 describe('Landing Page Caching', function () {
     test('caches published landing pages', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         // First request - should cache
         $this->get("/datasets/{$this->resource->id}");
@@ -121,10 +124,11 @@ describe('Landing Page Caching', function () {
     });
 
     test('does not cache draft previews', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'draft',
-        ]);
+        $landingPage = LandingPage::factory()
+            ->draft()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         $this->get("/datasets/{$this->resource->id}?preview={$landingPage->preview_token}");
 
@@ -132,11 +136,11 @@ describe('Landing Page Caching', function () {
     });
 
     test('serves cached response for published pages', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         // First request - populates cache
         $response1 = $this->get("/datasets/{$this->resource->id}");
@@ -151,11 +155,11 @@ describe('Landing Page Caching', function () {
     });
 
     test('cache respects published status check before serving', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         // Cache the page
         $this->get("/datasets/{$this->resource->id}");
@@ -171,12 +175,12 @@ describe('Landing Page Caching', function () {
 
 describe('View Counter', function () {
     test('increments view count for published pages', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-            'view_count' => 0,
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'view_count' => 0,
+            ]);
 
         $this->get("/datasets/{$this->resource->id}");
 
@@ -184,11 +188,12 @@ describe('View Counter', function () {
     });
 
     test('does not increment view count for draft previews', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'draft',
-            'view_count' => 0,
-        ]);
+        $landingPage = LandingPage::factory()
+            ->draft()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'view_count' => 0,
+            ]);
 
         $this->get("/datasets/{$this->resource->id}?preview={$landingPage->preview_token}");
 
@@ -196,12 +201,12 @@ describe('View Counter', function () {
     });
 
     test('increments view count only once per cached request', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-            'view_count' => 0,
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+                'view_count' => 0,
+            ]);
 
         // First request
         $this->get("/datasets/{$this->resource->id}");
@@ -215,11 +220,11 @@ describe('View Counter', function () {
 
 describe('Resource Data Loading', function () {
     test('loads all required resource relationships', function () {
-        $landingPage = LandingPage::factory()->create([
-            'resource_id' => $this->resource->id,
-            'status' => 'published',
-        ]);
-        $landingPage->publish();
+        $landingPage = LandingPage::factory()
+            ->published()
+            ->create([
+                'resource_id' => $this->resource->id,
+            ]);
 
         $response = $this->get("/datasets/{$this->resource->id}");
 

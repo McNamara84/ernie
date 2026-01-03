@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SlugGeneratorService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,8 @@ use Illuminate\Support\Str;
 /**
  * @property int $id
  * @property int $resource_id
- * @property string $slug
+ * @property string|null $doi_prefix DOI for URL generation (e.g., "10.5880/igets.bu.l1.001"), NULL for drafts
+ * @property string $slug URL-friendly title slug
  * @property string $template
  * @property string|null $ftp_url
  * @property bool $is_published
@@ -23,6 +25,7 @@ use Illuminate\Support\Str;
  * @property-read Resource $resource
  * @property-read string $public_url
  * @property-read string|null $preview_url
+ * @property-read string $status 'published' or 'draft'
  */
 class LandingPage extends Model
 {
@@ -36,6 +39,7 @@ class LandingPage extends Model
      */
     protected $fillable = [
         'resource_id',
+        'doi_prefix',
         'slug',
         'template',
         'ftp_url',
@@ -66,6 +70,7 @@ class LandingPage extends Model
     protected $appends = [
         'public_url',
         'preview_url',
+        'status',
     ];
 
     /**
@@ -76,10 +81,60 @@ class LandingPage extends Model
         parent::boot();
 
         static::creating(function (LandingPage $landingPage): void {
+            // Generate preview token if not set
             if (empty($landingPage->preview_token)) {
                 $landingPage->preview_token = Str::random(64);
             }
+
+            // Generate slug from main title if not set (immutable after creation)
+            if (empty($landingPage->slug)) {
+                $landingPage->slug = $landingPage->generateSlugFromResource();
+            }
+
+            // Capture DOI prefix from resource if not set
+            if ($landingPage->doi_prefix === null && ! $landingPage->isDirty('doi_prefix')) {
+                $landingPage->doi_prefix = $landingPage->getDOIPrefixFromResource();
+            }
         });
+    }
+
+    /**
+     * Generate a URL-friendly slug from the associated resource's main title.
+     */
+    public function generateSlugFromResource(): string
+    {
+        $resource = $this->resource ?? Resource::find($this->resource_id);
+
+        if (! $resource) {
+            return 'dataset-'.$this->resource_id;
+        }
+
+        // Load titles if not already loaded
+        if (! $resource->relationLoaded('titles')) {
+            $resource->load('titles.titleType');
+        }
+
+        // Find main title (title_type_id is NULL or titleType slug is 'main-title')
+        $mainTitle = $resource->titles
+            ->first(fn (Title $title) => $title->isMainTitle());
+
+        $titleValue = $mainTitle !== null ? $mainTitle->value : 'dataset-'.$resource->id;
+
+        /** @var SlugGeneratorService $slugGenerator */
+        $slugGenerator = app(SlugGeneratorService::class);
+
+        return $slugGenerator->generateFromTitle($titleValue);
+    }
+
+    /**
+     * Get DOI prefix from associated resource.
+     * Returns null if resource has no DOI.
+     */
+    public function getDOIPrefixFromResource(): ?string
+    {
+        $resource = $this->resource ?? Resource::find($this->resource_id);
+
+        return $resource?->doi;
     }
 
     /**
@@ -97,14 +152,27 @@ class LandingPage extends Model
 
     /**
      * Get the public landing page URL.
+     *
+     * Format: /{DOI}/{SLUG} or /draft-{ID}/{SLUG}
+     * Examples:
+     * - /10.5880/igets.bu.l1.001/superconducting-gravimeter-data
+     * - /draft-42/my-dataset-title
      */
     public function getPublicUrlAttribute(): string
     {
-        return route('landing-page.show', ['resourceId' => $this->resource_id]);
+        if ($this->doi_prefix !== null) {
+            // URL with DOI: /{doi}/{slug}
+            return url("/{$this->doi_prefix}/{$this->slug}");
+        }
+
+        // Draft URL without DOI: /draft-{id}/{slug}
+        return url("/draft-{$this->resource_id}/{$this->slug}");
     }
 
     /**
      * Get the preview URL for the landing page.
+     *
+     * Same as public URL but with preview token query parameter.
      */
     public function getPreviewUrlAttribute(): ?string
     {
@@ -112,10 +180,11 @@ class LandingPage extends Model
             return null;
         }
 
-        return route('landing-page.show', [
-            'resourceId' => $this->resource_id,
-            'preview' => $this->preview_token,
-        ]);
+        if ($this->doi_prefix !== null) {
+            return url("/{$this->doi_prefix}/{$this->slug}?preview={$this->preview_token}");
+        }
+
+        return url("/draft-{$this->resource_id}/{$this->slug}?preview={$this->preview_token}");
     }
 
     /**
@@ -176,5 +245,15 @@ class LandingPage extends Model
             'is_published' => false,
             'published_at' => null,
         ]);
+    }
+
+    /**
+     * Get the status string for API responses.
+     *
+     * @return string 'published' or 'draft'
+     */
+    public function getStatusAttribute(): string
+    {
+        return $this->is_published ? 'published' : 'draft';
     }
 }

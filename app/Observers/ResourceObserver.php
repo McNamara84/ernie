@@ -20,8 +20,7 @@ class ResourceObserver
      */
     public function __construct(
         private readonly ResourceCacheService $cacheService
-    ) {
-    }
+    ) {}
 
     /**
      * Handle the Resource "created" event.
@@ -40,10 +39,19 @@ class ResourceObserver
      * Only invalidates the specific resource cache and list caches.
      * This is handled by invalidateResourceCache which calls
      * invalidateAllResourceCaches internally.
+     *
+     * Also syncs DOI changes to associated landing page.
      */
     public function updated(Resource $resource): void
     {
         $this->cacheService->invalidateResourceCache($resource->id);
+
+        // Sync DOI to landing page if DOI changed
+        if ($resource->isDirty('doi') && $resource->landingPage !== null) {
+            $resource->landingPage->update([
+                'doi_prefix' => $resource->doi,
+            ]);
+        }
     }
 
     /**

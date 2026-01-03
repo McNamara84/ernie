@@ -20,9 +20,11 @@ class LandingPageFactory extends Factory
     public function definition(): array
     {
         $isPublished = fake()->boolean(50);
+        $hasDoi = fake()->boolean(70); // 70% of landing pages have a DOI
 
         return [
             'resource_id' => Resource::factory(),
+            'doi_prefix' => $hasDoi ? '10.5880/' . fake()->unique()->slug(3) : null,
             'slug' => fake()->unique()->slug(),
             'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),
@@ -42,6 +44,26 @@ class LandingPageFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'is_published' => false,
             'published_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the landing page has no DOI (draft mode).
+     */
+    public function withoutDoi(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'doi_prefix' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the landing page has a specific DOI.
+     */
+    public function withDoi(string $doi): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'doi_prefix' => $doi,
         ]);
     }
 

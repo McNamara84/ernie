@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Services\SlugGeneratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -60,12 +61,13 @@ class LandingPageController extends Controller
     /**
      * Store a newly created landing page configuration.
      */
-    public function store(Request $request, Resource $resource): JsonResponse
+    public function store(Request $request, Resource $resource, SlugGeneratorService $slugGenerator): JsonResponse
     {
         $validated = $request->validate([
             'template' => 'required|string|in:default_gfz,minimal,detailed',
             'ftp_url' => 'nullable|url',
             'is_published' => 'boolean',
+            'status' => 'sometimes|string|in:draft,published',
         ]);
 
         // Check if landing page already exists
@@ -75,25 +77,53 @@ class LandingPageController extends Controller
             ], 409);
         }
 
-        // Generate slug from resource
-        $slug = \Illuminate\Support\Str::slug($resource->titles->first()->value ?? 'dataset-'.$resource->id);
+        // Load titles for slug generation
+        $resource->load('titles.titleType');
 
+        // Get main title for slug generation
+        $mainTitle = $resource->titles
+            ->first(fn ($title) => $title->isMainTitle());
+        $titleValue = $mainTitle !== null ? $mainTitle->value : 'dataset-' . $resource->id;
+
+        // Generate slug using the SlugGeneratorService
+        $slug = $slugGenerator->generateFromTitle($titleValue);
+
+        // Determine publication status (support both 'status' and 'is_published' fields)
+        $isPublished = false;
+        if (isset($validated['status'])) {
+            $isPublished = $validated['status'] === 'published';
+        } elseif (isset($validated['is_published'])) {
+            $isPublished = $validated['is_published'];
+        }
+
+        // Create landing page - doi_prefix is set automatically in model boot
         $landingPage = $resource->landingPage()->create([
             'slug' => $slug,
+            'doi_prefix' => $resource->doi, // Capture current DOI
             'template' => $validated['template'],
             'ftp_url' => $validated['ftp_url'] ?? null,
-            'is_published' => $validated['is_published'] ?? false,
-            'published_at' => ($validated['is_published'] ?? false) ? now() : null,
+            'is_published' => $isPublished,
+            'published_at' => $isPublished ? now() : null,
         ]);
 
         $landingPage->refresh();
+
+        // Determine status string for API response
+        $status = $landingPage->is_published ? 'published' : 'draft';
 
         return response()->json([
             'message' => 'Landing page created successfully',
             'landing_page' => [
                 'id' => $landingPage->id,
+                'resource_id' => $landingPage->resource_id,
+                'doi_prefix' => $landingPage->doi_prefix,
+                'slug' => $landingPage->slug,
+                'template' => $landingPage->template,
+                'ftp_url' => $landingPage->ftp_url,
+                'status' => $status,
                 'preview_token' => $landingPage->preview_token,
                 'preview_url' => $landingPage->preview_url,
+                'public_url' => $landingPage->public_url,
             ],
             'preview_url' => $landingPage->preview_url,
         ], 201);
@@ -108,6 +138,7 @@ class LandingPageController extends Controller
             'template' => 'sometimes|string|in:default_gfz,minimal,detailed',
             'ftp_url' => 'nullable|url',
             'is_published' => 'sometimes|boolean',
+            'status' => 'sometimes|string|in:draft,published',
         ]);
 
         $landingPage = $resource->landingPage;
@@ -128,9 +159,16 @@ class LandingPageController extends Controller
 
         $landingPage->save();
 
-        // Handle publication status change
-        if (isset($validated['is_published'])) {
-            if ($validated['is_published']) {
+        // Handle publication status change (support both 'status' and 'is_published' fields)
+        $shouldPublish = null;
+        if (isset($validated['status'])) {
+            $shouldPublish = $validated['status'] === 'published';
+        } elseif (isset($validated['is_published'])) {
+            $shouldPublish = $validated['is_published'];
+        }
+
+        if ($shouldPublish !== null) {
+            if ($shouldPublish) {
                 $landingPage->publish();
             } else {
                 $landingPage->unpublish();

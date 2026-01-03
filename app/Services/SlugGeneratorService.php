@@ -95,8 +95,8 @@ class SlugGeneratorService
     /**
      * Generate a URL-friendly slug from a title.
      *
-     * @param string $title The original title
-     * @param int $minLength Minimum length before truncation (default: 40)
+     * @param  string  $title  The original title
+     * @param  int  $minLength  Minimum length before truncation (default: 40)
      * @return string The generated slug
      */
     public function generateFromTitle(string $title, int $minLength = self::DEFAULT_MIN_LENGTH): string
@@ -135,7 +135,7 @@ class SlugGeneratorService
     /**
      * Transliterate special characters to ASCII equivalents.
      *
-     * @param string $text The text to transliterate
+     * @param  string  $text  The text to transliterate
      * @return string The transliterated text
      */
     private function transliterate(string $text): string
@@ -156,8 +156,8 @@ class SlugGeneratorService
      * In slugs, words are separated by hyphens. This method finds the first
      * hyphen position after minLength and truncates there.
      *
-     * @param string $text The text to truncate (already a slug with hyphens)
-     * @param int $minLength Minimum length before looking for word boundary
+     * @param  string  $text  The text to truncate (already a slug with hyphens)
+     * @param  int  $minLength  Minimum length before looking for word boundary
      * @return string The truncated text
      */
     private function truncateAtWordBoundary(string $text, int $minLength): string
