@@ -79,7 +79,13 @@ class LandingPagePublicController extends Controller
 
         $previewToken = $request->query('preview');
 
-        // Find landing page by resource ID and slug (no DOI)
+        // Find landing page by resource ID and slug (no DOI).
+        // Note: The query uses both resource_id AND slug in the WHERE clause, which
+        // provides implicit validation that these values belong together. If a landing
+        // page exists with a matching slug but different resource_id, or matching
+        // resource_id but different slug, no result is returned (404). This prevents
+        // URL manipulation attacks where someone might try to access a slug with a
+        // different resource_id.
         $landingPage = LandingPage::where('resource_id', $resourceId)
             ->whereNull('doi_prefix')
             ->where('slug', $slug)

@@ -47,8 +47,10 @@ class ResourceObserver
      * DOI Change Warning: Changing a DOI for a resource with a published landing page
      * will change the landing page's public URL. This can break existing citations,
      * bookmarks, and external links. The old URL will return 404 without redirect.
-     * Consider implementing DOI change restrictions in the business layer (controller/policy)
-     * rather than here, as the observer should focus on data consistency.
+     *
+     * Prevention: The ResourcePolicy::changeDoi() method should be used by controllers
+     * to prevent unauthorized DOI changes on published resources. Only Admins are
+     * allowed to make this breaking change. See ResourcePolicy for implementation.
      */
     public function updated(Resource $resource): void
     {

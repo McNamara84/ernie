@@ -184,9 +184,19 @@ class LandingPage extends Model
             return "dataset-{$uniqueSuffix}";
         }
 
-        // Only load titles if not already loaded (avoids N+1 in batch operations)
+        // Only load titles if not already loaded (avoids N+1 in batch operations).
+        // We specifically check for 'titles' AND that titleType is loaded on each title.
+        // If titles are loaded but titleType isn't, isMainTitle() would trigger N+1.
         if (! $resource->relationLoaded('titles')) {
             $resource->load('titles.titleType');
+        } else {
+            // Titles are loaded, but ensure titleType is loaded on each title
+            $needsTitleTypeLoad = $resource->titles->contains(
+                fn (Title $title) => ! $title->relationLoaded('titleType')
+            );
+            if ($needsTitleTypeLoad) {
+                $resource->load('titles.titleType');
+            }
         }
 
         // Find main title (title_type_id is NULL or titleType slug is 'main-title')

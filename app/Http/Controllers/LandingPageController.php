@@ -139,8 +139,10 @@ class LandingPageController extends Controller
             });
         } catch (QueryException $e) {
             // Check for unique constraint violation on slug.
-            // MySQL error codes: 1062 (Duplicate entry), 23000 (Integrity constraint violation)
-            // SQLite error code: SQLITE_CONSTRAINT (19)
+            // MySQL error code: 1062 (Duplicate entry for key)
+            // SQLite error code: 19 (SQLITE_CONSTRAINT)
+            // Note: MySQL SQLSTATE 23000 is the class, but errorInfo[1] returns the
+            // specific error code (1062), not the SQLSTATE class.
             $errorCode = isset($e->errorInfo[1]) ? (string) $e->errorInfo[1] : '';
             if (in_array($errorCode, ['1062', '19'], true)) {
                 return response()->json([

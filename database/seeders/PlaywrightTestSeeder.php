@@ -189,7 +189,10 @@ class PlaywrightTestSeeder extends Seeder
             ]);
         }
 
-        // Use updateOrCreate to ensure doi_prefix is set (for semantic URL support)
+        // Use updateOrCreate to ensure doi_prefix is correctly set on every seeder run.
+        // This intentionally overwrites any manual changes because Playwright tests
+        // require consistent, predictable test data. If preserving manual changes
+        // is needed for a different fixture, use firstOrCreate instead.
         LandingPage::query()->updateOrCreate(
             ['slug' => 'playwright-published'],
             [

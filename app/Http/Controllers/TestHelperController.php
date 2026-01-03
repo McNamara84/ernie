@@ -59,6 +59,14 @@ class TestHelperController extends Controller
         // Return relative paths for Playwright tests.
         // Playwright uses baseURL from its config, so we only need the path portion.
         // This avoids issues with absolute URLs containing different host/port combinations.
+        //
+        // Note: We construct paths manually rather than using the LandingPage model's
+        // public_url accessor because:
+        // 1. The accessor uses url() which returns absolute URLs
+        // 2. Different environments (local, Docker, CI) have different base URLs
+        // 3. Playwright's baseURL config handles the host portion
+        // If the URL path format changes in the model, update this logic accordingly
+        // or consider adding a getPublicPath() accessor to the model.
         $publicPath = $landingPage->doi_prefix !== null
             ? "/{$landingPage->doi_prefix}/{$landingPage->slug}"
             : "/draft-{$landingPage->resource_id}/{$landingPage->slug}";

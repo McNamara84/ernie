@@ -54,11 +54,14 @@ return new class extends Migration
         // SQLite doesn't support UPDATE ... JOIN, so we use a subquery instead.
         //
         // Edge case handling: If there were multiple landing pages per resource_id,
-        // all of them would be updated with the same DOI. However, this edge case
-        // cannot occur because the landing_pages table has a unique constraint on
-        // resource_id (from the main schema migration). This ensures exactly one
-        // landing page per resource, so the subquery always updates exactly one row
-        // per matching resource.
+        // all of them would be updated with the same DOI. In practice, this cannot
+        // occur because the landing_pages table is designed with a foreign key
+        // constraint on resource_id (from the original schema migration).
+        // Additionally, after this migration runs, the next migration
+        // (2026_01_03_050441_add_unique_constraints_to_landing_pages_table) adds
+        // an explicit unique constraint on resource_id, making this a database-level
+        // guarantee. For the duration of this migration, the application logic
+        // ensures one landing page per resource.
         //
         // Note: We migrate all DOIs including malformed ones to maintain data consistency.
         // Validation/correction should happen at the application layer, not during migration.

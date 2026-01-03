@@ -64,6 +64,12 @@ Route::get('/changelog', function () {
 // accommodate various DOI suffix formats used by different registrants.
 // Valid DOI suffixes can contain alphanumerics, dots, underscores, hyphens, and slashes.
 // Example valid DOIs: 10.5880/GFZ.1.2.2024.001, 10.14470/test-dataset, 10.5880/igets.bu.l1.001
+//
+// Multi-segment DOI handling: Since the pattern allows '/' in the suffix, a DOI like
+// "10.5880/test/with/slashes" is valid. Laravel's route matching is greedy for the
+// doiPrefix parameter, consuming all path segments that match the pattern, leaving
+// only the final segment as the slug. The slug pattern '[a-z0-9-]+' ensures it
+// cannot contain slashes, so the slug is always unambiguous.
 Route::get('{doiPrefix}/{slug}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
     ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
