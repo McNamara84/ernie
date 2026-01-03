@@ -10,12 +10,17 @@
 
 import { expect, test } from '@playwright/test';
 
+import { LandingPage } from '../helpers/page-objects/LandingPage';
+
+// The test landing page slug from PlaywrightTestSeeder
+const TEST_LANDING_PAGE_SLUG = 'playwright-published';
+
 test.describe('Landing Page Contact Section', () => {
     test.describe('Contact Section Display', () => {
         test('displays contact persons on landing page', async ({ page }) => {
-            // This test requires a pre-seeded resource with contact persons
-            // Using PlaywrightTestSeeder data
-            await page.goto('/datasets/1');
+            // Use LandingPage page object to navigate to the seeded test landing page
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             // Check if contact section exists
             const contactSection = page.locator('text=Contact Information');
@@ -35,7 +40,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('shows ORCID icon when contact person has ORCID', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             // Look for ORCID icon image
             const orcidIcon = page.locator('img[alt="ORCID"]');
@@ -47,7 +53,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('shows website button when contact person has website', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             // Look for website button
             const websiteButton = page.locator('a:has-text("Website")');
@@ -60,7 +67,8 @@ test.describe('Landing Page Contact Section', () => {
 
     test.describe('Contact Modal', () => {
         test('opens contact modal when clicking on contact person', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             // Find and click a contact person link
             const contactLink = page.locator('button').filter({
@@ -82,7 +90,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('opens contact modal for all recipients', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             // Look for "Contact all" button
             const contactAllButton = page.locator('button:has-text("Contact all")');
@@ -99,7 +108,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('validates required fields in contact form', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             const contactLink = page.locator('button').filter({
                 has: page.locator('svg.lucide-user'),
@@ -131,7 +141,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('validates email format in contact form', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             const contactLink = page.locator('button').filter({
                 has: page.locator('svg.lucide-user'),
@@ -164,7 +175,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('validates minimum message length', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             const contactLink = page.locator('button').filter({
                 has: page.locator('svg.lucide-user'),
@@ -193,7 +205,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('closes modal on cancel', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             const contactLink = page.locator('button').filter({
                 has: page.locator('svg.lucide-user'),
@@ -212,7 +225,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('can toggle copy to sender checkbox', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             const contactLink = page.locator('button').filter({
                 has: page.locator('svg.lucide-user'),
@@ -235,7 +249,8 @@ test.describe('Landing Page Contact Section', () => {
 
     test.describe('Contact Form Submission', () => {
         test('submits contact form successfully', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             const contactLink = page.locator('button').filter({
                 has: page.locator('svg.lucide-user'),
@@ -260,7 +275,8 @@ test.describe('Landing Page Contact Section', () => {
         });
 
         test('shows loading state during submission', async ({ page }) => {
-            await page.goto('/datasets/1');
+            const landingPage = new LandingPage(page);
+            await landingPage.goto(TEST_LANDING_PAGE_SLUG);
 
             const contactLink = page.locator('button').filter({
                 has: page.locator('svg.lucide-user'),

@@ -87,6 +87,24 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
     ->name('landing-page.show-legacy')
     ->where('resourceId', '[0-9]+');
 
+// Test helper route: Lookup landing page URL by slug (for Playwright E2E tests)
+// Returns JSON with the public_url for a landing page with the given slug
+if (app()->environment('local', 'testing')) {
+    Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
+        $landingPage = \App\Models\LandingPage::where('slug', $slug)->first();
+        if (! $landingPage) {
+            return response()->json(['error' => 'Landing page not found'], 404);
+        }
+
+        return response()->json([
+            'public_url' => $landingPage->public_url,
+            'preview_url' => $landingPage->preview_url,
+            'doi_prefix' => $landingPage->doi_prefix,
+            'slug' => $landingPage->slug,
+        ]);
+    })->name('test.landing-page-by-slug');
+}
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])
         ->name('old-datasets');

@@ -102,17 +102,46 @@ export class LandingPage {
   }
 
   /**
-   * Navigate to a landing page by slug
+   * Navigate to a landing page using DOI and slug (semantic URL)
+   * Format: /{doiPrefix}/{slug}
+   * Example: /10.5880/gfz.test.001/my-dataset-title
    */
-  async goto(slug: string) {
-    await this.page.goto(`/landing/${slug}`);
+  async gotoByDoiAndSlug(doiPrefix: string, slug: string) {
+    await this.page.goto(`/${doiPrefix}/${slug}`);
   }
 
   /**
-   * Navigate to a landing page by resource ID
+   * Navigate to a draft landing page (without DOI)
+   * Format: /draft-{resourceId}/{slug}
+   */
+  async gotoDraft(resourceId: number, slug: string) {
+    await this.page.goto(`/draft-${resourceId}/${slug}`);
+  }
+
+  /**
+   * Navigate to a landing page by resource ID using the legacy URL.
+   * This will follow the 301 redirect to the new semantic URL.
+   * @deprecated Use gotoByDoiAndSlug() for new tests
    */
   async gotoByResourceId(resourceId: number) {
     await this.page.goto(`/datasets/${resourceId}`);
+  }
+
+  /**
+   * Navigate to a landing page by its slug.
+   * Uses the test helper API to look up the correct semantic URL.
+   * This is the recommended method for tests using seeded data.
+   */
+  async goto(slug: string) {
+    // Use the test helper API to get the landing page URL by slug
+    const response = await this.page.request.get(`/_test/landing-page-by-slug/${slug}`);
+
+    if (!response.ok()) {
+      throw new Error(`Landing page with slug "${slug}" not found. Make sure test data is seeded.`);
+    }
+
+    const data = await response.json();
+    await this.page.goto(data.public_url);
   }
 
   /**
