@@ -189,13 +189,15 @@ class PlaywrightTestSeeder extends Seeder
             ]);
         }
 
-        LandingPage::query()->firstOrCreate(
+        // Use updateOrCreate to ensure doi_prefix is set (for semantic URL support)
+        LandingPage::query()->updateOrCreate(
             ['slug' => 'playwright-published'],
             [
                 'resource_id' => $publishedResource->id,
                 'template' => 'default_gfz',
                 'is_published' => true,
                 'published_at' => now(),
+                'doi_prefix' => self::PLAYWRIGHT_PUBLISHED_RESOURCE_DOI,
             ]
         );
 
