@@ -17,11 +17,14 @@ return new class extends Migration
      * - Published pages: /{doi_prefix}/{slug} - doi_prefix+slug must be unique
      * - Draft pages: /draft-{resource_id}/{slug} - resource_id+slug must be unique
      *
-     * Note: MySQL doesn't support partial unique indexes (WHERE clause), so we use
-     * composite indexes that include the nullable doi_prefix column. In MySQL,
-     * NULL values in unique indexes are treated as distinct, so multiple rows with
-     * NULL doi_prefix but same slug are allowed - this is the desired behavior for
-     * resources without DOI that share common titles.
+     * NULL handling in unique indexes (tested with supported databases):
+     * - MySQL/MariaDB: NULL values are treated as distinct (multiple NULLs allowed)
+     * - SQLite: NULL values are treated as distinct (same as MySQL)
+     * - PostgreSQL: By default NULLs are distinct; use NULLS NOT DISTINCT if needed
+     *
+     * For this application, we want multiple rows with NULL doi_prefix and same slug
+     * to be allowed (drafts can share slugs). This behavior works correctly on
+     * MySQL, MariaDB, and SQLite which are the supported databases for ERNIE.
      */
     public function up(): void
     {

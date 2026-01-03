@@ -23,12 +23,14 @@ class LandingPageFactory extends Factory
         $hasDoi = fake()->boolean(70); // 70% of landing pages have a DOI
 
         // Generate DOI suffix in a more realistic format (e.g., "gfz.2024.001")
-        // Real DOI suffixes typically use dots and forward slashes, not word-hyphens
-        // Using a larger range (1-99999) to prevent unique() exhaustion in large test suites
+        // Real DOI suffixes typically use dots and forward slashes, not word-hyphens.
+        // Not using unique() since database constraints ensure uniqueness on
+        // (doi_prefix, slug) combination, not DOI suffix alone. This also prevents
+        // OverflowException in large test suites that create many landing pages.
         $doiSuffix = sprintf(
             'gfz.%d.%05d',
             fake()->numberBetween(2020, 2030),
-            fake()->unique()->numberBetween(1, 99999)
+            fake()->numberBetween(1, 99999)
         );
 
         return [

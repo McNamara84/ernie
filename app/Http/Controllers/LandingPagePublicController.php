@@ -46,42 +46,8 @@ class LandingPagePublicController extends Controller
         string $doiPrefix,
         string $slug
     ): Response {
-        // Validate slug format explicitly (defense in depth).
-        // Since route constraints should have already filtered invalid slugs,
-        // reaching this point with an invalid slug indicates routing misconfiguration
-        // or potential tampering. We return 500 instead of 400 because:
-        // - 400 (Bad Request) would imply the client made an invalid request, but the
-        //   route regex should prevent such requests from reaching this controller
-        // - 500 correctly signals this is an unexpected server-side issue
-        // - This helps distinguish genuine bugs from client errors in error monitoring
-        $pregResult = preg_match(self::SLUG_PATTERN, $slug);
-        if ($pregResult === false) {
-            // preg_match failed due to PCRE error - this is an internal error.
-            // Log only non-sensitive metadata to avoid information disclosure.
-            // Using hash instead of partial value to allow correlation without exposure.
-            \Illuminate\Support\Facades\Log::error(
-                'LandingPagePublicController: preg_match failed with PCRE error',
-                [
-                    'doi_prefix_length' => strlen($doiPrefix),
-                    'slug_length' => strlen($slug),
-                    'slug_hash' => substr(hash('sha256', $slug), 0, 8),
-                ]
-            );
-            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
-        }
-        if ($pregResult === 0) {
-            // Slug doesn't match pattern - indicates routing misconfiguration.
-            // Log only non-sensitive metadata using hash for correlation.
-            \Illuminate\Support\Facades\Log::warning(
-                'LandingPagePublicController: Invalid slug bypassed route constraint',
-                [
-                    'doi_prefix_length' => strlen($doiPrefix),
-                    'slug_length' => strlen($slug),
-                    'slug_hash' => substr(hash('sha256', $slug), 0, 8),
-                ]
-            );
-            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
-        }
+        // Validate slug format using shared helper method (defense in depth)
+        $this->validateSlugFormat($slug, ['doi_prefix_length' => strlen($doiPrefix)]);
 
         $previewToken = $request->query('preview');
 
@@ -108,27 +74,8 @@ class LandingPagePublicController extends Controller
         int $resourceId,
         string $slug
     ): Response {
-        // Validate slug format explicitly (defense in depth).
-        // Since route constraints should have already filtered invalid slugs,
-        // reaching this point with an invalid slug indicates routing misconfiguration
-        // or potential tampering. Log and return 500 instead of 400.
-        $pregResult = preg_match(self::SLUG_PATTERN, $slug);
-        if ($pregResult === false) {
-            // preg_match failed due to PCRE error - this is an internal error
-            \Illuminate\Support\Facades\Log::error(
-                'LandingPagePublicController: preg_match failed with PCRE error',
-                ['slug' => $slug, 'pattern' => self::SLUG_PATTERN]
-            );
-            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
-        }
-        if ($pregResult === 0) {
-            // Slug doesn't match pattern - indicates routing misconfiguration
-            \Illuminate\Support\Facades\Log::warning(
-                'LandingPagePublicController: Invalid slug bypassed route constraint',
-                ['resource_id' => $resourceId, 'slug' => $slug]
-            );
-            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
-        }
+        // Validate slug format using shared helper method (defense in depth)
+        $this->validateSlugFormat($slug, ['resource_id' => $resourceId]);
 
         $previewToken = $request->query('preview');
 
@@ -201,6 +148,50 @@ class LandingPagePublicController extends Controller
         $template = $landingPage->template ?? 'default_gfz';
 
         return Inertia::render("LandingPages/{$template}", $data);
+    }
+
+    /**
+     * Validate slug format (defense in depth).
+     *
+     * Since route constraints should have already filtered invalid slugs,
+     * reaching this point with an invalid slug indicates routing misconfiguration
+     * or potential tampering. We return 500 instead of 400 because:
+     * - 400 (Bad Request) would imply the client made an invalid request, but the
+     *   route regex should prevent such requests from reaching this controller
+     * - 500 correctly signals this is an unexpected server-side issue
+     * - This helps distinguish genuine bugs from client errors in error monitoring
+     *
+     * @param  string  $slug  The slug to validate
+     * @param  array<string, int|string>  $context  Additional context for logging (no sensitive data)
+     */
+    private function validateSlugFormat(string $slug, array $context = []): void
+    {
+        $pregResult = preg_match(self::SLUG_PATTERN, $slug);
+
+        // Merge common slug metadata with caller-provided context.
+        // Using hash instead of raw value to allow correlation without exposure.
+        $logContext = array_merge($context, [
+            'slug_length' => strlen($slug),
+            'slug_hash' => substr(hash('sha256', $slug), 0, 8),
+        ]);
+
+        if ($pregResult === false) {
+            // preg_match failed due to PCRE error - this is an internal error.
+            \Illuminate\Support\Facades\Log::error(
+                'LandingPagePublicController: preg_match failed with PCRE error',
+                $logContext
+            );
+            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
+        }
+
+        if ($pregResult === 0) {
+            // Slug doesn't match pattern - indicates routing misconfiguration.
+            \Illuminate\Support\Facades\Log::warning(
+                'LandingPagePublicController: Invalid slug bypassed route constraint',
+                $logContext
+            );
+            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
+        }
     }
 
     /**

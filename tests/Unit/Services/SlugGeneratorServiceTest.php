@@ -149,12 +149,18 @@ describe('SlugGeneratorService', function () {
             expect($slug)->toStartWith('geologische-uebersichtskarte');
         });
 
+        /**
+         * Tests slug generation for titles containing version numbers.
+         *
+         * Known limitation: Version dots are removed since periods are stripped as
+         * special characters. For example, "v2.1" becomes "v21". Preserving the dot
+         * would require special handling for version patterns, which risks breaking
+         * other cases where dots should be removed (file extensions, abbreviations).
+         * For scientific datasets, version info is typically in metadata, not the URL slug.
+         *
+         * @see SlugGeneratorService::generateFromTitle() for the stripping logic
+         */
         it('handles title with year and version', function () {
-            // Note: Version dots are removed since periods are stripped as special characters.
-            // This is a known limitation: "v2.1" becomes "v21". Preserving the dot would
-            // require special handling for version patterns, which risks breaking other cases
-            // where dots should be removed (file extensions, abbreviations like "e.g.").
-            // For scientific datasets, version info is typically in metadata, not the URL slug.
             $title = 'Global Temperature Dataset v2.1 (2024)';
             $slug = $this->service->generateFromTitle($title);
 
