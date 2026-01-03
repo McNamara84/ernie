@@ -22,9 +22,17 @@ class LandingPageFactory extends Factory
         $isPublished = fake()->boolean(50);
         $hasDoi = fake()->boolean(70); // 70% of landing pages have a DOI
 
+        // Generate DOI suffix in a more realistic format (e.g., "gfz.2024.001")
+        // Real DOI suffixes typically use dots and forward slashes, not word-hyphens
+        $doiSuffix = sprintf(
+            'gfz.%d.%03d',
+            fake()->numberBetween(2020, 2025),
+            fake()->unique()->numberBetween(1, 999)
+        );
+
         return [
             'resource_id' => Resource::factory(),
-            'doi_prefix' => $hasDoi ? '10.5880/' . fake()->unique()->slug(3) : null,
+            'doi_prefix' => $hasDoi ? "10.5880/{$doiSuffix}" : null,
             'slug' => fake()->unique()->slug(),
             'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),

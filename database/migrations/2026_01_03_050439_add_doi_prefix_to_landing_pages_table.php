@@ -12,6 +12,13 @@ return new class extends Migration
      * Adds doi_prefix column for semantic URL generation.
      * Format: "10.5880/igets.bu.l1.001" (full DOI as stored in resources.doi)
      * NULL for draft resources without DOI.
+     *
+     * Index considerations:
+     * - Composite index (doi_prefix, slug) optimizes DOI-based URL lookups
+     * - Draft lookups use (resource_id, slug) which is covered by existing
+     *   resource_id foreign key index + this composite index
+     * - If draft URL performance becomes an issue, consider adding a
+     *   dedicated index: INDEX (resource_id, slug) WHERE doi_prefix IS NULL
      */
     public function up(): void
     {

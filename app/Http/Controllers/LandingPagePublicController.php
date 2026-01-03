@@ -24,6 +24,12 @@ class LandingPagePublicController extends Controller
     /**
      * Regex pattern for valid slug characters.
      * Must match the route constraint in web.php.
+     *
+     * Defense-in-depth: While the route constraint already validates the slug format,
+     * this additional check provides an extra layer of security in case:
+     * - Route constraints are modified without updating controller
+     * - Custom routing bypasses the constraint
+     * - Future refactoring introduces new entry points
      */
     private const SLUG_PATTERN = '/^[a-z0-9-]+$/';
 

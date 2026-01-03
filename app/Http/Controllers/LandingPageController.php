@@ -83,12 +83,15 @@ class LandingPageController extends Controller
         // Get main title for slug generation
         $mainTitle = $resource->titles
             ->first(fn ($title) => $title->isMainTitle());
-        $titleValue = $mainTitle !== null ? $mainTitle->value : 'dataset-' . $resource->id;
+        $titleValue = $mainTitle !== null ? $mainTitle->value : "dataset-{$resource->id}";
 
         // Generate slug using the SlugGeneratorService
         $slug = $slugGenerator->generateFromTitle($titleValue);
 
-        // Determine publication status (support both 'status' and 'is_published' fields)
+        // Determine publication status.
+        // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
+        // If both are provided, 'status' takes precedence silently.
+        // This maintains backward compatibility while encouraging migration to 'status'.
         $isPublished = false;
         if (isset($validated['status'])) {
             $isPublished = $validated['status'] === 'published';

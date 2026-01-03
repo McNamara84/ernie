@@ -135,6 +135,17 @@ class SlugGeneratorService
     /**
      * Transliterate special characters to ASCII equivalents.
      *
+     * Note: The iconv() function's behavior is locale-dependent, which can lead to
+     * inconsistent transliteration results across different server environments.
+     * We mitigate this by:
+     * 1. Using a comprehensive TRANSLITERATION_MAP for common characters first
+     * 2. Only relying on iconv as a fallback for remaining characters
+     * 3. Logging failures to help diagnose locale-related issues
+     *
+     * For fully deterministic behavior, consider using symfony/string's slugger
+     * as an alternative. The current approach is sufficient for GFZ's deployment
+     * environment where locale settings are controlled.
+     *
      * @param  string  $text  The text to transliterate
      * @return string The transliterated text
      */

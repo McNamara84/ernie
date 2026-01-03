@@ -20,6 +20,10 @@ beforeEach(function () {
 
 /**
  * Helper to build the semantic URL for a landing page.
+ *
+ * @param  LandingPage  $landingPage  The landing page model
+ * @param  string|null  $preview  Optional preview token to append as query parameter
+ * @return string The full URL path
  */
 function landingPageUrl(LandingPage $landingPage, ?string $preview = null): string
 {
@@ -150,22 +154,11 @@ describe('Landing Page Caching', function () {
      * TODO: Update LandingPagePublicController to use semantic URL-based
      * cache keys: "landing_page.{doi_prefix}.{slug}" or similar.
      */
-    test('caches published landing pages', function () {
-        $landingPage = LandingPage::factory()
-            ->published()
-            ->create([
-                'resource_id' => $this->resource->id,
-                'doi_prefix' => '10.5880/test.public.001',
-                'slug' => 'cache-test',
-            ]);
-
-        // First request - should cache
-        $this->get(landingPageUrl($landingPage));
-
-        // Note: Caching behavior may vary - this test checks if the route works
-        // The actual cache key may differ based on implementation
-        expect(true)->toBeTrue(); // Placeholder - caching is implementation-specific
-    })->skip('Caching needs to be updated for semantic URL structure (DOI-based cache keys)');
+    // Test removed - caching implementation needs to be updated first.
+    // When implementing semantic URL caching, add tests that verify:
+    // 1. Cache key format uses DOI/slug instead of resource ID
+    // 2. Cache invalidation works with new URL structure
+    // 3. Draft pages are not cached
 
     test('does not cache draft previews', function () {
         $landingPage = LandingPage::factory()

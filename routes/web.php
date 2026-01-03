@@ -58,7 +58,11 @@ Route::get('/changelog', function () {
 // ===========================================================
 
 // Landing Pages with DOI (e.g., /10.5880/test.001/my-dataset-title)
-// DOI prefix format: 10.NNNN/suffix where suffix contains only valid DOI characters
+// DOI prefix format: 10.NNNN/suffix where suffix contains valid DOI characters.
+// The regex pattern '10\.[0-9]+/[a-zA-Z0-9._/-]+' is intentionally permissive to
+// accommodate various DOI suffix formats used by different registrants.
+// Valid DOI suffixes can contain alphanumerics, dots, underscores, hyphens, and slashes.
+// Example valid DOIs: 10.5880/GFZ.1.2.2024.001, 10.14470/test-dataset, 10.5880/igets.bu.l1.001
 Route::get('{doiPrefix}/{slug}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
     ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
@@ -82,7 +86,11 @@ Route::post('draft-{resourceId}/{slug}/contact', [ContactMessageController::clas
     ->where('slug', '[a-z0-9-]+')
     ->middleware('throttle:10,1');
 
-// Legacy route for backwards compatibility during transition (can be removed later)
+// Legacy route for backwards compatibility during transition (can be removed later).
+// Returns 404 if landing page doesn't exist - this is intentional because:
+// - Legacy URLs should only redirect if the landing page was actually migrated
+// - Checking for resource existence without landing page would be misleading
+// - Search engines should get 404 for invalid legacy URLs, not false redirects
 Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLegacy'])
     ->name('landing-page.show-legacy')
     ->where('resourceId', '[0-9]+');
@@ -96,9 +104,15 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
  | They provide helper endpoints for Playwright E2E tests to look up landing
  | pages by slug without knowing the full semantic URL in advance.
  |
- | IMPORTANT: If running E2E tests, ensure the application is started with
- | APP_ENV=testing (or APP_ENV=local). The tests will fail if these routes
- | are not available.
+ | SECURITY WARNING: These routes MUST NEVER be exposed in production!
+ | The app()->environment() check ensures they are only registered in
+ | local/testing environments. If APP_ENV is misconfigured in production,
+ | these routes would be accessible - always verify deployment configuration.
+ |
+ | Production deployment checklist:
+ | - Verify APP_ENV=production in .env
+ | - Verify APP_DEBUG=false in .env
+ | - Routes should NOT appear in 'php artisan route:list' in production
  |
  | @see tests/playwright/helpers/page-objects/LandingPage.ts - goto() method
  | @see .github/workflows/playwright.yml - sets APP_ENV=testing

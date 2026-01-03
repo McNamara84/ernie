@@ -120,8 +120,13 @@ class LandingPage extends Model
             }
 
             // Capture DOI prefix from resource only if not explicitly provided.
-            // Use array_key_exists to distinguish between "not set" and "explicitly set to null".
-            // When factory uses withoutDoi(), doi_prefix is explicitly set to null and should remain null.
+            // We use array_key_exists() instead of isset() because:
+            // - isset() returns false for null values, so we couldn't distinguish
+            //   between "not provided" and "explicitly set to null"
+            // - When factory uses withoutDoi(), doi_prefix is explicitly set to null
+            //   and should remain null (draft mode), not be overwritten by resource DOI
+            // - When creating normally without specifying doi_prefix, we auto-populate
+            //   from the resource's DOI
             if (! array_key_exists('doi_prefix', $landingPage->getAttributes())) {
                 $landingPage->doi_prefix = $landingPage->getDOIPrefixFromResource();
             }
@@ -146,14 +151,16 @@ class LandingPage extends Model
         $mainTitle = $resource->titles
             ->first(fn (Title $title) => $title->isMainTitle());
 
-        // Use main title or fallback to generic slug with resource ID
-        $fallbackSlug = 'dataset-'.$resource->id;
-        $titleValue = $mainTitle->value ?? $fallbackSlug;
+        // If no main title exists, return a simple fallback slug directly
+        // without passing it through SlugGeneratorService (unnecessary processing)
+        if ($mainTitle === null) {
+            return 'dataset-'.$resource->id;
+        }
 
         /** @var SlugGeneratorService $slugGenerator */
         $slugGenerator = app(SlugGeneratorService::class);
 
-        return $slugGenerator->generateFromTitle($titleValue);
+        return $slugGenerator->generateFromTitle($mainTitle->value);
     }
 
     /**
