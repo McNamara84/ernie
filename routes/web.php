@@ -106,9 +106,9 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
  | pages by slug without knowing the full semantic URL in advance.
  |
  | SECURITY: Multiple layers of protection ensure these routes never run in production:
- | 1. Route registration check: app()->environment('local', 'testing')
+ | 1. Route registration check: config('app.env') in ['local', 'testing']
  | 2. Middleware check: EnsureTestEnvironment middleware (survives route cache)
- | 3. Runtime check: Additional app()->environment() inside handler
+ | 3. Runtime check: Additional config('app.env') check inside handler
  |
  | Production deployment checklist:
  | - Verify APP_ENV=production in .env

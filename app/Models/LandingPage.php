@@ -45,6 +45,23 @@ use Illuminate\Support\Str;
  * be deleted and recreated (which should only be done if the page hasn't been
  * published or widely shared).
  *
+ * ## Performance Considerations
+ *
+ * The generateSlugFromResource() and getDOIPrefixFromResource() methods are called
+ * during the model's boot event. They may trigger additional database queries if
+ * the resource relationship is not already loaded. For single creations, this is
+ * acceptable (one extra query per creation). For bulk operations, ensure the resource
+ * relationship is eager-loaded to avoid N+1 queries:
+ *
+ * ```php
+ * $resources = Resource::with('titles.titleType')->whereIn('id', $ids)->get();
+ * foreach ($resources as $resource) {
+ *     $landingPage = new LandingPage(['resource_id' => $resource->id]);
+ *     $landingPage->setRelation('resource', $resource);
+ *     $landingPage->save();
+ * }
+ * ```
+ *
  * ## API Response Structure
  *
  * When serialized (e.g., in JSON API responses), this model includes:

@@ -64,7 +64,10 @@ class ContactMessageController extends Controller
             abort(404, 'Landing page not found');
         }
 
-        return $this->processContactMessage($request, $resourceId);
+        // Use $landingPage->resource_id for consistency with store() method.
+        // While this should always equal $resourceId (from route parameter),
+        // using the model's value ensures consistency if data ever mismatches.
+        return $this->processContactMessage($request, $landingPage->resource_id);
     }
 
     /**

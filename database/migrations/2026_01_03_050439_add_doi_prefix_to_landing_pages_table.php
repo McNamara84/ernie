@@ -25,6 +25,14 @@ return new class extends Migration
         Schema::table('landing_pages', function (Blueprint $table) {
             // DOI prefix for URL generation (e.g., "10.5880/igets.bu.l1.001")
             // NULL for drafts without DOI
+            //
+            // Length of 255 characters is sufficient for DOI values:
+            // - DOI syntax: https://www.doi.org/doi_handbook/2_Numbering.html
+            // - DOI prefix: "10." + registrant code (typically 4-10 digits)
+            // - DOI suffix: typically short alphanumeric identifiers
+            // - GFZ example: "10.5880/igets.bu.l1.001" (24 chars)
+            // - Maximum DOI length in practice: rarely exceeds 100 characters
+            // - 255 chars provides ample headroom for edge cases
             $table->string('doi_prefix', 255)->nullable()->after('resource_id');
 
             // Composite index for efficient URL lookups: /{doi_prefix}/{slug}

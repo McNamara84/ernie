@@ -188,6 +188,16 @@ export class LandingPage {
       );
     }
 
+    // Validate that public_url is a valid relative URL path.
+    // Expected formats: /10.5880/suffix/slug or /draft-123/slug
+    // This prevents navigation errors from malformed API responses.
+    if (!data.public_url.startsWith('/') || data.public_url.includes('://')) {
+      throw new Error(
+        `Test helper API returned invalid public_url for slug "${slug}": ` +
+        `expected a relative path starting with '/', got: "${data.public_url}"`
+      );
+    }
+
     await this.page.goto(data.public_url);
   }
 

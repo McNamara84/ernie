@@ -141,6 +141,7 @@ class SlugGeneratorService
      * 1. Using a comprehensive TRANSLITERATION_MAP for common characters first
      * 2. Only relying on iconv as a fallback for remaining characters
      * 3. Logging failures to help diagnose locale-related issues
+     * 4. Setting LC_CTYPE to 'C.UTF-8' before iconv calls for consistent behavior
      *
      * For fully deterministic behavior, consider using symfony/string's slugger
      * as an alternative. The current approach is sufficient for GFZ's deployment
@@ -167,6 +168,12 @@ class SlugGeneratorService
         // Use iconv for any remaining non-ASCII characters.
         // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars.
         //
+        // Locale handling: Set LC_CTYPE to a UTF-8 locale for consistent transliteration.
+        // This ensures the same behavior across different server environments.
+        // We restore the original locale after the operation to avoid side effects.
+        $originalLocale = setlocale(LC_CTYPE, '0');
+        setlocale(LC_CTYPE, 'C.UTF-8', 'en_US.UTF-8', 'POSIX');
+
         // Error handling approach:
         // We capture the last error before iconv to distinguish new errors from pre-existing ones.
         // This provides better debugging information when transliteration fails.
@@ -175,6 +182,11 @@ class SlugGeneratorService
         $previousError = error_get_last();
         $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
         $currentError = error_get_last();
+
+        // Restore original locale
+        if ($originalLocale !== false) {
+            setlocale(LC_CTYPE, $originalLocale);
+        }
 
         if ($transliterated === false) {
             // Log transliteration failure with error details for debugging

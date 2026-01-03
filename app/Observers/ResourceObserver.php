@@ -66,6 +66,9 @@ class ResourceObserver
 
             // Fetch only the fields needed for cache invalidation and status check.
             // This avoids loading the entire model when we only need a few columns.
+            // IMPORTANT: The select must include 'is_published' because we check it below
+            // to determine whether to log a warning about DOI changes on published pages.
+            // If is_published is removed from this select, the warning logic will break.
             $landingPage = $resource->landingPage()
                 ->select(['id', 'resource_id', 'doi_prefix', 'slug', 'is_published'])
                 ->first();

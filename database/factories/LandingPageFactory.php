@@ -36,14 +36,14 @@ class LandingPageFactory extends Factory
         return [
             'resource_id' => Resource::factory(),
             'doi_prefix' => $hasDoi ? "10.5880/{$doiSuffix}" : null,
-            // Generate a deterministic slug using a sequence counter to avoid
-            // database constraint violations in test suites. The unique constraints
-            // are on (doi_prefix, slug) and (resource_id, slug), so using random
-            // slugs from fake()->slug() could cause collisions. This approach:
-            // 1. Guarantees unique slugs within a test run
-            // 2. Produces predictable, readable slugs for debugging
-            // 3. Avoids OverflowException from fake()->unique()
-            'slug' => fn () => 'test-dataset-'.uniqid(),
+            // Generate a deterministic slug using UUID to avoid database constraint
+            // violations in test suites. The unique constraints are on (doi_prefix, slug)
+            // and (resource_id, slug), so using random slugs could cause collisions.
+            // Using Str::uuid() instead of uniqid() because:
+            // 1. UUIDs are guaranteed unique even in parallel test execution
+            // 2. uniqid() is time-based and can collide in tight loops
+            // 3. Produces predictable, readable slugs for debugging
+            'slug' => fn () => 'test-dataset-'.Str::uuid()->toString(),
             'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),
             'is_published' => $isPublished,

@@ -20,9 +20,16 @@ return new class extends Migration
      */
     /**
      * DOI format pattern for validation.
-     * Format: 10.NNNN/suffix where NNNN is registrant code and suffix is alphanumeric with dots/slashes.
+     * Format: 10.N+/suffix where N+ is one or more digits (registrant code) and suffix is alphanumeric.
+     *
+     * Note: We use \d+ (one or more digits) instead of \d{4,} because valid DOI registrant
+     * codes can have varying lengths. While most registrant codes are 4-5 digits, shorter
+     * codes are valid according to the DOI handbook. Examples:
+     * - 10.1000/xyz (4 digits - common)
+     * - 10.12345/xyz (5 digits - common)
+     * - 10.123/xyz (3 digits - rare but valid)
      */
-    private const DOI_PATTERN = '/^10\.\d{4,}\/.+$/';
+    private const DOI_PATTERN = '/^10\.\d+\/.+$/';
 
     public function up(): void
     {

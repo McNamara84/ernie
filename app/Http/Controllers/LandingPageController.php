@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\SlugGeneratorService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -99,39 +100,56 @@ class LandingPageController extends Controller
             ], 409);
         }
 
-        // Wrap entire creation in transaction for atomicity
-        $landingPage = DB::transaction(function () use ($validated, $resource, $slugGenerator) {
-            // Load titles for slug generation
-            $resource->load('titles.titleType');
+        // Wrap entire creation in transaction for atomicity.
+        // The try-catch handles potential slug uniqueness violations that could occur
+        // in a race condition where two requests try to create landing pages for resources
+        // with identical titles at the same moment.
+        try {
+            $landingPage = DB::transaction(function () use ($validated, $resource, $slugGenerator) {
+                // Load titles for slug generation
+                $resource->load('titles.titleType');
 
-            // Get main title for slug generation
-            $mainTitle = $resource->titles
-                ->first(fn ($title) => $title->isMainTitle());
-            $titleValue = $mainTitle !== null ? $mainTitle->value : "dataset-{$resource->id}";
+                // Get main title for slug generation
+                $mainTitle = $resource->titles
+                    ->first(fn ($title) => $title->isMainTitle());
+                $titleValue = $mainTitle !== null ? $mainTitle->value : "dataset-{$resource->id}";
 
-            // Generate slug using the SlugGeneratorService
-            $slug = $slugGenerator->generateFromTitle($titleValue);
+                // Generate slug using the SlugGeneratorService
+                $slug = $slugGenerator->generateFromTitle($titleValue);
 
-            // Determine publication status.
-            // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
-            $isPublished = false;
-            if (isset($validated['status'])) {
-                $isPublished = $validated['status'] === 'published';
-            } elseif (isset($validated['is_published'])) {
-                $isPublished = $validated['is_published'];
+                // Determine publication status.
+                // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
+                $isPublished = false;
+                if (isset($validated['status'])) {
+                    $isPublished = $validated['status'] === 'published';
+                } elseif (isset($validated['is_published'])) {
+                    $isPublished = $validated['is_published'];
+                }
+
+                // Create landing page.
+                // Note: doi_prefix is set automatically in the model's boot() method
+                // from the resource's DOI. We don't set it here to avoid redundancy.
+                return $resource->landingPage()->create([
+                    'slug' => $slug,
+                    'template' => $validated['template'],
+                    'ftp_url' => $validated['ftp_url'] ?? null,
+                    'is_published' => $isPublished,
+                    'published_at' => $isPublished ? now() : null,
+                ]);
+            });
+        } catch (QueryException $e) {
+            // Check for unique constraint violation on slug.
+            // MySQL error codes: 1062 (Duplicate entry), 23000 (Integrity constraint violation)
+            // SQLite error code: SQLITE_CONSTRAINT (19)
+            $errorCode = isset($e->errorInfo[1]) ? (string) $e->errorInfo[1] : '';
+            if (in_array($errorCode, ['1062', '19'], true)) {
+                return response()->json([
+                    'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
+                    'error' => 'slug_conflict',
+                ], 409);
             }
-
-            // Create landing page.
-            // Note: doi_prefix is set automatically in the model's boot() method
-            // from the resource's DOI. We don't set it here to avoid redundancy.
-            return $resource->landingPage()->create([
-                'slug' => $slug,
-                'template' => $validated['template'],
-                'ftp_url' => $validated['ftp_url'] ?? null,
-                'is_published' => $isPublished,
-                'published_at' => $isPublished ? now() : null,
-            ]);
-        });
+            throw $e;
+        }
 
         $landingPage->refresh();
 
