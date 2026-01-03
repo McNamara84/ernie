@@ -171,7 +171,7 @@ export class LandingPage {
     let data: { public_url: string };
     try {
       data = await response.json();
-    } catch (jsonError) {
+    } catch {
       const responseText = await response.text().catch(() => '<unable to read response body>');
       throw new Error(
         `Failed to parse JSON response from test helper API for slug "${slug}". ` +

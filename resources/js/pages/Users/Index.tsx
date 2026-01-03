@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { UserRoleBadge } from '@/components/user-role-badge';
 import AppLayout from '@/layouts/app-layout';
-import { type User as AuthUser, type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem,type User as AuthUser } from '@/types';
 
 interface UserData {
     id: number;
