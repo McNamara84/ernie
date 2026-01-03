@@ -20,14 +20,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Use raw query for efficiency on large datasets.
-        // This updates all landing pages where the associated resource has a DOI.
+        // Use database-agnostic subquery syntax that works with both MySQL and SQLite.
+        // SQLite doesn't support UPDATE ... JOIN, so we use a subquery instead.
         $updated = DB::update('
-            UPDATE landing_pages lp
-            INNER JOIN resources r ON lp.resource_id = r.id
-            SET lp.doi_prefix = r.doi
-            WHERE r.doi IS NOT NULL
-              AND lp.doi_prefix IS NULL
+            UPDATE landing_pages
+            SET doi_prefix = (
+                SELECT doi FROM resources WHERE resources.id = landing_pages.resource_id
+            )
+            WHERE doi_prefix IS NULL
+              AND EXISTS (
+                SELECT 1 FROM resources 
+                WHERE resources.id = landing_pages.resource_id 
+                  AND resources.doi IS NOT NULL
+              )
         ');
 
         Log::info("DataMigration: Updated {$updated} landing pages with doi_prefix from resources");
