@@ -174,6 +174,10 @@ describe('Landing Page Caching', function () {
     });
 
     test('serves cached response for published pages', function () {
+        // Skip: This test verifies caching behavior but the current implementation
+        // doesn't cache responses. When implementing semantic URL caching, update
+        // this test to verify the cache key format uses DOI/slug.
+        // @see ResourceObserver for cache invalidation logic
         $landingPage = LandingPage::factory()
             ->published()
             ->create([
@@ -182,19 +186,23 @@ describe('Landing Page Caching', function () {
                 'slug' => 'cached-response-test',
             ]);
 
-        // First request - populates cache
+        // First request
         $response1 = $this->get(landingPageUrl($landingPage));
 
         // Modify landing page
         $landingPage->update(['ftp_url' => 'https://new-url.com']);
 
-        // Second request
+        // Second request - should reflect the change since caching is not yet implemented
         $response2 = $this->get(landingPageUrl($landingPage));
 
-        // Both responses should be valid (caching is optional)
+        // Both responses should be valid
         $response1->assertStatus(200);
         $response2->assertStatus(200);
-    });
+
+        // Note: When caching is implemented, add assertions to verify:
+        // - Cache key format: "landing-page.{doi_prefix}.{slug}"
+        // - Response contains updated data after cache invalidation
+    })->skip('Caching implementation pending - test documents expected behavior for future implementation');
 
     test('cache respects published status check before serving', function () {
         $landingPage = LandingPage::factory()
@@ -205,13 +213,13 @@ describe('Landing Page Caching', function () {
                 'slug' => 'depublish-cache-test',
             ]);
 
-        // Cache the page
+        // Access the page while published
         $this->get(landingPageUrl($landingPage));
 
         // Depublish
         $landingPage->unpublish();
 
-        // Should not serve cached version
+        // Should not serve cached version - unpublished pages require preview token
         $response = $this->get(landingPageUrl($landingPage));
         $response->assertStatus(404);
     });

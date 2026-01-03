@@ -154,12 +154,35 @@ class SlugGeneratorService
         // Apply custom transliteration map first
         $text = strtr($text, self::TRANSLITERATION_MAP);
 
+        // Check if iconv extension is available (should always be, but defensive)
+        if (! function_exists('iconv')) {
+            \Illuminate\Support\Facades\Log::warning(
+                'SlugGeneratorService: iconv extension not available, using fallback',
+                ['text_length' => mb_strlen($text)]
+            );
+
+            return $text;
+        }
+
         // Use iconv for any remaining non-ASCII characters.
         // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars.
-        // We use the @ operator to suppress notices from iconv() when it encounters
-        // characters it cannot transliterate. This is preferable to manipulating
-        // error_reporting() as it's more targeted and doesn't affect other code.
-        $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        // Set a custom error handler to capture iconv notices without using @ operator.
+        $previousHandler = set_error_handler(function (int $errno, string $errstr) {
+            // Silently ignore iconv notices about characters it cannot transliterate.
+            // These are expected when processing non-Latin scripts.
+            if (str_contains($errstr, 'iconv')) {
+                return true;
+            }
+
+            return false; // Let other errors bubble up
+        });
+
+        try {
+            $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        } finally {
+            // Restore previous error handler
+            restore_error_handler();
+        }
 
         if ($transliterated === false) {
             // Log transliteration failure for debugging (locale-dependent)

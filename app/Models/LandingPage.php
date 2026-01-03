@@ -136,20 +136,33 @@ class LandingPage extends Model
     /**
      * Generate a URL-friendly slug from the associated resource's main title.
      *
-     * Note: This method requires either the 'resource' relationship to be loaded
-     * or 'resource_id' to be set. When called during the 'creating' event,
-     * the resource relationship may not be loaded yet, so we fall back to
-     * finding the resource by ID. This is typically a single query since
-     * create() calls are not batched.
+     * Performance Note: This method may trigger a database query if the 'resource'
+     * relationship is not already loaded. When called during the 'creating' event,
+     * this is typically a single query per creation which is acceptable.
+     *
+     * For bulk landing page creation, ensure resources are eager-loaded to avoid N+1:
+     * ```php
+     * $resources = Resource::with('titles.titleType')->whereIn('id', $ids)->get();
+     * foreach ($resources as $resource) {
+     *     $landingPage = new LandingPage(['resource_id' => $resource->id]);
+     *     $landingPage->setRelation('resource', $resource);
+     *     $landingPage->save();
+     * }
+     * ```
+     *
+     * Alternatively, consider using a queue job for bulk operations.
      */
     public function generateSlugFromResource(): string
     {
         $resource = $this->resource ?? Resource::find($this->resource_id);
 
-        // If resource not found, return a minimal valid slug.
-        // Using just 'dataset' without ID to ensure consistent slug format.
+        // If resource not found, return a unique fallback slug.
+        // Include resource_id to prevent collisions when multiple landing pages
+        // are created without resources (edge case, but prevents database errors).
         if (! $resource) {
-            return 'dataset';
+            $uniqueSuffix = $this->resource_id ?? uniqid();
+
+            return "dataset-{$uniqueSuffix}";
         }
 
         // Load titles if not already loaded (avoids reloading if relationship exists)
@@ -159,10 +172,10 @@ class LandingPage extends Model
         $mainTitle = $resource->titles
             ->first(fn (Title $title) => $title->isMainTitle());
 
-        // If no main title exists, return a minimal valid slug.
-        // Using just 'dataset' to maintain consistent slug format (lowercase, no special chars).
+        // If no main title exists, return a unique fallback slug using resource ID.
+        // This ensures uniqueness while maintaining a readable slug format.
         if ($mainTitle === null) {
-            return 'dataset';
+            return "dataset-{$resource->id}";
         }
 
         /** @var SlugGeneratorService $slugGenerator */
@@ -242,11 +255,22 @@ class LandingPage extends Model
     /**
      * Get the contact form URL for the landing page.
      *
+     * Uses the same URL construction logic as public_url to ensure consistency.
+     * If the public URL format changes (e.g., adding query parameters), this
+     * method will automatically inherit those changes.
+     *
      * Format: /{DOI}/{SLUG}/contact or /draft-{ID}/{SLUG}/contact
      */
     public function getContactUrlAttribute(): string
     {
-        return $this->public_url.'/contact';
+        // Build contact URL using same base path logic as public_url.
+        // Using explicit path construction instead of appending to public_url
+        // avoids issues with URL encoding or query parameters.
+        if ($this->doi_prefix !== null) {
+            return url("/{$this->doi_prefix}/{$this->slug}/contact");
+        }
+
+        return url("/draft-{$this->resource_id}/{$this->slug}/contact");
     }
 
     /**

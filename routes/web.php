@@ -104,10 +104,10 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
  | They provide helper endpoints for Playwright E2E tests to look up landing
  | pages by slug without knowing the full semantic URL in advance.
  |
- | SECURITY WARNING: These routes MUST NEVER be exposed in production!
- | The app()->environment() check ensures they are only registered in
- | local/testing environments. If APP_ENV is misconfigured in production,
- | these routes would be accessible - always verify deployment configuration.
+ | SECURITY: Multiple layers of protection ensure these routes never run in production:
+ | 1. Route registration check: app()->environment('local', 'testing')
+ | 2. Middleware check: EnsureTestEnvironment middleware (survives route cache)
+ | 3. Runtime check: Additional app()->environment() inside handler
  |
  | Production deployment checklist:
  | - Verify APP_ENV=production in .env
@@ -118,27 +118,30 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
  | @see .github/workflows/playwright.yml - sets APP_ENV=testing
  */
 if (app()->environment('local', 'testing')) {
-    Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
-        // Defense-in-depth: Additional runtime check to protect against edge cases
-        // such as environment variable caching issues or configuration mismatches.
-        // While the route registration check above should prevent this code from
-        // being reachable in production, this extra check ensures safety.
-        if (! app()->environment('local', 'testing')) {
-            abort(\Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
-        }
+    Route::middleware(['ensure.test-environment'])->group(function () {
+        Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
+            // Defense-in-depth: Additional runtime check to protect against edge cases
+            // such as environment variable caching issues or configuration mismatches.
+            // This is the third layer of protection after route registration and middleware.
+            if (! app()->environment('local', 'testing')) {
+                abort(\Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
+            }
 
-        $landingPage = \App\Models\LandingPage::where('slug', $slug)->first();
-        if (! $landingPage) {
-            return response()->json(['error' => 'Landing page not found'], 404);
-        }
+            $landingPage = \App\Models\LandingPage::where('slug', $slug)->first();
+            if (! $landingPage) {
+                // Return 404 with HTML to match browser-facing error pages.
+                // For API-style usage, Playwright checks response.ok() first anyway.
+                abort(\Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND, 'Landing page not found');
+            }
 
-        return response()->json([
-            'public_url' => $landingPage->public_url,
-            'preview_url' => $landingPage->preview_url,
-            'doi_prefix' => $landingPage->doi_prefix,
-            'slug' => $landingPage->slug,
-        ]);
-    })->name('test.landing-page-by-slug');
+            return response()->json([
+                'public_url' => $landingPage->public_url,
+                'preview_url' => $landingPage->preview_url,
+                'doi_prefix' => $landingPage->doi_prefix,
+                'slug' => $landingPage->slug,
+            ]);
+        })->name('test.landing-page-by-slug');
+    });
 }
 
 Route::middleware(['auth', 'verified'])->group(function () {

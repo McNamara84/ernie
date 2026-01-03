@@ -43,6 +43,12 @@ class ResourceObserver
      *
      * Also syncs DOI changes to associated landing page and invalidates
      * landing page caches when the DOI changes.
+     *
+     * DOI Change Warning: Changing a DOI for a resource with a published landing page
+     * will change the landing page's public URL. This can break existing citations,
+     * bookmarks, and external links. The old URL will return 404 without redirect.
+     * Consider implementing DOI change restrictions in the business layer (controller/policy)
+     * rather than here, as the observer should focus on data consistency.
      */
     public function updated(Resource $resource): void
     {
@@ -54,11 +60,27 @@ class ResourceObserver
         // Use exists() query to avoid loading the entire model and prevent N+1 issues.
         // Note: If DOI is removed (set to null), the landing page's doi_prefix will be
         // set to null, effectively transitioning from DOI-based URL to draft URL format.
-        // Business logic should typically prevent DOI removal for published landing pages,
-        // but this sync ensures data consistency regardless.
         if ($resource->wasChanged('doi') && $resource->landingPage()->exists()) {
             // Get the old DOI to invalidate any caches keyed by old DOI+slug
             $oldDoi = $resource->getOriginal('doi');
+
+            // Load landing page to check publication status and log warning
+            $landingPage = $resource->landingPage;
+            if ($landingPage !== null && $landingPage->is_published) {
+                // Log warning for DOI changes on published landing pages.
+                // This helps operators identify potential broken link issues.
+                // The actual prevention should happen in controllers/policies.
+                \Illuminate\Support\Facades\Log::warning(
+                    'ResourceObserver: DOI changed for resource with published landing page',
+                    [
+                        'resource_id' => $resource->id,
+                        'old_doi' => $oldDoi,
+                        'new_doi' => $resource->doi,
+                        'landing_page_id' => $landingPage->id,
+                        'old_url_will_break' => true,
+                    ]
+                );
+            }
 
             $resource->landingPage()->update([
                 'doi_prefix' => $resource->doi,
@@ -67,7 +89,7 @@ class ResourceObserver
             // Invalidate landing page caches for both old and new DOI-based URLs.
             // This ensures stale content under the old DOI key is cleared, and
             // any cached 404s for the new DOI are also cleared.
-            $landingPage = $resource->landingPage;
+            // Also clear using cache tags if available for more thorough cleanup.
             if ($landingPage !== null) {
                 // Clear cache for old DOI-based URL (if there was an old DOI)
                 if ($oldDoi !== null) {
@@ -77,8 +99,10 @@ class ResourceObserver
                 if ($resource->doi !== null) {
                     Cache::forget("landing-page.{$resource->doi}.{$landingPage->slug}");
                 }
-                // Also clear by resource ID
+                // Also clear by resource ID (covers draft-style URLs)
                 Cache::forget("landing-page.{$resource->id}");
+                // Clear by landing page ID for any ID-based cache keys
+                Cache::forget("landing-page.{$landingPage->id}");
             }
         }
     }

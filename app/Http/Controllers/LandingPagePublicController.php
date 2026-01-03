@@ -56,18 +56,28 @@ class LandingPagePublicController extends Controller
         // - This helps distinguish genuine bugs from client errors in error monitoring
         $pregResult = preg_match(self::SLUG_PATTERN, $slug);
         if ($pregResult === false) {
-            // preg_match failed due to PCRE error - this is an internal error
+            // preg_match failed due to PCRE error - this is an internal error.
+            // Log sanitized data to avoid information disclosure in production.
             \Illuminate\Support\Facades\Log::error(
                 'LandingPagePublicController: preg_match failed with PCRE error',
-                ['doi_prefix' => $doiPrefix, 'slug' => $slug, 'pattern' => self::SLUG_PATTERN]
+                [
+                    'doi_prefix_length' => strlen($doiPrefix),
+                    'slug_length' => strlen($slug),
+                    'slug_preview' => substr($slug, 0, 10).'...',
+                ]
             );
             abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
         }
         if ($pregResult === 0) {
-            // Slug doesn't match pattern - indicates routing misconfiguration
+            // Slug doesn't match pattern - indicates routing misconfiguration.
+            // Log sanitized data to avoid exposing potentially malicious input.
             \Illuminate\Support\Facades\Log::warning(
                 'LandingPagePublicController: Invalid slug bypassed route constraint',
-                ['doi_prefix' => $doiPrefix, 'slug' => $slug]
+                [
+                    'doi_prefix_length' => strlen($doiPrefix),
+                    'slug_length' => strlen($slug),
+                    'slug_preview' => substr($slug, 0, 10).'...',
+                ]
             );
             abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
         }
