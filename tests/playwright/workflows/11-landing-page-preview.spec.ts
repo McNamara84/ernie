@@ -119,9 +119,17 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         // - resources/123/landing-page/preview (internal route)
         // - 10.5880/gfz.2024.001/test-slug?preview=... (DOI-based with preview token)
         // - draft-123/test-slug?preview=... (draft-based with preview token)
+        // Slug pattern: [a-z0-9-]+ (lowercase alphanumeric with hyphens)
         const previewUrl = previewPage.url();
-        const isValidPreviewUrl = /\/(resources\/\d+\/landing-page\/preview|10\.\d+\/[^?]+\?preview=|draft-\d+\/[^?]+\?preview=)/.test(previewUrl);
-        expect(isValidPreviewUrl, `Expected preview URL format, got: ${previewUrl}`).toBeTruthy();
+        const slugPattern = '[a-z0-9-]+';
+        const previewUrlRegex = new RegExp(
+            `/(resources/\\d+/landing-page/preview|10\\.\\d+/[a-zA-Z0-9._/-]+/${slugPattern}\\?preview=|draft-\\d+/${slugPattern}\\?preview=)`
+        );
+        const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
+        expect(
+            isValidPreviewUrl, 
+            `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`
+        ).toBeTruthy();
 
         // For semantic URLs, verify the preview token parameter is actually present
         if (!previewUrl.includes('/landing-page/preview')) {

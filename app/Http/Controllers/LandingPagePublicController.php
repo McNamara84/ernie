@@ -49,7 +49,11 @@ class LandingPagePublicController extends Controller
         // Validate slug format explicitly (defense in depth).
         // Since route constraints should have already filtered invalid slugs,
         // reaching this point with an invalid slug indicates routing misconfiguration
-        // or potential tampering. Log and return 500 instead of 400.
+        // or potential tampering. We return 500 instead of 400 because:
+        // - 400 (Bad Request) would imply the client made an invalid request, but the
+        //   route regex should prevent such requests from reaching this controller
+        // - 500 correctly signals this is an unexpected server-side issue
+        // - This helps distinguish genuine bugs from client errors in error monitoring
         $pregResult = preg_match(self::SLUG_PATTERN, $slug);
         if ($pregResult === false) {
             // preg_match failed due to PCRE error - this is an internal error

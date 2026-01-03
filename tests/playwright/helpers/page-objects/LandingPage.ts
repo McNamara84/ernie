@@ -141,11 +141,26 @@ export class LandingPage {
 
     if (!response.ok()) {
       const status = response.status();
-      const hint = status === 404
-        ? 'Make sure test data is seeded (run: php artisan db:seed --class=PlaywrightTestSeeder)'
-        : status === 500
-          ? 'Server error - check Laravel logs for details'
-          : 'Verify APP_ENV is set to "local" or "testing" - the /_test/ routes are only available in dev/test environments';
+      let hint: string;
+
+      switch (status) {
+        case 404:
+          hint = 'Make sure test data is seeded (run: php artisan db:seed --class=PlaywrightTestSeeder)';
+          break;
+        case 403:
+          hint = 'Access forbidden - check authentication or route middleware configuration';
+          break;
+        case 422:
+          hint = 'Validation error - the slug format may be invalid';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          hint = 'Server error - check Laravel logs (storage/logs/laravel.log) for details';
+          break;
+        default:
+          hint = `Unexpected HTTP ${status}. Check if APP_ENV is set to "local" or "testing" - the /_test/ routes are only available in dev/test environments. Also verify the Laravel server is running.`;
+      }
 
       throw new Error(
         `Failed to load landing page with slug "${slug}" (HTTP ${status}). ${hint}`

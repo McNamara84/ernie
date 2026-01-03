@@ -116,6 +116,24 @@ describe('Landing Page Creation', function () {
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['ftp_url']);
     });
+
+    test('is_published defaults to draft when not specified', function () {
+        // When is_published is not provided in the request, the landing page
+        // should default to unpublished (draft) status for safety.
+        // This prevents accidental publication of incomplete landing pages.
+        $response = $this->actingAs($this->user)
+            ->postJson("/resources/{$this->resource->id}/landing-page", [
+                'template' => 'default_gfz',
+                // intentionally omitting is_published
+            ]);
+
+        $response->assertCreated();
+
+        $landingPage = $this->resource->fresh()->landingPage;
+
+        expect($landingPage->is_published)->toBeFalse();
+        expect($landingPage->published_at)->toBeNull();
+    });
 });
 
 describe('Landing Page Updates', function () {

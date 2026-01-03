@@ -6,6 +6,7 @@ namespace App\Observers;
 
 use App\Models\Resource;
 use App\Services\ResourceCacheService;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Observer for Resource model to handle cache invalidation.
@@ -40,7 +41,8 @@ class ResourceObserver
      * This is handled by invalidateResourceCache which calls
      * invalidateAllResourceCaches internally.
      *
-     * Also syncs DOI changes to associated landing page.
+     * Also syncs DOI changes to associated landing page and invalidates
+     * landing page caches when the DOI changes.
      */
     public function updated(Resource $resource): void
     {
@@ -55,9 +57,29 @@ class ResourceObserver
         // Business logic should typically prevent DOI removal for published landing pages,
         // but this sync ensures data consistency regardless.
         if ($resource->wasChanged('doi') && $resource->landingPage()->exists()) {
+            // Get the old DOI to invalidate any caches keyed by old DOI+slug
+            $oldDoi = $resource->getOriginal('doi');
+
             $resource->landingPage()->update([
                 'doi_prefix' => $resource->doi,
             ]);
+
+            // Invalidate landing page caches for both old and new DOI-based URLs.
+            // This ensures stale content under the old DOI key is cleared, and
+            // any cached 404s for the new DOI are also cleared.
+            $landingPage = $resource->landingPage;
+            if ($landingPage !== null) {
+                // Clear cache for old DOI-based URL (if there was an old DOI)
+                if ($oldDoi !== null) {
+                    Cache::forget("landing-page.{$oldDoi}.{$landingPage->slug}");
+                }
+                // Clear cache for new DOI-based URL (if there is a new DOI)
+                if ($resource->doi !== null) {
+                    Cache::forget("landing-page.{$resource->doi}.{$landingPage->slug}");
+                }
+                // Also clear by resource ID
+                Cache::forget("landing-page.{$resource->id}");
+            }
         }
     }
 
