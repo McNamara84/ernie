@@ -33,11 +33,14 @@ class EnsureTestEnvironment
     public function handle(Request $request, Closure $next): Response
     {
         // Block access unless running in local or testing environment.
+        // Use config('app.env') instead of app()->environment() for robustness:
+        // - config() reads from cached config, which survives process restarts
+        // - app()->environment() can be unreliable with config caching
         // This is a defense-in-depth check that protects against:
         // - Route cache containing test routes from wrong environment
         // - Misconfigured APP_ENV in production
         // - Accidental exposure through deployment errors
-        if (! app()->environment('local', 'testing')) {
+        if (! in_array(config('app.env'), ['local', 'testing'], true)) {
             // Return 404 instead of 403 to avoid revealing that the route exists
             abort(Response::HTTP_NOT_FOUND);
         }

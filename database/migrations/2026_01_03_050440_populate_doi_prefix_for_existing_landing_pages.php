@@ -18,10 +18,35 @@ return new class extends Migration
      * - Published landing pages without DOI: URL remains /draft-{id}/{slug}
      * - The legacy /datasets/{id} route provides 301 redirects for old bookmarks
      */
+    /**
+     * DOI format pattern for validation.
+     * Format: 10.NNNN/suffix where NNNN is registrant code and suffix is alphanumeric with dots/slashes.
+     */
+    private const DOI_PATTERN = '/^10\.\d{4,}\/.+$/';
+
     public function up(): void
     {
+        // First, identify and log any malformed DOIs that will be migrated.
+        // This helps operators identify data quality issues without blocking migration.
+        $malformedDois = DB::table('resources')
+            ->join('landing_pages', 'resources.id', '=', 'landing_pages.resource_id')
+            ->whereNotNull('resources.doi')
+            ->whereNull('landing_pages.doi_prefix')
+            ->get(['resources.id', 'resources.doi']);
+
+        foreach ($malformedDois as $row) {
+            if (!preg_match(self::DOI_PATTERN, $row->doi)) {
+                Log::warning(
+                    'DataMigration: Resource has malformed DOI that will be migrated as-is',
+                    ['resource_id' => $row->id, 'doi' => $row->doi]
+                );
+            }
+        }
+
         // Use database-agnostic subquery syntax that works with both MySQL and SQLite.
         // SQLite doesn't support UPDATE ... JOIN, so we use a subquery instead.
+        // Note: We migrate all DOIs including malformed ones to maintain data consistency.
+        // Validation/correction should happen at the application layer, not during migration.
         $updated = DB::update('
             UPDATE landing_pages
             SET doi_prefix = (

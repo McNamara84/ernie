@@ -117,17 +117,24 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
  | @see tests/playwright/helpers/page-objects/LandingPage.ts - goto() method
  | @see .github/workflows/playwright.yml - sets APP_ENV=testing
  */
-if (app()->environment('local', 'testing')) {
-    Route::middleware(['ensure.test-environment'])->group(function () {
+// Use config() for more robust environment check that survives config caching.
+// app()->environment() can be unreliable if APP_ENV was different when config was cached.
+if (in_array(config('app.env'), ['local', 'testing'], true)) {
+    Route::middleware(['ensure.test-environment', 'throttle:60,1'])->group(function () {
         Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
-            // Defense-in-depth: Additional runtime check to protect against edge cases
-            // such as environment variable caching issues or configuration mismatches.
+            // Defense-in-depth: Additional runtime check using config() for consistency.
             // This is the third layer of protection after route registration and middleware.
-            if (! app()->environment('local', 'testing')) {
+            if (!in_array(config('app.env'), ['local', 'testing'], true)) {
                 abort(\Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
             }
 
-            $landingPage = \App\Models\LandingPage::where('slug', $slug)->first();
+            // Use latest() to get the most recently created landing page if multiple
+            // share the same slug (can happen with draft pages). Document this behavior.
+            // Limitation: Multiple drafts with same slug return the newest one.
+            $landingPage = \App\Models\LandingPage::where('slug', $slug)
+                ->latest('id')
+                ->first();
+
             if (! $landingPage) {
                 // Return 404 with HTML to match browser-facing error pages.
                 // For API-style usage, Playwright checks response.ok() first anyway.

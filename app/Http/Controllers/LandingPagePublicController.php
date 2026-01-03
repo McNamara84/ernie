@@ -57,26 +57,27 @@ class LandingPagePublicController extends Controller
         $pregResult = preg_match(self::SLUG_PATTERN, $slug);
         if ($pregResult === false) {
             // preg_match failed due to PCRE error - this is an internal error.
-            // Log sanitized data to avoid information disclosure in production.
+            // Log only non-sensitive metadata to avoid information disclosure.
+            // Using hash instead of partial value to allow correlation without exposure.
             \Illuminate\Support\Facades\Log::error(
                 'LandingPagePublicController: preg_match failed with PCRE error',
                 [
                     'doi_prefix_length' => strlen($doiPrefix),
                     'slug_length' => strlen($slug),
-                    'slug_preview' => substr($slug, 0, 10).'...',
+                    'slug_hash' => substr(hash('sha256', $slug), 0, 8),
                 ]
             );
             abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
         }
         if ($pregResult === 0) {
             // Slug doesn't match pattern - indicates routing misconfiguration.
-            // Log sanitized data to avoid exposing potentially malicious input.
+            // Log only non-sensitive metadata using hash for correlation.
             \Illuminate\Support\Facades\Log::warning(
                 'LandingPagePublicController: Invalid slug bypassed route constraint',
                 [
                     'doi_prefix_length' => strlen($doiPrefix),
                     'slug_length' => strlen($slug),
-                    'slug_preview' => substr($slug, 0, 10).'...',
+                    'slug_hash' => substr(hash('sha256', $slug), 0, 8),
                 ]
             );
             abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
@@ -205,9 +206,26 @@ class LandingPagePublicController extends Controller
     /**
      * Normalize preview token: treat empty string as null.
      * This ensures consistent null checks throughout the controller.
+     *
+     * Note: Empty strings should never come from legitimate requests (query params
+     * are either absent or have a value). If this normalization triggers, it may
+     * indicate a frontend bug sending empty strings instead of omitting the param.
      */
     private function normalizePreviewToken(?string $token): ?string
     {
-        return $token === '' ? null : $token;
+        if ($token === '') {
+            // Log in development to help identify potential frontend bugs.
+            // Empty string preview tokens are unexpected from valid requests.
+            if (config('app.debug')) {
+                \Illuminate\Support\Facades\Log::debug(
+                    'LandingPagePublicController: Empty preview token normalized to null',
+                    ['possible_frontend_bug' => true]
+                );
+            }
+
+            return null;
+        }
+
+        return $token;
     }
 }

@@ -64,8 +64,12 @@ class ResourceObserver
             // Get the old DOI to invalidate any caches keyed by old DOI+slug
             $oldDoi = $resource->getOriginal('doi');
 
-            // Load landing page to check publication status and log warning
-            $landingPage = $resource->landingPage;
+            // Fetch only the fields needed for cache invalidation and status check.
+            // This avoids loading the entire model when we only need a few columns.
+            $landingPage = $resource->landingPage()
+                ->select(['id', 'resource_id', 'doi_prefix', 'slug', 'is_published'])
+                ->first();
+
             if ($landingPage !== null && $landingPage->is_published) {
                 // Log warning for DOI changes on published landing pages.
                 // This helps operators identify potential broken link issues.
@@ -82,6 +86,7 @@ class ResourceObserver
                 );
             }
 
+            // Update doi_prefix directly on the relation (not on the selected model)
             $resource->landingPage()->update([
                 'doi_prefix' => $resource->doi,
             ]);
@@ -90,6 +95,7 @@ class ResourceObserver
             // This ensures stale content under the old DOI key is cleared, and
             // any cached 404s for the new DOI are also cleared.
             // Also clear using cache tags if available for more thorough cleanup.
+            // Note: We use the slug from the originally selected model since it's immutable.
             if ($landingPage !== null) {
                 // Clear cache for old DOI-based URL (if there was an old DOI)
                 if ($oldDoi !== null) {

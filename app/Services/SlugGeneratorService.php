@@ -166,23 +166,14 @@ class SlugGeneratorService
 
         // Use iconv for any remaining non-ASCII characters.
         // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars.
-        // Set a custom error handler to capture iconv notices without using @ operator.
-        $previousHandler = set_error_handler(function (int $errno, string $errstr) {
-            // Silently ignore iconv notices about characters it cannot transliterate.
-            // These are expected when processing non-Latin scripts.
-            if (str_contains($errstr, 'iconv')) {
-                return true;
-            }
-
-            return false; // Let other errors bubble up
-        });
-
-        try {
-            $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
-        } finally {
-            // Restore previous error handler
-            restore_error_handler();
-        }
+        // We use the @ operator to suppress expected notices from iconv() when it
+        // encounters characters it cannot transliterate. This is cleaner than custom
+        // error handlers which rely on fragile string matching in error messages.
+        // The @ operator here is safe because:
+        // - We check for false return value to detect actual failures
+        // - iconv notices for untranslatable chars are expected, not errors
+        // - Logging is done on actual failures (false return)
+        $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
 
         if ($transliterated === false) {
             // Log transliteration failure for debugging (locale-dependent)

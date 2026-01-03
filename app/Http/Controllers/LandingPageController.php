@@ -71,6 +71,23 @@ class LandingPageController extends Controller
             'status' => 'sometimes|string|in:draft,published',
         ]);
 
+        // Detect conflicting status/is_published values.
+        // If both are provided with conflicting values, this may indicate a client bug.
+        if (isset($validated['status']) && isset($validated['is_published'])) {
+            $statusImpliesPublished = $validated['status'] === 'published';
+            if ($statusImpliesPublished !== $validated['is_published']) {
+                \Illuminate\Support\Facades\Log::warning(
+                    'LandingPageController: Conflicting status and is_published values received',
+                    [
+                        'resource_id' => $resource->id,
+                        'status' => $validated['status'],
+                        'is_published' => $validated['is_published'],
+                        'using' => 'status (preferred field)',
+                    ]
+                );
+            }
+        }
+
         // Check if landing page already exists
         if ($resource->landingPage) {
             return response()->json([
@@ -91,7 +108,7 @@ class LandingPageController extends Controller
 
         // Determine publication status.
         // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
-        // If both are provided, 'status' takes precedence silently.
+        // If both are provided, 'status' takes precedence (logged above if conflicting).
         // This maintains backward compatibility while encouraging migration to 'status'.
         $isPublished = false;
         if (isset($validated['status'])) {
