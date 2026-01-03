@@ -56,9 +56,20 @@ class TestHelperController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
 
+        // Return relative paths for Playwright tests.
+        // Playwright uses baseURL from its config, so we only need the path portion.
+        // This avoids issues with absolute URLs containing different host/port combinations.
+        $publicPath = $landingPage->doi_prefix !== null
+            ? "/{$landingPage->doi_prefix}/{$landingPage->slug}"
+            : "/draft-{$landingPage->resource_id}/{$landingPage->slug}";
+
+        $previewPath = $landingPage->preview_token !== null
+            ? "{$publicPath}?preview={$landingPage->preview_token}"
+            : null;
+
         return response()->json([
-            'public_url' => $landingPage->public_url,
-            'preview_url' => $landingPage->preview_url,
+            'public_url' => $publicPath,
+            'preview_url' => $previewPath,
             'doi_prefix' => $landingPage->doi_prefix,
             'slug' => $landingPage->slug,
         ]);
