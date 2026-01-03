@@ -13,10 +13,10 @@ use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Services\OldDatasetEditorLoader;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 Route::get('/health', function () {
@@ -55,15 +55,37 @@ Route::get('/changelog', function () {
 })->name('changelog');
 
 // Public Landing Pages (accessible without authentication)
-Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'show'])
-    ->name('landing-page.show')
-    ->where('resourceId', '[0-9]+');
+// ===========================================================
 
-// Contact form for landing pages (public, rate-limited)
-Route::post('datasets/{resourceId}/contact', [ContactMessageController::class, 'store'])
+// Landing Pages with DOI (e.g., /10.5880/test.001/my-dataset-title)
+// DOI prefix starts with 10. and can contain slashes
+Route::get('{doiPrefix}/{slug}', [LandingPagePublicController::class, 'show'])
+    ->name('landing-page.show')
+    ->where('doiPrefix', '10\.[0-9]+/.+')
+    ->where('slug', '[a-z0-9-]+');
+
+Route::post('{doiPrefix}/{slug}/contact', [ContactMessageController::class, 'store'])
     ->name('landing-page.contact')
+    ->where('doiPrefix', '10\.[0-9]+/.+')
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware('throttle:10,1');
+
+// Landing Pages without DOI (draft mode, e.g., /draft-123/my-dataset-title)
+Route::get('draft-{resourceId}/{slug}', [LandingPagePublicController::class, 'showDraft'])
+    ->name('landing-page.show-draft')
     ->where('resourceId', '[0-9]+')
-    ->middleware('throttle:10,1'); // Additional Laravel throttle: 10 requests per minute
+    ->where('slug', '[a-z0-9-]+');
+
+Route::post('draft-{resourceId}/{slug}/contact', [ContactMessageController::class, 'storeDraft'])
+    ->name('landing-page.contact-draft')
+    ->where('resourceId', '[0-9]+')
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware('throttle:10,1');
+
+// Legacy route for backwards compatibility during transition (can be removed later)
+Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLegacy'])
+    ->name('landing-page.show-legacy')
+    ->where('resourceId', '[0-9]+');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])

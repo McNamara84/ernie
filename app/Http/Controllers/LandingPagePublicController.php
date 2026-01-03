@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Services\LandingPageResourceTransformer;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,22 +22,77 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 class LandingPagePublicController extends Controller
 {
     /**
-     * Display a public landing page for a resource
+     * Display a public landing page for a resource with DOI.
+     * URL pattern: /{doiPrefix}/{slug}
      */
-    public function show(Request $request, LandingPageResourceTransformer $transformer, int $resourceId): Response
-    {
+    public function show(
+        Request $request,
+        LandingPageResourceTransformer $transformer,
+        string $doiPrefix,
+        string $slug
+    ): Response {
         $previewToken = $request->query('preview');
 
-        // Load landing page configuration first to check status
+        // Find landing page by DOI prefix and slug
+        $landingPage = LandingPage::where('doi_prefix', $doiPrefix)
+            ->where('slug', $slug)
+            ->first();
+
+        abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+
+        return $this->renderLandingPage($landingPage, $transformer, $previewToken);
+    }
+
+    /**
+     * Display a public landing page for a draft resource (without DOI).
+     * URL pattern: /draft-{resourceId}/{slug}
+     */
+    public function showDraft(
+        Request $request,
+        LandingPageResourceTransformer $transformer,
+        int $resourceId,
+        string $slug
+    ): Response {
+        $previewToken = $request->query('preview');
+
+        // Find landing page by resource ID and slug (no DOI)
+        $landingPage = LandingPage::where('resource_id', $resourceId)
+            ->whereNull('doi_prefix')
+            ->where('slug', $slug)
+            ->first();
+
+        abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+
+        return $this->renderLandingPage($landingPage, $transformer, $previewToken);
+    }
+
+    /**
+     * Legacy route handler - redirects to new URL format.
+     * URL pattern: /datasets/{resourceId}
+     */
+    public function showLegacy(
+        LandingPageResourceTransformer $transformer,
+        int $resourceId
+    ): Response|RedirectResponse {
         $landingPage = LandingPage::where('resource_id', $resourceId)->first();
 
-        // Landing page must exist
-        abort_if(! $landingPage, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+        abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
+        // Redirect to new URL format
+        return redirect()->to($landingPage->public_url, HttpResponse::HTTP_MOVED_PERMANENTLY);
+    }
+
+    /**
+     * Common rendering logic for landing pages.
+     */
+    private function renderLandingPage(
+        LandingPage $landingPage,
+        LandingPageResourceTransformer $transformer,
+        ?string $previewToken
+    ): Response {
         // Check access permissions
         if (! $landingPage->isPublished()) {
-            // For unpublished pages, require valid preview token
-            if (! $previewToken) {
+            if ($previewToken === null || $previewToken === '') {
                 abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
             }
             if ($previewToken !== $landingPage->preview_token) {
@@ -45,12 +101,13 @@ class LandingPagePublicController extends Controller
         }
 
         // Increment view count only for published pages without preview token
-        if ($landingPage->isPublished() && ! $previewToken) {
+        if ($landingPage->isPublished() && ($previewToken === null || $previewToken === '')) {
             $landingPage->incrementViewCount();
         }
 
         // Load resource with all necessary relationships
-        $resource = Resource::with($transformer->requiredRelations())->findOrFail($resourceId);
+        $resource = Resource::with($transformer->requiredRelations())
+            ->findOrFail($landingPage->resource_id);
 
         $resourceData = $transformer->transform($resource);
 

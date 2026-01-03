@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\ContactPersonMessage;
 use App\Models\ContactMessage;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use Illuminate\Http\JsonResponse;
@@ -30,9 +31,46 @@ class ContactMessageController extends Controller
     private const RATE_LIMIT_MINUTES = 60;
 
     /**
-     * Store a new contact message and send emails.
+     * Store a new contact message from a landing page with DOI.
+     * Route: POST /{doiPrefix}/{slug}/contact
      */
-    public function store(Request $request, int $resourceId): JsonResponse
+    public function store(Request $request, string $doiPrefix, string $slug): JsonResponse
+    {
+        // Find landing page by DOI prefix and slug
+        $landingPage = LandingPage::where('doi_prefix', $doiPrefix)
+            ->where('slug', $slug)
+            ->first();
+
+        if ($landingPage === null) {
+            abort(404, 'Landing page not found');
+        }
+
+        return $this->processContactMessage($request, $landingPage->resource_id);
+    }
+
+    /**
+     * Store a new contact message from a draft landing page (without DOI).
+     * Route: POST /draft-{resourceId}/{slug}/contact
+     */
+    public function storeDraft(Request $request, int $resourceId, string $slug): JsonResponse
+    {
+        // Find landing page by resource ID and slug (no DOI)
+        $landingPage = LandingPage::where('resource_id', $resourceId)
+            ->whereNull('doi_prefix')
+            ->where('slug', $slug)
+            ->first();
+
+        if ($landingPage === null) {
+            abort(404, 'Landing page not found');
+        }
+
+        return $this->processContactMessage($request, $resourceId);
+    }
+
+    /**
+     * Process the contact message (shared logic).
+     */
+    private function processContactMessage(Request $request, int $resourceId): JsonResponse
     {
         // Check honeypot field (should be empty)
         if ($request->filled('website_url')) {
