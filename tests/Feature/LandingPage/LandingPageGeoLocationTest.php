@@ -6,9 +6,13 @@ use App\Models\GeoLocation;
 use App\Models\LandingPage;
 use App\Models\Resource;
 
+use function Pest\Laravel\withoutVite;
+
 uses()->group('landing-pages', 'public', 'geo-locations');
 
 beforeEach(function () {
+    withoutVite();
+
     $this->resource = Resource::factory()->create([
         'doi' => '10.5880/test.geo.001',
     ]);
@@ -72,10 +76,10 @@ describe('Landing Page with GeoLocations', function () {
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
                 ->has('resource.geo_locations', 1)
-                ->where('resource.geo_locations.0.west_bound_longitude', '5.87000000')
-                ->where('resource.geo_locations.0.east_bound_longitude', '15.04000000')
-                ->where('resource.geo_locations.0.south_bound_latitude', '47.27000000')
-                ->where('resource.geo_locations.0.north_bound_latitude', '55.06000000')
+                ->where('resource.geo_locations.0.west_bound_longitude', 5.87)
+                ->where('resource.geo_locations.0.east_bound_longitude', 15.04)
+                ->where('resource.geo_locations.0.south_bound_latitude', 47.27)
+                ->where('resource.geo_locations.0.north_bound_latitude', 55.06)
             );
     });
 

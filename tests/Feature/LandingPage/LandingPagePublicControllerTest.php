@@ -6,9 +6,13 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use Illuminate\Support\Facades\Cache;
 
+use function Pest\Laravel\withoutVite;
+
 uses()->group('landing-pages', 'public');
 
 beforeEach(function () {
+    withoutVite();
+
     $this->resource = Resource::factory()->create([
         'doi' => '10.5880/test.public.001',
     ]);
@@ -137,6 +141,15 @@ describe('Preview Token Access', function () {
 });
 
 describe('Landing Page Caching', function () {
+    /*
+     * Note: This test is skipped because the caching implementation uses
+     * the old URL structure (resource ID-based cache keys). With the new
+     * semantic URL structure (DOI-based), the cache key generation needs
+     * to be updated to use doi_prefix + slug as the cache key.
+     *
+     * TODO: Update LandingPagePublicController to use semantic URL-based
+     * cache keys: "landing_page.{doi_prefix}.{slug}" or similar.
+     */
     test('caches published landing pages', function () {
         $landingPage = LandingPage::factory()
             ->published()
@@ -152,7 +165,7 @@ describe('Landing Page Caching', function () {
         // Note: Caching behavior may vary - this test checks if the route works
         // The actual cache key may differ based on implementation
         expect(true)->toBeTrue(); // Placeholder - caching is implementation-specific
-    })->skip('Caching implementation to be verified with new URL structure');
+    })->skip('Caching needs to be updated for semantic URL structure (DOI-based cache keys)');
 
     test('does not cache draft previews', function () {
         $landingPage = LandingPage::factory()

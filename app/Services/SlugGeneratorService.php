@@ -145,9 +145,22 @@ class SlugGeneratorService
 
         // Use iconv for any remaining non-ASCII characters
         // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars
-        $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        $originalErrorReporting = error_reporting();
+        error_reporting($originalErrorReporting & ~E_NOTICE);
+        $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
+        error_reporting($originalErrorReporting);
 
-        return $transliterated !== false ? $transliterated : $text;
+        if ($transliterated === false) {
+            // Log transliteration failure for debugging (locale-dependent)
+            \Illuminate\Support\Facades\Log::debug(
+                'SlugGeneratorService: iconv transliteration failed, using original text',
+                ['original_text_length' => mb_strlen($text)]
+            );
+
+            return $text;
+        }
+
+        return $transliterated;
     }
 
     /**

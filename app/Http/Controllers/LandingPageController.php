@@ -160,20 +160,14 @@ class LandingPageController extends Controller
         $landingPage->save();
 
         // Handle publication status change (support both 'status' and 'is_published' fields)
-        $shouldPublish = null;
+        // Determine if publication status was explicitly provided in the request
         if (isset($validated['status'])) {
             $shouldPublish = $validated['status'] === 'published';
+            $shouldPublish ? $landingPage->publish() : $landingPage->unpublish();
         } elseif (isset($validated['is_published'])) {
-            $shouldPublish = $validated['is_published'];
+            $validated['is_published'] ? $landingPage->publish() : $landingPage->unpublish();
         }
-
-        if ($shouldPublish !== null) {
-            if ($shouldPublish) {
-                $landingPage->publish();
-            } else {
-                $landingPage->unpublish();
-            }
-        }
+        // If neither 'status' nor 'is_published' is provided, publication status remains unchanged
 
         // Invalidate cache
         $this->invalidateCache($resource->id);

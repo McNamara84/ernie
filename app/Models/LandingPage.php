@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 /**
+ * Landing page configuration for a research dataset.
+ *
  * @property int $id
  * @property int $resource_id
  * @property string|null $doi_prefix DOI for URL generation (e.g., "10.5880/igets.bu.l1.001"), NULL for drafts
- * @property string $slug URL-friendly title slug
+ * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
  * @property string|null $ftp_url
  * @property bool $is_published
@@ -23,9 +25,34 @@ use Illuminate\Support\Str;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
- * @property-read string $public_url
- * @property-read string|null $preview_url
+ * @property-read string $public_url Full public URL for the landing page
+ * @property-read string|null $preview_url Full preview URL with token
+ * @property-read string $contact_url Full contact form URL
  * @property-read string $status 'published' or 'draft'
+ *
+ * ## Slug Immutability
+ *
+ * The slug is generated once at creation from the resource's main title and is
+ * immutable thereafter. This design decision ensures:
+ *
+ * 1. **URL Stability**: Published URLs remain valid even if the title is updated
+ * 2. **SEO Consistency**: Search engines can index stable URLs
+ * 3. **Citation Reliability**: Citations linking to the landing page remain valid
+ *
+ * If the resource's main title changes significantly after the landing page is
+ * created, the slug will no longer reflect the current title. This is intentional
+ * to prevent breaking existing links. To update the slug, the landing page must
+ * be deleted and recreated (which should only be done if the page hasn't been
+ * published or widely shared).
+ *
+ * ## API Response Structure
+ *
+ * When serialized (e.g., in JSON API responses), this model includes:
+ * - All database columns (id, resource_id, doi_prefix, slug, template, etc.)
+ * - Computed accessors: public_url, preview_url, contact_url, status
+ *
+ * @see LandingPageController::store() for API creation endpoint
+ * @see LandingPageController::update() for API update endpoint
  */
 class LandingPage extends Model
 {
@@ -92,8 +119,10 @@ class LandingPage extends Model
                 $landingPage->slug = $landingPage->generateSlugFromResource();
             }
 
-            // Capture DOI prefix from resource if not set
-            if ($landingPage->doi_prefix === null && ! $landingPage->isDirty('doi_prefix')) {
+            // Capture DOI prefix from resource if not explicitly set
+            // Note: In the 'creating' event, we only need to check if the value is null
+            // since isDirty() always returns false for new models during creation
+            if ($landingPage->doi_prefix === null) {
                 $landingPage->doi_prefix = $landingPage->getDOIPrefixFromResource();
             }
         });
@@ -110,16 +139,16 @@ class LandingPage extends Model
             return 'dataset-'.$this->resource_id;
         }
 
-        // Load titles if not already loaded
-        if (! $resource->relationLoaded('titles')) {
-            $resource->load('titles.titleType');
-        }
+        // Load titles if not already loaded (avoids reloading if relationship exists)
+        $resource->loadMissing('titles.titleType');
 
         // Find main title (title_type_id is NULL or titleType slug is 'main-title')
         $mainTitle = $resource->titles
             ->first(fn (Title $title) => $title->isMainTitle());
 
-        $titleValue = $mainTitle !== null ? $mainTitle->value : 'dataset-'.$resource->id;
+        // Use main title or fallback to generic slug with resource ID
+        $fallbackSlug = 'dataset-'.$resource->id;
+        $titleValue = $mainTitle?->value ?? $fallbackSlug;
 
         /** @var SlugGeneratorService $slugGenerator */
         $slugGenerator = app(SlugGeneratorService::class);

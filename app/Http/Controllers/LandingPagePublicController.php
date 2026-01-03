@@ -22,8 +22,17 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 class LandingPagePublicController extends Controller
 {
     /**
+     * Regex pattern for valid slug characters.
+     * Must match the route constraint in web.php.
+     */
+    private const SLUG_PATTERN = '/^[a-z0-9-]+$/';
+
+    /**
      * Display a public landing page for a resource with DOI.
      * URL pattern: /{doiPrefix}/{slug}
+     *
+     * @param  string  $doiPrefix  DOI prefix (validated by route constraint)
+     * @param  string  $slug  URL slug (validated by route constraint and method)
      */
     public function show(
         Request $request,
@@ -31,6 +40,13 @@ class LandingPagePublicController extends Controller
         string $doiPrefix,
         string $slug
     ): Response {
+        // Validate slug format explicitly (defense in depth)
+        abort_unless(
+            preg_match(self::SLUG_PATTERN, $slug) === 1,
+            HttpResponse::HTTP_BAD_REQUEST,
+            'Invalid slug format'
+        );
+
         $previewToken = $request->query('preview');
 
         // Find landing page by DOI prefix and slug
@@ -46,6 +62,9 @@ class LandingPagePublicController extends Controller
     /**
      * Display a public landing page for a draft resource (without DOI).
      * URL pattern: /draft-{resourceId}/{slug}
+     *
+     * @param  int  $resourceId  Resource ID (validated by route constraint)
+     * @param  string  $slug  URL slug (validated by route constraint and method)
      */
     public function showDraft(
         Request $request,
@@ -53,6 +72,13 @@ class LandingPagePublicController extends Controller
         int $resourceId,
         string $slug
     ): Response {
+        // Validate slug format explicitly (defense in depth)
+        abort_unless(
+            preg_match(self::SLUG_PATTERN, $slug) === 1,
+            HttpResponse::HTTP_BAD_REQUEST,
+            'Invalid slug format'
+        );
+
         $previewToken = $request->query('preview');
 
         // Find landing page by resource ID and slug (no DOI)

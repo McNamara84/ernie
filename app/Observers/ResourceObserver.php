@@ -47,8 +47,9 @@ class ResourceObserver
         $this->cacheService->invalidateResourceCache($resource->id);
 
         // Sync DOI to landing page if DOI changed
-        if ($resource->isDirty('doi') && $resource->landingPage !== null) {
-            $resource->landingPage->update([
+        // Use exists() query to avoid loading the entire model and prevent N+1 issues
+        if ($resource->isDirty('doi') && $resource->landingPage()->exists()) {
+            $resource->landingPage()->update([
                 'doi_prefix' => $resource->doi,
             ]);
         }

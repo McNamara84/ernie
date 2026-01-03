@@ -58,15 +58,15 @@ Route::get('/changelog', function () {
 // ===========================================================
 
 // Landing Pages with DOI (e.g., /10.5880/test.001/my-dataset-title)
-// DOI prefix starts with 10. and can contain slashes
+// DOI prefix format: 10.NNNN/suffix where suffix contains only valid DOI characters
 Route::get('{doiPrefix}/{slug}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
-    ->where('doiPrefix', '10\.[0-9]+/.+')
+    ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
     ->where('slug', '[a-z0-9-]+');
 
 Route::post('{doiPrefix}/{slug}/contact', [ContactMessageController::class, 'store'])
     ->name('landing-page.contact')
-    ->where('doiPrefix', '10\.[0-9]+/.+')
+    ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
     ->where('slug', '[a-z0-9-]+')
     ->middleware('throttle:10,1');
 
@@ -87,8 +87,22 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
     ->name('landing-page.show-legacy')
     ->where('resourceId', '[0-9]+');
 
-// Test helper route: Lookup landing page URL by slug (for Playwright E2E tests)
-// Returns JSON with the public_url for a landing page with the given slug
+/*
+ |--------------------------------------------------------------------------
+ | Test Helper Routes (Local/Testing Environment Only)
+ |--------------------------------------------------------------------------
+ |
+ | These routes are ONLY available when APP_ENV=local or APP_ENV=testing.
+ | They provide helper endpoints for Playwright E2E tests to look up landing
+ | pages by slug without knowing the full semantic URL in advance.
+ |
+ | IMPORTANT: If running E2E tests, ensure the application is started with
+ | APP_ENV=testing (or APP_ENV=local). The tests will fail if these routes
+ | are not available.
+ |
+ | @see tests/playwright/helpers/page-objects/LandingPage.ts - goto() method
+ | @see .github/workflows/playwright.yml - sets APP_ENV=testing
+ */
 if (app()->environment('local', 'testing')) {
     Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
         $landingPage = \App\Models\LandingPage::where('slug', $slug)->first();

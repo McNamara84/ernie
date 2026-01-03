@@ -7,9 +7,13 @@ use App\Models\Resource;
 use App\Models\Title;
 use App\Models\TitleType;
 
+use function Pest\Laravel\withoutVite;
+
 uses()->group('landing-pages', 'semantic-urls');
 
 beforeEach(function () {
+    withoutVite();
+
     $this->resource = Resource::factory()->create([
         'doi' => '10.5880/test.dataset.001',
     ]);
