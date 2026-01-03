@@ -46,13 +46,15 @@ class ResourceObserver
     {
         $this->cacheService->invalidateResourceCache($resource->id);
 
-        // Sync DOI to landing page if DOI changed.
+        // Sync DOI to landing page if DOI was changed during this save.
+        // Use wasChanged() instead of isDirty() because observers run AFTER the model
+        // is saved, at which point the model is no longer dirty.
         // Use exists() query to avoid loading the entire model and prevent N+1 issues.
         // Note: If DOI is removed (set to null), the landing page's doi_prefix will be
         // set to null, effectively transitioning from DOI-based URL to draft URL format.
         // Business logic should typically prevent DOI removal for published landing pages,
         // but this sync ensures data consistency regardless.
-        if ($resource->isDirty('doi') && $resource->landingPage()->exists()) {
+        if ($resource->wasChanged('doi') && $resource->landingPage()->exists()) {
             $resource->landingPage()->update([
                 'doi_prefix' => $resource->doi,
             ]);

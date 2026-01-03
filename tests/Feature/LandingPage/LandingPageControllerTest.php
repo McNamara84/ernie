@@ -39,7 +39,6 @@ describe('Landing Page Creation', function () {
                     'preview_url',
                     'public_url',
                 ],
-                'preview_url',
             ]);
 
         expect($this->resource->fresh()->landingPage)

@@ -154,12 +154,12 @@ class SlugGeneratorService
         // Apply custom transliteration map first
         $text = strtr($text, self::TRANSLITERATION_MAP);
 
-        // Use iconv for any remaining non-ASCII characters
-        // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars
-        $originalErrorReporting = error_reporting();
-        error_reporting($originalErrorReporting & ~E_NOTICE);
-        $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
-        error_reporting($originalErrorReporting);
+        // Use iconv for any remaining non-ASCII characters.
+        // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars.
+        // We use the @ operator to suppress notices from iconv() when it encounters
+        // characters it cannot transliterate. This is preferable to manipulating
+        // error_reporting() as it's more targeted and doesn't affect other code.
+        $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $text);
 
         if ($transliterated === false) {
             // Log transliteration failure for debugging (locale-dependent)

@@ -46,12 +46,17 @@ class LandingPagePublicController extends Controller
         string $doiPrefix,
         string $slug
     ): Response {
-        // Validate slug format explicitly (defense in depth)
-        abort_unless(
-            preg_match(self::SLUG_PATTERN, $slug) === 1,
-            HttpResponse::HTTP_BAD_REQUEST,
-            'Invalid slug format'
-        );
+        // Validate slug format explicitly (defense in depth).
+        // Since route constraints should have already filtered invalid slugs,
+        // reaching this point with an invalid slug indicates routing misconfiguration
+        // or potential tampering. Log and return 500 instead of 400.
+        if (preg_match(self::SLUG_PATTERN, $slug) !== 1) {
+            \Illuminate\Support\Facades\Log::warning(
+                'LandingPagePublicController: Invalid slug bypassed route constraint',
+                ['doi_prefix' => $doiPrefix, 'slug' => $slug]
+            );
+            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Unexpected routing error');
+        }
 
         $previewToken = $request->query('preview');
 

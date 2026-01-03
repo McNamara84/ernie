@@ -8,6 +8,7 @@ use App\Services\SlugGeneratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -99,10 +100,11 @@ class LandingPageController extends Controller
             $isPublished = $validated['is_published'];
         }
 
-        // Create landing page - doi_prefix is set automatically in model boot
+        // Create landing page.
+        // Note: doi_prefix is set automatically in the model's boot() method
+        // from the resource's DOI. We don't set it here to avoid redundancy.
         $landingPage = $resource->landingPage()->create([
             'slug' => $slug,
-            'doi_prefix' => $resource->doi, // Capture current DOI
             'template' => $validated['template'],
             'ftp_url' => $validated['ftp_url'] ?? null,
             'is_published' => $isPublished,
@@ -128,7 +130,6 @@ class LandingPageController extends Controller
                 'preview_url' => $landingPage->preview_url,
                 'public_url' => $landingPage->public_url,
             ],
-            'preview_url' => $landingPage->preview_url,
         ], 201);
     }
 
@@ -163,12 +164,18 @@ class LandingPageController extends Controller
         $landingPage->save();
 
         // Handle publication status change (support both 'status' and 'is_published' fields)
-        // Determine if publication status was explicitly provided in the request
+        // Determine if publication status was explicitly provided in the request.
+        // Wrap in transaction to ensure consistency if publish()/unpublish() involves
+        // multiple database operations.
         if (isset($validated['status'])) {
             $shouldPublish = $validated['status'] === 'published';
-            $shouldPublish ? $landingPage->publish() : $landingPage->unpublish();
+            DB::transaction(function () use ($landingPage, $shouldPublish): void {
+                $shouldPublish ? $landingPage->publish() : $landingPage->unpublish();
+            });
         } elseif (isset($validated['is_published'])) {
-            $validated['is_published'] ? $landingPage->publish() : $landingPage->unpublish();
+            DB::transaction(function () use ($landingPage, $validated): void {
+                $validated['is_published'] ? $landingPage->publish() : $landingPage->unpublish();
+            });
         }
         // If neither 'status' nor 'is_published' is provided, publication status remains unchanged
 

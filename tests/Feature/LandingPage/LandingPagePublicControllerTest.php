@@ -20,6 +20,7 @@ beforeEach(function () {
 
 /**
  * Helper to build the semantic URL for a landing page.
+ * Uses the model's public_url accessor to avoid duplicating URL generation logic.
  *
  * @param  LandingPage  $landingPage  The landing page model
  * @param  string|null  $preview  Optional preview token to append as query parameter
@@ -27,9 +28,7 @@ beforeEach(function () {
  */
 function landingPageUrl(LandingPage $landingPage, ?string $preview = null): string
 {
-    $url = $landingPage->doi_prefix
-        ? "/{$landingPage->doi_prefix}/{$landingPage->slug}"
-        : "/draft-{$landingPage->resource_id}/{$landingPage->slug}";
+    $url = $landingPage->public_url;
 
     return $preview ? "{$url}?preview={$preview}" : $url;
 }

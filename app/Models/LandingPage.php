@@ -135,6 +135,12 @@ class LandingPage extends Model
 
     /**
      * Generate a URL-friendly slug from the associated resource's main title.
+     *
+     * Note: This method requires either the 'resource' relationship to be loaded
+     * or 'resource_id' to be set. When called during the 'creating' event,
+     * the resource relationship may not be loaded yet, so we fall back to
+     * finding the resource by ID. This is typically a single query since
+     * create() calls are not batched.
      */
     public function generateSlugFromResource(): string
     {
@@ -166,6 +172,13 @@ class LandingPage extends Model
     /**
      * Get DOI prefix from associated resource.
      * Returns null if resource has no DOI.
+     *
+     * Performance Note: This method may trigger a database query if the
+     * 'resource' relationship is not already loaded. For batch operations,
+     * ensure resources are eager-loaded. In typical usage during landing
+     * page creation (boot event), this is a single query per creation which
+     * is acceptable. If you see N+1 issues in other contexts, use
+     * $landingPage->load('resource') or eager load in the query.
      */
     public function getDOIPrefixFromResource(): ?string
     {

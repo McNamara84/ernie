@@ -119,6 +119,13 @@ Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLe
  */
 if (app()->environment('local', 'testing')) {
     Route::get('_test/landing-page-by-slug/{slug}', function (string $slug) {
+        // Additional runtime check for defense in depth - ensures this never
+        // accidentally runs in production even if route registration check fails
+        abort_if(
+            ! app()->environment('local', 'testing'),
+            \Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND
+        );
+
         $landingPage = \App\Models\LandingPage::where('slug', $slug)->first();
         if (! $landingPage) {
             return response()->json(['error' => 'Landing page not found'], 404);

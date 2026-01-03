@@ -131,13 +131,25 @@ export class LandingPage {
    * Navigate to a landing page by its slug.
    * Uses the test helper API to look up the correct semantic URL.
    * This is the recommended method for tests using seeded data.
+   *
+   * @throws Error if landing page not found or test helper API unavailable
+   * @requires APP_ENV=local or APP_ENV=testing for the test helper API to be available
    */
   async goto(slug: string) {
     // Use the test helper API to get the landing page URL by slug
     const response = await this.page.request.get(`/_test/landing-page-by-slug/${slug}`);
 
     if (!response.ok()) {
-      throw new Error(`Landing page with slug "${slug}" not found. Make sure test data is seeded.`);
+      const status = response.status();
+      const hint = status === 404
+        ? 'Make sure test data is seeded (run: php artisan db:seed --class=PlaywrightTestSeeder)'
+        : status === 500
+          ? 'Server error - check Laravel logs for details'
+          : 'Verify APP_ENV is set to "local" or "testing" - the /_test/ routes are only available in dev/test environments';
+
+      throw new Error(
+        `Failed to load landing page with slug "${slug}" (HTTP ${status}). ${hint}`
+      );
     }
 
     const data = await response.json();

@@ -24,10 +24,11 @@ class LandingPageFactory extends Factory
 
         // Generate DOI suffix in a more realistic format (e.g., "gfz.2024.001")
         // Real DOI suffixes typically use dots and forward slashes, not word-hyphens
+        // Using a larger range (1-99999) to prevent unique() exhaustion in large test suites
         $doiSuffix = sprintf(
-            'gfz.%d.%03d',
-            fake()->numberBetween(2020, 2025),
-            fake()->unique()->numberBetween(1, 999)
+            'gfz.%d.%05d',
+            fake()->numberBetween(2020, 2030),
+            fake()->unique()->numberBetween(1, 99999)
         );
 
         return [

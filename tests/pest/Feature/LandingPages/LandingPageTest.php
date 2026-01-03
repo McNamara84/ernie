@@ -29,7 +29,6 @@ describe('Landing Page Creation', function () {
             ->assertJsonStructure([
                 'message',
                 'landing_page' => ['id', 'preview_token', 'preview_url'],
-                'preview_url',
             ]);
 
         expect($this->resource->fresh()->landingPage)->not->toBeNull();
