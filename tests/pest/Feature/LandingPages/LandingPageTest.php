@@ -288,7 +288,8 @@ describe('Public Landing Page Display', function () {
         ]);
         $landingPage->publish();
 
-        $response = $this->get("/datasets/{$this->resource->id}");
+        // Use the semantic URL from the model accessor
+        $response = $this->get($landingPage->public_url);
 
         $response->assertOk();
         expect($response->viewData('page')['component'])->toBe('LandingPages/default_gfz');
@@ -300,12 +301,12 @@ describe('Public Landing Page Display', function () {
             'is_published' => false,
         ]);
 
-        // Without token: 404
-        $response = $this->get("/datasets/{$this->resource->id}");
+        // Without token: 404 (use public_url which is the semantic URL)
+        $response = $this->get($landingPage->public_url);
         $response->assertNotFound();
 
         // With valid token: OK
-        $response = $this->get("/datasets/{$this->resource->id}?preview={$landingPage->preview_token}");
+        $response = $this->get("{$landingPage->public_url}?preview={$landingPage->preview_token}");
         $response->assertOk();
     });
 
@@ -315,7 +316,7 @@ describe('Public Landing Page Display', function () {
             'is_published' => false,
         ]);
 
-        $response = $this->get("/datasets/{$this->resource->id}?preview=invalid-token");
+        $response = $this->get("{$landingPage->public_url}?preview=invalid-token");
         $response->assertForbidden();
     });
 
@@ -326,7 +327,7 @@ describe('Public Landing Page Display', function () {
             'view_count' => 5,
         ]);
 
-        $this->get("/datasets/{$this->resource->id}");
+        $this->get($landingPage->public_url);
 
         expect($landingPage->fresh()->view_count)->toBe(6);
     });
@@ -338,7 +339,7 @@ describe('Public Landing Page Display', function () {
             'view_count' => 5,
         ]);
 
-        $this->get("/datasets/{$this->resource->id}?preview={$landingPage->preview_token}");
+        $this->get("{$landingPage->public_url}?preview={$landingPage->preview_token}");
 
         expect($landingPage->fresh()->view_count)->toBe(5);
     });
@@ -350,7 +351,7 @@ describe('Public Landing Page Display', function () {
             'last_viewed_at' => null,
         ]);
 
-        $this->get("/datasets/{$this->resource->id}");
+        $this->get($landingPage->public_url);
 
         expect($landingPage->fresh()->last_viewed_at)->not->toBeNull();
     });
@@ -383,12 +384,28 @@ describe('Preview Token Generation', function () {
 });
 
 describe('Landing Page Model', function () {
-    test('has correct public_url attribute', function () {
-        $landingPage = LandingPage::factory()->create([
+    test('has correct public_url attribute for resource with DOI', function () {
+        // Use published() factory state which includes a DOI prefix
+        $landingPage = LandingPage::factory()->published()->create([
             'resource_id' => $this->resource->id,
         ]);
 
-        expect($landingPage->public_url)->toContain("/datasets/{$this->resource->id}");
+        // Should be semantic URL: /{doi_prefix}/{slug}
+        expect($landingPage->doi_prefix)->not->toBeNull();
+        expect($landingPage->public_url)->toContain("/{$landingPage->doi_prefix}/");
+        expect($landingPage->public_url)->toContain($landingPage->slug);
+    });
+
+    test('has correct public_url attribute for draft resource without DOI', function () {
+        // Use draft() factory state which has no DOI prefix
+        $landingPage = LandingPage::factory()->draft()->create([
+            'resource_id' => $this->resource->id,
+        ]);
+
+        // Should be draft URL: /draft-{id}/{slug}
+        expect($landingPage->doi_prefix)->toBeNull();
+        expect($landingPage->public_url)->toContain("/draft-{$this->resource->id}/");
+        expect($landingPage->public_url)->toContain($landingPage->slug);
     });
 
     test('has correct preview_url attribute with token', function () {
@@ -396,8 +413,16 @@ describe('Landing Page Model', function () {
             'resource_id' => $this->resource->id,
         ]);
 
-        expect($landingPage->preview_url)->toContain("/datasets/{$this->resource->id}?preview=");
-        expect($landingPage->preview_url)->toContain($landingPage->preview_token);
+        expect($landingPage->preview_url)->toContain($landingPage->slug);
+        expect($landingPage->preview_url)->toContain("?preview={$landingPage->preview_token}");
+    });
+
+    test('has correct contact_url attribute', function () {
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $this->resource->id,
+        ]);
+
+        expect($landingPage->contact_url)->toBe($landingPage->public_url.'/contact');
     });
 
     test('isPublished returns correct status', function () {

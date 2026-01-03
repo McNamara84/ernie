@@ -70,6 +70,7 @@ class LandingPage extends Model
     protected $appends = [
         'public_url',
         'preview_url',
+        'contact_url',
         'status',
     ];
 
@@ -185,6 +186,16 @@ class LandingPage extends Model
         }
 
         return url("/draft-{$this->resource_id}/{$this->slug}?preview={$this->preview_token}");
+    }
+
+    /**
+     * Get the contact form URL for the landing page.
+     *
+     * Format: /{DOI}/{SLUG}/contact or /draft-{ID}/{SLUG}/contact
+     */
+    public function getContactUrlAttribute(): string
+    {
+        return $this->public_url.'/contact';
     }
 
     /**

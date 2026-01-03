@@ -61,8 +61,9 @@ describe('SetupLandingPageModal', () => {
         view_count: 42,
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-02T00:00:00Z',
-        public_url: 'http://localhost/datasets/123',
-        preview_url: 'http://localhost/datasets/123?preview=preview-token-123',
+        public_url: 'http://localhost/10.5880/GFZ.TEST.2025.001/test-resource-title',
+        preview_url: 'http://localhost/10.5880/GFZ.TEST.2025.001/test-resource-title?preview=preview-token-123',
+        contact_url: 'http://localhost/10.5880/GFZ.TEST.2025.001/test-resource-title/contact',
     };
 
     const mockOnClose = vi.fn();
