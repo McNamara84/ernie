@@ -93,19 +93,25 @@ class LandingPageController extends Controller
             }
         }
 
-        // Check if landing page already exists
-        if ($resource->landingPage) {
-            return response()->json([
-                'message' => 'Landing page already exists for this resource',
-            ], 409);
-        }
-
         // Wrap entire creation in transaction for atomicity.
-        // The try-catch handles potential slug uniqueness violations that could occur
-        // in a race condition where two requests try to create landing pages for resources
-        // with identical titles at the same moment.
+        // The existence check is INSIDE the transaction to prevent race conditions:
+        // Without this, two concurrent requests could both pass the check, then both
+        // try to create, causing a constraint violation on resource_id unique index.
+        // The try-catch handles both resource_id and slug uniqueness violations.
         try {
             $landingPage = DB::transaction(function () use ($validated, $resource, $slugGenerator) {
+                // Check if landing page already exists - INSIDE transaction
+                // Use lockForUpdate to prevent race conditions with concurrent requests
+                $existingLandingPage = LandingPage::where('resource_id', $resource->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingLandingPage !== null) {
+                    // Return null to signal "already exists" condition
+                    // We can't return JsonResponse from transaction closure, so we use null
+                    return null;
+                }
+
                 // Load titles for slug generation
                 $resource->load('titles.titleType');
 
@@ -155,6 +161,15 @@ class LandingPageController extends Controller
 
             // MySQL unique constraint violation
             if ($errorCode === 1062) {
+                // Differentiate between resource_id constraint and slug constraint
+                // by checking the error message for the constraint name or column
+                if (str_contains($errorMessage, 'resource_id') || str_contains($errorMessage, 'landing_pages_resource_id')) {
+                    return response()->json([
+                        'message' => 'Landing page already exists for this resource',
+                        'error' => 'already_exists',
+                    ], 409);
+                }
+
                 return response()->json([
                     'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
                     'error' => 'slug_conflict',
@@ -166,6 +181,14 @@ class LandingPageController extends Controller
             // and a generic constraint error for unrecognized SQLite constraint failures.
             if ($errorCode === 19) {
                 if (str_contains($errorMessage, 'UNIQUE constraint failed')) {
+                    // Differentiate between resource_id and slug constraints
+                    if (str_contains($errorMessage, 'resource_id')) {
+                        return response()->json([
+                            'message' => 'Landing page already exists for this resource',
+                            'error' => 'already_exists',
+                        ], 409);
+                    }
+
                     return response()->json([
                         'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
                         'error' => 'slug_conflict',
@@ -188,6 +211,13 @@ class LandingPageController extends Controller
             }
 
             throw $e;
+        }
+
+        // Handle "already exists" condition signaled by null return from transaction
+        if ($landingPage === null) {
+            return response()->json([
+                'message' => 'Landing page already exists for this resource',
+            ], 409);
         }
 
         // Note: If we reach this point, the transaction succeeded and $landingPage

@@ -228,14 +228,20 @@ class SlugGeneratorService
         if ($originalLocale !== false) {
             $restored = setlocale(LC_CTYPE, $originalLocale);
             if ($restored === false) {
-                // Log warning - locale restoration failed, process may be in unexpected state.
-                // This is unlikely but could affect subsequent operations in the same request.
-                \Illuminate\Support\Facades\Log::warning(
-                    'SlugGeneratorService: Failed to restore original locale after transliteration',
-                    [
-                        'original_locale' => $originalLocale,
-                        'current_locale' => setlocale(LC_CTYPE, '0'),
-                    ]
+                // Locale restoration failure is critical - it could cause subtle bugs in
+                // date formatting, number formatting, or other locale-dependent operations
+                // for all subsequent requests in this process. Throw an exception to:
+                // 1. Prevent the affected request from continuing with inconsistent state
+                // 2. Alert monitoring systems to this infrastructure issue
+                // 3. Force a process restart if the exception is not caught
+                //
+                // In PHP-FPM, this will terminate the current request but the process
+                // will be recycled, restoring a clean state for future requests.
+                $currentLocale = setlocale(LC_CTYPE, '0');
+                throw new \RuntimeException(
+                    "Failed to restore locale after transliteration. " .
+                    "Original: '{$originalLocale}', Current: '{$currentLocale}'. " .
+                    "This may cause locale-dependent operations to behave unexpectedly."
                 );
             }
         }

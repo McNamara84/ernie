@@ -50,8 +50,14 @@ return new class extends Migration
                 // Log as INFO (not warning) since this is informational only.
                 // The DOI will be migrated successfully - we're just noting the non-standard format
                 // for operators who may want to review/correct these DOIs later.
+                //
+                // IMPORTANT: Malformed DOIs will cause 404 errors when accessing the landing page
+                // because LandingPagePublicController::validateDoiPrefixFormat() validates DOI format.
+                // After running this migration, run: php artisan landing-pages:validate-dois
+                // to identify and optionally fix any invalid DOI formats.
                 Log::info(
-                    'DataMigration: Non-standard DOI format detected (will be migrated as-is)',
+                    'DataMigration: Non-standard DOI format detected (will be migrated as-is). ' .
+                    'Run "php artisan landing-pages:validate-dois" after migration to review.',
                     ['resource_id' => $row->id, 'doi' => $row->doi]
                 );
             }

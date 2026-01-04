@@ -187,15 +187,32 @@ class LandingPage extends Model
             );
         }
 
-        // Load titles with titleType relationship if not already loaded.
-        // Instead of checking each title individually (which could be inefficient
-        // for resources with many titles), we use a simple heuristic: if titles
-        // are loaded but the first one doesn't have titleType loaded, reload all.
-        // This covers the common case while avoiding N+1 queries in isMainTitle().
+        // Check for missing eager-loaded relationships.
+        // If the resource was pre-loaded (for bulk operations), we require that titles
+        // AND titleType are also loaded. This prevents silent N+1 queries and forces
+        // callers to eager-load correctly. For single creations where the resource
+        // was fetched via Resource::find(), we load the relationships as a convenience.
+        $wasPreloaded = $this->relationLoaded('resource');
+
         if (! $resource->relationLoaded('titles')) {
+            if ($wasPreloaded) {
+                // Resource was pre-loaded but titles weren't - this is a caller error
+                throw new \InvalidArgumentException(
+                    'Resource was pre-loaded via setRelation() but titles relationship is missing. ' .
+                    'For bulk operations, use: Resource::with(\'titles.titleType\')->...'
+                );
+            }
+            // Single creation - load as convenience
             $resource->load('titles.titleType');
         } elseif ($resource->titles->isNotEmpty() && ! $resource->titles->first()->relationLoaded('titleType')) {
-            // Titles loaded but titleType isn't - reload with nested relation
+            if ($wasPreloaded) {
+                // Titles loaded but titleType isn't - this is a caller error
+                throw new \InvalidArgumentException(
+                    'Resource was pre-loaded with titles but titleType relationship is missing. ' .
+                    'For bulk operations, use: Resource::with(\'titles.titleType\')->...'
+                );
+            }
+            // Single creation - reload with nested relation as convenience
             $resource->load('titles.titleType');
         }
 
