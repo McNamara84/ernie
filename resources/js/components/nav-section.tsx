@@ -1,5 +1,4 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Fragment } from 'react';
 
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarSeparator } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
@@ -25,23 +24,23 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                 {items.map((item) => {
                     const href = typeof item.href === 'string' ? item.href : item.href.url;
                     return (
-                        <Fragment key={item.title}>
-                            <SidebarMenuItem>
-                                {item.disabled ? (
-                                    <SidebarMenuButton disabled tooltip={{ children: item.title }} className="cursor-not-allowed opacity-50">
+                        <SidebarMenuItem key={item.title}>
+                            {item.disabled ? (
+                                <SidebarMenuButton disabled tooltip={{ children: item.title }} className="cursor-not-allowed opacity-50">
+                                    {item.icon && <item.icon />}
+                                    <span>{item.title}</span>
+                                </SidebarMenuButton>
+                            ) : (
+                                // Using startsWith for isActive to highlight parent navigation items
+                                // when viewing child routes (e.g., /users is active when on /users/create)
+                                <SidebarMenuButton asChild isActive={page.url.startsWith(href)} tooltip={{ children: item.title }}>
+                                    <Link href={href} prefetch>
                                         {item.icon && <item.icon />}
                                         <span>{item.title}</span>
-                                    </SidebarMenuButton>
-                                ) : (
-                                    <SidebarMenuButton asChild isActive={page.url.startsWith(href)} tooltip={{ children: item.title }}>
-                                        <Link href={href} prefetch>
-                                            {item.icon && <item.icon />}
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                )}
-                            </SidebarMenuItem>
-                        </Fragment>
+                                    </Link>
+                                </SidebarMenuButton>
+                            )}
+                        </SidebarMenuItem>
                     );
                 })}
             </SidebarMenu>

@@ -134,19 +134,20 @@ class LogService
         $lines = explode("\n", $content);
         $entries = [];
         $currentEntry = null;
-        $lineNumber = 0;
+        // Entry number (1-indexed) - only incremented for actual log entries, not context lines
+        $entryNumber = 0;
 
         // Laravel log format: [YYYY-MM-DD HH:MM:SS] environment.LEVEL: message
         $pattern = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\w+\.(\w+):\s*(.*)$/';
 
         foreach ($lines as $line) {
-            $lineNumber++;
-
             if (preg_match($pattern, $line, $matches)) {
                 // Save previous entry if exists
                 if ($currentEntry !== null) {
                     $entries[] = $currentEntry;
                 }
+
+                $entryNumber++;
 
                 // Start new entry
                 $currentEntry = [
@@ -154,7 +155,7 @@ class LogService
                     'level' => strtolower($matches[2]),
                     'message' => $matches[3],
                     'context' => '',
-                    'line_number' => $lineNumber,
+                    'line_number' => $entryNumber,
                 ];
             } elseif ($currentEntry !== null && trim($line) !== '') {
                 // Append to context (stack traces, etc.)
@@ -189,6 +190,7 @@ class LogService
         }
 
         // Safety check: Don't process very large files for deletion
+        // This also prevents line number mismatches from file truncation in parseLogFile
         $fileSize = File::size($logPath);
         if ($fileSize > self::MAX_FILE_SIZE) {
             return false;
@@ -199,8 +201,8 @@ class LogService
         $newLines = [];
         $found = false;
         $skipUntilNextEntry = false;
-        // Line numbers are 1-indexed to match log entries returned to the frontend
-        $currentLine = 1;
+        // Entry number (1-indexed) - only incremented for actual log entries, not context lines
+        $entryNumber = 0;
 
         $pattern = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\w+\.\w+:/';
 
@@ -208,9 +210,10 @@ class LogService
             // Check if this is a new log entry
             if (preg_match($pattern, $line, $matches)) {
                 $skipUntilNextEntry = false;
+                $entryNumber++;
 
-                // Check if this is the entry to delete by line number AND timestamp
-                if ($currentLine === $lineNumber && $matches[1] === $timestamp) {
+                // Check if this is the entry to delete by entry number AND timestamp
+                if ($entryNumber === $lineNumber && $matches[1] === $timestamp) {
                     $found = true;
                     $skipUntilNextEntry = true;
 
@@ -221,7 +224,6 @@ class LogService
             if (! $skipUntilNextEntry) {
                 $newLines[] = $line;
             }
-            $currentLine++;
         }
 
         if ($found) {

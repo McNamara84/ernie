@@ -49,9 +49,9 @@ test.describe('Sidebar Navigation Structure', () => {
     await expect(igsnsButton).toBeVisible();
     await expect(igsnEditorButton).toBeVisible();
     
-    // Verify they have disabled styling
-    await expect(igsnsButton).toHaveClass(/opacity-50|cursor-not-allowed/);
-    await expect(igsnEditorButton).toHaveClass(/opacity-50|cursor-not-allowed/);
+    // Verify they have disabled styling (both opacity-50 AND cursor-not-allowed)
+    await expect(igsnsButton).toHaveClass(/(?=.*opacity-50)(?=.*cursor-not-allowed)/);
+    await expect(igsnEditorButton).toHaveClass(/(?=.*opacity-50)(?=.*cursor-not-allowed)/);
   });
 
   test('displays Administration section for admin user', async ({ page }) => {

@@ -297,7 +297,7 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                         {logs.map((log) => (
                                             <TableRow
                                                 key={log.line_number}
-                                                className="cursor-pointer"
+                                                className={log.context ? 'cursor-pointer' : ''}
                                                 onClick={() => log.context && toggleRowExpansion(log.line_number)}
                                             >
                                                 <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
