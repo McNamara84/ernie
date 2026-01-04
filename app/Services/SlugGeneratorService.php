@@ -143,9 +143,16 @@ class SlugGeneratorService
      * 3. Logging failures to help diagnose locale-related issues
      * 4. Setting LC_CTYPE to 'C.UTF-8' before iconv calls for consistent behavior
      *
-     * For fully deterministic behavior, consider using symfony/string's slugger
-     * as an alternative. The current approach is sufficient for GFZ's deployment
-     * environment where locale settings are controlled.
+     * THREAD-SAFETY WARNING: The setlocale() call used here is NOT thread-safe.
+     * In multi-threaded PHP environments (Swoole, ReactPHP, parallel extensions),
+     * changing the locale in one thread can affect other threads. This is acceptable
+     * for traditional PHP-FPM deployments (which are process-based, not threaded)
+     * but would require refactoring for async/threaded environments. Consider using
+     * Symfony's AsciiSlugger (symfony/string) for thread-safe transliteration.
+     *
+     * For fully deterministic and thread-safe behavior, consider using symfony/string's
+     * AsciiSlugger as an alternative. The current approach is sufficient for GFZ's
+     * deployment environment where PHP-FPM provides process isolation.
      *
      * @param  string  $text  The text to transliterate
      * @return string The transliterated text

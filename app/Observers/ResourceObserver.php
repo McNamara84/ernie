@@ -69,35 +69,47 @@ class ResourceObserver
             // Get the old DOI to invalidate any caches keyed by old DOI+slug
             $oldDoi = $resource->getOriginal('doi');
 
-            // Fetch only the fields needed for cache invalidation and status check.
-            // This avoids loading the entire model when we only need a few columns.
-            // IMPORTANT: The select must include 'is_published' because we check it below
-            // to determine whether to log a warning about DOI changes on published pages.
-            // If is_published is removed from this select, the warning logic will break.
-            $landingPage = $resource->landingPage()
-                ->select(['id', 'resource_id', 'doi_prefix', 'slug', 'is_published'])
-                ->first();
+            // Use a database transaction with row-level locking to prevent race conditions.
+            // If two processes update the resource DOI simultaneously, both could pass the
+            // wasChanged() check and attempt to update the landing page. The lockForUpdate()
+            // ensures only one process can read and update the landing page at a time,
+            // preventing inconsistent state.
+            $landingPage = \Illuminate\Support\Facades\DB::transaction(function () use ($resource, $oldDoi) {
+                // Fetch with row-level lock to prevent concurrent updates.
+                // This SELECT ... FOR UPDATE blocks other transactions trying to read
+                // the same row until this transaction commits or rolls back.
+                // IMPORTANT: The select must include 'is_published' because we check it below
+                // to determine whether to log a warning about DOI changes on published pages.
+                $landingPage = $resource->landingPage()
+                    ->select(['id', 'resource_id', 'doi_prefix', 'slug', 'is_published'])
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($landingPage !== null && $landingPage->is_published) {
-                // Log warning for DOI changes on published landing pages.
-                // This helps operators identify potential broken link issues.
-                // The actual prevention should happen in controllers/policies.
-                \Illuminate\Support\Facades\Log::warning(
-                    'ResourceObserver: DOI changed for resource with published landing page',
-                    [
-                        'resource_id' => $resource->id,
-                        'old_doi' => $oldDoi,
-                        'new_doi' => $resource->doi,
-                        'landing_page_id' => $landingPage->id,
-                        'old_url_will_break' => true,
-                    ]
-                );
-            }
+                if ($landingPage !== null) {
+                    if ($landingPage->is_published) {
+                        // Log warning for DOI changes on published landing pages.
+                        // This helps operators identify potential broken link issues.
+                        // The actual prevention should happen in controllers/policies.
+                        \Illuminate\Support\Facades\Log::warning(
+                            'ResourceObserver: DOI changed for resource with published landing page',
+                            [
+                                'resource_id' => $resource->id,
+                                'old_doi' => $oldDoi,
+                                'new_doi' => $resource->doi,
+                                'landing_page_id' => $landingPage->id,
+                                'old_url_will_break' => true,
+                            ]
+                        );
+                    }
 
-            // Update doi_prefix directly on the relation (not on the selected model)
-            $resource->landingPage()->update([
-                'doi_prefix' => $resource->doi,
-            ]);
+                    // Update doi_prefix while holding the lock
+                    $resource->landingPage()->update([
+                        'doi_prefix' => $resource->doi,
+                    ]);
+                }
+
+                return $landingPage;
+            });
 
             // Invalidate landing page caches for both old and new DOI-based URLs.
             // This ensures stale content under the old DOI key is cleared, and

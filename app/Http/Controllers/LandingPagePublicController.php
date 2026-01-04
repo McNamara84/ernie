@@ -39,13 +39,24 @@ class LandingPagePublicController extends Controller
      * This is more restrictive than the route constraint to catch edge cases
      * the permissive route regex might allow:
      * - No consecutive slashes (//)
-     * - No leading/trailing dots in segments
+     * - No leading/trailing dots in segments (e.g., /./test or /.test or /test.)
      * - No empty segments between slashes
      *
      * Format: 10.NNNN/suffix where suffix contains valid DOI characters.
      * Does NOT validate that the DOI actually exists - only format sanity.
+     *
+     * Pattern breakdown:
+     * - ^10\.[0-9]+\/ : Must start with '10.' followed by digits and a slash
+     * - (?!.*\/\/) : Negative lookahead - no consecutive slashes
+     * - (?!.*\/\.) : Negative lookahead - no slash followed by dot (empty/dot-leading segment)
+     * - (?!.*\.\/) : Negative lookahead - no dot followed by slash (dot-trailing segment)
+     * - (?!.*\.$) : Negative lookahead - must not end with a dot
+     * - [a-zA-Z0-9._\/-]+$ : Valid DOI suffix characters until end
+     *
+     * Valid examples: 10.5880/test.data/subset, 10.5880/GFZ.1.2.2024.001
+     * Invalid examples: 10.5880//test, 10.5880/./test, 10.5880/.test, 10.5880/test.
      */
-    private const DOI_PREFIX_PATTERN = '/^10\\.[0-9]+\\/(?:[a-zA-Z0-9_-]+\\.?)+(?:\\/(?:[a-zA-Z0-9_-]+\\.?)+)*$/';
+    private const DOI_PREFIX_PATTERN = '/^10\.[0-9]+\/(?!.*\/\/)(?!.*\/\.)(?!.*\.\/)(?!.*\.$)[a-zA-Z0-9._\/-]+$/';
 
     /**
      * Display a public landing page for a resource with DOI.
