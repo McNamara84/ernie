@@ -47,18 +47,18 @@ return new class extends Migration
 
         foreach ($malformedDois as $row) {
             if (!preg_match(self::DOI_PATTERN, $row->doi)) {
-                // Log as INFO (not warning) since this is informational only.
-                // The DOI will be migrated successfully - we're just noting the non-standard format
-                // for operators who may want to review/correct these DOIs later.
+                // Log as WARNING because malformed DOIs will cause 404 errors when accessing
+                // the landing page (LandingPagePublicController::validateDoiPrefixFormat()
+                // validates DOI format). This is a critical data quality issue that operators
+                // need to address urgently after migration.
                 //
-                // IMPORTANT: Malformed DOIs will cause 404 errors when accessing the landing page
-                // because LandingPagePublicController::validateDoiPrefixFormat() validates DOI format.
-                // After running this migration, run: php artisan landing-pages:validate-dois
-                // to identify and optionally fix any invalid DOI formats.
-                Log::info(
-                    'DataMigration: Non-standard DOI format detected (will be migrated as-is). ' .
-                    'Run "php artisan landing-pages:validate-dois" after migration to review.',
-                    ['resource_id' => $row->id, 'doi' => $row->doi]
+                // The DOI is still migrated to maintain data consistency - we don't want to
+                // block migration due to data quality issues. Operators should run the
+                // validation command after migration to identify and fix issues.
+                Log::warning(
+                    'DataMigration: Malformed DOI will cause 404 errors. ' .
+                    'Run "php artisan landing-pages:validate-dois --fix" after migration to resolve.',
+                    ['resource_id' => $row->id, 'doi' => $row->doi, 'action_required' => true]
                 );
             }
         }

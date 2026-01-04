@@ -267,19 +267,26 @@ class LandingPagePublicController extends Controller
      */
     private function validateDoiPrefixFormat(string $doiPrefix): void
     {
-        // Quick checks for common malformed patterns before regex
-        if (str_contains($doiPrefix, '//') || str_contains($doiPrefix, '/.') || str_contains($doiPrefix, './')) {
+        // Quick checks for common malformed patterns before full regex.
+        // These are fast string operations that catch obvious issues.
+        $quickCheckFailed = str_contains($doiPrefix, '//') 
+            || str_contains($doiPrefix, '/.') 
+            || str_contains($doiPrefix, './');
+
+        if ($quickCheckFailed) {
             \Illuminate\Support\Facades\Log::warning(
-                'LandingPagePublicController: Malformed DOI prefix detected',
+                'LandingPagePublicController: Malformed DOI prefix (quick check)',
                 [
                     'doi_prefix_length' => strlen($doiPrefix),
                     'doi_prefix_hash' => substr(hash('sha256', $doiPrefix), 0, 8),
+                    'check_type' => 'quick',
                     'issue' => 'consecutive_slashes_or_dot_boundary',
                 ]
             );
             abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
         }
 
+        // Full regex validation for DOI format
         $pregResult = preg_match(self::DOI_PREFIX_PATTERN, $doiPrefix);
 
         // Handle PCRE errors first (pregResult === false)
@@ -296,10 +303,11 @@ class LandingPagePublicController extends Controller
         // but this protects against route bypasses or constraint configuration errors.
         if ($pregResult !== 1) {
             \Illuminate\Support\Facades\Log::warning(
-                'LandingPagePublicController: Invalid DOI prefix format',
+                'LandingPagePublicController: Invalid DOI prefix (regex check)',
                 [
                     'doi_prefix_length' => strlen($doiPrefix),
                     'doi_prefix_hash' => substr(hash('sha256', $doiPrefix), 0, 8),
+                    'check_type' => 'regex',
                 ]
             );
             abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');

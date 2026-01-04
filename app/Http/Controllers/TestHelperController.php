@@ -59,6 +59,7 @@ class TestHelperController extends Controller
         if (! $landingPage) {
             return response()->json([
                 'error' => 'Landing page not found',
+                'searched_slug' => $slug,
                 'hint' => 'Make sure test data is seeded (run: php artisan db:seed --class=PlaywrightTestSeeder)',
             ], Response::HTTP_NOT_FOUND);
         }

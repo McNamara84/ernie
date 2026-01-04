@@ -228,20 +228,27 @@ class SlugGeneratorService
         if ($originalLocale !== false) {
             $restored = setlocale(LC_CTYPE, $originalLocale);
             if ($restored === false) {
-                // Locale restoration failure is critical - it could cause subtle bugs in
-                // date formatting, number formatting, or other locale-dependent operations
-                // for all subsequent requests in this process. Throw an exception to:
-                // 1. Prevent the affected request from continuing with inconsistent state
-                // 2. Alert monitoring systems to this infrastructure issue
-                // 3. Force a process restart if the exception is not caught
+                // Locale restoration failure is a critical infrastructure issue that could cause
+                // subtle bugs in date formatting, number formatting, or other locale-dependent
+                // operations for subsequent requests in this process.
                 //
-                // In PHP-FPM, this will terminate the current request but the process
-                // will be recycled, restoring a clean state for future requests.
+                // DESIGN DECISION: We log critically instead of throwing an exception because:
+                // 1. This slug generation may be called from model observers during save operations
+                // 2. Throwing would roll back the entire parent transaction, losing the user's data
+                // 3. The locale issue is a side effect unrelated to the resource being saved
+                // 4. A failed slug generation shouldn't prevent saving valid resource data
+                //
+                // The critical log will alert operations/monitoring systems to investigate.
+                // PHP-FPM process recycling will eventually restore clean state.
                 $currentLocale = setlocale(LC_CTYPE, '0');
-                throw new \RuntimeException(
-                    "Failed to restore locale after transliteration. " .
-                    "Original: '{$originalLocale}', Current: '{$currentLocale}'. " .
-                    "This may cause locale-dependent operations to behave unexpectedly."
+                \Illuminate\Support\Facades\Log::critical(
+                    'SlugGeneratorService: Failed to restore locale after transliteration. ' .
+                    'Subsequent locale-dependent operations in this process may behave unexpectedly.',
+                    [
+                        'original_locale' => $originalLocale,
+                        'current_locale' => $currentLocale,
+                        'action_required' => 'Consider process restart or investigate locale configuration',
+                    ]
                 );
             }
         }

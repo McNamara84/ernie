@@ -21,7 +21,8 @@ class ResourceObserver
      */
     public function __construct(
         private readonly ResourceCacheService $cacheService
-    ) {}
+    ) {
+    }
 
     /**
      * Handle the Resource "created" event.
@@ -74,6 +75,17 @@ class ResourceObserver
             // wasChanged() check and attempt to update the landing page. The lockForUpdate()
             // ensures only one process can read and update the landing page at a time,
             // preventing inconsistent state.
+            //
+            // DEADLOCK PREVENTION: The current schema enforces one landing page per resource
+            // (resource_id unique constraint), so deadlocks cannot occur from this observer.
+            // If the schema evolves to allow multiple landing pages per resource, the lock
+            // acquisition order should be documented here. MySQL/MariaDB will auto-detect
+            // deadlocks and abort one transaction after innodb_lock_wait_timeout (default 50s).
+            //
+            // If deadlocks become an issue, consider:
+            // 1. Adding explicit lock ordering (e.g., always lock by ascending landing_page.id)
+            // 2. Using DB::statement('SET innodb_lock_wait_timeout = 5') before the transaction
+            // 3. Implementing retry logic for deadlock exceptions (SQLSTATE 40001)
             $landingPage = \Illuminate\Support\Facades\DB::transaction(function () use ($resource, $oldDoi) {
                 // Fetch with row-level lock to prevent concurrent updates.
                 // This SELECT ... FOR UPDATE blocks other transactions trying to read

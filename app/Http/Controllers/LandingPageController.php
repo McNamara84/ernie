@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ResourceAlreadyExistsException;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use Illuminate\Database\QueryException;
@@ -106,9 +107,12 @@ class LandingPageController extends Controller
                     ->first();
 
                 if ($existingLandingPage !== null) {
-                    // Return null to signal "already exists" condition
-                    // We can't return JsonResponse from transaction closure, so we use null
-                    return null;
+                    // Throw exception to signal "already exists" condition.
+                    // This maintains proper transaction semantics: if an exception occurs,
+                    // the transaction is rolled back. Using exceptions instead of null return
+                    // ensures atomicity - the exception is thrown BEFORE commit, so either
+                    // the create succeeds and commits, or the exception aborts the transaction.
+                    throw new ResourceAlreadyExistsException('landing page', $resource->id);
                 }
 
                 // Determine publication status.
@@ -131,6 +135,13 @@ class LandingPageController extends Controller
                     'published_at' => $isPublished ? now() : null,
                 ]);
             });
+        } catch (ResourceAlreadyExistsException) {
+            // Handle "already exists" condition from inside the transaction.
+            // The exception is thrown BEFORE commit, so the transaction was never committed.
+            return response()->json([
+                'message' => 'Landing page already exists for this resource',
+                'error' => 'already_exists',
+            ], 409);
         } catch (QueryException $e) {
             // Check for unique constraint violation on slug.
             // We need to handle both MySQL and SQLite differently:
@@ -201,16 +212,9 @@ class LandingPageController extends Controller
             throw $e;
         }
 
-        // Handle "already exists" condition signaled by null return from transaction
-        if ($landingPage === null) {
-            return response()->json([
-                'message' => 'Landing page already exists for this resource',
-            ], 409);
-        }
-
         // Note: If we reach this point, the transaction succeeded and $landingPage
-        // is guaranteed to be a valid LandingPage instance. The catch block above
-        // handles all QueryException cases by returning early, so we never reach
+        // is guaranteed to be a valid LandingPage instance. The catch blocks above
+        // handle all exception cases by returning early, so we never reach
         // refresh() after a failed transaction.
         $landingPage->refresh();
 
