@@ -176,10 +176,11 @@ class LandingPage extends Model
             : Resource::find($this->resource_id);
 
         // If resource not found, return a unique fallback slug.
-        // Include resource_id to prevent collisions when multiple landing pages
-        // are created without resources (edge case, but prevents database errors).
+        // Use Str::uuid() instead of uniqid() for better uniqueness guarantees
+        // across concurrent processes. This edge case (landing page without resource)
+        // should be rare but we handle it defensively to prevent database errors.
         if (! $resource) {
-            $uniqueSuffix = $this->resource_id ?? uniqid();
+            $uniqueSuffix = $this->resource_id ?? Str::uuid()->toString();
 
             return "dataset-{$uniqueSuffix}";
         }

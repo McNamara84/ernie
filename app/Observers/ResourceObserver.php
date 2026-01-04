@@ -102,10 +102,12 @@ class ResourceObserver
                         );
                     }
 
-                    // Update doi_prefix while holding the lock
-                    $resource->landingPage()->update([
-                        'doi_prefix' => $resource->doi,
-                    ]);
+                    // Update doi_prefix on the locked instance directly.
+                    // Using the relationship's update() method would execute a new query
+                    // that might bypass the lock. By updating the locked model directly,
+                    // we ensure the lock is maintained throughout the update operation.
+                    $landingPage->doi_prefix = $resource->doi;
+                    $landingPage->save();
                 }
 
                 return $landingPage;

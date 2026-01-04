@@ -179,7 +179,26 @@ class SlugGeneratorService
         // This ensures the same behavior across different server environments.
         // We restore the original locale after the operation to avoid side effects.
         $originalLocale = setlocale(LC_CTYPE, '0');
-        setlocale(LC_CTYPE, 'C.UTF-8', 'en_US.UTF-8', 'POSIX');
+
+        // Attempt to set a UTF-8 locale for consistent transliteration.
+        // setlocale() returns false if none of the specified locales are available.
+        // We try multiple common locale names for cross-platform compatibility.
+        $localeSet = setlocale(LC_CTYPE, 'C.UTF-8', 'en_US.UTF-8', 'POSIX');
+
+        if ($localeSet === false) {
+            // Log that we couldn't set a UTF-8 locale - transliteration may be inconsistent.
+            // This is a warning rather than an error because the transliteration map
+            // handles most common cases, and iconv may still work with the current locale.
+            \Illuminate\Support\Facades\Log::warning(
+                'SlugGeneratorService: Failed to set UTF-8 locale for transliteration',
+                [
+                    'original_locale' => $originalLocale,
+                    'attempted_locales' => ['C.UTF-8', 'en_US.UTF-8', 'POSIX'],
+                ]
+            );
+            // Proceed anyway - iconv may still work, and our TRANSLITERATION_MAP
+            // handles the most common characters before iconv is called.
+        }
 
         // Error handling approach:
         // We capture the last error before iconv to distinguish new errors from pre-existing ones.

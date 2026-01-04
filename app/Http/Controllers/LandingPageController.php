@@ -149,12 +149,12 @@ class LandingPageController extends Controller
             //         data integrity issues that should be reported to the user.
             //
             // Note: errorInfo may be null or have missing indices in edge cases,
-            // so we use null coalescing for safety.
-            $errorCode = (string) ($e->errorInfo[1] ?? '');
+            // so we use null coalescing for safety. We cast to int for consistent comparison.
+            $errorCode = (int) ($e->errorInfo[1] ?? 0);
             $errorMessage = $e->getMessage();
 
             // MySQL unique constraint violation
-            if ($errorCode === '1062') {
+            if ($errorCode === 1062) {
                 return response()->json([
                     'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
                     'error' => 'slug_conflict',
@@ -164,7 +164,7 @@ class LandingPageController extends Controller
             // SQLite constraint violations (error code 19).
             // We return specific messages where we can identify the constraint type,
             // and a generic constraint error for unrecognized SQLite constraint failures.
-            if ($errorCode === '19') {
+            if ($errorCode === 19) {
                 if (str_contains($errorMessage, 'UNIQUE constraint failed')) {
                     return response()->json([
                         'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
