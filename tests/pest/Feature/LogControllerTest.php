@@ -49,6 +49,46 @@ describe('Log Routes Access Control', function () {
     });
 });
 
+describe('Log Data API Access Control', function () {
+    it('requires authentication to access logs.data', function () {
+        $response = $this->get(route('logs.data'));
+
+        $response->assertRedirect(route('login'));
+    });
+
+    it('requires administration access to view logs.data', function () {
+        $beginner = User::factory()->beginner()->create();
+
+        $response = $this->actingAs($beginner)->get(route('logs.data'));
+
+        $response->assertForbidden();
+    });
+
+    it('denies curator access to logs.data', function () {
+        $curator = User::factory()->curator()->create();
+
+        $response = $this->actingAs($curator)->get(route('logs.data'));
+
+        $response->assertForbidden();
+    });
+
+    it('allows admin to access logs.data', function () {
+        $admin = User::factory()->admin()->create();
+
+        $response = $this->actingAs($admin)->get(route('logs.data'));
+
+        $response->assertOk();
+    });
+
+    it('allows group leader to access logs.data', function () {
+        $groupLeader = User::factory()->groupLeader()->create();
+
+        $response = $this->actingAs($groupLeader)->get(route('logs.data'));
+
+        $response->assertOk();
+    });
+});
+
 describe('Log Deletion Access Control', function () {
     it('only admin can delete log entries', function () {
         $admin = User::factory()->admin()->create();

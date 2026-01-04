@@ -78,19 +78,15 @@ class LogController extends Controller
 
     /**
      * Delete a specific log entry.
-     * Only admins can delete logs.
+     * Only admins can delete logs (enforced by 'can:delete-logs' route middleware).
      */
     public function destroy(Request $request): JsonResponse
     {
-        if (Gate::denies('delete-logs')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $lineNumber = $request->input('line_number');
         $timestamp = $request->input('timestamp');
 
-        if (! is_numeric($lineNumber) || ! $timestamp) {
-            return response()->json(['error' => 'Invalid log entry: line_number and timestamp required'], 400);
+        if (! is_numeric($lineNumber) || (int) $lineNumber < 1 || ! $timestamp) {
+            return response()->json(['error' => 'Invalid log entry: line_number must be a positive integer and timestamp is required'], 400);
         }
 
         $deleted = $this->logService->deleteLogEntry((int) $lineNumber, $timestamp);
@@ -104,14 +100,10 @@ class LogController extends Controller
 
     /**
      * Clear all logs.
-     * Only admins can clear logs.
+     * Only admins can clear logs (enforced by 'can:delete-logs' route middleware).
      */
     public function clear(): JsonResponse
     {
-        if (Gate::denies('delete-logs')) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
         $this->logService->clearLogs();
 
         return response()->json(['message' => 'All logs cleared successfully']);

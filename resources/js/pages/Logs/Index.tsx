@@ -1,8 +1,9 @@
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, FileX2, Info, RefreshCw, ScrollText, Search, Trash2, XCircle } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { AlertTriangle, FileX2, Info, RefreshCw, ScrollText, Search, ShieldAlert, Trash2, XCircle } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -80,6 +81,8 @@ export default function Index({ logs, pagination, filters, available_levels, can
     const [level, setLevel] = useState(filters.level ?? '');
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
+    // Preserve expanded rows across refreshes by tracking them in a ref
+    const preservedExpandedRows = useRef<Set<number>>(new Set());
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -162,9 +165,17 @@ export default function Index({ logs, pagination, filters, available_levels, can
     };
 
     const handleRefresh = () => {
+        // Preserve currently expanded rows
+        preservedExpandedRows.current = new Set(expandedRows);
         setIsLoading(true);
         router.reload({
-            onFinish: () => setIsLoading(false),
+            onFinish: () => {
+                setIsLoading(false);
+                // Restore expanded rows after refresh (only for entries that still exist)
+                const validLineNumbers = new Set(logs.map((log) => log.line_number));
+                const restoredRows = new Set([...preservedExpandedRows.current].filter((ln) => validLineNumbers.has(ln)));
+                setExpandedRows(restoredRows);
+            },
         });
     };
 
@@ -217,6 +228,15 @@ export default function Index({ logs, pagination, filters, available_levels, can
                     </CardHeader>
 
                     <CardContent>
+                        {/* Security Warning */}
+                        <Alert variant="default" className="mb-4 border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+                            <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400" />
+                            <AlertDescription className="text-amber-800 dark:text-amber-200">
+                                <strong>Security Notice:</strong> Log files may contain sensitive information such as API keys, authentication
+                                tokens, or personal data that was inadvertently logged. Handle with care and avoid sharing log contents.
+                            </AlertDescription>
+                        </Alert>
+
                         {/* Filters */}
                         <div className="mb-4 flex flex-wrap items-center gap-4">
                             <div className="flex items-center gap-2">
@@ -282,8 +302,12 @@ export default function Index({ logs, pagination, filters, available_levels, can
                                             >
                                                 <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
                                                 <TableCell>
-                                                    <Badge className={cn('gap-1', levelColors[log.level] || 'bg-gray-200')}>
-                                                        {levelIcons[log.level]}
+                                                    <Badge
+                                                        className={cn('gap-1', levelColors[log.level] || 'bg-gray-200')}
+                                                        role="status"
+                                                        aria-label={`Log level: ${log.level}`}
+                                                    >
+                                                        <span aria-hidden="true">{levelIcons[log.level]}</span>
                                                         {log.level.toUpperCase()}
                                                     </Badge>
                                                 </TableCell>

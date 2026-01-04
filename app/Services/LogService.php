@@ -107,6 +107,8 @@ class LogService
         if ($fileSize > self::MAX_FILE_SIZE) {
             $handle = fopen($logPath, 'r');
             if ($handle === false) {
+                \Illuminate\Support\Facades\Log::warning('LogService: Failed to open log file for reading', ['path' => $logPath]);
+
                 return [];
             }
 
@@ -118,6 +120,11 @@ class LogService
             fclose($handle);
 
             if ($content === false) {
+                \Illuminate\Support\Facades\Log::warning('LogService: Failed to read from large log file', [
+                    'path' => $logPath,
+                    'file_size' => $fileSize,
+                ]);
+
                 return [];
             }
         } else {
@@ -192,13 +199,12 @@ class LogService
         $newLines = [];
         $found = false;
         $skipUntilNextEntry = false;
-        $currentLine = 0;
+        // Line numbers are 1-indexed to match log entries returned to the frontend
+        $currentLine = 1;
 
         $pattern = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\w+\.\w+:/';
 
         foreach ($lines as $line) {
-            $currentLine++;
-
             // Check if this is a new log entry
             if (preg_match($pattern, $line, $matches)) {
                 $skipUntilNextEntry = false;
@@ -207,6 +213,7 @@ class LogService
                 if ($currentLine === $lineNumber && $matches[1] === $timestamp) {
                     $found = true;
                     $skipUntilNextEntry = true;
+                    $currentLine++;
 
                     continue;
                 }
@@ -215,10 +222,26 @@ class LogService
             if (! $skipUntilNextEntry) {
                 $newLines[] = $line;
             }
+            $currentLine++;
         }
 
         if ($found) {
-            File::put($logPath, implode("\n", $newLines));
+            // Use file locking to prevent race conditions during concurrent deletions
+            $handle = fopen($logPath, 'c');
+            if ($handle !== false && flock($handle, LOCK_EX)) {
+                ftruncate($handle, 0);
+                fwrite($handle, implode("\n", $newLines));
+                fflush($handle);
+                flock($handle, LOCK_UN);
+                fclose($handle);
+            } else {
+                if ($handle !== false) {
+                    fclose($handle);
+                }
+                \Illuminate\Support\Facades\Log::warning('LogService: Failed to acquire lock for log file deletion', ['path' => $logPath]);
+
+                return false;
+            }
         }
 
         return $found;
@@ -226,14 +249,34 @@ class LogService
 
     /**
      * Clear all log entries.
+     * Uses file locking to prevent race conditions.
      */
-    public function clearLogs(): void
+    public function clearLogs(): bool
     {
         $logPath = storage_path('logs/laravel.log');
 
-        if (File::exists($logPath)) {
-            File::put($logPath, '');
+        if (! File::exists($logPath)) {
+            return true;
         }
+
+        // Use file locking for atomic operation
+        $handle = fopen($logPath, 'c');
+        if ($handle !== false && flock($handle, LOCK_EX)) {
+            ftruncate($handle, 0);
+            fflush($handle);
+            flock($handle, LOCK_UN);
+            fclose($handle);
+
+            return true;
+        }
+
+        if ($handle !== false) {
+            fclose($handle);
+        }
+
+        \Illuminate\Support\Facades\Log::warning('LogService: Failed to acquire lock for clearing logs', ['path' => $logPath]);
+
+        return false;
     }
 
     /**

@@ -117,6 +117,7 @@ describe('AppSidebar', () => {
 
         // Should render NavSection components (4 sections for admin)
         expect(NavSectionMock).toHaveBeenCalled();
+        expect(NavSectionMock).toHaveBeenCalledTimes(4);
 
         // Get all NavSection calls
         const sectionCalls = NavSectionMock.mock.calls;
