@@ -9,6 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
+     * MIGRATION ORDER: This is migration 1 of 3 for semantic URL support.
+     * These migrations must run in sequence:
+     *   1. 2026_01_03_050439 - Adds doi_prefix column and lookup index (this file)
+     *   2. 2026_01_03_050440 - Populates doi_prefix from existing resources
+     *   3. 2026_01_03_050441 - Adds unique constraints on doi_prefix+slug
+     *
+     * The timestamps (050439, 050440, 050441) ensure correct ordering.
+     * Do not run these migrations in parallel or out of order.
+     *
      * Adds doi_prefix column for semantic URL generation.
      * Format: "10.5880/igets.bu.l1.001" (full DOI as stored in resources.doi)
      * NULL for draft resources without DOI.

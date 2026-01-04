@@ -9,6 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
+     * MIGRATION ORDER: This is migration 3 of 3 for semantic URL support.
+     * Prerequisites: Migrations 050439 and 050440 must have run first.
+     * - 050439 adds the doi_prefix column
+     * - 050440 populates doi_prefix from existing resources
+     * - This migration (050441) adds unique constraints
+     *
+     * The unique constraints are added AFTER data population to avoid
+     * constraint violations during the UPDATE in migration 050440.
+     *
      * Adds unique constraints to prevent slug collisions:
      * 1. (doi_prefix, slug) - Ensures unique slugs per DOI for published pages
      * 2. (resource_id, slug) - Ensures unique slugs per resource for draft pages

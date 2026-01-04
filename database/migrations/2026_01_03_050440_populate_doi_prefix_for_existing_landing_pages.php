@@ -9,6 +9,10 @@ return new class extends Migration
     /**
      * Run the migrations.
      *
+     * MIGRATION ORDER: This is migration 2 of 3 for semantic URL support.
+     * Prerequisites: Migration 050439 must have run first (adds doi_prefix column).
+     * Next: Migration 050441 adds unique constraints after data is populated.
+     *
      * Populates doi_prefix for existing landing pages from their associated resource's DOI.
      * This ensures existing published landing pages continue to work with DOI-based URLs
      * after the schema change.

@@ -41,8 +41,11 @@ class ResourceObserver
      * This is handled by invalidateResourceCache which calls
      * invalidateAllResourceCaches internally.
      *
-     * Also syncs DOI changes to associated landing page and invalidates
-     * landing page caches when the DOI changes.
+     * DOI Syncing Scope: This observer syncs DOI changes to existing landing pages
+     * when a resource's DOI is modified AFTER a landing page already exists.
+     * It does NOT handle initial DOI population when a landing page is first created -
+     * that is handled by the LandingPage model's boot() method which reads the
+     * resource's DOI during the 'creating' event.
      *
      * DOI Change Warning: Changing a DOI for a resource with a published landing page
      * will change the landing page's public URL. This can break existing citations,

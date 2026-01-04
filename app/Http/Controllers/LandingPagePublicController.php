@@ -34,6 +34,20 @@ class LandingPagePublicController extends Controller
     private const SLUG_PATTERN = '/^[a-z0-9-]+$/';
 
     /**
+     * Pattern for basic DOI prefix format validation.
+     *
+     * This is more restrictive than the route constraint to catch edge cases
+     * the permissive route regex might allow:
+     * - No consecutive slashes (//)
+     * - No leading/trailing dots in segments
+     * - No empty segments between slashes
+     *
+     * Format: 10.NNNN/suffix where suffix contains valid DOI characters.
+     * Does NOT validate that the DOI actually exists - only format sanity.
+     */
+    private const DOI_PREFIX_PATTERN = '/^10\\.[0-9]+\\/(?:[a-zA-Z0-9_-]+\\.?)+(?:\\/(?:[a-zA-Z0-9_-]+\\.?)+)*$/';
+
+    /**
      * Display a public landing page for a resource with DOI.
      * URL pattern: /{doiPrefix}/{slug}
      *
@@ -48,6 +62,11 @@ class LandingPagePublicController extends Controller
     ): Response {
         // Validate slug format using shared helper method (defense in depth)
         $this->validateSlugFormat($slug, ['doi_prefix_length' => strlen($doiPrefix)]);
+
+        // Validate DOI prefix format (defense in depth).
+        // The route constraint is permissive to handle valid edge cases, but we
+        // reject obviously malformed DOIs here (e.g., consecutive slashes, empty segments).
+        $this->validateDoiPrefixFormat($doiPrefix);
 
         $previewToken = $request->query('preview');
 
@@ -195,6 +214,55 @@ class LandingPagePublicController extends Controller
             \Illuminate\Support\Facades\Log::warning(
                 'LandingPagePublicController: Invalid slug bypassed route constraint',
                 $logContext
+            );
+            abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+        }
+    }
+
+    /**
+     * Validate DOI prefix format as defense in depth.
+     *
+     * The route constraint pattern is intentionally permissive to handle valid DOI
+     * edge cases. This validation catches obviously malformed DOIs that the route
+     * might allow, such as:
+     * - Consecutive slashes: 10.5880//test
+     * - Empty segments: 10.5880/test//suffix
+     * - Leading/trailing dots that could cause parsing issues
+     *
+     * @param  string  $doiPrefix  The DOI prefix to validate
+     */
+    private function validateDoiPrefixFormat(string $doiPrefix): void
+    {
+        // Quick checks for common malformed patterns before regex
+        if (str_contains($doiPrefix, '//') || str_contains($doiPrefix, '/.') || str_contains($doiPrefix, './')) {
+            \Illuminate\Support\Facades\Log::warning(
+                'LandingPagePublicController: Malformed DOI prefix detected',
+                [
+                    'doi_prefix_length' => strlen($doiPrefix),
+                    'doi_prefix_hash' => substr(hash('sha256', $doiPrefix), 0, 8),
+                    'issue' => 'consecutive_slashes_or_dot_boundary',
+                ]
+            );
+            abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
+        }
+
+        $pregResult = preg_match(self::DOI_PREFIX_PATTERN, $doiPrefix);
+
+        if ($pregResult === false) {
+            \Illuminate\Support\Facades\Log::error(
+                'LandingPagePublicController: DOI prefix preg_match failed with PCRE error',
+                ['doi_prefix_length' => strlen($doiPrefix)]
+            );
+            abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
+        }
+
+        if ($pregResult === 0) {
+            \Illuminate\Support\Facades\Log::warning(
+                'LandingPagePublicController: Invalid DOI prefix format',
+                [
+                    'doi_prefix_length' => strlen($doiPrefix),
+                    'doi_prefix_hash' => substr(hash('sha256', $doiPrefix), 0, 8),
+                ]
             );
             abort(HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
         }

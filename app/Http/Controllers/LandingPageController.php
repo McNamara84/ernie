@@ -139,12 +139,21 @@ class LandingPageController extends Controller
             });
         } catch (QueryException $e) {
             // Check for unique constraint violation on slug.
-            // MySQL error code: 1062 (Duplicate entry for key)
-            // SQLite error code: 19 (SQLITE_CONSTRAINT)
-            // Note: MySQL SQLSTATE 23000 is the class, but errorInfo[1] returns the
-            // specific error code (1062), not the SQLSTATE class.
-            $errorCode = isset($e->errorInfo[1]) ? (string) $e->errorInfo[1] : '';
-            if (in_array($errorCode, ['1062', '19'], true)) {
+            // We need to handle both MySQL and SQLite differently:
+            //
+            // MySQL: errorInfo[1] = 1062 (ER_DUP_ENTRY) for unique violations
+            // SQLite: errorInfo[1] = 19 (SQLITE_CONSTRAINT) is generic for all constraints,
+            //         but we can check the message for 'UNIQUE constraint failed'
+            //
+            // Note: errorInfo may be null or have missing indices in edge cases,
+            // so we use null coalescing for safety.
+            $errorCode = (string) ($e->errorInfo[1] ?? '');
+            $errorMessage = $e->getMessage();
+
+            $isUniqueViolation = $errorCode === '1062' // MySQL duplicate entry
+                || ($errorCode === '19' && str_contains($errorMessage, 'UNIQUE constraint failed'));
+
+            if ($isUniqueViolation) {
                 return response()->json([
                     'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
                     'error' => 'slug_conflict',
@@ -206,9 +215,15 @@ class LandingPageController extends Controller
         $landingPage->save();
 
         // Handle publication status change (support both 'status' and 'is_published' fields).
-        // Currently publish()/unpublish() only update a single row, so the transaction is
-        // technically optional. However, we keep it as these methods may evolve to include
-        // additional operations (e.g., notification dispatch, audit logging) in the future.
+        // Transaction rationale: Currently publish()/unpublish() only update a single row,
+        // making the transaction technically redundant. However, we wrap these calls in a
+        // transaction as a defensive pattern for two reasons:
+        // 1. Future-proofing: If these methods evolve to include additional operations
+        //    (e.g., notification dispatch, audit logging), they'll already be atomic.
+        // 2. Clarity: It signals to future developers that these operations should be
+        //    treated as atomic units, even if they currently only do one thing.
+        // If you need transactional guarantees within publish()/unpublish() themselves
+        // (e.g., for model events), consider adding transactions inside those methods.
         if (isset($validated['status'])) {
             $shouldPublish = $validated['status'] === 'published';
             DB::transaction(function () use ($landingPage, $shouldPublish): void {

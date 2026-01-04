@@ -184,19 +184,16 @@ class LandingPage extends Model
             return "dataset-{$uniqueSuffix}";
         }
 
-        // Only load titles if not already loaded (avoids N+1 in batch operations).
-        // We specifically check for 'titles' AND that titleType is loaded on each title.
-        // If titles are loaded but titleType isn't, isMainTitle() would trigger N+1.
+        // Load titles with titleType relationship if not already loaded.
+        // Instead of checking each title individually (which could be inefficient
+        // for resources with many titles), we use a simple heuristic: if titles
+        // are loaded but the first one doesn't have titleType loaded, reload all.
+        // This covers the common case while avoiding N+1 queries in isMainTitle().
         if (! $resource->relationLoaded('titles')) {
             $resource->load('titles.titleType');
-        } else {
-            // Titles are loaded, but ensure titleType is loaded on each title
-            $needsTitleTypeLoad = $resource->titles->contains(
-                fn (Title $title) => ! $title->relationLoaded('titleType')
-            );
-            if ($needsTitleTypeLoad) {
-                $resource->load('titles.titleType');
-            }
+        } elseif ($resource->titles->isNotEmpty() && ! $resource->titles->first()->relationLoaded('titleType')) {
+            // Titles loaded but titleType isn't - reload with nested relation
+            $resource->load('titles.titleType');
         }
 
         // Find main title (title_type_id is NULL or titleType slug is 'main-title')
@@ -256,13 +253,28 @@ class LandingPage extends Model
      */
     public function getPublicUrlAttribute(): string
     {
+        return url($this->getPublicPath());
+    }
+
+    /**
+     * Get the relative path portion of the public URL.
+     *
+     * This method returns the path without the host/scheme, useful for:
+     * - Test helpers that need relative paths for Playwright navigation
+     * - Internal URL construction where the host is provided separately
+     * - Consistency between different environments (local, Docker, CI)
+     *
+     * Format: /{DOI}/{SLUG} or /draft-{ID}/{SLUG}
+     *
+     * @see getPublicUrlAttribute() for absolute URL with host
+     */
+    public function getPublicPath(): string
+    {
         if ($this->doi_prefix !== null) {
-            // URL with DOI: /{doi}/{slug}
-            return url("/{$this->doi_prefix}/{$this->slug}");
+            return "/{$this->doi_prefix}/{$this->slug}";
         }
 
-        // Draft URL without DOI: /draft-{id}/{slug}
-        return url("/draft-{$this->resource_id}/{$this->slug}");
+        return "/draft-{$this->resource_id}/{$this->slug}";
     }
 
     /**
@@ -276,11 +288,7 @@ class LandingPage extends Model
             return null;
         }
 
-        if ($this->doi_prefix !== null) {
-            return url("/{$this->doi_prefix}/{$this->slug}?preview={$this->preview_token}");
-        }
-
-        return url("/draft-{$this->resource_id}/{$this->slug}?preview={$this->preview_token}");
+        return url($this->getPublicPath() . "?preview={$this->preview_token}");
     }
 
     /**
@@ -294,14 +302,7 @@ class LandingPage extends Model
      */
     public function getContactUrlAttribute(): string
     {
-        // Build contact URL using same base path logic as public_url.
-        // Using explicit path construction instead of appending to public_url
-        // avoids issues with URL encoding or query parameters.
-        if ($this->doi_prefix !== null) {
-            return url("/{$this->doi_prefix}/{$this->slug}/contact");
-        }
-
-        return url("/draft-{$this->resource_id}/{$this->slug}/contact");
+        return url($this->getPublicPath() . '/contact');
     }
 
     /**
