@@ -10,6 +10,8 @@ namespace App\Enums;
  * - GROUP_LEADER: Can manage users but cannot promote to GROUP_LEADER or ADMIN
  * - CURATOR: Can register production DOIs and manage resources
  * - BEGINNER: Limited to test DOI registration only
+ *
+ * @see \App\Providers\AppServiceProvider for Gate definitions
  */
 enum UserRole: string
 {
@@ -20,6 +22,9 @@ enum UserRole: string
 
     /**
      * Check if this role can manage users (access user management page)
+     *
+     * @deprecated Use Gate::allows('manage-users') or $user->can('manage-users') instead.
+     *             This method will be removed in a future version.
      */
     public function canManageUsers(): bool
     {
@@ -40,6 +45,9 @@ enum UserRole: string
     /**
      * Check if this role can register production DOIs
      * Beginners are restricted to test DOIs only
+     *
+     * @deprecated Use Gate::allows('register-production-doi') or $user->can('register-production-doi') instead.
+     *             This method will be removed in a future version.
      */
     public function canRegisterProductionDoi(): bool
     {

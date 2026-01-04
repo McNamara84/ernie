@@ -1,51 +1,61 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BarChart3, BookOpen, ClipboardEdit, Database, FileText, FlaskConical, History, Layers, LayoutGrid, Settings, Users } from 'lucide-react';
+import {
+    BarChart3,
+    BookOpen,
+    ClipboardEdit,
+    Database,
+    FileText,
+    FlaskConical,
+    History,
+    Layers,
+    LayoutGrid,
+    ScrollText,
+    Settings,
+    Users,
+} from 'lucide-react';
 
 import { NavFooter } from '@/components/nav-footer';
-import { NavMain } from '@/components/nav-main';
+import { NavSection } from '@/components/nav-section';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { dashboard, settings } from '@/routes';
-import { type NavItem,type User as AuthUser } from '@/types';
+import { type NavItem, type User as AuthUser } from '@/types';
 
 import AppLogo from './app-logo';
 
 export function AppSidebar() {
     const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
 
-    const mainNavItems: NavItem[] = [
+    // Dashboard - always visible
+    const dashboardItems: NavItem[] = [
         {
             title: 'Dashboard',
             href: dashboard(),
             icon: LayoutGrid,
         },
+    ];
+
+    // DATA CURATION section
+    const dataCurationItems: NavItem[] = [
         {
             title: 'Data Editor',
             href: '/editor',
             icon: FileText,
-            separator: true,
-        },
-        {
-            title: 'Old Datasets',
-            href: '/old-datasets',
-            icon: Database,
-        },
-        {
-            title: 'Statistics (old)',
-            href: '/old-statistics',
-            icon: BarChart3,
         },
         {
             title: 'Resources',
             href: '/resources',
             icon: Layers,
         },
+    ];
+
+    // IGSN CURATION section
+    const igsnCurationItems: NavItem[] = [
         {
             title: 'IGSNs',
             href: '/igsns',
             icon: FlaskConical,
             disabled: true,
-            separator: true,
         },
         {
             title: 'IGSN Editor',
@@ -55,17 +65,33 @@ export function AppSidebar() {
         },
     ];
 
+    // ADMINISTRATION section - only visible for admins and group leaders
+    const administrationItems: NavItem[] = auth.user?.can_access_administration
+        ? [
+              {
+                  title: 'Old Datasets',
+                  href: '/old-datasets',
+                  icon: Database,
+              },
+              {
+                  title: 'Statistics (old)',
+                  href: '/old-statistics',
+                  icon: BarChart3,
+              },
+              {
+                  title: 'Users',
+                  href: '/users',
+                  icon: Users,
+              },
+              {
+                  title: 'Logs',
+                  href: '/logs',
+                  icon: ScrollText,
+              },
+          ]
+        : [];
+
     const footerNavItems: NavItem[] = [
-        // Users link - only visible for admins and group leaders
-        ...(auth.user?.can_manage_users
-            ? [
-                  {
-                      title: 'Users',
-                      href: '/users',
-                      icon: Users,
-                  } as NavItem,
-              ]
-            : []),
         {
             title: 'Editor Settings',
             href: settings(),
@@ -98,7 +124,10 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavSection items={dashboardItems} />
+                <NavSection label="Data Curation" items={dataCurationItems} showSeparator />
+                <NavSection label="IGSN Curation" items={igsnCurationItems} showSeparator />
+                {administrationItems.length > 0 && <NavSection label="Administration" items={administrationItems} showSeparator />}
             </SidebarContent>
 
             <SidebarFooter>
