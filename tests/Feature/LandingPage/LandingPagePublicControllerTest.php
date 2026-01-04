@@ -185,18 +185,32 @@ describe('Landing Page Caching', function () {
                 'slug' => 'cached-response-test',
             ]);
 
+        // Expected cache keys if caching were implemented
+        $semanticCacheKey = "landing-page.{$landingPage->doi_prefix}.{$landingPage->slug}";
+        $resourceIdCacheKey = "landing-page.{$this->resource->id}";
+
         // First request
         $response1 = $this->get(landingPageUrl($landingPage));
+        $response1->assertStatus(200);
+
+        // Verify no cache keys were created (caching not yet implemented)
+        expect(Cache::has($semanticCacheKey))->toBeFalse(
+            "Expected semantic cache key '{$semanticCacheKey}' to not exist (caching not implemented)"
+        );
+        expect(Cache::has($resourceIdCacheKey))->toBeFalse(
+            "Expected resource ID cache key '{$resourceIdCacheKey}' to not exist (caching not implemented)"
+        );
 
         // Modify landing page
         $landingPage->update(['ftp_url' => 'https://new-url.com']);
 
         // Second request - should reflect the change since caching is not yet implemented
         $response2 = $this->get(landingPageUrl($landingPage));
-
-        // Both responses should be valid
-        $response1->assertStatus(200);
         $response2->assertStatus(200);
+
+        // Still no caching after second request
+        expect(Cache::has($semanticCacheKey))->toBeFalse();
+        expect(Cache::has($resourceIdCacheKey))->toBeFalse();
     });
 
     test('cache respects published status check before serving', function () {

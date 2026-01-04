@@ -211,7 +211,18 @@ class SlugGeneratorService
 
         // Restore original locale
         if ($originalLocale !== false) {
-            setlocale(LC_CTYPE, $originalLocale);
+            $restored = setlocale(LC_CTYPE, $originalLocale);
+            if ($restored === false) {
+                // Log warning - locale restoration failed, process may be in unexpected state.
+                // This is unlikely but could affect subsequent operations in the same request.
+                \Illuminate\Support\Facades\Log::warning(
+                    'SlugGeneratorService: Failed to restore original locale after transliteration',
+                    [
+                        'original_locale' => $originalLocale,
+                        'current_locale' => setlocale(LC_CTYPE, '0'),
+                    ]
+                );
+            }
         }
 
         if ($transliterated === false) {

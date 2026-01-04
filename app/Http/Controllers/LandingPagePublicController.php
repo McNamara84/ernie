@@ -39,24 +39,23 @@ class LandingPagePublicController extends Controller
      * This is more restrictive than the route constraint to catch edge cases
      * the permissive route regex might allow:
      * - No consecutive slashes (//)
-     * - No leading/trailing dots in segments (e.g., /./test or /.test or /test.)
+     * - No leading/trailing dots in path segments
      * - No empty segments between slashes
      *
      * Format: 10.NNNN/suffix where suffix contains valid DOI characters.
      * Does NOT validate that the DOI actually exists - only format sanity.
      *
-     * Pattern breakdown:
+     * Pattern breakdown (segment-by-segment validation):
      * - ^10\.[0-9]+\/ : Must start with '10.' followed by digits and a slash
-     * - (?!.*\/\/) : Negative lookahead - no consecutive slashes
-     * - (?!.*\/\.) : Negative lookahead - no slash followed by dot (empty/dot-leading segment)
-     * - (?!.*\.\/) : Negative lookahead - no dot followed by slash (dot-trailing segment)
-     * - (?!.*\.$) : Negative lookahead - must not end with a dot
-     * - [a-zA-Z0-9._\/-]+$ : Valid DOI suffix characters until end
+     * - [a-zA-Z0-9_-] : Each segment must start with an alphanumeric, underscore, or hyphen
+     * - [a-zA-Z0-9._-]* : Segment can contain alphanumerics, dots, underscores, hyphens
+     * - (\/ ... )* : Optional additional path segments following same rules
+     * - $ : Must match to end of string
      *
      * Valid examples: 10.5880/test.data/subset, 10.5880/GFZ.1.2.2024.001
      * Invalid examples: 10.5880//test, 10.5880/./test, 10.5880/.test, 10.5880/test.
      */
-    private const DOI_PREFIX_PATTERN = '/^10\.[0-9]+\/(?!.*\/\/)(?!.*\/\.)(?!.*\.\/)(?!.*\.$)[a-zA-Z0-9._\/-]+$/';
+    private const DOI_PREFIX_PATTERN = '/^10\.[0-9]+\/[a-zA-Z0-9_-][a-zA-Z0-9._-]*(\/[a-zA-Z0-9_-][a-zA-Z0-9._-]*)*$/';
 
     /**
      * Display a public landing page for a resource with DOI.
@@ -259,6 +258,7 @@ class LandingPagePublicController extends Controller
 
         $pregResult = preg_match(self::DOI_PREFIX_PATTERN, $doiPrefix);
 
+        // Handle PCRE errors first (pregResult === false)
         if ($pregResult === false) {
             \Illuminate\Support\Facades\Log::error(
                 'LandingPagePublicController: DOI prefix preg_match failed with PCRE error',
@@ -267,7 +267,10 @@ class LandingPagePublicController extends Controller
             abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
         }
 
-        if ($pregResult === 0) {
+        // Pattern didn't match - DOI format is invalid.
+        // Note: This is defense in depth. The route constraint should catch most cases,
+        // but this protects against route bypasses or constraint configuration errors.
+        if ($pregResult !== 1) {
             \Illuminate\Support\Facades\Log::warning(
                 'LandingPagePublicController: Invalid DOI prefix format',
                 [

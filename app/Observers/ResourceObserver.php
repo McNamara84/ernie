@@ -89,7 +89,13 @@ class ResourceObserver
                     if ($landingPage->is_published) {
                         // Log warning for DOI changes on published landing pages.
                         // This helps operators identify potential broken link issues.
-                        // The actual prevention should happen in controllers/policies.
+                        //
+                        // NOTE: Prevention of unauthorized DOI changes is enforced by
+                        // ResourcePolicy::changeDoi() which only allows Admins to change
+                        // DOIs on resources with published landing pages. This observer
+                        // is purely for logging/monitoring - it does NOT prevent the change.
+                        // The policy check happens before the request reaches this point.
+                        // See: app/Policies/ResourcePolicy.php::changeDoi()
                         \Illuminate\Support\Facades\Log::warning(
                             'ResourceObserver: DOI changed for resource with published landing page',
                             [

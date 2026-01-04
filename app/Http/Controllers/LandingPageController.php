@@ -190,6 +190,10 @@ class LandingPageController extends Controller
             throw $e;
         }
 
+        // Note: If we reach this point, the transaction succeeded and $landingPage
+        // is guaranteed to be a valid LandingPage instance. The catch block above
+        // handles all QueryException cases by returning early, so we never reach
+        // refresh() after a failed transaction.
         $landingPage->refresh();
 
         // Determine status string for API response
