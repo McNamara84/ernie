@@ -22,11 +22,16 @@ class LogController extends Controller
     ) {}
 
     /**
+     * Maximum allowed entries per page to prevent memory exhaustion.
+     */
+    private const MAX_PER_PAGE = 200;
+
+    /**
      * Display the logs page.
      */
     public function index(Request $request): Response
     {
-        $perPage = (int) $request->input('per_page', 50);
+        $perPage = min((int) $request->input('per_page', 50), self::MAX_PER_PAGE);
         $page = (int) $request->input('page', 1);
         $level = $request->input('level');
         $search = $request->input('search');
@@ -61,7 +66,7 @@ class LogController extends Controller
      */
     public function getLogsJson(Request $request): JsonResponse
     {
-        $perPage = (int) $request->input('per_page', 50);
+        $perPage = min((int) $request->input('per_page', 50), self::MAX_PER_PAGE);
         $page = (int) $request->input('page', 1);
         $level = $request->input('level');
         $search = $request->input('search');
@@ -85,8 +90,14 @@ class LogController extends Controller
         $lineNumber = $request->input('line_number');
         $timestamp = $request->input('timestamp');
 
-        if (! is_numeric($lineNumber) || (int) $lineNumber < 1 || ! $timestamp) {
-            return response()->json(['error' => 'Invalid log entry: line_number must be a positive integer and timestamp is required'], 400);
+        // Validate line_number is a positive integer
+        if (! is_numeric($lineNumber) || (int) $lineNumber < 1) {
+            return response()->json(['error' => 'Invalid log entry: line_number must be a positive integer'], 400);
+        }
+
+        // Validate timestamp exists and matches Laravel log format (YYYY-MM-DD HH:MM:SS)
+        if (! $timestamp || ! preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $timestamp)) {
+            return response()->json(['error' => 'Invalid log entry: timestamp must be in format YYYY-MM-DD HH:MM:SS'], 400);
         }
 
         $deleted = $this->logService->deleteLogEntry((int) $lineNumber, $timestamp);
@@ -104,7 +115,11 @@ class LogController extends Controller
      */
     public function clear(): JsonResponse
     {
-        $this->logService->clearLogs();
+        $success = $this->logService->clearLogs();
+
+        if (! $success) {
+            return response()->json(['error' => 'Failed to clear logs. Please try again.'], 500);
+        }
 
         return response()->json(['message' => 'All logs cleared successfully']);
     }

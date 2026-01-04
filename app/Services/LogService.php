@@ -213,7 +213,6 @@ class LogService
                 if ($currentLine === $lineNumber && $matches[1] === $timestamp) {
                     $found = true;
                     $skipUntilNextEntry = true;
-                    $currentLine++;
 
                     continue;
                 }
