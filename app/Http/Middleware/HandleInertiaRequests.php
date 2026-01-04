@@ -53,7 +53,7 @@ class HandleInertiaRequests extends Middleware
                     ...$request->user()->toArray(),
                     'role' => $request->user()->role->value,
                     'role_label' => $request->user()->role->label(),
-                    'can_manage_users' => $request->user()->canManageUsers(),
+                    'can_manage_users' => $request->user()->can('manage-users'),
                     'can_register_production_doi' => $request->user()->canRegisterProductionDoi(),
                     'can_access_administration' => $request->user()->can('access-administration'),
                     'can_delete_logs' => $request->user()->can('delete-logs'),

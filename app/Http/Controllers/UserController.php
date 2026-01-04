@@ -11,6 +11,7 @@ use App\Http\Requests\UpdateUserRoleRequest;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -58,7 +59,7 @@ class UserController extends Controller
                 'label' => $role->label(),
             ])->toArray(),
             'can_promote_to_group_leader' => $authUser->role->canPromoteToGroupLeader(),
-            'can_create_users' => $authUser->canManageUsers(),
+            'can_create_users' => Gate::allows('manage-users'),
         ]);
     }
 

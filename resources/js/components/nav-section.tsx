@@ -31,9 +31,13 @@ export function NavSection({ label, items, showSeparator = false }: NavSectionPr
                                     <span>{item.title}</span>
                                 </SidebarMenuButton>
                             ) : (
-                                // Using startsWith for isActive to highlight parent navigation items
-                                // when viewing child routes (e.g., /users is active when on /users/create)
-                                <SidebarMenuButton asChild isActive={page.url.startsWith(href)} tooltip={{ children: item.title }}>
+                                // Check if current URL starts with href and is followed by '/', '?', '#', or end of string
+                                // This prevents '/user' from matching when on '/users' (path boundary check)
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={page.url === href || page.url.startsWith(href + '/') || page.url.startsWith(href + '?')}
+                                    tooltip={{ children: item.title }}
+                                >
                                     <Link href={href} prefetch>
                                         {item.icon && <item.icon />}
                                         <span>{item.title}</span>

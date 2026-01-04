@@ -105,12 +105,42 @@ vi.mock('@/components/app-logo', () => ({
     default: () => <span>Logo</span>,
 }));
 
+// Helper to create mock page props for different user roles
+const createMockUser = (overrides: Partial<{
+    role: string;
+    can_manage_users: boolean;
+    can_access_administration: boolean;
+}> = {}) => ({
+    id: 1,
+    name: 'Test User',
+    email: 'test@example.com',
+    role: 'admin',
+    can_manage_users: true,
+    can_register_production_doi: true,
+    can_access_administration: true,
+    ...overrides,
+});
+
 describe('AppSidebar', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
     it('renders navigation sections with correct items for admin user', async () => {
+        // Mock admin user
+        vi.doMock('@inertiajs/react', async (importOriginal) => {
+            const actual = await importOriginal<typeof import('@inertiajs/react')>();
+            return {
+                ...actual,
+                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
+                    <a href={href}>{children}</a>
+                ),
+                usePage: () => ({
+                    props: { auth: { user: createMockUser() } },
+                }),
+            };
+        });
+
         const { AppSidebar } = await import('@/components/app-sidebar');
 
         render(<AppSidebar />);
@@ -167,5 +197,92 @@ describe('AppSidebar', () => {
         // Check user section
         expect(screen.getByTestId('nav-user')).toBeInTheDocument();
     });
-});
 
+    it('does not render Administration section for non-admin users (beginner)', async () => {
+        // Reset mocks for this test
+        vi.clearAllMocks();
+
+        // Mock beginner user without administration access
+        vi.doMock('@inertiajs/react', async (importOriginal) => {
+            const actual = await importOriginal<typeof import('@inertiajs/react')>();
+            return {
+                ...actual,
+                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
+                    <a href={href}>{children}</a>
+                ),
+                usePage: () => ({
+                    props: {
+                        auth: {
+                            user: createMockUser({
+                                role: 'beginner',
+                                can_manage_users: false,
+                                can_access_administration: false,
+                            }),
+                        },
+                    },
+                }),
+            };
+        });
+
+        // Need to re-import to get fresh module with new mock
+        vi.resetModules();
+        const { AppSidebar } = await import('@/components/app-sidebar');
+
+        render(<AppSidebar />);
+
+        // Should render NavSection components (3 sections for non-admin - no Administration)
+        expect(NavSectionMock).toHaveBeenCalled();
+        expect(NavSectionMock).toHaveBeenCalledTimes(3);
+
+        // Verify Administration section is NOT rendered
+        const sectionCalls = NavSectionMock.mock.calls;
+        const sectionLabels = sectionCalls.map((call) => call[0].label);
+        expect(sectionLabels).not.toContain('Administration');
+
+        // Verify the other sections are present
+        expect(sectionLabels).toContain('Data Curation');
+        expect(sectionLabels).toContain('IGSN Curation');
+    });
+
+    it('does not render Administration section for curator users', async () => {
+        // Reset mocks for this test
+        vi.clearAllMocks();
+
+        // Mock curator user without administration access
+        vi.doMock('@inertiajs/react', async (importOriginal) => {
+            const actual = await importOriginal<typeof import('@inertiajs/react')>();
+            return {
+                ...actual,
+                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
+                    <a href={href}>{children}</a>
+                ),
+                usePage: () => ({
+                    props: {
+                        auth: {
+                            user: createMockUser({
+                                role: 'curator',
+                                can_manage_users: false,
+                                can_access_administration: false,
+                            }),
+                        },
+                    },
+                }),
+            };
+        });
+
+        // Need to re-import to get fresh module with new mock
+        vi.resetModules();
+        const { AppSidebar } = await import('@/components/app-sidebar');
+
+        render(<AppSidebar />);
+
+        // Should render NavSection components (3 sections for curator - no Administration)
+        expect(NavSectionMock).toHaveBeenCalled();
+        expect(NavSectionMock).toHaveBeenCalledTimes(3);
+
+        // Verify Administration section is NOT rendered
+        const sectionCalls = NavSectionMock.mock.calls;
+        const sectionLabels = sectionCalls.map((call) => call[0].label);
+        expect(sectionLabels).not.toContain('Administration');
+    });
+});
