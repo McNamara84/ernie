@@ -58,7 +58,7 @@ describe('SetupLandingPageModal', () => {
         ftp_url: 'https://datapub.gfz-potsdam.de/download/test-data',
         status: 'published',
         // Preview tokens are 64-character hex strings (32 bytes from random_bytes)
-        preview_token: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', // ggignore: This is a fake test token, not a real credential
+        preview_token: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', // ggignore
         view_count: 42,
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-02T00:00:00Z',
