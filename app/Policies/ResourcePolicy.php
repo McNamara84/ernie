@@ -54,6 +54,37 @@ class ResourcePolicy
     }
 
     /**
+     * Determine whether the user can change the DOI of a resource.
+     *
+     * Changing a DOI for a resource with a published landing page is a destructive
+     * operation: all existing citations, bookmarks, and external links to the old
+     * URL will break (404 without redirect). This method prevents such changes
+     * unless the user has Admin privileges.
+     *
+     * @param  User  $user  The user attempting the change
+     * @param  Resource  $resource  The resource whose DOI would be changed
+     * @param  string|null  $newDoi  The new DOI value (null = removing DOI)
+     * @return bool True if DOI change is allowed
+     */
+    public function changeDoi(User $user, Resource $resource, ?string $newDoi = null): bool
+    {
+        // If DOI isn't actually changing, allow it
+        if ($resource->doi === $newDoi) {
+            return true;
+        }
+
+        // If there's no published landing page, DOI changes are always safe
+        $landingPage = $resource->landingPage;
+        if (! $landingPage || ! $landingPage->is_published) {
+            return true;
+        }
+
+        // Only admins can change DOI on published landing pages
+        // This is a destructive operation that breaks existing URLs
+        return $user->role === UserRole::ADMIN;
+    }
+
+    /**
      * Determine whether the user can import resources from DataCite.
      *
      * Only Admin and Group Leader users can perform bulk imports

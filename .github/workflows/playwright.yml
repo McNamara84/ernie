@@ -78,11 +78,14 @@ jobs:
         chmod 666 database/database.sqlite
         php artisan key:generate
         php artisan migrate:fresh --seed --force
+        # Run PlaywrightTestSeeder for E2E-specific test fixtures (semantic URLs, contact tests, etc.)
+        php artisan db:seed --class=PlaywrightTestSeeder --force
         # Verify test user and data exist
         echo "=== Verifying database setup ==="
         php artisan tinker --execute="echo 'Test user exists: ' . (App\Models\User::where('email', 'test@example.com')->exists() ? 'YES' : 'NO');"
         php artisan tinker --execute="echo 'Total users: ' . App\Models\User::count();"
         php artisan tinker --execute="echo 'Total resources: ' . App\Models\Resource::count();"
+        php artisan tinker --execute="echo 'Playwright landing page exists: ' . (App\Models\LandingPage::where('slug', 'playwright-published')->exists() ? 'YES' : 'NO');"
         # Prepare ROR test data for Playwright tests
         mkdir -p storage/app/private/ror
         cat > storage/app/private/ror/ror-affiliations.json << 'EOF'

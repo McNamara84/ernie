@@ -189,13 +189,18 @@ class PlaywrightTestSeeder extends Seeder
             ]);
         }
 
-        LandingPage::query()->firstOrCreate(
+        // Use updateOrCreate to ensure doi_prefix is correctly set on every seeder run.
+        // This intentionally overwrites any manual changes because Playwright tests
+        // require consistent, predictable test data. If preserving manual changes
+        // is needed for a different fixture, use firstOrCreate instead.
+        LandingPage::query()->updateOrCreate(
             ['slug' => 'playwright-published'],
             [
                 'resource_id' => $publishedResource->id,
                 'template' => 'default_gfz',
                 'is_published' => true,
                 'published_at' => now(),
+                'doi_prefix' => self::PLAYWRIGHT_PUBLISHED_RESOURCE_DOI,
             ]
         );
 

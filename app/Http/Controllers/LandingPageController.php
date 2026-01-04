@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ResourceAlreadyExistsException;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -59,6 +62,10 @@ class LandingPageController extends Controller
 
     /**
      * Store a newly created landing page configuration.
+     *
+     * The entire creation is wrapped in a transaction to ensure atomicity:
+     * - Landing page creation and observer hooks (e.g., DOI sync) either all succeed or all fail
+     * - Prevents partial state where landing page exists but related operations failed
      */
     public function store(Request $request, Resource $resource): JsonResponse
     {
@@ -66,36 +73,168 @@ class LandingPageController extends Controller
             'template' => 'required|string|in:default_gfz,minimal,detailed',
             'ftp_url' => 'nullable|url',
             'is_published' => 'boolean',
+            'status' => 'sometimes|string|in:draft,published',
         ]);
 
-        // Check if landing page already exists
-        if ($resource->landingPage) {
-            return response()->json([
-                'message' => 'Landing page already exists for this resource',
-            ], 409);
+        // Detect conflicting status/is_published values.
+        // If both are provided with conflicting values, this may indicate a client bug.
+        if (isset($validated['status']) && isset($validated['is_published'])) {
+            $statusImpliesPublished = $validated['status'] === 'published';
+            if ($statusImpliesPublished !== $validated['is_published']) {
+                \Illuminate\Support\Facades\Log::warning(
+                    'LandingPageController: Conflicting status and is_published values received',
+                    [
+                        'resource_id' => $resource->id,
+                        'status' => $validated['status'],
+                        'is_published' => $validated['is_published'],
+                        'using' => 'status (preferred field)',
+                    ]
+                );
+            }
         }
 
-        // Generate slug from resource
-        $slug = \Illuminate\Support\Str::slug($resource->titles->first()->value ?? 'dataset-'.$resource->id);
+        // Wrap entire creation in transaction for atomicity.
+        // The existence check is INSIDE the transaction to prevent race conditions:
+        // Without this, two concurrent requests could both pass the check, then both
+        // try to create, causing a constraint violation on resource_id unique index.
+        // The try-catch handles both resource_id and slug uniqueness violations.
+        try {
+            $landingPage = DB::transaction(function () use ($validated, $resource) {
+                // Check if landing page already exists - INSIDE transaction
+                // Use lockForUpdate to prevent race conditions with concurrent requests
+                $existingLandingPage = LandingPage::where('resource_id', $resource->id)
+                    ->lockForUpdate()
+                    ->first();
 
-        $landingPage = $resource->landingPage()->create([
-            'slug' => $slug,
-            'template' => $validated['template'],
-            'ftp_url' => $validated['ftp_url'] ?? null,
-            'is_published' => $validated['is_published'] ?? false,
-            'published_at' => ($validated['is_published'] ?? false) ? now() : null,
-        ]);
+                if ($existingLandingPage !== null) {
+                    // Throw exception to signal "already exists" condition.
+                    // This maintains proper transaction semantics: if an exception occurs,
+                    // the transaction is rolled back. Using exceptions instead of null return
+                    // ensures atomicity - the exception is thrown BEFORE commit, so either
+                    // the create succeeds and commits, or the exception aborts the transaction.
+                    throw new ResourceAlreadyExistsException('landing page', $resource->id);
+                }
 
+                // Determine publication status.
+                // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
+                $isPublished = false;
+                if (isset($validated['status'])) {
+                    $isPublished = $validated['status'] === 'published';
+                } elseif (isset($validated['is_published'])) {
+                    $isPublished = $validated['is_published'];
+                }
+
+                // Create landing page.
+                // Note: slug and doi_prefix are set automatically in the model's boot() method.
+                // The model will load titles.titleType if needed for slug generation.
+                // We don't set them here to avoid redundancy and ensure single source of truth.
+                return $resource->landingPage()->create([
+                    'template' => $validated['template'],
+                    'ftp_url' => $validated['ftp_url'] ?? null,
+                    'is_published' => $isPublished,
+                    'published_at' => $isPublished ? now() : null,
+                ]);
+            });
+        } catch (ResourceAlreadyExistsException) {
+            // Handle "already exists" condition from inside the transaction.
+            // The exception is thrown BEFORE commit, so the transaction was never committed.
+            return response()->json([
+                'message' => 'Landing page already exists for this resource',
+                'error' => 'already_exists',
+            ], 409);
+        } catch (QueryException $e) {
+            // Check for unique constraint violation on slug.
+            // We need to handle both MySQL and SQLite differently:
+            //
+            // MySQL: errorInfo[1] = 1062 (ER_DUP_ENTRY) for unique violations
+            // SQLite: errorInfo[1] = 19 (SQLITE_CONSTRAINT) covers ALL constraint types
+            //         (UNIQUE, NOT NULL, FOREIGN KEY, CHECK). We check the message for
+            //         'UNIQUE constraint failed' for specificity, but also handle other
+            //         SQLite constraint violations gracefully since they likely indicate
+            //         data integrity issues that should be reported to the user.
+            //
+            // Note: errorInfo may be null or have missing indices in edge cases,
+            // so we use null coalescing for safety. We cast to int for consistent comparison.
+            $errorCode = (int) ($e->errorInfo[1] ?? 0);
+            $errorMessage = $e->getMessage();
+
+            // MySQL unique constraint violation
+            if ($errorCode === 1062) {
+                // Differentiate between resource_id constraint and slug constraint
+                // by checking the error message for the constraint name or column
+                if (str_contains($errorMessage, 'resource_id') || str_contains($errorMessage, 'landing_pages_resource_id')) {
+                    return response()->json([
+                        'message' => 'Landing page already exists for this resource',
+                        'error' => 'already_exists',
+                    ], 409);
+                }
+
+                return response()->json([
+                    'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
+                    'error' => 'slug_conflict',
+                ], 409);
+            }
+
+            // SQLite constraint violations (error code 19).
+            // We return specific messages where we can identify the constraint type,
+            // and a generic constraint error for unrecognized SQLite constraint failures.
+            if ($errorCode === 19) {
+                if (str_contains($errorMessage, 'UNIQUE constraint failed')) {
+                    // Differentiate between resource_id and slug constraints
+                    if (str_contains($errorMessage, 'resource_id')) {
+                        return response()->json([
+                            'message' => 'Landing page already exists for this resource',
+                            'error' => 'already_exists',
+                        ], 409);
+                    }
+
+                    return response()->json([
+                        'message' => 'A landing page with this URL slug already exists. Please modify the resource title or try again.',
+                        'error' => 'slug_conflict',
+                    ], 409);
+                }
+                // Other SQLite constraint violations (NOT NULL, FOREIGN KEY, CHECK).
+                // These indicate data integrity issues that the user should know about.
+                \Illuminate\Support\Facades\Log::warning(
+                    'LandingPageController: SQLite constraint violation (non-UNIQUE)',
+                    [
+                        'error_message' => $errorMessage,
+                        'error_code' => $errorCode,
+                    ]
+                );
+
+                return response()->json([
+                    'message' => 'Unable to create landing page due to a data constraint. Please check your input and try again.',
+                    'error' => 'constraint_violation',
+                ], 409);
+            }
+
+            throw $e;
+        }
+
+        // Note: If we reach this point, the transaction succeeded and $landingPage
+        // is guaranteed to be a valid LandingPage instance. The catch blocks above
+        // handle all exception cases by returning early, so we never reach
+        // refresh() after a failed transaction.
         $landingPage->refresh();
+
+        // Determine status string for API response
+        $status = $landingPage->is_published ? 'published' : 'draft';
 
         return response()->json([
             'message' => 'Landing page created successfully',
             'landing_page' => [
                 'id' => $landingPage->id,
+                'resource_id' => $landingPage->resource_id,
+                'doi_prefix' => $landingPage->doi_prefix,
+                'slug' => $landingPage->slug,
+                'template' => $landingPage->template,
+                'ftp_url' => $landingPage->ftp_url,
+                'status' => $status,
                 'preview_token' => $landingPage->preview_token,
                 'preview_url' => $landingPage->preview_url,
+                'public_url' => $landingPage->public_url,
             ],
-            'preview_url' => $landingPage->preview_url,
         ], 201);
     }
 
@@ -108,6 +247,7 @@ class LandingPageController extends Controller
             'template' => 'sometimes|string|in:default_gfz,minimal,detailed',
             'ftp_url' => 'nullable|url',
             'is_published' => 'sometimes|boolean',
+            'status' => 'sometimes|string|in:draft,published',
         ]);
 
         $landingPage = $resource->landingPage;
@@ -128,14 +268,22 @@ class LandingPageController extends Controller
 
         $landingPage->save();
 
-        // Handle publication status change
-        if (isset($validated['is_published'])) {
-            if ($validated['is_published']) {
-                $landingPage->publish();
-            } else {
-                $landingPage->unpublish();
-            }
+        // Handle publication status change (support both 'status' and 'is_published' fields).
+        //
+        // Note: We intentionally do NOT wrap publish()/unpublish() in transactions here.
+        // Currently these methods only update a single row, so transactions would add
+        // overhead without benefit. If these methods evolve to need atomicity (e.g., for
+        // multi-table operations, event dispatch, or audit logging), the transaction
+        // should be added INSIDE the publish()/unpublish() methods themselves where the
+        // atomic boundary is clear. This follows the principle of encapsulating
+        // transactional needs within the methods that require them.
+        if (isset($validated['status'])) {
+            $shouldPublish = $validated['status'] === 'published';
+            $shouldPublish ? $landingPage->publish() : $landingPage->unpublish();
+        } elseif (isset($validated['is_published'])) {
+            $validated['is_published'] ? $landingPage->publish() : $landingPage->unpublish();
         }
+        // If neither 'status' nor 'is_published' is provided, publication status remains unchanged
 
         // Invalidate cache
         $this->invalidateCache($resource->id);

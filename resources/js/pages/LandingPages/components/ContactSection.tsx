@@ -23,7 +23,7 @@ interface ContactPerson {
 
 interface ContactSectionProps {
     contactPersons: ContactPerson[];
-    resourceId: number;
+    contactUrl: string;
     datasetTitle: string;
 }
 
@@ -33,7 +33,7 @@ interface ContactSectionProps {
  * Displays contact persons with their affiliations, ORCID links, and website links.
  * Clicking on a contact person opens a modal to send a message without exposing emails.
  */
-export function ContactSection({ contactPersons, resourceId, datasetTitle }: ContactSectionProps) {
+export function ContactSection({ contactPersons, contactUrl, datasetTitle }: ContactSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
 
@@ -155,7 +155,7 @@ export function ContactSection({ contactPersons, resourceId, datasetTitle }: Con
                 onClose={handleCloseModal}
                 selectedPerson={selectedPerson}
                 contactPersons={contactPersons}
-                resourceId={resourceId}
+                contactUrl={contactUrl}
                 datasetTitle={datasetTitle}
             />
         </>

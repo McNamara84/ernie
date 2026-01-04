@@ -6,9 +6,13 @@ use App\Models\Resource;
 use App\Models\User;
 use Illuminate\Support\Facades\Session;
 
+use function Pest\Laravel\withoutVite;
+
 uses()->group('landing-pages', 'preview');
 
 beforeEach(function () {
+    withoutVite();
+
     $this->user = User::factory()->create();
     $this->actingAs($this->user);
 

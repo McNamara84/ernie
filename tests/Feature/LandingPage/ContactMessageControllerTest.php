@@ -16,9 +16,13 @@ uses()->group('landing-pages', 'contact');
 beforeEach(function () {
     Mail::fake();
 
-    $this->resource = Resource::factory()->create();
-    LandingPage::factory()->published()->create([
+    $this->resource = Resource::factory()->create([
+        'doi' => '10.5880/test.contact.001',
+    ]);
+    $this->landingPage = LandingPage::factory()->published()->create([
         'resource_id' => $this->resource->id,
+        'doi_prefix' => '10.5880/test.contact.001',
+        'slug' => 'test-dataset-contact',
     ]);
 
     // Create a contact person (creator with email)
@@ -37,11 +41,14 @@ beforeEach(function () {
         'website' => 'https://example.com/johndoe',
         'position' => 1,
     ]);
+
+    // Contact URL for the landing page
+    $this->contactUrl = "/{$this->landingPage->doi_prefix}/{$this->landingPage->slug}/contact";
 });
 
 describe('Contact Form Validation', function () {
     test('requires sender name', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_email' => 'sender@example.com',
             'message' => 'Test message content here',
             'resource_creator_id' => $this->creator->id,
@@ -52,7 +59,7 @@ describe('Contact Form Validation', function () {
     });
 
     test('requires sender email', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'message' => 'Test message content here',
             'resource_creator_id' => $this->creator->id,
@@ -63,7 +70,7 @@ describe('Contact Form Validation', function () {
     });
 
     test('requires valid email format', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'invalid-email',
             'message' => 'Test message content here',
@@ -75,7 +82,7 @@ describe('Contact Form Validation', function () {
     });
 
     test('requires message with minimum length', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'Short',
@@ -87,7 +94,7 @@ describe('Contact Form Validation', function () {
     });
 
     test('accepts valid contact form submission', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This is a valid test message with sufficient length.',
@@ -104,7 +111,7 @@ describe('Contact Form Validation', function () {
 
 describe('Honeypot Protection', function () {
     test('silently ignores submissions with honeypot field filled', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Bot Sender',
             'sender_email' => 'bot@example.com',
             'message' => 'This is a bot message with honeypot filled.',
@@ -124,7 +131,7 @@ describe('Honeypot Protection', function () {
     });
 
     test('processes submissions with empty honeypot field', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Real Sender',
             'sender_email' => 'real@example.com',
             'message' => 'This is a real message from a human user.',
@@ -144,7 +151,7 @@ describe('Honeypot Protection', function () {
 
 describe('Email Sending', function () {
     test('sends email to single contact person', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This is a test message for a single recipient.',
@@ -177,7 +184,7 @@ describe('Email Sending', function () {
             'position' => 2,
         ]);
 
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This is a test message for all recipients.',
@@ -191,7 +198,7 @@ describe('Email Sending', function () {
     });
 
     test('sends copy to sender when requested', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This is a test message with copy to sender.',
@@ -212,7 +219,7 @@ describe('Email Sending', function () {
     });
 
     test('does not send copy to sender when not requested', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This is a test message without copy to sender.',
@@ -230,7 +237,7 @@ describe('Email Sending', function () {
 describe('Rate Limiting', function () {
     test('allows up to 5 messages per hour from same IP', function () {
         for ($i = 1; $i <= 5; $i++) {
-            $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+            $response = $this->postJson($this->contactUrl, [
                 'sender_name' => "Sender {$i}",
                 'sender_email' => "sender{$i}@example.com",
                 'message' => "This is test message number {$i} from the same IP.",
@@ -258,7 +265,7 @@ describe('Rate Limiting', function () {
         }
 
         // Try to send 6th message
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Sender 6',
             'sender_email' => 'sender6@example.com',
             'message' => 'This is the 6th message and should be blocked.',
@@ -272,7 +279,7 @@ describe('Rate Limiting', function () {
 
 describe('Contact Message Logging', function () {
     test('creates contact message record on successful submission', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This is a test message that should be logged.',
@@ -294,7 +301,7 @@ describe('Contact Message Logging', function () {
     });
 
     test('logs IP address', function () {
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This is a test message with IP logging.',
@@ -313,7 +320,7 @@ describe('Edge Cases', function () {
         // Remove all contact persons
         ResourceCreator::where('resource_id', $this->resource->id)->delete();
 
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This message has no recipients.',
@@ -325,7 +332,7 @@ describe('Edge Cases', function () {
     });
 
     test('returns 404 for non-existent resource', function () {
-        $response = $this->postJson('/datasets/99999/contact', [
+        $response = $this->postJson('/10.5880/nonexistent/nonexistent-slug/contact', [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This message is for a non-existent resource.',
@@ -347,7 +354,7 @@ describe('Edge Cases', function () {
             'position' => 3,
         ]);
 
-        $response = $this->postJson("/datasets/{$this->resource->id}/contact", [
+        $response = $this->postJson($this->contactUrl, [
             'sender_name' => 'Test Sender',
             'sender_email' => 'sender@example.com',
             'message' => 'This message is for an institution contact.',

@@ -7,16 +7,17 @@ use App\Http\Controllers\LandingPagePublicController;
 use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\ResourceController;
+use App\Http\Controllers\TestHelperController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
 use App\Models\ResourceDate;
 use App\Models\Setting;
 use App\Services\OldDatasetEditorLoader;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 Route::get('/health', function () {
@@ -55,15 +56,84 @@ Route::get('/changelog', function () {
 })->name('changelog');
 
 // Public Landing Pages (accessible without authentication)
-Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'show'])
+// ===========================================================
+
+// Landing Pages with DOI (e.g., /10.5880/test.001/my-dataset-title)
+// DOI prefix format: 10.NNNN/suffix where suffix contains valid DOI characters.
+// The regex pattern '10\.[0-9]+/[a-zA-Z0-9._/-]+' is intentionally permissive to
+// accommodate various DOI suffix formats used by different registrants.
+// Valid DOI suffixes can contain alphanumerics, dots, underscores, hyphens, and slashes.
+// Example valid DOIs: 10.5880/GFZ.1.2.2024.001, 10.14470/test-dataset, 10.5880/igets.bu.l1.001
+//
+// Multi-segment DOI handling: Since the pattern allows '/' in the suffix, a DOI like
+// "10.5880/test/with/slashes" is valid. Laravel's route matching is greedy for the
+// doiPrefix parameter, consuming all path segments that match the pattern, leaving
+// only the final segment as the slug. The slug pattern '[a-z0-9-]+' ensures it
+// cannot contain slashes, so the slug is always unambiguous.
+Route::get('{doiPrefix}/{slug}', [LandingPagePublicController::class, 'show'])
     ->name('landing-page.show')
+    ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
+    ->where('slug', '[a-z0-9-]+');
+
+Route::post('{doiPrefix}/{slug}/contact', [ContactMessageController::class, 'store'])
+    ->name('landing-page.contact')
+    ->where('doiPrefix', '10\.[0-9]+/[a-zA-Z0-9._/-]+')
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware('throttle:10,1');
+
+// Landing Pages without DOI (draft mode, e.g., /draft-123/my-dataset-title)
+Route::get('draft-{resourceId}/{slug}', [LandingPagePublicController::class, 'showDraft'])
+    ->name('landing-page.show-draft')
+    ->where('resourceId', '[0-9]+')
+    ->where('slug', '[a-z0-9-]+');
+
+Route::post('draft-{resourceId}/{slug}/contact', [ContactMessageController::class, 'storeDraft'])
+    ->name('landing-page.contact-draft')
+    ->where('resourceId', '[0-9]+')
+    ->where('slug', '[a-z0-9-]+')
+    ->middleware('throttle:10,1');
+
+// Legacy route for backwards compatibility during transition (can be removed later).
+// Returns 404 if landing page doesn't exist - this is intentional because:
+// - Legacy URLs should only redirect if the landing page was actually migrated
+// - Checking for resource existence without landing page would be misleading
+// - Search engines should get 404 for invalid legacy URLs, not false redirects
+Route::get('datasets/{resourceId}', [LandingPagePublicController::class, 'showLegacy'])
+    ->name('landing-page.show-legacy')
     ->where('resourceId', '[0-9]+');
 
-// Contact form for landing pages (public, rate-limited)
-Route::post('datasets/{resourceId}/contact', [ContactMessageController::class, 'store'])
-    ->name('landing-page.contact')
-    ->where('resourceId', '[0-9]+')
-    ->middleware('throttle:10,1'); // Additional Laravel throttle: 10 requests per minute
+/*
+ |--------------------------------------------------------------------------
+ | Test Helper Routes (Local/Testing Environment Only)
+ |--------------------------------------------------------------------------
+ |
+ | These routes are ONLY available when APP_ENV=local or APP_ENV=testing.
+ | They provide helper endpoints for Playwright E2E tests to look up landing
+ | pages by slug without knowing the full semantic URL in advance.
+ |
+ | SECURITY: Multiple layers of protection ensure these routes never run in production:
+ | 1. Route registration check: config('app.env') in ['local', 'testing']
+ | 2. Middleware check: EnsureTestEnvironment middleware (survives route cache)
+ | 3. Runtime check: Additional config('app.env') check inside handler
+ |
+ | Production deployment checklist:
+ | - Verify APP_ENV=production in .env
+ | - Verify APP_DEBUG=false in .env
+ | - Routes should NOT appear in 'php artisan route:list' in production
+ |
+ | @see tests/playwright/helpers/page-objects/LandingPage.ts - goto() method
+ | @see .github/workflows/playwright.yml - sets APP_ENV=testing
+ */
+// Use config() for more robust environment check that survives config caching.
+// app()->environment() can be unreliable if APP_ENV was different when config was cached.
+if (in_array(config('app.env'), ['local', 'testing'], true)) {
+    Route::middleware(['ensure.test-environment', 'throttle:60,1'])->group(function () {
+        // Using a dedicated controller instead of a closure allows route caching
+        // and provides better consistency with the rest of the codebase.
+        Route::get('_test/landing-page-by-slug/{slug}', [TestHelperController::class, 'getLandingPageBySlug'])
+            ->name('test.landing-page-by-slug');
+    });
+}
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('old-datasets', [OldDatasetController::class, 'index'])

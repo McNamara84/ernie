@@ -8,9 +8,9 @@ import { toast } from 'sonner';
 import { DataCiteIcon } from '@/components/icons/datacite-icon';
 import { FileJsonIcon, FileXmlIcon } from '@/components/icons/file-icons';
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
-import { ResourcesFilters } from '@/components/resources-filters';
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 import RegisterDoiModal from '@/components/resources/modals/RegisterDoiModal';
+import { ResourcesFilters } from '@/components/resources-filters';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1216,8 +1216,9 @@ function ResourcesPage({
                                                                             title={
                                                                                 resource.doi ? 'Update DOI metadata' : 'Register DOI with DataCite'
                                                                             }
+                                                                            data-testid="datacite-button"
                                                                         >
-                                                                            <DataCiteIcon aria-hidden="true" className="size-4" />
+                                                                            <DataCiteIcon aria-hidden="true" className="size-4" data-testid="datacite-icon" />
                                                                         </Button>
                                                                     )}
                                                                 </div>

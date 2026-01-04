@@ -48,4 +48,29 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Slug Generator Service
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the SlugGeneratorService that creates URL-friendly
+    | slugs from resource titles.
+    |
+    | enable_iconv: iconv transliteration is DISABLED by default for thread safety.
+    |               setlocale() used by iconv is not thread-safe and can cause
+    |               subtle bugs in multi-threaded PHP environments (Swoole,
+    |               ReactPHP, parallel extensions, PHP-FPM with threads).
+    |
+    |               Only enable if you:
+    |               1. Need transliteration of unusual characters not in TRANSLITERATION_MAP
+    |               2. Are certain your PHP deployment is single-threaded
+    |
+    |               The built-in TRANSLITERATION_MAP handles common characters
+    |               (German umlauts, French accents, Spanish ñ, etc.) without iconv.
+    |
+    */
+    'slug_generator' => [
+        'enable_iconv' => env('SLUG_GENERATOR_ENABLE_ICONV', false),
+    ],
+
 ];

@@ -199,7 +199,11 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
-            await navigator.clipboard.writeText(text);
+            // Ensure we copy a full URL (with origin) for sharing.
+            // If the URL is already absolute (starts with http), use as-is.
+            // Otherwise, prepend the current origin to make it shareable.
+            const fullUrl = text.startsWith('http') ? text : `${window.location.origin}${text}`;
+            await navigator.clipboard.writeText(fullUrl);
             toast.success(`${label} copied to clipboard`);
         } catch (error) {
             console.error('Failed to copy:', error);
@@ -215,8 +219,8 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
 
         // If published, use public URL
-        if (currentConfig && isPublished && resource.id) {
-            window.open(`/datasets/${resource.id}`, '_blank');
+        if (currentConfig && isPublished && currentConfig.public_url) {
+            window.open(currentConfig.public_url, '_blank');
             return;
         }
 
@@ -335,16 +339,16 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                         )}
 
                         {/* Public URL (only if actually published in database) */}
-                        {currentConfig && currentConfig.status === 'published' && resource.id && (
+                        {currentConfig && currentConfig.status === 'published' && currentConfig.public_url && (
                             <div className="space-y-2 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950/30">
                                 <Label className="text-green-900 dark:text-green-100">Public URL</Label>
                                 <div className="flex gap-2">
-                                    <Input readOnly value={`/datasets/${resource.id}`} className="bg-white font-mono text-xs dark:bg-gray-950" />
+                                    <Input readOnly value={currentConfig.public_url} className="bg-white font-mono text-xs dark:bg-gray-950" />
                                     <Button
                                         type="button"
                                         size="icon"
                                         variant="outline"
-                                        onClick={() => copyToClipboard(window.location.origin + `/datasets/${resource.id}`, 'Public URL')}
+                                        onClick={() => copyToClipboard(currentConfig.public_url, 'Public URL')}
                                         title="Copy public URL"
                                     >
                                         <Copy className="size-4" />
