@@ -36,16 +36,17 @@ class ContactMessageController extends Controller
      */
     public function store(Request $request, string $doiPrefix, string $slug): JsonResponse
     {
-        // Find landing page by DOI prefix and slug
-        $landingPage = LandingPage::where('doi_prefix', $doiPrefix)
+        // Find resource ID for this landing page using efficient query.
+        // We use value() to get only the resource_id column, avoiding loading the full model.
+        $resourceId = LandingPage::where('doi_prefix', $doiPrefix)
             ->where('slug', $slug)
-            ->first();
+            ->value('resource_id');
 
-        if ($landingPage === null) {
+        if ($resourceId === null) {
             abort(404, 'Landing page not found');
         }
 
-        return $this->processContactMessage($request, $landingPage->resource_id);
+        return $this->processContactMessage($request, $resourceId);
     }
 
     /**
@@ -54,20 +55,20 @@ class ContactMessageController extends Controller
      */
     public function storeDraft(Request $request, int $resourceId, string $slug): JsonResponse
     {
-        // Find landing page by resource ID and slug (no DOI)
-        $landingPage = LandingPage::where('resource_id', $resourceId)
+        // Validate landing page exists with the given resource ID and slug (no DOI).
+        // We use exists() instead of fetching the model since we already have resourceId
+        // from the route parameter and don't need any other landing page data.
+        $exists = LandingPage::where('resource_id', $resourceId)
             ->whereNull('doi_prefix')
             ->where('slug', $slug)
-            ->first();
+            ->exists();
 
-        if ($landingPage === null) {
+        if (! $exists) {
             abort(404, 'Landing page not found');
         }
 
-        // Use $landingPage->resource_id for consistency with store() method.
-        // While this should always equal $resourceId (from route parameter),
-        // using the model's value ensures consistency if data ever mismatches.
-        return $this->processContactMessage($request, $landingPage->resource_id);
+        // Use the route-provided resourceId directly.
+        return $this->processContactMessage($request, $resourceId);
     }
 
     /**

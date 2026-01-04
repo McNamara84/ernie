@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\LandingPage;
 use App\Models\Resource;
-use App\Services\SlugGeneratorService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,7 +66,7 @@ class LandingPageController extends Controller
      * - Landing page creation and observer hooks (e.g., DOI sync) either all succeed or all fail
      * - Prevents partial state where landing page exists but related operations failed
      */
-    public function store(Request $request, Resource $resource, SlugGeneratorService $slugGenerator): JsonResponse
+    public function store(Request $request, Resource $resource): JsonResponse
     {
         $validated = $request->validate([
             'template' => 'required|string|in:default_gfz,minimal,detailed',
@@ -99,7 +98,7 @@ class LandingPageController extends Controller
         // try to create, causing a constraint violation on resource_id unique index.
         // The try-catch handles both resource_id and slug uniqueness violations.
         try {
-            $landingPage = DB::transaction(function () use ($validated, $resource, $slugGenerator) {
+            $landingPage = DB::transaction(function () use ($validated, $resource) {
                 // Check if landing page already exists - INSIDE transaction
                 // Use lockForUpdate to prevent race conditions with concurrent requests
                 $existingLandingPage = LandingPage::where('resource_id', $resource->id)
@@ -112,17 +111,6 @@ class LandingPageController extends Controller
                     return null;
                 }
 
-                // Load titles for slug generation
-                $resource->load('titles.titleType');
-
-                // Get main title for slug generation
-                $mainTitle = $resource->titles
-                    ->first(fn ($title) => $title->isMainTitle());
-                $titleValue = $mainTitle !== null ? $mainTitle->value : "dataset-{$resource->id}";
-
-                // Generate slug using the SlugGeneratorService
-                $slug = $slugGenerator->generateFromTitle($titleValue);
-
                 // Determine publication status.
                 // API supports both 'status' (preferred) and 'is_published' (legacy) fields.
                 $isPublished = false;
@@ -133,10 +121,10 @@ class LandingPageController extends Controller
                 }
 
                 // Create landing page.
-                // Note: doi_prefix is set automatically in the model's boot() method
-                // from the resource's DOI. We don't set it here to avoid redundancy.
+                // Note: slug and doi_prefix are set automatically in the model's boot() method.
+                // The model will load titles.titleType if needed for slug generation.
+                // We don't set them here to avoid redundancy and ensure single source of truth.
                 return $resource->landingPage()->create([
-                    'slug' => $slug,
                     'template' => $validated['template'],
                     'ftp_url' => $validated['ftp_url'] ?? null,
                     'is_published' => $isPublished,

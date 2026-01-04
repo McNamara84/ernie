@@ -40,20 +40,13 @@ class TestHelperController extends Controller
         // Defense-in-depth: Additional runtime check for test environment.
         // This is the third layer of protection after route registration and middleware.
         //
-        // We use AND logic (both checks must pass) to prevent security bypass scenarios:
-        // - If config cache is stale with APP_ENV=testing but actual env is production,
-        //   the app()->environment() check will fail, blocking access
-        // - If .env is somehow misconfigured but config cache is correct (production),
-        //   the config check will fail, blocking access
-        // Using AND logic is more restrictive and safer than OR logic.
-        $configEnv = config('app.env');
-        $appEnv = app()->environment();
+        // We use config('app.env') for consistency with the route registration and
+        // middleware checks (both also use config('app.env')). This ensures all three
+        // layers use the same source of truth. Using a different check here could
+        // cause legitimate test requests to be blocked if sources are out of sync.
+        $env = config('app.env');
 
-        $configIsTestEnv = in_array($configEnv, ['local', 'testing'], true);
-        $appIsTestEnv = in_array($appEnv, ['local', 'testing'], true);
-
-        // BOTH must be test environments - if either is production, deny access
-        if (! $configIsTestEnv || ! $appIsTestEnv) {
+        if (! in_array($env, ['local', 'testing'], true)) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
