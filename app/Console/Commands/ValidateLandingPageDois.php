@@ -25,14 +25,15 @@ class ValidateLandingPageDois extends Command
      */
     protected $signature = 'landing-pages:validate-dois
                             {--fix : Attempt to fix common DOI format issues}
-                            {--dry-run : Show what would be fixed without making changes}';
+                            {--dry-run : Show what would be fixed without making changes}
+                            {--strict : Exit with error code if any invalid DOIs are found (for CI/deployment)}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Validate DOI formats in landing pages and report invalid entries';
+    protected $description = 'Validate DOI formats in landing pages and report invalid entries. Use --strict for deployment checks.';
 
     /**
      * DOI format pattern matching LandingPagePublicController::validateDoiPrefixFormat()

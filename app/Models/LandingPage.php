@@ -148,6 +148,20 @@ class LandingPage extends Model
                 $landingPage->doi_prefix = $landingPage->getDOIPrefixFromResource();
             }
         });
+
+        // Enforce slug immutability at the model level.
+        // The slug is part of the public URL and must never change after creation
+        // to ensure citation stability and SEO consistency.
+        // See class docblock for rationale on slug immutability.
+        static::updating(function (LandingPage $landingPage): void {
+            if ($landingPage->isDirty('slug')) {
+                throw new \RuntimeException(
+                    'Cannot modify landing page slug after creation. ' .
+                    'Slugs are immutable to ensure URL stability for citations and SEO. ' .
+                    'To change the URL, delete and recreate the landing page.'
+                );
+            }
+        });
     }
 
     /**

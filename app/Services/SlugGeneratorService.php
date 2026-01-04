@@ -164,27 +164,33 @@ class SlugGeneratorService
 
         // Check if iconv extension is available (should always be, but defensive)
         if (! function_exists('iconv')) {
-            \Illuminate\Support\Facades\Log::warning(
-                'SlugGeneratorService: iconv extension not available, using fallback',
-                ['text_length' => mb_strlen($text)]
-            );
-
             return $text;
         }
 
-        // Check if iconv transliteration is disabled via configuration.
-        // This allows operators to disable iconv in threaded PHP environments (Swoole,
-        // ReactPHP, parallel extensions) where setlocale() is not thread-safe.
-        // When disabled, only TRANSLITERATION_MAP is used, which handles most common
-        // characters but may leave some unusual characters untransliterated.
-        // Set SLUG_GENERATOR_DISABLE_ICONV=true in environment to disable.
+        // iconv transliteration is OPT-IN due to thread-safety concerns with setlocale().
+        // setlocale() is not thread-safe and should not be used in multi-threaded PHP
+        // environments (Swoole, ReactPHP, parallel extensions, PHP-FPM with threads).
+        //
+        // By default, only TRANSLITERATION_MAP is used for slug generation, which handles
+        // the most common special characters (German umlauts, French accents, etc.).
+        // This provides consistent, thread-safe slug generation.
+        //
+        // To enable iconv transliteration for edge cases:
+        // Set SLUG_GENERATOR_ENABLE_ICONV=true in environment
+        //
+        // WARNING: Only enable iconv if you're certain your PHP deployment is single-threaded
+        // (traditional PHP-FPM without worker threads) and you need transliteration of
+        // unusual characters not covered by TRANSLITERATION_MAP.
         //
         // Note: We check if the config() helper is available to support unit tests
         // that run without the full Laravel application container.
         if (function_exists('config') && function_exists('app') && app()->bound('config')) {
-            if (config('services.slug_generator.disable_iconv', false)) {
+            if (! config('services.slug_generator.enable_iconv', false)) {
                 return $text;
             }
+        } else {
+            // In unit tests or outside Laravel container, default to disabled (safe default)
+            return $text;
         }
 
         // Use iconv for any remaining non-ASCII characters.

@@ -298,10 +298,11 @@ class LandingPagePublicController extends Controller
             abort(HttpResponse::HTTP_INTERNAL_SERVER_ERROR, 'Internal validation error');
         }
 
-        // Pattern didn't match - DOI format is invalid.
-        // Note: This is defense in depth. The route constraint should catch most cases,
-        // but this protects against route bypasses or constraint configuration errors.
-        if ($pregResult !== 1) {
+        // Pattern didn't match (pregResult === 0) - DOI format is invalid.
+        // Note: preg_match only returns false, 0, or 1. After checking for false above,
+        // a value of 0 means no match. This is defense in depth - the route constraint
+        // should catch most cases, but this protects against route bypasses.
+        if ($pregResult === 0) {
             \Illuminate\Support\Facades\Log::warning(
                 'LandingPagePublicController: Invalid DOI prefix (regex check)',
                 [

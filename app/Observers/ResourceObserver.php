@@ -99,6 +99,14 @@ class ResourceObserver
                     ->first();
 
                 if ($landingPage !== null) {
+                    // Skip update if doi_prefix already matches the new DOI.
+                    // This avoids unnecessary writes and log entries when concurrent
+                    // requests update the same resource's DOI - the second request
+                    // will see the already-updated value and skip the redundant update.
+                    if ($landingPage->doi_prefix === $resource->doi) {
+                        return $landingPage;
+                    }
+
                     if ($landingPage->is_published) {
                         // Log warning for DOI changes on published landing pages.
                         // This helps operators identify potential broken link issues.
