@@ -23,6 +23,12 @@ class LogService
     ];
 
     /**
+     * Maximum log file size to load into memory (50 MB).
+     * Files larger than this will be truncated to the last N bytes.
+     */
+    private const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+    /**
      * Get available log levels.
      *
      * @return array<string>
@@ -89,12 +95,35 @@ class LogService
 
     /**
      * Parse the Laravel log file into structured entries.
+     * Uses streaming approach for large files to limit memory usage.
      *
      * @return array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}>
      */
     private function parseLogFile(string $logPath): array
     {
-        $content = File::get($logPath);
+        $fileSize = File::size($logPath);
+
+        // For very large files, only read the last MAX_FILE_SIZE bytes
+        if ($fileSize > self::MAX_FILE_SIZE) {
+            $handle = fopen($logPath, 'r');
+            if ($handle === false) {
+                return [];
+            }
+
+            // Seek to position near the end
+            fseek($handle, -self::MAX_FILE_SIZE, SEEK_END);
+            // Skip first partial line
+            fgets($handle);
+            $content = fread($handle, self::MAX_FILE_SIZE);
+            fclose($handle);
+
+            if ($content === false) {
+                return [];
+            }
+        } else {
+            $content = File::get($logPath);
+        }
+
         $lines = explode("\n", $content);
         $entries = [];
         $currentEntry = null;
@@ -135,14 +164,26 @@ class LogService
     }
 
     /**
-     * Delete a specific log entry by its timestamp and content.
-     * Note: This is a best-effort operation as log files are append-only by design.
+     * Delete a specific log entry by its line number.
+     * Uses line numbers for precise identification to avoid ambiguity with duplicate timestamps.
+     *
+     * Note: This operation loads the entire file into memory. For very large files (>50MB),
+     * consider using log rotation instead of individual entry deletion.
+     *
+     * @param  int  $lineNumber  The starting line number of the log entry
+     * @param  string  $timestamp  The timestamp for validation (to ensure correct entry)
      */
-    public function deleteLogEntry(string $timestamp, string $content): bool
+    public function deleteLogEntry(int $lineNumber, string $timestamp): bool
     {
         $logPath = storage_path('logs/laravel.log');
 
         if (! File::exists($logPath)) {
+            return false;
+        }
+
+        // Safety check: Don't process very large files for deletion
+        $fileSize = File::size($logPath);
+        if ($fileSize > self::MAX_FILE_SIZE) {
             return false;
         }
 
@@ -151,16 +192,19 @@ class LogService
         $newLines = [];
         $found = false;
         $skipUntilNextEntry = false;
+        $currentLine = 0;
 
         $pattern = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\w+\.\w+:/';
 
         foreach ($lines as $line) {
+            $currentLine++;
+
             // Check if this is a new log entry
             if (preg_match($pattern, $line, $matches)) {
                 $skipUntilNextEntry = false;
 
-                // Check if this is the entry to delete
-                if ($matches[1] === $timestamp && str_contains($line, substr($content, 0, 100))) {
+                // Check if this is the entry to delete by line number AND timestamp
+                if ($currentLine === $lineNumber && $matches[1] === $timestamp) {
                     $found = true;
                     $skipUntilNextEntry = true;
 

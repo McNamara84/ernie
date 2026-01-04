@@ -57,16 +57,16 @@ describe('Log Deletion Access Control', function () {
         // Group Leader should not be able to delete
         $this->actingAs($groupLeader)
             ->delete(route('logs.destroy'), [
+                'line_number' => 1,
                 'timestamp' => '2024-01-01 12:00:00',
-                'content' => 'test',
             ])
             ->assertForbidden();
 
         // Admin should be able to delete (even if entry doesn't exist, it shouldn't return 403)
         $this->actingAs($admin)
             ->delete(route('logs.destroy'), [
+                'line_number' => 1,
                 'timestamp' => '2024-01-01 12:00:00',
-                'content' => 'test',
             ])
             ->assertStatus(404); // Entry not found, but authorized
     });

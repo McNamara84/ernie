@@ -86,14 +86,14 @@ class LogController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
+        $lineNumber = $request->input('line_number');
         $timestamp = $request->input('timestamp');
-        $content = $request->input('content');
 
-        if (! $timestamp || ! $content) {
-            return response()->json(['error' => 'Invalid log entry'], 400);
+        if (! is_numeric($lineNumber) || ! $timestamp) {
+            return response()->json(['error' => 'Invalid log entry: line_number and timestamp required'], 400);
         }
 
-        $deleted = $this->logService->deleteLogEntry($timestamp, $content);
+        $deleted = $this->logService->deleteLogEntry((int) $lineNumber, $timestamp);
 
         if (! $deleted) {
             return response()->json(['error' => 'Log entry not found or could not be deleted'], 404);

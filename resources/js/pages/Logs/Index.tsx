@@ -136,8 +136,8 @@ export default function Index({ logs, pagination, filters, available_levels, can
     const handleDeleteEntry = (entry: LogEntry) => {
         router.delete('/logs/entry', {
             data: {
+                line_number: entry.line_number,
                 timestamp: entry.timestamp,
-                content: entry.message,
             },
             preserveScroll: true,
             onSuccess: () => {

@@ -192,9 +192,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('logs.data');
 
         Route::delete('logs/entry', [\App\Http\Controllers\LogController::class, 'destroy'])
+            ->middleware('can:delete-logs')
             ->name('logs.destroy');
 
         Route::delete('logs/clear', [\App\Http\Controllers\LogController::class, 'clear'])
+            ->middleware('can:delete-logs')
             ->name('logs.clear');
     });
 
@@ -745,7 +747,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('vocabularies.msl-vocabulary-url');
 
     // User Management routes (Admin & Group Leader only)
-    // Uses 'can:manage-users' gate instead of deprecated 'can.manage.users' middleware
+    // Uses 'can:access-administration' gate (replaces deprecated 'can.manage.users' middleware)
     Route::middleware(['can:access-administration'])->prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\UserController::class, 'index'])
             ->name('users.index');
