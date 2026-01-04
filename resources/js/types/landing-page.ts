@@ -42,6 +42,9 @@ export interface LandingPageConfig {
 
     /** Computed: preview URL with token */
     preview_url: string;
+
+    /** Computed: contact form URL */
+    contact_url: string;
 }
 
 /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserRole;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
 use App\Policies\ResourcePolicy;
@@ -142,6 +143,67 @@ describe('ResourcePolicy', function () {
         it('denies beginner from importing from DataCite', function () {
             $user = User::factory()->create(['role' => UserRole::BEGINNER]);
             expect($this->policy->importFromDataCite($user))->toBeFalse();
+        });
+    });
+
+    describe('changeDoi', function () {
+        it('allows DOI change if DOI is not actually changing', function () {
+            $user = User::factory()->create(['role' => UserRole::CURATOR]);
+            $this->resource->doi = '10.5880/test.001';
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/test.001'))->toBeTrue();
+        });
+
+        it('allows DOI change if resource has no landing page', function () {
+            $user = User::factory()->create(['role' => UserRole::CURATOR]);
+            $this->resource->doi = '10.5880/old.001';
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeTrue();
+        });
+
+        it('allows DOI change if landing page is not published', function () {
+            $user = User::factory()->create(['role' => UserRole::CURATOR]);
+            $this->resource->doi = '10.5880/old.001';
+            LandingPage::factory()->withoutDoi()->create([
+                'resource_id' => $this->resource->id,
+                'is_published' => false,
+            ]);
+            $this->resource->refresh();
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeTrue();
+        });
+
+        it('denies curator from changing DOI on published landing page', function () {
+            $user = User::factory()->create(['role' => UserRole::CURATOR]);
+            $this->resource->doi = '10.5880/old.001';
+            LandingPage::factory()->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/old.001',
+                'is_published' => true,
+            ]);
+            $this->resource->refresh();
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeFalse();
+        });
+
+        it('allows admin to change DOI on published landing page', function () {
+            $user = User::factory()->create(['role' => UserRole::ADMIN]);
+            $this->resource->doi = '10.5880/old.001';
+            LandingPage::factory()->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/old.001',
+                'is_published' => true,
+            ]);
+            $this->resource->refresh();
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeTrue();
+        });
+
+        it('denies group leader from changing DOI on published landing page', function () {
+            $user = User::factory()->create(['role' => UserRole::GROUP_LEADER]);
+            $this->resource->doi = '10.5880/old.001';
+            LandingPage::factory()->create([
+                'resource_id' => $this->resource->id,
+                'doi_prefix' => '10.5880/old.001',
+                'is_published' => true,
+            ]);
+            $this->resource->refresh();
+            expect($this->policy->changeDoi($user, $this->resource, '10.5880/new.001'))->toBeFalse();
         });
     });
 });

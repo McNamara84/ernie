@@ -34,8 +34,8 @@ test.describe('DOI Registration Workflow', () => {
         const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
         await expect(resourceRow).toBeVisible();
 
-        // Click DataCite button - wait for it to be ready
-        const dataciteButton = resourceRow.locator('button').nth(2);
+        // Click DataCite button - use data-testid for reliable selection
+        const dataciteButton = resourceRow.locator('[data-testid="datacite-button"]');
         await expect(dataciteButton).toBeVisible();
         await expect(dataciteButton).toBeEnabled();
         await dataciteButton.click();
@@ -114,8 +114,8 @@ test.describe('DOI Registration Workflow', () => {
         const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
         await expect(resourceRow).toBeVisible();
         
-        // Click DataCite button (3rd button in published row)
-        const dataciteButton = resourceRow.locator('button').nth(2);
+        // Click DataCite button - use data-testid for reliable selection
+        const dataciteButton = resourceRow.locator('[data-testid="datacite-button"]');
         await expect(dataciteButton).toBeVisible();
         await expect(dataciteButton).toBeEnabled();
         await dataciteButton.click();
@@ -146,8 +146,8 @@ test.describe('DOI Registration Workflow', () => {
         const resourceRow = page.locator('tbody tr').filter({ hasText: /Published/ }).first();
         await expect(resourceRow).toBeVisible();
         
-        // Click DataCite button (3rd button in published row)
-        const dataciteButton = resourceRow.locator('button').nth(2);
+        // Click DataCite button - use data-testid for reliable selection
+        const dataciteButton = resourceRow.locator('[data-testid="datacite-button"]');
         await expect(dataciteButton).toBeVisible();
         await expect(dataciteButton).toBeEnabled();
         await dataciteButton.click();

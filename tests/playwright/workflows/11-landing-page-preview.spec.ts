@@ -110,10 +110,30 @@ test.describe('Landing Page Preview (Setup Modal)', () => {
         ]);
 
         await previewPage.waitForLoadState('domcontentloaded');
+        // Verify the preview URL format.
         // Depending on environment/config, the preview can open either:
         // - the internal preview route: /resources/{id}/landing-page/preview
-        // - the public landing page in preview mode: /datasets/{id}?preview=...
-        await expect(previewPage).toHaveURL(/\/(resources\/\d+\/landing-page\/preview|datasets\/\d+\?preview)/);
+        // - semantic URL with preview token: /{doi}/{slug}?preview=... or /draft-{id}/{slug}?preview=...
+        //
+        // We use a simplified pattern that validates the general structure without
+        // duplicating the exact regex from route constraints. This reduces maintenance
+        // burden - if route patterns change, this test only needs updating if the
+        // general URL structure changes.
+        const previewUrl = previewPage.url();
+        const previewUrlRegex = new RegExp(
+            // Match: /resources/N/landing-page/preview OR /10.NNNN/path/slug?preview= OR /draft-N/slug?preview=
+            '/(resources/\\d+/landing-page/preview|10\\.\\d+/.+/[a-z0-9-]+\\?preview=|draft-\\d+/[a-z0-9-]+\\?preview=)'
+        );
+        const isValidPreviewUrl = previewUrlRegex.test(previewUrl);
+        expect(
+            isValidPreviewUrl, 
+            `Expected preview URL to match pattern: /resources/{id}/landing-page/preview or /{doi}/{slug}?preview= or /draft-{id}/{slug}?preview=. Got: ${previewUrl}`
+        ).toBeTruthy();
+
+        // For semantic URLs, verify the preview token parameter is actually present
+        if (!previewUrl.includes('/landing-page/preview')) {
+            expect(previewUrl).toContain('?preview=');
+        }
 
         // The default template shows this banner in preview mode
         await expect(previewPage.getByText('Preview Mode')).toBeVisible({ timeout: 15000 });

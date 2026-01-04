@@ -23,7 +23,7 @@ interface ContactModalProps {
     onClose: () => void;
     selectedPerson: ContactPerson | null;
     contactPersons: ContactPerson[];
-    resourceId: number;
+    contactUrl: string;
     datasetTitle: string;
 }
 
@@ -35,7 +35,7 @@ type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
  * Allows users to send messages to contact persons without exposing email addresses.
  * Includes honeypot spam protection.
  */
-export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, resourceId, datasetTitle }: ContactModalProps) {
+export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, contactUrl, datasetTitle }: ContactModalProps) {
     const [formStatus, setFormStatus] = useState<FormStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
 
@@ -86,7 +86,7 @@ export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, 
         setErrorMessage('');
 
         try {
-            const response = await fetch(`/datasets/${resourceId}/contact`, {
+            const response = await fetch(contactUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

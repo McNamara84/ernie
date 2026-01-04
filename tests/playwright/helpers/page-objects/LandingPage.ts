@@ -102,17 +102,103 @@ export class LandingPage {
   }
 
   /**
-   * Navigate to a landing page by slug
+   * Navigate to a landing page using DOI and slug (semantic URL)
+   * Format: /{doiPrefix}/{slug}
+   * Example: /10.5880/gfz.test.001/my-dataset-title
    */
-  async goto(slug: string) {
-    await this.page.goto(`/landing/${slug}`);
+  async gotoByDoiAndSlug(doiPrefix: string, slug: string) {
+    await this.page.goto(`/${doiPrefix}/${slug}`);
   }
 
   /**
-   * Navigate to a landing page by resource ID
+   * Navigate to a draft landing page (without DOI)
+   * Format: /draft-{resourceId}/{slug}
+   */
+  async gotoDraft(resourceId: number, slug: string) {
+    await this.page.goto(`/draft-${resourceId}/${slug}`);
+  }
+
+  /**
+   * Navigate to a landing page by resource ID using the legacy URL.
+   * This will follow the 301 redirect to the new semantic URL.
+   * @deprecated Use gotoByDoiAndSlug() for new tests
    */
   async gotoByResourceId(resourceId: number) {
     await this.page.goto(`/datasets/${resourceId}`);
+  }
+
+  /**
+   * Navigate to a landing page by its slug.
+   * Uses the test helper API to look up the correct semantic URL.
+   * This is the recommended method for tests using seeded data.
+   *
+   * @throws Error if landing page not found or test helper API unavailable
+   * @requires APP_ENV=local or APP_ENV=testing for the test helper API to be available
+   */
+  async goto(slug: string) {
+    // Use the test helper API to get the landing page URL by slug
+    const response = await this.page.request.get(`/_test/landing-page-by-slug/${slug}`);
+
+    if (!response.ok()) {
+      const status = response.status();
+      let hint: string;
+
+      switch (status) {
+        case 404:
+          hint = 'Make sure test data is seeded (run: php artisan db:seed --class=PlaywrightTestSeeder)';
+          break;
+        case 403:
+          hint = 'Access forbidden - check authentication or route middleware configuration';
+          break;
+        case 422:
+          hint = 'Validation error - the slug format may be invalid';
+          break;
+        case 500:
+        case 502:
+        case 503:
+          hint = 'Server error - check Laravel logs (storage/logs/laravel.log) for details';
+          break;
+        default:
+          hint = `Unexpected HTTP ${status}. Check if APP_ENV is set to "local" or "testing" - the /_test/ routes are only available in dev/test environments. Also verify the Laravel server is running.`;
+      }
+
+      throw new Error(
+        `Failed to load landing page with slug "${slug}" (HTTP ${status}). ${hint}`
+      );
+    }
+
+    // Parse JSON response with error handling for malformed responses
+    let data: { public_url: string };
+    try {
+      data = await response.json();
+    } catch {
+      const responseText = await response.text().catch(() => '<unable to read response body>');
+      throw new Error(
+        `Failed to parse JSON response from test helper API for slug "${slug}". ` +
+        `The server returned a 200 OK but the response was not valid JSON. ` +
+        `This may indicate a server-side error or misconfiguration. ` +
+        `Response body (truncated): ${responseText.substring(0, 200)}`
+      );
+    }
+
+    if (!data.public_url) {
+      throw new Error(
+        `Test helper API returned invalid data for slug "${slug}": missing public_url field. ` +
+        `Response: ${JSON.stringify(data)}`
+      );
+    }
+
+    // Validate that public_url is a valid relative URL path.
+    // Expected formats: /10.5880/suffix/slug or /draft-123/slug
+    // This prevents navigation errors from malformed API responses.
+    if (!data.public_url.startsWith('/') || data.public_url.includes('://')) {
+      throw new Error(
+        `Test helper API returned invalid public_url for slug "${slug}": ` +
+        `expected a relative path starting with '/', got: "${data.public_url}"`
+      );
+    }
+
+    await this.page.goto(data.public_url);
   }
 
   /**

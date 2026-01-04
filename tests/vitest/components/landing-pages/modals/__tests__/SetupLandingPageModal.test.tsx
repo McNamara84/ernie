@@ -57,12 +57,14 @@ describe('SetupLandingPageModal', () => {
         template: 'default_gfz',
         ftp_url: 'https://datapub.gfz-potsdam.de/download/test-data',
         status: 'published',
-        preview_token: 'preview-token-123',
+        // Preview tokens are 64-character hex strings (32 bytes from random_bytes)
+        preview_token: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', // ggignore
         view_count: 42,
         created_at: '2025-01-01T00:00:00Z',
         updated_at: '2025-01-02T00:00:00Z',
-        public_url: 'http://localhost/datasets/123',
-        preview_url: 'http://localhost/datasets/123?preview=preview-token-123',
+        public_url: 'http://localhost/10.5880/GFZ.TEST.2025.001/test-resource-title',
+        preview_url: 'http://localhost/10.5880/GFZ.TEST.2025.001/test-resource-title?preview=a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
+        contact_url: 'http://localhost/10.5880/GFZ.TEST.2025.001/test-resource-title/contact',
     };
 
     const mockOnClose = vi.fn();
@@ -351,8 +353,9 @@ describe('SetupLandingPageModal', () => {
                 // Check for the label
                 expect(screen.getByText(/Preview URL/i)).toBeInTheDocument();
                 // Check that the URL input field exists and contains the preview URL
+                // Preview tokens are 64-character hex strings, validate format not specific value
                 const urlInputs = screen.getAllByDisplayValue(
-                    new RegExp(`/datasets/${mockResource.id}\\?preview=`),
+                    new RegExp(`\\?preview=[a-f0-9]{64}`),
                 );
                 expect(urlInputs.length).toBeGreaterThan(0);
             });
@@ -372,9 +375,9 @@ describe('SetupLandingPageModal', () => {
             await waitFor(() => {
                 // Check for the label
                 expect(screen.getByText(/Public URL/i)).toBeInTheDocument();
-                // Check that the URL input field exists
+                // Check that the URL input field exists with semantic URL (DOI-based)
                 const urlInput = screen.getByDisplayValue(
-                    new RegExp(`/datasets/${mockResource.id}`),
+                    new RegExp(`10\\.5880/GFZ\\.TEST\\.2025\\.001/test-resource-title`),
                 );
                 expect(urlInput).toBeInTheDocument();
             });
@@ -415,10 +418,10 @@ describe('SetupLandingPageModal', () => {
             // Small delay to allow async operations
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Verify clipboard was called with the preview URL
+            // Verify clipboard was called with the preview URL containing a valid token format
             expect(writeTextSpy).toHaveBeenCalledTimes(1);
             expect(writeTextSpy).toHaveBeenCalledWith(
-                expect.stringContaining('preview=preview-token-123')
+                expect.stringMatching(/preview=[a-f0-9]{64}/)
             );
 
             writeTextSpy.mockRestore();
@@ -484,8 +487,9 @@ describe('SetupLandingPageModal', () => {
             expect(previewButton).toBeDefined();
             await user.click(previewButton!);
 
+            // Should open the preview_url from the config (semantic URL with preview token)
             expect(mockOpen).toHaveBeenCalledWith(
-                expect.stringContaining(`/datasets/${mockResource.id}`),
+                expect.stringContaining('10.5880/GFZ.TEST.2025.001/test-resource-title'),
                 '_blank',
             );
 

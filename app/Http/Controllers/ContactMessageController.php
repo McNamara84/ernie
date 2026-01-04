@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\ContactPersonMessage;
 use App\Models\ContactMessage;
+use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use Illuminate\Http\JsonResponse;
@@ -30,9 +31,50 @@ class ContactMessageController extends Controller
     private const RATE_LIMIT_MINUTES = 60;
 
     /**
-     * Store a new contact message and send emails.
+     * Store a new contact message from a landing page with DOI.
+     * Route: POST /{doiPrefix}/{slug}/contact
      */
-    public function store(Request $request, int $resourceId): JsonResponse
+    public function store(Request $request, string $doiPrefix, string $slug): JsonResponse
+    {
+        // Find resource ID for this landing page using efficient query.
+        // We use value() to get only the resource_id column, avoiding loading the full model.
+        $resourceId = LandingPage::where('doi_prefix', $doiPrefix)
+            ->where('slug', $slug)
+            ->value('resource_id');
+
+        if ($resourceId === null) {
+            abort(404, 'Landing page not found');
+        }
+
+        return $this->processContactMessage($request, $resourceId);
+    }
+
+    /**
+     * Store a new contact message from a draft landing page (without DOI).
+     * Route: POST /draft-{resourceId}/{slug}/contact
+     */
+    public function storeDraft(Request $request, int $resourceId, string $slug): JsonResponse
+    {
+        // Validate landing page exists with the given resource ID and slug (no DOI).
+        // We use exists() instead of fetching the model since we already have resourceId
+        // from the route parameter and don't need any other landing page data.
+        $exists = LandingPage::where('resource_id', $resourceId)
+            ->whereNull('doi_prefix')
+            ->where('slug', $slug)
+            ->exists();
+
+        if (! $exists) {
+            abort(404, 'Landing page not found');
+        }
+
+        // Use the route-provided resourceId directly.
+        return $this->processContactMessage($request, $resourceId);
+    }
+
+    /**
+     * Process the contact message (shared logic).
+     */
+    private function processContactMessage(Request $request, int $resourceId): JsonResponse
     {
         // Check honeypot field (should be empty)
         if ($request->filled('website_url')) {

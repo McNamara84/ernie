@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Kernel as ConsoleKernel;
+use App\Http\Middleware\EnsureTestEnvironment;
 use App\Http\Middleware\EnsureUserCanManageUsers;
 use App\Http\Middleware\EnsureValidElmoApiKey;
 use App\Http\Middleware\HandleAppearance;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'elmo.api-key' => EnsureValidElmoApiKey::class,
             'can.manage.users' => EnsureUserCanManageUsers::class,
+            'ensure.test-environment' => EnsureTestEnvironment::class,
         ]);
 
         // CSRF token validation - using standard Laravel middleware

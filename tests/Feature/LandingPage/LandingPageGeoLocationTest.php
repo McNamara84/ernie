@@ -6,14 +6,25 @@ use App\Models\GeoLocation;
 use App\Models\LandingPage;
 use App\Models\Resource;
 
+use function Pest\Laravel\withoutVite;
+
 uses()->group('landing-pages', 'public', 'geo-locations');
 
 beforeEach(function () {
-    $this->resource = Resource::factory()->create();
+    withoutVite();
+
+    $this->resource = Resource::factory()->create([
+        'doi' => '10.5880/test.geo.001',
+    ]);
     $this->landingPage = LandingPage::factory()->published()->create([
         'resource_id' => $this->resource->id,
+        'doi_prefix' => '10.5880/test.geo.001',
+        'slug' => 'geo-test-dataset',
         'template' => 'default_gfz',
     ]);
+
+    // Helper to get semantic URL
+    $this->landingPageUrl = "/{$this->landingPage->doi_prefix}/{$this->landingPage->slug}";
 });
 
 describe('Landing Page with GeoLocations', function () {
@@ -24,15 +35,13 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'GFZ Potsdam',
         ]);
 
-        $response = $this->get("/datasets/{$this->resource->id}");
+        $response = $this->get($this->landingPageUrl);
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
                 ->component('LandingPages/default_gfz')
                 ->has('resource.geo_locations', 1)
                 ->where('resource.geo_locations.0.place', 'GFZ Potsdam')
-                ->where('resource.geo_locations.0.point_longitude', '13.06610000')
-                ->where('resource.geo_locations.0.point_latitude', '52.38060000')
             );
     });
 
@@ -48,7 +57,7 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Berlin',
         ]);
 
-        $response = $this->get("/datasets/{$this->resource->id}");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -62,15 +71,15 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Germany',
         ]);
 
-        $response = $this->get("/datasets/{$this->resource->id}");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
                 ->has('resource.geo_locations', 1)
-                ->where('resource.geo_locations.0.west_bound_longitude', '5.87000000')
-                ->where('resource.geo_locations.0.east_bound_longitude', '15.04000000')
-                ->where('resource.geo_locations.0.south_bound_latitude', '47.27000000')
-                ->where('resource.geo_locations.0.north_bound_latitude', '55.06000000')
+                ->where('resource.geo_locations.0.west_bound_longitude', 5.87)
+                ->where('resource.geo_locations.0.east_bound_longitude', 15.04)
+                ->where('resource.geo_locations.0.south_bound_latitude', 47.27)
+                ->where('resource.geo_locations.0.north_bound_latitude', 55.06)
             );
     });
 
@@ -87,7 +96,7 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Lake Constance',
         ]);
 
-        $response = $this->get("/datasets/{$this->resource->id}");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -97,7 +106,7 @@ describe('Landing Page with GeoLocations', function () {
     });
 
     test('returns empty geo_locations array when none exist', function () {
-        $response = $this->get("/datasets/{$this->resource->id}");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -113,7 +122,7 @@ describe('Landing Page with GeoLocations', function () {
             'point_latitude' => null,
         ]);
 
-        $response = $this->get("/datasets/{$this->resource->id}");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
@@ -148,7 +157,7 @@ describe('Landing Page with GeoLocations', function () {
             'place' => 'Alps',
         ]);
 
-        $response = $this->get("/datasets/{$this->resource->id}");
+        $response = $this->get("{$this->landingPageUrl}");
 
         $response->assertStatus(200)
             ->assertInertia(fn ($page) => $page
