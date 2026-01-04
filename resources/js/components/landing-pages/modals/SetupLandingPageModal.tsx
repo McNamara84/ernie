@@ -199,7 +199,11 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
     const copyToClipboard = async (text: string, label: string) => {
         try {
-            await navigator.clipboard.writeText(text);
+            // Ensure we copy a full URL (with origin) for sharing.
+            // If the URL is already absolute (starts with http), use as-is.
+            // Otherwise, prepend the current origin to make it shareable.
+            const fullUrl = text.startsWith('http') ? text : `${window.location.origin}${text}`;
+            await navigator.clipboard.writeText(fullUrl);
             toast.success(`${label} copied to clipboard`);
         } catch (error) {
             console.error('Failed to copy:', error);

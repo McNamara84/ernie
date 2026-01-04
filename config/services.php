@@ -48,4 +48,22 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Slug Generator Service
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for the SlugGeneratorService that creates URL-friendly
+    | slugs from resource titles.
+    |
+    | disable_iconv: Set to true in multi-threaded PHP environments (Swoole,
+    |                ReactPHP, parallel extensions) where setlocale() is not
+    |                thread-safe. When disabled, only the built-in character
+    |                map is used for transliteration.
+    |
+    */
+    'slug_generator' => [
+        'disable_iconv' => env('SLUG_GENERATOR_DISABLE_ICONV', false),
+    ],
+
 ];

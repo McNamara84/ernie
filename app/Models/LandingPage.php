@@ -175,14 +175,16 @@ class LandingPage extends Model
             ? $this->resource
             : Resource::find($this->resource_id);
 
-        // If resource not found, return a unique fallback slug.
-        // Use Str::uuid() instead of uniqid() for better uniqueness guarantees
-        // across concurrent processes. This edge case (landing page without resource)
-        // should be rare but we handle it defensively to prevent database errors.
+        // If resource not found, throw an exception.
+        // A landing page without a valid resource is invalid data - the foreign key
+        // constraint on landing_pages.resource_id enforces this at the database level.
+        // Throwing here provides a clear error message rather than silently creating
+        // orphaned data that would fail on database insert anyway.
         if (! $resource) {
-            $uniqueSuffix = $this->resource_id ?? Str::uuid()->toString();
-
-            return "dataset-{$uniqueSuffix}";
+            throw new \InvalidArgumentException(
+                "Cannot generate slug: Resource with ID {$this->resource_id} not found. " .
+                'A landing page must be associated with a valid resource.'
+            );
         }
 
         // Load titles with titleType relationship if not already loaded.

@@ -174,8 +174,10 @@ describe('SlugGeneratorService', function () {
             $title = 'Borehole Data 52.5°N 13.4°E Berlin';
             $slug = $this->service->generateFromTitle($title);
 
-            // Core assertion: slug is URL-safe and contains coordinate digits
-            expect($slug)->toMatch('/^borehole-data-52.*n-13.*e-berlin$/');
+            // Core assertion: slug contains coordinate structure with only valid chars between.
+            // Pattern allows only digits between coordinate components (no arbitrary chars).
+            // The degree symbol may become '0', '5', or be stripped depending on locale.
+            expect($slug)->toMatch('/^borehole-data-52[0-9]*-?5?-?n-13[0-9]*-?4?-?e-berlin$/');
             // Verify no invalid characters
             expect($slug)->toMatch('/^[a-z0-9-]+$/');
         });

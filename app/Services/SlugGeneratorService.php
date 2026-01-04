@@ -172,6 +172,21 @@ class SlugGeneratorService
             return $text;
         }
 
+        // Check if iconv transliteration is disabled via configuration.
+        // This allows operators to disable iconv in threaded PHP environments (Swoole,
+        // ReactPHP, parallel extensions) where setlocale() is not thread-safe.
+        // When disabled, only TRANSLITERATION_MAP is used, which handles most common
+        // characters but may leave some unusual characters untransliterated.
+        // Set SLUG_GENERATOR_DISABLE_ICONV=true in environment to disable.
+        //
+        // Note: We check if the config() helper is available to support unit tests
+        // that run without the full Laravel application container.
+        if (function_exists('config') && function_exists('app') && app()->bound('config')) {
+            if (config('services.slug_generator.disable_iconv', false)) {
+                return $text;
+            }
+        }
+
         // Use iconv for any remaining non-ASCII characters.
         // TRANSLIT attempts to transliterate, //IGNORE removes untranslatable chars.
         //

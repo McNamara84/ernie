@@ -78,10 +78,11 @@ class ResourceObserver
                 // Fetch with row-level lock to prevent concurrent updates.
                 // This SELECT ... FOR UPDATE blocks other transactions trying to read
                 // the same row until this transaction commits or rolls back.
-                // IMPORTANT: The select must include 'is_published' because we check it below
-                // to determine whether to log a warning about DOI changes on published pages.
+                //
+                // Note: We lock the entire row (no select()) to ensure all columns are
+                // available during the locked operation. This prevents issues if the model
+                // accesses other attributes during save() (e.g., timestamps, observers).
                 $landingPage = $resource->landingPage()
-                    ->select(['id', 'resource_id', 'doi_prefix', 'slug', 'is_published'])
                     ->lockForUpdate()
                     ->first();
 

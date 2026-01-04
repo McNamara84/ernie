@@ -87,6 +87,30 @@ class LandingPagePublicController extends Controller
 
         abort_if($landingPage === null, HttpResponse::HTTP_NOT_FOUND, 'Landing page not found');
 
+        // Data consistency check: Verify the landing page's resource has the matching DOI.
+        // This catches cases where database data is inconsistent (e.g., landing page has
+        // doi_prefix='10.5880/A' but resource.doi='10.5880/B'). Such inconsistency would
+        // mean the landing page is accessible via an incorrect DOI path.
+        // We load only the doi column to minimize query overhead.
+        //
+        // Note: We only log this as an error for monitoring, but still serve the page.
+        // The landing_page.doi_prefix is the source of truth for URL routing.
+        // In production, this helps detect sync issues between resources and landing pages.
+        $resourceDoi = $landingPage->resource()->value('doi');
+        if ($resourceDoi !== null && $resourceDoi !== $doiPrefix) {
+            \Illuminate\Support\Facades\Log::error(
+                'LandingPagePublicController: DOI mismatch between landing page and resource',
+                [
+                    'landing_page_id' => $landingPage->id,
+                    'landing_page_doi_prefix' => $doiPrefix,
+                    'resource_doi' => $resourceDoi,
+                ]
+            );
+            // Note: We continue serving the page using landing_page.doi_prefix as the
+            // canonical source. The ResourceObserver should keep these in sync, but
+            // if they drift, we prioritize availability over strict consistency.
+        }
+
         return $this->renderLandingPage($landingPage, $transformer, $previewToken);
     }
 

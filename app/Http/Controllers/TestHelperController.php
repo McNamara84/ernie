@@ -37,9 +37,20 @@ class TestHelperController extends Controller
      */
     public function getLandingPageBySlug(string $slug): JsonResponse
     {
-        // Defense-in-depth: Additional runtime check using config() for consistency.
+        // Defense-in-depth: Additional runtime check for test environment.
         // This is the third layer of protection after route registration and middleware.
-        if (! in_array(config('app.env'), ['local', 'testing'], true)) {
+        //
+        // We check BOTH config('app.env') AND app()->environment() because:
+        // - config('app.env') uses cached configuration (may be stale if cache created with different APP_ENV)
+        // - app()->environment() reads directly from .env or environment variable
+        // Using both ensures we catch cases where config cache is stale.
+        $configEnv = config('app.env');
+        $appEnv = app()->environment();
+
+        $isTestEnv = in_array($configEnv, ['local', 'testing'], true)
+            || in_array($appEnv, ['local', 'testing'], true);
+
+        if (! $isTestEnv) {
             abort(Response::HTTP_NOT_FOUND);
         }
 

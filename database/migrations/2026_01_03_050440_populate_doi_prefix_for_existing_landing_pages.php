@@ -47,8 +47,11 @@ return new class extends Migration
 
         foreach ($malformedDois as $row) {
             if (!preg_match(self::DOI_PATTERN, $row->doi)) {
-                Log::warning(
-                    'DataMigration: Resource has malformed DOI that will be migrated as-is',
+                // Log as INFO (not warning) since this is informational only.
+                // The DOI will be migrated successfully - we're just noting the non-standard format
+                // for operators who may want to review/correct these DOIs later.
+                Log::info(
+                    'DataMigration: Non-standard DOI format detected (will be migrated as-is)',
                     ['resource_id' => $row->id, 'doi' => $row->doi]
                 );
             }
