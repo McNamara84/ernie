@@ -164,7 +164,6 @@ export default function Index({ logs, pagination, filters, available_levels, can
     const handleRefresh = () => {
         setIsLoading(true);
         router.reload({
-            preserveScroll: true,
             onFinish: () => setIsLoading(false),
         });
     };
