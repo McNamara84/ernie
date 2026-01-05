@@ -53,14 +53,20 @@ const PERFORMANCE = {
 /**
  * Test data constants derived from XML test files.
  * These should match values in datacite-example-dataset-v4.xml.
+ * See: tests/pest/dataset-examples/datacite-example-dataset-v4.xml
  */
 const TEST_XML_DATA = {
-    /** Publication year from test XML file */
+    /** Publication year from <publicationYear>2022</publicationYear> */
     PUBLICATION_YEAR: '2022',
-    /** Expected latitude from geoLocationPoint */
+    /** Expected latitude from <pointLatitude>51.50872</pointLatitude> */
     LATITUDE_PREFIX: '51',
-    /** Expected longitude from geoLocationPoint */
+    /** Expected longitude from <pointLongitude>-0.12841</pointLongitude> */
     LONGITUDE_PREFIX: '-0.12',
+    /** 
+     * Number of geoLocation entries in test XML.
+     * The XML has exactly one <geoLocation> with geoLocationPlace and geoLocationPoint.
+     */
+    COVERAGE_ENTRY_COUNT: 1,
 } as const;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -204,18 +210,12 @@ test.describe('Bug #2: XML Upload - License and Date Issues', () => {
         // Wait for dashboard to be fully loaded
         await page.waitForLoadState('networkidle');
         
-        // Check if dropzone exists before checking visibility
+        // Check if dropzone exists and is visible
         const dropzoneLocator = page.locator('text=Dropzone for XML files');
         const dropzoneCount = await dropzoneLocator.count();
         
-        if (dropzoneCount === 0) {
-            test.skip(true, 'Dashboard dropzone not present - skipping XML upload test');
-            return;
-        }
-        
-        const dropzoneVisible = await dropzoneLocator.isVisible();
-        if (!dropzoneVisible) {
-            test.skip(true, 'Dashboard dropzone not visible - skipping XML upload test');
+        if (dropzoneCount === 0 || !(await dropzoneLocator.isVisible())) {
+            test.skip(true, 'Dashboard dropzone not present or not visible - skipping XML upload test');
             return;
         }
 
@@ -225,8 +225,10 @@ test.describe('Bug #2: XML Upload - License and Date Issues', () => {
         // Set files and wait for navigation
         await fileInput.setInputFiles(xmlFilePath);
 
-        // Wait for redirect to editor - use longer timeout for CI environments
-        // This validates the full XML upload flow, not just the PHP parsing (tested separately)
+        // Extended timeout (60s) for CI environments where XML processing, session storage,
+        // and Inertia navigation can be slower due to container resource constraints.
+        // Local runs typically complete in <5s. If this timeout is hit consistently,
+        // investigate Docker container resources or database connection pooling.
         await page.waitForURL(/\/editor/, { timeout: TIMEOUTS.NAVIGATION * 2 });
         await page.waitForLoadState('networkidle');
 
@@ -571,15 +573,15 @@ test.describe('Bug #4: Extra Empty Coverage Entry on Load', () => {
         const coverageEntryHeaders = page.getByText(/Coverage Entry #\d+/i);
         const entryCount = await coverageEntryHeaders.count();
 
-        // BUG ASSERTION: Should have exactly 1 coverage entry, not 2
-        // The XML has one geoLocation, so we should see one entry.
+        // BUG ASSERTION: Should have exactly the expected number of coverage entries.
+        // See TEST_XML_DATA.COVERAGE_ENTRY_COUNT for the expected count from XML.
         // If we see 0, the section may not be expanded or UI differs.
-        // If we see 2+, an empty entry was incorrectly added (the bug).
+        // If we see more than expected, an empty entry was incorrectly added (the bug).
         if (entryCount === 0) {
             test.skip(true, 'No coverage entries visible - UI may differ');
             return;
         }
-        expect(entryCount).toBe(1);
+        expect(entryCount).toBe(TEST_XML_DATA.COVERAGE_ENTRY_COUNT);
         
         // Verify the entry has the expected values
         const latInput = page.locator('#lat-min').first();

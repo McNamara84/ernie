@@ -98,10 +98,9 @@ export default function DescriptionField({
         [descriptionValuesMap],
     );
 
-    // Stable callback that doesn't capture stale descriptions reference.
-    // We use descriptions.findIndex directly since the callback needs current state anyway,
-    // but the performance impact is minimal because React batches updates and the callback
-    // itself is lightweight. The main optimization comes from the memoized Map lookups.
+    // This callback must reference `descriptions` directly since onChange triggers a re-render
+    // that updates the descriptions array. Using a stale closure would cause data loss.
+    // The callback itself is lightweight (findIndex + spread), so recreation is acceptable.
     const handleDescriptionChange = useCallback(
         (type: DescriptionType, value: string) => {
             const existingIndex = descriptions.findIndex((d) => d.type === type);
@@ -120,11 +119,8 @@ export default function DescriptionField({
     );
 
     // Memoize content checks to avoid recalculating on every render.
-    // Uses descriptionValuesMap to avoid duplicating the Map lookup logic that
-    // getDescriptionValue also needs. Using a Map provides type safety without assertions.
-    // Note: Optional chaining (?.) is used defensively in consumers even though this
-    // Map is populated for all DESCRIPTION_TYPES. This guards against future changes
-    // to DESCRIPTION_TYPES and makes the code more resilient to refactoring.
+    // Uses descriptionValuesMap to avoid duplicating the Map lookup logic.
+    // Optional chaining (?.) with fallback (?? 0) handles edge cases gracefully.
     const contentStatus = useMemo(() => {
         const status = new Map<DescriptionType, { hasContent: boolean; charCount: number }>();
         for (const type of DESCRIPTION_TYPES) {

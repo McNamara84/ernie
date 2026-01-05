@@ -895,10 +895,12 @@ export default function DataCiteForm({
     ];
 
     // Abstract (Description) validation rules
-    // Using debounce to prevent performance issues with large text fields
+    // Debounce prevents performance issues: validateRequired and validateTextLength are fast,
+    // but frequent re-renders during rapid typing can cause lag. 300ms balances responsiveness
+    // with preventing excessive validation calls during continuous typing.
     const abstractValidationRules: ValidationRule[] = [
         {
-            debounce: 300, // Wait 300ms after user stops typing before validating
+            debounce: 300,
             validate: (value) => {
                 const text = String(value || '');
 

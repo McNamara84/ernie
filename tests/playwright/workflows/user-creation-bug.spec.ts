@@ -56,12 +56,11 @@ test.describe('Bug #4: User Creation 500 Error', () => {
 
         // Track 500 errors with a boolean flag
         let received500Error = false;
-        let error500Url = '';
         
         page.on('response', (response) => {
             if (response.status() === 500) {
                 received500Error = true;
-                error500Url = response.url();
+                console.error(`500 error on: ${response.url()}`);
             }
         });
 
@@ -122,9 +121,6 @@ test.describe('Bug #4: User Creation 500 Error', () => {
         
         // Final assertion: no 500 errors should have occurred
         expect(received500Error).toBe(false);
-        if (received500Error) {
-            console.error(`500 error occurred on: ${error500Url}`);
-        }
     });
 
     test('Create user request returns proper response (not 500)', async ({ page }) => {

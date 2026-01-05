@@ -85,8 +85,9 @@ class UserController extends Controller
 
         // Send password reset email with exception handling.
         // This prevents mail server configuration issues from causing 500 errors.
-        // Note: InvalidArgumentException from malformed emails is unlikely here since
-        // the email is already validated by StoreUserRequest before reaching this point.
+        // Note: InvalidArgumentException (malformed email) is already prevented by
+        // StoreUserRequest validation. If it somehow occurred, it would be caught
+        // by the generic \Exception handler below and logged appropriately.
         try {
             $status = Password::sendResetLink([
                 'email' => $user->email,
