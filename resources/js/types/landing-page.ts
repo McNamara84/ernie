@@ -109,9 +109,18 @@ export interface LandingPageDescription {
  */
 export interface LandingPageLicense {
     id: number;
-    rights: string;
-    rights_uri: string | null;
-    rights_identifier: string | null;
+    /** Display name of the license */
+    name: string;
+    /** SPDX identifier (e.g., 'CC-BY-4.0') */
+    spdx_id: string;
+    /** URL to license text */
+    reference: string;
+    /** Legacy: license name */
+    rights?: string;
+    /** Legacy: license URI */
+    rights_uri?: string | null;
+    /** Legacy: license identifier */
+    rights_identifier?: string | null;
 }
 
 /**
@@ -119,10 +128,18 @@ export interface LandingPageLicense {
  */
 export interface LandingPageRelatedIdentifier {
     id: number;
-    value: string;
-    related_identifier_type: string;
+    /** The identifier value (e.g., DOI URL) */
+    identifier: string;
+    /** Identifier type (e.g., 'DOI', 'URL') */
+    identifier_type: string;
+    /** Relation type (e.g., 'IsSupplementTo', 'References') */
     relation_type: string;
+    /** General resource type (e.g., 'Dataset', 'Text') */
     resource_type_general?: string | null;
+    /** Legacy: identifier value */
+    value?: string;
+    /** Legacy: related identifier type */
+    related_identifier_type?: string;
 }
 
 /**
@@ -174,9 +191,28 @@ export interface LandingPageGeoLocationBox {
  */
 export interface LandingPageGeoLocation {
     id: number;
-    geo_location_place: string | null;
-    geo_location_point: LandingPageGeoLocationPoint | null;
-    geo_location_box: LandingPageGeoLocationBox | null;
+    /** Place name description */
+    place: string | null;
+    /** Legacy: place name */
+    geo_location_place?: string | null;
+    /** Point: longitude coordinate */
+    point_longitude: number | null;
+    /** Point: latitude coordinate */
+    point_latitude: number | null;
+    /** Legacy: point as nested object */
+    geo_location_point?: LandingPageGeoLocationPoint | null;
+    /** Box: western boundary */
+    west_bound_longitude: number | null;
+    /** Box: eastern boundary */
+    east_bound_longitude: number | null;
+    /** Box: southern boundary */
+    south_bound_latitude: number | null;
+    /** Box: northern boundary */
+    north_bound_latitude: number | null;
+    /** Legacy: box as nested object */
+    geo_location_box?: LandingPageGeoLocationBox | null;
+    /** Polygon points for complex boundaries */
+    polygon_points: Array<{ longitude: number; latitude: number }> | null;
 }
 
 /**
@@ -193,30 +229,51 @@ export interface LandingPageResourceType {
  */
 export interface LandingPageContactPerson {
     id: number;
+    /** Full name */
     name: string;
+    /** Given (first) name */
+    given_name: string | null;
+    /** Family (last) name */
+    family_name: string | null;
+    /** Person type (e.g., 'ContactPerson') */
+    type: string;
+    /** Affiliations */
+    affiliations: Array<{
+        name: string;
+        identifier: string | null;
+        scheme: string | null;
+    }>;
+    /** ORCID identifier */
+    orcid: string | null;
+    /** Personal/institutional website */
+    website: string | null;
+    /** Whether email is available (for contact form) */
+    has_email: boolean;
+    /** Email address (only when exposed by backend) */
     email?: string;
-    affiliations?: LandingPageAffiliation[];
 }
 
 /**
  * Complete resource data as passed to landing page templates
+ *
+ * Arrays are optional to support partial data from backend
  */
 export interface LandingPageResource {
     id: number;
     identifier: string | null;
-    publication_year: number;
+    publication_year?: number;
     version: string | null;
     language: string | null;
-    resource_type: LandingPageResourceType | null;
-    titles: LandingPageTitle[];
-    descriptions: LandingPageDescription[];
-    creators: LandingPageCreator[];
-    licenses: LandingPageLicense[];
-    related_identifiers: LandingPageRelatedIdentifier[];
-    funding_references: LandingPageFundingReference[];
-    subjects: LandingPageSubject[];
-    geo_locations: LandingPageGeoLocation[];
-    contact_persons: LandingPageContactPerson[];
+    resource_type?: LandingPageResourceType | null;
+    titles?: LandingPageTitle[];
+    descriptions?: LandingPageDescription[];
+    creators?: LandingPageCreator[];
+    licenses?: LandingPageLicense[];
+    related_identifiers?: LandingPageRelatedIdentifier[];
+    funding_references?: LandingPageFundingReference[];
+    subjects?: LandingPageSubject[];
+    geo_locations?: LandingPageGeoLocation[];
+    contact_persons?: LandingPageContactPerson[];
 }
 
 /**

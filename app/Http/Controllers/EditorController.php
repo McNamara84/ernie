@@ -165,7 +165,7 @@ class EditorController extends Controller
             ]);
 
             return redirect()->route('old-datasets')
-                ->with('error', 'Failed to load dataset from legacy database: '.$e->getMessage());
+                ->with('error', 'Failed to load dataset from legacy database. Please try again or contact support.');
         }
     }
 
@@ -212,6 +212,8 @@ class EditorController extends Controller
 
         // Transform relatedWorks from camelCase to snake_case if needed
         // (legacy import uses camelCase, but frontend expects snake_case)
+        // Filter out non-array elements to prevent errors
+        $validRelatedWorks = array_filter($relatedWorksArray, fn ($item): bool => is_array($item));
         $relatedWorks = array_map(function (array $item): array {
             if (isset($item['identifierType'])) {
                 $item['identifier_type'] = $item['identifierType'];
@@ -223,7 +225,7 @@ class EditorController extends Controller
             }
 
             return $item;
-        }, $relatedWorksArray);
+        }, $validRelatedWorks);
 
         // Get funding references from query parameters
         $fundingReferencesRaw = $request->query('fundingReferences', []);
@@ -262,7 +264,7 @@ class EditorController extends Controller
      * Decode a query parameter that may be JSON-encoded or already an array.
      *
      * @param  mixed  $value  Raw query parameter value
-     * @return array<int, array<string, mixed>>
+     * @return array<int|string, mixed>
      */
     private function decodeJsonArrayParam(mixed $value): array
     {

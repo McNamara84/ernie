@@ -42,6 +42,9 @@ class EditorDataTransformer
      */
     public function transformResource(Resource $resource): array
     {
+        // Cache creators transform to avoid duplicate computation
+        $creators = $this->transformCreators($resource);
+
         return [
             'doi' => $resource->doi ?? '',
             'year' => (string) $resource->publication_year,
@@ -51,8 +54,8 @@ class EditorDataTransformer
             'resourceId' => (string) $resource->id,
             'titles' => $this->transformTitles($resource),
             'initialLicenses' => $this->transformLicenses($resource),
-            'authors' => $this->transformCreators($resource)['authors'],
-            'contributors' => $this->transformCreators($resource)['contributors'],
+            'authors' => $creators['authors'],
+            'contributors' => $creators['contributors'],
             'descriptions' => $this->transformDescriptions($resource),
             'dates' => $this->transformDates($resource),
             'gcmdKeywords' => $this->transformGcmdKeywords($resource),
@@ -383,8 +386,8 @@ class EditorDataTransformer
                 return [
                     'identifier' => $institution->name_identifier ?? '',
                     'name' => $institution->name ?? '',
-                    'affiliation_name' => $affiliation->name ?? '',
-                    'affiliation_ror' => $affiliation->identifier ?? '',
+                    'affiliation_name' => $affiliation?->name,
+                    'affiliation_ror' => $affiliation?->identifier,
                     'position' => $creator->position,
                 ];
             })

@@ -1,6 +1,6 @@
 ﻿import { usePage } from '@inertiajs/react';
 
-import type { LandingPageConfig } from '@/types/landing-page';
+import type { LandingPageConfig, LandingPageResource } from '@/types/landing-page';
 
 import { AbstractSection } from './components/AbstractSection';
 import { ContactSection } from './components/ContactSection';
@@ -12,106 +12,12 @@ import { ResourceHero } from './components/ResourceHero';
 import { buildCitation } from './lib/buildCitation';
 
 /**
- * Title entry as returned from the backend
- */
-interface Title {
-    id: number;
-    title: string;
-    title_type: string | null;
-}
-
-/**
  * Props passed to landing page templates via Inertia
+ *
+ * Uses centralized types from @/types/landing-page.ts
  */
 interface DefaultGfzTemplatePageProps {
-    resource: {
-        id: number;
-        resource_type?: { name: string } | null;
-        titles?: Title[];
-        descriptions?: Array<{
-            id: number;
-            value: string;
-            description_type: string | null;
-        }>;
-        creators?: Array<{
-            id: number;
-            position: number;
-            affiliations: Array<{
-                id: number;
-                name: string;
-                affiliation_identifier: string | null;
-                affiliation_identifier_scheme: string | null;
-            }>;
-            creatorable: {
-                type: string;
-                id: number;
-                given_name?: string;
-                family_name?: string;
-                name_identifier?: string;
-                name_identifier_scheme?: string;
-                name?: string;
-            };
-        }>;
-        licenses?: Array<{
-            id: number;
-            name: string;
-            spdx_id: string;
-            reference: string;
-        }>;
-        related_identifiers?: Array<{
-            id: number;
-            value: string;
-            identifier: string;
-            identifier_type: string;
-            related_identifier_type: string;
-            relation_type: string;
-            resource_type_general?: string | null;
-        }>;
-        funding_references?: Array<{
-            id: number;
-            funder_name: string;
-            funder_identifier: string | null;
-            funder_identifier_type: string | null;
-            award_number: string | null;
-            award_uri: string | null;
-            award_title: string | null;
-            position: number;
-        }>;
-        subjects?: Array<{
-            id: number;
-            subject: string;
-            subject_scheme: string | null;
-            scheme_uri: string | null;
-            value_uri: string | null;
-            classification_code: string | null;
-        }>;
-        geo_locations?: Array<{
-            id: number;
-            place: string | null;
-            point_longitude: number | null;
-            point_latitude: number | null;
-            west_bound_longitude: number | null;
-            east_bound_longitude: number | null;
-            south_bound_latitude: number | null;
-            north_bound_latitude: number | null;
-            polygon_points: Array<{ longitude: number; latitude: number }> | null;
-        }>;
-        contact_persons?: Array<{
-            id: number;
-            name: string;
-            given_name: string | null;
-            family_name: string | null;
-            type: string;
-            affiliations: Array<{
-                name: string;
-                identifier: string | null;
-                scheme: string | null;
-            }>;
-            orcid: string | null;
-            website: string | null;
-            has_email: boolean;
-        }>;
-    };
+    resource: LandingPageResource;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
     [key: string]: unknown; // Required for Inertia PageProps compatibility

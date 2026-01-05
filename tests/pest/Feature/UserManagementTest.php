@@ -135,8 +135,10 @@ describe('User Management', function (): void {
         });
 
         it('prevents modifying User ID 1', function (): void {
-            // Create User ID 1 explicitly
-            $user1 = User::factory()->admin()->create(['id' => 1]);
+            // Create User ID 1 as the first user in an empty database (RefreshDatabase ensures clean state)
+            // This ensures ID 1 is assigned by the database auto-increment
+            $user1 = User::factory()->admin()->create();
+            expect($user1->id)->toBe(1, 'First user should have ID 1 with RefreshDatabase');
 
             $admin = User::factory()->admin()->create();
 
@@ -191,7 +193,10 @@ describe('User Management', function (): void {
         });
 
         it('prevents deactivating User ID 1', function (): void {
-            $user1 = User::factory()->admin()->create(['id' => 1]);
+            // Create User ID 1 as the first user in an empty database (RefreshDatabase ensures clean state)
+            $user1 = User::factory()->admin()->create();
+            expect($user1->id)->toBe(1, 'First user should have ID 1 with RefreshDatabase');
+
             $admin = User::factory()->admin()->create();
 
             $this->actingAs($admin)
@@ -282,7 +287,10 @@ describe('User Management', function (): void {
         });
 
         it('prevents sending reset link to User ID 1', function (): void {
-            $user1 = User::factory()->admin()->create(['id' => 1]);
+            // Create User ID 1 as the first user in an empty database (RefreshDatabase ensures clean state)
+            $user1 = User::factory()->admin()->create();
+            expect($user1->id)->toBe(1, 'First user should have ID 1 with RefreshDatabase');
+
             $admin = User::factory()->admin()->create();
 
             $this->actingAs($admin)
