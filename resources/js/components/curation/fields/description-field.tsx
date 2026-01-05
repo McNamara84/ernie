@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
@@ -82,32 +82,61 @@ export default function DescriptionField({
 }: DescriptionFieldProps) {
     const [activeTab, setActiveTab] = useState<DescriptionType>('Abstract');
 
-    const getDescriptionValue = (type: DescriptionType): string => {
-        const description = descriptions.find((d) => d.type === type);
-        return description?.value || '';
-    };
+    // Use ref to always access current descriptions without recreating the callback.
+    // This prevents handleDescriptionChange from being recreated on every keystroke.
+    const descriptionsRef = useRef(descriptions);
+    descriptionsRef.current = descriptions;
 
-    const handleDescriptionChange = (type: DescriptionType, value: string) => {
-        const existingIndex = descriptions.findIndex((d) => d.type === type);
-
-        if (existingIndex >= 0) {
-            // Update existing description
-            const updated = [...descriptions];
-            updated[existingIndex] = { type, value };
-            onChange(updated);
-        } else {
-            // Add new description
-            onChange([...descriptions, { type, value }]);
+    // Memoize description values map to avoid repeated find() calls
+    const descriptionValuesMap = useMemo(() => {
+        const map = new Map<DescriptionType, string>();
+        for (const d of descriptions) {
+            map.set(d.type, d.value);
         }
-    };
+        return map;
+    }, [descriptions]);
 
-    const getCharacterCount = (type: DescriptionType): number => {
-        return getDescriptionValue(type).length;
-    };
+    const getDescriptionValue = useCallback(
+        (type: DescriptionType): string => {
+            return descriptionValuesMap.get(type) || '';
+        },
+        [descriptionValuesMap],
+    );
 
-    const hasContent = (type: DescriptionType): boolean => {
-        return getDescriptionValue(type).trim().length > 0;
-    };
+    // Stable callback that uses ref to access current descriptions.
+    // This prevents unnecessary re-renders of child Textarea components during typing.
+    const handleDescriptionChange = useCallback(
+        (type: DescriptionType, value: string) => {
+            const currentDescriptions = descriptionsRef.current;
+            const existingIndex = currentDescriptions.findIndex((d) => d.type === type);
+
+            if (existingIndex >= 0) {
+                // Update existing description
+                const updated = [...currentDescriptions];
+                updated[existingIndex] = { type, value };
+                onChange(updated);
+            } else {
+                // Add new description
+                onChange([...currentDescriptions, { type, value }]);
+            }
+        },
+        [onChange],
+    );
+
+    // Memoize content checks to avoid recalculating on every render.
+    // Uses descriptionValuesMap to avoid duplicating the Map lookup logic.
+    // Optional chaining (?.) with fallback (?? 0) handles edge cases gracefully.
+    const contentStatus = useMemo(() => {
+        const status = new Map<DescriptionType, { hasContent: boolean; charCount: number }>();
+        for (const type of DESCRIPTION_TYPES) {
+            const value = descriptionValuesMap.get(type.value) || '';
+            status.set(type.value, {
+                hasContent: value.trim().length > 0,
+                charCount: value.length,
+            });
+        }
+        return status;
+    }, [descriptionValuesMap]);
 
     return (
         <div className="space-y-4">
@@ -121,7 +150,7 @@ export default function DescriptionField({
                                     *
                                 </span>
                             )}
-                            {hasContent(desc.value) && (
+                            {contentStatus.get(desc.value)?.hasContent && (
                                 <span
                                     className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
                                     aria-label="Has content"
@@ -135,7 +164,7 @@ export default function DescriptionField({
                 {DESCRIPTION_TYPES.map((desc) => {
                     const isAbstract = desc.value === 'Abstract';
                     const hasValidationError = isAbstract && abstractTouched && abstractValidationMessages.length > 0;
-                    const charCount = getCharacterCount(desc.value);
+                    const charCount = contentStatus.get(desc.value)?.charCount ?? 0;
                     const isNearLimit = charCount > 15750; // 90% of 17500
                     const isTooShort = charCount > 0 && charCount < 50;
 
