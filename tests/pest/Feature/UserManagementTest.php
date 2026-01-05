@@ -135,10 +135,10 @@ describe('User Management', function (): void {
         });
 
         it('prevents modifying User ID 1', function (): void {
-            // Create User ID 1 as the first user in an empty database (RefreshDatabase ensures clean state)
-            // This ensures ID 1 is assigned by the database auto-increment
-            $user1 = User::factory()->admin()->create();
-            expect($user1->id)->toBe(1, 'First user should have ID 1 with RefreshDatabase');
+            // Get or create User ID 1 - the protected system user
+            // In Docker, auto-increment may not reset, so we find/create the protected user
+            $user1 = User::find(1) ?? User::factory()->admin()->create(['id' => 1]);
+            $originalRole = $user1->role;
 
             $admin = User::factory()->admin()->create();
 
@@ -148,7 +148,7 @@ describe('User Management', function (): void {
                 ])
                 ->assertForbidden();
 
-            expect($user1->fresh()->role)->toBe(UserRole::ADMIN);
+            expect($user1->fresh()->role)->toBe($originalRole);
         });
 
         it('prevents changing own role', function (): void {
@@ -193,9 +193,8 @@ describe('User Management', function (): void {
         });
 
         it('prevents deactivating User ID 1', function (): void {
-            // Create User ID 1 as the first user in an empty database (RefreshDatabase ensures clean state)
-            $user1 = User::factory()->admin()->create();
-            expect($user1->id)->toBe(1, 'First user should have ID 1 with RefreshDatabase');
+            // Get or create User ID 1 - the protected system user
+            $user1 = User::find(1) ?? User::factory()->admin()->create(['id' => 1]);
 
             $admin = User::factory()->admin()->create();
 
@@ -287,9 +286,8 @@ describe('User Management', function (): void {
         });
 
         it('prevents sending reset link to User ID 1', function (): void {
-            // Create User ID 1 as the first user in an empty database (RefreshDatabase ensures clean state)
-            $user1 = User::factory()->admin()->create();
-            expect($user1->id)->toBe(1, 'First user should have ID 1 with RefreshDatabase');
+            // Get or create User ID 1 - the protected system user
+            $user1 = User::find(1) ?? User::factory()->admin()->create(['id' => 1]);
 
             $admin = User::factory()->admin()->create();
 
