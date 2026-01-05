@@ -212,9 +212,9 @@ class EditorController extends Controller
 
         // Transform relatedWorks from camelCase to snake_case if needed
         // (legacy import uses camelCase, but frontend expects snake_case)
-        // Filter out non-array elements to prevent errors
+        // Filter out non-array elements to prevent errors and ensure sequential keys
         $validRelatedWorks = array_filter($relatedWorksArray, fn ($item): bool => is_array($item));
-        $relatedWorks = array_map(function (array $item): array {
+        $relatedWorks = array_values(array_map(function (array $item): array {
             if (isset($item['identifierType'])) {
                 $item['identifier_type'] = $item['identifierType'];
                 unset($item['identifierType']);
@@ -225,7 +225,7 @@ class EditorController extends Controller
             }
 
             return $item;
-        }, $validRelatedWorks);
+        }, $validRelatedWorks));
 
         // Get funding references from query parameters
         $fundingReferencesRaw = $request->query('fundingReferences', []);
