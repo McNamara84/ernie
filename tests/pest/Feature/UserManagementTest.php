@@ -135,11 +135,10 @@ describe('User Management', function (): void {
         });
 
         it('prevents modifying User ID 1', function (): void {
-            // Create User ID 1 first
-            User::query()->delete();
-            $user1 = User::factory()->admin()->create();
-            // User1 now has ID 1
-            expect($user1->id)->toBe(1);
+            // Get or create User ID 1 - the protected system user
+            // In Docker, auto-increment may not reset, so we find/create the protected user
+            $user1 = User::find(1) ?? User::factory()->admin()->create(['id' => 1]);
+            $originalRole = $user1->role;
 
             $admin = User::factory()->admin()->create();
 
@@ -149,7 +148,7 @@ describe('User Management', function (): void {
                 ])
                 ->assertForbidden();
 
-            expect($user1->fresh()->role)->toBe(UserRole::ADMIN);
+            expect($user1->fresh()->role)->toBe($originalRole);
         });
 
         it('prevents changing own role', function (): void {
@@ -194,8 +193,9 @@ describe('User Management', function (): void {
         });
 
         it('prevents deactivating User ID 1', function (): void {
-            User::query()->delete(); // Clean slate
-            $user1 = User::factory()->admin()->create();
+            // Get or create User ID 1 - the protected system user
+            $user1 = User::find(1) ?? User::factory()->admin()->create(['id' => 1]);
+
             $admin = User::factory()->admin()->create();
 
             $this->actingAs($admin)
@@ -286,8 +286,9 @@ describe('User Management', function (): void {
         });
 
         it('prevents sending reset link to User ID 1', function (): void {
-            User::query()->delete(); // Clean slate
-            $user1 = User::factory()->admin()->create();
+            // Get or create User ID 1 - the protected system user
+            $user1 = User::find(1) ?? User::factory()->admin()->create(['id' => 1]);
+
             $admin = User::factory()->admin()->create();
 
             $this->actingAs($admin)
