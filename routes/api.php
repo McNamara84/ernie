@@ -50,10 +50,14 @@ Route::middleware('elmo.api-key')->get(
     [RoleController::class, 'contributorInstitutionRolesForElmo'],
 );
 Route::get('/v1/ror-affiliations', RorAffiliationController::class);
-// ORCID routes - specific routes BEFORE parameterized routes!
-Route::get('/v1/orcid/search', [OrcidController::class, 'search']);
-Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
-Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
+
+// ORCID routes - rate limited to prevent API abuse
+// Allows 30 requests per minute per IP address
+Route::middleware('throttle:orcid-api')->group(function () {
+    Route::get('/v1/orcid/search', [OrcidController::class, 'search']);
+    Route::get('/v1/orcid/validate/{orcid}', [OrcidController::class, 'validate']);
+    Route::get('/v1/orcid/{orcid}', [OrcidController::class, 'show']);
+});
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-science-keywords', [VocabularyController::class, 'gcmdScienceKeywords']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);

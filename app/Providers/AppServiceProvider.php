@@ -6,7 +6,10 @@ use App\Enums\UserRole;
 use App\Models\Resource;
 use App\Models\User;
 use App\Observers\ResourceObserver;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,8 +30,23 @@ class AppServiceProvider extends ServiceProvider
         // Register model observers
         Resource::observe(ResourceObserver::class);
 
+        // Configure rate limiters
+        $this->configureRateLimiting();
+
         // Define authorization gates
         $this->defineGates();
+    }
+
+    /**
+     * Configure the rate limiters for the application.
+     */
+    private function configureRateLimiting(): void
+    {
+        // Rate limiter for ORCID API endpoints
+        // Allows 30 requests per minute per IP address
+        RateLimiter::for('orcid-api', function (Request $request) {
+            return Limit::perMinute(30)->by($request->ip());
+        });
     }
 
     /**

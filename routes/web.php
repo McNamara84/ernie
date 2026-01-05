@@ -28,16 +28,19 @@ Route::get('/health', function () {
     ]);
 })->name('health');
 
-Route::get('/debug', function () {
-    return response()->json([
-        'message' => 'Laravel is working!',
-        'database' => 'Connected',
-        'redis' => Cache::get('test') !== null ? 'Available' : 'Testing...',
-        'app_key' => config('app.key') ? 'Set' : 'Missing',
-        'app_url' => config('app.url'),
-        'environment' => app()->environment(),
-    ]);
-})->name('debug');
+// Debug route - only available in local/testing environments
+if (app()->environment('local', 'testing')) {
+    Route::get('/debug', function () {
+        return response()->json([
+            'message' => 'Laravel is working!',
+            'database' => 'Connected',
+            'redis' => Cache::get('test') !== null ? 'Available' : 'Testing...',
+            'app_key' => config('app.key') ? 'Set' : 'Missing',
+            'app_url' => config('app.url'),
+            'environment' => app()->environment(),
+        ]);
+    })->name('debug');
+}
 
 Route::get('/', function () {
     return Inertia::render('welcome');
