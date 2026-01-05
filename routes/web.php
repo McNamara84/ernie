@@ -136,50 +136,69 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
 }
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('old-datasets', [OldDatasetController::class, 'index'])
-        ->name('old-datasets');
+    // Administration routes (Admin & Group Leader only)
+    // These routes require the 'access-administration' gate
+    Route::middleware(['can:access-administration'])->group(function () {
+        Route::get('old-datasets', [OldDatasetController::class, 'index'])
+            ->name('old-datasets');
 
-    Route::get('old-statistics', [OldDataStatisticsController::class, 'index'])
-        ->name('old-statistics');
+        Route::get('old-statistics', [OldDataStatisticsController::class, 'index'])
+            ->name('old-statistics');
 
-    Route::get('old-datasets/filter-options', [OldDatasetController::class, 'getFilterOptions'])
-        ->name('old-datasets.filter-options');
+        Route::get('old-datasets/filter-options', [OldDatasetController::class, 'getFilterOptions'])
+            ->name('old-datasets.filter-options');
 
-    Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
-        ->name('old-datasets.load-more');
+        Route::get('old-datasets/load-more', [OldDatasetController::class, 'loadMore'])
+            ->name('old-datasets.load-more');
 
-    Route::get('old-datasets/{id}/authors', [OldDatasetController::class, 'getAuthors'])
-        ->name('old-datasets.authors');
+        Route::get('old-datasets/{id}/authors', [OldDatasetController::class, 'getAuthors'])
+            ->name('old-datasets.authors');
 
-    Route::get('old-datasets/{id}/contributors', [OldDatasetController::class, 'getContributors'])
-        ->name('old-datasets.contributors');
+        Route::get('old-datasets/{id}/contributors', [OldDatasetController::class, 'getContributors'])
+            ->name('old-datasets.contributors');
 
-    Route::get('old-datasets/{id}/funding-references', [OldDatasetController::class, 'getFundingReferences'])
-        ->name('old-datasets.funding-references');
+        Route::get('old-datasets/{id}/funding-references', [OldDatasetController::class, 'getFundingReferences'])
+            ->name('old-datasets.funding-references');
 
-    Route::get('old-datasets/{id}/descriptions', [OldDatasetController::class, 'getDescriptions'])
-        ->name('old-datasets.descriptions');
+        Route::get('old-datasets/{id}/descriptions', [OldDatasetController::class, 'getDescriptions'])
+            ->name('old-datasets.descriptions');
 
-    Route::get('old-datasets/{id}/dates', [OldDatasetController::class, 'getDates'])
-        ->name('old-datasets.dates');
+        Route::get('old-datasets/{id}/dates', [OldDatasetController::class, 'getDates'])
+            ->name('old-datasets.dates');
 
-    Route::get('old-datasets/{id}/controlled-keywords', [OldDatasetController::class, 'getControlledKeywords'])
-        ->name('old-datasets.controlled-keywords');
+        Route::get('old-datasets/{id}/controlled-keywords', [OldDatasetController::class, 'getControlledKeywords'])
+            ->name('old-datasets.controlled-keywords');
 
-    Route::get('old-datasets/{id}/free-keywords', [OldDatasetController::class, 'getFreeKeywords'])
-        ->name('old-datasets.free-keywords');
+        Route::get('old-datasets/{id}/free-keywords', [OldDatasetController::class, 'getFreeKeywords'])
+            ->name('old-datasets.free-keywords');
 
-    Route::get('old-datasets/{id}/msl-keywords', [OldDatasetController::class, 'getMslKeywords'])
-        ->name('old-datasets.msl-keywords');
+        Route::get('old-datasets/{id}/msl-keywords', [OldDatasetController::class, 'getMslKeywords'])
+            ->name('old-datasets.msl-keywords');
 
-    Route::get('old-datasets/{id}/coverages', [OldDatasetController::class, 'getCoverages'])
-        ->name('old-datasets.coverages');
+        Route::get('old-datasets/{id}/coverages', [OldDatasetController::class, 'getCoverages'])
+            ->name('old-datasets.coverages');
 
-    Route::get('old-datasets/{id}/related-identifiers', [OldDatasetController::class, 'getRelatedIdentifiers'])
-        ->name('old-datasets.related-identifiers');
+        Route::get('old-datasets/{id}/related-identifiers', [OldDatasetController::class, 'getRelatedIdentifiers'])
+            ->name('old-datasets.related-identifiers');
 
-    Route::get('old-datasets/{id}/msl-laboratories', [OldDatasetController::class, 'getMslLaboratories'])
-        ->name('old-datasets.msl-laboratories');
+        Route::get('old-datasets/{id}/msl-laboratories', [OldDatasetController::class, 'getMslLaboratories'])
+            ->name('old-datasets.msl-laboratories');
+
+        // Logs routes
+        Route::get('logs', [\App\Http\Controllers\LogController::class, 'index'])
+            ->name('logs.index');
+
+        Route::get('logs/data', [\App\Http\Controllers\LogController::class, 'getLogsJson'])
+            ->name('logs.data');
+
+        Route::delete('logs/entry', [\App\Http\Controllers\LogController::class, 'destroy'])
+            ->middleware('can:delete-logs')
+            ->name('logs.destroy');
+
+        Route::delete('logs/clear', [\App\Http\Controllers\LogController::class, 'clear'])
+            ->middleware('can:delete-logs')
+            ->name('logs.clear');
+    });
 
     // Resources routes (new curated resources)
     Route::get('resources/filter-options', [ResourceController::class, 'getFilterOptions'])
@@ -728,7 +747,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     })->name('vocabularies.msl-vocabulary-url');
 
     // User Management routes (Admin & Group Leader only)
-    Route::middleware(['can.manage.users'])->prefix('users')->group(function () {
+    // Uses 'can:access-administration' gate (replaces deprecated 'can.manage.users' middleware)
+    Route::middleware(['can:access-administration'])->prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\UserController::class, 'index'])
             ->name('users.index');
         Route::post('/', [App\Http\Controllers\UserController::class, 'store'])

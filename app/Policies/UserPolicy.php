@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\Gate;
 
 class UserPolicy
 {
@@ -14,7 +15,7 @@ class UserPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->canManageUsers();
+        return Gate::allows('manage-users');
     }
 
     /**
@@ -23,7 +24,7 @@ class UserPolicy
      */
     public function view(User $user, User $model): bool
     {
-        return $user->id === $model->id || $user->canManageUsers();
+        return $user->id === $model->id || Gate::allows('manage-users');
     }
 
     /**
@@ -32,7 +33,7 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
-        return $user->canManageUsers();
+        return Gate::allows('manage-users');
     }
 
     /**
@@ -47,7 +48,7 @@ class UserPolicy
         }
 
         // Admins and group leaders can update other users
-        return $user->canManageUsers();
+        return Gate::allows('manage-users');
     }
 
     /**
@@ -68,7 +69,7 @@ class UserPolicy
         }
 
         // Only admins and group leaders can manage users
-        if (! $user->canManageUsers()) {
+        if (Gate::denies('manage-users')) {
             return Response::deny('You do not have permission to change user roles.');
         }
 
@@ -97,7 +98,7 @@ class UserPolicy
         }
 
         // Only admins and group leaders can manage users
-        if (! $user->canManageUsers()) {
+        if (Gate::denies('manage-users')) {
             return Response::deny('You do not have permission to deactivate users.');
         }
 
@@ -116,7 +117,7 @@ class UserPolicy
     public function reactivate(User $user, User $targetUser): Response
     {
         // Only admins and group leaders can manage users
-        if (! $user->canManageUsers()) {
+        if (Gate::denies('manage-users')) {
             return Response::deny('You do not have permission to reactivate users.');
         }
 
@@ -140,7 +141,7 @@ class UserPolicy
         }
 
         // Only admins and group leaders can reset passwords
-        if (! $user->canManageUsers()) {
+        if (Gate::denies('manage-users')) {
             return Response::deny('You do not have permission to reset user passwords.');
         }
 

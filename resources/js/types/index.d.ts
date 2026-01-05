@@ -47,6 +47,8 @@ export interface User {
     role_label?: string;
     is_active?: boolean;
     can_manage_users?: boolean;
+    can_access_administration?: boolean;
+    can_delete_logs?: boolean;
     deactivated_at?: string | null;
     deactivated_by?: {
         id: number;
