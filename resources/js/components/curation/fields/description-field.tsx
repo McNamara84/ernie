@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { FieldValidationFeedback } from '@/components/ui/field-validation-feedback';
 import { Label } from '@/components/ui/label';
@@ -82,6 +82,11 @@ export default function DescriptionField({
 }: DescriptionFieldProps) {
     const [activeTab, setActiveTab] = useState<DescriptionType>('Abstract');
 
+    // Use ref to always access current descriptions without recreating the callback.
+    // This prevents handleDescriptionChange from being recreated on every keystroke.
+    const descriptionsRef = useRef(descriptions);
+    descriptionsRef.current = descriptions;
+
     // Memoize description values map to avoid repeated find() calls
     const descriptionValuesMap = useMemo(() => {
         const map = new Map<DescriptionType, string>();
@@ -98,24 +103,24 @@ export default function DescriptionField({
         [descriptionValuesMap],
     );
 
-    // This callback must reference `descriptions` directly since onChange triggers a re-render
-    // that updates the descriptions array. Using a stale closure would cause data loss.
-    // The callback itself is lightweight (findIndex + spread), so recreation is acceptable.
+    // Stable callback that uses ref to access current descriptions.
+    // This prevents unnecessary re-renders of child Textarea components during typing.
     const handleDescriptionChange = useCallback(
         (type: DescriptionType, value: string) => {
-            const existingIndex = descriptions.findIndex((d) => d.type === type);
+            const currentDescriptions = descriptionsRef.current;
+            const existingIndex = currentDescriptions.findIndex((d) => d.type === type);
 
             if (existingIndex >= 0) {
                 // Update existing description
-                const updated = [...descriptions];
+                const updated = [...currentDescriptions];
                 updated[existingIndex] = { type, value };
                 onChange(updated);
             } else {
                 // Add new description
-                onChange([...descriptions, { type, value }]);
+                onChange([...currentDescriptions, { type, value }]);
             }
         },
-        [descriptions, onChange],
+        [onChange],
     );
 
     // Memoize content checks to avoid recalculating on every render.
