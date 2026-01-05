@@ -116,6 +116,9 @@ export default function DescriptionField({
     );
 
     // Memoize content checks to avoid recalculating on every render
+    // This depends on descriptionValuesMap intentionally - both memos share the same
+    // dependency (descriptions), but this separation allows getDescriptionValue to
+    // also use descriptionValuesMap without duplicating the Map creation logic
     const contentStatus = useMemo(() => {
         const status: Record<DescriptionType, { hasContent: boolean; charCount: number }> = {} as Record<
             DescriptionType,

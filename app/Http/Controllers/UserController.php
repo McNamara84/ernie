@@ -12,10 +12,12 @@ use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class UserController extends Controller
 {
@@ -94,16 +96,26 @@ class UserController extends Controller
 
             // Password facade returned an error status (e.g., throttled)
             return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent. Please use the password reset button to send it manually.");
-        } catch (\Exception $e) {
-            // Mail server connection failed or other exception
-            // Log the error for debugging but don't expose details to user
-            \Illuminate\Support\Facades\Log::error('Failed to send password reset email for new user', [
+        } catch (TransportExceptionInterface $e) {
+            // Mail server connection failed (SMTP unreachable, timeout, etc.)
+            Log::error('Failed to send password reset email for new user - mail transport error', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'error' => $e->getMessage(),
             ]);
 
             return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent (mail server error). Please use the password reset button to send it manually.");
+        } catch (\Exception $e) {
+            // Other unexpected exceptions (configuration errors, etc.)
+            // Log with higher severity since these are unexpected
+            Log::warning('Failed to send password reset email for new user - unexpected error', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+                'exception_class' => get_class($e),
+            ]);
+
+            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent. Please use the password reset button to send it manually.");
         }
     }
 
