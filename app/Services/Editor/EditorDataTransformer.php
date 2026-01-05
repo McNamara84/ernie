@@ -386,8 +386,8 @@ class EditorDataTransformer
                 return [
                     'identifier' => $institution->name_identifier ?? '',
                     'name' => $institution->name ?? '',
-                    'affiliation_name' => $affiliation?->name,
-                    'affiliation_ror' => $affiliation?->identifier,
+                    'affiliation_name' => $affiliation->name ?? '',
+                    'affiliation_ror' => $affiliation->identifier ?? '',
                     'position' => $creator->position,
                 ];
             })

@@ -15,12 +15,17 @@ import { buildCitation } from './lib/buildCitation';
  * Props passed to landing page templates via Inertia
  *
  * Uses centralized types from @/types/landing-page.ts
+ *
+ * Note: The index signature is required because Inertia's usePage<T>() generic
+ * expects T to be assignable to PageProps, which includes dynamic properties.
+ * This is a known Inertia.js pattern - see SharedData in @/types for the same approach.
  */
 interface DefaultGfzTemplatePageProps {
     resource: LandingPageResource;
     landingPage: LandingPageConfig | null;
     isPreview: boolean;
-    [key: string]: unknown; // Required for Inertia PageProps compatibility
+    /** Inertia PageProps requires index signature for dynamic SSR props */
+    [key: string]: unknown;
 }
 
 export default function DefaultGfzTemplate() {
