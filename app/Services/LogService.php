@@ -106,12 +106,15 @@ class LogService
                 return [];
             }
 
-            // Seek to position near the end
-            fseek($handle, -self::MAX_FILE_SIZE, SEEK_END);
-            // Skip first partial line
-            fgets($handle);
-            $content = fread($handle, self::MAX_FILE_SIZE);
-            fclose($handle);
+            try {
+                // Seek to position near the end
+                fseek($handle, -self::MAX_FILE_SIZE, SEEK_END);
+                // Skip first partial line
+                fgets($handle);
+                $content = fread($handle, self::MAX_FILE_SIZE);
+            } finally {
+                fclose($handle);
+            }
 
             if ($content === false) {
                 \Illuminate\Support\Facades\Log::warning('LogService: Failed to read from large log file', [
