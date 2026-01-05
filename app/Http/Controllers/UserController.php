@@ -81,17 +81,30 @@ class UserController extends Controller
             'is_active' => true,
         ]);
 
-        // Send password reset email
-        $status = Password::sendResetLink([
-            'email' => $user->email,
-        ]);
+        // Send password reset email with exception handling
+        // This prevents mail server configuration issues from causing 500 errors
+        try {
+            $status = Password::sendResetLink([
+                'email' => $user->email,
+            ]);
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return redirect()->back()->with('success', "User '{$user->name}' has been created. A password reset link has been sent to their email.");
+            if ($status === Password::RESET_LINK_SENT) {
+                return redirect()->back()->with('success', "User '{$user->name}' has been created. A password reset link has been sent to their email.");
+            }
+
+            // Password facade returned an error status (e.g., throttled)
+            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent. Please use the password reset button to send it manually.");
+        } catch (\Exception $e) {
+            // Mail server connection failed or other exception
+            // Log the error for debugging but don't expose details to user
+            \Illuminate\Support\Facades\Log::error('Failed to send password reset email for new user', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent (mail server error). Please use the password reset button to send it manually.");
         }
-
-        // User was created but email failed - still success but with warning
-        return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent. Please use the password reset button to send it manually.");
     }
 
     /**
