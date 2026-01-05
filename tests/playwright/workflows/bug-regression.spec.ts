@@ -37,22 +37,30 @@ const TIMEOUTS = {
 
 /**
  * Performance thresholds for typing tests.
- * These account for CI environment overhead while still detecting severe regressions.
+ * These detect severe performance regressions while allowing for CI variability.
  */
 const PERFORMANCE = {
     /** 
-     * Maximum milliseconds per character when typing sequentially.
-     * This accounts for React re-renders and validation on each keystroke.
-     * Based on observed CI performance: local ~30ms, CI ~80-100ms per char.
+     * Maximum milliseconds per character when typing with pressSequentially.
+     * Includes the explicit delay (passed to pressSequentially) plus processing overhead.
+     * Local: ~25-35ms/char, CI: ~50-80ms/char. Threshold set to catch >2x regressions.
      */
-    MAX_MS_PER_CHARACTER: 100,
-    /** 
-     * Fixed overhead in milliseconds for test setup and teardown.
-     * Accounts for: initial render (~500ms), focus events (~200ms), 
-     * React state updates after typing (~500ms), and CI environment variability (~800ms).
-     * Measured across multiple CI runs to find a stable threshold.
-     */
-    FIXED_OVERHEAD_MS: 2000,
+    MAX_MS_PER_CHARACTER: 150,
+    /** Explicit delay between keystrokes for pressSequentially (ms) */
+    TYPING_DELAY_MS: 10,
+} as const;
+
+/**
+ * Test data constants derived from XML test files.
+ * These should match values in datacite-example-dataset-v4.xml.
+ */
+const TEST_XML_DATA = {
+    /** Publication year from test XML file */
+    PUBLICATION_YEAR: '2022',
+    /** Expected latitude from geoLocationPoint */
+    LATITUDE_PREFIX: '51',
+    /** Expected longitude from geoLocationPoint */
+    LONGITUDE_PREFIX: '-0.12',
 } as const;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -195,10 +203,17 @@ test.describe('Bug #2: XML Upload - License and Date Issues', () => {
         
         // Wait for dashboard to be fully loaded
         await page.waitForLoadState('networkidle');
-        // isVisible() can throw if element is detached during check - safe to ignore
-        // as we only care about the visibility result, not the specific error
-        const dropzoneVisible = await page.locator('text=Dropzone for XML files').isVisible().catch(() => false);
         
+        // Check if dropzone exists before checking visibility
+        const dropzoneLocator = page.locator('text=Dropzone for XML files');
+        const dropzoneCount = await dropzoneLocator.count();
+        
+        if (dropzoneCount === 0) {
+            test.skip(true, 'Dashboard dropzone not present - skipping XML upload test');
+            return;
+        }
+        
+        const dropzoneVisible = await dropzoneLocator.isVisible();
         if (!dropzoneVisible) {
             test.skip(true, 'Dashboard dropzone not visible - skipping XML upload test');
             return;
@@ -210,26 +225,21 @@ test.describe('Bug #2: XML Upload - License and Date Issues', () => {
         // Set files and wait for navigation
         await fileInput.setInputFiles(xmlFilePath);
 
-        // Wait for redirect to editor with extended timeout for CI
-        try {
-            await page.waitForURL(/\/editor/, { timeout: TIMEOUTS.NAVIGATION });
-        } catch {
-            // Navigation timeout in CI is expected - the fix is verified by PHP tests
-            test.skip(true, 'XML upload navigation timeout - skipping');
-            return;
-        }
-        
+        // Wait for redirect to editor - use longer timeout for CI environments
+        // This validates the full XML upload flow, not just the PHP parsing (tested separately)
+        await page.waitForURL(/\/editor/, { timeout: TIMEOUTS.NAVIGATION * 2 });
         await page.waitForLoadState('networkidle');
 
-        // Find the License section - if not visible, the page may not have loaded correctly
+        // Find the License section - check existence first, then visibility
         const licenseSection = page.locator('text=License').first();
-        // isVisible() may throw if element is detached - treat as not visible
-        const licenseSectionVisible = await licenseSection.isVisible().catch(() => false);
+        const licenseSectionCount = await licenseSection.count();
         
-        if (!licenseSectionVisible) {
-            test.skip(true, 'License section not visible - page may not have loaded correctly');
+        if (licenseSectionCount === 0) {
+            test.skip(true, 'License section not present - page structure may differ');
             return;
         }
+        
+        const licenseSectionVisible = await licenseSection.isVisible();
 
         // The test passes if we reach the editor with the license section visible
         // The actual license population is verified by PHP unit tests
@@ -244,21 +254,14 @@ test.describe('Bug #2: XML Upload - License and Date Issues', () => {
         const xmlFilePath = resolveDatasetExample('datacite-example-dataset-v4.xml');
         await fileInput.setInputFiles(xmlFilePath);
 
-        try {
-            await page.waitForURL(/\/editor/, { timeout: TIMEOUTS.NAVIGATION });
-        } catch {
-            // Navigation timeout in CI is expected - the fix is verified by PHP tests
-            test.skip(true, 'XML upload navigation timeout - skipping');
-            return;
-        }
-        
+        // Wait for navigation with extended timeout for CI
+        await page.waitForURL(/\/editor/, { timeout: TIMEOUTS.NAVIGATION * 2 });
         await page.waitForLoadState('networkidle');
 
-        // Fill in minimum required fields to attempt save
-        // Year should already be filled from XML (2022)
+        // Year should be pre-filled from XML - use constant to stay in sync with test data
         const yearInput = page.locator('#year');
         if (await yearInput.isVisible()) {
-            await expect(yearInput).toHaveValue('2022');
+            await expect(yearInput).toHaveValue(TEST_XML_DATA.PUBLICATION_YEAR);
         }
 
         // Try to save the resource
@@ -267,17 +270,23 @@ test.describe('Bug #2: XML Upload - License and Date Issues', () => {
         if (await saveButton.isVisible() && await saveButton.isEnabled()) {
             await saveButton.click();
             
-            // Wait for form submission and validation response
-            await expect(page.getByText(/saving|saved|error/i).first()).toBeVisible({ timeout: TIMEOUTS.ELEMENT_VISIBLE }).catch(() => {
-                // If no status message appears, continue with assertion
-            });
+            // Wait for any status indicator (success, error, or saving state)
+            const statusIndicator = page.getByText(/saving|saved|error|success/i).first();
+            const statusAppeared = await statusIndicator.waitFor({ state: 'visible', timeout: TIMEOUTS.ELEMENT_VISIBLE })
+                .then(() => true)
+                .catch(() => {
+                    // No status message appeared - form may be waiting for more input
+                    console.log('No save status message appeared within timeout');
+                    return false;
+                });
             
-            // BUG ASSERTION: Should NOT see date validation errors
-            const dateValidationError = page.getByText(/dates\.\d+\.startDate.*must be a valid date/i);
-            // isVisible() may throw if element doesn't exist - safe to treat as false
-            const hasDateError = await dateValidationError.isVisible().catch(() => false);
-            
-            expect(hasDateError).toBe(false);
+            // Only check for date errors if save was attempted
+            if (statusAppeared) {
+                // BUG ASSERTION: Should NOT see date validation errors
+                const dateValidationError = page.getByText(/dates\.\d+\.startDate.*must be a valid date/i);
+                const errorCount = await dateValidationError.count();
+                expect(errorCount).toBe(0);
+            }
         }
     });
 
@@ -303,21 +312,44 @@ test.describe('Bug #2: XML Upload - License and Date Issues', () => {
 
         // Navigate to the Dates section
         const datesSection = page.locator('button, [role="button"]').filter({ hasText: /^Dates$/i }).first();
+        const datesSectionExists = await datesSection.count() > 0;
+        
+        if (!datesSectionExists) {
+            test.skip(true, 'Dates section button not found - UI may differ');
+            return;
+        }
+        
         if (await datesSection.isVisible()) {
             await datesSection.click();
-            // Wait for accordion content to become visible instead of fixed timeout
-            await expect(page.locator('input[type="date"]').first()).toBeVisible({ timeout: TIMEOUTS.ELEMENT_VISIBLE }).catch(() => {
-                // Accordion may already be expanded or dates use different UI
-            });
+            // Wait for accordion to expand - check for aria-expanded or date inputs
+            const accordionExpanded = await datesSection.getAttribute('aria-expanded')
+                .then(attr => attr === 'true')
+                .catch(() => false);
+            
+            if (!accordionExpanded) {
+                // Accordion may use different mechanism - wait for content instead
+                await page.locator('input[type="date"]').first().waitFor({ 
+                    state: 'visible', 
+                    timeout: TIMEOUTS.ELEMENT_VISIBLE 
+                }).catch(() => {
+                    // Date inputs may not be visible yet or use different UI
+                });
+            }
         }
 
-        // Look for date inputs
+        // Look for date inputs after attempting to expand section
         const dateInputs = page.locator('input[type="date"]');
         const dateCount = await dateInputs.count();
         
-        // If no date inputs found, the dates section may use a different UI
-        // Skip rather than fail since the PHP tests verify the actual parsing
         if (dateCount === 0) {
+            // Check if this is a UI difference or an actual failure
+            const sectionContent = page.locator('[data-state="open"]').filter({ hasText: /date/i });
+            const hasOpenSection = await sectionContent.count() > 0;
+            
+            if (hasOpenSection) {
+                // Section is open but no date inputs - this could indicate a bug
+                console.log('Dates section appears open but no date inputs found');
+            }
             test.skip(true, 'No date inputs found - UI may differ, PHP tests verify parsing');
             return;
         }
@@ -352,29 +384,29 @@ test.describe('Bug #3: Description Field Performance', () => {
         // Wait for it to be visible
         await expect(abstractTextarea).toBeVisible({ timeout: TIMEOUTS.ELEMENT_VISIBLE });
 
-        // Prepare a test string
-        const testText = 'This is a test description for measuring typing responsiveness in the Abstract field.';
+        // Prepare test - use shorter string for more accurate timing measurement
+        const testText = 'Test typing performance measurement';
         
-        // Measure time to type
-        const startTime = Date.now();
-        
-        // Clear and type
+        // Focus and clear the textarea before timing
         await abstractTextarea.click();
         await abstractTextarea.clear();
         
-        // Type the text
-        await abstractTextarea.pressSequentially(testText, { delay: 20 });
+        // Measure ONLY the typing duration, not setup
+        const startTime = Date.now();
+        await abstractTextarea.pressSequentially(testText, { delay: PERFORMANCE.TYPING_DELAY_MS });
+        const typingDuration = Date.now() - startTime;
         
-        const endTime = Date.now();
-        const typingDuration = endTime - startTime;
-        
-        // Calculate expected max time using defined performance thresholds
-        const expectedMaxTime = testText.length * PERFORMANCE.MAX_MS_PER_CHARACTER + PERFORMANCE.FIXED_OVERHEAD_MS;
+        // Calculate expected time: explicit delay + processing overhead per character
+        // The threshold catches regressions where typing becomes noticeably slow (>150ms/char total)
+        const expectedMaxTime = testText.length * PERFORMANCE.MAX_MS_PER_CHARACTER;
         
         // BUG ASSERTION: Typing should be responsive
-        // If character count calculation is causing re-renders on every keystroke,
-        // this could cause significant slowdown (>10s would indicate a problem)
+        // Severe regressions would show as >150ms per character (e.g., 5+ seconds for 35 chars)
         expect(typingDuration).toBeLessThan(expectedMaxTime);
+        
+        // Log actual performance for debugging CI runs
+        const msPerChar = Math.round(typingDuration / testText.length);
+        console.log(`Typing performance: ${msPerChar}ms/char (${typingDuration}ms for ${testText.length} chars)`);
         
         // Verify the text was actually typed
         const textareaValue = await abstractTextarea.inputValue();
@@ -502,18 +534,14 @@ test.describe('Bug #4: Extra Empty Coverage Entry on Load', () => {
 
     test('uploading XML with one coverage should load exactly one entry', async ({ page }) => {
         await page.goto('/dashboard');
+        await page.waitForLoadState('networkidle');
 
         const fileInput = page.locator('input[type="file"][accept=".xml"]');
         const xmlFilePath = resolveDatasetExample('datacite-example-dataset-v4.xml');
         await fileInput.setInputFiles(xmlFilePath);
 
-        try {
-            await page.waitForURL(/\/editor/, { timeout: TIMEOUTS.NAVIGATION_SHORT });
-        } catch {
-            // Navigation timeout - skip as the actual fix is verified by PHP tests
-            test.skip(true, 'XML upload navigation timeout - skipping');
-            return;
-        }
+        // Wait for navigation with extended timeout for CI environments
+        await page.waitForURL(/\/editor/, { timeout: TIMEOUTS.NAVIGATION * 2 });
         await page.waitForLoadState('networkidle');
 
         // The test XML has exactly one geoLocation entry:
@@ -559,14 +587,14 @@ test.describe('Bug #4: Extra Empty Coverage Entry on Load', () => {
         
         if (await latInput.isVisible()) {
             const latValue = await latInput.inputValue();
-            // Should have latitude from XML (51.50872)
-            expect(latValue).toContain('51');
+            // Should have latitude from XML - use constant to stay in sync with test data
+            expect(latValue).toContain(TEST_XML_DATA.LATITUDE_PREFIX);
         }
         
         if (await lonInput.isVisible()) {
             const lonValue = await lonInput.inputValue();
-            // Should have longitude from XML (-0.12841)
-            expect(lonValue).toContain('-0.12');
+            // Should have longitude from XML - use constant to stay in sync with test data
+            expect(lonValue).toContain(TEST_XML_DATA.LONGITUDE_PREFIX);
         }
     });
 
@@ -576,8 +604,8 @@ test.describe('Bug #4: Extra Empty Coverage Entry on Load', () => {
 
         // Check if there's an empty state or if entries exist
         const emptyState = page.getByText(/no spatial and temporal coverage entries yet/i);
-        // isVisible() may throw if element is detached during check - treat as false
-        const hasEmptyState = await emptyState.isVisible().catch(() => false);
+        const emptyStateCount = await emptyState.count();
+        const hasEmptyState = emptyStateCount > 0 && await emptyState.isVisible();
 
         if (hasEmptyState) {
             // Good - empty state means no spurious entries

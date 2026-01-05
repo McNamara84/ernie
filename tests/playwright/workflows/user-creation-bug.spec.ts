@@ -54,13 +54,14 @@ test.describe('Bug #4: User Creation 500 Error', () => {
         await page.goto('/users');
         await page.waitForLoadState('networkidle');
 
-        // Listen for 500 errors
-        const responsePromises: Promise<void>[] = [];
+        // Track 500 errors with a boolean flag
+        let received500Error = false;
+        let error500Url = '';
+        
         page.on('response', (response) => {
             if (response.status() === 500) {
-                responsePromises.push(
-                    Promise.reject(new Error(`500 error on ${response.url()}`))
-                );
+                received500Error = true;
+                error500Url = response.url();
             }
         });
 
@@ -91,32 +92,42 @@ test.describe('Bug #4: User Creation 500 Error', () => {
             // Response might have already happened
         });
 
-        // Give time for any toast or error to appear
-        await page.waitForTimeout(2000);
+        // Wait for UI to stabilize and check for toast
+        await toastLocator.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {
+            // Toast may not appear if dialog shows validation error
+        });
 
-        // Check that no 500 error occurred (dialog should close on success)
+        // Check that no 500 error occurred
         const dialogStillOpen = await page.getByRole('dialog').isVisible();
         
-        // If dialog is closed, the request was successful
         if (!dialogStillOpen) {
-            // Check for success or warning toast
-            const hasSuccessIndicator = await page.locator('text=/has been created/i').isVisible().catch(() => false);
-            const hasToast = await toastLocator.isVisible().catch(() => false);
+            // Dialog closed = success. Verify with specific success indicator.
+            const successIndicator = page.locator('text=/has been created/i');
+            const successCount = await successIndicator.count();
+            const hasSuccessMessage = successCount > 0 && await successIndicator.isVisible();
+            const hasToast = await toastLocator.count() > 0 && await toastLocator.isVisible();
             
-            // One of these should be true
-            expect(hasSuccessIndicator || hasToast || !dialogStillOpen).toBe(true);
+            // At least one success indicator should be present
+            expect(hasSuccessMessage || hasToast).toBe(true);
         } else {
-            // If dialog is still open, check for validation errors (not 500)
-            const hasValidationError = await page.locator('.text-destructive').isVisible().catch(() => false);
+            // Dialog still open - check for validation errors vs 500 error
+            const validationError = page.locator('.text-destructive');
+            const validationErrorCount = await validationError.count();
+            const hasValidationError = validationErrorCount > 0 && await validationError.isVisible();
             
-            // If there's a validation error, that's fine (email already exists, etc.)
-            // But if there's no validation error and dialog is still open, something went wrong
             if (!hasValidationError) {
-                // Check the page for 500 error indicators
+                // No validation error and dialog still open - check for server errors
                 const pageContent = await page.content();
                 expect(pageContent).not.toContain('500');
                 expect(pageContent).not.toContain('Server Error');
             }
+            // Validation error is acceptable (email might already exist)
+        }
+        
+        // Final assertion: no 500 errors should have occurred
+        expect(received500Error).toBe(false);
+        if (received500Error) {
+            console.error(`500 error occurred on: ${error500Url}`);
         }
     });
 
