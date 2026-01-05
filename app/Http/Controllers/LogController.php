@@ -84,43 +84,47 @@ class LogController extends Controller
     /**
      * Delete a specific log entry.
      * Only admins can delete logs (enforced by 'can:delete-logs' route middleware).
+     *
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy(Request $request): JsonResponse
+    public function destroy(Request $request): \Illuminate\Http\RedirectResponse
     {
         $lineNumber = $request->input('line_number');
         $timestamp = $request->input('timestamp');
 
         // Validate line_number is a positive integer
         if (! is_numeric($lineNumber) || (int) $lineNumber < 1) {
-            return response()->json(['error' => 'Invalid log entry: line_number must be a positive integer'], 400);
+            return redirect()->route('logs.index')->with('error', 'Invalid log entry: line_number must be a positive integer');
         }
 
         // Validate timestamp exists and matches Laravel log format (YYYY-MM-DD HH:MM:SS)
         if (! $timestamp || ! preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $timestamp)) {
-            return response()->json(['error' => 'Invalid log entry: timestamp must be in format YYYY-MM-DD HH:MM:SS'], 400);
+            return redirect()->route('logs.index')->with('error', 'Invalid log entry: timestamp must be in format YYYY-MM-DD HH:MM:SS');
         }
 
         $deleted = $this->logService->deleteLogEntry((int) $lineNumber, $timestamp);
 
         if (! $deleted) {
-            return response()->json(['error' => 'Log entry not found or could not be deleted'], 404);
+            return redirect()->route('logs.index')->with('error', 'Log entry not found or could not be deleted');
         }
 
-        return response()->json(['message' => 'Log entry deleted successfully']);
+        return redirect()->route('logs.index')->with('success', 'Log entry deleted successfully');
     }
 
     /**
      * Clear all logs.
      * Only admins can clear logs (enforced by 'can:delete-logs' route middleware).
+     *
+     * @return \Illuminate\Http\RedirectResponse
      */
-    public function clear(): JsonResponse
+    public function clear(): \Illuminate\Http\RedirectResponse
     {
         $success = $this->logService->clearLogs();
 
         if (! $success) {
-            return response()->json(['error' => 'Failed to clear logs. Please try again.'], 500);
+            return redirect()->route('logs.index')->with('error', 'Failed to clear logs. Please try again.');
         }
 
-        return response()->json(['message' => 'All logs cleared successfully']);
+        return redirect()->route('logs.index')->with('success', 'All logs cleared successfully');
     }
 }

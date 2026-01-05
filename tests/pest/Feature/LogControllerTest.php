@@ -102,13 +102,14 @@ describe('Log Deletion Access Control', function () {
             ])
             ->assertForbidden();
 
-        // Admin should be able to delete (even if entry doesn't exist, it shouldn't return 403)
+        // Admin should be able to delete (returns redirect now, not JSON)
+        // Even if entry doesn't exist, it should redirect with error flash
         $this->actingAs($admin)
             ->delete(route('logs.destroy'), [
                 'line_number' => 1,
                 'timestamp' => '2024-01-01 12:00:00',
             ])
-            ->assertStatus(404); // Entry not found, but authorized
+            ->assertRedirect(route('logs.index'));
     });
 
     it('only admin can clear all logs', function () {
@@ -120,10 +121,10 @@ describe('Log Deletion Access Control', function () {
             ->delete(route('logs.clear'))
             ->assertForbidden();
 
-        // Admin should be able to clear
+        // Admin should be able to clear (returns redirect now, not JSON)
         $this->actingAs($admin)
             ->delete(route('logs.clear'))
-            ->assertOk();
+            ->assertRedirect(route('logs.index'));
     });
 });
 
