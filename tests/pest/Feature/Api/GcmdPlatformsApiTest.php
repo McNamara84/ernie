@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 use function Pest\Laravel\getJson;
@@ -7,6 +8,8 @@ use function Pest\Laravel\getJson;
 beforeEach(function () {
     config(['services.elmo.api_key' => null]);
     Storage::fake();
+    // Clear cache to ensure each test starts fresh
+    Cache::flush();
 });
 
 function createTestPlatformsVocabularyFile(): void

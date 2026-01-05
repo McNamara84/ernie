@@ -135,11 +135,8 @@ describe('User Management', function (): void {
         });
 
         it('prevents modifying User ID 1', function (): void {
-            // Create User ID 1 first
-            User::query()->delete();
-            $user1 = User::factory()->admin()->create();
-            // User1 now has ID 1
-            expect($user1->id)->toBe(1);
+            // Create User ID 1 explicitly
+            $user1 = User::factory()->admin()->create(['id' => 1]);
 
             $admin = User::factory()->admin()->create();
 
@@ -194,8 +191,7 @@ describe('User Management', function (): void {
         });
 
         it('prevents deactivating User ID 1', function (): void {
-            User::query()->delete(); // Clean slate
-            $user1 = User::factory()->admin()->create();
+            $user1 = User::factory()->admin()->create(['id' => 1]);
             $admin = User::factory()->admin()->create();
 
             $this->actingAs($admin)
@@ -286,8 +282,7 @@ describe('User Management', function (): void {
         });
 
         it('prevents sending reset link to User ID 1', function (): void {
-            User::query()->delete(); // Clean slate
-            $user1 = User::factory()->admin()->create();
+            $user1 = User::factory()->admin()->create(['id' => 1]);
             $admin = User::factory()->admin()->create();
 
             $this->actingAs($admin)
