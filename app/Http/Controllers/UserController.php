@@ -108,7 +108,7 @@ class UserController extends Controller
         } catch (\Exception $e) {
             // Other unexpected exceptions (configuration errors, etc.)
             // Log with higher severity since these are unexpected
-            Log::warning('Failed to send password reset email for new user - unexpected error', [
+            Log::error('Failed to send password reset email for new user - unexpected error', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'error' => $e->getMessage(),

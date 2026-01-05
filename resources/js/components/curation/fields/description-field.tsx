@@ -115,21 +115,17 @@ export default function DescriptionField({
         [descriptions, onChange],
     );
 
-    // Memoize content checks to avoid recalculating on every render
-    // This depends on descriptionValuesMap intentionally - both memos share the same
-    // dependency (descriptions), but this separation allows getDescriptionValue to
-    // also use descriptionValuesMap without duplicating the Map creation logic
+    // Memoize content checks to avoid recalculating on every render.
+    // Uses descriptionValuesMap to avoid duplicating the Map lookup logic that
+    // getDescriptionValue also needs. Using a Map provides type safety without assertions.
     const contentStatus = useMemo(() => {
-        const status: Record<DescriptionType, { hasContent: boolean; charCount: number }> = {} as Record<
-            DescriptionType,
-            { hasContent: boolean; charCount: number }
-        >;
+        const status = new Map<DescriptionType, { hasContent: boolean; charCount: number }>();
         for (const type of DESCRIPTION_TYPES) {
             const value = descriptionValuesMap.get(type.value) || '';
-            status[type.value] = {
+            status.set(type.value, {
                 hasContent: value.trim().length > 0,
                 charCount: value.length,
-            };
+            });
         }
         return status;
     }, [descriptionValuesMap]);
@@ -146,7 +142,7 @@ export default function DescriptionField({
                                     *
                                 </span>
                             )}
-                            {contentStatus[desc.value]?.hasContent && (
+                            {contentStatus.get(desc.value)?.hasContent && (
                                 <span
                                     className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
                                     aria-label="Has content"
@@ -160,7 +156,7 @@ export default function DescriptionField({
                 {DESCRIPTION_TYPES.map((desc) => {
                     const isAbstract = desc.value === 'Abstract';
                     const hasValidationError = isAbstract && abstractTouched && abstractValidationMessages.length > 0;
-                    const charCount = contentStatus[desc.value]?.charCount ?? 0;
+                    const charCount = contentStatus.get(desc.value)?.charCount ?? 0;
                     const isNearLimit = charCount > 15750; // 90% of 17500
                     const isTooShort = charCount > 0 && charCount < 50;
 
