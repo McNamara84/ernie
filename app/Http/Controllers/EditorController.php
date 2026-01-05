@@ -235,6 +235,10 @@ class EditorController extends Controller
         $mslLaboratoriesRaw = $request->query('mslLaboratories', []);
         $mslLaboratories = $this->decodeJsonArrayParam($mslLaboratoriesRaw);
 
+        // Get MSL Keywords from query parameters (for consistency with XML upload path)
+        $mslKeywordsRaw = $request->query('mslKeywords', []);
+        $mslKeywords = $this->decodeJsonArrayParam($mslKeywordsRaw);
+
         return Inertia::render('editor', array_merge(
             $this->transformer->getCommonProps(),
             [
@@ -252,6 +256,7 @@ class EditorController extends Controller
                 'dates' => $request->query('dates', []),
                 'gcmdKeywords' => $request->query('gcmdKeywords', []),
                 'freeKeywords' => $request->query('freeKeywords', []),
+                'mslKeywords' => $mslKeywords,
                 'coverages' => $request->query('coverages', []),
                 'relatedWorks' => $relatedWorks,
                 'fundingReferences' => $fundingReferences,
@@ -263,6 +268,8 @@ class EditorController extends Controller
     /**
      * Decode a query parameter that may be JSON-encoded or already an array.
      *
+     * Logs a warning if JSON decoding fails to help diagnose data integrity issues.
+     *
      * @param  mixed  $value  Raw query parameter value
      * @return array<int|string, mixed>
      */
@@ -270,6 +277,15 @@ class EditorController extends Controller
     {
         if (is_string($value)) {
             $decoded = json_decode($value, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::warning('Failed to decode JSON query parameter', [
+                    'error' => json_last_error_msg(),
+                    'value_preview' => mb_substr($value, 0, 100),
+                ]);
+
+                return [];
+            }
 
             return is_array($decoded) ? $decoded : [];
         }
