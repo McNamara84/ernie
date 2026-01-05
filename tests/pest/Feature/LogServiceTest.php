@@ -36,13 +36,13 @@ describe('getLogs', function () {
     });
 
     it('parses single log entry correctly', function () {
-        $logContent = "[2026-01-04 10:30:00] local.INFO: Test message\n";
+        $logContent = "[2024-01-15 10:30:00] local.INFO: Test message\n";
         File::put($this->logPath, $logContent);
 
         $result = $this->logService->getLogs();
 
         expect($result['data'])->toHaveCount(1);
-        expect($result['data'][0]['timestamp'])->toBe('2026-01-04 10:30:00');
+        expect($result['data'][0]['timestamp'])->toBe('2024-01-15 10:30:00');
         expect($result['data'][0]['level'])->toBe('info');
         expect($result['data'][0]['message'])->toBe('Test message');
         expect($result['data'][0]['context'])->toBe('');
@@ -50,9 +50,9 @@ describe('getLogs', function () {
     });
 
     it('parses multiple log entries correctly', function () {
-        $logContent = "[2026-01-04 10:30:00] local.INFO: First message\n";
-        $logContent .= "[2026-01-04 10:31:00] local.ERROR: Second message\n";
-        $logContent .= "[2026-01-04 10:32:00] local.WARNING: Third message\n";
+        $logContent = "[2024-01-15 10:30:00] local.INFO: First message\n";
+        $logContent .= "[2024-01-15 10:31:00] local.ERROR: Second message\n";
+        $logContent .= "[2024-01-15 10:32:00] local.WARNING: Third message\n";
         File::put($this->logPath, $logContent);
 
         $result = $this->logService->getLogs();
@@ -65,10 +65,10 @@ describe('getLogs', function () {
     });
 
     it('parses log entries with multi-line context (stack traces)', function () {
-        $logContent = "[2026-01-04 10:30:00] local.ERROR: Test error\n";
+        $logContent = "[2024-01-15 10:30:00] local.ERROR: Test error\n";
         $logContent .= "#0 /var/www/app/Test.php(10): testFunction()\n";
         $logContent .= "#1 /var/www/app/Controller.php(20): callTest()\n";
-        $logContent .= "[2026-01-04 10:31:00] local.INFO: Next message\n";
+        $logContent .= "[2024-01-15 10:31:00] local.INFO: Next message\n";
         File::put($this->logPath, $logContent);
 
         $result = $this->logService->getLogs();
@@ -84,11 +84,11 @@ describe('getLogs', function () {
     });
 
     it('assigns correct entry numbers (not file line numbers)', function () {
-        $logContent = "[2026-01-04 10:30:00] local.ERROR: Error with trace\n";
+        $logContent = "[2024-01-15 10:30:00] local.ERROR: Error with trace\n";
         $logContent .= "#0 stack line 1\n";
         $logContent .= "#1 stack line 2\n";
         $logContent .= "#2 stack line 3\n";
-        $logContent .= "[2026-01-04 10:31:00] local.INFO: Second entry\n";
+        $logContent .= "[2024-01-15 10:31:00] local.INFO: Second entry\n";
         File::put($this->logPath, $logContent);
 
         $result = $this->logService->getLogs();
@@ -99,24 +99,24 @@ describe('getLogs', function () {
     });
 
     it('returns newest entries first', function () {
-        $logContent = "[2026-01-04 08:00:00] local.INFO: Old message\n";
-        $logContent .= "[2026-01-04 12:00:00] local.INFO: New message\n";
+        $logContent = "[2024-01-15 08:00:00] local.INFO: Old message\n";
+        $logContent .= "[2024-01-15 12:00:00] local.INFO: New message\n";
         File::put($this->logPath, $logContent);
 
         $result = $this->logService->getLogs();
 
-        expect($result['data'][0]['timestamp'])->toBe('2026-01-04 12:00:00');
-        expect($result['data'][1]['timestamp'])->toBe('2026-01-04 08:00:00');
+        expect($result['data'][0]['timestamp'])->toBe('2024-01-15 12:00:00');
+        expect($result['data'][1]['timestamp'])->toBe('2024-01-15 08:00:00');
     });
 });
 
 describe('getLogs filtering', function () {
     beforeEach(function () {
-        $logContent = "[2026-01-04 10:30:00] local.INFO: Info message one\n";
-        $logContent .= "[2026-01-04 10:31:00] local.ERROR: Error message\n";
-        $logContent .= "[2026-01-04 10:32:00] local.INFO: Info message two\n";
-        $logContent .= "[2026-01-04 10:33:00] local.WARNING: Warning message\n";
-        $logContent .= "[2026-01-04 10:34:00] local.DEBUG: Debug message\n";
+        $logContent = "[2024-01-15 10:30:00] local.INFO: Info message one\n";
+        $logContent .= "[2024-01-15 10:31:00] local.ERROR: Error message\n";
+        $logContent .= "[2024-01-15 10:32:00] local.INFO: Info message two\n";
+        $logContent .= "[2024-01-15 10:33:00] local.WARNING: Warning message\n";
+        $logContent .= "[2024-01-15 10:34:00] local.DEBUG: Debug message\n";
         File::put($this->logPath, $logContent);
     });
 
@@ -155,7 +155,7 @@ describe('getLogs pagination', function () {
         $entries = [];
         for ($i = 1; $i <= 15; $i++) {
             $time = sprintf('10:%02d:00', $i);
-            $entries[] = "[2026-01-04 {$time}] local.INFO: Message {$i}";
+            $entries[] = "[2024-01-15 {$time}] local.INFO: Message {$i}";
         }
         File::put($this->logPath, implode("\n", $entries));
     });
@@ -207,20 +207,20 @@ describe('getAvailableLevels', function () {
 
 describe('deleteLogEntry', function () {
     it('returns false when log file does not exist', function () {
-        $result = $this->logService->deleteLogEntry(1, '2026-01-04 10:30:00');
+        $result = $this->logService->deleteLogEntry(1, '2024-01-15 10:30:00');
 
         expect($result)->toBeFalse();
     });
 
     it('deletes a single log entry by entry number and timestamp', function () {
         $logContent = <<<'LOG'
-[2026-01-04 10:30:00] local.INFO: First message
-[2026-01-04 10:31:00] local.ERROR: Second message
-[2026-01-04 10:32:00] local.INFO: Third message
+[2024-01-15 10:30:00] local.INFO: First message
+[2024-01-15 10:31:00] local.ERROR: Second message
+[2024-01-15 10:32:00] local.INFO: Third message
 LOG;
         File::put($this->logPath, $logContent);
 
-        $result = $this->logService->deleteLogEntry(2, '2026-01-04 10:31:00');
+        $result = $this->logService->deleteLogEntry(2, '2024-01-15 10:31:00');
 
         expect($result)->toBeTrue();
 
@@ -232,15 +232,15 @@ LOG;
 
     it('deletes entry including its context (stack trace)', function () {
         $logContent = <<<'LOG'
-[2026-01-04 10:30:00] local.INFO: First message
-[2026-01-04 10:31:00] local.ERROR: Error with trace
+[2024-01-15 10:30:00] local.INFO: First message
+[2024-01-15 10:31:00] local.ERROR: Error with trace
 #0 stack line 1
 #1 stack line 2
-[2026-01-04 10:32:00] local.INFO: Third message
+[2024-01-15 10:32:00] local.INFO: Third message
 LOG;
         File::put($this->logPath, $logContent);
 
-        $result = $this->logService->deleteLogEntry(2, '2026-01-04 10:31:00');
+        $result = $this->logService->deleteLogEntry(2, '2024-01-15 10:31:00');
 
         expect($result)->toBeTrue();
 
@@ -252,16 +252,16 @@ LOG;
     });
 
     it('returns false when entry number does not match', function () {
-        $logContent = "[2026-01-04 10:30:00] local.INFO: Test message\n";
+        $logContent = "[2024-01-15 10:30:00] local.INFO: Test message\n";
         File::put($this->logPath, $logContent);
 
-        $result = $this->logService->deleteLogEntry(999, '2026-01-04 10:30:00');
+        $result = $this->logService->deleteLogEntry(999, '2024-01-15 10:30:00');
 
         expect($result)->toBeFalse();
     });
 
     it('returns false when timestamp does not match', function () {
-        $logContent = "[2026-01-04 10:30:00] local.INFO: Test message\n";
+        $logContent = "[2024-01-15 10:30:00] local.INFO: Test message\n";
         File::put($this->logPath, $logContent);
 
         $result = $this->logService->deleteLogEntry(1, '2099-01-01 00:00:00');
@@ -271,13 +271,13 @@ LOG;
 
     it('requires both entry number AND timestamp to match', function () {
         $logContent = <<<'LOG'
-[2026-01-04 10:30:00] local.INFO: First message
-[2026-01-04 10:30:00] local.INFO: Same timestamp different entry
+[2024-01-15 10:30:00] local.INFO: First message
+[2024-01-15 10:30:00] local.INFO: Same timestamp different entry
 LOG;
         File::put($this->logPath, $logContent);
 
         // Try to delete entry 1 with correct timestamp
-        $result = $this->logService->deleteLogEntry(1, '2026-01-04 10:30:00');
+        $result = $this->logService->deleteLogEntry(1, '2024-01-15 10:30:00');
 
         expect($result)->toBeTrue();
 
@@ -288,15 +288,15 @@ LOG;
 
     it('uses entry numbers not file line numbers', function () {
         $logContent = <<<'LOG'
-[2026-01-04 10:30:00] local.ERROR: Entry one
+[2024-01-15 10:30:00] local.ERROR: Entry one
 #0 stack trace line (file line 2)
 #1 stack trace line (file line 3)
-[2026-01-04 10:31:00] local.INFO: Entry two
+[2024-01-15 10:31:00] local.INFO: Entry two
 LOG;
         File::put($this->logPath, $logContent);
 
         // Entry 2 is on file line 4, but entry number is 2
-        $result = $this->logService->deleteLogEntry(2, '2026-01-04 10:31:00');
+        $result = $this->logService->deleteLogEntry(2, '2024-01-15 10:31:00');
 
         expect($result)->toBeTrue();
 
@@ -316,8 +316,8 @@ describe('clearLogs', function () {
 
     it('clears all log entries', function () {
         $logContent = <<<'LOG'
-[2026-01-04 10:30:00] local.INFO: First message
-[2026-01-04 10:31:00] local.ERROR: Second message
+[2024-01-15 10:30:00] local.INFO: First message
+[2024-01-15 10:31:00] local.ERROR: Second message
 LOG;
         File::put($this->logPath, $logContent);
 

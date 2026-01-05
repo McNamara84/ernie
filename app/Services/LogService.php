@@ -40,6 +40,7 @@ class LogService
 
     /**
      * Get paginated log entries from the Laravel log file.
+     * Uses memory-efficient filtering during parsing to reduce memory usage.
      *
      * @return array{data: array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}>, current_page: int, last_page: int, per_page: int, total: int}
      */
@@ -55,21 +56,8 @@ class LogService
             return $this->emptyResult($perPage, $page);
         }
 
-        $entries = $this->parseLogFile($logPath);
-
-        // Filter by level
-        if ($level !== null && $level !== '') {
-            /** @var array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}> $entries */
-            $entries = array_values(array_filter($entries, fn (array $entry): bool => strtolower($entry['level']) === strtolower($level)));
-        }
-
-        // Filter by search term
-        if ($search !== null && $search !== '') {
-            $searchLower = strtolower($search);
-            /** @var array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}> $entries */
-            $entries = array_values(array_filter($entries, fn (array $entry): bool => str_contains(strtolower($entry['message']), $searchLower)
-                    || str_contains(strtolower($entry['context']), $searchLower)));
-        }
+        // Parse and filter in one pass to reduce memory usage
+        $entries = $this->parseLogFileWithFilter($logPath, $level, $search);
 
         // Reverse to show newest first
         /** @var array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}> $entries */
@@ -84,6 +72,9 @@ class LogService
         /** @var array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}> $data */
         $data = array_slice($entries, $offset, $perPage);
 
+        // Clear the full entries array to free memory before returning
+        unset($entries);
+
         return [
             'data' => $data,
             'current_page' => $page,
@@ -94,14 +85,17 @@ class LogService
     }
 
     /**
-     * Parse the Laravel log file into structured entries.
+     * Parse log file and filter entries in a single pass to reduce memory usage.
      * Uses streaming approach for large files to limit memory usage.
+     * Entries that don't match the filter criteria are immediately discarded.
      *
      * @return array<int, array{timestamp: string, level: string, message: string, context: string, line_number: int}>
      */
-    private function parseLogFile(string $logPath): array
+    private function parseLogFileWithFilter(string $logPath, ?string $level = null, ?string $search = null): array
     {
         $fileSize = File::size($logPath);
+        $levelLower = $level !== null && $level !== '' ? strtolower($level) : null;
+        $searchLower = $search !== null && $search !== '' ? strtolower($search) : null;
 
         // For very large files, only read the last MAX_FILE_SIZE bytes
         if ($fileSize > self::MAX_FILE_SIZE) {
@@ -134,16 +128,34 @@ class LogService
         $lines = explode("\n", $content);
         $entries = [];
         $currentEntry = null;
-        // Entry number (1-indexed) - only incremented for actual log entries, not context lines
         $entryNumber = 0;
 
         // Laravel log format: [YYYY-MM-DD HH:MM:SS] environment.LEVEL: message
         $pattern = '/^\[(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\]\s+\w+\.(\w+):\s*(.*)$/';
 
+        // Helper function to check if entry matches filters
+        $matchesFilter = function (array $entry) use ($levelLower, $searchLower): bool {
+            // Check level filter
+            if ($levelLower !== null && $entry['level'] !== $levelLower) {
+                return false;
+            }
+
+            // Check search filter
+            if ($searchLower !== null) {
+                $messageMatch = str_contains(strtolower($entry['message']), $searchLower);
+                $contextMatch = str_contains(strtolower($entry['context']), $searchLower);
+                if (! $messageMatch && ! $contextMatch) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
         foreach ($lines as $line) {
             if (preg_match($pattern, $line, $matches)) {
-                // Save previous entry if exists
-                if ($currentEntry !== null) {
+                // Check if previous entry matches filters before saving
+                if ($currentEntry !== null && $matchesFilter($currentEntry)) {
                     $entries[] = $currentEntry;
                 }
 
@@ -163,8 +175,8 @@ class LogService
             }
         }
 
-        // Don't forget the last entry
-        if ($currentEntry !== null) {
+        // Don't forget the last entry - apply filter here too
+        if ($currentEntry !== null && $matchesFilter($currentEntry)) {
             $entries[] = $currentEntry;
         }
 
