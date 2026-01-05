@@ -274,3 +274,36 @@ it('rejects tampered xml session data with mslKeywords as non-array', function (
     $response->assertStatus(400);
     expect($response->exception->getMessage())->toContain('mslKeywords must be an array');
 });
+
+it('passes licenses from xml session to editor as initialLicenses prop', function () {
+    // Create a session with licenses data
+    $sessionKey = 'xml_upload_'.Str::random(40);
+
+    Session::put($sessionKey, [
+        'doi' => '10.1234/test',
+        'year' => '2024',
+        'titles' => [['title' => 'Test Title', 'titleType' => 'main-title']],
+        'licenses' => ['CC-BY-4.0', 'MIT'],
+        'authors' => [],
+        'contributors' => [],
+        'descriptions' => [],
+        'dates' => [],
+        'coverages' => [],
+        'gcmdKeywords' => [],
+        'freeKeywords' => [],
+        'mslKeywords' => [],
+        'fundingReferences' => [],
+        'mslLaboratories' => [],
+    ]);
+
+    $response = $this->get('/editor?xmlSession='.$sessionKey);
+
+    $response->assertStatus(200);
+    $response->assertInertia(
+        fn ($page) => $page
+            ->component('editor')
+            ->has('initialLicenses', 2)
+            ->where('initialLicenses.0', 'CC-BY-4.0')
+            ->where('initialLicenses.1', 'MIT')
+    );
+});

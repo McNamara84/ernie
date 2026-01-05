@@ -157,7 +157,7 @@ class UploadXmlController extends Controller
             'language' => $language,
             'resourceType' => $resourceType !== null ? (string) $resourceType : null,
             'titles' => $titles,
-            'rights' => $licenses,
+            'licenses' => $licenses,
             'authors' => $authors,
             'contributors' => $contributors,
             'descriptions' => $descriptions,
