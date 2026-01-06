@@ -1,5 +1,111 @@
 [
     {
+        "version": "1.0.0rc1",
+        "date": "2026-01-06",
+        "features": [
+            {
+                "title": "Log Viewer for Administrators",
+                "description": "New log viewer page for administrators to monitor application logs directly in the browser. Includes filtering by log level, date range, and search functionality. Main menu reorganized with dedicated admin section for better navigation."
+            },
+            {
+                "title": "DOI and Title in Landing Page URLs",
+                "description": "Landing page URLs now include both DOI suffix and dataset title for better SEO and human readability. URLs follow the pattern '/landing-pages/{doi-suffix}/{title-slug}' making them more descriptive and shareable."
+            },
+            {
+                "title": "User Account Creation for Group Leaders",
+                "description": "Group leaders can now create new user accounts directly from the user management interface. Streamlined workflow allows group leaders to add team members with appropriate roles without requiring administrator intervention."
+            },
+            {
+                "title": "DataCite Bulk Import",
+                "description": "Import multiple datasets from DataCite API in bulk. Search DataCite by DOI prefix, filter results, and import selected datasets with full metadata preservation. Includes progress indicators and error handling for large imports."
+            },
+            {
+                "title": "Interactive Map on Landing Pages",
+                "description": "Landing pages now display an interactive map showing the geographic coverage of datasets. Supports point markers, rectangles, and polygons with proper coordinate display. Enhances discoverability and spatial context for published data."
+            },
+            {
+                "title": "Contact Information on Landing Pages",
+                "description": "Landing pages now include a dedicated contact information section displaying resource contact details. Improves accessibility for users seeking to reach dataset authors or curators."
+            },
+            {
+                "title": "Centralized Cache Management",
+                "description": "New cache management system with automatic invalidation when resources are modified. Improves application performance and ensures data consistency across cached endpoints."
+            },
+            {
+                "title": "Configurable Date Types",
+                "description": "Administrators can now configure which date types are available in the editor through the settings page. Allows organizations to customize date type options based on their metadata requirements."
+            }
+        ],
+        "improvements": [
+            {
+                "title": "Subdomain-Based Production URLs",
+                "description": "Production deployment now uses subdomain routing (ernie.rz-vm182.gfz.de) instead of path prefix (/ernie). Simplifies URL handling, improves compatibility with external services, and enables separate staging environment."
+            },
+            {
+                "title": "Separate Production and Staging Deployments",
+                "description": "Production and staging environments now run as independent deployments with separate configurations. Allows thorough testing of new features before production release without affecting live users."
+            },
+            {
+                "title": "Enhanced Test Data Seeder",
+                "description": "Comprehensive resource seeder for testing environments creates realistic sample data covering all edge cases. Improves test reliability and provides better examples for development and demonstration."
+            },
+            {
+                "title": "Optimized Resource Queries",
+                "description": "Database queries for resource lists optimized with proper indexing and eager loading. Significantly improves page load times for users with large numbers of datasets."
+            },
+            {
+                "title": "Playwright Stage Environment Tests",
+                "description": "New Playwright configuration for running end-to-end tests against the staging environment. Enables verification of deployed features before production release with comprehensive UI testing."
+            }
+        ],
+        "fixes": [
+            {
+                "title": "Email Sending Not Working",
+                "description": "Fixed mail configuration issues preventing password reset and notification emails from being sent. Corrected SMTP settings and queue worker configuration for reliable email delivery."
+            },
+            {
+                "title": "Inconsistent Editor UI Styling",
+                "description": "Resolved visual inconsistencies in the data editor form sections. Unified styling across all form groups for a more professional and cohesive user experience."
+            },
+            {
+                "title": "Editor Loading Failures",
+                "description": "Fixed bug causing the editor to fail loading for certain resource configurations. Improved error handling and data validation during editor initialization."
+            },
+            {
+                "title": "Landing Page Creation Errors",
+                "description": "Resolved server errors occurring when creating new landing pages under specific conditions. Enhanced validation and error recovery for the landing page creation workflow."
+            },
+            {
+                "title": "Main Title Type Not Loading",
+                "description": "Fixed issue where 'Main Title' type was not correctly loaded when editing existing resources. Ensured proper title type mapping during resource retrieval."
+            },
+            {
+                "title": "Handle Format Validation",
+                "description": "Corrected validation logic that incorrectly rejected valid Handle identifiers. Updated regex pattern to properly accept all valid Handle formats."
+            },
+            {
+                "title": "Related Work Mode Switching",
+                "description": "Fixed data loss when switching between Simple and Expert modes in the Related Work section. Entries are now preserved correctly during mode transitions."
+            },
+            {
+                "title": "Password Reset Functionality",
+                "description": "Restored password reset functionality that was broken due to configuration issues. Users can now successfully reset their passwords via email."
+            },
+            {
+                "title": "Date Parsing Edge Cases",
+                "description": "Fixed date parsing issues for various date formats in imported datasets. Improved handling of incomplete dates and timezone-aware timestamps."
+            },
+            {
+                "title": "GCMD Keyword Extraction",
+                "description": "Corrected GCMD Science Keyword extraction from uploaded XML files. Fixed parsing logic to properly identify and categorize all vocabulary terms."
+            },
+            {
+                "title": "XML Coverage Extraction",
+                "description": "Fixed extraction of geographic coverage data from XML files using envelope-wrapped coordinate formats. Properly handles GML envelope structures in DataCite metadata."
+            }
+        ]
+    },
+    {
         "version": "1.0.0b",
         "date": "2025-11-25",
         "features": [
