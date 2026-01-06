@@ -508,8 +508,9 @@ class UploadXmlController extends Controller
             ];
 
             // Build XPath base for this specific geoLocation element
+            // Use //* to find resource anywhere in document (supports envelope-wrapped XML)
             // Cast to int to ensure type safety for PHPStan
-            $geoLocationPath = '/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]['.((int) $geoLocationIndex + 1).']';
+            $geoLocationPath = '//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]['.((int) $geoLocationIndex + 1).']';
 
             // Extract geoLocationPlace (description)
             $place = $this->extractFirstStringFromQuery(
