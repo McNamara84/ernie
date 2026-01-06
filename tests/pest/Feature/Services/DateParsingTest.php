@@ -93,4 +93,44 @@ describe('Date Parsing with isEndDate parameter', function () {
             expect(invokeParseDate('2020-00', false))->toBeNull();
         });
     });
+
+    describe('Invalid calendar dates', function () {
+        it('corrects February 30th via Carbon fallback', function () {
+            // Invalid calendar date - Carbon corrects to March 1st (or 2nd depending on leap year)
+            // The implementation logs a warning for this case
+            $result = invokeParseDate('2024-02-30', false);
+            // Carbon::parse('2024-02-30') will overflow to 2024-03-01
+            expect($result)->toBe('2024-03-01');
+        });
+
+        it('corrects February 31st via Carbon fallback', function () {
+            $result = invokeParseDate('2024-02-31', false);
+            // Carbon::parse('2024-02-31') will overflow to 2024-03-02
+            expect($result)->toBe('2024-03-02');
+        });
+
+        it('corrects April 31st via Carbon fallback', function () {
+            // April only has 30 days
+            $result = invokeParseDate('2024-04-31', false);
+            expect($result)->toBe('2024-05-01');
+        });
+
+        it('corrects September 31st via Carbon fallback', function () {
+            // September only has 30 days
+            $result = invokeParseDate('2024-09-31', false);
+            expect($result)->toBe('2024-10-01');
+        });
+
+        it('handles February 29th correctly in leap year', function () {
+            // Valid date - should pass through unchanged
+            $result = invokeParseDate('2024-02-29', false);
+            expect($result)->toBe('2024-02-29');
+        });
+
+        it('corrects February 29th in non-leap year via Carbon fallback', function () {
+            // 2023 is not a leap year, so Feb 29 is invalid
+            $result = invokeParseDate('2023-02-29', false);
+            expect($result)->toBe('2023-03-01');
+        });
+    });
 });

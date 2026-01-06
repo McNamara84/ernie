@@ -622,7 +622,13 @@ class DataCiteToResourceTransformer
                 // isEndDate=true ensures year-only formats like "2020" become "2020-12-31"
                 $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1], true) : null;
             } else {
-                $dateValue = $this->parseDate($date);
+                // Single date (not a range): Always use isEndDate=false (start of period).
+                // This follows the DataCite convention where incomplete dates represent
+                // the earliest possible date (e.g., "2020" means "2020-01-01").
+                // The date type (Issued, Collected, etc.) does NOT influence this decision
+                // because DataCite metadata semantics treat all partial dates consistently
+                // as the start of the period they represent.
+                $dateValue = $this->parseDate($date, false);
             }
 
             ResourceDate::create([

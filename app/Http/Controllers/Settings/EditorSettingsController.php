@@ -136,10 +136,11 @@ class EditorSettingsController extends Controller
                         'updated_at' => now(),
                     ]);
             }
-        });
 
-        Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
-        Setting::updateOrCreate(['key' => 'max_licenses'], ['value' => $validated['maxLicenses']]);
+            // Update max settings - inside transaction to ensure atomicity
+            Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
+            Setting::updateOrCreate(['key' => 'max_licenses'], ['value' => $validated['maxLicenses']]);
+        });
 
         return back()->with('success', 'Settings updated');
     }
