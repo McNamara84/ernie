@@ -56,7 +56,7 @@ final class LandingPageResourceTransformer
             ->map(static fn (Title $title): array => [
                 'id' => $title->id,
                 'title' => $title->value,
-                'title_type' => $title->titleType?->slug,
+                'title_type' => $title->titleType->slug,
                 'language' => $title->language,
             ])
             ->all();

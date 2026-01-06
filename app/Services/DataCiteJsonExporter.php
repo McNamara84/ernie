@@ -135,11 +135,10 @@ class DataCiteJsonExporter
                 'title' => $title->value,
             ];
 
-            // Map title types to DataCite format
-            $titleType = $title->titleType?->slug;
-            if ($titleType && $titleType !== 'main-title') {
+            // Map title types to DataCite format - skip for MainTitle (no titleType attribute in XML)
+            if (! $title->isMainTitle()) {
                 // Convert slug format to DataCite TitleCase format
-                $titleData['titleType'] = $this->convertTitleType($titleType);
+                $titleData['titleType'] = $this->convertTitleType($title->titleType->slug);
             }
 
             // Add language if available

@@ -303,10 +303,9 @@ class DataCiteXmlExporter
         foreach ($resource->titles as $title) {
             $titleElement = $this->dom->createElement('title', htmlspecialchars($title->value));
 
-            // Add title type if not main title
-            $titleType = $title->titleType;
-            if ($titleType && ! $title->isMainTitle()) {
-                $titleElement->setAttribute('titleType', $titleType->slug);
+            // Add title type if not main title (DataCite convention: MainTitle has no titleType attribute)
+            if (! $title->isMainTitle()) {
+                $titleElement->setAttribute('titleType', $title->titleType->slug);
             }
 
             // Add language

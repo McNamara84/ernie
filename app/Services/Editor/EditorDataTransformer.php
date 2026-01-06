@@ -89,14 +89,12 @@ class EditorDataTransformer
     public function transformTitles(Resource $resource): array
     {
         return $resource->titles->map(function ($title): array {
-            $titleTypeSlug = $title->titleType?->slug;
-
             return [
                 'title' => $title->value,
                 // Frontend uses kebab-case slugs; main title is represented as 'main-title'
                 'titleType' => $title->isMainTitle()
                     ? 'main-title'
-                    : Str::kebab($titleTypeSlug ?: ''),
+                    : Str::kebab($title->titleType->slug),
             ];
         })->toArray();
     }
