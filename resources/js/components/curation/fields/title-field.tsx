@@ -51,7 +51,7 @@ export function TitleField({
     const isMainTitle = titleType === 'main-title';
 
     return (
-        <div className={cn('grid gap-4 md:grid-cols-12', className)}>
+        <div className={cn('grid gap-4 md:grid-cols-[1fr_180px_40px]', className)}>
             <InputField
                 id={`${id}-title`}
                 label="Title"
@@ -61,7 +61,6 @@ export function TitleField({
                 validationMessages={validationMessages}
                 touched={touched}
                 hideLabel={!isFirst}
-                className="md:col-span-8"
                 required={titleType === 'main-title'}
                 labelTooltip="Enter a title between 1 and 325 characters"
                 data-testid={isMainTitle ? 'main-title-input' : dataTestId}
@@ -73,10 +72,9 @@ export function TitleField({
                 onValueChange={onTypeChange}
                 options={options}
                 hideLabel={!isFirst}
-                className="md:col-span-3"
                 required
             />
-            <div className="flex items-end md:col-span-1">
+            <div className="flex items-end">
                 {isFirst ? (
                     <Button type="button" variant="outline" size="icon" aria-label="Add title" onClick={onAdd} disabled={!canAdd}>
                         <Plus className="h-4 w-4" />

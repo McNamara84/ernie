@@ -68,7 +68,13 @@ export function DateField({
     }, [dateType, endDate, onEndDateChange]);
 
     return (
-        <div className={cn('grid gap-4 md:grid-cols-12', className)}>
+        <div
+            className={cn(
+                'grid gap-4',
+                isDateRange ? 'md:grid-cols-[1fr_1fr_180px_40px]' : 'md:grid-cols-[1fr_180px_40px]',
+                className,
+            )}
+        >
             <InputField
                 id={`${id}-${isDateRange ? 'startDate' : 'date'}`}
                 label={isDateRange ? 'Start Date' : 'Date'}
@@ -76,7 +82,6 @@ export function DateField({
                 value={startDate ?? ''}
                 onChange={(e) => onStartDateChange(e.target.value)}
                 hideLabel={!isFirst}
-                className={isDateRange ? 'md:col-span-4' : 'md:col-span-8'}
                 required={dateType === 'created'}
             />
             {isDateRange && (
@@ -87,10 +92,9 @@ export function DateField({
                     value={endDate ?? ''}
                     onChange={(e) => onEndDateChange(e.target.value)}
                     hideLabel={!isFirst}
-                    className="md:col-span-4"
                 />
             )}
-            <div className="md:col-span-3">
+            <div>
                 <SelectField
                     id={`${id}-dateType`}
                     label="Date Type"
@@ -102,7 +106,7 @@ export function DateField({
                 />
                 {dateTypeDescription && <p className="mt-1 text-xs text-muted-foreground">{dateTypeDescription}</p>}
             </div>
-            <div className="flex items-end md:col-span-1">
+            <div className="flex items-end">
                 {isFirst ? (
                     <Button type="button" variant="outline" size="icon" aria-label="Add date" onClick={onAdd} disabled={!canAdd}>
                         <Plus className="h-4 w-4" />

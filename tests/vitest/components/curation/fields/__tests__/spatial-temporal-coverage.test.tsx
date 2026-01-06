@@ -55,7 +55,7 @@ describe('SpatialTemporalCoverageField', () => {
     test('renders empty state with add button', () => {
         render(<SpatialTemporalCoverageField {...defaultProps} />);
 
-        expect(screen.getByText(/no spatial and temporal coverage entries yet/i)).toBeInTheDocument();
+        expect(screen.getByText(/no coverage entries yet/i)).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /add.*coverage entry/i }),
         ).toBeInTheDocument();

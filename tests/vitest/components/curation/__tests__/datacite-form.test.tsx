@@ -197,6 +197,26 @@ describe('DataCiteForm', () => {
         }
     };
 
+    const ensureFreeKeywordsOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        // Use getAllByRole and filter to find the accordion trigger (not the help button)
+        const buttons = screen.getAllByRole('button', { name: /Free Keywords/i });
+        const freeKeywordsTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!freeKeywordsTrigger) throw new Error('Free Keywords accordion trigger not found');
+        if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(freeKeywordsTrigger);
+        }
+    };
+
+    const ensureControlledVocabulariesOpen = async (user: ReturnType<typeof userEvent.setup>) => {
+        // Use getAllByRole and filter to find the accordion trigger (not the help button)
+        const buttons = screen.getAllByRole('button', { name: /Controlled Vocabularies/i });
+        const controlledVocabTrigger = buttons.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+        if (!controlledVocabTrigger) throw new Error('Controlled Vocabularies accordion trigger not found');
+        if (controlledVocabTrigger.getAttribute('aria-expanded') === 'false') {
+            await user.click(controlledVocabTrigger);
+        }
+    };
+
     // Helper to get author scope - assumes authors section is already open and has at least one author
     const getAuthorScope = async () => {
         const group = await screen.findByTestId('author-entries-group');
@@ -2907,7 +2927,7 @@ describe('DataCiteForm', () => {
             );
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
-            const addButton = screen.getByRole('button', { name: 'Add date' });
+            const addButton = screen.getByRole('button', { name: 'Add Date' });
             await user.click(addButton);
 
             // After adding a new date: should have 1 date input
@@ -3128,10 +3148,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // Open Free Keywords section
-            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
-            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
-                await user.click(freeKeywordsTrigger);
-            }
+            await ensureFreeKeywordsOpen(user);
 
             // Find the free keywords input
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
@@ -3177,10 +3194,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // Open Free Keywords section
-            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
-            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
-                await user.click(freeKeywordsTrigger);
-            }
+            await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
             
@@ -3266,11 +3280,12 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // Initially, MSL section should not exist
-            expect(screen.queryByRole('button', { name: /Originating Multi-Scale Laboratories/i })).not.toBeInTheDocument();
+            expect(screen.queryByText(/Originating Multi-Scale Laboratories/i)).not.toBeInTheDocument();
 
-            // Open Free Keywords section
-            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
-            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
+            // Open Free Keywords section - use getAllByRole and filter for accordion trigger
+            const freeKeywordsTriggers = screen.getAllByRole('button', { name: /Free Keywords/i });
+            const freeKeywordsTrigger = freeKeywordsTriggers.find(btn => btn.getAttribute('data-slot') === 'accordion-trigger');
+            if (freeKeywordsTrigger && freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
                 await user.click(freeKeywordsTrigger);
             }
 
@@ -3289,7 +3304,7 @@ describe('DataCiteForm', () => {
 
             // MSL section should now appear
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /Originating Multi-Scale Laboratories/i })).toBeInTheDocument();
+                expect(screen.getByText(/Originating Multi-Scale Laboratories/i)).toBeInTheDocument();
             });
         });
 
@@ -3310,10 +3325,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // Open Controlled Vocabularies section
-            const controlledVocabTrigger = screen.getByRole('button', { name: /Controlled Vocabularies/i });
-            if (controlledVocabTrigger.getAttribute('aria-expanded') === 'false') {
-                await user.click(controlledVocabTrigger);
-            }
+            await ensureControlledVocabulariesOpen(user);
 
             // Initially, MSL Vocabulary tab should not exist
             await waitFor(() => {
@@ -3321,10 +3333,7 @@ describe('DataCiteForm', () => {
             });
 
             // Open Free Keywords section and add EPOS keyword
-            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
-            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
-                await user.click(freeKeywordsTrigger);
-            }
+            await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
             
@@ -3363,10 +3372,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // Open Free Keywords section
-            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
-            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
-                await user.click(freeKeywordsTrigger);
-            }
+            await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
             
@@ -3413,10 +3419,7 @@ describe('DataCiteForm', () => {
             const user = userEvent.setup({ pointerEventsCheck: 0 });
 
             // Open Free Keywords section
-            const freeKeywordsTrigger = screen.getByRole('button', { name: /Free Keywords/i });
-            if (freeKeywordsTrigger.getAttribute('aria-expanded') === 'false') {
-                await user.click(freeKeywordsTrigger);
-            }
+            await ensureFreeKeywordsOpen(user);
 
             const freeKeywordsInput = await screen.findByTestId('free-keywords-input') as TagifyEnabledInput;
             
@@ -3433,7 +3436,7 @@ describe('DataCiteForm', () => {
 
             // MSL section should appear
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: /Originating Multi-Scale Laboratories/i })).toBeInTheDocument();
+                expect(screen.getByText(/Originating Multi-Scale Laboratories/i)).toBeInTheDocument();
             });
 
             // Remove all keywords
@@ -3444,7 +3447,7 @@ describe('DataCiteForm', () => {
 
             // MSL section should disappear
             await waitFor(() => {
-                expect(screen.queryByRole('button', { name: /Originating Multi-Scale Laboratories/i })).not.toBeInTheDocument();
+                expect(screen.queryByText(/Originating Multi-Scale Laboratories/i)).not.toBeInTheDocument();
             });
         });
     });
