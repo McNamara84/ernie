@@ -2025,26 +2025,26 @@ export default function DataCiteForm({
         return <Circle className="h-4 w-4 text-gray-400" aria-label="Optional section" />;
     };
 
+    // Build global error messages array for ValidationAlert
+    const globalErrorMessages = useMemo(() => {
+        const messages: string[] = [];
+        if (errorMessage) {
+            messages.push(errorMessage);
+        }
+        messages.push(...validationErrors);
+        return messages;
+    }, [errorMessage, validationErrors]);
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {errorMessage && (
-                <div
-                    ref={errorRef}
-                    tabIndex={-1}
-                    className="rounded-md border border-destructive bg-destructive/10 p-4 text-destructive"
-                    role="alert"
-                    aria-live="assertive"
-                >
-                    <p className="font-semibold">{errorMessage}</p>
-                    {validationErrors.length > 0 && (
-                        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-                            {validationErrors.map((message, index) => (
-                                <li key={`${message}-${index}`}>{message}</li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-            )}
+            <ValidationAlert
+                ref={errorRef}
+                severity="error"
+                messages={globalErrorMessages}
+                assertive
+                focusable
+                className="p-4"
+            />
             <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
                 <AccordionItem value="resource-info">
                     <AccordionTrigger>

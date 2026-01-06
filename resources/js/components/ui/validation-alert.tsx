@@ -16,6 +16,10 @@ interface ValidationAlertProps {
     className?: string;
     /** Test ID for Playwright tests */
     'data-testid'?: string;
+    /** Use assertive aria-live for critical errors (default: polite) */
+    assertive?: boolean;
+    /** Allow programmatic focus for accessibility */
+    focusable?: boolean;
 }
 
 const severityConfig: Record<
@@ -70,40 +74,46 @@ const severityConfig: Record<
  * />
  * ```
  */
-export function ValidationAlert({ severity, title, messages, className, 'data-testid': dataTestId }: ValidationAlertProps) {
-    const config = severityConfig[severity];
+export const ValidationAlert = React.forwardRef<HTMLDivElement, ValidationAlertProps>(
+    ({ severity, title, messages, className, 'data-testid': dataTestId, assertive = false, focusable = false }, ref) => {
+        const config = severityConfig[severity];
 
-    // Don't render if no messages
-    if (messages.length === 0) {
-        return null;
-    }
+        // Don't render if no messages
+        if (messages.length === 0) {
+            return null;
+        }
 
-    return (
-        <div
-            className={cn('mb-4 rounded-md border p-3 text-sm', config.containerClass, className)}
-            role={config.role}
-            aria-live="polite"
-            data-testid={dataTestId}
-        >
-            <div className="flex items-start gap-2">
-                {config.icon}
-                <div className="flex-1">
-                    {title && <strong className="font-semibold">{title}</strong>}
-                    {messages.length === 1 && !title ? (
-                        <p>{messages[0]}</p>
-                    ) : messages.length === 1 && title ? (
-                        <p className="mt-1">{messages[0]}</p>
-                    ) : (
-                        <ul className={cn('list-disc space-y-1 pl-5', title ? 'mt-2' : '')}>
-                            {messages.map((message, index) => (
-                                <li key={index}>{message}</li>
-                            ))}
-                        </ul>
-                    )}
+        return (
+            <div
+                ref={ref}
+                className={cn('mb-4 rounded-md border p-3 text-sm', config.containerClass, className)}
+                role={config.role}
+                aria-live={assertive ? 'assertive' : 'polite'}
+                tabIndex={focusable ? -1 : undefined}
+                data-testid={dataTestId}
+            >
+                <div className="flex items-start gap-2">
+                    {config.icon}
+                    <div className="flex-1">
+                        {title && <strong className="font-semibold">{title}</strong>}
+                        {messages.length === 1 && !title ? (
+                            <p>{messages[0]}</p>
+                        ) : messages.length === 1 && title ? (
+                            <p className="mt-1">{messages[0]}</p>
+                        ) : (
+                            <ul className={cn('list-disc space-y-1 pl-5', title ? 'mt-2' : '')}>
+                                {messages.map((message, index) => (
+                                    <li key={index}>{message}</li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
-    );
-}
+        );
+    },
+);
+
+ValidationAlert.displayName = 'ValidationAlert';
 
 export default ValidationAlert;

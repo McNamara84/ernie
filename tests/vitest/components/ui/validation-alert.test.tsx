@@ -1,3 +1,5 @@
+import { createRef } from 'react';
+
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
@@ -79,10 +81,36 @@ describe('ValidationAlert', () => {
     });
 
     describe('Accessibility', () => {
-        it('should have aria-live polite', () => {
+        it('should have aria-live polite by default', () => {
             render(<ValidationAlert severity="error" messages={['Error']} />);
 
             expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'polite');
+        });
+
+        it('should have aria-live assertive when assertive prop is true', () => {
+            render(<ValidationAlert severity="error" messages={['Error']} assertive />);
+
+            expect(screen.getByRole('alert')).toHaveAttribute('aria-live', 'assertive');
+        });
+
+        it('should have tabIndex -1 when focusable prop is true', () => {
+            render(<ValidationAlert severity="error" messages={['Error']} focusable />);
+
+            expect(screen.getByRole('alert')).toHaveAttribute('tabIndex', '-1');
+        });
+
+        it('should not have tabIndex when focusable prop is false', () => {
+            render(<ValidationAlert severity="error" messages={['Error']} />);
+
+            expect(screen.getByRole('alert')).not.toHaveAttribute('tabIndex');
+        });
+
+        it('should forward ref correctly', () => {
+            const ref = createRef<HTMLDivElement>();
+            render(<ValidationAlert ref={ref} severity="error" messages={['Error']} />);
+
+            expect(ref.current).toBeInstanceOf(HTMLDivElement);
+            expect(ref.current).toHaveRole('alert');
         });
 
         it('should have icon with aria-hidden', () => {
