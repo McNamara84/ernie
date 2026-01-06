@@ -38,6 +38,12 @@ describe('SectionHeader', () => {
 
             expect(container.querySelector('#custom-id')).toBeInTheDocument();
         });
+
+        it('should render label with data-slot attribute', () => {
+            const { container } = render(<SectionHeader label="Test" />);
+
+            expect(container.querySelector('[data-slot="label"]')).toBeInTheDocument();
+        });
     });
 
     describe('Required Indicator', () => {

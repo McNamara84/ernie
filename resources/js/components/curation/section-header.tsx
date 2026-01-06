@@ -67,7 +67,7 @@ export function SectionHeader({
             {/* Top row: Label, tooltip, counter, actions */}
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                    <Label id={id} className="text-base font-semibold">
+                    <Label id={id} className="text-base font-semibold" data-slot="label">
                         {label}
                         {required && (
                             <span className="ml-0.5 text-destructive" aria-label="Required">

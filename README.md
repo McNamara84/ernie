@@ -717,9 +717,9 @@ ERNIE uses a unified component library based on Radix UI primitives with Tailwin
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `EmptyState` | `Components/ui/empty-state.tsx` | Consistent empty data states |
-| `ValidationAlert` | `Components/ui/validation-alert.tsx` | Error, warning, and info messages |
-| `SectionHeader` | `Components/curation/section-header.tsx` | Accordion section headers |
+| `EmptyState` | `components/ui/empty-state.tsx` | Consistent empty data states |
+| `ValidationAlert` | `components/ui/validation-alert.tsx` | Error, warning, and info messages |
+| `SectionHeader` | `components/curation/section-header.tsx` | Accordion section headers |
 
 ### Design Tokens
 
