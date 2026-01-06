@@ -1,10 +1,12 @@
 import axios from 'axios';
-import { AlertCircle, CheckCircle, Circle, Plus } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, Circle, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ValidationAlert } from '@/components/ui/validation-alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
@@ -2190,20 +2192,11 @@ export default function DataCiteForm({
                     </AccordionTrigger>
                     <AccordionContent ref={authorsRef}>
                         {/* Validation issues notification */}
-                        {authorValidationIssues.length > 0 && (
-                            <div
-                                className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
-                                role="alert"
-                                aria-live="polite"
-                            >
-                                <strong>Required fields missing:</strong>
-                                <ul className="mt-2 list-disc space-y-1 pl-5">
-                                    {authorValidationIssues.map((issue, idx) => (
-                                        <li key={idx}>{issue}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                        <ValidationAlert
+                            severity="error"
+                            title="Required fields missing"
+                            messages={authorValidationIssues}
+                        />
                         {authorRoleNames.length > 0 && (
                             <p id={authorRolesDescriptionId} className="mb-4 text-sm text-muted-foreground" data-testid="author-roles-availability">
                                 {`The available author ${authorRoleNames.length === 1 ? 'role is' : 'roles are'} ${authorRoleSummary}.`}
@@ -2292,32 +2285,11 @@ export default function DataCiteForm({
                         </AccordionTrigger>
                         <AccordionContent>
                             {mslValidationInfo && (
-                                <div
-                                    className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900"
-                                    role="status"
-                                    aria-live="polite"
-                                >
-                                    <div className="flex items-start gap-2">
-                                        <svg
-                                            className="mt-0.5 h-4 w-4 shrink-0"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            aria-hidden="true"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                        </svg>
-                                        <div>
-                                            <strong className="font-semibold">Recommendation:</strong>
-                                            <p className="mt-1">{mslValidationInfo.message}</p>
-                                        </div>
-                                    </div>
-                                </div>
+                                <ValidationAlert
+                                    severity="info"
+                                    title="Recommendation"
+                                    messages={[mslValidationInfo.message]}
+                                />
                             )}
                             <MSLLaboratoriesField selectedLaboratories={mslLaboratories} onChange={setMslLaboratories} />
                         </AccordionContent>
@@ -2346,26 +2318,23 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent ref={datesRef}>
-                        {dateValidationIssues.length > 0 && (
-                            <div
-                                className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive"
-                                role="alert"
-                                aria-live="polite"
-                            >
-                                <strong>Date validation issues:</strong>
-                                <ul className="mt-2 list-disc space-y-1 pl-5">
-                                    {dateValidationIssues.map((issue, idx) => (
-                                        <li key={idx}>{issue}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
+                        <ValidationAlert
+                            severity="error"
+                            title="Date validation issues"
+                            messages={dateValidationIssues}
+                        />
                         <div className="space-y-4">
                             {dates.length === 0 ? (
-                                <Button type="button" variant="outline" onClick={addDate} aria-label="Add date">
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add date
-                                </Button>
+                                <EmptyState
+                                    icon={<Calendar className="h-8 w-8" />}
+                                    title="No dates added"
+                                    description="Add important dates like collection period, validity, or other relevant temporal information."
+                                    action={{
+                                        label: 'Add Date',
+                                        onClick: addDate,
+                                    }}
+                                    data-testid="dates-empty-state"
+                                />
                             ) : (
                                 dates.map((entry, index) => {
                                     const selectedDateType = dateTypeOptions.find((dt) => dt.value === entry.dateType);
@@ -2417,21 +2386,17 @@ export default function DataCiteForm({
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
-            {hasLegacyKeywords && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
-                    <div className="flex items-start gap-3">
-                        <span className="text-xl text-amber-600 dark:text-amber-400">⚠️</span>
-                        <div>
-                            <h3 className="mb-1 font-semibold text-amber-900 dark:text-amber-100">Legacy Keywords Detected</h3>
-                            <p className="text-sm text-amber-800 dark:text-amber-200">
-                                This dataset contains MSL keywords from the old database that don't exist in the current vocabulary. Please review the
-                                highlighted keywords in the "Controlled Vocabularies" section and replace them with keywords from the current MSL
-                                vocabulary before saving.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ValidationAlert
+                severity="warning"
+                title="Legacy Keywords Detected"
+                messages={
+                    hasLegacyKeywords
+                        ? [
+                              'This dataset contains MSL keywords from the old database that don\'t exist in the current vocabulary. Please review the highlighted keywords in the "Controlled Vocabularies" section and replace them with keywords from the current MSL vocabulary before saving.',
+                          ]
+                        : []
+                }
+            />
             <div className="flex justify-end">
                 <TooltipProvider>
                     <Tooltip>

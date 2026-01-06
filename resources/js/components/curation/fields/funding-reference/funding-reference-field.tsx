@@ -1,10 +1,11 @@
 import type { DragEndEvent } from '@dnd-kit/core';
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus } from 'lucide-react';
+import { Banknote, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 
 import { getFunderByRorId, loadRorFunders } from './ror-search';
 import { SortableFundingReferenceItem } from './sortable-funding-reference-item';
@@ -136,10 +137,16 @@ export function FundingReferenceField({ value = [], onChange }: FundingReference
 
             {/* List of Funding References */}
             {value.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border bg-muted/30 p-12 text-center">
-                    <p className="text-sm text-muted-foreground">No funding references added yet.</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Click "Add Funding Reference" to get started.</p>
-                </div>
+                <EmptyState
+                    icon={<Banknote className="h-8 w-8" />}
+                    title="No funding references added"
+                    description="Add information about grants, awards, and funders that supported this research."
+                    action={{
+                        label: 'Add Funding Reference',
+                        onClick: handleAdd,
+                    }}
+                    data-testid="funding-empty-state"
+                />
             ) : (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={value.map((f) => f.id)} strategy={verticalListSortingStrategy}>
