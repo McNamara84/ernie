@@ -186,10 +186,23 @@ class DataCiteToResourceTransformer
     /**
      * Transform titles from DataCite format.
      *
+     * In DataCite XML, MainTitle has no titleType attribute - it's simply omitted.
+     * In the database, all titles must reference a TitleType record, including MainTitle.
+     *
      * @param  array<int, array<string, mixed>>  $titles
+     *
+     * @throws \RuntimeException If required TitleType records are missing from the database
      */
     private function transformTitles(array $titles, Resource $resource): void
     {
+        // Pre-fetch MainTitle ID for titles without titleType attribute
+        $mainTitleId = $this->getLookupId(TitleType::class, 'slug', 'MainTitle');
+        if ($mainTitleId === null) {
+            throw new \RuntimeException(
+                'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
+            );
+        }
+
         foreach ($titles as $titleData) {
             $titleValue = $titleData['title'] ?? null;
 
@@ -197,14 +210,24 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            // Get title type - default to MainTitle if not specified
-            $titleType = $titleData['titleType'] ?? 'MainTitle';
-            $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $titleType);
+            // Get title type - default to MainTitle if not specified (DataCite convention)
+            $titleType = $titleData['titleType'] ?? null;
 
-            // Fall back to MainTitle or Other if not found
-            if ($titleTypeId === null) {
-                $titleTypeId = $this->getLookupId(TitleType::class, 'slug', 'MainTitle')
-                    ?? $this->getLookupId(TitleType::class, 'slug', 'Other');
+            if ($titleType === null || $titleType === '') {
+                // No titleType in XML means it's the MainTitle
+                $titleTypeId = $mainTitleId;
+            } else {
+                $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $titleType);
+
+                // Fall back to Other if specific type not found
+                if ($titleTypeId === null) {
+                    $titleTypeId = $this->getLookupId(TitleType::class, 'slug', 'Other');
+                }
+
+                // If still null, use MainTitle as last resort
+                if ($titleTypeId === null) {
+                    $titleTypeId = $mainTitleId;
+                }
             }
 
             Title::create([

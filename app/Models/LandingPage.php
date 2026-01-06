@@ -230,7 +230,7 @@ class LandingPage extends Model
             $resource->load('titles.titleType');
         }
 
-        // Find main title (title_type_id is NULL or titleType slug is 'main-title')
+        // Find main title (titleType slug is 'MainTitle')
         $mainTitle = $resource->titles
             ->first(fn (Title $title) => $title->isMainTitle());
 

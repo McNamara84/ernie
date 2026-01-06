@@ -9,18 +9,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Title Model (DataCite #3)
  *
- * Stores titles for a Resource with optional type and language.
+ * Stores titles for a Resource with type and language.
+ *
+ * Note: In DataCite XML, MainTitle has no titleType attribute (it's omitted).
+ * In the database, all titles must reference a TitleType record, including MainTitle.
  *
  * @property int $id
  * @property int $resource_id
  * @property string $value
- * @property int|null $title_type_id
+ * @property int $title_type_id
  * @property string|null $language
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  *
  * @property-read Resource $resource
- * @property-read TitleType|null $titleType
+ * @property-read TitleType $titleType
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/title/
  */
@@ -57,29 +60,23 @@ class Title extends Model
     /**
      * Check if this is the main title.
      *
-     * Main titles are represented as a NULL title_type_id.
+     * Main titles are identified by having a TitleType with slug 'MainTitle'.
+     * In DataCite XML, MainTitle has no titleType attribute, but in the database
+     * it's always stored with a reference to the MainTitle TitleType record.
      *
-     * Note: This method intentionally does NOT lazy-load the titleType relation.
-     * If the relation is not loaded and title_type_id is not NULL, this returns false.
-     * Callers that need to detect legacy "MainTitle" rows should eager load `titleType`.
+     * Note: This method requires the titleType relation to be loaded for accurate results.
+     * Callers should eager load `titleType` when checking multiple titles.
      */
     public function isMainTitle(): bool
     {
-        if ($this->title_type_id === null) {
-            return true;
-        }
-
         if (! $this->relationLoaded('titleType')) {
-            return false;
+            $this->load('titleType');
         }
 
-        $slug = $this->titleType?->slug;
-        if ($slug === null) {
-            return false;
-        }
+        $slug = $this->titleType->slug;
 
         $normalised = \Illuminate\Support\Str::kebab($slug);
 
-        return $normalised === 'main-title';
+        return $normalised === 'maintitle' || $normalised === 'main-title';
     }
 }

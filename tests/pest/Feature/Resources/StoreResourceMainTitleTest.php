@@ -13,7 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-test('storing a resource with main-title persists title_type_id as null and sets publication_year', function () {
+test('storing a resource with main-title persists with MainTitle TitleType ID and sets publication_year', function () {
     $user = User::factory()->create();
 
     $resourceType = ResourceType::create([
@@ -40,8 +40,8 @@ test('storing a resource with main-title persists title_type_id as null and sets
         'usage_count' => 0,
     ]);
 
-    // Legacy DB slug (TitleCase). API/frontend uses kebab-case 'main-title'.
-    $legacyMainTitleType = TitleType::create([
+    // MainTitle TitleType - all main titles should reference this record
+    $mainTitleType = TitleType::create([
         'name' => 'Main Title',
         'slug' => 'MainTitle',
         'is_active' => true,
@@ -99,6 +99,7 @@ test('storing a resource with main-title persists title_type_id as null and sets
     expect($resource->publication_year)->toBe(2024);
 
     $title = $resource->titles()->firstOrFail();
-    expect($title->title_type_id)->toBeNull();
-    expect($title->title_type_id)->not->toBe($legacyMainTitleType->id);
+    // MainTitle should be stored with the MainTitle TitleType ID (not NULL)
+    expect($title->title_type_id)->toBe($mainTitleType->id);
+    expect($title->isMainTitle())->toBeTrue();
 });

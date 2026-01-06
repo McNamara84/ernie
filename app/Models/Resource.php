@@ -249,19 +249,14 @@ class Resource extends Model
     /**
      * Get the main title.
      *
-     * Main titles are represented as a NULL title_type_id.
-     *
-     * Performance note: If no NULL-based main title exists, this method performs a one-time
-     * loadMissing('titles.titleType') to detect legacy rows that used a TitleType slug like "MainTitle".
+     * Main titles are identified by having a TitleType with slug 'MainTitle'.
+     * In DataCite XML, MainTitle has no titleType attribute, but in the database
+     * it's always stored with a reference to the MainTitle TitleType record.
      */
     public function getMainTitleAttribute(): ?string
     {
-        $mainTitle = $this->titles->first(fn (Title $t) => $t->title_type_id === null);
-
-        if ($mainTitle === null) {
-            $this->loadMissing('titles.titleType');
-            $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
-        }
+        $this->loadMissing('titles.titleType');
+        $mainTitle = $this->titles->first(fn (Title $t) => $t->isMainTitle());
 
         return $mainTitle?->value;
     }

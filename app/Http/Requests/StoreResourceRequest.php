@@ -173,7 +173,8 @@ class StoreResourceRequest extends FormRequest
             if ($titleType !== null && $titleType !== '') {
                 $normalized = Str::kebab($titleType);
 
-                // Main title uses NULL title_type_id in the DB and does not require a TitleType row.
+                // Main title is stored with the MainTitle TitleType ID in the database.
+                // In DataCite XML, MainTitle has no titleType attribute.
                 if ($normalized === 'main-title') {
                     $titleType = 'main-title';
                 } elseif ($normalized !== '') {
@@ -751,7 +752,8 @@ class StoreResourceRequest extends FormRequest
 
                     $normalized = Str::kebab($candidate);
                     if ($normalized === 'main-title') {
-                        // Special case: main titles are represented as NULL title_type_id.
+                        // Main titles are stored with the MainTitle TitleType ID.
+                        // This is a valid titleType, so skip the DB lookup check.
                         continue;
                     }
 

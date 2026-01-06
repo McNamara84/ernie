@@ -172,9 +172,12 @@ class ResourceController extends Controller
                 }
 
                 /**
-                 * Collect post-normalization titleType values for non-main titles.
+                 * Collect all titleType values for lookup.
                  * prepareForValidation() maps incoming values to DB slugs where possible.
-                 * Main titles are represented as NULL title_type_id and do not require a TitleType row.
+                 * All titles (including MainTitle) are stored with their TitleType ID.
+                 *
+                 * Note: In DataCite XML, MainTitle has no titleType attribute, but in the
+                 * database we always store the reference to the TitleType record.
                  *
                  * @var array<int, string> $titleTypeInputValues
                  */
@@ -183,7 +186,10 @@ class ResourceController extends Controller
                 foreach ($validated['titles'] as $titleData) {
                     $normalized = Str::kebab($titleData['titleType'] ?? '');
 
-                    if ($normalized !== '' && $normalized !== 'main-title') {
+                    // Empty or 'main-title' defaults to MainTitle slug
+                    if ($normalized === '' || $normalized === 'main-title') {
+                        $titleTypeInputValues[] = 'MainTitle';
+                    } else {
                         $titleTypeInputValues[] = (string) ($titleData['titleType'] ?? '');
                     }
                 }
@@ -195,29 +201,23 @@ class ResourceController extends Controller
                  *
                  * @var array<string, int> $titleTypeMap
                  */
-                $titleTypeMap = [];
-
-                if (count($titleTypeInputValues) > 0) {
-                    $titleTypeMap = TitleType::query()
+                $titleTypeMap = TitleType::query()
                     ->whereIn('slug', $titleTypeInputValues)
-                        ->get(['id', 'slug'])
-                        ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
-                        ->all();
+                    ->get(['id', 'slug'])
+                    ->mapWithKeys(fn (TitleType $type): array => [Str::kebab($type->slug) => $type->id])
+                    ->all();
+
+                // Also add mapping for empty string and 'main-title' to MainTitle ID
+                $mainTitleId = $titleTypeMap['maintitle'] ?? null;
+                if ($mainTitleId !== null) {
+                    $titleTypeMap[''] = $mainTitleId;
+                    $titleTypeMap['main-title'] = $mainTitleId;
                 }
 
                 $resourceTitles = [];
 
                 foreach ($validated['titles'] as $index => $title) {
                     $normalized = Str::kebab($title['titleType'] ?? '');
-
-                    if ($normalized === '' || $normalized === 'main-title') {
-                        $resourceTitles[] = [
-                            'value' => $title['title'],
-                            'title_type_id' => null,
-                        ];
-
-                        continue;
-                    }
 
                     $titleTypeId = $titleTypeMap[$normalized] ?? null;
                     if ($titleTypeId === null) {
@@ -1720,10 +1720,10 @@ class ResourceController extends Controller
                 ->map(static function (Title $title): array {
                     return [
                         'title' => $title->value,
-                        'title_type' => $title->titleType ? [
+                        'title_type' => [
                             'name' => $title->titleType->name,
                             'slug' => $title->titleType->slug,
-                        ] : null,
+                        ],
                     ];
                 })
                 ->values()
