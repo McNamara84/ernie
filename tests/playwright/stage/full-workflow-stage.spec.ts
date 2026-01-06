@@ -188,12 +188,21 @@ async function openAccordion(page: import('@playwright/test').Page, accordion: i
 
 test.describe('Stage Full Workflow Test', () => {
   test.beforeAll(() => {
-    // Verify credentials are set
-    if (!STAGE_TEST_USERNAME || STAGE_TEST_USERNAME === 'stage@example.com') {
-      throw new Error('STAGE_TEST_USERNAME environment variable must be set');
+    // Verify credentials are provided via environment variables
+    // STAGE_TEST_USERNAME and STAGE_TEST_PASSWORD have no defaults and must be explicitly set
+    if (!STAGE_TEST_USERNAME) {
+      throw new Error(
+        'STAGE_TEST_USERNAME environment variable must be set. ' +
+        'For local testing, add to .env file or set when running: ' +
+        'STAGE_TEST_USERNAME=test@example.com npx playwright test ...'
+      );
     }
-    if (!STAGE_TEST_PASSWORD || STAGE_TEST_PASSWORD === 'stage-password') {
-      throw new Error('STAGE_TEST_PASSWORD environment variable must be set');
+    if (!STAGE_TEST_PASSWORD) {
+      throw new Error(
+        'STAGE_TEST_PASSWORD environment variable must be set. ' +
+        'For local testing, add to .env file or set when running: ' +
+        'STAGE_TEST_PASSWORD=password npx playwright test ...'
+      );
     }
   });
 
@@ -650,10 +659,15 @@ test.describe('Stage Full Workflow Test', () => {
     // ========================================
     console.log('Step 8: Modifying title to test Save button...');
     
-    const MODIFIED_TITLE = `${EXPECTED_DATA.mainTitle} - MODIFIED`;
+    // Use a fixed short modification suffix to avoid exceeding max title length (255 chars)
+    // The database constraint is 255 characters, so we ensure the modified title stays within limits
+    const TITLE_SUFFIX = ' [EDITED]';
+    const MAX_TITLE_LENGTH = 255;
+    const truncatedTitle = EXPECTED_DATA.mainTitle.substring(0, MAX_TITLE_LENGTH - TITLE_SUFFIX.length);
+    const MODIFIED_TITLE = `${truncatedTitle}${TITLE_SUFFIX}`;
     
     // Find the title input field (label is "Title*", not "Main Title")
-    const mainTitleInputEdit = page.getByLabel(/^Title\*/i).first();
+    const mainTitleInputEdit = page.getByLabel(/^Title\\*/i).first();
     await expect(mainTitleInputEdit).toBeVisible({ timeout: 10000 });
     
     // Clear and enter modified title

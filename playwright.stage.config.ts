@@ -1,23 +1,9 @@
-import fs from 'fs';
-import path from 'path';
-
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
 
-// Load environment variables from .env file manually
-const envPath = path.resolve(process.cwd(), '.env');
-if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, 'utf-8');
-  for (const line of envContent.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#')) {
-      const [key, ...valueParts] = trimmed.split('=');
-      const value = valueParts.join('=').replace(/^["']|["']$/g, '');
-      if (key && !process.env[key]) {
-        process.env[key] = value;
-      }
-    }
-  }
-}
+// Load environment variables from .env file using dotenv
+// This handles complex values with equals signs and special characters correctly
+dotenv.config();
 
 /**
  * Playwright configuration for Stage environment testing.

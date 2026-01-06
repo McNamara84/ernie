@@ -93,7 +93,10 @@ it('handles xml with a single main title', function () {
     ]);
 });
 
-it('extracts main title from namespaced DataCite xml inside an envelope', function () {
+it('extracts main title from namespaced DataCite xml wrapped in an envelope element', function () {
+    // This test verifies that XPath queries using local-name() correctly extract data
+    // when the DataCite resource element is nested inside a parent envelope element,
+    // which is common when XML is exported from systems that bundle multiple schemas.
     $this->actingAs(User::factory()->create());
     $type = ResourceType::create(['name' => 'Book', 'slug' => 'book']);
 

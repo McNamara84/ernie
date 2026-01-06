@@ -1,7 +1,6 @@
+import { defineConfig, devices } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-
-import { defineConfig, devices } from '@playwright/test';
 
 // Load environment variables from .env file manually
 const envPath = path.resolve(process.cwd(), '.env');
@@ -65,6 +64,7 @@ export default defineConfig({
   ],
 });
 
-// Override stage credentials for local testing
-process.env.STAGE_TEST_USERNAME = 'test@example.com';
-process.env.STAGE_TEST_PASSWORD = 'password';
+// For local Docker testing, set credentials via environment variables:
+// STAGE_TEST_USERNAME=test@example.com
+// STAGE_TEST_PASSWORD=password
+// These can be set in .env file or passed directly when running tests

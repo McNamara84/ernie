@@ -404,6 +404,12 @@ class UploadXmlController extends Controller
      * - Year-month: "2024-06" -> "2024-06-01"
      * - DateTime: "2024-01-15 10:30:00" -> "2024-01-15"
      * - Invalid/empty: returns empty string
+     *
+     * Note: Year-only dates default to January 1st, and year-month dates default to the 1st
+     * of the month. This is a pragmatic choice for date range comparisons and validation,
+     * but may not accurately represent the original semantic intent (e.g., "2024" meaning
+     * "sometime in 2024"). The original date value should be preserved separately if the
+     * full semantic meaning is important.
      */
     private function normalizeDateString(string $dateValue): string
     {
@@ -428,21 +434,31 @@ class UploadXmlController extends Controller
             return $dateValue;
         }
 
-        // Handle year-month format: "2024-06" -> "2024-06-01"
+        // Handle year-month format: "2024-06" -> "2024-06-01" (defaults to 1st of month)
         if (preg_match('/^(\d{4})-(\d{2})$/', $dateValue, $matches)) {
             return $matches[1].'-'.$matches[2].'-01';
         }
 
-        // Handle year-only format: "2024" -> "2024-01-01"
+        // Handle year-only format: "2024" -> "2024-01-01" (defaults to January 1st)
         if (preg_match('/^\d{4}$/', $dateValue)) {
             return $dateValue.'-01-01';
         }
 
         // Try to parse with strtotime as last resort
+        // Warning: strtotime can produce unexpected results for ambiguous strings
         $timestamp = strtotime($dateValue);
         if ($timestamp !== false) {
+            Log::debug('Date normalization used strtotime fallback', [
+                'original' => $dateValue,
+                'normalized' => date('Y-m-d', $timestamp),
+            ]);
+
             return date('Y-m-d', $timestamp);
         }
+
+        Log::warning('Could not parse date value during XML import', [
+            'value' => $dateValue,
+        ]);
 
         // Return empty string for unparseable dates
         return '';

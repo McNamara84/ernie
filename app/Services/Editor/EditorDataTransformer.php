@@ -185,8 +185,6 @@ class EditorDataTransformer
         // Transform ResourceContributor entries to contributors format
         foreach ($resource->contributors as $contributor) {
             /** @var \App\Models\ResourceContributor $contributor */
-            $contributorable = $contributor->contributorable;
-
             $data = [
                 'position' => $contributor->position,
                 // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
@@ -194,16 +192,18 @@ class EditorDataTransformer
             ];
 
             if ($contributor->contributorable_type === Person::class) {
-                /** @var Person $contributorable */
+                /** @var Person $person */
+                $person = $contributor->contributorable;
                 $data['type'] = 'person';
-                $data['firstName'] = $contributorable->given_name ?? '';
-                $data['lastName'] = $contributorable->family_name ?? '';
-                $data['orcid'] = $contributorable->name_identifier ?? '';
+                $data['firstName'] = $person->given_name ?? '';
+                $data['lastName'] = $person->family_name ?? '';
+                $data['orcid'] = $person->name_identifier ?? '';
             } elseif ($contributor->contributorable_type === Institution::class) {
-                /** @var Institution $contributorable */
+                /** @var Institution $institution */
+                $institution = $contributor->contributorable;
                 $data['type'] = 'institution';
-                $data['institutionName'] = $contributorable->name ?? '';
-                $data['rorId'] = $contributorable->name_identifier ?? '';
+                $data['institutionName'] = $institution->name ?? '';
+                $data['rorId'] = $institution->name_identifier ?? '';
             }
 
             // Add affiliations from the contributor
@@ -227,6 +227,16 @@ class EditorDataTransformer
 
     /**
      * Transform resource descriptions to frontend format.
+     *
+     * The database stores description type slugs in PascalCase (e.g., 'Abstract', 'SeriesInformation')
+     * because they were seeded from the DataCite schema's camelCase naming convention. The frontend
+     * expects specific display names (e.g., 'Abstract', 'Series Information'), so we:
+     * 1. Convert PascalCase to kebab-case for consistent DESCRIPTION_TYPE_MAP lookup
+     * 2. Map to the frontend display format which uses PascalCase with spaces
+     *
+     * This round-trip conversion exists because the database schema predates the frontend naming
+     * conventions. A future migration could normalize database slugs to kebab-case to simplify
+     * this logic.
      *
      * @return array<int, array{type: string, description: string}>
      */
