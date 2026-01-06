@@ -1,15 +1,15 @@
 import axios from 'axios';
-import { AlertCircle, Calendar, CheckCircle, Circle, Plus } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, Circle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { SectionHeader } from '@/components/curation/section-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
-import { ValidationAlert } from '@/components/ui/validation-alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { SectionHeader } from '@/components/curation/section-header';
+import { ValidationAlert } from '@/components/ui/validation-alert';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';

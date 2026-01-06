@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Upload } from 'lucide-react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/curation/section-header';
+import { Button } from '@/components/ui/button';
 
 describe('SectionHeader', () => {
     describe('Rendering', () => {
