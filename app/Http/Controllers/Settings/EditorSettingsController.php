@@ -11,6 +11,7 @@ use App\Models\ResourceType;
 use App\Models\Setting;
 use App\Models\TitleType;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -66,45 +67,80 @@ class EditorSettingsController extends Controller
     {
         $validated = $request->validated();
 
-        foreach ($validated['resourceTypes'] as $type) {
-            ResourceType::where('id', $type['id'])->update([
-                'name' => $type['name'],
-                'is_active' => $type['active'],
-                'is_elmo_active' => $type['elmo_active'],
-            ]);
-        }
+        // Wrap all updates in a single transaction for atomicity and performance
+        // Using direct DB updates instead of Eloquent for efficiency
+        DB::transaction(function () use ($validated): void {
+            // Update resource types
+            /** @var array<int, array{id: int, name: string, active: bool, elmo_active: bool}> $resourceTypes */
+            $resourceTypes = $validated['resourceTypes'];
+            foreach ($resourceTypes as $type) {
+                DB::table('resource_types')
+                    ->where('id', $type['id'])
+                    ->update([
+                        'name' => $type['name'],
+                        'is_active' => $type['active'],
+                        'is_elmo_active' => $type['elmo_active'],
+                        'updated_at' => now(),
+                    ]);
+            }
 
-        foreach ($validated['titleTypes'] as $type) {
-            TitleType::where('id', $type['id'])->update([
-                'name' => $type['name'],
-                'slug' => $type['slug'],
-                'is_active' => $type['active'],
-                'is_elmo_active' => $type['elmo_active'],
-            ]);
-        }
+            // Update title types
+            /** @var array<int, array{id: int, name: string, slug: string, active: bool, elmo_active: bool}> $titleTypes */
+            $titleTypes = $validated['titleTypes'];
+            foreach ($titleTypes as $type) {
+                DB::table('title_types')
+                    ->where('id', $type['id'])
+                    ->update([
+                        'name' => $type['name'],
+                        'slug' => $type['slug'],
+                        'is_active' => $type['active'],
+                        'is_elmo_active' => $type['elmo_active'],
+                        'updated_at' => now(),
+                    ]);
+            }
 
-        foreach ($validated['licenses'] as $license) {
-            Right::where('id', $license['id'])->update([
-                'is_active' => $license['active'],
-                'is_elmo_active' => $license['elmo_active'],
-            ]);
-        }
+            // Update licenses (rights)
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $licenses */
+            $licenses = $validated['licenses'];
+            foreach ($licenses as $license) {
+                DB::table('rights')
+                    ->where('id', $license['id'])
+                    ->update([
+                        'is_active' => $license['active'],
+                        'is_elmo_active' => $license['elmo_active'],
+                        'updated_at' => now(),
+                    ]);
+            }
 
-        foreach ($validated['languages'] as $language) {
-            Language::where('id', $language['id'])->update([
-                'active' => $language['active'],
-                'elmo_active' => $language['elmo_active'],
-            ]);
-        }
+            // Update languages
+            /** @var array<int, array{id: int, active: bool, elmo_active: bool}> $languages */
+            $languages = $validated['languages'];
+            foreach ($languages as $language) {
+                DB::table('languages')
+                    ->where('id', $language['id'])
+                    ->update([
+                        'active' => $language['active'],
+                        'elmo_active' => $language['elmo_active'],
+                        'updated_at' => now(),
+                    ]);
+            }
 
-        foreach ($validated['dateTypes'] as $dateType) {
-            DateType::where('id', $dateType['id'])->update([
-                'is_active' => $dateType['active'],
-            ]);
-        }
+            // Update date types
+            /** @var array<int, array{id: int, active: bool}> $dateTypes */
+            $dateTypes = $validated['dateTypes'];
+            foreach ($dateTypes as $dateType) {
+                DB::table('date_types')
+                    ->where('id', $dateType['id'])
+                    ->update([
+                        'is_active' => $dateType['active'],
+                        'updated_at' => now(),
+                    ]);
+            }
 
-        Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
-        Setting::updateOrCreate(['key' => 'max_licenses'], ['value' => $validated['maxLicenses']]);
+            // Update max settings - inside transaction to ensure atomicity
+            Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
+            Setting::updateOrCreate(['key' => 'max_licenses'], ['value' => $validated['maxLicenses']]);
+        });
 
         return back()->with('success', 'Settings updated');
     }

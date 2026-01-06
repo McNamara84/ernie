@@ -617,11 +617,18 @@ class DataCiteToResourceTransformer
                 // During export, open-ended ranges are exported as single dates because
                 // DataCite's schema doesn't support the trailing slash format.
                 $parts = explode('/', $date, 2);
-                $startDate = $this->parseDate($parts[0]);
+                $startDate = $this->parseDate($parts[0], false);
                 // Empty string after trailing slash results in null endDate (intentional)
-                $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1]) : null;
+                // isEndDate=true ensures year-only formats like "2020" become "2020-12-31"
+                $endDate = ! empty($parts[1]) ? $this->parseDate($parts[1], true) : null;
             } else {
-                $dateValue = $this->parseDate($date);
+                // Single date (not a range): Always use isEndDate=false (start of period).
+                // This follows the DataCite convention where incomplete dates represent
+                // the earliest possible date (e.g., "2020" means "2020-01-01").
+                // The date type (Issued, Collected, etc.) does NOT influence this decision
+                // because DataCite metadata semantics treat all partial dates consistently
+                // as the start of the period they represent.
+                $dateValue = $this->parseDate($date, false);
             }
 
             ResourceDate::create([
@@ -917,8 +924,17 @@ class DataCiteToResourceTransformer
      *
      * Handles various DataCite date formats like YYYY, YYYY-MM, YYYY-MM-DD.
      * Validates that parsed dates are real calendar dates (e.g., rejects 2024-02-30).
+     *
+     * IMPORTANT: For year-only (YYYY) and year-month (YYYY-MM) formats, this method
+     * normalizes to full dates. For start dates, it uses the beginning of the period
+     * (YYYY-01-01 or YYYY-MM-01). For end dates, it uses the end of the period
+     * (YYYY-12-31 or YYYY-MM-{last day of month}).
+     *
+     * @param  string|null  $date  The date string to parse
+     * @param  bool  $isEndDate  Whether this is an end date (uses end of period instead of start)
+     * @return string|null The parsed date in YYYY-MM-DD format, or null if invalid
      */
-    private function parseDate(?string $date): ?string
+    private function parseDate(?string $date, bool $isEndDate = false): ?string
     {
         if ($date === null || $date === '') {
             return null;
@@ -949,19 +965,29 @@ class DataCiteToResourceTransformer
             }
         }
 
-        // Year and month: YYYY-MM -> YYYY-MM-01
+        // Year and month: YYYY-MM
+        // For start dates: YYYY-MM-01 (first day of month)
+        // For end dates: YYYY-MM-{last day} (last day of month)
         if (preg_match('/^([0-9]{4})-([0-9]{2})$/', $date, $matches)) {
             // Validate month is valid (01-12)
             $month = (int) $matches[2];
+            $year = (int) $matches[1];
             if ($month >= 1 && $month <= 12) {
+                if ($isEndDate) {
+                    // Calculate last day of the month
+                    $lastDay = (new \DateTime("{$year}-{$month}-01"))->format('t');
+                    return sprintf('%04d-%02d-%s', $year, $month, $lastDay);
+                }
                 return $date . '-01';
             }
             return null;
         }
 
-        // Year only: YYYY -> YYYY-01-01
+        // Year only: YYYY
+        // For start dates: YYYY-01-01 (January 1st)
+        // For end dates: YYYY-12-31 (December 31st)
         if (preg_match('/^([0-9]{4})$/', $date)) {
-            return $date . '-01-01';
+            return $isEndDate ? $date . '-12-31' : $date . '-01-01';
         }
 
         // Try to parse with Carbon for other formats

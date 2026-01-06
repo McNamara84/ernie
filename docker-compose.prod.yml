@@ -49,6 +49,15 @@ services:
       - DB_SUMARIOPMD_NAME=${DB_SUMARIOPMD_NAME}
       - DB_SUMARIOPMD_USER=${DB_SUMARIOPMD_USER}
       - DB_SUMARIOPMD_PASSWORD=${DB_SUMARIOPMD_PASSWORD}
+      # Mail configuration
+      - MAIL_MAILER=${MAIL_MAILER:-smtp}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION:-tls}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
 
   webserver:
     build:
@@ -135,6 +144,15 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=database
+      # Mail configuration (needed for queued mail jobs)
+      - MAIL_MAILER=${MAIL_MAILER:-smtp}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_ENCRYPTION=${MAIL_ENCRYPTION:-tls}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-noreply@gfz-potsdam.de}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME:-ERNIE}
 
 networks:
   dockerized-laravel-network:

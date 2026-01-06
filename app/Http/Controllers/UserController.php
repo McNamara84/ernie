@@ -172,14 +172,36 @@ class UserController extends Controller
      */
     public function resetPassword(ResetUserPasswordRequest $request, User $user): RedirectResponse
     {
-        $status = Password::sendResetLink([
-            'email' => $user->email,
-        ]);
+        try {
+            $status = Password::sendResetLink([
+                'email' => $user->email,
+            ]);
 
-        if ($status === Password::RESET_LINK_SENT) {
-            return redirect()->back()->with('success', 'Password reset link has been sent to the user.');
+            if ($status === Password::RESET_LINK_SENT) {
+                return redirect()->back()->with('success', 'Password reset link has been sent to the user.');
+            }
+
+            // Password facade returned an error status (e.g., throttled)
+            return redirect()->back()->with('error', 'Failed to send password reset link. Please try again later.');
+        } catch (TransportExceptionInterface $e) {
+            // Mail server connection failed (SMTP unreachable, timeout, etc.)
+            Log::error('Failed to send password reset email - mail transport error', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->back()->with('error', 'Could not send password reset email (mail server error). Please check mail configuration.');
+        } catch (\Exception $e) {
+            // Other unexpected exceptions (configuration errors, etc.)
+            Log::error('Failed to send password reset email - unexpected error', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+                'exception_class' => get_class($e),
+            ]);
+
+            return redirect()->back()->with('error', 'Could not send password reset email. Please try again later.');
         }
-
-        return redirect()->back()->with('error', 'Failed to send password reset link.');
     }
 }
