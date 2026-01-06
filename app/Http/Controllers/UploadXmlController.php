@@ -396,6 +396,59 @@ class UploadXmlController extends Controller
     }
 
     /**
+     * Normalize a date string to YYYY-MM-DD format.
+     *
+     * Handles various input formats:
+     * - Full date: "2024-01-15" -> "2024-01-15"
+     * - Year only: "2024" -> "2024-01-01"
+     * - Year-month: "2024-06" -> "2024-06-01"
+     * - DateTime: "2024-01-15 10:30:00" -> "2024-01-15"
+     * - Invalid/empty: returns empty string
+     */
+    private function normalizeDateString(string $dateValue): string
+    {
+        $dateValue = trim($dateValue);
+
+        if ($dateValue === '') {
+            return '';
+        }
+
+        // Handle datetime format (strip time part): "2024-01-15 10:30:00" -> "2024-01-15"
+        if (str_contains($dateValue, ' ')) {
+            $dateValue = explode(' ', $dateValue)[0];
+        }
+
+        // Handle ISO datetime with T separator: "2024-01-15T10:30:00" -> "2024-01-15"
+        if (str_contains($dateValue, 'T')) {
+            $dateValue = explode('T', $dateValue)[0];
+        }
+
+        // Check if it's already a valid YYYY-MM-DD format
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
+            return $dateValue;
+        }
+
+        // Handle year-month format: "2024-06" -> "2024-06-01"
+        if (preg_match('/^(\d{4})-(\d{2})$/', $dateValue, $matches)) {
+            return $matches[1].'-'.$matches[2].'-01';
+        }
+
+        // Handle year-only format: "2024" -> "2024-01-01"
+        if (preg_match('/^\d{4}$/', $dateValue)) {
+            return $dateValue.'-01-01';
+        }
+
+        // Try to parse with strtotime as last resort
+        $timestamp = strtotime($dateValue);
+        if ($timestamp !== false) {
+            return date('Y-m-d', $timestamp);
+        }
+
+        // Return empty string for unparseable dates
+        return '';
+    }
+
+    /**
      * @return array<int, array<string, string>>
      */
     private function extractDates(XmlReader $reader): array
@@ -421,13 +474,13 @@ class UploadXmlController extends Controller
             $endDate = '';
 
             if (str_contains($dateValue, '/')) {
-                // Date range format: "2024-01-01/2024-12-31" or open range "/2024-12-31"
+                // Date range format: "2024-01-01/2024-12-31" or "2010/2020" or open range "/2024-12-31"
                 [$start, $end] = explode('/', $dateValue, 2);
-                $startDate = trim($start);
-                $endDate = trim($end);
+                $startDate = $this->normalizeDateString(trim($start));
+                $endDate = $this->normalizeDateString(trim($end));
             } else {
-                // Single date format: "2024-01-01"
-                $startDate = $dateValue;
+                // Single date format: "2024-01-01" or "2024"
+                $startDate = $this->normalizeDateString($dateValue);
             }
 
             $dates[] = [
@@ -1543,7 +1596,7 @@ class UploadXmlController extends Controller
     /**
      * Extract GCMD keywords from the XML.
      *
-     * @return array<int, array{uuid: string, id: string, path: string[], scheme: string}>
+     * @return array<int, array{uuid: string, id: string, text: string, path: string, scheme: string}>
      */
     private function extractGcmdKeywords(XmlReader $reader): array
     {
@@ -1583,7 +1636,15 @@ class UploadXmlController extends Controller
 
             // Parse the hierarchical path using shared utility
             // Example: "Science Keywords > EARTH SCIENCE > ATMOSPHERE" -> ["EARTH SCIENCE", "ATMOSPHERE"]
-            $path = XmlKeywordExtractor::parseGcmdPath($content);
+            $pathArray = XmlKeywordExtractor::parseGcmdPath($content);
+
+            // Convert path array to string format expected by frontend/validation
+            // Example: ["EARTH SCIENCE", "ATMOSPHERE"] -> "EARTH SCIENCE > ATMOSPHERE"
+            $pathString = implode(' > ', $pathArray);
+
+            // Extract the text (last element of the path, which is the keyword itself)
+            // If path is empty, use the content directly
+            $text = ! empty($pathArray) ? end($pathArray) : $content;
 
             // Normalize scheme name (e.g., "NASA/GCMD Earth Science Keywords" -> "Science Keywords")
             $normalizedScheme = $scheme;
@@ -1598,7 +1659,8 @@ class UploadXmlController extends Controller
             $keywords[] = [
                 'uuid' => $uuid,
                 'id' => $id,
-                'path' => $path,
+                'text' => $text,
+                'path' => $pathString,
                 'scheme' => $normalizedScheme,
             ];
         }
