@@ -685,6 +685,15 @@ class ResourceController extends Controller
                 'errors' => $exception->errors(),
             ], 422);
         } catch (Throwable $exception) {
+            // Log detailed context to help diagnose production issues
+            Log::error('ResourceController::store failed', [
+                'exception' => $exception->getMessage(),
+                'exception_class' => $exception::class,
+                'user_id' => $request->user()?->id,
+                'resource_id' => $request->input('resourceId'),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+            ]);
             report($exception);
 
             return response()->json([
