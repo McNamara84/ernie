@@ -43,4 +43,5 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 
-/thesis/
+/playwright-report-stage
+/playwright-report-stage-local

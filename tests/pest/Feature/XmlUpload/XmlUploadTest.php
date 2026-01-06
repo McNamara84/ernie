@@ -93,7 +93,10 @@ it('handles xml with a single main title', function () {
     ]);
 });
 
-it('extracts main title from namespaced DataCite xml inside an envelope', function () {
+it('extracts main title from namespaced DataCite xml wrapped in an envelope element', function () {
+    // This test verifies that XPath queries using local-name() correctly extract data
+    // when the DataCite resource element is nested inside a parent envelope element,
+    // which is common when XML is exported from systems that bundle multiple schemas.
     $this->actingAs(User::factory()->create());
     $type = ResourceType::create(['name' => 'Book', 'slug' => 'book']);
 
@@ -551,19 +554,22 @@ XML;
                 'uuid' => 'b1ce822a-139b-4e11-8bbe-453f19501c36',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36',
                 'scheme' => 'Science Keywords',
-                'path' => ['EARTH SCIENCE', 'CRYOSPHERE', 'FROZEN GROUND', 'ROCK GLACIERS'],
+                'text' => 'ROCK GLACIERS',
+                'path' => 'EARTH SCIENCE > CRYOSPHERE > FROZEN GROUND > ROCK GLACIERS',
             ],
             [
                 'uuid' => '6438d343-2e1f-4a89-97a9-b032e651163f',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/6438d343-2e1f-4a89-97a9-b032e651163f',
                 'scheme' => 'Platforms',
-                'path' => ['Living Organism-based Platforms', 'Living Organism'],
+                'text' => 'Living Organism',
+                'path' => 'Living Organism-based Platforms > Living Organism',
             ],
             [
                 'uuid' => 'aac79253-3894-408b-a20b-51e7101c36e3',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/aac79253-3894-408b-a20b-51e7101c36e3',
                 'scheme' => 'Instruments',
-                'path' => ['Solar/Space Observing Instruments', 'Radio Wave Detectors', 'RIOMETER'],
+                'text' => 'RIOMETER',
+                'path' => 'Solar/Space Observing Instruments > Radio Wave Detectors > RIOMETER',
             ],
         ],
     ]);
@@ -604,7 +610,8 @@ XML;
                 'uuid' => 'b1ce822a-139b-4e11-8bbe-453f19501c36',
                 'id' => 'https://gcmd.earthdata.nasa.gov/kms/concept/b1ce822a-139b-4e11-8bbe-453f19501c36',
                 'scheme' => 'Science Keywords',
-                'path' => ['EARTH SCIENCE', 'CRYOSPHERE', 'FROZEN GROUND', 'ROCK GLACIERS'],
+                'text' => 'ROCK GLACIERS',
+                'path' => 'EARTH SCIENCE > CRYOSPHERE > FROZEN GROUND > ROCK GLACIERS',
             ],
         ],
     ]);

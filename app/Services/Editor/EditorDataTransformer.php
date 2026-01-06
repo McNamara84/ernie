@@ -182,6 +182,39 @@ class EditorDataTransformer
             $authors[] = $data;
         }
 
+        // Transform ResourceContributor entries to contributors format
+        foreach ($resource->contributors as $contributor) {
+            /** @var \App\Models\ResourceContributor $contributor */
+            $data = [
+                'position' => $contributor->position,
+                // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
+                'contributorType' => $contributor->contributorType?->name ?? 'Other',
+            ];
+
+            if ($contributor->contributorable_type === Person::class) {
+                /** @var Person $person */
+                $person = $contributor->contributorable;
+                $data['type'] = 'person';
+                $data['firstName'] = $person->given_name ?? '';
+                $data['lastName'] = $person->family_name ?? '';
+                $data['orcid'] = $person->name_identifier ?? '';
+            } elseif ($contributor->contributorable_type === Institution::class) {
+                /** @var Institution $institution */
+                $institution = $contributor->contributorable;
+                $data['type'] = 'institution';
+                $data['institutionName'] = $institution->name ?? '';
+                $data['rorId'] = $institution->name_identifier ?? '';
+            }
+
+            // Add affiliations from the contributor
+            $data['affiliations'] = $contributor->affiliations->map(fn (Affiliation $affiliation): array => [
+                'value' => $affiliation->name,
+                'rorId' => $affiliation->identifier,
+            ])->values()->toArray();
+
+            $contributors[] = $data;
+        }
+
         // Sort by position
         usort($authors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
         usort($contributors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
@@ -195,14 +228,25 @@ class EditorDataTransformer
     /**
      * Transform resource descriptions to frontend format.
      *
+     * The database stores description type slugs in PascalCase (e.g., 'Abstract', 'SeriesInformation')
+     * because they were seeded from the DataCite schema's camelCase naming convention. The frontend
+     * expects specific display names (e.g., 'Abstract', 'Series Information'), so we:
+     * 1. Convert PascalCase to kebab-case for consistent DESCRIPTION_TYPE_MAP lookup
+     * 2. Map to the frontend display format which uses PascalCase with spaces
+     *
+     * This round-trip conversion exists because the database schema predates the frontend naming
+     * conventions. A future migration could normalize database slugs to kebab-case to simplify
+     * this logic.
+     *
      * @return array<int, array{type: string, description: string}>
      */
     public function transformDescriptions(Resource $resource): array
     {
         return $resource->descriptions->map(function ($description): array {
             // Map description_type slug to frontend format
+            // Use Str::kebab() to normalize slugs since DB stores PascalCase (e.g., 'SeriesInformation' → 'series-information')
             // @phpstan-ignore nullCoalesce.expr (defensive coding)
-            $typeSlug = $description->descriptionType?->slug ?? 'other';
+            $typeSlug = Str::kebab($description->descriptionType?->slug ?? 'other');
             $frontendType = self::DESCRIPTION_TYPE_MAP[$typeSlug] ?? 'Other';
 
             return [

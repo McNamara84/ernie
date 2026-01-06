@@ -396,6 +396,75 @@ class UploadXmlController extends Controller
     }
 
     /**
+     * Normalize a date string to YYYY-MM-DD format.
+     *
+     * Handles various input formats:
+     * - Full date: "2024-01-15" -> "2024-01-15"
+     * - Year only: "2024" -> "2024-01-01"
+     * - Year-month: "2024-06" -> "2024-06-01"
+     * - DateTime: "2024-01-15 10:30:00" -> "2024-01-15"
+     * - Invalid/empty: returns empty string
+     *
+     * Note: Year-only dates default to January 1st, and year-month dates default to the 1st
+     * of the month. This is a pragmatic choice for date range comparisons and validation,
+     * but may not accurately represent the original semantic intent (e.g., "2024" meaning
+     * "sometime in 2024"). The original date value should be preserved separately if the
+     * full semantic meaning is important.
+     */
+    private function normalizeDateString(string $dateValue): string
+    {
+        $dateValue = trim($dateValue);
+
+        if ($dateValue === '') {
+            return '';
+        }
+
+        // Handle datetime format (strip time part): "2024-01-15 10:30:00" -> "2024-01-15"
+        if (str_contains($dateValue, ' ')) {
+            $dateValue = explode(' ', $dateValue)[0];
+        }
+
+        // Handle ISO datetime with T separator: "2024-01-15T10:30:00" -> "2024-01-15"
+        if (str_contains($dateValue, 'T')) {
+            $dateValue = explode('T', $dateValue)[0];
+        }
+
+        // Check if it's already a valid YYYY-MM-DD format
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
+            return $dateValue;
+        }
+
+        // Handle year-month format: "2024-06" -> "2024-06-01" (defaults to 1st of month)
+        if (preg_match('/^(\d{4})-(\d{2})$/', $dateValue, $matches)) {
+            return $matches[1].'-'.$matches[2].'-01';
+        }
+
+        // Handle year-only format: "2024" -> "2024-01-01" (defaults to January 1st)
+        if (preg_match('/^\d{4}$/', $dateValue)) {
+            return $dateValue.'-01-01';
+        }
+
+        // Try to parse with strtotime as last resort
+        // Warning: strtotime can produce unexpected results for ambiguous strings
+        $timestamp = strtotime($dateValue);
+        if ($timestamp !== false) {
+            Log::debug('Date normalization used strtotime fallback', [
+                'original' => $dateValue,
+                'normalized' => date('Y-m-d', $timestamp),
+            ]);
+
+            return date('Y-m-d', $timestamp);
+        }
+
+        Log::warning('Could not parse date value during XML import', [
+            'value' => $dateValue,
+        ]);
+
+        // Return empty string for unparseable dates
+        return '';
+    }
+
+    /**
      * @return array<int, array<string, string>>
      */
     private function extractDates(XmlReader $reader): array
@@ -421,13 +490,13 @@ class UploadXmlController extends Controller
             $endDate = '';
 
             if (str_contains($dateValue, '/')) {
-                // Date range format: "2024-01-01/2024-12-31" or open range "/2024-12-31"
+                // Date range format: "2024-01-01/2024-12-31" or "2010/2020" or open range "/2024-12-31"
                 [$start, $end] = explode('/', $dateValue, 2);
-                $startDate = trim($start);
-                $endDate = trim($end);
+                $startDate = $this->normalizeDateString(trim($start));
+                $endDate = $this->normalizeDateString(trim($end));
             } else {
-                // Single date format: "2024-01-01"
-                $startDate = $dateValue;
+                // Single date format: "2024-01-01" or "2024"
+                $startDate = $this->normalizeDateString($dateValue);
             }
 
             $dates[] = [
@@ -508,8 +577,9 @@ class UploadXmlController extends Controller
             ];
 
             // Build XPath base for this specific geoLocation element
+            // Use //* to find resource anywhere in document (supports envelope-wrapped XML)
             // Cast to int to ensure type safety for PHPStan
-            $geoLocationPath = '/*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]['.((int) $geoLocationIndex + 1).']';
+            $geoLocationPath = '//*[local-name()="resource"]/*[local-name()="geoLocations"]/*[local-name()="geoLocation"]['.((int) $geoLocationIndex + 1).']';
 
             // Extract geoLocationPlace (description)
             $place = $this->extractFirstStringFromQuery(
@@ -1542,7 +1612,7 @@ class UploadXmlController extends Controller
     /**
      * Extract GCMD keywords from the XML.
      *
-     * @return array<int, array{uuid: string, id: string, path: string[], scheme: string}>
+     * @return array<int, array{uuid: string, id: string, text: string, path: string, scheme: string}>
      */
     private function extractGcmdKeywords(XmlReader $reader): array
     {
@@ -1582,7 +1652,15 @@ class UploadXmlController extends Controller
 
             // Parse the hierarchical path using shared utility
             // Example: "Science Keywords > EARTH SCIENCE > ATMOSPHERE" -> ["EARTH SCIENCE", "ATMOSPHERE"]
-            $path = XmlKeywordExtractor::parseGcmdPath($content);
+            $pathArray = XmlKeywordExtractor::parseGcmdPath($content);
+
+            // Convert path array to string format expected by frontend/validation
+            // Example: ["EARTH SCIENCE", "ATMOSPHERE"] -> "EARTH SCIENCE > ATMOSPHERE"
+            $pathString = implode(' > ', $pathArray);
+
+            // Extract the text (last element of the path, which is the keyword itself)
+            // If path is empty, use the content directly
+            $text = ! empty($pathArray) ? end($pathArray) : $content;
 
             // Normalize scheme name (e.g., "NASA/GCMD Earth Science Keywords" -> "Science Keywords")
             $normalizedScheme = $scheme;
@@ -1597,7 +1675,8 @@ class UploadXmlController extends Controller
             $keywords[] = [
                 'uuid' => $uuid,
                 'id' => $id,
-                'path' => $path,
+                'text' => $text,
+                'path' => $pathString,
                 'scheme' => $normalizedScheme,
             ];
         }
