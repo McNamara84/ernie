@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ValidationAlert } from '@/components/ui/validation-alert';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SectionHeader } from '@/components/curation/section-header';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -2053,6 +2054,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent ref={resourceInfoRef} className="space-y-6">
+                        <SectionHeader
+                            label="Resource Information"
+                            description="Basic metadata about your dataset including identifiers and type."
+                            tooltip="Required fields: Year, Resource Type, Main Title, Language"
+                            required
+                        />
                         <div className="grid gap-4 md:grid-cols-12">
                             <InputField
                                 id="doi"
@@ -2158,6 +2165,13 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent ref={licensesRef}>
+                        <SectionHeader
+                            label="Licenses and Rights"
+                            description="Specify usage rights and restrictions for your dataset."
+                            tooltip="At least one license is required. Choose a license that matches your data sharing policy."
+                            required
+                            counter={{ current: licenseEntries.length, max: MAX_LICENSES }}
+                        />
                         <div className="space-y-4">
                             {licenseEntries.map((entry, index) => (
                                 <LicenseField
@@ -2191,6 +2205,13 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent ref={authorsRef}>
+                        <SectionHeader
+                            label="Authors"
+                            description="People or institutions who created this work."
+                            tooltip="At least one author is required. Drag to reorder authors."
+                            required
+                            counter={{ current: authors.length, max: 100 }}
+                        />
                         {/* Validation issues notification */}
                         <ValidationAlert
                             severity="error"
@@ -2213,6 +2234,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                        <SectionHeader
+                            label="Contributors"
+                            description="Additional people who contributed to this work."
+                            tooltip="Optional. Contributors can have different roles like Editor, Data Curator, etc."
+                            counter={{ current: contributors.length, max: 100 }}
+                        />
                         <ContributorField
                             contributors={contributors}
                             onChange={setContributors}
@@ -2230,6 +2257,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent ref={descriptionsRef}>
+                        <SectionHeader
+                            label="Descriptions"
+                            description="Detailed information about your dataset."
+                            tooltip="Abstract is required (50-17,500 characters). Other description types are optional."
+                            required
+                        />
                         <DescriptionField
                             descriptions={descriptions}
                             onChange={handleDescriptionChange}
@@ -2247,6 +2280,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                        <SectionHeader
+                            label="Controlled Vocabularies"
+                            description="Select keywords from standardized vocabularies."
+                            tooltip="Improves discoverability by using NASA GCMD and MSL keywords."
+                            counter={{ current: gcmdKeywords.length, max: 100 }}
+                        />
                         {isLoadingVocabularies ? (
                             <div className="py-8 text-center text-muted-foreground">Loading vocabularies...</div>
                         ) : (
@@ -2271,6 +2310,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                        <SectionHeader
+                            label="Free Keywords"
+                            description="Custom keywords for your dataset."
+                            tooltip="Separate keywords with commas or press Enter."
+                            counter={{ current: freeKeywords.length, max: 100 }}
+                        />
                         <FreeKeywordsField keywords={freeKeywords} onChange={setFreeKeywords} />
                     </AccordionContent>
                 </AccordionItem>
@@ -2284,6 +2329,12 @@ export default function DataCiteForm({
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
+                            <SectionHeader
+                                label="Originating Multi-Scale Laboratories"
+                                description="Select associated EPOS/MSL laboratories."
+                                tooltip="Appears when EPOS/MSL keywords are detected in your dataset."
+                                counter={{ current: mslLaboratories.length, max: 20 }}
+                            />
                             {mslValidationInfo && (
                                 <ValidationAlert
                                     severity="info"
@@ -2303,6 +2354,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                        <SectionHeader
+                            label="Spatial and Temporal Coverage"
+                            description="Geographic and time boundaries of your dataset."
+                            tooltip="Supports points, boxes, and polygons for geographic coverage."
+                            counter={{ current: spatialTemporalCoverages.length, max: 50 }}
+                        />
                         <SpatialTemporalCoverageField
                             coverages={spatialTemporalCoverages}
                             apiKey={googleMapsApiKey}
@@ -2318,6 +2375,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent ref={datesRef}>
+                        <SectionHeader
+                            label="Dates"
+                            description="Important dates for your dataset."
+                            tooltip="Add dates like collection period, validity, or other relevant temporal information."
+                            counter={{ current: dates.length, max: MAX_DATES }}
+                        />
                         <ValidationAlert
                             severity="error"
                             title="Date validation issues"
@@ -2371,6 +2434,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent>
+                        <SectionHeader
+                            label="Related Work"
+                            description="Links to related publications and datasets."
+                            tooltip="DOIs, URLs, and Handles supported. Use Quick Add for common relation types."
+                            counter={{ current: relatedWorks.length, max: 100 }}
+                        />
                         <RelatedWorkField relatedWorks={relatedWorks} onChange={setRelatedWorks} />
                     </AccordionContent>
                 </AccordionItem>
@@ -2382,6 +2451,12 @@ export default function DataCiteForm({
                         </div>
                     </AccordionTrigger>
                     <AccordionContent id="funding-references-section">
+                        <SectionHeader
+                            label="Funding References"
+                            description="Grant and funder information."
+                            tooltip="ROR lookup available for funder identification. Include grant numbers when available."
+                            counter={{ current: fundingReferences.length, max: 50 }}
+                        />
                         <FundingReferenceField value={fundingReferences} onChange={setFundingReferences} />
                     </AccordionContent>
                 </AccordionItem>
