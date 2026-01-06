@@ -708,6 +708,31 @@ ernie/
 - `/curation` – Metadata curation form
 - `/users` – User management interface (admin/group leader only)
 - `/docs` – Documentation (role-based content)
+
+## Frontend Development
+
+### UI Component Library
+
+ERNIE uses a unified component library based on Radix UI primitives with Tailwind CSS styling. Key components include:
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `EmptyState` | `Components/ui/empty-state.tsx` | Consistent empty data states |
+| `ValidationAlert` | `Components/ui/validation-alert.tsx` | Error, warning, and info messages |
+| `SectionHeader` | `Components/curation/section-header.tsx` | Accordion section headers |
+
+### Design Tokens
+
+For detailed documentation of design patterns, spacing, grid layouts, and component usage, see:
+
+**📖 [UI Design Tokens Documentation](docs/ui-design-tokens.md)**
+
+This includes:
+- Empty state patterns and variants
+- Validation feedback with severity levels
+- Grid layout templates for form fields
+- Spacing and typography tokens
+- Component hierarchy and best practices
 - `/settings` – User settings
   - `/settings/profile` – Edit profile
   - `/settings/password` – Change password
