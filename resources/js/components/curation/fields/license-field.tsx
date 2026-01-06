@@ -45,7 +45,7 @@ export function LicenseField({
     'data-testid': dataTestId,
 }: LicenseFieldProps) {
     return (
-        <div className={cn('grid gap-4 md:grid-cols-12', className)}>
+        <div className={cn('grid gap-4 md:grid-cols-[1fr_40px]', className)}>
             <SelectField
                 id={`${id}-license`}
                 label="License"
@@ -56,11 +56,10 @@ export function LicenseField({
                 touched={touched}
                 options={options}
                 hideLabel={!isFirst}
-                className="md:col-span-11"
                 required={required}
                 data-testid={dataTestId}
             />
-            <div className="flex items-end md:col-span-1">
+            <div className="flex items-end">
                 {isFirst ? (
                     canAdd ? (
                         <Button type="button" variant="outline" size="icon" aria-label="Add license" onClick={onAdd}>

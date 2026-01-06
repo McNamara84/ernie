@@ -1,7 +1,8 @@
-import { Plus } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
 import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 
 import CoverageEntry from './CoverageEntry';
 import type { SpatialTemporalCoverageEntry } from './types';
@@ -136,13 +137,16 @@ export default function SpatialTemporalCoverageField({ coverages, apiKey, onChan
                     />
                 ))
             ) : (
-                <div className="rounded-lg border-2 border-dashed py-8 text-center text-muted-foreground">
-                    <p className="mb-4">No spatial and temporal coverage entries yet.</p>
-                    <Button type="button" variant="outline" onClick={handleAddCoverage}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add First Coverage Entry
-                    </Button>
-                </div>
+                <EmptyState
+                    icon={<MapPin className="h-8 w-8" />}
+                    title="No coverage entries yet"
+                    description="Define the geographic and temporal scope of your dataset. Supports point locations, bounding boxes, and polygons."
+                    action={{
+                        label: 'Add Coverage Entry',
+                        onClick: handleAddCoverage,
+                    }}
+                    data-testid="coverage-empty-state"
+                />
             )}
 
             {/* Add Button */}

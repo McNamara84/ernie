@@ -91,7 +91,7 @@ describe('AuthorList Component', () => {
     it('renders empty state when no authors', () => {
         render(<AuthorList authors={[]} {...mockProps} />);
         
-        expect(screen.getByText('No authors yet.')).toBeInTheDocument();
+        expect(screen.getByText('No authors yet')).toBeInTheDocument();
         expect(screen.getByLabelText('Add first author')).toBeInTheDocument();
     });
 
