@@ -182,6 +182,39 @@ class EditorDataTransformer
             $authors[] = $data;
         }
 
+        // Transform ResourceContributor entries to contributors format
+        foreach ($resource->contributors as $contributor) {
+            /** @var \App\Models\ResourceContributor $contributor */
+            $contributorable = $contributor->contributorable;
+
+            $data = [
+                'position' => $contributor->position,
+                // @phpstan-ignore nullCoalesce.expr (defensive coding for data integrity)
+                'contributorType' => $contributor->contributorType?->name ?? 'Other',
+            ];
+
+            if ($contributor->contributorable_type === Person::class) {
+                /** @var Person $contributorable */
+                $data['type'] = 'person';
+                $data['firstName'] = $contributorable->given_name ?? '';
+                $data['lastName'] = $contributorable->family_name ?? '';
+                $data['orcid'] = $contributorable->name_identifier ?? '';
+            } elseif ($contributor->contributorable_type === Institution::class) {
+                /** @var Institution $contributorable */
+                $data['type'] = 'institution';
+                $data['institutionName'] = $contributorable->name ?? '';
+                $data['rorId'] = $contributorable->name_identifier ?? '';
+            }
+
+            // Add affiliations from the contributor
+            $data['affiliations'] = $contributor->affiliations->map(fn (Affiliation $affiliation): array => [
+                'value' => $affiliation->name,
+                'rorId' => $affiliation->identifier,
+            ])->values()->toArray();
+
+            $contributors[] = $data;
+        }
+
         // Sort by position
         usort($authors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
         usort($contributors, fn (array $a, array $b): int => $a['position'] <=> $b['position']);
@@ -201,8 +234,9 @@ class EditorDataTransformer
     {
         return $resource->descriptions->map(function ($description): array {
             // Map description_type slug to frontend format
+            // Use Str::kebab() to normalize slugs since DB stores PascalCase (e.g., 'SeriesInformation' → 'series-information')
             // @phpstan-ignore nullCoalesce.expr (defensive coding)
-            $typeSlug = $description->descriptionType?->slug ?? 'other';
+            $typeSlug = Str::kebab($description->descriptionType?->slug ?? 'other');
             $frontendType = self::DESCRIPTION_TYPE_MAP[$typeSlug] ?? 'Other';
 
             return [
