@@ -22,6 +22,8 @@ interface EmptyStateProps {
     action?: EmptyStateAction;
     /** Secondary action button configuration */
     secondaryAction?: EmptyStateAction;
+    /** Custom actions (e.g., dialogs) - replaces action/secondaryAction if provided */
+    children?: React.ReactNode;
     /** Visual variant - default shows dashed border, compact is more minimal */
     variant?: 'default' | 'compact';
     /** Additional CSS classes */
@@ -57,11 +59,16 @@ export function EmptyState({
     description,
     action,
     secondaryAction,
+    children,
     variant = 'default',
     className,
     'data-testid': dataTestId,
 }: EmptyStateProps) {
     const isCompact = variant === 'compact';
+
+    // Determine if we should show the built-in actions or custom children
+    const hasBuiltInActions = action || secondaryAction;
+    const showBuiltInActions = hasBuiltInActions && !children;
 
     return (
         <div
@@ -85,8 +92,8 @@ export function EmptyState({
                 <p className={cn('text-muted-foreground', isCompact ? 'mt-1 text-xs' : 'mt-2 max-w-md text-sm')}>{description}</p>
             )}
 
-            {/* Actions */}
-            {(action || secondaryAction) && (
+            {/* Built-in Actions */}
+            {showBuiltInActions && (
                 <div className={cn('flex items-center gap-2', isCompact ? 'mt-3' : 'mt-4')}>
                     {action && (
                         <Button type="button" variant="outline" size={isCompact ? 'sm' : 'default'} onClick={action.onClick}>
@@ -102,6 +109,9 @@ export function EmptyState({
                     )}
                 </div>
             )}
+
+            {/* Custom Actions (children) */}
+            {children && <div className={cn('flex items-center gap-2', isCompact ? 'mt-3' : 'mt-4')}>{children}</div>}
         </div>
     );
 }

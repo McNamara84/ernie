@@ -7,11 +7,12 @@
 
 import { closestCenter, DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { Plus, Upload } from 'lucide-react';
+import { Plus, Upload, Users } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
 import type { ParsedAuthor } from '../author-csv-import';
@@ -188,30 +189,32 @@ export default function AuthorList({ authors, onAdd, onRemove, onAuthorChange, o
     // Empty state
     if (authors.length === 0) {
         return (
-            <div className="rounded-lg border-2 border-dashed py-8 text-center text-muted-foreground" role="status">
-                <p className="mb-4">No authors yet.</p>
-                <div className="flex justify-center gap-2">
-                    <Button type="button" variant="outline" onClick={onAdd} aria-label="Add first author">
-                        <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Add First Author
-                    </Button>
-                    <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button type="button" variant="outline" aria-label="Import authors from CSV file">
-                                <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
-                                Import CSV
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-h-[90vh] max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Import Authors from CSV</DialogTitle>
-                                <DialogDescription>Upload a CSV file to add multiple authors at once</DialogDescription>
-                            </DialogHeader>
-                            <AuthorCsvImport onImport={handleCsvImport} onClose={() => setCsvDialogOpen(false)} />
-                        </DialogContent>
-                    </Dialog>
-                </div>
-            </div>
+            <EmptyState
+                icon={<Users className="h-8 w-8" />}
+                title="No authors yet"
+                description="Add the researchers or institutions who created this dataset."
+                data-testid="authors-empty-state"
+            >
+                <Button type="button" variant="outline" onClick={onAdd} aria-label="Add first author">
+                    <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Add First Author
+                </Button>
+                <Dialog open={csvDialogOpen} onOpenChange={setCsvDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button type="button" variant="ghost" aria-label="Import authors from CSV file">
+                            <Upload className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Import CSV
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-h-[90vh] max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Import Authors from CSV</DialogTitle>
+                            <DialogDescription>Upload a CSV file to add multiple authors at once</DialogDescription>
+                        </DialogHeader>
+                        <AuthorCsvImport onImport={handleCsvImport} onClose={() => setCsvDialogOpen(false)} />
+                    </DialogContent>
+                </Dialog>
+            </EmptyState>
         );
     }
 

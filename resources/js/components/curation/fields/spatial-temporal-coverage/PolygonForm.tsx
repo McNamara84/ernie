@@ -1,9 +1,10 @@
 import { APIProvider, Map, useMap } from '@vis.gl/react-google-maps';
-import { Maximize2, Plus, Trash2 } from 'lucide-react';
+import { MapPin, Maximize2, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -247,12 +248,13 @@ export default function PolygonForm({ entry, apiKey, onBatchChange }: PolygonFor
                     </div>
 
                     {points.length === 0 ? (
-                        <div className="rounded-lg border-2 border-dashed p-8 text-center text-muted-foreground">
-                            <p className="text-sm">
-                                No points yet. Click "Start Drawing" and click on the map to add points, or use "Add Point" button to enter
-                                coordinates manually.
-                            </p>
-                        </div>
+                        <EmptyState
+                            icon={<MapPin className="h-6 w-6" />}
+                            title="No points yet"
+                            description='Click "Start Drawing" and click on the map to add points, or use "Add Point" button to enter coordinates manually.'
+                            variant="compact"
+                            data-testid="polygon-points-empty-state"
+                        />
                     ) : (
                         <div className="overflow-hidden rounded-lg border">
                             <Table>

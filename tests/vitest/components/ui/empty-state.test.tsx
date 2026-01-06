@@ -168,6 +168,60 @@ describe('EmptyState', () => {
         });
     });
 
+    describe('Children', () => {
+        it('should render children when provided', () => {
+            render(
+                <EmptyState title="No authors">
+                    <button type="button">Custom Action</button>
+                </EmptyState>,
+            );
+
+            expect(screen.getByRole('button', { name: /custom action/i })).toBeInTheDocument();
+        });
+
+        it('should prefer children over built-in actions when both provided', () => {
+            render(
+                <EmptyState
+                    title="No authors"
+                    action={{
+                        label: 'Built-in Action',
+                        onClick: vi.fn(),
+                    }}
+                >
+                    <button type="button">Custom Action</button>
+                </EmptyState>,
+            );
+
+            expect(screen.getByRole('button', { name: /custom action/i })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /built-in action/i })).not.toBeInTheDocument();
+        });
+
+        it('should render multiple children', () => {
+            render(
+                <EmptyState title="No authors">
+                    <button type="button">First Action</button>
+                    <button type="button">Second Action</button>
+                </EmptyState>,
+            );
+
+            expect(screen.getByRole('button', { name: /first action/i })).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /second action/i })).toBeInTheDocument();
+        });
+
+        it('should wrap children in a flex container', () => {
+            const { container } = render(
+                <EmptyState title="No authors" data-testid="empty-state">
+                    <button type="button">Action</button>
+                </EmptyState>,
+            );
+
+            const emptyState = container.firstChild as HTMLElement;
+            const childrenWrapper = emptyState.lastElementChild as HTMLElement;
+
+            expect(childrenWrapper).toHaveClass('flex', 'items-center', 'gap-2');
+        });
+    });
+
     describe('Styling', () => {
         it('should accept custom className', () => {
             const { container } = render(<EmptyState title="Empty" className="custom-class" />);
