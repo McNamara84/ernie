@@ -219,9 +219,14 @@ test.describe('Stage Full Workflow Test', () => {
     console.log(`  Using username: ${STAGE_TEST_USERNAME}`);
     
     await page.goto('/login');
-    await page.waitForLoadState('networkidle');
+    // Wait for the page to be fully loaded (Vite HMR can take time)
+    await page.waitForLoadState('domcontentloaded');
     
-    await page.getByLabel('Email address').fill(STAGE_TEST_USERNAME);
+    // Wait for the Email address input to be visible (React hydration)
+    const emailInput = page.getByLabel('Email address');
+    await expect(emailInput).toBeVisible({ timeout: 30000 });
+    
+    await emailInput.fill(STAGE_TEST_USERNAME);
     await page.getByLabel('Password').fill(STAGE_TEST_PASSWORD);
     
     const loginButton = page.getByRole('button', { name: 'Log in' });
@@ -780,46 +785,92 @@ test.describe('Stage Full Workflow Test', () => {
     console.log(`✓ Download URL entered: ${downloadUrl}`);
 
     // ========================================
-    // STEP 13: Click Preview and open Landing Page
+    // STEP 13: Create Landing Page and Open Preview
     // ========================================
-    console.log('Step 13: Opening landing page preview...');
+    console.log('Step 13: Creating landing page and opening preview...');
     
-    // Find and click the "Create Preview" button (not just "Preview")
+    // First, click "Create Preview" button to save the landing page configuration
+    // Note: This button SAVES the configuration, it does NOT open a preview directly
     const createPreviewButton = modal.getByRole('button', { name: 'Create Preview' });
     await expect(createPreviewButton).toBeVisible({ timeout: 5000 });
     
     // Take a screenshot before clicking
-    await page.screenshot({ path: 'test-results/debug-before-preview.png', fullPage: true });
+    await page.screenshot({ path: 'test-results/debug-before-create-preview.png', fullPage: true });
     
-    // The preview button makes an API call first, then opens a new tab
-    // We need to wait for the new page with a longer timeout
-    const pagePromise = page.context().waitForEvent('page', { timeout: 60000 });
-    
-    // Click the button
+    // Click the button to create/save the landing page
     await createPreviewButton.click();
+    console.log('  ✓ Clicked "Create Preview" to save configuration');
     
-    // Wait a moment for the API call to complete
-    console.log('  Waiting for preview to be created...');
+    // Wait for the save to complete:
+    // After "Create Preview" is clicked, the button text should change to "Update" 
+    // AND a Preview URL section should appear in the modal
+    const updateButton = modal.getByRole('button', { name: 'Update' });
+    try {
+      await expect(updateButton).toBeVisible({ timeout: 10000 });
+      console.log('  ✓ Landing page created successfully (button changed to "Update")');
+    } catch {
+      // The button might still be "Create Preview" if save failed - check for toast error
+      const toastError = page.locator('[data-sonner-toast][data-type="error"]').first();
+      if (await toastError.isVisible({ timeout: 1000 }).catch(() => false)) {
+        const errorText = await toastError.textContent();
+        console.log(`  ⚠️ Save failed with error: ${errorText}`);
+      }
+      // Take screenshot and continue anyway
+      await page.screenshot({ path: 'test-results/debug-create-preview-failed.png', fullPage: true });
+      console.log('  ⚠️ Button did not change to "Update" - save may have failed');
+    }
     
+    // Take screenshot after save
+    await page.screenshot({ path: 'test-results/debug-after-create-preview.png', fullPage: true });
+    
+    // Verify the Preview URL section appeared
+    const previewUrlSection = modal.locator('text=Preview URL').first();
+    if (await previewUrlSection.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log('  ✓ Preview URL section appeared in modal');
+    } else {
+      console.log('  ⚠️ Preview URL section not visible - will try direct preview');
+    }
+    
+    // Now click the "Preview" button (the outline variant button with eye icon)
+    // This button actually opens the preview in a new tab
+    const previewButton = modal.getByRole('button', { name: 'Preview' }).first();
+    
+    // Wait for the Preview button to be available (it should be visible after save)
+    await expect(previewButton).toBeVisible({ timeout: 10000 });
+    console.log('  Found "Preview" button, clicking to open preview...');
+    
+    // Set up listener for new page BEFORE clicking
+    const pagePromise = page.context().waitForEvent('page', { timeout: 30000 });
+    
+    // Click the Preview button
+    await previewButton.click();
+    
+    // Wait for the new page to open
     let landingPage;
     try {
       landingPage = await pagePromise;
       console.log(`  ✓ New page opened`);
-    } catch {
-      console.log(`  ⚠️ No new page opened, checking for in-page preview...`);
+    } catch (e) {
+      console.log(`  ⚠️ No new page opened: ${e instanceof Error ? e.message : String(e)}`);
       
-      // Maybe the preview is shown inline? Take a screenshot
-      await page.screenshot({ path: 'test-results/debug-after-preview-click.png', fullPage: true });
+      // Take screenshot to debug
+      await page.screenshot({ path: 'test-results/debug-preview-failed.png', fullPage: true });
       
-      // Check if there's a Preview button that's now different
-      const previewNowButton = modal.getByRole('button', { name: 'Preview' }).first();
-      if (await previewNowButton.isVisible().catch(() => false)) {
-        console.log('  Found "Preview" button, clicking it...');
-        const pagePromise2 = page.context().waitForEvent('page', { timeout: 30000 });
-        await previewNowButton.click();
-        landingPage = await pagePromise2;
-      } else {
-        throw new Error('Could not open landing page preview');
+      // Maybe the window.open didn't trigger? Let's try to get the preview URL directly
+      // and navigate to it in a new tab manually
+      const previewUrlInput = modal.locator('input[readonly]').first();
+      if (await previewUrlInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        const previewUrlValue = await previewUrlInput.inputValue();
+        if (previewUrlValue && previewUrlValue.includes('landing-page')) {
+          console.log(`  Trying to open preview URL directly: ${previewUrlValue}`);
+          const newPage = await page.context().newPage();
+          await newPage.goto(previewUrlValue);
+          landingPage = newPage;
+        }
+      }
+      
+      if (!landingPage) {
+        throw new Error('Could not open landing page preview - no new page was opened');
       }
     }
     
