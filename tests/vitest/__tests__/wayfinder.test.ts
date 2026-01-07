@@ -56,8 +56,8 @@ describe('wayfinder utilities', () => {
     it('applies defaults and added defaults', () => {
       setUrlDefaults({ a: '1' });
       addUrlDefault('b', '2');
-      expect(applyUrlDefaults({ b: 5 })).toEqual({ b: 5, a: 1 });
-      expect(applyUrlDefaults(undefined)).toEqual({ a: 1, b: 2 });
+      expect(applyUrlDefaults({ b: 5 })).toEqual({ b: 5, a: '1' });
+      expect(applyUrlDefaults(undefined)).toEqual({ a: '1', b: '2' });
     });
   });
 

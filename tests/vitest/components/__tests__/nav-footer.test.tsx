@@ -20,7 +20,11 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/icon', () => ({
-    Icon: ({ iconNode }: { iconNode: ReactNode }) => <span data-testid="icon">{iconNode}</span>,
+    Icon: ({ iconNode: IconComponent }: { iconNode: any }) => (
+        <span data-testid="icon">
+            <IconComponent />
+        </span>
+    ),
 }));
 
 describe('NavFooter', () => {
