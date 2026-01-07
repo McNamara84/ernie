@@ -30,8 +30,12 @@ test.describe('Changelog Page', () => {
         // Check if it's expanded
         await expect(firstButton).toHaveAttribute('aria-expanded', 'true');
 
-        // Check if content is visible (looking for Features section)
-        await expect(page.getByText(/Features/i).first()).toBeVisible();
+        // Check if content is visible (any section: Features, Improvements, Fixes)
+        const firstPanel = page.locator('#release-0');
+        await expect(firstPanel).toBeVisible();
+        await expect(
+            firstPanel.getByRole('heading', { name: /(Features|Improvements|Fixes)/i }).first(),
+        ).toBeVisible();
     });
 
     test('can manually expand and collapse versions by clicking', async ({ page }) => {
@@ -186,12 +190,16 @@ test.describe('Changelog Page', () => {
         // Wait a bit for hash processing (100ms setTimeout in code + React render)
         await page.waitForTimeout(200);
         
-        // The version 0.7.0 should be expanded (array index 5 = 6th position after 1.0.0rc1, 1.0.0b, 1.0.0a, 0.9.0, 0.8.0)
-        const targetButton = page.locator('#release-trigger-5');
-        await expect(targetButton).toHaveAttribute('aria-expanded', 'true', { timeout: 3000 });
-        
-        // And it should be visible  
+        // The version 0.7.0 should be expanded (do not rely on array index)
+        const targetButton = page.getByRole('button', { name: /^Version 0\.7\.0\b/i });
         await expect(targetButton).toBeVisible();
+        await expect(targetButton).toHaveAttribute('aria-expanded', 'true', { timeout: 3000 });
+
+        const panelId = await targetButton.getAttribute('aria-controls');
+        expect(panelId).toBeTruthy();
+
+        // And its content panel should be visible
+        await expect(page.locator(`#${panelId as string}`)).toBeVisible();
     });
 
     test('displays gradient backgrounds for different version types', async ({ page }) => {

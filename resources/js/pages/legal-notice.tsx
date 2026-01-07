@@ -43,8 +43,8 @@ export default function LegalNotice() {
             <p className="mb-4">
                 <strong>Representatives</strong>
                 <br />
-                The GFZ is legally represented by Prof. Dr. Susanne Buiter (Chairperson of the Board and Scientific Executive Director) and Dr. Marco
-                Kupzig [Administrative Executive Director (ad interim)].
+                The GFZ is legally represented by Prof. Dr. Susanne Buiter (Chairperson of the Board and Scientific Executive Director) and
+                Lars-Christian Klinnert [Administrative Executive Director (ad interim)].
             </p>
             <p className="mb-4">
                 <strong>VAT ID</strong>
