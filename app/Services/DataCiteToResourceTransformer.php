@@ -152,6 +152,7 @@ class DataCiteToResourceTransformer
         // If not provided, fall back to the default publisher (e.g., 'GFZ Data Services')
         if ($publisher === null) {
             $defaultPublisher = Publisher::getDefault();
+
             return $defaultPublisher?->id;
         }
 
@@ -161,6 +162,7 @@ class DataCiteToResourceTransformer
         if ($publisherName === null) {
             // Fall back to default publisher if name couldn't be extracted
             $defaultPublisher = Publisher::getDefault();
+
             return $defaultPublisher?->id;
         }
 
@@ -186,10 +188,23 @@ class DataCiteToResourceTransformer
     /**
      * Transform titles from DataCite format.
      *
+     * In DataCite XML, MainTitle has no titleType attribute - it's simply omitted.
+     * In the database, all titles must reference a TitleType record, including MainTitle.
+     *
      * @param  array<int, array<string, mixed>>  $titles
+     *
+     * @throws \RuntimeException If required TitleType records are missing from the database
      */
     private function transformTitles(array $titles, Resource $resource): void
     {
+        // Pre-fetch MainTitle ID for titles without titleType attribute
+        $mainTitleId = $this->getLookupId(TitleType::class, 'slug', 'MainTitle');
+        if ($mainTitleId === null) {
+            throw new \RuntimeException(
+                'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
+            );
+        }
+
         foreach ($titles as $titleData) {
             $titleValue = $titleData['title'] ?? null;
 
@@ -197,14 +212,24 @@ class DataCiteToResourceTransformer
                 continue;
             }
 
-            // Get title type - default to MainTitle if not specified
-            $titleType = $titleData['titleType'] ?? 'MainTitle';
-            $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $titleType);
+            // Get title type - default to MainTitle if not specified (DataCite convention)
+            $titleType = $titleData['titleType'] ?? null;
 
-            // Fall back to MainTitle or Other if not found
-            if ($titleTypeId === null) {
-                $titleTypeId = $this->getLookupId(TitleType::class, 'slug', 'MainTitle')
-                    ?? $this->getLookupId(TitleType::class, 'slug', 'Other');
+            if ($titleType === null || $titleType === '') {
+                // No titleType in XML means it's the MainTitle
+                $titleTypeId = $mainTitleId;
+            } else {
+                $titleTypeId = $this->getLookupId(TitleType::class, 'slug', $titleType);
+
+                // Fall back to Other if specific type not found
+                if ($titleTypeId === null) {
+                    $titleTypeId = $this->getLookupId(TitleType::class, 'slug', 'Other');
+                }
+
+                // If still null, use MainTitle as last resort
+                if ($titleTypeId === null) {
+                    $titleTypeId = $mainTitleId;
+                }
             }
 
             Title::create([
@@ -330,6 +355,7 @@ class DataCiteToResourceTransformer
                     'parent_id' => $parent->id,
                     'affiliation_data' => is_array($affiliationData) ? $affiliationData : 'string without name',
                 ]);
+
                 continue;
             }
 
@@ -959,6 +985,7 @@ class DataCiteToResourceTransformer
                     'original' => $date,
                     'corrected' => $correctedDate,
                 ]);
+
                 return $correctedDate;
             } catch (\Exception) {
                 return null;
@@ -976,10 +1003,13 @@ class DataCiteToResourceTransformer
                 if ($isEndDate) {
                     // Calculate last day of the month
                     $lastDay = (new \DateTime("{$year}-{$month}-01"))->format('t');
+
                     return sprintf('%04d-%02d-%s', $year, $month, $lastDay);
                 }
-                return $date . '-01';
+
+                return $date.'-01';
             }
+
             return null;
         }
 
@@ -987,7 +1017,7 @@ class DataCiteToResourceTransformer
         // For start dates: YYYY-01-01 (January 1st)
         // For end dates: YYYY-12-31 (December 31st)
         if (preg_match('/^([0-9]{4})$/', $date)) {
-            return $isEndDate ? $date . '-12-31' : $date . '-01-01';
+            return $isEndDate ? $date.'-12-31' : $date.'-01-01';
         }
 
         // Try to parse with Carbon for other formats

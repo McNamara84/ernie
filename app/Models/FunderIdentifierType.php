@@ -31,7 +31,7 @@ class FunderIdentifierType extends Model
     ];
 
     /**
-     * @param Builder<FunderIdentifierType> $query
+     * @param  Builder<FunderIdentifierType>  $query
      * @return Builder<FunderIdentifierType>
      */
     public function scopeActive(Builder $query): Builder

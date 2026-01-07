@@ -135,11 +135,13 @@ class DataCiteJsonExporter
                 'title' => $title->value,
             ];
 
-            // Map title types to DataCite format
-            $titleType = $title->titleType?->slug;
-            if ($titleType && $titleType !== 'main-title') {
+            // Map title types to DataCite format - skip for MainTitle (no titleType attribute in XML)
+            if (! $title->isMainTitle()) {
                 // Convert slug format to DataCite TitleCase format
-                $titleData['titleType'] = $this->convertTitleType($titleType);
+                // Use null-safe operator for legacy data where titleType may be null
+                /** @phpstan-ignore nullsafe.neverNull (titleType may be null in legacy data before migration) */
+                $slug = $title->titleType?->slug ?? 'Other';
+                $titleData['titleType'] = $this->convertTitleType($slug);
             }
 
             // Add language if available
@@ -631,7 +633,7 @@ class DataCiteJsonExporter
             $dateValue = null;
             if ($date->isRange()) {
                 // Closed range with both dates
-                $dateValue = $date->start_date . '/' . $date->end_date;
+                $dateValue = $date->start_date.'/'.$date->end_date;
             } elseif ($date->isOpenEndedRange()) {
                 // Open-ended range - exported as single date (DataCite doesn't support trailing slash)
                 $dateValue = $date->start_date;

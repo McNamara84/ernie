@@ -21,8 +21,7 @@ class ResourceObserver
      */
     public function __construct(
         private readonly ResourceCacheService $cacheService
-    ) {
-    }
+    ) {}
 
     /**
      * Handle the Resource "created" event.

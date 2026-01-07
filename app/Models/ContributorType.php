@@ -31,7 +31,7 @@ class ContributorType extends Model
     ];
 
     /**
-     * @param Builder<ContributorType> $query
+     * @param  Builder<ContributorType>  $query
      * @return Builder<ContributorType>
      */
     public function scopeActive(Builder $query): Builder

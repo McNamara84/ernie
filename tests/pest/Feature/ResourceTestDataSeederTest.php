@@ -2,14 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Models\Description;
-use App\Models\GeoLocation;
 use App\Models\LandingPage;
-use App\Models\RelatedIdentifier;
 use App\Models\Resource;
-use App\Models\ResourceContributor;
-use App\Models\ResourceCreator;
-use App\Models\Subject;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\ResourceTestDataSeeder;
 

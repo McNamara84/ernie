@@ -47,7 +47,7 @@ class Right extends Model
     ];
 
     /**
-     * @param Builder<Right> $query
+     * @param  Builder<Right>  $query
      * @return Builder<Right>
      */
     public function scopeActive(Builder $query): Builder
@@ -56,7 +56,7 @@ class Right extends Model
     }
 
     /**
-     * @param Builder<Right> $query
+     * @param  Builder<Right>  $query
      * @return Builder<Right>
      */
     public function scopeElmoActive(Builder $query): Builder
@@ -65,7 +65,7 @@ class Right extends Model
     }
 
     /**
-     * @param Builder<Right> $query
+     * @param  Builder<Right>  $query
      * @return Builder<Right>
      */
     public function scopeOrderByName(Builder $query): Builder
@@ -76,7 +76,7 @@ class Right extends Model
     /**
      * Order rights by usage count (descending) with alphabetical fallback.
      *
-     * @param Builder<Right> $query
+     * @param  Builder<Right>  $query
      * @return Builder<Right>
      */
     public function scopeOrderByUsageCount(Builder $query): Builder

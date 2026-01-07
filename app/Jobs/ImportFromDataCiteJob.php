@@ -172,6 +172,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                         }
                         Log::debug('Skipping existing DOI', ['doi' => $doi]);
                         $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
+
                         continue;
                     }
 
@@ -201,6 +202,7 @@ class ImportFromDataCiteJob implements ShouldQueue
                         }
                         Log::debug('Skipping DOI due to concurrent insert (race condition)', ['doi' => $doi]);
                         $this->updateProgressCounts($processed, $imported, $skipped, $failed, $skippedDois, $failedDois, $total);
+
                         continue;
                     }
 

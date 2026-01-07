@@ -49,7 +49,7 @@ class Publisher extends Model
     }
 
     /**
-     * @param Builder<Publisher> $query
+     * @param  Builder<Publisher>  $query
      * @return Builder<Publisher>
      */
     public function scopeDefault(Builder $query): Builder

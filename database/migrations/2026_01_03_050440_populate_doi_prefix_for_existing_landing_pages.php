@@ -46,7 +46,7 @@ return new class extends Migration
             ->get(['resources.id', 'resources.doi']);
 
         foreach ($malformedDois as $row) {
-            if (!preg_match(self::DOI_PATTERN, $row->doi)) {
+            if (! preg_match(self::DOI_PATTERN, $row->doi)) {
                 // Log as WARNING because malformed DOIs will cause 404 errors when accessing
                 // the landing page (LandingPagePublicController::validateDoiPrefixFormat()
                 // validates DOI format). This is a critical data quality issue that operators
@@ -56,7 +56,7 @@ return new class extends Migration
                 // block migration due to data quality issues. Operators should run the
                 // validation command after migration to identify and fix issues.
                 Log::warning(
-                    'DataMigration: Malformed DOI will cause 404 errors. ' .
+                    'DataMigration: Malformed DOI will cause 404 errors. '.
                     'Run "php artisan landing-pages:validate-dois --fix" after migration to resolve.',
                     ['resource_id' => $row->id, 'doi' => $row->doi, 'action_required' => true]
                 );

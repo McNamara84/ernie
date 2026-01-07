@@ -84,8 +84,6 @@ class LogController extends Controller
     /**
      * Delete a specific log entry.
      * Only admins can delete logs (enforced by 'can:delete-logs' route middleware).
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(Request $request): \Illuminate\Http\RedirectResponse
     {
@@ -114,8 +112,6 @@ class LogController extends Controller
     /**
      * Clear all logs.
      * Only admins can clear logs (enforced by 'can:delete-logs' route middleware).
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function clear(): \Illuminate\Http\RedirectResponse
     {

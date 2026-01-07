@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\UpdateSettingsRequest;
 use App\Models\DateType;
 use App\Models\Language;
-use App\Models\Right;
 use App\Models\ResourceType;
+use App\Models\Right;
 use App\Models\Setting;
 use App\Models\TitleType;
 use Illuminate\Http\RedirectResponse;
@@ -20,14 +20,14 @@ class EditorSettingsController extends Controller
     public function index(): Response
     {
         // Map database fields to frontend expected field names
-        $resourceTypes = ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active'])->map(fn($r) => [
+        $resourceTypes = ResourceType::orderBy('id')->get(['id', 'name', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
             'id' => $r->id,
             'name' => $r->name,
             'active' => $r->is_active,
             'elmo_active' => $r->is_elmo_active,
         ]);
 
-        $titleTypes = TitleType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn($t) => [
+        $titleTypes = TitleType::orderBy('id')->get(['id', 'name', 'slug', 'is_active', 'is_elmo_active'])->map(fn ($t) => [
             'id' => $t->id,
             'name' => $t->name,
             'slug' => $t->slug,
@@ -35,7 +35,7 @@ class EditorSettingsController extends Controller
             'elmo_active' => $t->is_elmo_active,
         ]);
 
-        $licenses = Right::orderBy('id')->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active'])->map(fn($r) => [
+        $licenses = Right::orderBy('id')->get(['id', 'identifier', 'name', 'is_active', 'is_elmo_active'])->map(fn ($r) => [
             'id' => $r->id,
             'identifier' => $r->identifier,
             'name' => $r->name,
@@ -43,7 +43,7 @@ class EditorSettingsController extends Controller
             'elmo_active' => $r->is_elmo_active,
         ]);
 
-        $dateTypes = DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active'])->map(fn($d) => [
+        $dateTypes = DateType::orderBy('id')->get(['id', 'name', 'slug', 'is_active'])->map(fn ($d) => [
             'id' => $d->id,
             'name' => $d->name,
             'slug' => $d->slug,

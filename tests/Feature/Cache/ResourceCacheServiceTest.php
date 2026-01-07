@@ -120,7 +120,7 @@ it('observer invalidates cache on resource update', function () {
     // Create cache entries - both specific and general
     $specificKey = CacheKey::RESOURCE_DETAIL->key($resource->id);
     $listKey = 'test-list-cache-key';
-    
+
     Cache::tags(['resources'])->put($specificKey, $resource, 3600);
     Cache::tags(['resources'])->put($listKey, 'test-value', 3600);
 

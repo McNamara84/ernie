@@ -157,7 +157,6 @@ describe('Landing Page Caching', function () {
      *
      * @see https://github.com/McNamara84/ernie/issues/XXX (create tracking issue)
      */
-
     test('draft previews are not cached (no cache key created)', function () {
         $landingPage = LandingPage::factory()
             ->draft()

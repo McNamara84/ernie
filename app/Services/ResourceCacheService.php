@@ -25,8 +25,7 @@ class ResourceCacheService
     /**
      * Get cache instance with tags if supported, otherwise without tags.
      *
-     * @param array<int, string> $tags
-     * @return \Illuminate\Contracts\Cache\Repository
+     * @param  array<int, string>  $tags
      */
     private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
     {
@@ -40,10 +39,10 @@ class ResourceCacheService
     /**
      * Cache a paginated resource listing.
      *
-     * @param Builder<Resource> $query The base query builder
-     * @param int $perPage Items per page
-     * @param int $currentPage Current page number
-     * @param array<string, mixed> $filters Active filters
+     * @param  Builder<Resource>  $query  The base query builder
+     * @param  int  $perPage  Items per page
+     * @param  int  $currentPage  Current page number
+     * @param  array<string, mixed>  $filters  Active filters
      * @return LengthAwarePaginator<int, Resource>
      */
     public function cacheResourceList(
@@ -65,9 +64,8 @@ class ResourceCacheService
     /**
      * Cache an individual resource with its relationships.
      *
-     * @param int $resourceId The resource ID
-     * @param \Closure(): ?Resource $callback Callback to load the resource
-     * @return Resource|null
+     * @param  int  $resourceId  The resource ID
+     * @param  \Closure(): ?Resource  $callback  Callback to load the resource
      */
     public function cacheResource(int $resourceId, \Closure $callback): ?Resource
     {
@@ -84,8 +82,7 @@ class ResourceCacheService
     /**
      * Get cached resource count.
      *
-     * @param \Closure(): int $callback Callback to count resources
-     * @return int
+     * @param  \Closure(): int  $callback  Callback to count resources
      */
     public function cacheResourceCount(\Closure $callback): int
     {
@@ -107,8 +104,6 @@ class ResourceCacheService
      * WARNING: When cache tagging is not supported (e.g., file/database drivers),
      * this will call Cache::flush() which clears the ENTIRE cache store,
      * including sessions, vocabularies, ROR data, and any other cached data.
-     *
-     * @return void
      */
     public function invalidateAllResourceCaches(): void
     {
@@ -128,8 +123,7 @@ class ResourceCacheService
      * There's no need to forget the individual cache entry first since
      * invalidateAllResourceCaches() will flush all resource-related caches.
      *
-     * @param int $resourceId The resource ID
-     * @return void
+     * @param  int  $resourceId  The resource ID
      */
     public function invalidateResourceCache(int $resourceId): void
     {
@@ -140,10 +134,9 @@ class ResourceCacheService
     /**
      * Build a cache key for a resource list request.
      *
-     * @param int $perPage Items per page
-     * @param int $currentPage Current page number
-     * @param array<string, mixed> $filters Active filters
-     * @return string
+     * @param  int  $perPage  Items per page
+     * @param  int  $currentPage  Current page number
+     * @param  array<string, mixed>  $filters  Active filters
      */
     private function buildListCacheKey(int $perPage, int $currentPage, array $filters): string
     {
@@ -157,8 +150,7 @@ class ResourceCacheService
     /**
      * Normalize filters into a consistent string representation.
      *
-     * @param array<string, mixed> $filters
-     * @return string
+     * @param  array<string, mixed>  $filters
      */
     private function normalizeFilters(array $filters): string
     {
@@ -186,17 +178,17 @@ class ResourceCacheService
                 // Convert all values to strings first, then sort with SORT_STRING for consistency
                 $stringValues = array_map('strval', $value);
                 sort($stringValues, SORT_STRING);
-                
+
                 // Escape delimiter characters to prevent cache key collisions
-                $escapedValues = array_map(fn($v) => str_replace([':', '|', ','], ['\\:', '\\|', '\\,'], $v), $stringValues);
-                $normalized[] = "{$key}:" . implode(',', $escapedValues);
+                $escapedValues = array_map(fn ($v) => str_replace([':', '|', ','], ['\\:', '\\|', '\\,'], $v), $stringValues);
+                $normalized[] = "{$key}:".implode(',', $escapedValues);
             } else {
                 if (! is_scalar($value)) {
                     throw new \InvalidArgumentException('Filter values must be scalar types');
                 }
-                
+
                 // Escape delimiter characters
-                $escapedValue = str_replace([':', '|'], ['\\:', '\\|'], (string)$value);
+                $escapedValue = str_replace([':', '|'], ['\\:', '\\|'], (string) $value);
                 $normalized[] = "{$key}:{$escapedValue}";
             }
         }

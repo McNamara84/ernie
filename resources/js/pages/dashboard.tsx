@@ -312,7 +312,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                         <td className="py-1">ERNIE Version</td>
                                         <td className="py-1 text-right">
                                             <Link href={changelogRoute().url} aria-label={`View changelog for version ${latestVersion}`}>
-                                                <Badge className="w-14 bg-[#003da6] text-white">{latestVersion}</Badge>
+                                                <Badge className="w-16 bg-[#003da6] text-white">{latestVersion}</Badge>
                                             </Link>
                                         </td>
                                     </tr>
@@ -325,7 +325,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                                 rel="noopener noreferrer"
                                                 aria-label={`View PHP ${phpVersion.split('.').slice(0, 2).join('.')} release notes`}
                                             >
-                                                <Badge className="w-14 bg-[#777BB4] text-white transition-colors hover:bg-[#666BA0]">
+                                                <Badge className="w-16 bg-[#777BB4] text-white transition-colors hover:bg-[#666BA0]">
                                                     {phpVersion}
                                                 </Badge>
                                             </a>
@@ -340,7 +340,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                                                 rel="noopener noreferrer"
                                                 aria-label={`View Laravel ${laravelVersion.split('.')[0]}.x release notes`}
                                             >
-                                                <Badge className="w-14 bg-[#FF2D20] text-white transition-colors hover:bg-[#E6291C]">
+                                                <Badge className="w-16 bg-[#FF2D20] text-white transition-colors hover:bg-[#E6291C]">
                                                     {laravelVersion}
                                                 </Badge>
                                             </a>

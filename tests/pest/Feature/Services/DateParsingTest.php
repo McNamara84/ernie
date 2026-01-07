@@ -11,7 +11,7 @@ use App\Services\DataCiteToResourceTransformer;
  */
 function invokeParseDate(?string $date, bool $isEndDate = false): ?string
 {
-    $transformer = new DataCiteToResourceTransformer();
+    $transformer = new DataCiteToResourceTransformer;
     $method = new ReflectionMethod($transformer, 'parseDate');
     $method->setAccessible(true);
 

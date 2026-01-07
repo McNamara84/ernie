@@ -303,10 +303,12 @@ class DataCiteXmlExporter
         foreach ($resource->titles as $title) {
             $titleElement = $this->dom->createElement('title', htmlspecialchars($title->value));
 
-            // Add title type if not main title
-            $titleType = $title->titleType;
-            if ($titleType && ! $title->isMainTitle()) {
-                $titleElement->setAttribute('titleType', $titleType->slug);
+            // Add title type if not main title (DataCite convention: MainTitle has no titleType attribute)
+            if (! $title->isMainTitle()) {
+                // Use null-safe operator for legacy data where titleType may be null
+                /** @phpstan-ignore nullsafe.neverNull (titleType may be null in legacy data before migration) */
+                $slug = $title->titleType?->slug ?? 'Other';
+                $titleElement->setAttribute('titleType', $slug);
             }
 
             // Add language
@@ -676,6 +678,7 @@ class DataCiteXmlExporter
                     'date_id' => $date->id,
                     'resource_id' => $resource->id,
                 ]);
+
                 continue;
             }
 
@@ -692,7 +695,7 @@ class DataCiteXmlExporter
             $dateValue = null;
             if ($date->isRange()) {
                 // Closed range with both dates
-                $dateValue = $date->start_date . '/' . $date->end_date;
+                $dateValue = $date->start_date.'/'.$date->end_date;
             } elseif ($date->isOpenEndedRange()) {
                 // Open-ended range - exported as single date (DataCite doesn't support trailing slash)
                 $dateValue = $date->start_date;

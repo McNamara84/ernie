@@ -44,7 +44,7 @@ class ClearApplicationCache extends Command
         $validCategories = ['resources', 'vocabularies', 'ror', 'orcid', 'system', 'all'];
 
         if (! in_array($category, $validCategories, true)) {
-            $this->error("Invalid category. Valid categories: ".implode(', ', $validCategories));
+            $this->error('Invalid category. Valid categories: '.implode(', ', $validCategories));
 
             return self::FAILURE;
         }
@@ -96,7 +96,7 @@ class ClearApplicationCache extends Command
      * not just the requested category. This affects all application caches
      * including sessions, rate limiting, and other cached data.
      *
-     * @param string $tag Cache tag to clear
+     * @param  string  $tag  Cache tag to clear
      */
     private function clearCacheByTag(string $tag): void
     {

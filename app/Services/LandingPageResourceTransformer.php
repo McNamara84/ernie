@@ -56,7 +56,9 @@ final class LandingPageResourceTransformer
             ->map(static fn (Title $title): array => [
                 'id' => $title->id,
                 'title' => $title->value,
-                'title_type' => $title->titleType?->slug,
+                // Use null-safe operator for legacy data where titleType may be null
+                /** @phpstan-ignore nullsafe.neverNull (titleType may be null in legacy data before migration) */
+                'title_type' => $title->titleType?->slug ?? 'MainTitle',
                 'language' => $title->language,
             ])
             ->all();

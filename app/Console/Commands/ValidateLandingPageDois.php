@@ -144,7 +144,7 @@ class ValidateLandingPageDois extends Command
     {
         // Common issue: Missing "10." prefix
         if (preg_match('/^\d{4,}\/.+$/', $doi)) {
-            return '10.' . $doi;
+            return '10.'.$doi;
         }
 
         // Common issue: Wrong separator (e.g., "10.5880-GFZ" instead of "10.5880/GFZ")

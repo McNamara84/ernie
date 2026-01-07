@@ -10,7 +10,7 @@ use App\Policies\ResourcePolicy;
 
 describe('ResourcePolicy', function () {
     beforeEach(function () {
-        $this->policy = new ResourcePolicy();
+        $this->policy = new ResourcePolicy;
         $this->resource = Resource::factory()->create();
     });
 

@@ -23,7 +23,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string|null $website
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @property-read Resource $resource
  * @property-read Person|Institution $creatorable
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Affiliation> $affiliations

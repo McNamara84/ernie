@@ -17,8 +17,7 @@ class VocabularyController extends Controller
      */
     public function __construct(
         private readonly VocabularyCacheService $cacheService
-    ) {
-    }
+    ) {}
 
     /**
      * Return GCMD Science Keywords vocabulary.
@@ -87,7 +86,7 @@ class VocabularyController extends Controller
                     $content = Storage::get($filename);
 
                     if ($content === null) {
-                        throw new VocabularyReadException();
+                        throw new VocabularyReadException;
                     }
 
                     $decoded = json_decode($content, true);
@@ -110,7 +109,7 @@ class VocabularyController extends Controller
             return response()->json([
                 'error' => $e->getMessage(),
             ], 404);
-        } catch (VocabularyReadException | VocabularyCorruptedException $e) {
+        } catch (VocabularyReadException|VocabularyCorruptedException $e) {
             return response()->json([
                 'error' => $e->getMessage(),
             ], 500);

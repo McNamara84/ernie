@@ -31,7 +31,7 @@ class RelationType extends Model
     ];
 
     /**
-     * @param Builder<RelationType> $query
+     * @param  Builder<RelationType>  $query
      * @return Builder<RelationType>
      */
     public function scopeActive(Builder $query): Builder

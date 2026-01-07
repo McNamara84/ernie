@@ -6,7 +6,7 @@ use App\Services\SlugGeneratorService;
 
 describe('SlugGeneratorService', function () {
     beforeEach(function () {
-        $this->service = new SlugGeneratorService();
+        $this->service = new SlugGeneratorService;
     });
 
     describe('basic slug generation', function () {
