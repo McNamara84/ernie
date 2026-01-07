@@ -55,6 +55,9 @@ import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-cov
 import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
+import { DescriptionsSection } from './sections/descriptions-section';
+import { LicensesRightsSection } from './sections/licenses-rights-section';
+import { ResourceInformationSection } from './sections/resource-information-section';
 
 // Helper functions for normalizing ORCID and website URLs from old datasets
 const normalizeOrcid = (orcid: string | null | undefined): string => {
@@ -1488,6 +1491,7 @@ export default function DataCiteForm({
     };
 
     const mainTitleUsed = titles.some((t) => t.titleType === 'main-title');
+    const canAddAnotherTitle = canAddTitle(titles, MAX_TITLES);
 
     const handleDescriptionChange = (descriptions: DescriptionEntry[]) => {
         setDescriptions(descriptions);
@@ -1884,157 +1888,44 @@ export default function DataCiteForm({
                 className="p-4"
             />
             <Accordion type="multiple" value={openAccordionItems} onValueChange={setOpenAccordionItems} className="w-full">
-                <AccordionItem value="resource-info">
-                    <AccordionTrigger>
-                        <div className="flex items-center gap-2">
-                            <span>Resource Information</span>
-                            {renderStatusBadge(resourceInfoStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent ref={resourceInfoRef} className="space-y-6">
-                        <SectionHeader
-                            label="Resource Information"
-                            description="Basic metadata about your dataset including identifiers and type."
-                            tooltip="Required fields: Year, Resource Type, Main Title, Language"
-                            required
-                        />
-                        <div className="grid gap-4 md:grid-cols-12">
-                            <InputField
-                                id="doi"
-                                label="DOI"
-                                value={form.doi || ''}
-                                onChange={(e) => handleChange('doi', e.target.value)}
-                                onValidationBlur={() => markFieldTouched('doi')}
-                                validationMessages={getFieldState('doi').messages}
-                                touched={getFieldState('doi').touched}
-                                placeholder="10.xxxx/xxxxx"
-                                labelTooltip="Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
-                                className="md:col-span-3"
-                            />
-                            <InputField
-                                id="year"
-                                type="number"
-                                label="Year"
-                                value={form.year || ''}
-                                onChange={(e) => handleChange('year', e.target.value)}
-                                onValidationBlur={() => handleFieldBlur('year', form.year, yearValidationRules)}
-                                validationMessages={getFieldState('year').messages}
-                                touched={getFieldState('year').touched}
-                                placeholder="2024"
-                                className="md:col-span-2"
-                                required
-                            />
-                            <SelectField
-                                id="resourceType"
-                                label="Resource Type"
-                                value={form.resourceType || ''}
-                                onValueChange={(val) => handleChange('resourceType', val)}
-                                onValidationBlur={() => markFieldTouched('resourceType')}
-                                validationMessages={getFieldState('resourceType').messages}
-                                touched={getFieldState('resourceType').touched}
-                                options={resourceTypes.map((type) => ({
-                                    value: String(type.id),
-                                    label: type.name,
-                                }))}
-                                className="md:col-span-4"
-                                required
-                                data-testid="resource-type-select"
-                            />
-                            <InputField
-                                id="version"
-                                label="Version"
-                                value={form.version || ''}
-                                onChange={(e) => handleChange('version', e.target.value)}
-                                onValidationBlur={() => markFieldTouched('version')}
-                                validationMessages={getFieldState('version').messages}
-                                touched={getFieldState('version').touched}
-                                placeholder="1.0"
-                                labelTooltip="Semantic versioning (e.g., 1.2.3)"
-                                className="md:col-span-1"
-                            />
-                            <SelectField
-                                id="language"
-                                label="Language of Data"
-                                value={form.language || ''}
-                                onValueChange={(val) => handleChange('language', val)}
-                                onValidationBlur={() => markFieldTouched('language')}
-                                validationMessages={getFieldState('language').messages}
-                                touched={getFieldState('language').touched}
-                                options={languages.map((l) => ({
-                                    value: l.code,
-                                    label: l.name,
-                                }))}
-                                className="md:col-span-2"
-                                required
-                                data-testid="language-select"
-                            />
-                        </div>
-                        <div className="mt-3 space-y-4">
-                            {titles.map((entry, index) => (
-                                <TitleField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    title={entry.title}
-                                    titleType={entry.titleType}
-                                    options={titleTypes
-                                        .filter((t) => t.slug !== 'main-title' || !mainTitleUsed || entry.titleType === 'main-title')
-                                        .map((t) => ({ value: t.slug, label: t.name }))}
-                                    onTitleChange={(val) => handleTitleChange(index, 'title', val)}
-                                    onTypeChange={(val) => handleTitleChange(index, 'titleType', val)}
-                                    onAdd={addTitle}
-                                    onRemove={() => removeTitle(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddTitle(titles, MAX_TITLES)}
-                                    validationMessages={getFieldState(`title-${index}`).messages}
-                                    touched={getFieldState(`title-${index}`).touched}
-                                    onValidationBlur={() =>
-                                        handleFieldBlur(`title-${index}`, entry.title, createTitleValidationRules(index, entry.titleType, titles))
-                                    }
-                                />
-                            ))}
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="licenses-rights">
-                    <AccordionTrigger>
-                        <div className="flex items-center gap-2">
-                            <span>Licenses and Rights</span>
-                            {renderStatusBadge(licensesStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent ref={licensesRef}>
-                        <SectionHeader
-                            label="Licenses and Rights"
-                            description="Specify usage rights and restrictions for your dataset."
-                            tooltip="At least one license is required. Choose a license that matches your data sharing policy."
-                            required
-                            counter={{ current: licenseEntries.length, max: MAX_LICENSES }}
-                        />
-                        <div className="space-y-4">
-                            {licenseEntries.map((entry, index) => (
-                                <LicenseField
-                                    key={entry.id}
-                                    id={entry.id}
-                                    license={entry.license}
-                                    options={licenses.map((l) => ({
-                                        value: l.identifier,
-                                        label: l.name,
-                                    }))}
-                                    onLicenseChange={(val) => handleLicenseChange(index, val)}
-                                    onAdd={addLicense}
-                                    onRemove={() => removeLicense(index)}
-                                    isFirst={index === 0}
-                                    canAdd={canAddLicense(licenseEntries, MAX_LICENSES)}
-                                    required={index === 0}
-                                    validationMessages={index === 0 ? getFieldState('license-0').messages : undefined}
-                                    touched={index === 0 ? getFieldState('license-0').touched : undefined}
-                                    onValidationBlur={index === 0 ? () => markFieldTouched('license-0') : undefined}
-                                    data-testid={`license-select-${index}`}
-                                />
-                            ))}
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
+                <ResourceInformationSection
+                    status={resourceInfoStatus}
+                    renderStatusBadge={renderStatusBadge}
+                    contentRef={resourceInfoRef}
+                    form={form}
+                    handleChange={handleChange}
+                    handleFieldBlur={handleFieldBlur}
+                    markFieldTouched={markFieldTouched}
+                    getFieldState={getFieldState}
+                    yearValidationRules={yearValidationRules}
+                    resourceTypes={resourceTypes}
+                    titleTypes={titleTypes}
+                    languages={languages}
+                    titles={titles}
+                    mainTitleUsed={mainTitleUsed}
+                    canAddAnotherTitle={canAddAnotherTitle}
+                    addTitle={addTitle}
+                    removeTitle={removeTitle}
+                    handleTitleChange={handleTitleChange}
+                />
+                <LicensesRightsSection
+                    status={licensesStatus}
+                    renderStatusBadge={renderStatusBadge}
+                    contentRef={licensesRef}
+                    licenseEntries={licenseEntries}
+                    licenseOptions={licenses.map((l) => ({
+                        value: l.identifier,
+                        label: l.name,
+                    }))}
+                    maxLicenses={MAX_LICENSES}
+                    canAddLicense={canAddLicense(licenseEntries, MAX_LICENSES)}
+                    onLicenseChange={handleLicenseChange}
+                    onAddLicense={addLicense}
+                    onRemoveLicense={removeLicense}
+                    firstLicenseValidationMessages={getFieldState('license-0').messages}
+                    firstLicenseTouched={getFieldState('license-0').touched}
+                    onFirstLicenseValidationBlur={() => markFieldTouched('license-0')}
+                />
                 <AccordionItem value="authors">
                     <AccordionTrigger>
                         <div className="flex items-center gap-2">
@@ -2087,29 +1978,16 @@ export default function DataCiteForm({
                         />
                     </AccordionContent>
                 </AccordionItem>
-                <AccordionItem value="descriptions">
-                    <AccordionTrigger>
-                        <div className="flex items-center gap-2">
-                            <span>Descriptions</span>
-                            {renderStatusBadge(descriptionsStatus)}
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent ref={descriptionsRef}>
-                        <SectionHeader
-                            label="Descriptions"
-                            description="Detailed information about your dataset."
-                            tooltip="Abstract is required (50-17,500 characters). Other description types are optional."
-                            required
-                        />
-                        <DescriptionField
-                            descriptions={descriptions}
-                            onChange={handleDescriptionChange}
-                            abstractValidationMessages={getFieldMessages('abstract')}
-                            abstractTouched={getFieldState('abstract').touched}
-                            onAbstractValidationBlur={() => markFieldTouched('abstract')}
-                        />
-                    </AccordionContent>
-                </AccordionItem>
+                <DescriptionsSection
+                    status={descriptionsStatus}
+                    renderStatusBadge={renderStatusBadge}
+                    contentRef={descriptionsRef}
+                    descriptions={descriptions}
+                    onChange={handleDescriptionChange}
+                    abstractValidationMessages={getFieldMessages('abstract')}
+                    abstractTouched={getFieldState('abstract').touched}
+                    onAbstractValidationBlur={() => markFieldTouched('abstract')}
+                />
                 <AccordionItem value="controlled-vocabularies" ref={controlledVocabulariesRef}>
                     <AccordionTrigger>
                         <div className="flex items-center gap-2">
