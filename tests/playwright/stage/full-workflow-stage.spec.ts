@@ -613,7 +613,22 @@ test.describe('Stage Full Workflow Test', () => {
     // ========================================
     console.log('Step 6: Verifying resource in /resources...');
     
-    await page.goto('/resources');
+    // IMPORTANT: Use Inertia.js SPA navigation via menu click instead of direct URL navigation
+    // Direct URL access (page.goto) causes 502 errors on Stage, but menu navigation works
+    // This is because Inertia SPA navigation only fetches JSON data, while direct URL access
+    // requires full server-side rendering which has issues on Stage
+    
+    // Click on "Resources" in the main navigation menu
+    const resourcesNavLink = page.getByRole('link', { name: 'Resources' }).first();
+    
+    // Wait for the nav link to be visible
+    await expect(resourcesNavLink).toBeVisible({ timeout: 10000 });
+    console.log('  Found Resources link in navigation menu, clicking...');
+    
+    // Click the navigation link (Inertia.js SPA navigation)
+    await resourcesNavLink.click();
+    
+    // Wait for Inertia navigation to complete
     await page.waitForLoadState('networkidle');
     
     // Wait for resources table to load
@@ -733,7 +748,10 @@ test.describe('Stage Full Workflow Test', () => {
     // ========================================
     console.log('Step 10: Verifying modified title in /resources...');
     
-    await page.goto('/resources');
+    // Use Inertia.js SPA navigation via menu click (direct URL causes 502 on Stage)
+    const resourcesNavLink2 = page.getByRole('link', { name: 'Resources' }).first();
+    await expect(resourcesNavLink2).toBeVisible({ timeout: 10000 });
+    await resourcesNavLink2.click();
     await page.waitForLoadState('networkidle');
     
     // Wait for resources table to load

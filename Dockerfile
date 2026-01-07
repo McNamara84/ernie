@@ -43,6 +43,10 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 COPY docker/php/local.ini /usr/local/etc/php/conf.d/local.ini
 
+# PHP-FPM pool configuration for optimized worker management
+# This prevents 502 errors on pages with large Inertia payloads
+COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
+
 COPY docker/certs/sumariopmd-ca.crt /usr/local/share/ca-certificates/sumariopmd-ca.crt
 RUN update-ca-certificates
 
