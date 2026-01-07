@@ -191,7 +191,7 @@ test.describe('Changelog Page', () => {
         await page.waitForTimeout(200);
         
         // The version 0.7.0 should be expanded (do not rely on array index)
-        const targetButton = page.getByRole('button', { name: /version 0\.7\.0/i });
+        const targetButton = page.getByRole('button', { name: /^Version 0\.7\.0\b/i });
         await expect(targetButton).toBeVisible();
         await expect(targetButton).toHaveAttribute('aria-expanded', 'true', { timeout: 3000 });
 
