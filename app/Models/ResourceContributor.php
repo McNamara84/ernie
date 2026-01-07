@@ -21,7 +21,6 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property int $position
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @property-read Resource $resource
  * @property-read Person|Institution $contributorable
  * @property-read ContributorType $contributorType

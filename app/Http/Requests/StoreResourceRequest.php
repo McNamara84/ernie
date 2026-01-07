@@ -6,9 +6,9 @@ use App\Models\TitleType;
 use App\Support\BooleanNormalizer;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
-use Illuminate\Support\Str;
 
 class StoreResourceRequest extends FormRequest
 {

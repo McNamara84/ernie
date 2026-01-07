@@ -19,19 +19,19 @@ describe('DataCiteImportService', function () {
     it('throws exception when endpoint is not HTTPS', function () {
         Config::set('datacite.production.endpoint', 'http://api.datacite.org');
 
-        new DataCiteImportService();
+        new DataCiteImportService;
     })->throws(RuntimeException::class, 'must use HTTPS');
 
     it('throws exception when client_id is missing', function () {
         Config::set('datacite.production.client_id', '');
 
-        new DataCiteImportService();
+        new DataCiteImportService;
     })->throws(RuntimeException::class, 'client_id is not configured');
 
     it('throws exception when credentials are missing', function () {
         Config::set('datacite.production.username', '');
 
-        new DataCiteImportService();
+        new DataCiteImportService;
     })->throws(RuntimeException::class, 'credentials are not configured');
 
     it('fetches total DOI count from API', function () {
@@ -42,7 +42,7 @@ describe('DataCiteImportService', function () {
             ], 200),
         ]);
 
-        $service = new DataCiteImportService();
+        $service = new DataCiteImportService;
         $count = $service->getTotalDoiCount();
 
         expect($count)->toBe(42);
@@ -66,7 +66,7 @@ describe('DataCiteImportService', function () {
                 ], 200),
         ]);
 
-        $service = new DataCiteImportService();
+        $service = new DataCiteImportService;
         $dois = iterator_to_array($service->fetchAllDois());
 
         expect($dois)->toHaveCount(3);
@@ -82,7 +82,7 @@ describe('DataCiteImportService', function () {
             ], 200),
         ]);
 
-        $service = new DataCiteImportService();
+        $service = new DataCiteImportService;
         $service->getTotalDoiCount();
 
         Http::assertSent(function ($request) {
@@ -105,7 +105,7 @@ describe('DataCiteImportService', function () {
             ], 200);
         });
 
-        $service = new DataCiteImportService();
+        $service = new DataCiteImportService;
         $count = $service->getTotalDoiCount();
 
         expect($count)->toBe(10);
@@ -125,7 +125,7 @@ describe('DataCiteImportService', function () {
             ], 200),
         ]);
 
-        $service = new DataCiteImportService();
+        $service = new DataCiteImportService;
         $doi = $service->fetchSingleDoi('10.5880/test.123');
 
         expect($doi)->not->toBeNull();
@@ -137,7 +137,7 @@ describe('DataCiteImportService', function () {
             'api.datacite.org/dois/*' => Http::response(['errors' => []], 404),
         ]);
 
-        $service = new DataCiteImportService();
+        $service = new DataCiteImportService;
         $doi = $service->fetchSingleDoi('10.5880/nonexistent');
 
         expect($doi)->toBeNull();

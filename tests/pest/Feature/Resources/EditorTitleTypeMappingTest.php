@@ -15,12 +15,15 @@ uses(RefreshDatabase::class);
 test('editor maps main titles to main-title and normalizes other title type slugs', function () {
     $user = User::factory()->create();
 
-    $main = TitleType::create([
-        'name' => 'Main Title',
-        'slug' => 'MainTitle',
-        'is_active' => true,
-        'is_elmo_active' => true,
-    ]);
+    // Use firstOrCreate since migration may have already created MainTitle
+    $main = TitleType::firstOrCreate(
+        ['slug' => 'MainTitle'],
+        [
+            'name' => 'Main Title',
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]
+    );
 
     $alternative = TitleType::create([
         'name' => 'Alternative Title',

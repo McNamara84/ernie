@@ -36,7 +36,7 @@ enum CacheKey: string
     /**
      * Get the full cache key with optional suffix.
      *
-     * @param string|int|null $suffix Additional identifier (e.g., resource ID, user ID)
+     * @param  string|int|null  $suffix  Additional identifier (e.g., resource ID, user ID)
      * @return string The complete cache key
      */
     public function key(string|int|null $suffix = null): string

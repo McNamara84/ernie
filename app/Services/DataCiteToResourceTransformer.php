@@ -152,6 +152,7 @@ class DataCiteToResourceTransformer
         // If not provided, fall back to the default publisher (e.g., 'GFZ Data Services')
         if ($publisher === null) {
             $defaultPublisher = Publisher::getDefault();
+
             return $defaultPublisher?->id;
         }
 
@@ -161,6 +162,7 @@ class DataCiteToResourceTransformer
         if ($publisherName === null) {
             // Fall back to default publisher if name couldn't be extracted
             $defaultPublisher = Publisher::getDefault();
+
             return $defaultPublisher?->id;
         }
 
@@ -353,6 +355,7 @@ class DataCiteToResourceTransformer
                     'parent_id' => $parent->id,
                     'affiliation_data' => is_array($affiliationData) ? $affiliationData : 'string without name',
                 ]);
+
                 continue;
             }
 
@@ -982,6 +985,7 @@ class DataCiteToResourceTransformer
                     'original' => $date,
                     'corrected' => $correctedDate,
                 ]);
+
                 return $correctedDate;
             } catch (\Exception) {
                 return null;
@@ -999,10 +1003,13 @@ class DataCiteToResourceTransformer
                 if ($isEndDate) {
                     // Calculate last day of the month
                     $lastDay = (new \DateTime("{$year}-{$month}-01"))->format('t');
+
                     return sprintf('%04d-%02d-%s', $year, $month, $lastDay);
                 }
-                return $date . '-01';
+
+                return $date.'-01';
             }
+
             return null;
         }
 
@@ -1010,7 +1017,7 @@ class DataCiteToResourceTransformer
         // For start dates: YYYY-01-01 (January 1st)
         // For end dates: YYYY-12-31 (December 31st)
         if (preg_match('/^([0-9]{4})$/', $date)) {
-            return $isEndDate ? $date . '-12-31' : $date . '-01-01';
+            return $isEndDate ? $date.'-12-31' : $date.'-01-01';
         }
 
         // Try to parse with Carbon for other formats

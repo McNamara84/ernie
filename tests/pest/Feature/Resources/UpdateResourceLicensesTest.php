@@ -50,12 +50,15 @@ test('updating a resource syncs licenses (removes old, adds new)', function () {
         'usage_count' => 0,
     ]);
 
-    TitleType::create([
-        'name' => 'Main Title',
-        'slug' => 'MainTitle',
-        'is_active' => true,
-        'is_elmo_active' => true,
-    ]);
+    // Use firstOrCreate since migration may have already created MainTitle
+    TitleType::firstOrCreate(
+        ['slug' => 'MainTitle'],
+        [
+            'name' => 'Main Title',
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]
+    );
 
     DescriptionType::create([
         'name' => 'Abstract',

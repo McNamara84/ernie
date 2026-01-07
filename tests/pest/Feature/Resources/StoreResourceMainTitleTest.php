@@ -41,12 +41,15 @@ test('storing a resource with main-title persists with MainTitle TitleType ID an
     ]);
 
     // MainTitle TitleType - all main titles should reference this record
-    $mainTitleType = TitleType::create([
-        'name' => 'Main Title',
-        'slug' => 'MainTitle',
-        'is_active' => true,
-        'is_elmo_active' => true,
-    ]);
+    // Use firstOrCreate since migration may have already created MainTitle
+    $mainTitleType = TitleType::firstOrCreate(
+        ['slug' => 'MainTitle'],
+        [
+            'name' => 'Main Title',
+            'is_active' => true,
+            'is_elmo_active' => true,
+        ]
+    );
 
     TitleType::create([
         'name' => 'Other',

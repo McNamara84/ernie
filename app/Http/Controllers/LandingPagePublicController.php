@@ -269,8 +269,8 @@ class LandingPagePublicController extends Controller
     {
         // Quick checks for common malformed patterns before full regex.
         // These are fast string operations that catch obvious issues.
-        $quickCheckFailed = str_contains($doiPrefix, '//') 
-            || str_contains($doiPrefix, '/.') 
+        $quickCheckFailed = str_contains($doiPrefix, '//')
+            || str_contains($doiPrefix, '/.')
             || str_contains($doiPrefix, './');
 
         if ($quickCheckFailed) {

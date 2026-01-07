@@ -20,7 +20,7 @@ describe('EditorDataTransformer', function (): void {
         it('correctly maps PascalCase description type slugs to frontend format', function (): void {
             // Arrange: Create a resource with a description that has an "Abstract" type
             $resource = Resource::factory()->create();
-            
+
             // Get the Abstract description type (stored with PascalCase slug "Abstract")
             $abstractType = DescriptionType::where('slug', 'Abstract')->first();
             expect($abstractType)->not->toBeNull('Abstract description type should exist in database');
@@ -37,7 +37,7 @@ describe('EditorDataTransformer', function (): void {
             $resource->load('descriptions.descriptionType');
 
             // Act: Transform the resource
-            $transformer = new EditorDataTransformer();
+            $transformer = new EditorDataTransformer;
             $result = $transformer->transformDescriptions($resource);
 
             // Assert: The type should be "Abstract" (not "Other")
@@ -48,7 +48,7 @@ describe('EditorDataTransformer', function (): void {
 
         it('correctly maps SeriesInformation type (kebab-case conversion)', function (): void {
             $resource = Resource::factory()->create();
-            
+
             $seriesInfoType = DescriptionType::where('slug', 'SeriesInformation')->first();
             expect($seriesInfoType)->not->toBeNull('SeriesInformation description type should exist');
 
@@ -61,7 +61,7 @@ describe('EditorDataTransformer', function (): void {
             $resource->refresh();
             $resource->load('descriptions.descriptionType');
 
-            $transformer = new EditorDataTransformer();
+            $transformer = new EditorDataTransformer;
             $result = $transformer->transformDescriptions($resource);
 
             expect($result)->toHaveCount(1);
@@ -70,7 +70,7 @@ describe('EditorDataTransformer', function (): void {
 
         it('falls back to Other for unknown description types', function (): void {
             $resource = Resource::factory()->create();
-            
+
             $otherType = DescriptionType::where('slug', 'Other')->first();
             expect($otherType)->not->toBeNull('Other description type should exist');
 
@@ -83,7 +83,7 @@ describe('EditorDataTransformer', function (): void {
             $resource->refresh();
             $resource->load('descriptions.descriptionType');
 
-            $transformer = new EditorDataTransformer();
+            $transformer = new EditorDataTransformer;
             $result = $transformer->transformDescriptions($resource);
 
             expect($result)->toHaveCount(1);

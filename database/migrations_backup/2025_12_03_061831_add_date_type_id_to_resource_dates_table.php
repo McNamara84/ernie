@@ -19,7 +19,7 @@ return new class extends Migration
         if (! Schema::hasTable('date_types')) {
             throw new RuntimeException(
                 'The date_types table must exist before running this migration. '
-                . 'Please run the create_date_types_table migration first.'
+                .'Please run the create_date_types_table migration first.'
             );
         }
 

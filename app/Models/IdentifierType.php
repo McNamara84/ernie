@@ -31,7 +31,7 @@ class IdentifierType extends Model
     ];
 
     /**
-     * @param Builder<IdentifierType> $query
+     * @param  Builder<IdentifierType>  $query
      * @return Builder<IdentifierType>
      */
     public function scopeActive(Builder $query): Builder

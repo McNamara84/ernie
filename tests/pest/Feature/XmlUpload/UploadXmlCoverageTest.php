@@ -326,7 +326,7 @@ XML;
     $response->assertSessionDataCount(1, 'coverages');
     $response->assertSessionDataPath('coverages.0.type', 'polygon');
     $response->assertSessionDataPath('coverages.0.description', 'Berlin Area');
-    
+
     // Verify polygon points
     $coverages = $response->sessionData('coverages');
     expect($coverages[0]['polygonPoints'])->toHaveCount(4);

@@ -7,10 +7,10 @@ use App\Http\Requests\StoreResourceRequest;
 use App\Models\ContributorType;
 use App\Models\DateType;
 use App\Models\DescriptionType;
+use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Language;
 use App\Models\Person;
-use App\Models\IdentifierType;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -24,7 +24,6 @@ use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
 use App\Services\ResourceCacheService;
-use App\Support\BooleanNormalizer;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -56,8 +55,7 @@ class ResourceController extends Controller
      */
     public function __construct(
         private readonly ResourceCacheService $cacheService
-    ) {
-    }
+    ) {}
 
     private const ALLOWED_SORT_KEYS = [
         'id',
@@ -208,11 +206,15 @@ class ResourceController extends Controller
                     ->all();
 
                 // Also add mapping for empty string and 'main-title' to MainTitle ID
-                $mainTitleId = $titleTypeMap['maintitle'] ?? null;
-                if ($mainTitleId !== null) {
-                    $titleTypeMap[''] = $mainTitleId;
-                    $titleTypeMap['main-title'] = $mainTitleId;
+                // Note: 'MainTitle' in kebab-case becomes 'main-title'
+                $mainTitleId = $titleTypeMap['main-title'] ?? null;
+                if ($mainTitleId === null) {
+                    // MainTitle TitleType is required - throw specific error
+                    throw new \RuntimeException(
+                        'TitleType "MainTitle" not found in database. Please run: php artisan db:seed --class=TitleTypeSeeder'
+                    );
                 }
+                $titleTypeMap[''] = $mainTitleId;
 
                 $resourceTitles = [];
 
@@ -357,7 +359,7 @@ class ResourceController extends Controller
                     if ($descTypeId === null) {
                         // Throw validation exception for unknown description type to prevent silent data loss.
                         // This matches the date type handling behavior for consistency.
-                        Log::warning('Unknown description type slug: ' . ($description['descriptionType'] ?? 'empty'));
+                        Log::warning('Unknown description type slug: '.($description['descriptionType'] ?? 'empty'));
 
                         throw ValidationException::withMessages([
                             'descriptions' => ["Unknown description type: {$description['descriptionType']}. Please select a valid description type."],
@@ -528,6 +530,7 @@ class ResourceController extends Controller
                         if ($value === null || $value === '') {
                             return false;
                         }
+
                         // Accept any numeric value (including 0)
                         return is_numeric($value);
                     };
@@ -552,7 +555,8 @@ class ResourceController extends Controller
                                 $coverage['polygonPoints'],
                                 static function (mixed $point, int $index) use (&$invalidPoints): bool {
                                     if (! is_array($point)) {
-                                        $invalidPoints[] = "Point " . ($index + 1) . ": not a valid coordinate pair";
+                                        $invalidPoints[] = 'Point '.($index + 1).': not a valid coordinate pair';
+
                                         return false;
                                     }
                                     $lon = $point['longitude'] ?? $point['lon'] ?? null;
@@ -561,7 +565,8 @@ class ResourceController extends Controller
                                     // Must have both values present.
                                     // Use is_numeric() to correctly accept 0 (Equator/Prime Meridian).
                                     if (! is_numeric($lon) || ! is_numeric($lat)) {
-                                        $invalidPoints[] = "Point " . ($index + 1) . ": missing or non-numeric coordinates";
+                                        $invalidPoints[] = 'Point '.($index + 1).': missing or non-numeric coordinates';
+
                                         return false;
                                     }
 
@@ -578,6 +583,7 @@ class ResourceController extends Controller
                                             $latFloat,
                                             $lonFloat
                                         );
+
                                         return false;
                                     }
 
@@ -592,11 +598,11 @@ class ResourceController extends Controller
                             // Note: GeoJSON/DataCite polygon semantics auto-close the shape (first point
                             // implicitly connects to last point), so explicit closure is not required.
                             if (count($validPoints) < 3) {
-                                $message = "Polygon requires at least 3 valid points, but only " . count($validPoints) . " valid point(s) found.";
+                                $message = 'Polygon requires at least 3 valid points, but only '.count($validPoints).' valid point(s) found.';
                                 if (! empty($invalidPoints)) {
-                                    $message .= " Rejected points: " . implode('; ', array_slice($invalidPoints, 0, 5));
+                                    $message .= ' Rejected points: '.implode('; ', array_slice($invalidPoints, 0, 5));
                                     if (count($invalidPoints) > 5) {
-                                        $message .= " and " . (count($invalidPoints) - 5) . " more.";
+                                        $message .= ' and '.(count($invalidPoints) - 5).' more.';
                                     }
                                 }
 
@@ -715,11 +721,11 @@ class ResourceController extends Controller
     /**
      * Delete a resource.
      *
-     * @param Request $request The HTTP request - needed for user() access to check authorization.
-     *                         While Laravel's route model binding could inject User directly,
-     *                         using Request allows for consistent null-safety checks and follows
-     *                         the pattern used in other controller methods.
-     * @param Resource $resource The resource to delete (injected via route model binding).
+     * @param  Request  $request  The HTTP request - needed for user() access to check authorization.
+     *                            While Laravel's route model binding could inject User directly,
+     *                            using Request allows for consistent null-safety checks and follows
+     *                            the pattern used in other controller methods.
+     * @param  Resource  $resource  The resource to delete (injected via route model binding).
      */
     public function destroy(Request $request, Resource $resource): RedirectResponse
     {
@@ -1635,12 +1641,12 @@ class ResourceController extends Controller
         }
     }
 
-     /**
-      * Serialize a Resource model to an array for API responses.
-      *
-      * @param  Resource  $resource  The resource to serialize (must have titles, rights, creators relationships loaded)
-      * @return array<string, mixed> The serialized resource data
-      */
+    /**
+     * Serialize a Resource model to an array for API responses.
+     *
+     * @param  Resource  $resource  The resource to serialize (must have titles, rights, creators relationships loaded)
+     * @return array<string, mixed> The serialized resource data
+     */
     private function serializeResource(Resource $resource): array
     {
         // In development, assert all required relations are loaded to detect N+1 queries
@@ -1720,9 +1726,13 @@ class ResourceController extends Controller
                 ->map(static function (Title $title): array {
                     return [
                         'title' => $title->value,
-                        'title_type' => [
+                        // Use null-safe operator for legacy data where titleType may be null
+                        'title_type' => $title->titleType !== null ? [
                             'name' => $title->titleType->name,
                             'slug' => $title->titleType->slug,
+                        ] : [
+                            'name' => 'Main Title',
+                            'slug' => 'MainTitle',
                         ],
                     ];
                 })
@@ -1989,8 +1999,6 @@ class ResourceController extends Controller
      * This method is only called in development environment and throws an
      * exception if any required relation is not eager loaded.
      *
-     * @param  Resource  $resource
-     * @return void
      *
      * @throws \RuntimeException if a required relation is not loaded
      */

@@ -28,7 +28,7 @@ class ResourceAlreadyExistsException extends Exception
         public readonly int|string $identifier,
         string $message = ''
     ) {
-        $defaultMessage = ucfirst($resourceType) . " already exists for identifier: {$identifier}";
+        $defaultMessage = ucfirst($resourceType)." already exists for identifier: {$identifier}";
         parent::__construct($message ?: $defaultMessage);
     }
 }

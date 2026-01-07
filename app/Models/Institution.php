@@ -18,7 +18,6 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
  * @property string|null $name_identifier_scheme_uri
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceCreator> $resourceCreators
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceContributor> $resourceContributors
  *

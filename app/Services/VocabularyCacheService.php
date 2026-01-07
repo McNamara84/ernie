@@ -6,7 +6,6 @@ namespace App\Services;
 
 use App\Enums\CacheKey;
 use App\Support\Traits\ChecksCacheTagging;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -23,8 +22,7 @@ class VocabularyCacheService
     /**
      * Get cache instance with tags if supported, otherwise without tags.
      *
-     * @param array<int, string> $tags
-     * @return \Illuminate\Contracts\Cache\Repository
+     * @param  array<int, string>  $tags
      */
     private function getCacheInstance(array $tags): \Illuminate\Contracts\Cache\Repository
     {
@@ -39,7 +37,8 @@ class VocabularyCacheService
      * Cache GCMD science keywords.
      *
      * @template TValue
-     * @param \Closure(): TValue $callback Callback to load keywords
+     *
+     * @param  \Closure(): TValue  $callback  Callback to load keywords
      * @return TValue
      */
     public function cacheGcmdScienceKeywords(\Closure $callback): mixed
@@ -51,7 +50,8 @@ class VocabularyCacheService
      * Cache GCMD instruments.
      *
      * @template TValue
-     * @param \Closure(): TValue $callback Callback to load instruments
+     *
+     * @param  \Closure(): TValue  $callback  Callback to load instruments
      * @return TValue
      */
     public function cacheGcmdInstruments(\Closure $callback): mixed
@@ -63,7 +63,8 @@ class VocabularyCacheService
      * Cache GCMD platforms.
      *
      * @template TValue
-     * @param \Closure(): TValue $callback Callback to load platforms
+     *
+     * @param  \Closure(): TValue  $callback  Callback to load platforms
      * @return TValue
      */
     public function cacheGcmdPlatforms(\Closure $callback): mixed
@@ -75,7 +76,8 @@ class VocabularyCacheService
      * Cache GCMD providers.
      *
      * @template TValue
-     * @param \Closure(): TValue $callback Callback to load providers
+     *
+     * @param  \Closure(): TValue  $callback  Callback to load providers
      * @return TValue
      */
     public function cacheGcmdProviders(\Closure $callback): mixed
@@ -87,7 +89,8 @@ class VocabularyCacheService
      * Cache MSL keywords.
      *
      * @template TValue
-     * @param \Closure(): TValue $callback Callback to load keywords
+     *
+     * @param  \Closure(): TValue  $callback  Callback to load keywords
      * @return TValue
      */
     public function cacheMslKeywords(\Closure $callback): mixed
@@ -99,8 +102,9 @@ class VocabularyCacheService
      * Generic method to cache any vocabulary.
      *
      * @template TValue
-     * @param CacheKey $key Cache key enum
-     * @param \Closure(): TValue $callback Callback to load vocabulary data
+     *
+     * @param  CacheKey  $key  Cache key enum
+     * @param  \Closure(): TValue  $callback  Callback to load vocabulary data
      * @return TValue
      */
     public function cacheVocabulary(CacheKey $key, \Closure $callback): mixed
@@ -121,8 +125,6 @@ class VocabularyCacheService
      * WARNING: When cache tagging is not supported (e.g., file/database drivers),
      * this will call Cache::flush() which clears the ENTIRE cache store,
      * including sessions, resources, ROR data, and any other cached data.
-     *
-     * @return void
      */
     public function invalidateAllVocabularyCaches(): void
     {
@@ -138,8 +140,7 @@ class VocabularyCacheService
     /**
      * Invalidate a specific vocabulary cache.
      *
-     * @param CacheKey $key The vocabulary cache key
-     * @return void
+     * @param  CacheKey  $key  The vocabulary cache key
      */
     public function invalidateVocabularyCache(CacheKey $key): void
     {

@@ -31,7 +31,7 @@ class DescriptionType extends Model
     ];
 
     /**
-     * @param Builder<DescriptionType> $query
+     * @param  Builder<DescriptionType>  $query
      * @return Builder<DescriptionType>
      */
     public function scopeActive(Builder $query): Builder

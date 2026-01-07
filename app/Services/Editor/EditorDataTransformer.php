@@ -89,12 +89,16 @@ class EditorDataTransformer
     public function transformTitles(Resource $resource): array
     {
         return $resource->titles->map(function ($title): array {
+            // Frontend uses kebab-case slugs; main title is represented as 'main-title'
+            // Use null-safe operator for legacy data where titleType may be null
+            $titleType = $title->isMainTitle()
+                ? 'main-title'
+                // @phpstan-ignore nullsafe.neverNull (titleType may be null in legacy data before migration)
+                : Str::kebab($title->titleType?->slug ?? 'other');
+
             return [
                 'title' => $title->value,
-                // Frontend uses kebab-case slugs; main title is represented as 'main-title'
-                'titleType' => $title->isMainTitle()
-                    ? 'main-title'
-                    : Str::kebab($title->titleType->slug),
+                'titleType' => $titleType,
             ];
         })->toArray();
     }

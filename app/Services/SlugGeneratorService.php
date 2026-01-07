@@ -248,7 +248,7 @@ class SlugGeneratorService
                 // PHP-FPM process recycling will eventually restore clean state.
                 $currentLocale = setlocale(LC_CTYPE, '0');
                 \Illuminate\Support\Facades\Log::critical(
-                    'SlugGeneratorService: Failed to restore locale after transliteration. ' .
+                    'SlugGeneratorService: Failed to restore locale after transliteration. '.
                     'Subsequent locale-dependent operations in this process may behave unexpectedly.',
                     [
                         'original_locale' => $originalLocale,

@@ -2,12 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Models\ContributorType;
 use App\Models\Description;
-use App\Models\IdentifierType;
 use App\Models\Person;
 use App\Models\RelatedIdentifier;
-use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -18,11 +15,11 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 uses()->group('landing-pages');
 
 test('transforms a resource into landing page payload structure', function () {
-    $transformer = new LandingPageResourceTransformer();
+    $transformer = new LandingPageResourceTransformer;
 
-    $resource = new Resource();
+    $resource = new Resource;
 
-    $title = new Title();
+    $title = new Title;
     $title->forceFill([
         'id' => 1,
         'value' => 'Test Title',
@@ -30,7 +27,7 @@ test('transforms a resource into landing page payload structure', function () {
     ]);
     $title->setRelation('titleType', null);
 
-    $person = new Person();
+    $person = new Person;
     $person->forceFill([
         'id' => 1,
         'given_name' => 'Jane',
@@ -39,7 +36,7 @@ test('transforms a resource into landing page payload structure', function () {
         'name_identifier_scheme' => null,
     ]);
 
-    $creator = new ResourceCreator();
+    $creator = new ResourceCreator;
     $creator->forceFill([
         'id' => 1,
         'position' => 1,
@@ -50,16 +47,16 @@ test('transforms a resource into landing page payload structure', function () {
         'website' => null,
     ]);
     $creator->setRelation('creatorable', $person);
-    $creator->setRelation('affiliations', new EloquentCollection());
+    $creator->setRelation('affiliations', new EloquentCollection);
 
     $resource->setRelation('titles', new EloquentCollection([$title]));
     $resource->setRelation('creators', new EloquentCollection([$creator]));
-    $resource->setRelation('contributors', new EloquentCollection());
-    $resource->setRelation('relatedIdentifiers', new EloquentCollection());
-    $resource->setRelation('descriptions', new EloquentCollection());
-    $resource->setRelation('fundingReferences', new EloquentCollection());
-    $resource->setRelation('subjects', new EloquentCollection());
-    $resource->setRelation('geoLocations', new EloquentCollection());
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
 
     $data = $transformer->transform($resource);
 
@@ -77,11 +74,11 @@ test('transforms a resource into landing page payload structure', function () {
 });
 
 test('transformation is null-safe for optional relationships', function () {
-    $transformer = new LandingPageResourceTransformer();
+    $transformer = new LandingPageResourceTransformer;
 
-    $resource = new Resource();
+    $resource = new Resource;
 
-    $related = new RelatedIdentifier();
+    $related = new RelatedIdentifier;
     $related->forceFill([
         'id' => 1,
         'identifier' => '10.1234/related',
@@ -90,14 +87,14 @@ test('transformation is null-safe for optional relationships', function () {
     $related->setRelation('identifierType', null);
     $related->setRelation('relationType', null);
 
-    $description = new Description();
+    $description = new Description;
     $description->forceFill([
         'id' => 1,
         'value' => 'Some description',
     ]);
     $description->setRelation('descriptionType', null);
 
-    $person = new Person();
+    $person = new Person;
     $person->forceFill([
         'id' => 1,
         'given_name' => 'Jane',
@@ -106,7 +103,7 @@ test('transformation is null-safe for optional relationships', function () {
         'name_identifier_scheme' => null,
     ]);
 
-    $contributor = new ResourceContributor();
+    $contributor = new ResourceContributor;
     $contributor->forceFill([
         'id' => 1,
         'position' => 1,
@@ -115,16 +112,16 @@ test('transformation is null-safe for optional relationships', function () {
     ]);
     $contributor->setRelation('contributorType', null);
     $contributor->setRelation('contributorable', $person);
-    $contributor->setRelation('affiliations', new EloquentCollection());
+    $contributor->setRelation('affiliations', new EloquentCollection);
 
     $resource->setRelation('relatedIdentifiers', new EloquentCollection([$related]));
     $resource->setRelation('descriptions', new EloquentCollection([$description]));
     $resource->setRelation('contributors', new EloquentCollection([$contributor]));
-    $resource->setRelation('titles', new EloquentCollection());
-    $resource->setRelation('creators', new EloquentCollection());
-    $resource->setRelation('fundingReferences', new EloquentCollection());
-    $resource->setRelation('subjects', new EloquentCollection());
-    $resource->setRelation('geoLocations', new EloquentCollection());
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
 
     $data = $transformer->transform($resource);
 

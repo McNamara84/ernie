@@ -14,9 +14,9 @@ use Illuminate\Support\Str;
 
 /**
  * Seeder for creating Playwright test users in Docker development environment.
- * 
+ *
  * Usage: php artisan db:seed --class=PlaywrightTestSeeder
- * 
+ *
  * All E2E test fixtures use a "Playwright:" prefix for easy identification.
  * Fixtures may include additional descriptive text in parentheses to clarify their purpose
  * (e.g., "Playwright: Curation Resource (no landing page)").
@@ -73,7 +73,7 @@ class PlaywrightTestSeeder extends Seeder
             ]);
             $this->command->info('Lookup table seeders completed successfully.');
         } catch (\Throwable $e) {
-            $this->command->error('Failed to seed lookup tables: ' . $e->getMessage());
+            $this->command->error('Failed to seed lookup tables: '.$e->getMessage());
             throw $e;
         }
 

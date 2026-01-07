@@ -156,8 +156,8 @@ class LandingPage extends Model
         static::updating(function (LandingPage $landingPage): void {
             if ($landingPage->isDirty('slug')) {
                 throw new \RuntimeException(
-                    'Cannot modify landing page slug after creation. ' .
-                    'Slugs are immutable to ensure URL stability for citations and SEO. ' .
+                    'Cannot modify landing page slug after creation. '.
+                    'Slugs are immutable to ensure URL stability for citations and SEO. '.
                     'To change the URL, delete and recreate the landing page.'
                 );
             }
@@ -196,7 +196,7 @@ class LandingPage extends Model
         // orphaned data that would fail on database insert anyway.
         if (! $resource) {
             throw new \InvalidArgumentException(
-                "Cannot generate slug: Resource with ID {$this->resource_id} not found. " .
+                "Cannot generate slug: Resource with ID {$this->resource_id} not found. ".
                 'A landing page must be associated with a valid resource.'
             );
         }
@@ -212,7 +212,7 @@ class LandingPage extends Model
             if ($wasPreloaded) {
                 // Resource was pre-loaded but titles weren't - this is a caller error
                 throw new \InvalidArgumentException(
-                    'Resource was pre-loaded via setRelation() but titles relationship is missing. ' .
+                    'Resource was pre-loaded via setRelation() but titles relationship is missing. '.
                     'For bulk operations, use: Resource::with(\'titles.titleType\')->...'
                 );
             }
@@ -222,7 +222,7 @@ class LandingPage extends Model
             if ($wasPreloaded) {
                 // Titles loaded but titleType isn't - this is a caller error
                 throw new \InvalidArgumentException(
-                    'Resource was pre-loaded with titles but titleType relationship is missing. ' .
+                    'Resource was pre-loaded with titles but titleType relationship is missing. '.
                     'For bulk operations, use: Resource::with(\'titles.titleType\')->...'
                 );
             }
@@ -322,7 +322,7 @@ class LandingPage extends Model
             return null;
         }
 
-        return url($this->getPublicPath() . "?preview={$this->preview_token}");
+        return url($this->getPublicPath()."?preview={$this->preview_token}");
     }
 
     /**
@@ -336,7 +336,7 @@ class LandingPage extends Model
      */
     public function getContactUrlAttribute(): string
     {
-        return url($this->getPublicPath() . '/contact');
+        return url($this->getPublicPath().'/contact');
     }
 
     /**

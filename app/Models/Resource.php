@@ -25,7 +25,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int|null $updated_by_user_id
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- *
  * @property-read ResourceType|null $resourceType
  * @property-read Language|null $language
  * @property-read Publisher|null $publisher
