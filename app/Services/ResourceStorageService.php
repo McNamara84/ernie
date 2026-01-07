@@ -417,10 +417,7 @@ class ResourceStorageService
      */
     private function storeMslLaboratory(Resource $resource, array $data, int $position): ResourceContributor
     {
-        $institution = $this->institutionService->findOrCreateMslLaboratory(
-            $data['identifier'],
-            $data['name']
-        );
+        $institution = $this->institutionService->findOrCreateMslLaboratory($data);
 
         // Get HostingInstitution contributor type
         $contributorType = ContributorType::where('slug', 'hosting-institution')->first();

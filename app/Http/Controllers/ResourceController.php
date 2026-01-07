@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RegisterDoiRequest;
 use App\Http\Requests\StoreResourceRequest;
+use App\Models\Institution;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\Right;
+use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
