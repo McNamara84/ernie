@@ -20,13 +20,17 @@ import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
+    getAbstractValidationRules,
+    getDoiValidationRules,
+    getLanguageValidationRules,
+    getPrimaryLicenseValidationRules,
+    getResourceTypeValidationRules,
+    createTitleValidationRules,
+    getVersionValidationRules,
+    getYearValidationRules,
+} from '@/components/curation/validation';
+import {
     validateDate,
-    validateDOIFormat,
-    validateRequired,
-    validateSemanticVersion,
-    validateTextLength,
-    validateTitleUniqueness,
-    validateYear,
 } from '@/utils/validation-rules';
 
 import AuthorField, { type AuthorEntry, type InstitutionAuthorEntry, type PersonAuthorEntry } from './fields/author';
@@ -763,179 +767,13 @@ export default function DataCiteForm({
         });
     };
 
-    // DOI validation rules
-    const doiValidationRules: ValidationRule[] = [
-        {
-            validate: (value) => {
-                if (!value || String(value).trim() === '') {
-                    return null; // DOI is optional at this stage
-                }
-                const result = validateDOIFormat(String(value));
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
-                return null;
-            },
-        },
-        // TODO: Add async DOI registration check in separate effect
-    ];
-
-    // Year validation rules
-    const yearValidationRules: ValidationRule[] = [
-        {
-            validate: (value) => {
-                const requiredResult = validateRequired(String(value || ''), 'Year');
-                if (!requiredResult.isValid) {
-                    return { severity: 'error', message: requiredResult.error! };
-                }
-
-                const yearResult = validateYear(String(value));
-                if (!yearResult.isValid) {
-                    return { severity: 'error', message: yearResult.error! };
-                }
-
-                return null;
-            },
-        },
-    ];
-
-    // Resource Type validation rules
-    const resourceTypeValidationRules: ValidationRule[] = [
-        {
-            validate: (value) => {
-                const result = validateRequired(String(value || ''), 'Resource Type');
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
-                return null;
-            },
-        },
-    ];
-
-    // Language validation rules
-    const languageValidationRules: ValidationRule[] = [
-        {
-            validate: (value) => {
-                const result = validateRequired(String(value || ''), 'Language');
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
-                return null;
-            },
-        },
-    ];
-
-    // Version validation rules (optional but must be semantic if provided)
-    const versionValidationRules: ValidationRule[] = [
-        {
-            validate: (value) => {
-                if (!value || String(value).trim() === '') {
-                    return null; // Version is optional
-                }
-                const result = validateSemanticVersion(String(value));
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
-                return null;
-            },
-        },
-    ];
-
-    // Title validation rules
-    const createTitleValidationRules = (index: number, titleType: string, allTitles: TitleEntry[]): ValidationRule[] => [
-        {
-            validate: (value) => {
-                const titleValue = String(value || '');
-
-                // Main title is required
-                if (titleType === 'main-title') {
-                    const requiredResult = validateRequired(titleValue, 'Main title');
-                    if (!requiredResult.isValid) {
-                        return { severity: 'error', message: requiredResult.error! };
-                    }
-                }
-
-                // If title is provided (for any type), validate length
-                if (titleValue.trim() !== '') {
-                    const lengthResult = validateTextLength(titleValue, {
-                        min: 1,
-                        max: 325,
-                        fieldName: 'Title',
-                    });
-                    if (!lengthResult.isValid) {
-                        return {
-                            severity: lengthResult.warning ? 'warning' : 'error',
-                            message: lengthResult.error || lengthResult.warning!,
-                        };
-                    }
-                }
-
-                // Check uniqueness across all titles
-                const uniquenessResult = validateTitleUniqueness(allTitles.map((t) => ({ title: t.title, type: t.titleType })));
-                if (!uniquenessResult.isValid && uniquenessResult.errors[index]) {
-                    return {
-                        severity: 'error',
-                        message: uniquenessResult.errors[index],
-                    };
-                }
-
-                return null;
-            },
-        },
-    ];
-
-    // License validation rules (primary license is required)
-    const primaryLicenseValidationRules: ValidationRule[] = [
-        {
-            validate: (value) => {
-                const result = validateRequired(String(value || ''), 'Primary license');
-                if (!result.isValid) {
-                    return { severity: 'error', message: result.error! };
-                }
-                return null;
-            },
-        },
-    ];
-
-    // Abstract (Description) validation rules
-    // Debounce prevents performance issues: validateRequired and validateTextLength are fast,
-    // but frequent re-renders during rapid typing can cause lag. 300ms balances responsiveness
-    // with preventing excessive validation calls during continuous typing.
-    const abstractValidationRules: ValidationRule[] = [
-        {
-            debounce: 300,
-            validate: (value) => {
-                const text = String(value || '');
-
-                // Required check
-                const requiredResult = validateRequired(text, 'Abstract');
-                if (!requiredResult.isValid) {
-                    return { severity: 'error', message: requiredResult.error! };
-                }
-
-                // Length check (50-17500 characters)
-                const lengthResult = validateTextLength(text, {
-                    min: 50,
-                    max: 17500,
-                    fieldName: 'Abstract',
-                });
-                if (!lengthResult.isValid) {
-                    return { severity: 'error', message: lengthResult.error! };
-                }
-
-                // Warning at 90% of max length
-                if (text.length > 15750) {
-                    // 90% of 17500
-                    return {
-                        severity: 'warning',
-                        message: `Abstract is very long (${text.length}/17500 characters). Consider condensing if possible.`,
-                    };
-                }
-
-                return null;
-            },
-        },
-    ];
+    const doiValidationRules = getDoiValidationRules();
+    const yearValidationRules = getYearValidationRules();
+    const resourceTypeValidationRules = getResourceTypeValidationRules();
+    const languageValidationRules = getLanguageValidationRules();
+    const versionValidationRules = getVersionValidationRules();
+    const primaryLicenseValidationRules = getPrimaryLicenseValidationRules();
+    const abstractValidationRules = getAbstractValidationRules();
 
     const [gcmdVocabularies, setGcmdVocabularies] = useState<{
         science: GCMDKeyword[];
