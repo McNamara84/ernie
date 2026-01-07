@@ -1,10 +1,12 @@
 import '@testing-library/jest-dom/vitest';
 
+import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UserMenuContent } from '@/components/user-menu-content';
+import type { User } from '@/types';
 
 const { mockCleanup, flushAll } = vi.hoisted(() => ({
     mockCleanup: vi.fn(),
@@ -12,7 +14,7 @@ const { mockCleanup, flushAll } = vi.hoisted(() => ({
 }));
 
 vi.mock('@inertiajs/react', () => ({
-    Link: ({ children, href, onClick }: { children?: React.ReactNode; href: string; onClick?: () => void }) => (
+    Link: ({ children, href, onClick }: { children?: ReactNode; href: string; onClick?: () => void }) => (
         <a
             href={href}
             onClick={(e) => {
@@ -52,9 +54,9 @@ vi.mock('@/components/user-info', () => ({
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
-    DropdownMenuGroup: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    DropdownMenuItem: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    DropdownMenuLabel: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenuGroup: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    DropdownMenuItem: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    DropdownMenuLabel: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
     DropdownMenuSeparator: () => <hr />,
 }));
 
@@ -65,7 +67,17 @@ describe('UserMenuContent', () => {
     });
 
     it('renders user info and menu links', () => {
-        render(<UserMenuContent user={{ name: 'Jane', email: 'jane@example.com' }} />);
+        const currentUser: User = {
+            id: 1,
+            name: 'Jane',
+            email: 'jane@example.com',
+            font_size_preference: 'regular',
+            email_verified_at: null,
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-01T00:00:00Z',
+        };
+
+        render(<UserMenuContent user={currentUser} />);
         expect(screen.getByText('Jane')).toBeInTheDocument();
         expect(screen.getByText('jane@example.com')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/profile/edit');
@@ -74,7 +86,17 @@ describe('UserMenuContent', () => {
 
     it('calls cleanup and flushAll on link interactions', async () => {
         const user = userEvent.setup();
-        render(<UserMenuContent user={{ name: 'Jane', email: 'jane@example.com' }} />);
+        const currentUser: User = {
+            id: 1,
+            name: 'Jane',
+            email: 'jane@example.com',
+            font_size_preference: 'regular',
+            email_verified_at: null,
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-01T00:00:00Z',
+        };
+
+        render(<UserMenuContent user={currentUser} />);
 
         await user.click(screen.getByRole('link', { name: /settings/i }));
         expect(mockCleanup).toHaveBeenCalledTimes(1);

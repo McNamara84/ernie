@@ -59,7 +59,11 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                             cx="50%"
                             cy="50%"
                             labelLine={false}
-                            label={({ name, percentage }) => `${name}: ${percentage}%`}
+                            label={(props) => {
+                                const payload = props.payload as { percentage?: string } | undefined;
+                                const percentage = payload?.percentage ?? '0.00';
+                                return `${props.name}: ${percentage}%`;
+                            }}
                             outerRadius={100}
                             fill="#8884d8"
                             dataKey="value"

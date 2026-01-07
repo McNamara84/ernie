@@ -23,8 +23,8 @@ describe('wayfinder utilities', () => {
     it('handles arrays, objects and booleans', () => {
       const result = queryParams({
         query: {
-          ids: [1, 2],
-          filter: { name: 'john', age: undefined },
+          ids: ['1', '2'],
+          filter: { name: 'john' },
           flag: true,
           neg: false,
         },
@@ -54,8 +54,8 @@ describe('wayfinder utilities', () => {
 
   describe('url defaults', () => {
     it('applies defaults and added defaults', () => {
-      setUrlDefaults({ a: 1 });
-      addUrlDefault('b', 2);
+      setUrlDefaults({ a: '1' });
+      addUrlDefault('b', '2');
       expect(applyUrlDefaults({ b: 5 })).toEqual({ b: 5, a: 1 });
       expect(applyUrlDefaults(undefined)).toEqual({ a: 1, b: 2 });
     });

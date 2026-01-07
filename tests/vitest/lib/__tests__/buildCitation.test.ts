@@ -18,7 +18,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    value: 'TESTTITLE',
+                    title: 'TESTTITLE',
                     title_type: 'MainTitle',
                 },
             ],
@@ -48,7 +48,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    value: 'Test Dataset',
+                    title: 'Test Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -88,7 +88,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    value: 'Collaborative Research',
+                    title: 'Collaborative Research',
                     title_type: 'MainTitle',
                 },
             ],
@@ -119,7 +119,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    value: 'Undated Dataset',
+                    title: 'Undated Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -139,7 +139,7 @@ describe('buildCitation', () => {
             creators: [],
             titles: [
                 {
-                    value: 'Anonymous Dataset',
+                    title: 'Anonymous Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -169,7 +169,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    value: 'Test',
+                    title: 'Test',
                     title_type: 'MainTitle',
                 },
             ],
@@ -197,7 +197,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    value: 'Legacy Dataset',
+                    title: 'Legacy Dataset',
                     title_type: 'MainTitle',
                 },
             ],
@@ -228,7 +228,7 @@ describe('buildCitation', () => {
             ],
             titles: [
                 {
-                    value: 'Test Dataset',
+                    title: 'Test Dataset',
                     title_type: 'MainTitle',
                 },
             ],

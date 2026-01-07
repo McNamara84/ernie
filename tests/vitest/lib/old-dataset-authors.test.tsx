@@ -133,6 +133,7 @@ describe('OldDataset Authors Loading', () => {
                     to: 1,
                     has_more: false,
                 }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
             />
         );
 
@@ -220,6 +221,7 @@ describe('OldDataset Authors Loading', () => {
                     to: 1,
                     has_more: false,
                 }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
             />
         );
 
@@ -315,6 +317,7 @@ describe('OldDataset Authors Loading', () => {
                     to: 1,
                     has_more: false,
                 }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
             />
         );
 
@@ -373,6 +376,7 @@ describe('OldDataset Authors Loading', () => {
                     to: 1,
                     has_more: false,
                 }}
+                sort={{ key: 'updated_at', direction: 'desc' }}
             />
         );
 

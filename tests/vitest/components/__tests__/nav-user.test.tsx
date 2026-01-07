@@ -1,18 +1,19 @@
 import '@testing-library/jest-dom/vitest';
 
+import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NavUser } from '@/components/nav-user';
 
-type DropdownProps = { side?: string; [key: string]: unknown };
+type DropdownProps = { side?: string; children?: ReactNode; [key: string]: unknown };
 const dropdownCalls: DropdownProps[] = vi.hoisted(() => [] as DropdownProps[]);
 const useSidebarMock = vi.hoisted(() => vi.fn());
 const useIsMobileMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
-    DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    DropdownMenu: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    DropdownMenuTrigger: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
     DropdownMenuContent: (props: DropdownProps) => {
         dropdownCalls.push(props);
         return (
@@ -24,9 +25,9 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
 }));
 
 vi.mock('@/components/ui/sidebar', () => ({
-    SidebarMenu: ({ children }: { children?: React.ReactNode }) => <ul>{children}</ul>,
-    SidebarMenuItem: ({ children }: { children?: React.ReactNode }) => <li>{children}</li>,
-    SidebarMenuButton: ({ children, ...props }: { children?: React.ReactNode }) => <button {...props}>{children}</button>,
+    SidebarMenu: ({ children }: { children?: ReactNode }) => <ul>{children}</ul>,
+    SidebarMenuItem: ({ children }: { children?: ReactNode }) => <li>{children}</li>,
+    SidebarMenuButton: ({ children, ...props }: { children?: ReactNode }) => <button {...props}>{children}</button>,
     useSidebar: () => useSidebarMock(),
 }));
 

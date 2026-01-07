@@ -41,7 +41,11 @@ export default function IsSupplementToChart({ data }: IsSupplementToChartProps) 
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percentage }) => `${name}: ${percentage}%`}
+                        label={(props) => {
+                            const payload = props.payload as { percentage?: number } | undefined;
+                            const percentage = payload?.percentage ?? 0;
+                            return `${props.name}: ${percentage}%`;
+                        }}
                         outerRadius={100}
                         fill="#8884d8"
                         dataKey="value"

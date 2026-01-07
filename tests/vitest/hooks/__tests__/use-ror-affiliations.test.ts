@@ -1,4 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
+import type { Mock } from 'vitest';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -39,7 +40,7 @@ describe('useRorAffiliations', () => {
             ]),
         } as unknown as Response;
 
-        (global.fetch as unknown as vi.Mock).mockResolvedValue(response);
+        (global.fetch as unknown as Mock).mockResolvedValue(response);
 
         const { result } = renderHook(() => useRorAffiliations());
 
@@ -67,7 +68,7 @@ describe('useRorAffiliations', () => {
     });
 
     it('reports an error when the request fails', async () => {
-        (global.fetch as unknown as vi.Mock).mockResolvedValue({
+        (global.fetch as unknown as Mock).mockResolvedValue({
             ok: false,
             status: 500,
             json: vi.fn().mockResolvedValue([]),

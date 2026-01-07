@@ -13,6 +13,7 @@ export type ContributorType = 'person' | 'institution';
 
 export interface ContributorRoleTag {
     value: string;
+    [key: string]: unknown;
 }
 
 interface BaseContributorEntry {

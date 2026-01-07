@@ -18,10 +18,12 @@ interface ResourceLicenseSummary {
 
 interface ResourceLanguageSummary {
     code: string | null;
+    name?: string | null;
 }
 
 interface ResourceTypeSummary {
     name: string | null;
+    slug?: string | null;
 }
 
 type AuthorTypeSummary = 'person' | 'institution';
@@ -137,13 +139,13 @@ export interface ResourceForCuration {
     version: string | null;
     resource_type: ResourceTypeSummary | null;
     language: ResourceLanguageSummary | null;
-    titles: ResourceTitleSummary[];
-    licenses: ResourceLicenseSummary[];
+    titles: ReadonlyArray<ResourceTitleSummary>;
+    licenses: ReadonlyArray<ResourceLicenseSummary>;
     authors?: (ResourceAuthorSummary | null | undefined)[] | null;
     contributors?: (ResourceContributorSummary | null | undefined)[] | null;
     descriptions?: (ResourceDescriptionSummary | null | undefined)[] | null;
     dates?: (ResourceDateSummary | null | undefined)[] | null;
-    freeKeywords?: string[] | null;
+    freeKeywords?: ReadonlyArray<string> | null;
     controlledKeywords?:
         | {
               id: string;
@@ -244,7 +246,7 @@ const mapResourceTypeNameToId = async (name: string | null): Promise<string | nu
     return String(match.id);
 };
 
-const normaliseTitles = (titles: ResourceTitleSummary[]): { title: string; titleType: string }[] => {
+const normaliseTitles = (titles: ReadonlyArray<ResourceTitleSummary>): { title: string; titleType: string }[] => {
     const cleaned = titles
         .map((entry) => {
             const text = entry.title?.trim();
@@ -297,7 +299,7 @@ const normaliseTitles = (titles: ResourceTitleSummary[]): { title: string; title
     return [...mainTitles, ...secondaryTitles];
 };
 
-const normaliseLicenses = (licenses: ResourceLicenseSummary[]): string[] =>
+const normaliseLicenses = (licenses: ReadonlyArray<ResourceLicenseSummary>): string[] =>
     licenses.map((license) => license.identifier?.trim()).filter((identifier): identifier is string => Boolean(identifier));
 
 const toTrimmedStringOrNull = (value: unknown): string | null => {

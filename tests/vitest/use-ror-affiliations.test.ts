@@ -202,10 +202,10 @@ describe('useRorAffiliations', () => {
     });
 
     it('handles abort signal correctly', async () => {
-        let resolveFunc: ((value: unknown) => void) | null = null;
+        let resolveFunc: (value: Response) => void = () => {};
 
         (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
-            () => new Promise((resolve) => {
+            () => new Promise<Response>((resolve) => {
                 resolveFunc = resolve;
             })
         );
@@ -216,13 +216,11 @@ describe('useRorAffiliations', () => {
         unmount();
 
         // Resolve the promise to avoid hanging
-        if (resolveFunc) {
-            resolveFunc({
-                ok: true,
-                status: 200,
-                json: async () => [],
-            });
-        }
+        resolveFunc({
+            ok: true,
+            status: 200,
+            json: async () => [],
+        } as unknown as Response);
 
         // Wait a bit to ensure cleanup happened
         await new Promise((resolve) => setTimeout(resolve, 50));

@@ -5,6 +5,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { UserInfo } from '@/components/user-info';
+import type { User } from '@/types';
 
 vi.mock('@/hooks/use-initials', () => ({
     useInitials: () => () => 'JD',
@@ -19,7 +20,16 @@ vi.mock('@/components/ui/avatar', () => ({
 }));
 
 describe('UserInfo', () => {
-    const user = { name: 'John Doe', email: 'john@example.com', avatar: '' };
+    const user: User = {
+        id: 1,
+        name: 'John Doe',
+        email: 'john@example.com',
+        font_size_preference: 'regular',
+        email_verified_at: null,
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+        avatar: '',
+    };
 
     it('shows name, email and initials', () => {
         render(<UserInfo user={user} showEmail />);
