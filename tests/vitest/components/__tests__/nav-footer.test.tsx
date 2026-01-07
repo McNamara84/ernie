@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
 
-import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import { Book } from 'lucide-react';
+import type { ReactNode } from 'react';
+import type { ComponentType } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NavFooter } from '@/components/nav-footer';
@@ -20,7 +21,7 @@ vi.mock('@inertiajs/react', () => ({
 }));
 
 vi.mock('@/components/icon', () => ({
-    Icon: ({ iconNode: IconComponent }: { iconNode: any }) => (
+    Icon: ({ iconNode: IconComponent }: { iconNode: ComponentType }) => (
         <span data-testid="icon">
             <IconComponent />
         </span>

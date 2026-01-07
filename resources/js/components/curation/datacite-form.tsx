@@ -4,6 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { SectionHeader } from '@/components/curation/section-header';
+import {
+    createTitleValidationRules,
+    getAbstractValidationRules,
+    getDoiValidationRules,
+    getLanguageValidationRules,
+    getPrimaryLicenseValidationRules,
+    getResourceTypeValidationRules,
+    getVersionValidationRules,
+    getYearValidationRules,
+} from '@/components/curation/validation';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,16 +29,6 @@ import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, Res
 import type { AffiliationTag } from '@/types/affiliations';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
-import {
-    getAbstractValidationRules,
-    getDoiValidationRules,
-    getLanguageValidationRules,
-    getPrimaryLicenseValidationRules,
-    getResourceTypeValidationRules,
-    createTitleValidationRules,
-    getVersionValidationRules,
-    getYearValidationRules,
-} from '@/components/curation/validation';
 import {
     validateDate,
 } from '@/utils/validation-rules';

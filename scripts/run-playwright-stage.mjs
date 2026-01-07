@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import process from 'node:process';
 
 const allow = process.env.ERNIE_ALLOW_STAGE_TESTS === 'true' || process.env.ERNIE_ALLOW_STAGE_TESTS === '1';
 

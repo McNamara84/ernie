@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest';
 
-import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UserMenuContent } from '@/components/user-menu-content';
