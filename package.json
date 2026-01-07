@@ -27,9 +27,9 @@
     "test:e2e:devstack": "playwright test --config=playwright.devstack.config.ts",
     "test:e2e:devstack:headed": "playwright test --config=playwright.devstack.config.ts --headed",
     "test:e2e:devstack:ui": "playwright test --config=playwright.devstack.config.ts --ui",
-    "test:e2e:stage": "playwright test --config=playwright.stage.config.ts",
-    "test:e2e:stage:headed": "playwright test --config=playwright.stage.config.ts --headed",
-    "test:e2e:stage:ui": "playwright test --config=playwright.stage.config.ts --ui"
+    "test:e2e:stage": "node scripts/run-playwright-stage.mjs",
+    "test:e2e:stage:headed": "node scripts/run-playwright-stage.mjs --headed",
+    "test:e2e:stage:ui": "node scripts/run-playwright-stage.mjs --ui"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.10.2",

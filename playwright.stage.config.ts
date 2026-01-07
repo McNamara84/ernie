@@ -1,9 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 
+const allowStageTests = process.env.ERNIE_ALLOW_STAGE_TESTS === 'true' || process.env.ERNIE_ALLOW_STAGE_TESTS === '1';
+
 // Load environment variables from .env file using dotenv
 // This handles complex values with equals signs and special characters correctly
 dotenv.config();
+
+if (!allowStageTests) {
+  throw new Error(
+    '[ernie] Refusing to run Playwright Stage tests without explicit opt-in. ' +
+      'Set ERNIE_ALLOW_STAGE_TESTS=true (or 1) to enable.'
+  );
+}
 
 /**
  * Playwright configuration for Stage environment testing.
