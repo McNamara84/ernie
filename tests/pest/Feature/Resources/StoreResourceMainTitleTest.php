@@ -101,7 +101,8 @@ test('storing a resource with main-title persists with MainTitle TitleType ID an
 
     expect($resource->publication_year)->toBe(2024);
 
-    $title = $resource->titles()->firstOrFail();
+    // Eager load titleType to avoid N+1 and enable isMainTitle() detection
+    $title = $resource->titles()->with('titleType')->firstOrFail();
     // MainTitle should be stored with the MainTitle TitleType ID (not NULL)
     expect($title->title_type_id)->toBe($mainTitleType->id);
     expect($title->isMainTitle())->toBeTrue();

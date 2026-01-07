@@ -17,24 +17,34 @@ beforeEach(function () {
 
 test('returns all title types ordered by name', function () {
     $response = $this->getJson('/api/v1/title-types')->assertOk();
-    // 5 types: Alpha, Bravo, Charlie, Delta + MainTitle from migration
+    // 5 types: Alpha, Bravo, Charlie, Delta + Main Title from migration, ordered alphabetically
     expect($response->json())->toHaveCount(5);
-    $names = array_column($response->json(), 'name');
-    expect($names)->toContain('Alpha', 'Bravo', 'Charlie', 'Delta', 'Main Title');
+    expect(array_column($response->json(), 'name'))->toBe([
+        'Alpha',
+        'Bravo',
+        'Charlie',
+        'Delta',
+        'Main Title',
+    ]);
 });
 
 test('returns only active title types for Ernie', function () {
     $response = $this->getJson('/api/v1/title-types/ernie')->assertOk();
-    // 3 active types: Alpha, Bravo + MainTitle from migration
+    // 3 active types: Alpha, Bravo + Main Title from migration, ordered alphabetically
     expect($response->json())->toHaveCount(3);
-    $names = array_column($response->json(), 'name');
-    expect($names)->toContain('Alpha', 'Bravo', 'Main Title');
+    expect(array_column($response->json(), 'name'))->toBe([
+        'Alpha',
+        'Bravo',
+        'Main Title',
+    ]);
 });
 
 test('returns only active and elmo-active title types', function () {
     $response = $this->getJson('/api/v1/title-types/elmo')->assertOk();
-    // 2 active+elmo types: Alpha + MainTitle from migration
+    // 2 active+elmo types: Alpha + Main Title from migration, ordered alphabetically
     expect($response->json())->toHaveCount(2);
-    $names = array_column($response->json(), 'name');
-    expect($names)->toContain('Alpha', 'Main Title');
+    expect(array_column($response->json(), 'name'))->toBe([
+        'Alpha',
+        'Main Title',
+    ]);
 });

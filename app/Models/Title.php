@@ -70,9 +70,10 @@ class Title extends Model
      * In DataCite XML, MainTitle has no titleType attribute, but in the database
      * it's always stored with a reference to the MainTitle TitleType record.
      *
-     * Note: This method requires the titleType relation to be loaded for accurate results
-     * when title_type_id is not null. Callers should eager load `titleType` when checking
-     * multiple titles.
+     * Note: This method intentionally does NOT lazy-load the titleType relation
+     * to prevent N+1 query problems in loops. If the relation is not loaded and
+     * title_type_id is not NULL, this returns false. Callers that need accurate
+     * detection must eager load `titleType` before calling this method.
      */
     public function isMainTitle(): bool
     {
@@ -81,8 +82,9 @@ class Title extends Model
             return true;
         }
 
+        // Do NOT lazy-load to prevent N+1 queries - return false if relation not loaded
         if (! $this->relationLoaded('titleType')) {
-            $this->load('titleType');
+            return false;
         }
 
         // Handle case where relation couldn't be loaded (FK points to deleted record)

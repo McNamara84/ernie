@@ -35,12 +35,14 @@ it('returns only title types enabled for ELMO', function () {
 
     $response = getJson('/api/v1/title-types/elmo')
         ->assertOk()
-        // 2 types: 'Main' created here + 'MainTitle' from migration
+        // 2 types: 'Main' created here + 'Main Title' from migration, ordered alphabetically
         ->assertJsonCount(2);
 
-    // Verify our created type is in the response
-    $names = array_column($response->json(), 'name');
-    expect($names)->toContain('Main');
+    // Verify exact ordering by name
+    expect(array_column($response->json(), 'name'))->toBe([
+        'Main',
+        'Main Title',
+    ]);
 });
 
 it('rejects title type requests without an API key when one is configured', function () {
@@ -70,12 +72,14 @@ it('allows title type requests with a valid API key header', function () {
 
     $response = getJson('/api/v1/title-types/elmo', ['X-API-Key' => 'secret-key'])
         ->assertOk()
-        // 2 types: 'Main' created here + 'MainTitle' from migration
+        // 2 types: 'Main' created here + 'Main Title' from migration, ordered alphabetically
         ->assertJsonCount(2);
 
-    // Verify our created type is in the response
-    $names = array_column($response->json(), 'name');
-    expect($names)->toContain('Main');
+    // Verify exact ordering by name
+    expect(array_column($response->json(), 'name'))->toBe([
+        'Main',
+        'Main Title',
+    ]);
 });
 
 it('rejects API keys in query parameters for security', function () {
