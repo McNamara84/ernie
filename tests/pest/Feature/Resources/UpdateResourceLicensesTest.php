@@ -7,6 +7,7 @@ use App\Models\Language;
 use App\Models\Resource;
 use App\Models\ResourceType;
 use App\Models\Right;
+use App\Models\TitleType;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -47,6 +48,13 @@ test('updating a resource syncs licenses (removes old, adds new)', function () {
         'is_active' => true,
         'is_elmo_active' => true,
         'usage_count' => 0,
+    ]);
+
+    TitleType::create([
+        'name' => 'Main Title',
+        'slug' => 'MainTitle',
+        'is_active' => true,
+        'is_elmo_active' => true,
     ]);
 
     DescriptionType::create([
