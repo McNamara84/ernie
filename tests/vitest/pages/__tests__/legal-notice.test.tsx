@@ -24,5 +24,10 @@ describe('LegalNotice', () => {
             'https://www.gfz.de/en/',
         );
     });
+
+    it('shows the updated responsible person', () => {
+        render(<LegalNotice />);
+        expect(screen.getByText(/lars-christian klinnert/i)).toBeInTheDocument();
+    });
 });
 
