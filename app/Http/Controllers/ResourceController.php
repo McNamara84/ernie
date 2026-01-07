@@ -23,6 +23,9 @@ use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
+use App\Services\Entities\AffiliationService;
+use App\Services\Entities\InstitutionService;
+use App\Services\Entities\PersonService;
 use App\Services\ResourceCacheService;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -912,35 +915,8 @@ class ResourceController extends Controller
      */
     private function storePersonCreator(Resource $resource, array $data, int $position): ResourceCreator
     {
-        $search = null;
-
-        if (! empty($data['orcid'])) {
-            $search = ['name_identifier' => $data['orcid']];
-        }
-
-        if ($search === null) {
-            $search = [
-                'given_name' => $data['firstName'] ?? null,
-                'family_name' => $data['lastName'],
-            ];
-        }
-
-        $person = Person::query()->firstOrNew($search);
-
-        // Only update names if this is a new person (not yet saved to database)
-        if (! $person->exists) {
-            $person->fill([
-                'given_name' => $data['firstName'] ?? $person->given_name,
-                'family_name' => $data['lastName'] ?? $person->family_name,
-            ]);
-
-            if (! empty($data['orcid'])) {
-                $person->name_identifier = $data['orcid'];
-                $person->name_identifier_scheme = 'ORCID';
-            }
-        }
-
-        $person->save();
+        $personService = app(PersonService::class);
+        $person = $personService->findOrCreate($data);
 
         return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
@@ -955,41 +931,12 @@ class ResourceController extends Controller
      */
     private function storeInstitutionCreator(Resource $resource, array $data, int $position): ResourceCreator
     {
-        $name = $data['institutionName'];
-        $rorId = $data['rorId'] ?? null;
-
-        $institution = null;
-
-        if ($rorId !== null) {
-            $institution = Institution::query()->where('name_identifier', $rorId)->first();
-
-            if ($institution === null) {
-                $institution = Institution::query()
-                    ->where('name', $name)
-                    ->whereNull('name_identifier')
-                    ->first();
-            }
-        }
-
-        if ($institution === null) {
-            $institution = Institution::query()
-                ->where('name', $name)
-                ->whereNull('name_identifier')
-                ->first();
-        }
-
-        if ($institution === null) {
-            $institution = new Institution;
-        }
-
-        $institution->name = $name;
-
-        if ($rorId !== null && $institution->name_identifier !== $rorId) {
-            $institution->name_identifier = $rorId;
-            $institution->name_identifier_scheme = 'ROR';
-        }
-
-        $institution->save();
+        $institutionService = app(InstitutionService::class);
+        $institution = $institutionService->findOrCreate([
+            'name' => $data['institutionName'],
+            'identifier' => $data['rorId'] ?? null,
+            'identifierScheme' => isset($data['rorId']) ? 'ROR' : null,
+        ]);
 
         return ResourceCreator::query()->create([
             'resource_id' => $resource->id,
@@ -1004,48 +951,8 @@ class ResourceController extends Controller
      */
     private function syncCreatorAffiliations(ResourceCreator $resourceCreator, array $data): void
     {
-        $affiliations = $data['affiliations'] ?? [];
-
-        if (! is_array($affiliations) || $affiliations === []) {
-            return;
-        }
-
-        $payload = [];
-
-        foreach ($affiliations as $affiliation) {
-            if (! is_array($affiliation)) {
-                continue;
-            }
-
-            $value = isset($affiliation['value']) ? trim((string) $affiliation['value']) : '';
-
-            if ($value === '') {
-                continue;
-            }
-
-            $rorId = null;
-
-            if (array_key_exists('rorId', $affiliation)) {
-                $rawRorId = $affiliation['rorId'];
-
-                if ($rawRorId !== null) {
-                    $trimmedRorId = trim((string) $rawRorId);
-                    $rorId = $trimmedRorId === '' ? null : $trimmedRorId;
-                }
-            }
-
-            $payload[] = [
-                'name' => $value,
-                'identifier' => $rorId,
-                'identifier_scheme' => $rorId ? 'ROR' : null,
-            ];
-        }
-
-        if ($payload === []) {
-            return;
-        }
-
-        $resourceCreator->affiliations()->createMany($payload);
+        $affiliationService = app(AffiliationService::class);
+        $affiliationService->syncForCreator($resourceCreator, $data);
     }
 
     /**
@@ -1053,35 +960,8 @@ class ResourceController extends Controller
      */
     private function storePersonContributor(Resource $resource, array $data, int $position): ResourceContributor
     {
-        $search = null;
-
-        if (! empty($data['orcid'])) {
-            $search = ['name_identifier' => $data['orcid']];
-        }
-
-        if ($search === null) {
-            $search = [
-                'given_name' => $data['firstName'] ?? null,
-                'family_name' => $data['lastName'],
-            ];
-        }
-
-        $person = Person::query()->firstOrNew($search);
-
-        // Only update names if this is a new person (not yet saved to database)
-        if (! $person->exists) {
-            $person->fill([
-                'given_name' => $data['firstName'] ?? $person->given_name,
-                'family_name' => $data['lastName'] ?? $person->family_name,
-            ]);
-
-            if (! empty($data['orcid'])) {
-                $person->name_identifier = $data['orcid'];
-                $person->name_identifier_scheme = 'ORCID';
-            }
-        }
-
-        $person->save();
+        $personService = app(PersonService::class);
+        $person = $personService->findOrCreate($data);
 
         // Get default contributor type
         $contributorType = ContributorType::where('slug', 'other')->first();
@@ -1100,61 +980,12 @@ class ResourceController extends Controller
      */
     private function storeInstitutionContributor(Resource $resource, array $data, int $position): ResourceContributor
     {
-        $name = $data['institutionName'];
-        $identifier = $data['identifier'] ?? null;
-        $identifierType = $data['identifierType'] ?? null;
-
-        $institution = null;
-
-        // Try to find by identifier and identifier_type first (if provided)
-        if ($identifier !== null && $identifierType !== null) {
-            $institution = Institution::query()
-                ->where('name_identifier', $identifier)
-                ->where('name_identifier_scheme', $identifierType)
-                ->first();
-        }
-
-        // Fallback: find by name without identifier
-        if ($institution === null) {
-            $institution = Institution::query()
-                ->where('name', $name)
-                ->whereNull('name_identifier')
-                ->whereNull('name_identifier_scheme')
-                ->first();
-        }
-
-        // Create new institution if not found
-        if ($institution === null) {
-            $institution = new Institution;
-            $institution->name = $name;
-
-            if ($identifier !== null && $identifierType !== null) {
-                $institution->name_identifier = $identifier;
-                $institution->name_identifier_scheme = $identifierType;
-            }
-
-            $institution->save();
-        } else {
-            // Update existing institution if identifier info is provided
-            $needsUpdate = false;
-
-            if ($institution->name !== $name) {
-                $institution->name = $name;
-                $needsUpdate = true;
-            }
-
-            if ($identifier !== null && $identifierType !== null) {
-                if ($institution->name_identifier !== $identifier || $institution->name_identifier_scheme !== $identifierType) {
-                    $institution->name_identifier = $identifier;
-                    $institution->name_identifier_scheme = $identifierType;
-                    $needsUpdate = true;
-                }
-            }
-
-            if ($needsUpdate) {
-                $institution->save();
-            }
-        }
+        $institutionService = app(InstitutionService::class);
+        $institution = $institutionService->findOrCreateWithIdentifier(
+            $data['institutionName'],
+            $data['identifier'] ?? null,
+            $data['identifierType'] ?? null
+        );
 
         // Get default contributor type
         $contributorType = ContributorType::where('slug', 'other')->first();
@@ -1200,48 +1031,8 @@ class ResourceController extends Controller
      */
     private function syncContributorAffiliations(ResourceContributor $resourceContributor, array $data): void
     {
-        $affiliations = $data['affiliations'] ?? [];
-
-        if (! is_array($affiliations) || $affiliations === []) {
-            return;
-        }
-
-        $payload = [];
-
-        foreach ($affiliations as $affiliation) {
-            if (! is_array($affiliation)) {
-                continue;
-            }
-
-            $value = isset($affiliation['value']) ? trim((string) $affiliation['value']) : '';
-
-            if ($value === '') {
-                continue;
-            }
-
-            $rorId = null;
-
-            if (array_key_exists('rorId', $affiliation)) {
-                $rawRorId = $affiliation['rorId'];
-
-                if ($rawRorId !== null) {
-                    $trimmedRorId = trim((string) $rawRorId);
-                    $rorId = $trimmedRorId === '' ? null : $trimmedRorId;
-                }
-            }
-
-            $payload[] = [
-                'name' => $value,
-                'identifier' => $rorId,
-                'identifier_scheme' => $rorId !== null ? 'ROR' : null,
-            ];
-        }
-
-        if ($payload === []) {
-            return;
-        }
-
-        $resourceContributor->affiliations()->createMany($payload);
+        $affiliationService = app(AffiliationService::class);
+        $affiliationService->syncForContributor($resourceContributor, $data);
     }
 
     /**
@@ -1251,29 +1042,11 @@ class ResourceController extends Controller
      */
     private function storeMslLaboratory(Resource $resource, array $data, int $position): ResourceContributor
     {
-        $identifier = $data['identifier'];
-        $name = $data['name'];
-
-        // Try to find existing laboratory by identifier
-        $institution = Institution::query()
-            ->where('name_identifier', $identifier)
-            ->where('name_identifier_scheme', 'labid')
-            ->first();
-
-        // Create or update institution
-        if ($institution === null) {
-            $institution = Institution::query()->create([
-                'name' => $name,
-                'name_identifier' => $identifier,
-                'name_identifier_scheme' => 'labid',
-            ]);
-        } else {
-            // Update name if changed
-            if ($institution->name !== $name) {
-                $institution->name = $name;
-                $institution->save();
-            }
-        }
+        $institutionService = app(InstitutionService::class);
+        $institution = $institutionService->findOrCreateMslLaboratory(
+            $data['identifier'],
+            $data['name']
+        );
 
         // Get HostingInstitution contributor type
         $contributorType = ContributorType::where('slug', 'hosting-institution')->first();
