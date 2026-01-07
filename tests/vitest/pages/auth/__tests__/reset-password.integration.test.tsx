@@ -93,12 +93,14 @@ describe('ResetPassword integration', () => {
   const email = 'user@example.com';
 
   it('submits form and redirects on success', async () => {
-    const fetchSpy = vi.fn(async (...args: unknown[]) => {
-      void args;
+    const fetchSpy = vi.fn<typeof fetch>(async (input, init) => {
+      void input;
+      void init;
+
       return {
-      ok: true,
-      json: async () => ({ redirect: '/login' }),
-      };
+        ok: true,
+        json: async () => ({ redirect: '/login' }),
+      } as Response;
     });
     vi.stubGlobal('fetch', fetchSpy);
     const assignSpy = vi.fn();

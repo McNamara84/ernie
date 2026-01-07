@@ -150,7 +150,7 @@ final class ResourceListResourceSerializer
         // Check that dateType is loaded on dates to prevent N+1 when accessing $date->dateType->slug
         if ($resource->dates->isNotEmpty()) {
             $firstDate = $resource->dates->first();
-            if ($firstDate !== null && ! $firstDate->relationLoaded('dateType')) {
+            if (! $firstDate->relationLoaded('dateType')) {
                 throw new \RuntimeException(
                     'Relation dateType not loaded on ResourceDate. N+1 query detected!'
                 );
@@ -160,14 +160,14 @@ final class ResourceListResourceSerializer
         // Check nested relations on creators if creators exist
         if ($resource->creators->isNotEmpty()) {
             $firstCreator = $resource->creators->first();
-            if ($firstCreator !== null && ! $firstCreator->relationLoaded('creatorable')) {
+            if (! $firstCreator->relationLoaded('creatorable')) {
                 throw new \RuntimeException(
                     'Relation creatorable not loaded on ResourceCreator. N+1 query detected!'
                 );
             }
             // Also check affiliations relation (note: affiliations are polymorphic and store
             // affiliation data directly - they don't have a separate institution relation)
-            if ($firstCreator !== null && ! $firstCreator->relationLoaded('affiliations')) {
+            if (! $firstCreator->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceCreator. N+1 query detected!'
                 );
@@ -177,19 +177,19 @@ final class ResourceListResourceSerializer
         // Check nested relations on contributors if contributors exist
         if ($resource->contributors->isNotEmpty()) {
             $firstContributor = $resource->contributors->first();
-            if ($firstContributor !== null && ! $firstContributor->relationLoaded('contributorable')) {
+            if (! $firstContributor->relationLoaded('contributorable')) {
                 throw new \RuntimeException(
                     'Relation contributorable not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
-            if ($firstContributor !== null && ! $firstContributor->relationLoaded('contributorType')) {
+            if (! $firstContributor->relationLoaded('contributorType')) {
                 throw new \RuntimeException(
                     'Relation contributorType not loaded on ResourceContributor. N+1 query detected!'
                 );
             }
             // Also check affiliations relation (note: affiliations are polymorphic and store
             // affiliation data directly - they don't have a separate institution relation)
-            if ($firstContributor !== null && ! $firstContributor->relationLoaded('affiliations')) {
+            if (! $firstContributor->relationLoaded('affiliations')) {
                 throw new \RuntimeException(
                     'Relation affiliations not loaded on ResourceContributor. N+1 query detected!'
                 );
