@@ -17,7 +17,7 @@ describe('DataCiteXmlValidator', function () {
 
         it('throws exception for empty XML', function () {
             expect(fn () => $this->validator->validate(''))
-                ->toThrow(Exception::class);
+                ->toThrow(ValueError::class);
         });
 
         it('throws exception for non-XML content', function () {
