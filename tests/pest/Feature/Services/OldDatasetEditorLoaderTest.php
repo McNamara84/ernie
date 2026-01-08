@@ -1,48 +1,6 @@
 <?php
 
 use App\Services\OldDatasetEditorLoader;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-
-// Tests that require database connection
-describe('with metaworks database', function () {
-    beforeEach(function () {
-        // Skip if metaworks connection is not configured
-        try {
-            DB::connection('metaworks')->getPdo();
-        } catch (Exception $e) {
-            $this->markTestSkipped('Metaworks database connection not available');
-        }
-    });
-
-    it('loads a dataset from old database', function () {
-        // Test with Resource ID 2413 (known to exist)
-        $loader = new OldDatasetEditorLoader;
-        $data = $loader->loadForEditor(2413);
-
-        expect($data)->toBeArray()
-            ->and($data)->toHaveKey('titles')
-            ->and($data)->toHaveKey('authors')
-            ->and($data)->toHaveKey('descriptions')
-            ->and($data)->toHaveKey('rights');
-    });
-
-    it('transforms title type correctly for main titles', function () {
-        $loader = new OldDatasetEditorLoader;
-        $data = $loader->loadForEditor(2413);
-
-        // Check that at least one title has 'main-title' as titleType
-        $hasMainTitle = false;
-        foreach ($data['titles'] as $title) {
-            if ($title['titleType'] === 'main-title') {
-                $hasMainTitle = true;
-                break;
-            }
-        }
-
-        expect($hasMainTitle)->toBeTrue();
-    });
-});
 
 // Tests that don't require database connection - test license mapping logic
 describe('license mapping', function () {

@@ -170,18 +170,6 @@ describe('Landing Page Updates', function () {
             ->published_at->toBeNull();
     });
 
-    test('invalidates cache on update', function () {
-        // First, cache should be populated by public controller
-        Cache::shouldReceive('forget')
-            ->once()
-            ->with("landing_page.{$this->resource->id}");
-
-        $this->putJson("/resources/{$this->resource->id}/landing-page", [
-            'template' => 'default_gfz',
-            'status' => 'draft',
-        ]);
-    })->skip('Cache invalidation tested in integration test');
-
     test('returns 404 when landing page does not exist', function () {
         $newResource = Resource::factory()->create([
             'created_by_user_id' => $this->user->id,
@@ -211,10 +199,6 @@ describe('Landing Page Deletion', function () {
 
         expect(LandingPage::find($landingPage->id))->toBeNull();
     });
-
-    test('invalidates cache on deletion', function () {
-        // Cache invalidation is tested in PublicController tests
-    })->skip('Cache invalidation tested in integration test');
 
     test('returns 404 when landing page does not exist', function () {
         $response = $this->deleteJson("/resources/{$this->resource->id}/landing-page");
