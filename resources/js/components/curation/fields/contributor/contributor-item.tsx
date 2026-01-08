@@ -102,7 +102,7 @@ export default function ContributorItem({
     // Handle selecting an ORCID suggestion
     const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {
         hideSuggestions();
-        await handleOrcidSelect(suggestion.orcid, suggestion);
+        await handleOrcidSelect(suggestion.orcid);
     };
 
     // Role options based on type

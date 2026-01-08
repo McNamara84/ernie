@@ -5,14 +5,15 @@
  * Extracted from datacite-form.tsx for better maintainability.
  */
 
-import type { AffiliationTag } from '@/types/affiliations';
-
-import type { AuthorEntry } from '../fields/author';
-import type { ContributorEntry, ContributorRoleTag } from '../fields/contributor';
-import type { DescriptionEntry } from '../fields/description-field';
-import type { FundingReferenceEntry } from '../fields/funding-reference';
-import type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
 import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+
+// Re-export types that are used by consumers of this module
+export type { AuthorEntry } from '../fields/author';
+export type { ContributorEntry, ContributorRoleTag } from '../fields/contributor';
+export type { DescriptionEntry } from '../fields/description-field';
+export type { FundingReferenceEntry } from '../fields/funding-reference';
+export type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
+export type { AffiliationTag } from '@/types/affiliations';
 
 // ============================================================================
 // Form Data Types

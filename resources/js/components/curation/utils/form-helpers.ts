@@ -5,6 +5,7 @@
  * Extracted from datacite-form.tsx for better maintainability.
  */
 
+import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import type { AffiliationTag } from '@/types/affiliations';
 
 import type { AuthorEntry, InstitutionAuthorEntry, PersonAuthorEntry } from '../fields/author';
@@ -14,7 +15,6 @@ import type {
     InstitutionContributorEntry,
     PersonContributorEntry,
 } from '../fields/contributor';
-import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import type { InitialAffiliationInput, InitialAuthor, InitialContributor, SerializedAffiliation } from '../types/datacite-form-types';
 
 // ============================================================================
@@ -339,7 +339,7 @@ export const mapInitialContributorToEntry = (contributor: InitialContributor): C
 // Form State Validators
 // ============================================================================
 
-import type { TitleEntry, LicenseEntry, DateEntry } from '../types/datacite-form-types';
+import type { DateEntry,LicenseEntry, TitleEntry } from '../types/datacite-form-types';
 
 /**
  * Check if a new title can be added based on current state.

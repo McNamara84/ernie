@@ -5,9 +5,9 @@
  * Run with: npx playwright test --config=playwright.docker.config.ts --headed --grep "BUG 1"
  */
 
-import { test, expect } from '@playwright/test';
-import * as path from 'path';
+import { expect,test } from '@playwright/test';
 import * as fs from 'fs';
+import * as path from 'path';
 
 // Test credentials for local Docker environment
 const LOCAL_TEST_EMAIL = 'test@example.com';

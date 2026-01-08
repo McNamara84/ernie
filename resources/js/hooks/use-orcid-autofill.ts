@@ -84,7 +84,7 @@ export interface UseOrcidAutofillReturn {
     /** Hide suggestions dropdown */
     hideSuggestions: () => void;
     /** Handle selecting an ORCID from search dialog or suggestions */
-    handleOrcidSelect: (orcid: string, searchResult: OrcidSearchResult) => Promise<void>;
+    handleOrcidSelect: (orcid: string) => Promise<void>;
 }
 
 /**
@@ -152,7 +152,7 @@ export function useOrcidAutofill<T extends BaseEntry>({
      * Handle ORCID selection (from search dialog or suggestions)
      */
     const handleOrcidSelect = useCallback(
-        async (orcid: string, searchResult: OrcidSearchResult) => {
+        async (orcid: string) => {
             if (!isPersonEntry(entry)) return;
 
             setVerificationError(null);

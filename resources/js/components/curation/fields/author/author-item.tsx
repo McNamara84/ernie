@@ -100,7 +100,7 @@ export default function AuthorItem({
     // Handle selecting an ORCID suggestion
     const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {
         hideSuggestions();
-        await handleOrcidSelect(suggestion.orcid, suggestion);
+        await handleOrcidSelect(suggestion.orcid);
     };
 
     // Affiliations Tagify settings via shared hook

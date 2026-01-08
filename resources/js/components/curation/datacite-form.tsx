@@ -14,7 +14,7 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { hasValidDateValue } from '@/lib/date-utils';
-import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
+import type { MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
@@ -27,8 +27,8 @@ import {
     validateYear,
 } from '@/utils/validation-rules';
 
-import AuthorField, { type AuthorEntry, type InstitutionAuthorEntry, type PersonAuthorEntry } from './fields/author';
-import ContributorField, { type ContributorEntry, type InstitutionContributorEntry, type PersonContributorEntry } from './fields/contributor';
+import AuthorField, { type AuthorEntry } from './fields/author';
+import ContributorField, { type ContributorEntry } from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
@@ -47,8 +47,6 @@ import {
     type DataCiteFormData,
     type DataCiteFormProps,
     type DateEntry,
-    type InitialAuthor,
-    type InitialContributor,
     type LicenseEntry,
     MAIN_TITLE_SLUG,
     type SerializedAuthor,
@@ -59,10 +57,6 @@ import {
     canAddDate,
     canAddLicense,
     canAddTitle,
-    createEmptyInstitutionAuthor,
-    createEmptyInstitutionContributor,
-    createEmptyPersonAuthor,
-    createEmptyPersonContributor,
     mapInitialAuthorToEntry,
     mapInitialContributorToEntry,
     normalizeTitleTypeSlug,
