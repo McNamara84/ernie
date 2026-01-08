@@ -13,10 +13,8 @@ import { ValidationAlert } from '@/components/ui/validation-alert';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import { inferContributorTypeFromRoles, normaliseContributorRoleLabel } from '@/lib/contributors';
 import { hasValidDateValue } from '@/lib/date-utils';
-import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
-import type { AffiliationTag } from '@/types/affiliations';
+import type { MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
@@ -29,13 +27,8 @@ import {
     validateYear,
 } from '@/utils/validation-rules';
 
-import AuthorField, { type AuthorEntry, type InstitutionAuthorEntry, type PersonAuthorEntry } from './fields/author';
-import ContributorField, {
-    type ContributorEntry,
-    type ContributorRoleTag,
-    type InstitutionContributorEntry,
-    type PersonContributorEntry,
-} from './fields/contributor';
+import AuthorField, { type AuthorEntry } from './fields/author';
+import ContributorField, { type ContributorEntry } from './fields/contributor';
 import ControlledVocabulariesField from './fields/controlled-vocabularies-field';
 import DateField from './fields/date-field';
 import DescriptionField, { type DescriptionEntry } from './fields/description-field';
@@ -50,454 +43,32 @@ import SpatialTemporalCoverageField from './fields/spatial-temporal-coverage';
 import { type SpatialTemporalCoverageEntry } from './fields/spatial-temporal-coverage/types';
 import { type TagInputItem } from './fields/tag-input-field';
 import TitleField from './fields/title-field';
+import {
+    type DataCiteFormData,
+    type DataCiteFormProps,
+    type DateEntry,
+    type LicenseEntry,
+    MAIN_TITLE_SLUG,
+    type SerializedAuthor,
+    type SerializedContributor,
+    type TitleEntry,
+} from './types/datacite-form-types';
+import {
+    canAddDate,
+    canAddLicense,
+    canAddTitle,
+    mapInitialAuthorToEntry,
+    mapInitialContributorToEntry,
+    normalizeTitleTypeSlug,
+    serializeAffiliations,
+} from './utils/form-helpers';
 import { resolveInitialLanguageCode } from './utils/language-resolver';
 
-// Helper functions for normalizing ORCID and website URLs from old datasets
-const normalizeOrcid = (orcid: string | null | undefined): string => {
-    if (!orcid || typeof orcid !== 'string') {
-        return '';
-    }
+// Re-export types for backward compatibility with existing imports
+export type { DataCiteFormProps, InitialAuthor, InitialContributor } from './types/datacite-form-types';
 
-    const trimmed = orcid.trim();
-
-    // Remove https://orcid.org/ prefix if present
-    const orcidPattern = /^(?:https?:\/\/)?(?:www\.)?orcid\.org\/(.+)$/i;
-    const match = trimmed.match(orcidPattern);
-
-    if (match && match[1]) {
-        return match[1];
-    }
-
-    return trimmed;
-};
-
-const normalizeWebsiteUrl = (url: string | null | undefined): string => {
-    if (!url || typeof url !== 'string') {
-        return '';
-    }
-
-    const trimmed = url.trim();
-
-    // If URL doesn't start with http:// or https://, add https://
-    if (trimmed && !/^https?:\/\//i.test(trimmed)) {
-        return `https://${trimmed}`;
-    }
-
-    return trimmed;
-};
-
-// Constants - Note: 'created' and 'updated' date types are now automatically managed by the backend
-
-interface DataCiteFormData {
-    doi: string;
-    year: string;
-    resourceType: string;
-    version: string;
-    language: string;
-}
-
-interface TitleEntry {
-    id: string;
-    title: string;
-    titleType: string;
-}
-
-const MAIN_TITLE_SLUG = 'main-title';
-
-const normalizeTitleTypeSlug = (value: string | null | undefined): string => {
-    // Note: TitleType API responses are normalized to kebab-case by the backend.
-    // This helper is defensive for legacy values (e.g. TitleCase) and ensures null/empty inputs stay empty.
-    if (value == null) {
-        return '';
-    }
-
-    const trimmed = value.trim();
-    if (trimmed === '') {
-        return '';
-    }
-
-    return trimmed
-        .replace(/_/g, '-')
-        .replace(/\s+/g, '-')
-        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-        .replace(/[^a-zA-Z0-9-]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        .toLowerCase();
-};
-
-interface LicenseEntry {
-    id: string;
-    license: string;
-}
-
-interface DateEntry {
-    id: string;
-    startDate: string | null;
-    endDate: string | null;
-    dateType: string;
-}
-
-interface SerializedAffiliation {
-    value: string;
-    rorId: string | null;
-}
-
-type SerializedAuthor =
-    | {
-          type: 'person';
-          orcid: string | null;
-          firstName: string | null;
-          lastName: string;
-          email: string | null;
-          website: string | null;
-          isContact: boolean;
-          affiliations: SerializedAffiliation[];
-          position: number;
-      }
-    | {
-          type: 'institution';
-          institutionName: string;
-          rorId: string | null;
-          affiliations: SerializedAffiliation[];
-          position: number;
-      };
-
-type SerializedContributor =
-    | {
-          type: 'person';
-          orcid: string | null;
-          firstName: string | null;
-          lastName: string;
-          roles: string[];
-          affiliations: SerializedAffiliation[];
-          position: number;
-      }
-    | {
-          type: 'institution';
-          institutionName: string;
-          roles: string[];
-          affiliations: SerializedAffiliation[];
-          position: number;
-      };
-
-const createEmptyPersonAuthor = (): PersonAuthorEntry => ({
-    id: crypto.randomUUID(),
-    type: 'person',
-    orcid: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    website: '',
-    isContact: false,
-    affiliations: [],
-    affiliationsInput: '',
-});
-
-const createEmptyInstitutionAuthor = (): InstitutionAuthorEntry => ({
-    id: crypto.randomUUID(),
-    type: 'institution',
-    institutionName: '',
-    affiliations: [],
-    affiliationsInput: '',
-});
-
-const createEmptyPersonContributor = (): PersonContributorEntry => ({
-    id: crypto.randomUUID(),
-    type: 'person',
-    roles: [],
-    rolesInput: '',
-    orcid: '',
-    firstName: '',
-    lastName: '',
-    affiliations: [],
-    affiliationsInput: '',
-});
-
-const createEmptyInstitutionContributor = (): InstitutionContributorEntry => ({
-    id: crypto.randomUUID(),
-    type: 'institution',
-    roles: [],
-    rolesInput: '',
-    institutionName: '',
-    affiliations: [],
-    affiliationsInput: '',
-});
-
-/**
- * Serializes and normalizes affiliations from an author or contributor entry.
- *
- * This function processes affiliation data by:
- * - Trimming whitespace from affiliation values and ROR IDs
- * - Filtering out empty affiliations (those with neither a value nor a ROR ID)
- * - Deduplicating affiliations based on the combination of value and ROR ID
- * - Normalizing affiliations so the value field is always populated (falls back to ROR ID if value is empty)
- *
- * @param entry - An author or contributor entry containing affiliations to serialize
- * @returns An array of deduplicated affiliation objects with value and rorId properties
- */
-const serializeAffiliations = (entry: AuthorEntry | ContributorEntry): SerializedAffiliation[] => {
-    const seen = new Set<string>();
-
-    return entry.affiliations
-        .map((affiliation) => {
-            const rawValue = affiliation.value.trim();
-            const rawRorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
-
-            if (!rawValue && !rawRorId) {
-                return null;
-            }
-
-            const value = rawValue || rawRorId;
-            const rorId = rawRorId || null;
-            const key = `${value}|${rorId ?? ''}`;
-
-            if (seen.has(key)) {
-                return null;
-            }
-
-            seen.add(key);
-
-            return { value, rorId } satisfies SerializedAffiliation;
-        })
-        .filter((item): item is SerializedAffiliation => item !== null);
-};
-
-type InitialAffiliationInput = {
-    value?: string | null;
-    rorId?: string | null;
-};
-
-type BaseInitialAuthor = {
-    affiliations?: (InitialAffiliationInput | null | undefined)[] | null;
-};
-
-export type InitialAuthor =
-    | (BaseInitialAuthor & {
-          type?: 'person';
-          orcid?: string | null;
-          firstName?: string | null;
-          lastName?: string | null;
-          email?: string | null;
-          website?: string | null;
-          isContact?: boolean | string | null;
-      })
-    | (BaseInitialAuthor & {
-          type: 'institution';
-          institutionName?: string | null;
-          rorId?: string | null;
-      });
-
-type BaseInitialContributor = {
-    affiliations?: (InitialAffiliationInput | null | undefined)[] | null;
-    roles?: (string | null | undefined)[] | Record<string, unknown> | string | null;
-};
-
-export type InitialContributor =
-    | (BaseInitialContributor & {
-          type?: 'person';
-          orcid?: string | null;
-          firstName?: string | null;
-          lastName?: string | null;
-      })
-    | (BaseInitialContributor & {
-          type: 'institution';
-          institutionName?: string | null;
-      });
-
-const normaliseInitialAffiliations = (affiliations?: (InitialAffiliationInput | null | undefined)[] | null): AffiliationTag[] => {
-    if (!affiliations || !Array.isArray(affiliations)) {
-        return [];
-    }
-
-    return affiliations
-        .map((affiliation) => {
-            if (!affiliation || typeof affiliation !== 'object') {
-                return null;
-            }
-
-            // Try multiple property names for value
-            const rawValue = (
-                'value' in affiliation && typeof affiliation.value === 'string'
-                    ? affiliation.value
-                    : 'name' in affiliation && typeof (affiliation as Record<string, unknown>).name === 'string'
-                      ? ((affiliation as Record<string, unknown>).name as string)
-                      : ''
-            ).trim();
-
-            // Try multiple property names for rorId
-            const rawRorId = (
-                'rorId' in affiliation && typeof affiliation.rorId === 'string'
-                    ? affiliation.rorId
-                    : 'rorid' in affiliation && typeof (affiliation as Record<string, unknown>).rorid === 'string'
-                      ? ((affiliation as Record<string, unknown>).rorid as string)
-                      : 'identifier' in affiliation && typeof (affiliation as Record<string, unknown>).identifier === 'string'
-                        ? ((affiliation as Record<string, unknown>).identifier as string)
-                        : ''
-            ).trim();
-
-            if (!rawValue && !rawRorId) {
-                return null;
-            }
-
-            return {
-                value: rawValue || rawRorId,
-                rorId: rawRorId || null,
-            } satisfies AffiliationTag;
-        })
-        .filter((item): item is AffiliationTag => Boolean(item && item.value));
-};
-
-const normaliseInitialContributorRoles = (roles: BaseInitialContributor['roles']): ContributorRoleTag[] => {
-    if (!roles) {
-        return [];
-    }
-
-    const rawRoles = Array.isArray(roles) ? roles : typeof roles === 'string' ? [roles] : typeof roles === 'object' ? Object.values(roles) : [];
-
-    const unique = new Set<string>();
-
-    return rawRoles
-        .map((role) => (typeof role === 'string' ? normaliseContributorRoleLabel(role) : ''))
-        .filter((role) => role.length > 0)
-        .filter((role) => {
-            if (unique.has(role)) {
-                return false;
-            }
-            unique.add(role);
-            return true;
-        })
-        .map((role) => ({ value: role }));
-};
-
-const mapInitialContributorToEntry = (contributor: InitialContributor): ContributorEntry | null => {
-    if (!contributor || typeof contributor !== 'object') {
-        return null;
-    }
-
-    const affiliations = normaliseInitialAffiliations(contributor.affiliations ?? null);
-    // Keep affiliations as separate tags, not joined into one string
-    const affiliationsInput = affiliations.map((item) => item.value).join(',');
-    const roles = normaliseInitialContributorRoles(contributor.roles ?? null);
-    const roleLabels = roles.map((role) => role.value);
-    const rolesInput = roleLabels.join(', ');
-    const resolvedType = inferContributorTypeFromRoles(contributor.type, roleLabels);
-
-    if (resolvedType === 'institution') {
-        const base = createEmptyInstitutionContributor();
-        const institutionContributor = contributor as BaseInitialContributor & {
-            type: 'institution';
-            institutionName?: string | null;
-        };
-
-        return {
-            ...base,
-            institutionName: typeof institutionContributor.institutionName === 'string' ? institutionContributor.institutionName.trim() : '',
-            affiliations,
-            affiliationsInput,
-            roles,
-            rolesInput,
-        } satisfies InstitutionContributorEntry;
-    }
-
-    const base = createEmptyPersonContributor();
-    const personContributor = contributor as BaseInitialContributor & {
-        type?: 'person';
-        orcid?: string | null;
-        firstName?: string | null;
-        lastName?: string | null;
-    };
-
-    return {
-        ...base,
-        orcid: normalizeOrcid(personContributor.orcid),
-        firstName: typeof personContributor.firstName === 'string' ? personContributor.firstName.trim() : '',
-        lastName: typeof personContributor.lastName === 'string' ? personContributor.lastName.trim() : '',
-        affiliations,
-        affiliationsInput,
-        roles,
-        rolesInput,
-    } satisfies PersonContributorEntry;
-};
-
-const mapInitialAuthorToEntry = (author: InitialAuthor): AuthorEntry | null => {
-    if (!author || typeof author !== 'object') {
-        return null;
-    }
-
-    const affiliations = normaliseInitialAffiliations(author.affiliations ?? null);
-    // Keep affiliations as separate tags, not joined into one string
-    const affiliationsInput = affiliations.map((item) => item.value).join(',');
-
-    if (author.type === 'institution') {
-        const base = createEmptyInstitutionAuthor();
-
-        return {
-            ...base,
-            institutionName: typeof author.institutionName === 'string' ? author.institutionName.trim() : '',
-            affiliations,
-            affiliationsInput,
-        } satisfies InstitutionAuthorEntry;
-    }
-
-    const base = createEmptyPersonAuthor();
-
-    return {
-        ...base,
-        orcid: normalizeOrcid(author.orcid),
-        firstName: typeof author.firstName === 'string' ? author.firstName.trim() : '',
-        lastName: typeof author.lastName === 'string' ? author.lastName.trim() : '',
-        email: typeof author.email === 'string' ? author.email.trim() : '',
-        website: normalizeWebsiteUrl(author.website),
-        isContact: author.isContact === true || author.isContact === 'true',
-        affiliations,
-        affiliationsInput,
-    } satisfies PersonAuthorEntry;
-};
-
-interface DataCiteFormProps {
-    resourceTypes: ResourceType[];
-    titleTypes: TitleType[];
-    dateTypes: DateType[];
-    licenses: License[];
-    languages: Language[];
-    contributorPersonRoles?: Role[];
-    contributorInstitutionRoles?: Role[];
-    authorRoles?: Role[];
-    maxTitles?: number;
-    maxLicenses?: number;
-    googleMapsApiKey: string;
-    initialDoi?: string;
-    initialYear?: string;
-    initialVersion?: string;
-    initialLanguage?: string;
-    initialResourceType?: string;
-    initialTitles?: { title: string; titleType: string }[];
-    initialLicenses?: string[];
-    initialResourceId?: string;
-    initialAuthors?: InitialAuthor[];
-    initialContributors?: InitialContributor[];
-    initialDescriptions?: { type: string; description: string }[];
-    initialDates?: { dateType: string; startDate: string; endDate: string }[];
-    initialGcmdKeywords?: { id: string; path: string; text: string; scheme: string; schemeURI?: string; language?: string; isLegacy?: string }[];
-    initialFreeKeywords?: string[];
-    initialSpatialTemporalCoverages?: SpatialTemporalCoverageEntry[];
-    initialRelatedWorks?: RelatedIdentifier[];
-    initialFundingReferences?: FundingReferenceEntry[];
-    initialMslLaboratories?: MSLLaboratory[];
-}
-
-export function canAddTitle(titles: TitleEntry[], maxTitles: number) {
-    return titles.length < maxTitles && titles.length > 0 && !!titles[titles.length - 1].title;
-}
-
-export function canAddLicense(licenseEntries: LicenseEntry[], maxLicenses: number) {
-    return licenseEntries.length < maxLicenses && licenseEntries.length > 0 && !!licenseEntries[licenseEntries.length - 1].license;
-}
-
-export function canAddDate(dates: DateEntry[], maxDates: number) {
-    return dates.length < maxDates && dates.length > 0 && (!!dates[dates.length - 1].startDate || !!dates[dates.length - 1].endDate);
-}
+// Re-export helper functions for backward compatibility
+export { canAddDate, canAddLicense, canAddTitle } from './utils/form-helpers';
 
 export default function DataCiteForm({
     resourceTypes,

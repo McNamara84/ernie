@@ -7,6 +7,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Services\Traits\DataCiteExporterHelpers;
 use DOMDocument;
 use DOMElement;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +28,7 @@ use Illuminate\Support\Facades\Log;
  */
 class DataCiteXmlExporter
 {
+    use DataCiteExporterHelpers;
     /**
      * DataCite namespace constants
      */
@@ -51,27 +53,7 @@ class DataCiteXmlExporter
     public function export(Resource $resource): string
     {
         // Load all necessary relationships
-        $resource->load([
-            'resourceType',
-            'language',
-            'publisher',
-            'titles.titleType',
-            'creators.creatorable',
-            'creators.affiliations',
-            'contributors.contributorable',
-            'contributors.contributorType',
-            'contributors.affiliations',
-            'descriptions.descriptionType',
-            'dates.dateType',
-            'subjects',
-            'geoLocations.polygons',
-            'rights',
-            'relatedIdentifiers.identifierType',
-            'relatedIdentifiers.relationType',
-            'fundingReferences.funderIdentifierType',
-            'sizes',
-            'formats',
-        ]);
+        $resource->load($this->getRequiredRelations());
 
         // Initialize DOM
         $this->dom = new DOMDocument('1.0', 'UTF-8');
@@ -183,19 +165,8 @@ class DataCiteXmlExporter
 
         $creatorElement = $this->dom->createElement('creator');
 
-        // Creator name (required)
-        $creatorName = $this->dom->createElement('creatorName');
-
-        if ($person->family_name && $person->given_name) {
-            $creatorName->nodeValue = htmlspecialchars("{$person->family_name}, {$person->given_name}");
-        } elseif ($person->family_name) {
-            $creatorName->nodeValue = htmlspecialchars($person->family_name);
-        } elseif ($person->given_name) {
-            $creatorName->nodeValue = htmlspecialchars($person->given_name);
-        } else {
-            $creatorName->nodeValue = 'Unknown';
-        }
-
+        // Creator name (required) - use shared helper
+        $creatorName = $this->dom->createElement('creatorName', htmlspecialchars($this->formatPersonName($person)));
         $creatorName->setAttribute('nameType', 'Personal');
         $creatorElement->appendChild($creatorName);
 
@@ -211,27 +182,23 @@ class DataCiteXmlExporter
             $creatorElement->appendChild($familyName);
         }
 
-        // Name identifiers (ORCID or other)
-        if ($person->name_identifier) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($person->name_identifier));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', $person->name_identifier_scheme ?? 'ORCID');
-            if ($person->name_identifier_scheme_uri) {
-                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($person->name_identifier_scheme_uri));
-            } elseif ($person->name_identifier_scheme === 'ORCID') {
-                $nameIdentifier->setAttribute('schemeURI', 'https://orcid.org');
-            }
+        // Name identifiers (ORCID or other) - use shared helper
+        if ($nameIdData = $this->buildPersonNameIdentifier($person)) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($nameIdData['nameIdentifier']));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $nameIdData['nameIdentifierScheme']);
+            $nameIdentifier->setAttribute('schemeURI', $nameIdData['schemeUri']);
             $creatorElement->appendChild($nameIdentifier);
         }
 
-        // Affiliations
-        foreach ($creator->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
+        // Affiliations - use shared helper
+        foreach ($this->transformAffiliations($creator) as $affiliationData) {
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliationData['name'] ?? ''));
 
-            if ($affiliation->identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
-                if ($affiliation->scheme_uri) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+            if (isset($affiliationData['affiliationIdentifier'])) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
+                if (isset($affiliationData['schemeURI'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
                 }
             }
 
@@ -255,35 +222,31 @@ class DataCiteXmlExporter
 
         $creatorElement = $this->dom->createElement('creator');
 
-        // Creator name (required)
+        // Creator name (required) - use shared helper
         $creatorName = $this->dom->createElement(
             'creatorName',
-            htmlspecialchars($institution->name ?? 'Unknown Institution')
+            htmlspecialchars($this->formatInstitutionName($institution))
         );
         $creatorName->setAttribute('nameType', 'Organizational');
         $creatorElement->appendChild($creatorName);
 
-        // Name identifiers (ROR or other)
-        if ($institution->name_identifier) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->name_identifier));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', $institution->name_identifier_scheme ?? 'ROR');
-            if ($institution->name_identifier_scheme_uri) {
-                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($institution->name_identifier_scheme_uri));
-            } elseif ($institution->name_identifier_scheme === 'ROR') {
-                $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
-            }
+        // Name identifiers (ROR or other) - use shared helper
+        if ($nameIdData = $this->buildInstitutionNameIdentifier($institution)) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($nameIdData['nameIdentifier']));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $nameIdData['nameIdentifierScheme']);
+            $nameIdentifier->setAttribute('schemeURI', $nameIdData['schemeUri']);
             $creatorElement->appendChild($nameIdentifier);
         }
 
-        // Affiliations
-        foreach ($creator->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
+        // Affiliations - use shared helper
+        foreach ($this->transformAffiliations($creator) as $affiliationData) {
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliationData['name'] ?? ''));
 
-            if ($affiliation->identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
-                if ($affiliation->scheme_uri) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+            if (isset($affiliationData['affiliationIdentifier'])) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
+                if (isset($affiliationData['schemeURI'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
                 }
             }
 
@@ -541,19 +504,8 @@ class DataCiteXmlExporter
         $contributorElement = $this->dom->createElement('contributor');
         $contributorElement->setAttribute('contributorType', $contributorType);
 
-        // Contributor name (required)
-        $contributorName = $this->dom->createElement('contributorName');
-
-        if ($person->family_name && $person->given_name) {
-            $contributorName->nodeValue = htmlspecialchars("{$person->family_name}, {$person->given_name}");
-        } elseif ($person->family_name) {
-            $contributorName->nodeValue = htmlspecialchars($person->family_name);
-        } elseif ($person->given_name) {
-            $contributorName->nodeValue = htmlspecialchars($person->given_name);
-        } else {
-            $contributorName->nodeValue = 'Unknown';
-        }
-
+        // Contributor name (required) - use shared helper
+        $contributorName = $this->dom->createElement('contributorName', htmlspecialchars($this->formatPersonName($person)));
         $contributorName->setAttribute('nameType', 'Personal');
         $contributorElement->appendChild($contributorName);
 
@@ -569,27 +521,23 @@ class DataCiteXmlExporter
             $contributorElement->appendChild($familyName);
         }
 
-        // Name identifiers (ORCID or other)
-        if ($person->name_identifier) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($person->name_identifier));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', $person->name_identifier_scheme ?? 'ORCID');
-            if ($person->name_identifier_scheme_uri) {
-                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($person->name_identifier_scheme_uri));
-            } elseif ($person->name_identifier_scheme === 'ORCID') {
-                $nameIdentifier->setAttribute('schemeURI', 'https://orcid.org');
-            }
+        // Name identifiers (ORCID or other) - use shared helper
+        if ($nameIdData = $this->buildPersonNameIdentifier($person)) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($nameIdData['nameIdentifier']));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $nameIdData['nameIdentifierScheme']);
+            $nameIdentifier->setAttribute('schemeURI', $nameIdData['schemeUri']);
             $contributorElement->appendChild($nameIdentifier);
         }
 
-        // Affiliations
-        foreach ($contributor->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
+        // Affiliations - use shared helper
+        foreach ($this->transformAffiliations($contributor) as $affiliationData) {
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliationData['name'] ?? ''));
 
-            if ($affiliation->identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
-                if ($affiliation->scheme_uri) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+            if (isset($affiliationData['affiliationIdentifier'])) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
+                if (isset($affiliationData['schemeURI'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
                 }
             }
 
@@ -614,35 +562,31 @@ class DataCiteXmlExporter
         $contributorElement = $this->dom->createElement('contributor');
         $contributorElement->setAttribute('contributorType', $contributorType);
 
-        // Contributor name (required)
+        // Contributor name (required) - use shared helper
         $contributorName = $this->dom->createElement(
             'contributorName',
-            htmlspecialchars($institution->name ?? 'Unknown Institution')
+            htmlspecialchars($this->formatInstitutionName($institution))
         );
         $contributorName->setAttribute('nameType', 'Organizational');
         $contributorElement->appendChild($contributorName);
 
-        // Name identifiers (ROR or other)
-        if ($institution->name_identifier) {
-            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($institution->name_identifier));
-            $nameIdentifier->setAttribute('nameIdentifierScheme', $institution->name_identifier_scheme ?? 'ROR');
-            if ($institution->name_identifier_scheme_uri) {
-                $nameIdentifier->setAttribute('schemeURI', htmlspecialchars($institution->name_identifier_scheme_uri));
-            } elseif ($institution->name_identifier_scheme === 'ROR') {
-                $nameIdentifier->setAttribute('schemeURI', 'https://ror.org');
-            }
+        // Name identifiers (ROR or other) - use shared helper
+        if ($nameIdData = $this->buildInstitutionNameIdentifier($institution)) {
+            $nameIdentifier = $this->dom->createElement('nameIdentifier', htmlspecialchars($nameIdData['nameIdentifier']));
+            $nameIdentifier->setAttribute('nameIdentifierScheme', $nameIdData['nameIdentifierScheme']);
+            $nameIdentifier->setAttribute('schemeURI', $nameIdData['schemeUri']);
             $contributorElement->appendChild($nameIdentifier);
         }
 
-        // Affiliations
-        foreach ($contributor->affiliations as $affiliation) {
-            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliation->name));
+        // Affiliations - use shared helper
+        foreach ($this->transformAffiliations($contributor) as $affiliationData) {
+            $affiliationElement = $this->dom->createElement('affiliation', htmlspecialchars($affiliationData['name'] ?? ''));
 
-            if ($affiliation->identifier) {
-                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliation->identifier));
-                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliation->identifier_scheme ?? 'ROR');
-                if ($affiliation->scheme_uri) {
-                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliation->scheme_uri));
+            if (isset($affiliationData['affiliationIdentifier'])) {
+                $affiliationElement->setAttribute('affiliationIdentifier', htmlspecialchars($affiliationData['affiliationIdentifier']));
+                $affiliationElement->setAttribute('affiliationIdentifierScheme', $affiliationData['affiliationIdentifierScheme'] ?? 'ROR');
+                if (isset($affiliationData['schemeURI'])) {
+                    $affiliationElement->setAttribute('schemeURI', htmlspecialchars($affiliationData['schemeURI']));
                 }
             }
 
@@ -682,30 +626,11 @@ class DataCiteXmlExporter
                 continue;
             }
 
-            // Format date value according to DataCite schema:
-            // - Single date: use date_value or start_date
-            // - Closed range: start_date/end_date
-            // - Open-ended range (start_date only, null end_date): exported as single date
-            //
-            // Note on open-ended ranges: While RKMS-ISO8601 allows "YYYY-MM-DD/" format for
-            // open-ended ranges, DataCite's XSD schema and API validation treat dates without
-            // an end component as single dates. Exporting "2020-01-01/" would fail validation.
-            // Therefore, open-ended ranges are intentionally exported as single dates.
-            // The range information is preserved in the database for potential future use.
-            $dateValue = null;
-            if ($date->isRange()) {
-                // Closed range with both dates
-                $dateValue = $date->start_date.'/'.$date->end_date;
-            } elseif ($date->isOpenEndedRange()) {
-                // Open-ended range - exported as single date (DataCite doesn't support trailing slash)
-                $dateValue = $date->start_date;
-            } else {
-                // Single date
-                $dateValue = $date->date_value ?? $date->start_date;
-            }
+            // Format date value using shared helper
+            $dateValue = $this->formatDateValue($date);
 
             // Skip dates where no value could be determined to avoid empty XML elements
-            if ($dateValue === null || $dateValue === '') {
+            if ($dateValue === null) {
                 continue;
             }
 
