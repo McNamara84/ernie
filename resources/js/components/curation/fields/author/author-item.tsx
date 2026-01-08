@@ -8,15 +8,16 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { TagData, TagifySettings } from '@yaireo/tagify';
 import { CheckCircle2, ExternalLink, GripVertical, Loader2, Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAffiliationsTagify } from '@/hooks/use-affiliations-tagify';
+import { useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { type OrcidSearchResult, OrcidService } from '@/services/orcid';
 import type { AffiliationSuggestion, AffiliationTag } from '@/types/affiliations';
 
@@ -24,7 +25,7 @@ import InputField from '../input-field';
 import { OrcidSearchDialog } from '../orcid-search-dialog';
 import { SelectField } from '../select-field';
 import TagInputField, { type TagInputItem } from '../tag-input-field';
-import type { AuthorEntry, AuthorType, PersonAuthorEntry } from './types';
+import type { AuthorEntry, AuthorType } from './types';
 
 interface AuthorItemProps {
     author: AuthorEntry;
@@ -80,280 +81,34 @@ export default function AuthorItem({
         onPersonFieldChange(field, value);
     };
 
-    // ORCID Auto-Fill State
-    const [isVerifying, setIsVerifying] = useState(false);
-    const [verificationError, setVerificationError] = useState<string | null>(null);
+    // ORCID auto-fill, verification, and suggestions via shared hook
+    const {
+        isVerifying,
+        verificationError,
+        orcidSuggestions,
+        isLoadingSuggestions,
+        showSuggestions,
+        hideSuggestions,
+        handleOrcidSelect,
+    } = useOrcidAutofill<AuthorEntry>({
+        entry: author,
+        onEntryChange: onAuthorChange,
+        hasUserInteracted,
+        includeEmail: true, // Authors can have email auto-filled
+    });
 
-    // ORCID Auto-Suggest State
-    const [orcidSuggestions, setOrcidSuggestions] = useState<OrcidSearchResult[]>([]);
-    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-
-    // Extract affiliations with ROR IDs
-    const affiliationsWithRorId = useMemo(() => {
-        const seen = new Set<string>();
-
-        return author.affiliations.reduce<{ value: string; rorId: string }[]>((accumulator, affiliation) => {
-            const value = affiliation.value.trim();
-            const rorId = typeof affiliation.rorId === 'string' ? affiliation.rorId.trim() : '';
-
-            if (!value || !rorId || seen.has(rorId)) {
-                return accumulator;
-            }
-
-            seen.add(rorId);
-            accumulator.push({ value, rorId });
-            return accumulator;
-        }, []);
-    }, [author.affiliations]);
-
-    const affiliationsDescriptionId = affiliationsWithRorId.length > 0 ? `${author.id}-affiliations-ror-description` : undefined;
-
-    // Tagify settings for affiliations autocomplete
-    const tagifySettings = useMemo<Partial<TagifySettings<TagData>>>(() => {
-        const whitelist = affiliationSuggestions.map((suggestion) => ({
-            value: suggestion.value,
-            rorId: suggestion.rorId,
-            searchTerms: suggestion.searchTerms,
-        }));
-
-        return {
-            whitelist,
-            dropdown: {
-                enabled: whitelist.length > 0 ? 1 : 0,
-                maxItems: 20,
-                closeOnSelect: true,
-                searchKeys: ['value', 'searchTerms'],
-            },
-        };
-    }, [affiliationSuggestions]);
-
-    /**
-     * Handle ORCID Search & Select
-     * Triggered when user selects a person from the search dialog
-     */
-    const handleOrcidSelect = async (orcid: string, searchResult: OrcidSearchResult) => {
-        if (author.type !== 'person') return;
-
-        // Set the ORCID and clear any previous errors
-        // Use onPersonFieldChange directly to avoid triggering hasUserInteracted
-        onPersonFieldChange('orcid', orcid);
-        setVerificationError(null);
-
-        // Auto-fill name fields if empty
-        if (!author.firstName && searchResult.firstName) {
-            onPersonFieldChange('firstName', searchResult.firstName);
-        }
-        if (!author.lastName && searchResult.lastName) {
-            onPersonFieldChange('lastName', searchResult.lastName);
-        }
-
-        // Now verify and fetch full details
-        setIsVerifying(true);
-
-        try {
-            const response = await OrcidService.fetchOrcidRecord(orcid);
-
-            if (!response.success || !response.data) {
-                setVerificationError(response.error || 'Failed to fetch ORCID data');
-                setIsVerifying(false);
-                return;
-            }
-
-            const data = response.data;
-
-            // Update with complete ORCID data
-            const updatedAuthor: PersonAuthorEntry = {
-                ...author,
-                orcid,
-                firstName: data.firstName || author.firstName,
-                lastName: data.lastName || author.lastName,
-                email: data.emails.length > 0 && !author.email ? data.emails[0] : author.email,
-                orcidVerified: true,
-                orcidVerifiedAt: new Date().toISOString(),
-            };
-
-            // Auto-fill affiliations from full ORCID record
-            if (data.affiliations.length > 0) {
-                const employmentAffiliations = data.affiliations
-                    .filter((aff) => aff.type === 'employment' && aff.name)
-                    .map((aff) => ({
-                        value: aff.name!,
-                        rorId: null,
-                    }));
-
-                if (employmentAffiliations.length > 0) {
-                    const existingValues = new Set(author.affiliations.map((a) => a.value));
-                    const newAffiliations = employmentAffiliations.filter((a) => !existingValues.has(a.value));
-
-                    if (newAffiliations.length > 0) {
-                        updatedAuthor.affiliations = [...author.affiliations, ...(newAffiliations as AffiliationTag[])];
-                        updatedAuthor.affiliationsInput = updatedAuthor.affiliations.map((a: AffiliationTag) => a.value).join(', ');
-                    }
-                }
-            }
-
-            onAuthorChange(updatedAuthor);
-            setIsVerifying(false);
-        } catch (error) {
-            console.error('ORCID fetch error:', error);
-            setVerificationError('Failed to fetch complete ORCID data');
-            setIsVerifying(false);
-        }
-    };
-
-    /**
-     * Handle selecting an ORCID suggestion
-     */
+    // Handle selecting an ORCID suggestion
     const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {
-        setShowSuggestions(false);
+        hideSuggestions();
         await handleOrcidSelect(suggestion.orcid, suggestion);
     };
 
-    /**
-     * Auto-suggest ORCIDs based on name and affiliations
-     * Triggered when firstName + lastName are filled and ORCID is empty
-     *
-     * IMPORTANT: Only trigger after user interaction to prevent unwanted searches
-     * when loading old records into the editor.
-     */
-    useEffect(() => {
-        // Skip auto-suggest if user hasn't interacted yet (prevents triggering on load)
-        if (!hasUserInteracted) {
-            return;
-        }
-
-        const searchForOrcid = async () => {
-            // Only search if person type, has name, and no ORCID yet
-            if (author.type !== 'person' || !author.firstName?.trim() || !author.lastName?.trim() || author.orcid?.trim() || author.orcidVerified) {
-                setOrcidSuggestions([]);
-                setShowSuggestions(false);
-                return;
-            }
-
-            setIsLoadingSuggestions(true);
-            setShowSuggestions(true);
-
-            try {
-                // Build search query: "FirstName LastName"
-                let searchQuery = `${author.firstName.trim()} ${author.lastName.trim()}`;
-
-                // Add first affiliation if available to refine search
-                if (author.affiliations.length > 0 && author.affiliations[0].value) {
-                    searchQuery += ` ${author.affiliations[0].value}`;
-                }
-
-                const response = await OrcidService.searchOrcid(searchQuery);
-
-                if (response.success && response.data) {
-                    // Limit to top 5 suggestions
-                    setOrcidSuggestions(response.data.results.slice(0, 5));
-                } else {
-                    setOrcidSuggestions([]);
-                }
-            } catch (error) {
-                console.error('ORCID suggestion error:', error);
-                setOrcidSuggestions([]);
-            } finally {
-                setIsLoadingSuggestions(false);
-            }
-        };
-
-        // Debounce: Wait 800ms after user stops typing
-        const timeoutId = setTimeout(searchForOrcid, 800);
-
-        return () => clearTimeout(timeoutId);
-    }, [author, hasUserInteracted]);
-
-    /**
-     * Auto-verify and fill when a valid ORCID is entered
-     * Triggered when ORCID is syntactically valid and not yet verified
-     */
-    useEffect(() => {
-        const autoVerifyOrcid = async () => {
-            // Only auto-verify if:
-            // 1. Person type
-            // 2. ORCID has valid format
-            // 3. Not already verified
-            // 4. Not currently verifying
-            if (
-                author.type !== 'person' ||
-                !author.orcid?.trim() ||
-                !OrcidService.isValidFormat(author.orcid) ||
-                author.orcidVerified ||
-                isVerifying
-            ) {
-                return;
-            }
-
-            setIsVerifying(true);
-            setVerificationError(null);
-
-            try {
-                // Validate ORCID exists
-                const validationResponse = await OrcidService.validateOrcid(author.orcid);
-
-                if (!validationResponse.success || !validationResponse.data?.exists) {
-                    setVerificationError('ORCID not found');
-                    setIsVerifying(false);
-                    return;
-                }
-
-                // Fetch full ORCID record
-                const response = await OrcidService.fetchOrcidRecord(author.orcid);
-
-                if (!response.success || !response.data) {
-                    setVerificationError('Failed to fetch ORCID data');
-                    setIsVerifying(false);
-                    return;
-                }
-
-                const data = response.data;
-
-                // Auto-fill fields
-                const updatedAuthor = {
-                    ...author,
-                    firstName: data.firstName || author.firstName,
-                    lastName: data.lastName || author.lastName,
-                    email: data.emails.length > 0 && !author.email ? data.emails[0] : author.email,
-                    orcidVerified: true,
-                    orcidVerifiedAt: new Date().toISOString(),
-                };
-
-                // Auto-fill affiliations from full ORCID record
-                if (data.affiliations.length > 0) {
-                    const employmentAffiliations = data.affiliations
-                        .filter((aff) => aff.type === 'employment' && aff.name)
-                        .map((aff) => ({
-                            value: aff.name!,
-                            rorId: null,
-                        }));
-
-                    if (employmentAffiliations.length > 0) {
-                        const existingValues = new Set(author.affiliations.map((a) => a.value));
-                        const newAffiliations = employmentAffiliations.filter((a) => !existingValues.has(a.value));
-
-                        if (newAffiliations.length > 0) {
-                            updatedAuthor.affiliations = [...author.affiliations, ...(newAffiliations as AffiliationTag[])];
-                            updatedAuthor.affiliationsInput = updatedAuthor.affiliations.map((a: AffiliationTag) => a.value).join(', ');
-                        }
-                    }
-                }
-
-                onAuthorChange(updatedAuthor);
-                setIsVerifying(false);
-            } catch (error) {
-                console.error('Auto-verify ORCID error:', error);
-                setVerificationError('Failed to verify ORCID');
-                setIsVerifying(false);
-            }
-        };
-
-        // Debounce: Wait 800ms after ORCID input stops
-        const timeoutId = setTimeout(autoVerifyOrcid, 800);
-
-        return () => clearTimeout(timeoutId);
-    }, [author, isVerifying, onAuthorChange]);
+    // Affiliations Tagify settings via shared hook
+    const { tagifySettings, affiliationsWithRorId, affiliationsDescriptionId } = useAffiliationsTagify({
+        affiliationSuggestions,
+        affiliations: author.affiliations,
+        idPrefix: author.id,
+    });
 
     return (
         <section
