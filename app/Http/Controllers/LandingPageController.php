@@ -258,6 +258,28 @@ class LandingPageController extends Controller
             ], 404);
         }
 
+        // Determine requested publication status change (if any).
+        // Support both 'status' (preferred) and 'is_published' (legacy) fields.
+        $currentlyPublished = $landingPage->isPublished();
+        $requestedStatus = null;
+
+        if (isset($validated['status'])) {
+            $requestedStatus = $validated['status'] === 'published';
+        } elseif (isset($validated['is_published'])) {
+            $requestedStatus = $validated['is_published'];
+        }
+
+        // Validate publication status BEFORE saving any changes.
+        // This ensures atomicity: if unpublishing is not allowed, no changes are persisted.
+        // IMPORTANT: Published landing pages cannot be unpublished because DOIs are persistent
+        // and must always resolve to a valid landing page.
+        if ($requestedStatus !== null && $currentlyPublished && ! $requestedStatus) {
+            return response()->json([
+                'message' => 'Cannot unpublish a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                'error' => 'cannot_unpublish',
+            ], 422);
+        }
+
         // Update template and ftp_url if provided
         if (isset($validated['template'])) {
             $landingPage->template = $validated['template'];
@@ -268,22 +290,10 @@ class LandingPageController extends Controller
 
         $landingPage->save();
 
-        // Handle publication status change (support both 'status' and 'is_published' fields).
-        //
-        // Note: We intentionally do NOT wrap publish()/unpublish() in transactions here.
-        // Currently these methods only update a single row, so transactions would add
-        // overhead without benefit. If these methods evolve to need atomicity (e.g., for
-        // multi-table operations, event dispatch, or audit logging), the transaction
-        // should be added INSIDE the publish()/unpublish() methods themselves where the
-        // atomic boundary is clear. This follows the principle of encapsulating
-        // transactional needs within the methods that require them.
-        if (isset($validated['status'])) {
-            $shouldPublish = $validated['status'] === 'published';
-            $shouldPublish ? $landingPage->publish() : $landingPage->unpublish();
-        } elseif (isset($validated['is_published'])) {
-            $validated['is_published'] ? $landingPage->publish() : $landingPage->unpublish();
+        // Handle publication status change: allow publishing a draft
+        if ($requestedStatus !== null && $requestedStatus && ! $currentlyPublished) {
+            $landingPage->publish();
         }
-        // If neither 'status' nor 'is_published' is provided, publication status remains unchanged
 
         // Invalidate cache
         $this->invalidateCache($resource->id);
@@ -296,6 +306,10 @@ class LandingPageController extends Controller
 
     /**
      * Remove the landing page configuration.
+     *
+     * IMPORTANT: Published landing pages cannot be deleted because DOIs are persistent
+     * and must always resolve to a valid landing page. Only draft (preview) landing pages
+     * can be deleted.
      */
     public function destroy(Resource $resource): JsonResponse
     {
@@ -305,6 +319,14 @@ class LandingPageController extends Controller
             return response()->json([
                 'message' => 'Landing page not found',
             ], 404);
+        }
+
+        // Prevent deletion of published landing pages
+        if ($landingPage->isPublished()) {
+            return response()->json([
+                'message' => 'Cannot delete a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                'error' => 'cannot_delete_published',
+            ], 422);
         }
 
         $landingPage->delete();

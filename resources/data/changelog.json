@@ -1,11 +1,21 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-07",
+        "date": "2026-01-09",
+        "improvements": [
+            {
+                "title": "PHP 8.5 Upgrade",
+                "description": "Updated the application to be fully compatible with PHP 8.5, ensuring support for the latest language features and performance improvements."
+            }
+        ],
         "fixes": [
             {
                 "title": "Legal Notice Responsible Person",
                 "description": "Updated the Legal Notice to show Lars-Christian Klinnert as the responsible person instead of Dr. Marco Kupzig."
+            },
+            {
+                "title": "DOI Persistence Protection",
+                "description": "Published landing pages can no longer be unpublished or deleted. This ensures that DOIs always resolve to a valid landing page, maintaining the persistence guarantee of Digital Object Identifiers. Draft previews can still be removed before publication."
             }
         ]
     },

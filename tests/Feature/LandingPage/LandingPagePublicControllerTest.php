@@ -69,17 +69,16 @@ describe('Public Landing Page Access', function () {
         $response->assertStatus(404);
     });
 
-    test('cannot access depublished landing page', function () {
+    test('cannot access draft landing page without preview token', function () {
+        // Draft landing pages are not publicly accessible without a valid preview token
+        // Note: Published landing pages cannot be unpublished because DOIs are persistent
         $landingPage = LandingPage::factory()
-            ->published()
+            ->draft()
             ->create([
                 'resource_id' => $this->resource->id,
                 'doi_prefix' => '10.5880/test.public.001',
-                'slug' => 'depublished-dataset',
+                'slug' => 'draft-only-dataset',
             ]);
-
-        // Depublish
-        $landingPage->unpublish();
 
         $response = $this->get(landingPageUrl($landingPage));
 
@@ -212,24 +211,28 @@ describe('Landing Page Caching', function () {
         expect(Cache::has($resourceIdCacheKey))->toBeFalse();
     });
 
-    test('cache respects published status check before serving', function () {
+    test('cache respects template changes', function () {
         $landingPage = LandingPage::factory()
             ->published()
             ->create([
                 'resource_id' => $this->resource->id,
                 'doi_prefix' => '10.5880/test.public.001',
-                'slug' => 'depublish-cache-test',
+                'slug' => 'template-change-cache-test',
+                'template' => 'default_gfz',
             ]);
 
-        // Access the page while published
+        // Access the page
         $this->get(landingPageUrl($landingPage));
 
-        // Depublish
-        $landingPage->unpublish();
+        // Change template (this should invalidate the cache)
+        $landingPage->update(['template' => 'minimal']);
 
-        // Should not serve cached version - unpublished pages require preview token
+        // Access again - should show the new template (not cached old version)
         $response = $this->get(landingPageUrl($landingPage));
-        $response->assertStatus(404);
+        $response->assertStatus(200);
+
+        // Note: Published landing pages cannot be unpublished because DOIs are persistent
+        // and must always resolve to a valid landing page
     });
 });
 

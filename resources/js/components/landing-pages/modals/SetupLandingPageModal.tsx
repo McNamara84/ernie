@@ -154,44 +154,37 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
     };
 
-    const handleDepublish = async () => {
+    /**
+     * Remove a draft preview landing page.
+     * Note: Published landing pages cannot be removed because DOIs are persistent
+     * and must always resolve to a valid landing page.
+     */
+    const handleRemovePreview = async () => {
         if (!resource.id || !currentConfig) return;
 
-        const action = isPublished ? 'depublish' : 'remove preview';
+        // Only allow removal of draft landing pages
+        // Published landing pages cannot be depublished because DOIs are persistent
+        if (currentConfig.status === 'published') {
+            toast.error('Published landing pages cannot be removed. DOIs must always resolve to a valid landing page.');
+            return;
+        }
 
-        if (!confirm(`Are you sure you want to ${action} this landing page?`)) {
+        if (!confirm('Are you sure you want to remove this landing page preview?')) {
             return;
         }
 
         setIsSaving(true);
 
         try {
-            // If published, set to draft. If draft, delete it.
-            if (isPublished) {
-                // Depublish: change status to draft
-                const payload = {
-                    template,
-                    ftp_url: ftpUrl || null,
-                    status: 'draft',
-                };
-
-                await axios.put(`/resources/${resource.id}/landing-page`, payload);
-
-                setIsPublished(false);
-                toast.success('Landing page depublished successfully');
-                onSuccess?.();
-            } else {
-                // Draft: delete completely
-                await axios.delete(`/resources/${resource.id}/landing-page`);
-                setCurrentConfig(null);
-                setPreviewUrl('');
-                toast.success('Landing page preview removed successfully');
-                onSuccess?.();
-                onClose();
-            }
+            await axios.delete(`/resources/${resource.id}/landing-page`);
+            setCurrentConfig(null);
+            setPreviewUrl('');
+            toast.success('Landing page preview removed successfully');
+            onSuccess?.();
+            onClose();
         } catch (error) {
-            console.error(`Failed to ${action}:`, error);
-            toast.error(`Failed to ${action} landing page`);
+            console.error('Failed to remove preview:', error);
+            toast.error('Failed to remove landing page preview');
         } finally {
             setIsSaving(false);
         }
@@ -311,9 +304,18 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                                 <Label htmlFor="published" className="text-base">
                                     Publish Landing Page
                                 </Label>
-                                <p className="text-sm text-muted-foreground">Make this landing page publicly accessible</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {currentConfig?.status === 'published'
+                                        ? 'This landing page is published. DOIs are persistent and must always resolve to a valid landing page.'
+                                        : 'Make this landing page publicly accessible'}
+                                </p>
                             </div>
-                            <Switch id="published" checked={isPublished} onCheckedChange={setIsPublished} />
+                            <Switch
+                                id="published"
+                                checked={isPublished}
+                                onCheckedChange={setIsPublished}
+                                disabled={currentConfig?.status === 'published'}
+                            />
                         </div>
 
                         {/* Preview URL (if draft exists) */}
@@ -361,9 +363,11 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 )}
 
                 <DialogFooter className="gap-2">
-                    {currentConfig && (
-                        <Button type="button" variant="destructive" onClick={handleDepublish} disabled={isSaving} className="mr-auto">
-                            {currentConfig.status === 'published' ? 'Depublish' : 'Remove Preview'}
+                    {/* Only show Remove Preview for draft landing pages.
+                        Published landing pages cannot be removed because DOIs are persistent. */}
+                    {currentConfig && currentConfig.status === 'draft' && (
+                        <Button type="button" variant="destructive" onClick={handleRemovePreview} disabled={isSaving} className="mr-auto">
+                            Remove Preview
                         </Button>
                     )}
 
@@ -380,11 +384,9 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                         {isSaving
                             ? 'Saving...'
                             : currentConfig
-                              ? currentConfig.status === 'published' && !isPublished
-                                  ? 'Depublish'
-                                  : currentConfig.status === 'draft' && isPublished
-                                    ? 'Publish'
-                                    : 'Update'
+                              ? currentConfig.status === 'draft' && isPublished
+                                  ? 'Publish'
+                                  : 'Update'
                               : isPublished
                                 ? 'Create & Publish'
                                 : 'Create Preview'}

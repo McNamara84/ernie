@@ -155,7 +155,7 @@ describe('Landing Page Updates', function () {
             ->published_at->not->toBeNull();
     });
 
-    test('can depublish landing page', function () {
+    test('cannot depublish published landing page because DOIs are persistent', function () {
         $this->landingPage->publish();
 
         $response = $this->putJson("/resources/{$this->resource->id}/landing-page", [
@@ -163,11 +163,16 @@ describe('Landing Page Updates', function () {
             'status' => 'draft',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Cannot unpublish a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                'error' => 'cannot_unpublish',
+            ]);
 
+        // Verify landing page is still published
         expect($this->landingPage->fresh())
-            ->status->toBe('draft')
-            ->published_at->toBeNull();
+            ->status->toBe('published')
+            ->published_at->not->toBeNull();
     });
 
     test('returns 404 when landing page does not exist', function () {
@@ -185,9 +190,11 @@ describe('Landing Page Updates', function () {
 });
 
 describe('Landing Page Deletion', function () {
-    test('can delete landing page', function () {
+    test('can delete draft landing page', function () {
+        // Create a draft (unpublished) landing page
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
+            'is_published' => false,
         ]);
 
         $response = $this->deleteJson("/resources/{$this->resource->id}/landing-page");
@@ -198,6 +205,26 @@ describe('Landing Page Deletion', function () {
             ]);
 
         expect(LandingPage::find($landingPage->id))->toBeNull();
+    });
+
+    test('cannot delete published landing page because DOIs are persistent', function () {
+        // Create a published landing page
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $this->resource->id,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $response = $this->deleteJson("/resources/{$this->resource->id}/landing-page");
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Cannot delete a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                'error' => 'cannot_delete_published',
+            ]);
+
+        // Verify landing page still exists
+        expect(LandingPage::find($landingPage->id))->not->toBeNull();
     });
 
     test('returns 404 when landing page does not exist', function () {
