@@ -466,12 +466,23 @@ describe('Landing Page Model', function () {
         expect($landingPage->preview_url)->toContain("?preview={$landingPage->preview_token}");
     });
 
-    test('has correct contact_url attribute', function () {
+    test('contact_url is stored as database column', function () {
+        $contactUrl = 'https://example.com/contact';
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
+            'contact_url' => $contactUrl,
         ]);
 
-        expect($landingPage->contact_url)->toBe($landingPage->public_url.'/contact');
+        expect($landingPage->contact_url)->toBe($contactUrl);
+    });
+
+    test('contact_url can be null', function () {
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $this->resource->id,
+            'contact_url' => null,
+        ]);
+
+        expect($landingPage->contact_url)->toBeNull();
     });
 
     test('isPublished returns correct status', function () {
