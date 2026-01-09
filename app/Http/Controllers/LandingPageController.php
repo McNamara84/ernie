@@ -277,13 +277,33 @@ class LandingPageController extends Controller
         // should be added INSIDE the publish()/unpublish() methods themselves where the
         // atomic boundary is clear. This follows the principle of encapsulating
         // transactional needs within the methods that require them.
+        // Handle publication status change.
+        // IMPORTANT: Published landing pages cannot be unpublished because DOIs are persistent
+        // and must always resolve to a valid landing page.
+        $currentlyPublished = $landingPage->isPublished();
+        $requestedStatus = null;
+
         if (isset($validated['status'])) {
-            $shouldPublish = $validated['status'] === 'published';
-            $shouldPublish ? $landingPage->publish() : $landingPage->unpublish();
+            $requestedStatus = $validated['status'] === 'published';
         } elseif (isset($validated['is_published'])) {
-            $validated['is_published'] ? $landingPage->publish() : $landingPage->unpublish();
+            $requestedStatus = $validated['is_published'];
         }
-        // If neither 'status' nor 'is_published' is provided, publication status remains unchanged
+
+        if ($requestedStatus !== null) {
+            // Prevent unpublishing a published landing page
+            if ($currentlyPublished && ! $requestedStatus) {
+                return response()->json([
+                    'message' => 'Cannot unpublish a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                    'error' => 'cannot_unpublish',
+                ], 422);
+            }
+
+            // Allow publishing a draft
+            if ($requestedStatus && ! $currentlyPublished) {
+                $landingPage->publish();
+            }
+        }
+        // If neither 'status' nor 'is_published' is provided, or if already published, publication status remains unchanged
 
         // Invalidate cache
         $this->invalidateCache($resource->id);
@@ -296,6 +316,10 @@ class LandingPageController extends Controller
 
     /**
      * Remove the landing page configuration.
+     *
+     * IMPORTANT: Published landing pages cannot be deleted because DOIs are persistent
+     * and must always resolve to a valid landing page. Only draft (preview) landing pages
+     * can be deleted.
      */
     public function destroy(Resource $resource): JsonResponse
     {
@@ -305,6 +329,14 @@ class LandingPageController extends Controller
             return response()->json([
                 'message' => 'Landing page not found',
             ], 404);
+        }
+
+        // Prevent deletion of published landing pages
+        if ($landingPage->isPublished()) {
+            return response()->json([
+                'message' => 'Cannot delete a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                'error' => 'cannot_delete_published',
+            ], 422);
         }
 
         $landingPage->delete();
