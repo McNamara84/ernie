@@ -4,6 +4,10 @@
         "date": "2026-01-09",
         "improvements": [
             {
+                "title": "Actions Column First in Resources Table",
+                "description": "The Actions column in the Resources table now appears as the first column, providing immediate access to editing functions regardless of screen size or table width."
+            },
+            {
                 "title": "PHP 8.5 Upgrade",
                 "description": "Updated the application to be fully compatible with PHP 8.5, ensuring support for the latest language features and performance improvements."
             }
