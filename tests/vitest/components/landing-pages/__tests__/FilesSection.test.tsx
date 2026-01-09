@@ -219,6 +219,32 @@ describe('FilesSection', () => {
             expect(screen.getByRole('link', { name: 'MIT' })).toBeInTheDocument();
         });
 
+        it('displays full license names correctly', () => {
+            const fullNameLicenses = [
+                {
+                    id: 1,
+                    name: 'Creative Commons Attribution 4.0 International',
+                    spdx_id: 'CC-BY-4.0',
+                    reference: 'https://creativecommons.org/licenses/by/4.0/',
+                },
+                {
+                    id: 2,
+                    name: 'Creative Commons Attribution Share Alike 4.0 International',
+                    spdx_id: 'CC-BY-SA-4.0',
+                    reference: 'https://creativecommons.org/licenses/by-sa/4.0/',
+                },
+            ];
+
+            render(<FilesSection licenses={fullNameLicenses} />);
+
+            expect(
+                screen.getByRole('link', { name: 'Creative Commons Attribution 4.0 International' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'Creative Commons Attribution Share Alike 4.0 International' }),
+            ).toBeInTheDocument();
+        });
+
         it('license links have correct href', () => {
             render(<FilesSection licenses={mockLicenses} />);
 

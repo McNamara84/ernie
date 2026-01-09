@@ -57,6 +57,7 @@ test('transforms a resource into landing page payload structure', function () {
     $resource->setRelation('fundingReferences', new EloquentCollection);
     $resource->setRelation('subjects', new EloquentCollection);
     $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
 
     $data = $transformer->transform($resource);
 
@@ -122,6 +123,7 @@ test('transformation is null-safe for optional relationships', function () {
     $resource->setRelation('fundingReferences', new EloquentCollection);
     $resource->setRelation('subjects', new EloquentCollection);
     $resource->setRelation('geoLocations', new EloquentCollection);
+    $resource->setRelation('rights', new EloquentCollection);
 
     $data = $transformer->transform($resource);
 
@@ -142,4 +144,108 @@ test('transformation is null-safe for optional relationships', function () {
         ->toMatchArray([
             'contributor_type' => null,
         ]);
+});
+
+test('transforms rights to licenses with correct field mapping', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $right = new \App\Models\Right;
+    $right->forceFill([
+        'id' => 1,
+        'identifier' => 'CC-BY-4.0',
+        'name' => 'Creative Commons Attribution 4.0 International',
+        'uri' => 'https://creativecommons.org/licenses/by/4.0/',
+        'scheme_uri' => 'https://spdx.org/licenses/',
+    ]);
+
+    $resource->setRelation('rights', new EloquentCollection([$right]));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data)
+        ->toHaveKey('licenses')
+        ->and($data['licenses'])
+        ->toHaveCount(1)
+        ->and($data['licenses'][0])
+        ->toMatchArray([
+            'id' => 1,
+            'name' => 'Creative Commons Attribution 4.0 International',
+            'spdx_id' => 'CC-BY-4.0',
+            'reference' => 'https://creativecommons.org/licenses/by/4.0/',
+        ]);
+});
+
+test('transforms multiple licenses correctly', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $ccBy = new \App\Models\Right;
+    $ccBy->forceFill([
+        'id' => 1,
+        'identifier' => 'CC-BY-4.0',
+        'name' => 'Creative Commons Attribution 4.0 International',
+        'uri' => 'https://creativecommons.org/licenses/by/4.0/',
+    ]);
+
+    $mit = new \App\Models\Right;
+    $mit->forceFill([
+        'id' => 2,
+        'identifier' => 'MIT',
+        'name' => 'MIT License',
+        'uri' => 'https://opensource.org/licenses/MIT',
+    ]);
+
+    $resource->setRelation('rights', new EloquentCollection([$ccBy, $mit]));
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data['licenses'])
+        ->toHaveCount(2)
+        ->and($data['licenses'][0]['spdx_id'])->toBe('CC-BY-4.0')
+        ->and($data['licenses'][0]['name'])->toBe('Creative Commons Attribution 4.0 International')
+        ->and($data['licenses'][1]['spdx_id'])->toBe('MIT')
+        ->and($data['licenses'][1]['name'])->toBe('MIT License');
+});
+
+test('handles empty licenses collection', function () {
+    $transformer = new LandingPageResourceTransformer;
+
+    $resource = new Resource;
+
+    $resource->setRelation('rights', new EloquentCollection);
+    $resource->setRelation('titles', new EloquentCollection);
+    $resource->setRelation('creators', new EloquentCollection);
+    $resource->setRelation('contributors', new EloquentCollection);
+    $resource->setRelation('relatedIdentifiers', new EloquentCollection);
+    $resource->setRelation('descriptions', new EloquentCollection);
+    $resource->setRelation('fundingReferences', new EloquentCollection);
+    $resource->setRelation('subjects', new EloquentCollection);
+    $resource->setRelation('geoLocations', new EloquentCollection);
+
+    $data = $transformer->transform($resource);
+
+    expect($data)
+        ->toHaveKey('licenses')
+        ->and($data['licenses'])
+        ->toBeArray()
+        ->toBeEmpty();
 });
