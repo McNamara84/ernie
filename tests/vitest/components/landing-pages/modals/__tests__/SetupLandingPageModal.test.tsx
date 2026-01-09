@@ -296,9 +296,11 @@ describe('SetupLandingPageModal', () => {
             });
         });
 
-        it('deletes landing page config', async () => {
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
-            axios.put.mockResolvedValue({ data: { message: 'Depublished' } });
+        it('removes draft landing page preview', async () => {
+            // Use a draft config (not published)
+            const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
+            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
+            axios.delete.mockResolvedValue({ data: { message: 'Landing page deleted successfully' } });
 
             // Mock window.confirm to return true
             vi.stubGlobal('confirm', vi.fn(() => true));
@@ -317,22 +319,64 @@ describe('SetupLandingPageModal', () => {
                 expect(screen.getByRole('dialog')).toBeInTheDocument();
             });
 
-            // Click depublish/remove button (button text is "Depublish" for published config)
-            const depublishButton = screen.getByRole('button', { name: /Depublish/i });
-            
-            await user.click(depublishButton);
+            // Click remove preview button (only available for draft configs)
+            const removePreviewButton = screen.getByRole('button', { name: /Remove Preview/i });
+
+            await user.click(removePreviewButton);
 
             await waitFor(() => {
-                expect(axios.put).toHaveBeenCalledWith(
+                expect(axios.delete).toHaveBeenCalledWith(
                     expect.stringContaining(`/resources/${mockResource.id}/landing-page`),
-                    expect.objectContaining({
-                        status: 'draft',
-                    }),
                 );
             });
 
             // Cleanup
             vi.unstubAllGlobals();
+        });
+
+        it('does not show remove button for published landing pages', async () => {
+            // Published landing pages cannot be depublished because DOIs are persistent
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            // Verify no Depublish or Remove Preview button is shown for published config
+            expect(screen.queryByRole('button', { name: /Depublish/i })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /Remove Preview/i })).not.toBeInTheDocument();
+        });
+
+        it('disables publish toggle for already published landing pages', async () => {
+            // Published landing pages cannot be unpublished because DOIs are persistent
+            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+
+            render(
+                <SetupLandingPageModal
+                    resource={mockResource}
+                    isOpen={true}
+                    onClose={mockOnClose}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('dialog')).toBeInTheDocument();
+            });
+
+            // The publish switch should be disabled for published configs
+            const publishSwitch = screen.getByRole('switch');
+            expect(publishSwitch).toBeDisabled();
+
+            // Check for DOI persistence message
+            expect(screen.getByText(/DOIs are persistent/i)).toBeInTheDocument();
         });
     });
 
