@@ -281,15 +281,13 @@ class LandingPageController extends Controller
             ], 422);
         }
 
-        // Update template, ftp_url and contact_url if provided
+        // Update template and ftp_url if provided
+        // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
         if (isset($validated['template'])) {
             $landingPage->template = $validated['template'];
         }
         if (array_key_exists('ftp_url', $validated)) {
             $landingPage->ftp_url = $validated['ftp_url'];
-        }
-        if (array_key_exists('contact_url', $validated)) {
-            $landingPage->contact_url = $validated['contact_url'];
         }
 
         $landingPage->save();

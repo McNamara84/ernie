@@ -51,7 +51,8 @@ describe('SafeUrl Validation Rule', function () {
         );
 
         expect($validator->fails())->toBeTrue();
-        expect($validator->errors()->first('url'))->toContain('http or https');
+        // filter_var rejects this as malformed before scheme check
+        expect($validator->errors()->first('url'))->toContain('valid URL');
     });
 
     test('rejects data: URL', function () {
@@ -98,7 +99,8 @@ describe('SafeUrl Validation Rule', function () {
         );
 
         expect($validator->fails())->toBeTrue();
-        expect($validator->errors()->first('url'))->toContain('scheme');
+        // filter_var rejects this as malformed before our scheme check runs
+        expect($validator->errors()->first('url'))->toContain('valid URL');
     });
 
     test('is case-insensitive for scheme', function () {

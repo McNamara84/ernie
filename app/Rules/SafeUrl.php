@@ -51,10 +51,20 @@ final class SafeUrl implements ValidationRule
             return;
         }
 
-        // Parse the URL to extract the scheme
+        // Fail fast: validate URL format using filter_var before parsing.
+        // This catches clearly malformed URLs (e.g., 'http://', 'not-a-url') early,
+        // avoiding redundant scheme checks on invalid input.
+        if (filter_var($value, FILTER_VALIDATE_URL) === false) {
+            $fail('The :attribute must be a valid URL.');
+
+            return;
+        }
+
+        // Parse the URL to extract and validate the scheme.
+        // At this point, filter_var has confirmed basic URL structure.
         $parsedUrl = parse_url($value);
 
-        // If parse_url fails, the URL is malformed
+        // If parse_url fails (rare after filter_var passes), the URL is malformed
         if ($parsedUrl === false) {
             $fail('The :attribute must be a valid URL.');
 
@@ -70,16 +80,10 @@ final class SafeUrl implements ValidationRule
             return;
         }
 
-        // Case-insensitive check against allowed schemes
+        // Case-insensitive check against allowed schemes (http/https only)
+        // This is the XSS protection: reject javascript:, data:, vbscript:, etc.
         if (! in_array(strtolower($scheme), self::ALLOWED_SCHEMES, true)) {
             $fail('The :attribute must use http or https protocol.');
-
-            return;
-        }
-
-        // Additionally validate URL format using filter_var for robustness
-        if (filter_var($value, FILTER_VALIDATE_URL) === false) {
-            $fail('The :attribute must be a valid URL.');
         }
     }
 }

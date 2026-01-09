@@ -248,7 +248,7 @@ describe('FilesSection', () => {
     });
 
     describe('GFZ branding', () => {
-        it('uses GFZ corporate blue for download button', () => {
+        it('applies GFZ action button styling to download button', () => {
             render(
                 <FilesSection
                     downloadUrl="https://example.com/data.zip"
@@ -257,10 +257,10 @@ describe('FilesSection', () => {
             );
 
             const downloadLink = screen.getByRole('link', { name: /download data and description/i });
-            expect(downloadLink).toHaveStyle({ backgroundColor: '#0C2A63' });
+            expect(downloadLink).toHaveClass('gfz-action-button');
         });
 
-        it('uses GFZ corporate blue for contact button', () => {
+        it('applies GFZ action button styling to contact button', () => {
             render(
                 <FilesSection
                     licenses={[]}
@@ -269,10 +269,10 @@ describe('FilesSection', () => {
             );
 
             const contactButton = screen.getByRole('button', { name: /request data via contact form/i });
-            expect(contactButton).toHaveStyle({ backgroundColor: '#0C2A63' });
+            expect(contactButton).toHaveClass('gfz-action-button');
         });
 
-        it('uses GFZ corporate blue for website link', () => {
+        it('applies GFZ action button styling to website link', () => {
             render(
                 <FilesSection
                     licenses={[]}
@@ -281,7 +281,7 @@ describe('FilesSection', () => {
             );
 
             const websiteLink = screen.getByRole('link', { name: /visit contact person website/i });
-            expect(websiteLink).toHaveStyle({ backgroundColor: '#0C2A63' });
+            expect(websiteLink).toHaveClass('gfz-action-button');
         });
     });
 });

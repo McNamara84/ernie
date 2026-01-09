@@ -65,8 +65,11 @@ use Illuminate\Support\Str;
  * ## API Response Structure
  *
  * When serialized (e.g., in JSON API responses), this model includes:
- * - All database columns (id, resource_id, doi_prefix, slug, template, ftp_url, contact_url, etc.)
- * - Computed accessors: public_url, preview_url, status
+ * - Database columns: id, resource_id, doi_prefix, slug, template, ftp_url, is_published, etc.
+ * - Computed accessors: public_url, preview_url, contact_url, status
+ *
+ * Note: contact_url is NOT a database column. It is a computed accessor that
+ * returns public_url + '/contact' for the contact form endpoint.
  *
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
