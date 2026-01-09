@@ -44,8 +44,9 @@ it('loads 50 resources with minimal queries using eager loading', function () {
     $queryCount = count($queries);
 
     // Assert: Query count should meet optimization goal of 10-15 queries
-    // Allow up to 20 for safety margin (session, auth, and other framework queries)
-    expect($queryCount)->toBeLessThanOrEqual(20, "Expected at most 20 queries, but got {$queryCount}");
+    // Allow up to 17 for 50 resources (extra session/auth queries at scale)
+    // This test creates 50 resources with 3 creators each = 150 creator entries
+    expect($queryCount)->toBeLessThanOrEqual(17, "Expected at most 17 queries, but got {$queryCount}");
     $response->assertStatus(200);
 });
 
@@ -109,7 +110,7 @@ it('serializes resources efficiently with eager loaded relations', function () {
     $queryCount = count($queries);
 
     // Assert: Should meet optimization goal
-    expect($queryCount)->toBeLessThanOrEqual(20, "Expected at most 20 queries for eager loading, got {$queryCount}");
+    expect($queryCount)->toBeLessThanOrEqual(16, "Expected at most 16 queries for eager loading, got {$queryCount}");
     $response->assertStatus(200);
 });
 
@@ -131,7 +132,7 @@ it('handles resources without creators efficiently', function () {
     $queryCount = count($queries);
 
     // Assert: Should still use minimal queries even without creators
-    expect($queryCount)->toBeLessThanOrEqual(20);
+    expect($queryCount)->toBeLessThanOrEqual(16);
     $response->assertStatus(200);
 });
 
@@ -168,8 +169,8 @@ it('maintains performance with pagination', function () {
     $queriesPage2 = DB::getQueryLog();
 
     // Assert: Both pages should meet optimization goal
-    expect(count($queriesPage1))->toBeLessThanOrEqual(20);
-    expect(count($queriesPage2))->toBeLessThanOrEqual(20);
+    expect(count($queriesPage1))->toBeLessThanOrEqual(16);
+    expect(count($queriesPage2))->toBeLessThanOrEqual(16);
 
     // Query counts should be nearly identical (allow max 2 queries difference for session overhead)
     expect(abs(count($queriesPage1) - count($queriesPage2)))->toBeLessThanOrEqual(2);

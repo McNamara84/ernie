@@ -134,7 +134,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        // setAccessible() removed - not needed since PHP 8.1 and deprecated in PHP 8.5
+        // setAccessible() call removed - no longer needed since PHP 8.1 for invoking private methods
 
         $result = $method->invoke($loader, 'Some Unknown License');
 
