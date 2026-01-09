@@ -16,6 +16,7 @@ use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
+use App\Models\Right;
 use App\Models\Title;
 
 final class LandingPageResourceTransformer
@@ -190,6 +191,16 @@ final class LandingPageResourceTransformer
                 'south_bound_latitude' => $geo->south_bound_latitude !== null ? (float) $geo->south_bound_latitude : null,
                 'north_bound_latitude' => $geo->north_bound_latitude !== null ? (float) $geo->north_bound_latitude : null,
                 'polygon_points' => $geo->polygon_points,
+            ])
+            ->all();
+
+        // Transform rights to licenses with frontend-compatible field names
+        $resourceData['licenses'] = $resource->rights
+            ->map(static fn (Right $right): array => [
+                'id' => $right->id,
+                'name' => $right->name,
+                'spdx_id' => $right->identifier,
+                'reference' => $right->uri,
             ])
             ->all();
 

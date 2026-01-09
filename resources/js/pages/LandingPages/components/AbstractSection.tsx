@@ -77,17 +77,17 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
     const mslVocabularies = subjects.filter((s) => s.subject_scheme === 'msl');
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="abstract-section">
             <h3 className="text-lg font-semibold text-gray-900">Abstract</h3>
             <div className="prose prose-sm max-w-none text-gray-700">
-                <p className="mt-0 whitespace-pre-wrap">{abstract.value}</p>
+                <p className="mt-0 whitespace-pre-wrap" data-testid="abstract-text">{abstract.value}</p>
             </div>
 
             {/* Creators Section */}
             {creators.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-6" data-testid="creators-section">
                     <h3 className="text-lg font-semibold text-gray-900">Creators</h3>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2" data-testid="creators-list">
                         {creators.map((creator) => {
                             const creatorable = creator.creatorable;
                             const firstAffiliation = creator.affiliations[0];
@@ -148,9 +148,9 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
 
             {/* Funders Section */}
             {fundingReferences.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-6" data-testid="funding-section">
                     <h3 className="text-lg font-semibold text-gray-900">Funders</h3>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2" data-testid="funding-list">
                         {fundingReferences.map((funding) => (
                             <li key={funding.id} className="flex items-center gap-1 text-sm text-gray-700">
                                 {/* Funder Name */}
@@ -189,9 +189,9 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
 
             {/* Free Keywords Section */}
             {freeKeywords.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-6" data-testid="subjects-section">
                     <h3 className="text-lg font-semibold text-gray-900">Free Keywords</h3>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2" data-testid="keywords-list">
                         {freeKeywords.map((subject) => (
                             <span
                                 key={subject.id}

@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock react-leaflet components since they require browser APIs
 vi.mock('react-leaflet', () => ({
     MapContainer: vi.fn(({ children }) => (
-        <div data-testid="map-container">{children}</div>
+        <div data-testid="leaflet-map">{children}</div>
     )),
     TileLayer: vi.fn(() => <div data-testid="tile-layer" />),
     Marker: vi.fn(({ position }) => (

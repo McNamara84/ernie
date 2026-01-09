@@ -137,6 +137,13 @@ class PlaywrightTestSeeder extends Seeder
 
         $this->seedPlaywrightE2eResources($testUser);
 
+        // Seed comprehensive test resources for landing page tests
+        // This provides test fixtures with various configurations:
+        // - Single/multiple licenses, authors, contributors
+        // - Geo-locations, funding references, related identifiers
+        // - Files with/without download URLs, contact persons
+        $this->call(ResourceTestDataSeeder::class);
+
         $this->command->info('Playwright test users created successfully!');
     }
 

@@ -215,14 +215,43 @@ describe('FilesSection', () => {
         it('renders license badges when licenses are provided', () => {
             render(<FilesSection licenses={mockLicenses} />);
 
-            expect(screen.getByRole('link', { name: 'CC BY 4.0' })).toBeInTheDocument();
+            // CC licenses include icon aria-label in accessible name
+            expect(screen.getByRole('link', { name: /CC BY 4\.0/ })).toBeInTheDocument();
             expect(screen.getByRole('link', { name: 'MIT' })).toBeInTheDocument();
+        });
+
+        it('displays full license names correctly', () => {
+            const fullNameLicenses = [
+                {
+                    id: 1,
+                    name: 'Creative Commons Attribution 4.0 International',
+                    spdx_id: 'CC-BY-4.0',
+                    reference: 'https://creativecommons.org/licenses/by/4.0/',
+                },
+                {
+                    id: 2,
+                    name: 'Creative Commons Attribution Share Alike 4.0 International',
+                    spdx_id: 'CC-BY-SA-4.0',
+                    reference: 'https://creativecommons.org/licenses/by-sa/4.0/',
+                },
+            ];
+
+            render(<FilesSection licenses={fullNameLicenses} />);
+
+            // CC licenses include icon aria-label in accessible name
+            expect(
+                screen.getByRole('link', { name: /Creative Commons Attribution 4\.0 International/ }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: /Creative Commons Attribution Share Alike 4\.0 International/ }),
+            ).toBeInTheDocument();
         });
 
         it('license links have correct href', () => {
             render(<FilesSection licenses={mockLicenses} />);
 
-            expect(screen.getByRole('link', { name: 'CC BY 4.0' })).toHaveAttribute(
+            // CC licenses include icon aria-label in accessible name
+            expect(screen.getByRole('link', { name: /CC BY 4\.0/ })).toHaveAttribute(
                 'href',
                 'https://creativecommons.org/licenses/by/4.0/',
             );
@@ -236,6 +265,21 @@ describe('FilesSection', () => {
             render(<FilesSection licenses={[]} />);
 
             expect(screen.queryByRole('link', { name: 'CC BY 4.0' })).not.toBeInTheDocument();
+            expect(screen.queryByText('License')).not.toBeInTheDocument();
+        });
+
+        it('shows License label above license links', () => {
+            render(<FilesSection licenses={mockLicenses} />);
+
+            expect(screen.getByText('License')).toBeInTheDocument();
+        });
+
+        it('displays SPDX identifier in tooltip', () => {
+            render(<FilesSection licenses={mockLicenses} />);
+
+            // CC licenses include icon aria-label in accessible name
+            const licenseLink = screen.getByRole('link', { name: /CC BY 4\.0/ });
+            expect(licenseLink).toHaveAttribute('title', 'SPDX: CC-BY-4.0');
         });
     });
 

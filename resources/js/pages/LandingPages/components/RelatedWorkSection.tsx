@@ -123,10 +123,10 @@ export function RelatedWorkSection({ relatedIdentifiers }: RelatedWorkSectionPro
     }
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="related-works-section">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Related Work</h3>
 
-            <div className="space-y-6">
+            <div className="space-y-6" data-testid="related-works-list">
                 {sortedTypes.map((relationType) => (
                     <div key={relationType}>
                         <h4 className="mb-3 text-sm font-semibold text-gray-700">{formatRelationType(relationType)}</h4>
