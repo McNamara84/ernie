@@ -42,7 +42,7 @@ function ByIcon({ className = 'h-5 w-5' }: { className?: string }) {
             className={className}
             viewBox="0 0 24 24"
             fill="currentColor"
-            aria-label="Attribution"
+            aria-hidden="true"
         >
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <circle cx="12" cy="7" r="3" />
@@ -60,7 +60,7 @@ function SaIcon({ className = 'h-5 w-5' }: { className?: string }) {
             className={className}
             viewBox="0 0 24 24"
             fill="currentColor"
-            aria-label="ShareAlike"
+            aria-hidden="true"
         >
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <path
@@ -83,7 +83,7 @@ function NcIcon({ className = 'h-5 w-5' }: { className?: string }) {
             className={className}
             viewBox="0 0 24 24"
             fill="currentColor"
-            aria-label="NonCommercial"
+            aria-hidden="true"
         >
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fontFamily="sans-serif">
@@ -103,7 +103,7 @@ function NdIcon({ className = 'h-5 w-5' }: { className?: string }) {
             className={className}
             viewBox="0 0 24 24"
             fill="currentColor"
-            aria-label="NoDerivatives"
+            aria-hidden="true"
         >
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <line x1="7" y1="9" x2="17" y2="9" stroke="currentColor" strokeWidth="2.5" />
@@ -121,7 +121,7 @@ function ZeroIcon({ className = 'h-5 w-5' }: { className?: string }) {
             className={className}
             viewBox="0 0 24 24"
             fill="currentColor"
-            aria-label="Public Domain"
+            aria-hidden="true"
         >
             <circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" strokeWidth="2" />
             <text x="12" y="16" textAnchor="middle" fontSize="12" fontWeight="bold" fontFamily="sans-serif">

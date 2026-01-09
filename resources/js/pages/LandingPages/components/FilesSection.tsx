@@ -1,5 +1,6 @@
-import { Download, ExternalLink, Mail } from 'lucide-react';
 import { useState } from 'react';
+
+import { Download, ExternalLink, Mail } from 'lucide-react';
 
 import { ContactModal } from './ContactModal';
 import { CreativeCommonsIcon } from './CreativeCommonsIcon';
