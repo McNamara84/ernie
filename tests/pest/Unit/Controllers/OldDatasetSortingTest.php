@@ -16,7 +16,6 @@ describe('OldDatasetController Sort Parameter Resolution', function () {
     beforeEach(function () {
         $this->controller = new OldDatasetController;
         $this->reflectionMethod = new ReflectionMethod(OldDatasetController::class, 'resolveSortState');
-        $this->reflectionMethod->setAccessible(true);
     });
 
     test('resolves valid sort key and direction', function () {

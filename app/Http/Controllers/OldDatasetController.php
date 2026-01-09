@@ -36,8 +36,8 @@ class OldDatasetController extends Controller
     {
         try {
             // Paginierungsparameter aus der Anfrage
-            $page = $request->get('page', 1);
-            $perPage = $request->get('per_page', 50);
+            $page = $request->query->get('page', 1);
+            $perPage = $request->query->get('per_page', 50);
 
             // Validierung der Parameter
             $page = max(1, (int) $page);
@@ -131,8 +131,8 @@ class OldDatasetController extends Controller
     public function loadMore(Request $request)
     {
         try {
-            $page = $request->get('page', 1);
-            $perPage = $request->get('per_page', 50);
+            $page = $request->query->get('page', 1);
+            $perPage = $request->query->get('per_page', 50);
 
             // Validierung der Parameter
             $page = max(1, (int) $page);
@@ -213,8 +213,8 @@ class OldDatasetController extends Controller
      */
     protected function resolveSortState(Request $request): array
     {
-        $requestedKey = strtolower((string) $request->get('sort_key', self::DEFAULT_SORT_KEY));
-        $requestedDirection = strtolower((string) $request->get('sort_direction', self::DEFAULT_SORT_DIRECTION));
+        $requestedKey = strtolower((string) $request->query->get('sort_key', self::DEFAULT_SORT_KEY));
+        $requestedDirection = strtolower((string) $request->query->get('sort_direction', self::DEFAULT_SORT_DIRECTION));
 
         $sortKey = in_array($requestedKey, self::ALLOWED_SORT_KEYS, true)
             ? $requestedKey

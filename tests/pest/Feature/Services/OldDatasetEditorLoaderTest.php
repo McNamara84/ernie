@@ -8,7 +8,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         $result = $method->invoke($loader, 'CC BY 4.0');
 
@@ -19,7 +19,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         $result = $method->invoke($loader, 'CC BY-NC 4.0');
 
@@ -30,7 +30,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         $result = $method->invoke($loader, 'CC BY-SA 4.0');
 
@@ -41,7 +41,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'Apache License 2.0'))->toBe('Apache-2.0')
             ->and($method->invoke($loader, 'Apache License Version 2.0'))->toBe('Apache-2.0')
@@ -53,7 +53,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'GNU General Public License, Version 3, 29 June 2007'))->toBe('GPL-3.0-only')
             ->and($method->invoke($loader, 'GNU General Public License, version 3'))->toBe('GPL-3.0-only')
@@ -64,7 +64,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'MIT License'))->toBe('MIT')
             ->and($method->invoke($loader, 'MIT Licence'))->toBe('MIT')
@@ -75,7 +75,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'BSD 2-clause "Simplified" License'))->toBe('BSD-2-Clause')
             ->and($method->invoke($loader, 'BSD 3-Clause License'))->toBe('BSD-3-Clause')
@@ -86,7 +86,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'EUPL v1.2'))->toBe('EUPL-1.2')
             ->and($method->invoke($loader, 'EUPL-1.2'))->toBe('EUPL-1.2')
@@ -97,7 +97,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         // This should map to CC-BY-SA-4.0, NOT CC-BY-SA-ND-4.0
         $result = $method->invoke($loader, '(2) Data from model MPI-HM are licensed under CC BY-SA 4.0');
@@ -109,7 +109,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         // Leading space should be trimmed
         $result = $method->invoke($loader, ' Apache License, Version 2.0 (ALv2)');
@@ -118,16 +118,23 @@ describe('license mapping', function () {
     });
 
     it('logs warning for unmappable licenses', function () {
-        Log::shouldReceive('warning')
+        // Create a proper mock that returns itself for chain calls and expects warning
+        $logMock = Mockery::mock(\Illuminate\Log\LogManager::class);
+        $logMock->shouldReceive('channel')->andReturnSelf();
+        // Allow any warning calls (for deprecations), but specifically expect our license warning
+        $logMock->shouldReceive('warning')
             ->once()
             ->with('Could not map license from old database', [
                 'license_name' => 'Some Unknown License',
             ]);
+        $logMock->shouldReceive('warning')->andReturnNull(); // Allow other warnings
+
+        Log::swap($logMock);
 
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        // setAccessible() call removed - no longer needed since PHP 8.1 for invoking private methods
 
         $result = $method->invoke($loader, 'Some Unknown License');
 
@@ -138,7 +145,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'CC0 1.0'))->toBe('CC0-1.0')
             ->and($method->invoke($loader, 'CC0'))->toBe('CC0-1.0')
@@ -149,7 +156,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'Data Licence: CC BY 4.0'))->toBe('CC-BY-4.0')
             ->and($method->invoke($loader, 'Data License: CC BY 4.0'))->toBe('CC-BY-4.0')
@@ -162,7 +169,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'Code: Apache License, version 2.0'))->toBe('Apache-2.0')
             ->and($method->invoke($loader, 'Code: MIT Licence'))->toBe('MIT');
@@ -172,7 +179,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'GNU Affero General Public License (AGPL) (Version 3, 19 November 2007)'))->toBe('AGPL-3.0-only')
             ->and($method->invoke($loader, 'GNU Affero General Public License, Version 3, 19 November 2007, Copyright Potsdam Institute for Climate Impact Research'))->toBe('AGPL-3.0-only');
@@ -182,7 +189,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         expect($method->invoke($loader, 'GNU Lesser General Public License v2.1'))->toBe('LGPL-2.1-only')
             ->and($method->invoke($loader, 'GNU Lesser General Public License v 2.1'))->toBe('LGPL-2.1-only')
@@ -193,7 +200,7 @@ describe('license mapping', function () {
         $loader = new OldDatasetEditorLoader;
         $reflection = new ReflectionClass($loader);
         $method = $reflection->getMethod('mapLicenseNameToIdentifier');
-        $method->setAccessible(true);
+        
 
         $result = $method->invoke($loader, 'Open Data Commons Open Database License (ODbL)');
 
