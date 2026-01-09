@@ -177,7 +177,7 @@ describe('Landing Page Updates', function () {
         expect($landingPage->published_at)->not->toBeNull();
     });
 
-    test('updating to draft clears published_at and changes status', function () {
+    test('cannot unpublish a published landing page because DOIs are persistent', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
             'is_published' => true,
@@ -185,14 +185,20 @@ describe('Landing Page Updates', function () {
 
         $landingPage->publish(); // Set published_at
 
-        $this->actingAs($this->user)
+        $response = $this->actingAs($this->user)
             ->putJson("/resources/{$this->resource->id}/landing-page", [
                 'is_published' => false,
             ]);
 
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Cannot unpublish a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                'error' => 'cannot_unpublish',
+            ]);
+
         $landingPage->refresh();
-        expect($landingPage->is_published)->toBeFalse();
-        expect($landingPage->published_at)->toBeNull();
+        expect($landingPage->is_published)->toBeTrue();
+        expect($landingPage->published_at)->not->toBeNull();
     });
 
     test('returns 404 when landing page does not exist', function () {
@@ -229,9 +235,10 @@ describe('Landing Page Updates', function () {
 });
 
 describe('Landing Page Deletion', function () {
-    test('authenticated user can delete landing page', function () {
+    test('authenticated user can delete draft landing page', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
+            'is_published' => false,
         ]);
 
         $response = $this->actingAs($this->user)
@@ -244,6 +251,25 @@ describe('Landing Page Deletion', function () {
 
         expect(LandingPage::find($landingPage->id))->toBeNull();
         expect($this->resource->fresh()->landingPage)->toBeNull();
+    });
+
+    test('cannot delete published landing page because DOIs are persistent', function () {
+        $landingPage = LandingPage::factory()->create([
+            'resource_id' => $this->resource->id,
+            'is_published' => true,
+            'published_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->deleteJson("/resources/{$this->resource->id}/landing-page");
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'message' => 'Cannot delete a published landing page. DOIs are persistent and must always resolve to a valid landing page.',
+                'error' => 'cannot_delete_published',
+            ]);
+
+        expect(LandingPage::find($landingPage->id))->not->toBeNull();
     });
 
     test('returns 404 when trying to delete non-existent landing page', function () {
@@ -259,6 +285,7 @@ describe('Landing Page Deletion', function () {
     test('invalidates cache on deletion', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
+            'is_published' => false, // Only draft landing pages can be deleted
         ]);
 
         // Set cache
