@@ -104,6 +104,14 @@ class ResourceTestDataSeeder extends Seeder
             return;
         }
 
+        // Idempotency check: If test resources already exist, skip seeding
+        // We check for a characteristic landing page slug that indicates the seeder has run before.
+        if (LandingPage::where('slug', 'mandatory-fields-only')->exists()) {
+            $this->command->info('ResourceTestDataSeeder: Test resources already exist, skipping...');
+
+            return;
+        }
+
         $this->command->info('Creating comprehensive test resources...');
         $this->command->newLine();
 
