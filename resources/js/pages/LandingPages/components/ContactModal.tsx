@@ -23,7 +23,6 @@ interface ContactModalProps {
     onClose: () => void;
     selectedPerson: ContactPerson | null;
     contactPersons: ContactPerson[];
-    contactUrl: string;
     datasetTitle: string;
 }
 
@@ -34,10 +33,18 @@ type FormStatus = 'idle' | 'submitting' | 'success' | 'error';
  *
  * Allows users to send messages to contact persons without exposing email addresses.
  * Includes honeypot spam protection.
+ *
+ * The contact form URL is computed from the current page path by appending '/contact'.
+ * This works because landing pages follow the pattern /{doi}/{slug} and the contact
+ * endpoint is at /{doi}/{slug}/contact.
  */
-export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, contactUrl, datasetTitle }: ContactModalProps) {
+export function ContactModal({ isOpen, onClose, selectedPerson, contactPersons, datasetTitle }: ContactModalProps) {
     const [formStatus, setFormStatus] = useState<FormStatus>('idle');
     const [errorMessage, setErrorMessage] = useState<string>('');
+
+    // Compute contact URL from current path (works for both published and draft pages)
+    // The contact endpoint is at the current landing page path + '/contact'
+    const contactUrl = typeof window !== 'undefined' ? `${window.location.pathname}/contact` : '/contact';
 
     // Form fields
     const [senderName, setSenderName] = useState('');

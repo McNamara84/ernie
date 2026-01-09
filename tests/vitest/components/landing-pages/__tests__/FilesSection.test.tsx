@@ -21,6 +21,39 @@ const mockLicenses = [
     },
 ];
 
+const mockContactPersonWithEmail = {
+    id: 1,
+    name: 'John Doe',
+    given_name: 'John',
+    family_name: 'Doe',
+    type: 'Person',
+    orcid: null,
+    website: null,
+    has_email: true,
+};
+
+const mockContactPersonWithWebsite = {
+    id: 2,
+    name: 'Jane Smith',
+    given_name: 'Jane',
+    family_name: 'Smith',
+    type: 'Person',
+    orcid: null,
+    website: 'https://example.com/jane',
+    has_email: false,
+};
+
+const mockContactPersonNoContact = {
+    id: 3,
+    name: 'Bob Wilson',
+    given_name: 'Bob',
+    family_name: 'Wilson',
+    type: 'Person',
+    orcid: null,
+    website: null,
+    has_email: false,
+};
+
 describe('FilesSection', () => {
     describe('when downloadUrl is provided', () => {
         it('renders download button with correct URL', () => {
@@ -37,16 +70,29 @@ describe('FilesSection', () => {
             expect(downloadLink).toHaveAttribute('target', '_blank');
         });
 
-        it('does not show contact form link when download URL is available', () => {
+        it('shows download button even when contact person with email exists', () => {
             render(
                 <FilesSection
                     downloadUrl="https://example.com/data.zip"
                     licenses={[]}
-                    contactUrl="https://example.com/contact"
+                    contactPersons={[mockContactPersonWithEmail]}
                 />,
             );
 
-            expect(screen.queryByRole('link', { name: /request data via contact form/i })).not.toBeInTheDocument();
+            expect(screen.getByRole('link', { name: /download data and description/i })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: /request data via contact form/i })).not.toBeInTheDocument();
+        });
+
+        it('does not show contact button when download URL is available', () => {
+            render(
+                <FilesSection
+                    downloadUrl="https://example.com/data.zip"
+                    licenses={[]}
+                    contactPersons={[mockContactPersonWithEmail]}
+                />,
+            );
+
+            expect(screen.queryByRole('button', { name: /request data via contact form/i })).not.toBeInTheDocument();
         });
     });
 
@@ -80,48 +126,87 @@ describe('FilesSection', () => {
 
             expect(screen.queryByRole('link', { name: /download data and description/i })).not.toBeInTheDocument();
         });
+    });
 
-        it('shows contact form link when contactUrl is provided but no download URL', () => {
+    describe('contact form fallback (when no download URL)', () => {
+        it('shows contact form button when contact person with email exists', () => {
             render(
                 <FilesSection
                     licenses={[]}
-                    contactUrl="https://example.com/contact"
+                    contactPersons={[mockContactPersonWithEmail]}
                     datasetTitle="Test Dataset"
                 />,
             );
 
-            const contactLink = screen.getByRole('link', { name: /request data via contact form/i });
-            expect(contactLink).toBeInTheDocument();
-            expect(contactLink).toHaveAttribute('href', expect.stringContaining('https://example.com/contact'));
-            expect(contactLink).toHaveAttribute('href', expect.stringContaining('subject='));
-            expect(contactLink).toHaveAttribute('target', '_blank');
+            const contactButton = screen.getByRole('button', { name: /request data via contact form/i });
+            expect(contactButton).toBeInTheDocument();
         });
 
-        it('shows fallback message when neither download URL nor contact URL is available', () => {
+        it('prioritizes contact person with email over website', () => {
+            render(
+                <FilesSection
+                    licenses={[]}
+                    contactPersons={[mockContactPersonWithWebsite, mockContactPersonWithEmail]}
+                    datasetTitle="Test Dataset"
+                />,
+            );
+
+            // Should show contact form button, not website link
+            expect(screen.getByRole('button', { name: /request data via contact form/i })).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
+        });
+    });
+
+    describe('website fallback (when no download URL and no email)', () => {
+        it('shows website link when contact person has website but no email', () => {
+            render(
+                <FilesSection
+                    licenses={[]}
+                    contactPersons={[mockContactPersonWithWebsite]}
+                    datasetTitle="Test Dataset"
+                />,
+            );
+
+            const websiteLink = screen.getByRole('link', { name: /visit contact person website/i });
+            expect(websiteLink).toBeInTheDocument();
+            expect(websiteLink).toHaveAttribute('href', 'https://example.com/jane');
+            expect(websiteLink).toHaveAttribute('target', '_blank');
+        });
+
+        it('does not show website link when contact person has no website', () => {
+            render(
+                <FilesSection
+                    licenses={[]}
+                    contactPersons={[mockContactPersonNoContact]}
+                />,
+            );
+
+            expect(screen.queryByRole('link', { name: /visit contact person website/i })).not.toBeInTheDocument();
+        });
+    });
+
+    describe('fallback message (when no download URL and no contact options)', () => {
+        it('shows fallback message when no contact persons available', () => {
             render(<FilesSection licenses={[]} />);
 
             expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
             expect(screen.getByText(/please contact the authors/i)).toBeInTheDocument();
         });
 
-        it('shows fallback message when contactUrl is empty string', () => {
-            render(<FilesSection licenses={[]} contactUrl="" />);
+        it('shows fallback message when contactPersons is empty array', () => {
+            render(<FilesSection licenses={[]} contactPersons={[]} />);
 
-            expect(screen.queryByRole('link', { name: /request data via contact form/i })).not.toBeInTheDocument();
             expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
         });
 
-        it('shows fallback message when contactUrl is "#"', () => {
-            render(<FilesSection licenses={[]} contactUrl="#" />);
+        it('shows fallback message when contact persons have neither email nor website', () => {
+            render(
+                <FilesSection
+                    licenses={[]}
+                    contactPersons={[mockContactPersonNoContact]}
+                />,
+            );
 
-            expect(screen.queryByRole('link', { name: /request data via contact form/i })).not.toBeInTheDocument();
-            expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
-        });
-
-        it('shows fallback message when contactUrl is whitespace only', () => {
-            render(<FilesSection licenses={[]} contactUrl="   " />);
-
-            expect(screen.queryByRole('link', { name: /request data via contact form/i })).not.toBeInTheDocument();
             expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
         });
     });
@@ -162,33 +247,41 @@ describe('FilesSection', () => {
         });
     });
 
-    describe('contact form URL encoding', () => {
-        it('encodes dataset title in contact URL subject parameter', () => {
+    describe('GFZ branding', () => {
+        it('uses GFZ corporate blue for download button', () => {
             render(
                 <FilesSection
+                    downloadUrl="https://example.com/data.zip"
                     licenses={[]}
-                    contactUrl="https://example.com/contact"
-                    datasetTitle="Test & Special <Characters>"
                 />,
             );
 
-            const contactLink = screen.getByRole('link', { name: /request data via contact form/i });
-            expect(contactLink).toHaveAttribute(
-                'href',
-                expect.stringContaining(encodeURIComponent('Data request: Test & Special <Characters>')),
-            );
+            const downloadLink = screen.getByRole('link', { name: /download data and description/i });
+            expect(downloadLink).toHaveStyle({ backgroundColor: '#0C2A63' });
         });
 
-        it('does not add subject parameter when datasetTitle is not provided', () => {
+        it('uses GFZ corporate blue for contact button', () => {
             render(
                 <FilesSection
                     licenses={[]}
-                    contactUrl="https://example.com/contact"
+                    contactPersons={[mockContactPersonWithEmail]}
                 />,
             );
 
-            const contactLink = screen.getByRole('link', { name: /request data via contact form/i });
-            expect(contactLink).toHaveAttribute('href', 'https://example.com/contact');
+            const contactButton = screen.getByRole('button', { name: /request data via contact form/i });
+            expect(contactButton).toHaveStyle({ backgroundColor: '#0C2A63' });
+        });
+
+        it('uses GFZ corporate blue for website link', () => {
+            render(
+                <FilesSection
+                    licenses={[]}
+                    contactPersons={[mockContactPersonWithWebsite]}
+                />,
+            );
+
+            const websiteLink = screen.getByRole('link', { name: /visit contact person website/i });
+            expect(websiteLink).toHaveStyle({ backgroundColor: '#0C2A63' });
         });
     });
 });

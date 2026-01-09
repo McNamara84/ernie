@@ -5,7 +5,11 @@
         "improvements": [
             {
                 "title": "Optional Download URL for Landing Pages",
-                "description": "The Download URL (FTP) field is now optional when setting up landing pages. For large datasets distributed via contact form, curators can leave this field empty. When no download URL is configured, a 'Request data via contact form' button is shown instead, linking to the contact page."
+                "description": "The Download URL (FTP) field is now optional when setting up landing pages. For large datasets, the system automatically falls back to: (1) a contact form button if a contact person with email exists, (2) a website link if the contact person has a website, or (3) a message to contact the authors. This improves flexibility for datasets that cannot be distributed via direct download."
+            },
+            {
+                "title": "XSS Protection for Download URLs",
+                "description": "Download URLs now undergo strict validation to only allow http/https schemes, preventing potential XSS attacks via javascript: or data: URLs."
             },
             {
                 "title": "Actions Column First in Resources Table",

@@ -368,9 +368,9 @@ test.describe('Landing Page - Files Section (Issue #373)', () => {
     await landingPage.verifyNoDownloadMessageNotVisible();
   });
 
-  test('displays contact form button when only contact URL is configured', async ({ page }) => {
+  test('displays contact form button when contact person with email exists', async ({ page }) => {
     const landingPage = new LandingPage(page);
-    await landingPage.goto('files-with-contact-url-only');
+    await landingPage.goto('files-with-contact-person-only');
     await landingPage.verifyPageLoaded();
 
     // Verify files section is visible
@@ -379,16 +379,16 @@ test.describe('Landing Page - Files Section (Issue #373)', () => {
     // Download button should NOT be visible (no FTP URL)
     await landingPage.verifyDownloadButtonNotVisible();
 
-    // Contact form button SHOULD be visible
+    // Contact form button SHOULD be visible (contact person has email)
     await landingPage.verifyContactFormButtonVisible();
 
     // Fallback message should NOT be visible
     await landingPage.verifyNoDownloadMessageNotVisible();
   });
 
-  test('displays fallback message when no URLs are configured', async ({ page }) => {
+  test('displays fallback message when no contact options are available', async ({ page }) => {
     const landingPage = new LandingPage(page);
-    await landingPage.goto('files-with-no-urls');
+    await landingPage.goto('files-with-no-contact-options');
     await landingPage.verifyPageLoaded();
 
     // Verify files section is visible

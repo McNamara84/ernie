@@ -137,8 +137,8 @@ class ResourceTestDataSeeder extends Seeder
 
         // Files Section test scenarios (for Issue #373)
         $this->createFilesWithDownloadUrl();
-        $this->createFilesWithContactUrlOnly();
-        $this->createFilesWithNoUrls();
+        $this->createFilesWithContactPersonOnly();
+        $this->createFilesWithNoContactOptions();
 
         $this->command->newLine();
         $this->command->info('✓ Created '.count($this->createdResourceIds).' test resources.');
@@ -1118,48 +1118,50 @@ class ResourceTestDataSeeder extends Seeder
 
         $this->createLandingPage($resource, 'files-with-download-url', [
             'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test-data.zip',
-            'contact_url' => 'https://www.gfz-potsdam.de/en/contact/',
         ]);
 
         $this->logCreation($resource, 'Landing page with download URL configured');
     }
 
     /**
-     * Create resource with contact URL but no download URL.
+     * Create resource with contact person but no download URL.
      *
      * Tests FilesSection showing "Request data via contact form" button (Issue #373).
+     * The fallback to contact form is based on having a contact person with email,
+     * not a separate contact_url field.
      */
-    private function createFilesWithContactUrlOnly(): void
+    private function createFilesWithContactPersonOnly(): void
     {
-        $resource = $this->createBaseResource('TEST: Files With Contact URL Only');
+        $resource = $this->createBaseResource('TEST: Files With Contact Person Only');
 
-        $this->addCreator($resource, 'Large', 'Dataset', null, 2);
+        // Add contact person WITH email (is_contact=true, email set)
+        // This triggers the contact form fallback in FilesSection
+        $this->addContactPersonWithEmail($resource, 'Contact', 'Person', 'contact@example.org');
 
-        $this->createLandingPage($resource, 'files-with-contact-url-only', [
+        $this->createLandingPage($resource, 'files-with-contact-person-only', [
             'ftp_url' => null,
-            'contact_url' => 'https://www.gfz-potsdam.de/en/contact/',
         ]);
 
-        $this->logCreation($resource, 'Landing page with contact URL only (no FTP)');
+        $this->logCreation($resource, 'Landing page with contact person email (no FTP)');
     }
 
     /**
-     * Create resource with neither download URL nor contact URL.
+     * Create resource with neither download URL nor contact person with email.
      *
      * Tests FilesSection showing fallback message (Issue #373).
      */
-    private function createFilesWithNoUrls(): void
+    private function createFilesWithNoContactOptions(): void
     {
-        $resource = $this->createBaseResource('TEST: Files With No URLs');
+        $resource = $this->createBaseResource('TEST: Files With No Contact Options');
 
+        // Regular creator without contact info (is_contact=false)
         $this->addCreator($resource, 'No', 'Download', null, 2);
 
-        $this->createLandingPage($resource, 'files-with-no-urls', [
+        $this->createLandingPage($resource, 'files-with-no-contact-options', [
             'ftp_url' => null,
-            'contact_url' => null,
         ]);
 
-        $this->logCreation($resource, 'Landing page with no download or contact URLs');
+        $this->logCreation($resource, 'Landing page with no download or contact person email');
     }
 
     // =========================================================================
@@ -1347,11 +1349,36 @@ class ResourceTestDataSeeder extends Seeder
     }
 
     /**
+     * Add a contact person with email to a resource.
+     *
+     * Convenience method for creating a creator who is marked as a contact person
+     * with an email address. Used for testing FilesSection contact form fallback.
+     */
+    private function addContactPersonWithEmail(
+        Resource $resource,
+        string $givenName,
+        string $familyName,
+        string $email,
+        int $position = 1
+    ): ResourceCreator {
+        return $this->addCreator(
+            $resource,
+            $givenName,
+            $familyName,
+            null, // no ORCID
+            $position,
+            true, // isContact
+            $email,
+            null // no website
+        );
+    }
+
+    /**
      * Create a published landing page for a resource.
      *
      * Note: Slugs are deterministic (no unique ID) to allow Playwright tests to navigate to them.
      *
-     * @param  array<string, string|null>  $options  Optional landing page configuration (ftp_url, contact_url)
+     * @param  array<string, string|null>  $options  Optional landing page configuration (ftp_url)
      */
     private function createLandingPage(Resource $resource, string $slug, array $options = []): LandingPage
     {
@@ -1363,7 +1390,6 @@ class ResourceTestDataSeeder extends Seeder
             'published_at' => now(),
             'preview_token' => bin2hex(random_bytes(32)),
             'ftp_url' => $options['ftp_url'] ?? null,
-            'contact_url' => $options['contact_url'] ?? null,
         ]);
     }
 

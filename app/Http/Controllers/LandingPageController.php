@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ResourceAlreadyExistsException;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Rules\SafeUrl;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,8 +72,7 @@ class LandingPageController extends Controller
     {
         $validated = $request->validate([
             'template' => 'required|string|in:default_gfz,minimal,detailed',
-            'ftp_url' => 'nullable|url',
-            'contact_url' => 'nullable|url',
+            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
@@ -132,7 +132,6 @@ class LandingPageController extends Controller
                 return $resource->landingPage()->create([
                     'template' => $validated['template'],
                     'ftp_url' => $validated['ftp_url'] ?? null,
-                    'contact_url' => $validated['contact_url'] ?? null,
                     'is_published' => $isPublished,
                     'published_at' => $isPublished ? now() : null,
                 ]);
@@ -247,8 +246,7 @@ class LandingPageController extends Controller
     {
         $validated = $request->validate([
             'template' => 'sometimes|string|in:default_gfz,minimal,detailed',
-            'ftp_url' => 'nullable|url',
-            'contact_url' => 'nullable|url',
+            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);

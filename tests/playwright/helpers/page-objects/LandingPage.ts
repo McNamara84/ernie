@@ -103,7 +103,8 @@ export class LandingPage {
     // Files section
     this.filesSection = page.locator('[data-testid="files-section"], section:has-text("Files")').first();
     this.downloadButton = this.filesSection.locator('a:has-text("Download data and description")');
-    this.contactFormButton = this.filesSection.locator('a:has-text("Request data via contact form")');
+    // Contact form is now a button (opens modal), not a link
+    this.contactFormButton = this.filesSection.locator('button:has-text("Request data via contact form")');
     this.noDownloadMessage = this.filesSection.locator('p:has-text("Download information not available")');
   }
 

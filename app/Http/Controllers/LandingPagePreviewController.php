@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Resource;
+use App\Rules\SafeUrl;
 use App\Services\LandingPageResourceTransformer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,8 +34,7 @@ class LandingPagePreviewController extends Controller
     {
         $validated = $request->validate([
             'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
-            'ftp_url' => 'nullable|url|max:2048',
-            'contact_url' => 'nullable|url|max:2048',
+            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
         ]);
 
         // Store preview data in session
@@ -42,7 +42,6 @@ class LandingPagePreviewController extends Controller
         Session::put($sessionKey, [
             'template' => $validated['template'],
             'ftp_url' => $validated['ftp_url'] ?? null,
-            'contact_url' => $validated['contact_url'] ?? null,
             'resource_id' => $resource->id,
         ]);
 
@@ -79,12 +78,14 @@ class LandingPagePreviewController extends Controller
         $resourceData = $transformer->transform($resource);
 
         // Temporary landing page array for preview rendering.
+        // Note: contact_url is not included here because it's computed from the public_url
+        // in the LandingPage model. For previews, the ContactSection uses the resource's
+        // contact_persons data directly without needing the contact form URL.
         $tempLandingPage = [
             'id' => null,
             'resource_id' => $resource->id,
             'template' => $template,
             'ftp_url' => $previewData['ftp_url'] ?? null,
-            'contact_url' => $previewData['contact_url'] ?? null,
             'status' => 'preview',
             'preview_token' => null,
             'published_at' => null,

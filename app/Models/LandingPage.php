@@ -17,7 +17,6 @@ use Illuminate\Support\Str;
  * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
  * @property string|null $ftp_url Direct download URL for the dataset files
- * @property string|null $contact_url URL to contact form for data requests (used when ftp_url is not available)
  * @property bool $is_published
  * @property string|null $preview_token
  * @property \Illuminate\Support\Carbon|null $published_at
@@ -28,6 +27,7 @@ use Illuminate\Support\Str;
  * @property-read Resource $resource
  * @property-read string $public_url Full public URL for the landing page
  * @property-read string|null $preview_url Full preview URL with token
+ * @property-read string $contact_url Internal contact form URL (computed from public_url)
  * @property-read string $status 'published' or 'draft'
  *
  * ## Slug Immutability
@@ -87,7 +87,6 @@ class LandingPage extends Model
         'slug',
         'template',
         'ftp_url',
-        'contact_url',
         'is_published',
         'preview_token',
         'published_at',
@@ -115,6 +114,7 @@ class LandingPage extends Model
     protected $appends = [
         'public_url',
         'preview_url',
+        'contact_url',
         'status',
     ];
 
@@ -323,6 +323,23 @@ class LandingPage extends Model
         }
 
         return url($this->getPublicPath()."?preview={$this->preview_token}");
+    }
+
+    /**
+     * Get the contact form URL for the landing page.
+     *
+     * This is the internal route where the ContactModal sends POST requests
+     * to contact the dataset's contact persons. It is NOT an external URL
+     * but rather the application's own contact endpoint.
+     *
+     * Format: {public_url}/contact
+     * Examples:
+     * - /10.5880/igets.bu.l1.001/superconducting-gravimeter-data/contact
+     * - /draft-42/my-dataset-title/contact
+     */
+    public function getContactUrlAttribute(): string
+    {
+        return url($this->getPublicPath().'/contact');
     }
 
     /**

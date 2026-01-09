@@ -45,7 +45,6 @@ class LandingPageFactory extends Factory
             'slug' => fn () => 'test-dataset-'.Str::uuid()->toString(),
             'template' => 'default_gfz', // Only template that exists currently
             'ftp_url' => fake()->optional(0.3)->url(),
-            'contact_url' => fake()->optional(0.5)->url(),
             'is_published' => $isPublished,
             'preview_token' => Str::random(64),
             'published_at' => $isPublished ? fake()->dateTimeBetween('-1 year', 'now') : null,

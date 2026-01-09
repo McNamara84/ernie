@@ -70,12 +70,12 @@ export default function DefaultGfzTemplate() {
                             <FilesSection
                                 downloadUrl={landingPage?.ftp_url}
                                 licenses={resource.licenses || []}
-                                contactUrl={landingPage?.contact_url}
+                                contactPersons={resource.contact_persons || []}
                                 datasetTitle={mainTitle}
                             />
                             <ModelDescriptionSection relatedIdentifiers={resource.related_identifiers || []} />
                             <RelatedWorkSection relatedIdentifiers={resource.related_identifiers || []} />
-                            <ContactSection contactPersons={resource.contact_persons || []} contactUrl={landingPage?.contact_url || ''} datasetTitle={mainTitle} />
+                            <ContactSection contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
                         </div>
 
                         {/* Right Column - 2/3 width */}

@@ -23,7 +23,6 @@ interface ContactPerson {
 
 interface ContactSectionProps {
     contactPersons: ContactPerson[];
-    contactUrl: string;
     datasetTitle: string;
 }
 
@@ -32,8 +31,12 @@ interface ContactSectionProps {
  *
  * Displays contact persons with their affiliations, ORCID links, and website links.
  * Clicking on a contact person opens a modal to send a message without exposing emails.
+ *
+ * The contact form URL is computed by the ContactModal from the current page path
+ * by appending '/contact'. This works because landing pages follow the pattern
+ * /{doi}/{slug} and the contact endpoint is at /{doi}/{slug}/contact.
  */
-export function ContactSection({ contactPersons, contactUrl, datasetTitle }: ContactSectionProps) {
+export function ContactSection({ contactPersons, datasetTitle }: ContactSectionProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPerson, setSelectedPerson] = useState<ContactPerson | null>(null);
 
@@ -155,7 +158,6 @@ export function ContactSection({ contactPersons, contactUrl, datasetTitle }: Con
                 onClose={handleCloseModal}
                 selectedPerson={selectedPerson}
                 contactPersons={contactPersons}
-                contactUrl={contactUrl}
                 datasetTitle={datasetTitle}
             />
         </>
