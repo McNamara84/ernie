@@ -993,6 +993,18 @@ function ResourcesPage({
         <>
             {[...Array(5)].map((_, index) => (
                 <tr key={`skeleton-${index}`} className="animate-pulse">
+                    <td className={`px-6 py-1.5 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
+                        <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
+                            </div>
+                        </div>
+                    </td>
                     {resourceColumns.map((column) => (
                         <td key={column.key} className={`px-6 py-1.5 ${column.widthClass} ${column.cellClassName ?? ''}`}>
                             {column.key === 'id_doi' ? (
@@ -1010,18 +1022,6 @@ function ResourcesPage({
                             )}
                         </td>
                     ))}
-                    <td className={`px-6 py-1.5 align-middle ${ACTIONS_COLUMN_WIDTH_CLASSES}`}>
-                        <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1">
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                                <div className="size-9 rounded-full bg-gray-200 dark:bg-gray-700" />
-                            </div>
-                        </div>
-                    </td>
                 </tr>
             ))}
         </>
@@ -1096,6 +1096,11 @@ function ResourcesPage({
                                         </caption>
                                         <thead className="bg-gray-50 dark:bg-gray-800">
                                             <tr>
+                                                <th
+                                                    className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
+                                                >
+                                                    Actions
+                                                </th>
                                                 {resourceColumns.map((column) => {
                                                     const isColumnSorted =
                                                         column.sortOptions?.some((option) => option.key === sortState.key) ?? false;
@@ -1152,11 +1157,6 @@ function ResourcesPage({
                                                         </th>
                                                     );
                                                 })}
-                                                <th
-                                                    className={`px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
-                                                >
-                                                    Actions
-                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
@@ -1171,16 +1171,6 @@ function ResourcesPage({
                                                         className="hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         ref={isLast ? lastResourceElementRef : null}
                                                     >
-                                                        {resourceColumns.map((column) => (
-                                                            <td
-                                                                key={column.key}
-                                                                className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
-                                                            >
-                                                                {column.render
-                                                                    ? column.render(resource)
-                                                                    : formatValue(column.key, resource[column.key])}
-                                                            </td>
-                                                        ))}
                                                         <td
                                                             className={`px-6 py-1.5 align-middle text-sm text-gray-500 dark:text-gray-300 ${ACTIONS_COLUMN_WIDTH_CLASSES}`}
                                                         >
@@ -1259,6 +1249,16 @@ function ResourcesPage({
                                                                 </div>
                                                             </div>
                                                         </td>
+                                                        {resourceColumns.map((column) => (
+                                                            <td
+                                                                key={column.key}
+                                                                className={`px-6 py-1.5 text-sm text-gray-500 dark:text-gray-300 ${column.widthClass} ${column.cellClassName ?? ''}`}
+                                                            >
+                                                                {column.render
+                                                                    ? column.render(resource)
+                                                                    : formatValue(column.key, resource[column.key])}
+                                                            </td>
+                                                        ))}
                                                     </tr>
                                                 );
                                             })}
