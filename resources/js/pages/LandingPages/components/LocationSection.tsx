@@ -344,9 +344,9 @@ export function LocationSection({ geoLocations }: LocationSectionProps) {
     }
 
     return (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="geolocation-section">
             <h3 className="mb-4 text-lg font-semibold text-gray-900">Location</h3>
-            <div className="h-[300px] w-full overflow-hidden rounded-lg">
+            <div className="h-[300px] w-full overflow-hidden rounded-lg" data-testid="map-container">
                 <MapContainer bounds={bounds} className="h-full w-full" scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
