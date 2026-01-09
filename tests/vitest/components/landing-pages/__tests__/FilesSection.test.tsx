@@ -262,6 +262,20 @@ describe('FilesSection', () => {
             render(<FilesSection licenses={[]} />);
 
             expect(screen.queryByRole('link', { name: 'CC BY 4.0' })).not.toBeInTheDocument();
+            expect(screen.queryByText('License')).not.toBeInTheDocument();
+        });
+
+        it('shows License label above license links', () => {
+            render(<FilesSection licenses={mockLicenses} />);
+
+            expect(screen.getByText('License')).toBeInTheDocument();
+        });
+
+        it('displays SPDX identifier in tooltip', () => {
+            render(<FilesSection licenses={mockLicenses} />);
+
+            const licenseLink = screen.getByRole('link', { name: 'CC BY 4.0' });
+            expect(licenseLink).toHaveAttribute('title', 'SPDX: CC-BY-4.0');
         });
     });
 

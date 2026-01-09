@@ -1,6 +1,5 @@
-import { useState } from 'react';
-
 import { Download, ExternalLink, Mail } from 'lucide-react';
+import { useState } from 'react';
 
 import { ContactModal } from './ContactModal';
 
@@ -127,18 +126,22 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
 
                     {/* License Badges */}
                     {licenses.length > 0 && (
-                        <div className="flex flex-wrap gap-2">
-                            {licenses.map((license) => (
-                                <a
-                                    key={license.id}
-                                    href={license.reference}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 transition-colors hover:bg-green-200"
-                                >
-                                    {license.name}
-                                </a>
-                            ))}
+                        <div className="mt-4 space-y-2">
+                            <p className="text-xs font-medium text-gray-500">License</p>
+                            <div className="flex flex-col gap-2">
+                                {licenses.map((license) => (
+                                    <a
+                                        key={license.id}
+                                        href={license.reference}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200"
+                                        title={`SPDX: ${license.spdx_id}`}
+                                    >
+                                        {license.name}
+                                    </a>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
