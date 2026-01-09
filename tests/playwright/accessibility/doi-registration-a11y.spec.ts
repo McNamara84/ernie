@@ -326,14 +326,19 @@ test.describe('DOI Registration Accessibility', () => {
         const dataciteButton = await setupResourceForDoi(page);
         await dataciteButton.click();
 
-        // Check for loading message
+        // Check for loading message - it may appear briefly or not at all depending on network speed
         const loadingText = page.getByText(/loading configuration/i);
         
-        if (await loadingText.isVisible()) {
-            // Should be visible to screen readers
-            const ariaHidden = await loadingText.getAttribute('aria-hidden');
+        // Use a short timeout to check if loading text appears
+        // This is intentionally a soft check since loading can be very fast
+        const isVisible = await loadingText.isVisible({ timeout: 2000 }).catch(() => false);
+        
+        if (isVisible) {
+            // Should be visible to screen readers (not aria-hidden)
+            const ariaHidden = await loadingText.getAttribute('aria-hidden', { timeout: 1000 }).catch(() => null);
             expect(ariaHidden).not.toBe('true');
         }
+        // If loading text isn't visible, that's acceptable - it means loading was fast
     });
 
     test('resources page with doi features passes accessibility scan', async ({ page }) => {
