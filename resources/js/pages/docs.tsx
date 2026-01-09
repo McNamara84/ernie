@@ -178,6 +178,14 @@ export default function Docs({ userRole }: DocsProps) {
                             DOI resolves to an accessible landing page.
                         </p>
                     </div>
+
+                    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
+                        <p className="text-sm text-red-900 dark:text-red-100">
+                            <strong>DOI Persistence:</strong> Once a landing page is published, it cannot be unpublished or deleted. This is because
+                            DOIs are persistent identifiers that must always resolve to a valid landing page. You can still update the template,
+                            FTP download URL, and other metadata after publication.
+                        </p>
+                    </div>
                 </>
             ),
         },
