@@ -17,6 +17,8 @@ interface FilesSectionProps {
 export function FilesSection({ downloadUrl, licenses, contactUrl, datasetTitle }: FilesSectionProps) {
     // Check if downloadUrl is a valid, non-empty URL (not just '#' or empty string)
     const hasDownloadUrl = downloadUrl && downloadUrl !== '#' && downloadUrl.trim() !== '';
+    // Apply same validation pattern for contactUrl to handle edge cases
+    const hasContactUrl = contactUrl && contactUrl !== '#' && contactUrl.trim() !== '';
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
@@ -37,13 +39,14 @@ export function FilesSection({ downloadUrl, licenses, contactUrl, datasetTitle }
                     </a>
                 )}
 
-                {/* Contact Form Link - shown when no download URL is available */}
-                {!hasDownloadUrl && contactUrl && (
+                {/* Contact Form Link - shown when no download URL is available but contact URL exists */}
+                {!hasDownloadUrl && hasContactUrl && (
                     <a
                         href={`${contactUrl}${datasetTitle ? `?subject=${encodeURIComponent(`Data request: ${datasetTitle}`)}` : ''}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors hover:opacity-90"
+                        style={{ backgroundColor: '#0C2A63' }}
                     >
                         <Mail className="h-4 w-4" />
                         Request data via contact form
@@ -51,7 +54,7 @@ export function FilesSection({ downloadUrl, licenses, contactUrl, datasetTitle }
                 )}
 
                 {/* No download available message - when neither download URL nor contact URL is available */}
-                {!hasDownloadUrl && !contactUrl && (
+                {!hasDownloadUrl && !hasContactUrl && (
                     <p className="text-sm text-gray-500 italic">
                         Download information not available. Please contact the authors for data access.
                     </p>

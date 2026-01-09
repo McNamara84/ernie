@@ -103,6 +103,27 @@ describe('FilesSection', () => {
             expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
             expect(screen.getByText(/please contact the authors/i)).toBeInTheDocument();
         });
+
+        it('shows fallback message when contactUrl is empty string', () => {
+            render(<FilesSection licenses={[]} contactUrl="" />);
+
+            expect(screen.queryByRole('link', { name: /request data via contact form/i })).not.toBeInTheDocument();
+            expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
+        });
+
+        it('shows fallback message when contactUrl is "#"', () => {
+            render(<FilesSection licenses={[]} contactUrl="#" />);
+
+            expect(screen.queryByRole('link', { name: /request data via contact form/i })).not.toBeInTheDocument();
+            expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
+        });
+
+        it('shows fallback message when contactUrl is whitespace only', () => {
+            render(<FilesSection licenses={[]} contactUrl="   " />);
+
+            expect(screen.queryByRole('link', { name: /request data via contact form/i })).not.toBeInTheDocument();
+            expect(screen.getByText(/download information not available/i)).toBeInTheDocument();
+        });
     });
 
     describe('license badges', () => {
