@@ -8,7 +8,6 @@ it('schedules SPDX license sync monthly', function () {
     $kernel = app(Kernel::class);
 
     $method = new ReflectionMethod($kernel, 'schedule');
-    $method->setAccessible(true);
     $method->invoke($kernel, $schedule);
 
     $event = collect($schedule->events())
@@ -23,7 +22,6 @@ it('schedules license usage count update weekly', function () {
     $kernel = app(Kernel::class);
 
     $method = new ReflectionMethod($kernel, 'schedule');
-    $method->setAccessible(true);
     $method->invoke($kernel, $schedule);
 
     $event = collect($schedule->events())
