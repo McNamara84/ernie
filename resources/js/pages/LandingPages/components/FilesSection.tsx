@@ -2,6 +2,7 @@ import { Download, ExternalLink, Mail } from 'lucide-react';
 import { useState } from 'react';
 
 import { ContactModal } from './ContactModal';
+import { CreativeCommonsIcon } from './CreativeCommonsIcon';
 
 interface License {
     id: number;
@@ -138,7 +139,8 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
                                         className="inline-flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-800 transition-colors hover:bg-green-200"
                                         title={`SPDX: ${license.spdx_id}`}
                                     >
-                                        {license.name}
+                                        <CreativeCommonsIcon spdxId={license.spdx_id} className="h-4 w-4" />
+                                        <span>{license.name}</span>
                                     </a>
                                 ))}
                             </div>
