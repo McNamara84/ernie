@@ -466,7 +466,7 @@ describe('Landing Page Model', function () {
         expect($landingPage->preview_url)->toContain("?preview={$landingPage->preview_token}");
     });
 
-    test('has correct contact_url attribute', function () {
+    test('contact_url is computed from public_url', function () {
         $landingPage = LandingPage::factory()->create([
             'resource_id' => $this->resource->id,
         ]);

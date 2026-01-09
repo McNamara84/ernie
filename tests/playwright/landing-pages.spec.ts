@@ -348,3 +348,59 @@ test.describe('Landing Page - Sizes and Formats', () => {
     await expect(landingPage.filesSection).toBeVisible();
   });
 });
+
+test.describe('Landing Page - Files Section (Issue #373)', () => {
+  test('displays download button when FTP URL is configured', async ({ page }) => {
+    const landingPage = new LandingPage(page);
+    await landingPage.goto('files-with-download-url');
+    await landingPage.verifyPageLoaded();
+
+    // Verify files section is visible
+    await landingPage.verifyFilesSectionVisible();
+
+    // Verify download button is visible with correct URL
+    await landingPage.verifyDownloadButtonVisible('https://datapub.gfz-potsdam.de/download/test-data.zip');
+
+    // Contact form button should NOT be visible when download URL exists
+    await landingPage.verifyContactFormButtonNotVisible();
+
+    // Fallback message should NOT be visible
+    await landingPage.verifyNoDownloadMessageNotVisible();
+  });
+
+  test('displays contact form button when contact person with email exists', async ({ page }) => {
+    const landingPage = new LandingPage(page);
+    await landingPage.goto('files-with-contact-person-only');
+    await landingPage.verifyPageLoaded();
+
+    // Verify files section is visible
+    await landingPage.verifyFilesSectionVisible();
+
+    // Download button should NOT be visible (no FTP URL)
+    await landingPage.verifyDownloadButtonNotVisible();
+
+    // Contact form button SHOULD be visible (contact person has email)
+    await landingPage.verifyContactFormButtonVisible();
+
+    // Fallback message should NOT be visible
+    await landingPage.verifyNoDownloadMessageNotVisible();
+  });
+
+  test('displays fallback message when no contact options are available', async ({ page }) => {
+    const landingPage = new LandingPage(page);
+    await landingPage.goto('files-with-no-contact-options');
+    await landingPage.verifyPageLoaded();
+
+    // Verify files section is visible
+    await landingPage.verifyFilesSectionVisible();
+
+    // Download button should NOT be visible
+    await landingPage.verifyDownloadButtonNotVisible();
+
+    // Contact form button should NOT be visible
+    await landingPage.verifyContactFormButtonNotVisible();
+
+    // Fallback message SHOULD be visible
+    await landingPage.verifyNoDownloadMessageVisible();
+  });
+});

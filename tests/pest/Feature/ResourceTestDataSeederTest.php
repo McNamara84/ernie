@@ -17,10 +17,10 @@ beforeEach(function () {
 });
 
 describe('ResourceTestDataSeeder', function () {
-    test('creates 24 test resources', function () {
+    test('creates 27 test resources', function () {
         $testResources = Resource::where('doi', 'LIKE', '10.5880/testdata.%')->count();
 
-        expect($testResources)->toBe(24);
+        expect($testResources)->toBe(27);
     });
 
     test('all resources have a title', function () {

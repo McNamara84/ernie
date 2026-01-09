@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
  * @property string|null $doi_prefix DOI for URL generation (e.g., "10.5880/igets.bu.l1.001"), NULL for drafts
  * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
- * @property string|null $ftp_url
+ * @property string|null $ftp_url Direct download URL for the dataset files
  * @property bool $is_published
  * @property string|null $preview_token
  * @property \Illuminate\Support\Carbon|null $published_at
@@ -27,7 +27,7 @@ use Illuminate\Support\Str;
  * @property-read Resource $resource
  * @property-read string $public_url Full public URL for the landing page
  * @property-read string|null $preview_url Full preview URL with token
- * @property-read string $contact_url Full contact form URL
+ * @property-read string $contact_url Internal contact form URL (computed from public_url)
  * @property-read string $status 'published' or 'draft'
  *
  * ## Slug Immutability
@@ -65,8 +65,11 @@ use Illuminate\Support\Str;
  * ## API Response Structure
  *
  * When serialized (e.g., in JSON API responses), this model includes:
- * - All database columns (id, resource_id, doi_prefix, slug, template, etc.)
+ * - Database columns: id, resource_id, doi_prefix, slug, template, ftp_url, is_published, etc.
  * - Computed accessors: public_url, preview_url, contact_url, status
+ *
+ * Note: contact_url is NOT a database column. It is a computed accessor that
+ * returns public_url + '/contact' for the contact form endpoint.
  *
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
@@ -328,11 +331,14 @@ class LandingPage extends Model
     /**
      * Get the contact form URL for the landing page.
      *
-     * Uses the same URL construction logic as public_url to ensure consistency.
-     * If the public URL format changes (e.g., adding query parameters), this
-     * method will automatically inherit those changes.
+     * This is the internal route where the ContactModal sends POST requests
+     * to contact the dataset's contact persons. It is NOT an external URL
+     * but rather the application's own contact endpoint.
      *
-     * Format: /{DOI}/{SLUG}/contact or /draft-{ID}/{SLUG}/contact
+     * Format: {public_url}/contact
+     * Examples:
+     * - /10.5880/igets.bu.l1.001/superconducting-gravimeter-data/contact
+     * - /draft-42/my-dataset-title/contact
      */
     public function getContactUrlAttribute(): string
     {

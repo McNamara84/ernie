@@ -4,6 +4,14 @@
         "date": "2026-01-09",
         "improvements": [
             {
+                "title": "Optional Download URL for Landing Pages",
+                "description": "The Download URL (FTP) field is now optional when setting up landing pages. For large datasets, the system automatically falls back to: (1) a contact form button if a contact person with email exists, (2) a website link if the contact person has a website, or (3) a message to contact the authors. This improves flexibility for datasets that cannot be distributed via direct download."
+            },
+            {
+                "title": "XSS Protection for Download URLs",
+                "description": "Download URLs now undergo strict validation to only allow http/https schemes, preventing potential XSS attacks via javascript: or data: URLs."
+            },
+            {
                 "title": "Actions Column First in Resources Table",
                 "description": "The Actions column in the Resources table now appears as the first column, providing immediate access to editing functions regardless of screen size or table width."
             },

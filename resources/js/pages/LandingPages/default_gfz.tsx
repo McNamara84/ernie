@@ -67,10 +67,15 @@ export default function DefaultGfzTemplate() {
                     <div className="mx-8 mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
                         {/* Left Column - 1/3 width */}
                         <div className="space-y-6 lg:col-span-1">
-                            <FilesSection downloadUrl={landingPage?.ftp_url || '#'} licenses={resource.licenses || []} />
+                            <FilesSection
+                                downloadUrl={landingPage?.ftp_url}
+                                licenses={resource.licenses || []}
+                                contactPersons={resource.contact_persons || []}
+                                datasetTitle={mainTitle}
+                            />
                             <ModelDescriptionSection relatedIdentifiers={resource.related_identifiers || []} />
                             <RelatedWorkSection relatedIdentifiers={resource.related_identifiers || []} />
-                            <ContactSection contactPersons={resource.contact_persons || []} contactUrl={landingPage?.contact_url || ''} datasetTitle={mainTitle} />
+                            <ContactSection contactPersons={resource.contact_persons || []} datasetTitle={mainTitle} />
                         </div>
 
                         {/* Right Column - 2/3 width */}

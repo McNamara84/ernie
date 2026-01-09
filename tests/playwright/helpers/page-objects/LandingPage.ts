@@ -56,6 +56,9 @@ export class LandingPage {
 
   // Files section
   readonly filesSection: Locator;
+  readonly downloadButton: Locator;
+  readonly contactFormButton: Locator;
+  readonly noDownloadMessage: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -99,6 +102,10 @@ export class LandingPage {
 
     // Files section
     this.filesSection = page.locator('[data-testid="files-section"], section:has-text("Files")').first();
+    this.downloadButton = this.filesSection.locator('a:has-text("Download data and description")');
+    // Contact form is now a button (opens modal), not a link
+    this.contactFormButton = this.filesSection.locator('button:has-text("Request data via contact form")');
+    this.noDownloadMessage = this.filesSection.locator('p:has-text("Download information not available")');
   }
 
   /**
@@ -392,5 +399,61 @@ export class LandingPage {
    */
   async getCurrentUrl(): Promise<string> {
     return this.page.url();
+  }
+
+  // =========================================================================
+  // Files Section Methods (Issue #373)
+  // =========================================================================
+
+  /**
+   * Verify the files section is visible
+   */
+  async verifyFilesSectionVisible() {
+    await expect(this.filesSection).toBeVisible();
+  }
+
+  /**
+   * Verify download button is visible and has correct URL
+   */
+  async verifyDownloadButtonVisible(expectedUrl?: string) {
+    await expect(this.downloadButton).toBeVisible();
+    if (expectedUrl) {
+      await expect(this.downloadButton).toHaveAttribute('href', expectedUrl);
+    }
+  }
+
+  /**
+   * Verify download button is NOT visible (for resources without FTP URL)
+   */
+  async verifyDownloadButtonNotVisible() {
+    await expect(this.downloadButton).not.toBeVisible();
+  }
+
+  /**
+   * Verify contact form button is visible
+   */
+  async verifyContactFormButtonVisible() {
+    await expect(this.contactFormButton).toBeVisible();
+  }
+
+  /**
+   * Verify contact form button is NOT visible
+   */
+  async verifyContactFormButtonNotVisible() {
+    await expect(this.contactFormButton).not.toBeVisible();
+  }
+
+  /**
+   * Verify fallback message is shown when no download options are available
+   */
+  async verifyNoDownloadMessageVisible() {
+    await expect(this.noDownloadMessage).toBeVisible();
+  }
+
+  /**
+   * Verify fallback message is NOT visible
+   */
+  async verifyNoDownloadMessageNotVisible() {
+    await expect(this.noDownloadMessage).not.toBeVisible();
   }
 }

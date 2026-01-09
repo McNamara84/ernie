@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ResourceAlreadyExistsException;
 use App\Models\LandingPage;
 use App\Models\Resource;
+use App\Rules\SafeUrl;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -71,7 +72,7 @@ class LandingPageController extends Controller
     {
         $validated = $request->validate([
             'template' => 'required|string|in:default_gfz,minimal,detailed',
-            'ftp_url' => 'nullable|url',
+            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
@@ -245,7 +246,7 @@ class LandingPageController extends Controller
     {
         $validated = $request->validate([
             'template' => 'sometimes|string|in:default_gfz,minimal,detailed',
-            'ftp_url' => 'nullable|url',
+            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'is_published' => 'sometimes|boolean',
             'status' => 'sometimes|string|in:draft,published',
         ]);
@@ -281,6 +282,7 @@ class LandingPageController extends Controller
         }
 
         // Update template and ftp_url if provided
+        // Note: contact_url is a computed accessor (public_url + '/contact'), not a database field
         if (isset($validated['template'])) {
             $landingPage->template = $validated['template'];
         }
