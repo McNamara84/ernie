@@ -34,6 +34,7 @@ class LandingPagePreviewController extends Controller
         $validated = $request->validate([
             'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => 'nullable|url|max:2048',
+            'contact_url' => 'nullable|url|max:2048',
         ]);
 
         // Store preview data in session
@@ -41,6 +42,7 @@ class LandingPagePreviewController extends Controller
         Session::put($sessionKey, [
             'template' => $validated['template'],
             'ftp_url' => $validated['ftp_url'] ?? null,
+            'contact_url' => $validated['contact_url'] ?? null,
             'resource_id' => $resource->id,
         ]);
 
@@ -82,6 +84,7 @@ class LandingPagePreviewController extends Controller
             'resource_id' => $resource->id,
             'template' => $template,
             'ftp_url' => $previewData['ftp_url'] ?? null,
+            'contact_url' => $previewData['contact_url'] ?? null,
             'status' => 'preview',
             'preview_token' => null,
             'published_at' => null,

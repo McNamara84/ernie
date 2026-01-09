@@ -16,6 +16,9 @@ export interface LandingPageConfig {
     /** FTP URL for dataset downloads (optional) */
     ftp_url?: string | null;
 
+    /** Contact form URL for data requests (optional, used when ftp_url is not available) */
+    contact_url?: string | null;
+
     /** Publication status: draft (preview-only) or published (public) */
     status: 'draft' | 'published';
 
@@ -42,9 +45,6 @@ export interface LandingPageConfig {
 
     /** Computed: preview URL with token */
     preview_url: string;
-
-    /** Computed: contact form URL */
-    contact_url: string;
 }
 
 /**

@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
  * @property string|null $doi_prefix DOI for URL generation (e.g., "10.5880/igets.bu.l1.001"), NULL for drafts
  * @property string $slug URL-friendly title slug (immutable after creation - see note below)
  * @property string $template
- * @property string|null $ftp_url
+ * @property string|null $ftp_url Direct download URL for the dataset files
+ * @property string|null $contact_url URL to contact form for data requests (used when ftp_url is not available)
  * @property bool $is_published
  * @property string|null $preview_token
  * @property \Illuminate\Support\Carbon|null $published_at
@@ -27,7 +28,6 @@ use Illuminate\Support\Str;
  * @property-read Resource $resource
  * @property-read string $public_url Full public URL for the landing page
  * @property-read string|null $preview_url Full preview URL with token
- * @property-read string $contact_url Full contact form URL
  * @property-read string $status 'published' or 'draft'
  *
  * ## Slug Immutability
@@ -65,8 +65,8 @@ use Illuminate\Support\Str;
  * ## API Response Structure
  *
  * When serialized (e.g., in JSON API responses), this model includes:
- * - All database columns (id, resource_id, doi_prefix, slug, template, etc.)
- * - Computed accessors: public_url, preview_url, contact_url, status
+ * - All database columns (id, resource_id, doi_prefix, slug, template, ftp_url, contact_url, etc.)
+ * - Computed accessors: public_url, preview_url, status
  *
  * @see LandingPageController::store() for API creation endpoint
  * @see LandingPageController::update() for API update endpoint
@@ -87,6 +87,7 @@ class LandingPage extends Model
         'slug',
         'template',
         'ftp_url',
+        'contact_url',
         'is_published',
         'preview_token',
         'published_at',
@@ -114,7 +115,6 @@ class LandingPage extends Model
     protected $appends = [
         'public_url',
         'preview_url',
-        'contact_url',
         'status',
     ];
 
@@ -323,20 +323,6 @@ class LandingPage extends Model
         }
 
         return url($this->getPublicPath()."?preview={$this->preview_token}");
-    }
-
-    /**
-     * Get the contact form URL for the landing page.
-     *
-     * Uses the same URL construction logic as public_url to ensure consistency.
-     * If the public URL format changes (e.g., adding query parameters), this
-     * method will automatically inherit those changes.
-     *
-     * Format: /{DOI}/{SLUG}/contact or /draft-{ID}/{SLUG}/contact
-     */
-    public function getContactUrlAttribute(): string
-    {
-        return url($this->getPublicPath().'/contact');
     }
 
     /**
