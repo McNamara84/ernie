@@ -135,6 +135,11 @@ class ResourceTestDataSeeder extends Seeder
         $this->createContactPersons();
         $this->createSizesAndFormats();
 
+        // Files Section test scenarios (for Issue #373)
+        $this->createFilesWithDownloadUrl();
+        $this->createFilesWithContactUrlOnly();
+        $this->createFilesWithNoUrls();
+
         $this->command->newLine();
         $this->command->info('✓ Created '.count($this->createdResourceIds).' test resources.');
         $this->command->newLine();
@@ -1100,6 +1105,63 @@ class ResourceTestDataSeeder extends Seeder
         $this->logCreation($resource, '3 sizes, 4 formats');
     }
 
+    /**
+     * Create resource with download URL (FTP) configured.
+     *
+     * Tests FilesSection showing download button (Issue #373).
+     */
+    private function createFilesWithDownloadUrl(): void
+    {
+        $resource = $this->createBaseResource('TEST: Files With Download URL');
+
+        $this->addCreator($resource, 'Data', 'Distributor', null, 2);
+
+        $this->createLandingPage($resource, 'files-with-download-url', [
+            'ftp_url' => 'https://datapub.gfz-potsdam.de/download/test-data.zip',
+            'contact_url' => 'https://www.gfz-potsdam.de/en/contact/',
+        ]);
+
+        $this->logCreation($resource, 'Landing page with download URL configured');
+    }
+
+    /**
+     * Create resource with contact URL but no download URL.
+     *
+     * Tests FilesSection showing "Request data via contact form" button (Issue #373).
+     */
+    private function createFilesWithContactUrlOnly(): void
+    {
+        $resource = $this->createBaseResource('TEST: Files With Contact URL Only');
+
+        $this->addCreator($resource, 'Large', 'Dataset', null, 2);
+
+        $this->createLandingPage($resource, 'files-with-contact-url-only', [
+            'ftp_url' => null,
+            'contact_url' => 'https://www.gfz-potsdam.de/en/contact/',
+        ]);
+
+        $this->logCreation($resource, 'Landing page with contact URL only (no FTP)');
+    }
+
+    /**
+     * Create resource with neither download URL nor contact URL.
+     *
+     * Tests FilesSection showing fallback message (Issue #373).
+     */
+    private function createFilesWithNoUrls(): void
+    {
+        $resource = $this->createBaseResource('TEST: Files With No URLs');
+
+        $this->addCreator($resource, 'No', 'Download', null, 2);
+
+        $this->createLandingPage($resource, 'files-with-no-urls', [
+            'ftp_url' => null,
+            'contact_url' => null,
+        ]);
+
+        $this->logCreation($resource, 'Landing page with no download or contact URLs');
+    }
+
     // =========================================================================
     // Helper Methods
     // =========================================================================
@@ -1288,8 +1350,10 @@ class ResourceTestDataSeeder extends Seeder
      * Create a published landing page for a resource.
      *
      * Note: Slugs are deterministic (no unique ID) to allow Playwright tests to navigate to them.
+     *
+     * @param  array<string, string|null>  $options  Optional landing page configuration (ftp_url, contact_url)
      */
-    private function createLandingPage(Resource $resource, string $slug): LandingPage
+    private function createLandingPage(Resource $resource, string $slug, array $options = []): LandingPage
     {
         return LandingPage::create([
             'resource_id' => $resource->id,
@@ -1298,6 +1362,8 @@ class ResourceTestDataSeeder extends Seeder
             'is_published' => true,
             'published_at' => now(),
             'preview_token' => bin2hex(random_bytes(32)),
+            'ftp_url' => $options['ftp_url'] ?? null,
+            'contact_url' => $options['contact_url'] ?? null,
         ]);
     }
 
