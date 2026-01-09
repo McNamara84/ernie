@@ -4,6 +4,10 @@
         "date": "2026-01-09",
         "improvements": [
             {
+                "title": "Optional Download URL for Landing Pages",
+                "description": "The Download URL (FTP) field is now optional when setting up landing pages. For large datasets distributed via contact form, curators can leave this field empty. When no download URL is configured, a 'Request data via contact form' button is shown instead, linking to the contact page."
+            },
+            {
                 "title": "Actions Column First in Resources Table",
                 "description": "The Actions column in the Resources table now appears as the first column, providing immediate access to editing functions regardless of screen size or table width."
             },
