@@ -317,8 +317,8 @@ test.describe('Landing Page - Licenses', () => {
     await landingPage.verifyPageLoaded();
 
     // Verify license link has target="_blank" and correct href pattern
-    // Note: Links use spdx.org reference URLs
-    const licenseLink = landingPage.filesSection.locator('a[href*="spdx.org/licenses"]');
+    // Note: Links use actual license URLs (e.g., creativecommons.org), with SPDX ID in title
+    const licenseLink = landingPage.filesSection.locator('a[title^="SPDX:"]');
     await expect(licenseLink).toBeVisible();
     await expect(licenseLink).toHaveAttribute('target', '_blank');
     await expect(licenseLink).toHaveAttribute('rel', /noopener/);
@@ -330,7 +330,8 @@ test.describe('Landing Page - Licenses', () => {
     await landingPage.verifyPageLoaded();
 
     // Verify tooltip contains SPDX identifier
-    const licenseLink = landingPage.filesSection.locator('a[href*="spdx.org/licenses"]');
+    // License links use actual license URLs with SPDX ID in the title attribute
+    const licenseLink = landingPage.filesSection.locator('a[title^="SPDX:"]');
     await expect(licenseLink).toHaveAttribute('title', /SPDX:/);
   });
 });

@@ -335,7 +335,7 @@ test.describe('DOI Registration Accessibility', () => {
         
         if (isVisible) {
             // Should be visible to screen readers (not aria-hidden)
-            const ariaHidden = await loadingText.getAttribute('aria-hidden', { timeout: 1000 }).catch(() => null);
+            const ariaHidden = await loadingText.getAttribute('aria-hidden');
             expect(ariaHidden).not.toBe('true');
         }
         // If loading text isn't visible, that's acceptable - it means loading was fast

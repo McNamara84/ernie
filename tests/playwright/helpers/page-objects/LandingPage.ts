@@ -513,7 +513,9 @@ export class LandingPage {
    * Get the count of license badges displayed
    */
   async getLicenseCount(): Promise<number> {
-    const licenseLinks = this.filesSection.locator('a[href*="spdx.org"]');
+    // License links have title attributes starting with 'SPDX:' and href to actual license URLs
+    // (e.g., creativecommons.org, opensource.org), not spdx.org
+    const licenseLinks = this.filesSection.locator('a[title^="SPDX:"]');
     return await licenseLinks.count();
   }
 }
