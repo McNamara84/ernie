@@ -46,5 +46,7 @@ node_modules/
 /playwright-report-stage
 /playwright-report-stage-local
 
-# Pest Browser Testing
-/tests/Browser/Screenshots/
+# Pest Browser Testing - Visual Regression Snapshots
+# Snapshots are stored in tests/.pest/snapshots/ and should be committed
+# to enable visual regression comparison across environments.
+# Note: The snapshots directory is tracked - do NOT ignore it!
