@@ -150,6 +150,7 @@ class DataCiteRegistrationService
      * @throws \RuntimeException If resource doesn't have a landing page
      * @throws RequestException If the API request fails
      */
+    #[\NoDiscard('DOI registration response must be checked for success')]
     public function registerDoi(Resource $resource, string $prefix): array
     {
         // Validate prefix

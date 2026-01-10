@@ -40,6 +40,7 @@ class ResourceStorageService
      *
      * @throws ValidationException
      */
+    #[\NoDiscard('Stored resource and update flag must be used')]
     public function store(array $data, ?int $userId = null): array
     {
         return DB::transaction(function () use ($data, $userId): array {

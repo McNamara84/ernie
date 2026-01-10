@@ -45,6 +45,7 @@ class OrcidService
      * @param  string  $orcid  The ORCID ID to validate
      * @return bool True if valid format
      */
+    #[\NoDiscard('Format validation result must be checked')]
     public function validateOrcidFormat(string $orcid): bool
     {
         return (bool) preg_match(self::ORCID_PATTERN, $orcid);
@@ -56,6 +57,7 @@ class OrcidService
      * @param  string  $orcid  The ORCID ID to validate
      * @return array{valid: bool, exists: bool|null, message: string}
      */
+    #[\NoDiscard('ORCID validation result must be checked')]
     public function validateOrcid(string $orcid): array
     {
         // Check format first

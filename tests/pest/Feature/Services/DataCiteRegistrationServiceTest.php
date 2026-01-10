@@ -69,7 +69,8 @@ test('registerDoi sends correct payload to datacite api', function () {
     ]);
 
     $service = app(DataCiteRegistrationService::class);
-    $service->registerDoi($this->resource, '10.83279');
+    $result = $service->registerDoi($this->resource, '10.83279');
+    expect($result)->toBeArray();
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), 'api.test.datacite.org/dois')
@@ -94,7 +95,8 @@ test('registerDoi includes basic auth credentials', function () {
     ]);
 
     $service = app(DataCiteRegistrationService::class);
-    $service->registerDoi($this->resource, '10.83279');
+    $result = $service->registerDoi($this->resource, '10.83279');
+    expect($result)->toBeArray();
 
     Http::assertSent(function ($request) {
         $auth = $request->header('Authorization')[0] ?? '';
@@ -119,7 +121,8 @@ test('registerDoi includes event publish parameter', function () {
     ]);
 
     $service = app(DataCiteRegistrationService::class);
-    $service->registerDoi($this->resource, '10.83279');
+    $result = $service->registerDoi($this->resource, '10.83279');
+    expect($result)->toBeArray();
 
     Http::assertSent(function ($request) {
         $body = json_decode($request->body(), true);
@@ -206,7 +209,8 @@ test('registerDoi uses production credentials when test mode is disabled', funct
 
     // Recreate service with updated config
     $service = app(DataCiteRegistrationService::class);
-    $service->registerDoi($this->resource, '10.5880');
+    $result = $service->registerDoi($this->resource, '10.5880');
+    expect($result)->toBeArray();
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), 'api.datacite.org')
