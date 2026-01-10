@@ -582,11 +582,11 @@ class ResourceController extends Controller
 
         // Year range filter
         if (isset($filters['year_from'])) {
-            $query->where('year', '>=', $filters['year_from']);
+            $query->where('publication_year', '>=', $filters['year_from']);
         }
 
         if (isset($filters['year_to'])) {
-            $query->where('year', '<=', $filters['year_to']);
+            $query->where('publication_year', '<=', $filters['year_to']);
         }
 
         // Text search (title, DOI)
@@ -595,7 +595,7 @@ class ResourceController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('doi', 'like', "%{$search}%")
                     ->orWhereHas('titles', function ($titleQuery) use ($search) {
-                        $titleQuery->where('title', 'like', "%{$search}%");
+                        $titleQuery->where('value', 'like', "%{$search}%");
                     });
             });
         }
