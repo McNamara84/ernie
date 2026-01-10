@@ -182,25 +182,24 @@ LOG;
     });
 
     it('filters logs by search term', function () {
-        // Ensure the log file has the expected content for this specific test
-        $logPath = storage_path('logs/laravel.log');
-        $logContent = <<<'LOG'
-[2024-01-01 10:00:00] local.INFO: Test info message
-[2024-01-01 10:01:00] local.WARNING: Test warning message for search
-[2024-01-01 10:02:00] local.ERROR: Test error message
-LOG;
-        File::put($logPath, $logContent);
+        // Generate a unique search term to avoid conflicts with parallel tests
+        $uniqueId = uniqid('warning_test_', true);
+
+        // Write a log entry with the unique identifier using Laravel's Log facade
+        // This ensures the log is written to the correct location
+        \Illuminate\Support\Facades\Log::warning("Test warning message {$uniqueId}");
 
         $admin = User::factory()->admin()->create();
 
-        $response = $this->actingAs($admin)->get(route('logs.data', ['search' => 'warning']));
+        // Search for our unique warning message
+        $response = $this->actingAs($admin)->get(route('logs.data', ['search' => $uniqueId]));
 
         $response->assertOk();
         $data = $response->json('data');
 
         expect(count($data))->toBeGreaterThan(0);
         foreach ($data as $log) {
-            expect(strtolower($log['message'].$log['context']))->toContain('warning');
+            expect(strtolower($log['message'].$log['context']))->toContain(strtolower($uniqueId));
         }
     });
 
