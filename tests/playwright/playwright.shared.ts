@@ -26,6 +26,7 @@ export const testMatchPatterns = [
 export const testIgnorePatterns = [
   '**/helpers/**',
   '**/page-objects/**',
+  '**/_archived/**',
   '**/*.md',
   '**/constants.ts',
 ];

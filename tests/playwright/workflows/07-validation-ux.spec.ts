@@ -12,7 +12,13 @@ import { loginAsTestUser } from '../helpers/test-helpers';
  * - Save button tooltip (missing required fields)
  * - Auto-scroll to first invalid section
  * - Form submission flow with validation
+ * 
+ * Note: Skipped on Webkit in CI due to excessive waitForTimeout calls
+ * that cause CI timeouts. Validation logic is tested on Chromium and Firefox.
  */
+
+// Skip on Webkit in CI - 20+ waitForTimeout calls cause 5+ min runs
+test.skip(({ browserName }) => browserName === 'webkit' && !!process.env.CI, 'Skipped on Webkit in CI');
 
 test.describe('DataCite Form Validation UX', () => {
   let formPage: DataCiteFormPage;

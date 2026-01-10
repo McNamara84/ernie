@@ -13,7 +13,28 @@
 
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->in('pest/Feature', 'Feature', 'pest/Debug');
+    ->beforeEach(function () {
+        // Disable Vite globally to prevent "Vite manifest not found" errors
+        // This is needed because tests run without the Vite dev server or build artifacts
+        $this->withoutVite();
+    })
+    ->in('pest/Feature', 'Feature', 'pest/Debug', 'pest/Browser');
+
+/*
+|--------------------------------------------------------------------------
+| Browser Testing Configuration
+|--------------------------------------------------------------------------
+|
+| Configure the Pest Browser plugin for smoke testing. Uses the built-in
+| PHP server provided by Laravel's testing stack.
+| Only configure if the Browser plugin is available.
+|
+*/
+
+if (class_exists(\Pest\Browser\Configuration::class)) {
+    pest()->browser()
+        ->timeout(15000);  // 15s timeout for browser operations
+}
 
 /*
 |--------------------------------------------------------------------------

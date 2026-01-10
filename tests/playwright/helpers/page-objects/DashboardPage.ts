@@ -4,20 +4,24 @@ import { expect, type Locator, type Page } from '@playwright/test';
  * Page Object Model for the Dashboard page
  * 
  * Handles navigation and interactions on the main dashboard.
+ * Uses data-testid selectors for stable, refactoring-safe element targeting.
  */
 export class DashboardPage {
   readonly page: Page;
   readonly heading: Locator;
   readonly xmlDropzone: Locator;
   readonly xmlFileInput: Locator;
+  readonly xmlUploadButton: Locator;
   readonly dropzoneDescription: Locator;
   readonly navigationMenu: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { name: 'Dashboard' });
-    this.xmlDropzone = page.locator('text=Dropzone for XML files');
-    this.xmlFileInput = page.locator('input[type="file"][accept=".xml"]');
+    // Use data-testid for stable selectors
+    this.xmlDropzone = page.getByTestId('xml-dropzone');
+    this.xmlFileInput = page.getByTestId('xml-file-input');
+    this.xmlUploadButton = page.getByTestId('xml-upload-button');
     this.dropzoneDescription = page.locator('text=Here you can upload new XML files sent by ELMO for curation.');
     this.navigationMenu = page.getByRole('navigation');
   }

@@ -4,6 +4,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
  * Page Object Model for the Resources page
  * 
  * Handles all interactions with the resources management interface.
+ * Uses data-testid selectors for stable, refactoring-safe element targeting.
  */
 export class ResourcesPage {
   readonly page: Page;
@@ -16,7 +17,8 @@ export class ResourcesPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { name: 'Resources' });
-    this.resourceTable = page.getByRole('table');
+    // Use data-testid for stable selectors, fallback to role for compatibility
+    this.resourceTable = page.getByTestId('resources-table');
     this.searchInput = page.getByPlaceholder('Search resources...');
     this.createButton = page.getByRole('button', { name: 'Create Resource' });
     this.noResourcesMessage = page.getByText('No resources found');

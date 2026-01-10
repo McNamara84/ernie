@@ -358,6 +358,7 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                     </CardHeader>
                     <CardContent className="flex w-full justify-center">
                         <div
+                            data-testid="xml-dropzone"
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
@@ -366,8 +367,8 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                             }`}
                         >
                             <p className="mb-4 text-sm text-muted-foreground">Drag &amp; drop XML files here</p>
-                            <input ref={fileInputRef} type="file" accept=".xml" className="hidden" onChange={handleFileSelect} />
-                            <Button type="button" onClick={() => fileInputRef.current?.click()}>
+                            <input ref={fileInputRef} data-testid="xml-file-input" type="file" accept=".xml" className="hidden" onChange={handleFileSelect} />
+                            <Button type="button" data-testid="xml-upload-button" onClick={() => fileInputRef.current?.click()}>
                                 Upload
                             </Button>
                         </div>

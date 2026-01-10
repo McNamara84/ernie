@@ -11,6 +11,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    name: Pest PHP Tests
 
     steps:
       - name: Checkout
@@ -102,4 +103,4 @@ jobs:
           php artisan config:show app.url || echo "Could not show app.url"
 
       - name: Tests
-        run: ./vendor/bin/pest
+        run: ./vendor/bin/pest --parallel

@@ -45,3 +45,8 @@ node_modules/
 
 /playwright-report-stage
 /playwright-report-stage-local
+
+# Pest Browser Testing - Visual Regression Snapshots
+# Snapshots are OS-specific (Windows vs Linux) and should not be committed.
+# Each environment generates its own baseline on first run.
+/tests/.pest/snapshots/
