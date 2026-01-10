@@ -783,10 +783,12 @@ class OldDataset extends Model
             if ($isInstitution) {
                 if (! empty($agent->name)) {
                     $institutionName = $agent->name;
-                } elseif (! empty($affiliations)) {
+                } elseif ($affiliations !== []) {
                     // Use the first affiliation's value as institution name
-                    $firstAffiliation = reset($affiliations);
-                    if ($firstAffiliation && isset($firstAffiliation['value']) && ! empty($firstAffiliation['value'])) {
+                    // PHP 8.5: array_first() returns null for empty arrays, but we checked above
+                    /** @var array<int|string, array{value?: string}> $affiliations */
+                    $firstAffiliation = array_first($affiliations);
+                    if (is_array($firstAffiliation) && isset($firstAffiliation['value']) && $firstAffiliation['value'] !== '') {
                         $institutionName = $firstAffiliation['value'];
                     }
                 }

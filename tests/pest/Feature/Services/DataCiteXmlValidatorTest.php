@@ -52,7 +52,8 @@ describe('DataCiteXmlValidator', function () {
                 </resource>';
 
             // This should fail schema validation (missing required elements)
-            $this->validator->validate($invalidXml);
+            $result = $this->validator->validate($invalidXml);
+            expect($result)->toBeBool();
 
             // Either has warnings or couldn't reach schema (network)
             // Both are valid outcomes
@@ -66,7 +67,8 @@ describe('DataCiteXmlValidator', function () {
                     <identifier identifierType="DOI">10.1234/test</identifier>
                 </resource>';
 
-            $this->validator->validate($invalidXml);
+            $result = $this->validator->validate($invalidXml);
+            expect($result)->toBeBool();
 
             $message = $this->validator->getFormattedWarningMessage();
 

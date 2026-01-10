@@ -6,6 +6,7 @@ use App\Http\Requests\UploadXmlRequest;
 use App\Models\ResourceType;
 use App\Support\GcmdUriHelper;
 use App\Support\MslLaboratoryService;
+use App\Support\UriHelper;
 use App\Support\XmlKeywordExtractor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -1266,7 +1267,8 @@ class UploadXmlController extends Controller
         }
 
         if (preg_match('#^https?://orcid\.org/#i', $trimmed) === 1) {
-            $path = parse_url($trimmed, PHP_URL_PATH);
+            // Use PHP 8.5's RFC 3986 compliant URI parser
+            $path = UriHelper::getPath($trimmed);
             $identifier = is_string($path) ? trim($path, '/') : '';
         } else {
             $identifier = trim($trimmed, '/');
@@ -1427,22 +1429,31 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        // If already a full URL, extract and normalize
+        // If already a full URL with ror.org host, extract and normalize
         if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
             $rorId = trim($matches[1]);
 
             return $rorId !== '' ? 'https://ror.org/'.Str::lower($rorId) : null;
         }
 
-        // If it contains a path structure, extract it
-        $parsed = parse_url($trimmed);
-        if ($parsed !== false && isset($parsed['path'])) {
-            $path = trim((string) $parsed['path'], '/');
+        // Check if it's a URL with a different host (e.g., "http://example.com/ror.org/someid")
+        // Only extract path if the host is actually ror.org
+        $host = UriHelper::getHost($trimmed);
+        if ($host !== null && Str::lower($host) === 'ror.org') {
+            $path = UriHelper::getPath($trimmed);
+            if ($path !== null) {
+                $path = trim($path, '/');
 
-            return $path !== '' ? 'https://ror.org/'.Str::lower($path) : null;
+                return $path !== '' ? 'https://ror.org/'.Str::lower($path) : null;
+            }
         }
 
-        // Otherwise, treat as ROR ID and prepend URL
+        // If it's a URL with a different host, don't process it as a ROR ID
+        if ($host !== null) {
+            return null;
+        }
+
+        // Otherwise, treat as bare ROR ID and prepend URL
         $path = Str::lower(trim($trimmed, '/'));
 
         return $path !== '' ? 'https://ror.org/'.$path : null;
@@ -1502,7 +1513,7 @@ class UploadXmlController extends Controller
     {
         $elements = $this->allElements($content, $key);
 
-        return $elements[0] ?? null;
+        return array_first($elements);
     }
 
     /**
@@ -1660,7 +1671,7 @@ class UploadXmlController extends Controller
 
             // Extract the text (last element of the path, which is the keyword itself)
             // If path is empty, use the content directly
-            $text = ! empty($pathArray) ? end($pathArray) : $content;
+            $text = array_last($pathArray) ?? $content;
 
             // Normalize scheme name (e.g., "NASA/GCMD Earth Science Keywords" -> "Science Keywords")
             $normalizedScheme = $scheme;

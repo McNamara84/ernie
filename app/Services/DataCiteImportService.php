@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\UriHelper;
 use Generator;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
@@ -316,16 +317,13 @@ class DataCiteImportService
 
         $json = $response->json();
 
-        // Extract next cursor from links
+        // Extract next cursor from links using PHP 8.5's RFC 3986 URI parser
         $nextCursor = null;
         if (isset($json['links']['next'])) {
             $nextUrl = $json['links']['next'];
             // Extract cursor from URL query parameter
-            $parsedUrl = parse_url($nextUrl);
-            if (isset($parsedUrl['query'])) {
-                parse_str($parsedUrl['query'], $queryParams);
-                $nextCursor = $queryParams['page']['cursor'] ?? $queryParams['page[cursor]'] ?? null;
-            }
+            $queryParams = UriHelper::getQueryParams($nextUrl);
+            $nextCursor = $queryParams['page']['cursor'] ?? $queryParams['page[cursor]'] ?? null;
         }
 
         return [

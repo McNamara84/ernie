@@ -50,6 +50,7 @@ class DataCiteXmlExporter
      * @param  resource  $resource  The resource to export
      * @return string The DataCite XML string
      */
+    #[\NoDiscard('Exported XML string must be used')]
     public function export(Resource $resource): string
     {
         // Load all necessary relationships

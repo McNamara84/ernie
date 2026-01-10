@@ -14,7 +14,18 @@ class GcmdVocabularyParser
 
         $hits = $xml->xpath('//gcmd:gcmd/gcmd:hits');
 
-        return $hits ? (int) $hits[0] : 0;
+        // xpath() returns false on XPath evaluation error, or an array (possibly empty) on success
+        // It may also return null in some edge cases depending on PHP version
+        if ($hits === false || $hits === null || $hits === []) {
+            if ($hits === false) {
+                \Illuminate\Support\Facades\Log::warning('XPath evaluation error in extractTotalHits');
+            }
+
+            return 0;
+        }
+
+        // PHP 8.5: array_first() - we verified above that $hits is a non-empty array
+        return (int) array_first($hits);
     }
 
     /**

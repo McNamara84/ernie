@@ -34,6 +34,7 @@ class DataCiteXmlValidator
      *
      * @throws Exception If XML is malformed or cannot be parsed
      */
+    #[\NoDiscard('Validation result must be checked before proceeding')]
     public function validate(string $xml): bool
     {
         // Reset warnings

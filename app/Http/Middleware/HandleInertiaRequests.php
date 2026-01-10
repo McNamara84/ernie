@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\UriHelper;
 use App\Support\UrlNormalizer;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
@@ -98,8 +99,8 @@ class HandleInertiaRequests extends Middleware
             if (app()->environment('production')) {
                 $appUrl = UrlNormalizer::normalizeAppUrl(config('app.url'));
                 if ($appUrl !== null) {
-                    $parsedUrl = parse_url($appUrl);
-                    $path = $parsedUrl['path'] ?? '';
+                    // Use PHP 8.5's RFC 3986 compliant URI parser
+                    $path = UriHelper::getPath($appUrl) ?? '';
                     $path = rtrim($path, '/');
 
                     return $path === '' ? '' : $path;

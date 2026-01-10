@@ -29,6 +29,7 @@ class FakeDataCiteRegistrationService
      * @throws \InvalidArgumentException If prefix is not allowed
      * @throws \RuntimeException If resource doesn't have a landing page
      */
+    #[\NoDiscard('DOI registration response must be checked for success')]
     public function registerDoi(Resource $resource, string $prefix): array
     {
         // Log that fake service is being used

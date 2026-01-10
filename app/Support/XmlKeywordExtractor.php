@@ -125,7 +125,10 @@ class XmlKeywordExtractor
     {
         $segments = array_map('trim', explode(' > ', $path));
 
-        return end($segments) ?: $path;
+        // PHP 8.5: array_last() - explode() with a non-empty separator always returns
+        // at least one element, so array_last() will never return null here
+        /** @var string */
+        return array_last($segments);
     }
 
     /**

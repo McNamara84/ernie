@@ -51,8 +51,8 @@ describe('SafeUrl Validation Rule', function () {
         );
 
         expect($validator->fails())->toBeTrue();
-        // filter_var rejects this as malformed before scheme check
-        expect($validator->errors()->first('url'))->toContain('valid URL');
+        // PHP 8.5's Uri parser correctly identifies the scheme, so we get the protocol error
+        expect($validator->errors()->first('url'))->toContain('http or https');
     });
 
     test('rejects data: URL', function () {
@@ -99,8 +99,8 @@ describe('SafeUrl Validation Rule', function () {
         );
 
         expect($validator->fails())->toBeTrue();
-        // filter_var rejects this as malformed before our scheme check runs
-        expect($validator->errors()->first('url'))->toContain('valid URL');
+        // PHP 8.5's Uri parser treats this as a relative path without scheme
+        expect($validator->errors()->first('url'))->toContain('URL scheme');
     });
 
     test('is case-insensitive for scheme', function () {
