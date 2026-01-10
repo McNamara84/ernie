@@ -13,7 +13,20 @@
 
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
-    ->in('pest/Feature', 'Feature', 'pest/Debug');
+    ->in('pest/Feature', 'Feature', 'pest/Debug', 'pest/Browser');
+
+/*
+|--------------------------------------------------------------------------
+| Browser Testing Configuration
+|--------------------------------------------------------------------------
+|
+| Configure the Pest Browser plugin for smoke testing. Uses the built-in
+| PHP server provided by Laravel's testing stack.
+|
+*/
+
+pest()->browser()
+    ->timeout(15000);  // 15s timeout for browser operations
 
 /*
 |--------------------------------------------------------------------------
