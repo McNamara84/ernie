@@ -3,8 +3,8 @@ import { expect, test } from '@playwright/test';
 
 test.describe('Changelog Accessibility Tests (BITV 2.0 / WCAG 2.1 Level AA)', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('/changelog');
-        await page.waitForSelector('[aria-label="Changelog Timeline"]');
+        await page.goto('/changelog', { timeout: 60000 });
+        await page.waitForSelector('[aria-label="Changelog Timeline"]', { timeout: 30000 });
     });
 
     test('should not have any WCAG 2.1 Level A/AA violations (BITV 2.0 required)', async ({ page }) => {

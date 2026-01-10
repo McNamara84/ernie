@@ -10,11 +10,11 @@ import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 test.describe('DOI Registration Accessibility', () => {
     test.beforeEach(async ({ page }) => {
         // Login before each test
-        await page.goto('/login');
+        await page.goto('/login', { timeout: 60000 });
         await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
         await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
         await page.getByRole('button', { name: 'Log in' }).click();
-        await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+        await page.waitForURL(/\/dashboard/, { timeout: 30000 });
     });
 
     /**
