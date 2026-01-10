@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2]
-    name: Playwright (${{ matrix.browser }}) - Shard ${{ matrix.shard }}/2
+        shard: [1, 2, 3, 4]
+    name: Playwright (${{ matrix.browser }}) - Shard ${{ matrix.shard }}/4
     steps:
     - uses: actions/checkout@v4
     - name: Setup PHP
@@ -152,7 +152,7 @@ jobs:
         echo "=== Testing login page ==="
         curl -s http://127.0.0.1:8000/login | grep -q "login" && echo "✅ Login page accessible" || echo "❌ Login page NOT accessible"
     - name: Run Playwright tests
-      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/2
+      run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/4
       env:
         CI: true
     - name: Stop Laravel server
