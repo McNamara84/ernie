@@ -14,7 +14,8 @@ class GcmdVocabularyParser
 
         $hits = $xml->xpath('//gcmd:gcmd/gcmd:hits');
 
-        if ($hits === false || $hits === null || $hits === []) {
+        // xpath() returns false on error or an array on success (never null)
+        if (! is_array($hits) || $hits === []) {
             return 0;
         }
 

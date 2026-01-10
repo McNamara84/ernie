@@ -92,6 +92,9 @@ final class UriHelper
         // If RFC 3986 parsing fails (e.g., unencoded brackets), fall back to parse_url
         if ($query === null) {
             $legacyParsed = parse_url($url);
+            if ($legacyParsed === false) {
+                return [];
+            }
             $query = $legacyParsed['query'] ?? null;
         }
 
