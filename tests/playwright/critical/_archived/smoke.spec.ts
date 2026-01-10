@@ -2,18 +2,15 @@ import { expect, test } from '@playwright/test';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
+import { TEST_USER_EMAIL, TEST_USER_GREETING, TEST_USER_PASSWORD } from '../constants';
 
 /**
- * Critical E2E Smoke Tests
+ * Critical Smoke Tests
  * 
- * These tests verify critical end-to-end workflows that require real browser interaction.
- * Simple page load tests are now handled by Pest Browser Tests (tests/pest/Browser/SmokeTest.php).
+ * Simple, fast tests to verify core functionality works.
+ * Based on working tests from main branch.
  * 
- * Tests here focus on:
- * - File uploads (XML)
- * - Complex UI interactions
- * - Multi-step workflows
+ * Pattern: Dashboard → XML Upload → Editor with URL params
  */
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +20,23 @@ function resolveDatasetExample(filename: string): string {
   return path.resolve(__dirname, '..', '..', 'pest', 'dataset-examples', filename);
 }
 
-test.describe('Critical E2E Workflows', () => {
+test.describe('Critical Smoke Tests', () => {
+  test('user can login and access dashboard', async ({ page }) => {
+    // Navigate to login
+    await page.goto('/login');
+    
+    // Perform login
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    
+    // Verify redirect to dashboard
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    
+    // Verify dashboard is accessible
+    await expect(page.getByText(TEST_USER_GREETING)).toBeVisible();
+  });
+
   test('user can upload XML file and access editor form', async ({ page }) => {
     // Login first
     await page.goto('/login');
@@ -52,5 +65,22 @@ test.describe('Critical E2E Workflows', () => {
     
     // Verify editor page loaded successfully by checking for DOI field label
     await expect(page.getByText('DOI', { exact: true })).toBeVisible();
+  });
+
+  test('navigation between dashboard and settings works', async ({ page }) => {
+    // Login
+    await page.goto('/login');
+    await page.getByLabel('Email address').fill(TEST_USER_EMAIL);
+    await page.getByLabel('Password').fill(TEST_USER_PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    
+    // Navigate to settings
+    await page.goto('/settings');
+    await expect(page).toHaveURL(/\/settings/);
+    
+    // Navigate back to dashboard
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL(/\/dashboard/);
   });
 });
