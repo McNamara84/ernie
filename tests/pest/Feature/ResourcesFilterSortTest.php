@@ -50,6 +50,34 @@ describe('Resources Sort Options', function () {
 });
 
 describe('Resources Filter Options', function () {
+    it('can filter by resource type', function () {
+        $response = actingAs($this->user)
+            ->get('/resources?resource_type[]=dataset');
+
+        expect($response->status())->toBeLessThan(500);
+    });
+
+    it('can filter by multiple resource types', function () {
+        $response = actingAs($this->user)
+            ->get('/resources?resource_type[]=dataset&resource_type[]=software');
+
+        expect($response->status())->toBeLessThan(500);
+    });
+
+    it('can filter by curator', function () {
+        $response = actingAs($this->user)
+            ->get('/resources?curator[]=Test%20User');
+
+        expect($response->status())->toBeLessThan(500);
+    });
+
+    it('can filter by multiple curators', function () {
+        $response = actingAs($this->user)
+            ->get('/resources?curator[]=Test%20User&curator[]=Admin');
+
+        expect($response->status())->toBeLessThan(500);
+    });
+
     it('can filter by status curation', function () {
         $response = actingAs($this->user)
             ->get('/resources?status[]=curation');
