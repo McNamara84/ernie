@@ -45,3 +45,6 @@ node_modules/
 
 /playwright-report-stage
 /playwright-report-stage-local
+
+# Pest Browser Testing
+/tests/Browser/Screenshots/
