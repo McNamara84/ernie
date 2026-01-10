@@ -1429,22 +1429,31 @@ class UploadXmlController extends Controller
             return null;
         }
 
-        // If already a full URL, extract and normalize
+        // If already a full URL with ror.org host, extract and normalize
         if (preg_match('#^https?://ror\.org/(.+)$#i', $trimmed, $matches)) {
             $rorId = trim($matches[1]);
 
             return $rorId !== '' ? 'https://ror.org/'.Str::lower($rorId) : null;
         }
 
-        // If it contains a path structure, extract it using PHP 8.5's RFC 3986 URI parser
-        $path = UriHelper::getPath($trimmed);
-        if ($path !== null) {
-            $path = trim($path, '/');
+        // Check if it's a URL with a different host (e.g., "http://example.com/ror.org/someid")
+        // Only extract path if the host is actually ror.org
+        $host = UriHelper::getHost($trimmed);
+        if ($host !== null && Str::lower($host) === 'ror.org') {
+            $path = UriHelper::getPath($trimmed);
+            if ($path !== null) {
+                $path = trim($path, '/');
 
-            return $path !== '' ? 'https://ror.org/'.Str::lower($path) : null;
+                return $path !== '' ? 'https://ror.org/'.Str::lower($path) : null;
+            }
         }
 
-        // Otherwise, treat as ROR ID and prepend URL
+        // If it's a URL with a different host, don't process it as a ROR ID
+        if ($host !== null) {
+            return null;
+        }
+
+        // Otherwise, treat as bare ROR ID and prepend URL
         $path = Str::lower(trim($trimmed, '/'));
 
         return $path !== '' ? 'https://ror.org/'.$path : null;

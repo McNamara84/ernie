@@ -57,8 +57,13 @@ final class UriHelper
     /**
      * Extract the path from a URL.
      *
+     * Note: Returns null if URL parsing fails entirely. For valid URIs, the path
+     * component is always present per RFC 3986 (may be empty string for URLs like
+     * "http://example.com"). A null return value indicates a parsing failure,
+     * not the absence of a path component.
+     *
      * @param  string  $url  The URL to parse
-     * @return string|null The path, or null if parsing fails
+     * @return string|null The path (may be empty string), or null if parsing fails
      */
     public static function getPath(string $url): ?string
     {
@@ -87,6 +92,9 @@ final class UriHelper
      */
     public static function getQueryParams(string $url): array
     {
+        // Limit query string length to prevent potential DoS attacks
+        $maxQueryLength = 8192; // 8KB limit
+
         $query = self::getQuery($url);
 
         // If RFC 3986 parsing fails (e.g., unencoded brackets), fall back to parse_url
@@ -98,7 +106,7 @@ final class UriHelper
             $query = $legacyParsed['query'] ?? null;
         }
 
-        if ($query === null || $query === '') {
+        if ($query === null || $query === '' || strlen($query) > $maxQueryLength) {
             return [];
         }
 
