@@ -182,6 +182,15 @@ LOG;
     });
 
     it('filters logs by search term', function () {
+        // Ensure the log file has the expected content for this specific test
+        $logPath = storage_path('logs/laravel.log');
+        $logContent = <<<'LOG'
+[2024-01-01 10:00:00] local.INFO: Test info message
+[2024-01-01 10:01:00] local.WARNING: Test warning message for search
+[2024-01-01 10:02:00] local.ERROR: Test error message
+LOG;
+        File::put($logPath, $logContent);
+
         $admin = User::factory()->admin()->create();
 
         $response = $this->actingAs($admin)->get(route('logs.data', ['search' => 'warning']));
