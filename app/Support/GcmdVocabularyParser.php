@@ -14,7 +14,12 @@ class GcmdVocabularyParser
 
         $hits = $xml->xpath('//gcmd:gcmd/gcmd:hits');
 
-        return $hits ? (int) $hits[0] : 0;
+        if ($hits === false || $hits === null || $hits === []) {
+            return 0;
+        }
+
+        // PHP 8.5: array_first() - we already checked for empty array above
+        return (int) array_first($hits);
     }
 
     /**

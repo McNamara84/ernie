@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Rules;
 
+use App\Support\UriHelper;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -51,39 +52,40 @@ final class SafeUrl implements ValidationRule
             return;
         }
 
-        // Fail fast: validate URL format using filter_var before parsing.
-        // This catches clearly malformed URLs (e.g., 'http://', 'not-a-url') early,
-        // avoiding redundant scheme checks on invalid input.
-        if (filter_var($value, FILTER_VALIDATE_URL) === false) {
+        // Use PHP 8.5's RFC 3986 compliant URI parser for robust validation
+        $uri = UriHelper::parse($value);
+
+        // If parsing fails completely, the URL is malformed
+        if ($uri === null) {
             $fail('The :attribute must be a valid URL.');
 
             return;
         }
 
-        // Parse the URL to extract and validate the scheme.
-        // At this point, filter_var has confirmed basic URL structure.
-        $parsedUrl = parse_url($value);
+        $scheme = $uri->getScheme();
+        $host = $uri->getHost();
 
-        // If parse_url fails (rare after filter_var passes), the URL is malformed
-        if ($parsedUrl === false) {
-            $fail('The :attribute must be a valid URL.');
-
-            return;
-        }
-
-        // Extract and validate the scheme
-        $scheme = $parsedUrl['scheme'] ?? null;
-
+        // Check for missing scheme (relative URLs like "example.com/path")
         if ($scheme === null) {
             $fail('The :attribute must include a URL scheme (http or https).');
 
             return;
         }
 
-        // Case-insensitive check against allowed schemes (http/https only)
-        // This is the XSS protection: reject javascript:, data:, vbscript:, etc.
-        if (! in_array(strtolower($scheme), self::ALLOWED_SCHEMES, true)) {
-            $fail('The :attribute must use http or https protocol.');
+        // For http/https URLs, we require a host (reject "http://" without host)
+        if (in_array(strtolower($scheme), self::ALLOWED_SCHEMES, true)) {
+            if ($host === null || $host === '') {
+                $fail('The :attribute must be a valid URL.');
+
+                return;
+            }
+
+            // Valid http/https URL with host - accept it
+            return;
         }
+
+        // Reject other schemes (javascript:, data:, vbscript:, ftp:, file:, etc.)
+        // This is the XSS protection
+        $fail('The :attribute must use http or https protocol.');
     }
 }

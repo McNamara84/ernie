@@ -785,8 +785,10 @@ class OldDataset extends Model
                     $institutionName = $agent->name;
                 } elseif (! empty($affiliations)) {
                     // Use the first affiliation's value as institution name
-                    $firstAffiliation = reset($affiliations);
-                    if ($firstAffiliation && isset($firstAffiliation['value']) && ! empty($firstAffiliation['value'])) {
+                    // PHP 8.5: array_first() with explicit type assertion for mixed arrays
+                    /** @var array<int|string, array{value?: string}> $affiliations */
+                    $firstAffiliation = array_first($affiliations);
+                    if (is_array($firstAffiliation) && isset($firstAffiliation['value']) && $firstAffiliation['value'] !== '') {
                         $institutionName = $firstAffiliation['value'];
                     }
                 }

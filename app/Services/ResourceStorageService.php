@@ -379,7 +379,7 @@ class ResourceStorageService
         }
 
         // Get the first role and find the matching contributor type
-        $firstRole = reset($roles);
+        $firstRole = array_first($roles);
         if (! is_string($firstRole) || trim($firstRole) === '') {
             return;
         }
