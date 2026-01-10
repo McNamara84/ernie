@@ -2050,6 +2050,7 @@ export default function DataCiteForm({
                             <span tabIndex={0}>
                                 <Button
                                     type="submit"
+                                    data-testid="save-resource-button"
                                     disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}
                                     aria-busy={isSaving}
                                     aria-disabled={isSaving || !areRequiredFieldsFilled || hasLegacyKeywords}

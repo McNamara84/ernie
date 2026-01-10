@@ -84,8 +84,8 @@ export class DataCiteFormPage {
     this.abstractTextarea = page.getByTestId('abstract-textarea');
     this.abstractCharacterCount = page.locator('#description-Abstract-count');
     
-    // Save Button
-    this.saveButton = page.getByRole('button', { name: /Save to database/i });
+    // Save Button - use data-testid for stability
+    this.saveButton = page.getByTestId('save-resource-button');
     this.saveButtonTooltip = page.locator('[role="tooltip"]');
   }
   

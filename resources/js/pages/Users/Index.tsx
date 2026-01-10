@@ -197,7 +197,7 @@ export default function Index({ users, available_roles, can_promote_to_group_lea
                             </Alert>
                         ) : (
                             <div className="rounded-md border">
-                                <Table>
+                                <Table data-testid="users-table">
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="w-[50px]">ID</TableHead>

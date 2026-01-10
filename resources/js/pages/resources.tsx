@@ -1090,7 +1090,7 @@ function ResourcesPage({
                                     </Badge>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                    <table data-testid="resources-table" className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <caption className="sr-only">
                                             List of resources with metadata including title, type, DOI, contributors, language, and version
                                         </caption>
