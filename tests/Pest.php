@@ -22,11 +22,14 @@ pest()->extend(Tests\TestCase::class)
 |
 | Configure the Pest Browser plugin for smoke testing. Uses the built-in
 | PHP server provided by Laravel's testing stack.
+| Only configure if the Browser plugin is available.
 |
 */
 
-pest()->browser()
-    ->timeout(15000);  // 15s timeout for browser operations
+if (class_exists(\Pest\Browser\Configuration::class)) {
+    pest()->browser()
+        ->timeout(15000);  // 15s timeout for browser operations
+}
 
 /*
 |--------------------------------------------------------------------------
