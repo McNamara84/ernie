@@ -11,11 +11,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
-    name: Pest PHP Tests - Shard ${{ matrix.shard }}/2
+    name: Pest PHP Tests
 
     steps:
       - name: Checkout
@@ -107,4 +103,4 @@ jobs:
           php artisan config:show app.url || echo "Could not show app.url"
 
       - name: Tests
-        run: ./vendor/bin/pest --shard=${{ matrix.shard }}/2
+        run: ./vendor/bin/pest --parallel
