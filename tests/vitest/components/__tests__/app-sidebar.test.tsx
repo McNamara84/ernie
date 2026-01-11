@@ -94,7 +94,12 @@ vi.mock('@inertiajs/react', async (importOriginal) => {
                         role: 'admin',
                         can_manage_users: true,
                         can_register_production_doi: true,
-                        can_access_administration: true,
+                        // Granular permissions (Issue #379)
+                        can_access_logs: true,
+                        can_access_old_datasets: true,
+                        can_access_statistics: true,
+                        can_access_users: true,
+                        can_access_editor_settings: true,
                     },
                 },
             },
@@ -105,11 +110,15 @@ vi.mock('@/components/app-logo', () => ({
     default: () => <span>Logo</span>,
 }));
 
-// Helper to create mock page props for different user roles
+// Helper to create mock page props for different user roles (Issue #379)
 const createMockUser = (overrides: Partial<{
     role: string;
     can_manage_users: boolean;
-    can_access_administration: boolean;
+    can_access_logs: boolean;
+    can_access_old_datasets: boolean;
+    can_access_statistics: boolean;
+    can_access_users: boolean;
+    can_access_editor_settings: boolean;
 }> = {}) => ({
     id: 1,
     name: 'Test User',
@@ -117,7 +126,12 @@ const createMockUser = (overrides: Partial<{
     role: 'admin',
     can_manage_users: true,
     can_register_production_doi: true,
-    can_access_administration: true,
+    // Granular permissions (Issue #379)
+    can_access_logs: true,
+    can_access_old_datasets: true,
+    can_access_statistics: true,
+    can_access_users: true,
+    can_access_editor_settings: true,
     ...overrides,
 });
 
@@ -202,7 +216,7 @@ describe('AppSidebar', () => {
         // Reset mocks for this test
         vi.clearAllMocks();
 
-        // Mock beginner user without administration access
+        // Mock beginner user without administration access (Issue #379)
         vi.doMock('@inertiajs/react', async (importOriginal) => {
             const actual = await importOriginal<typeof import('@inertiajs/react')>();
             return {
@@ -216,7 +230,11 @@ describe('AppSidebar', () => {
                             user: createMockUser({
                                 role: 'beginner',
                                 can_manage_users: false,
-                                can_access_administration: false,
+                                can_access_logs: false,
+                                can_access_old_datasets: false,
+                                can_access_statistics: false,
+                                can_access_users: false,
+                                can_access_editor_settings: false,
                             }),
                         },
                     },
@@ -242,13 +260,20 @@ describe('AppSidebar', () => {
         // Verify the other sections are present
         expect(sectionLabels).toContain('Data Curation');
         expect(sectionLabels).toContain('IGSN Curation');
+
+        // Verify Editor Settings is NOT in footer (Issue #379)
+        const footerArgs = NavFooterMock.mock.calls[0][0];
+        const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
+        expect(footerTitles).not.toContain('Editor Settings');
+        expect(footerTitles).toContain('Changelog');
+        expect(footerTitles).toContain('Documentation');
     });
 
     it('does not render Administration section for curator users', async () => {
         // Reset mocks for this test
         vi.clearAllMocks();
 
-        // Mock curator user without administration access
+        // Mock curator user without administration access (Issue #379)
         vi.doMock('@inertiajs/react', async (importOriginal) => {
             const actual = await importOriginal<typeof import('@inertiajs/react')>();
             return {
@@ -262,7 +287,11 @@ describe('AppSidebar', () => {
                             user: createMockUser({
                                 role: 'curator',
                                 can_manage_users: false,
-                                can_access_administration: false,
+                                can_access_logs: false,
+                                can_access_old_datasets: false,
+                                can_access_statistics: false,
+                                can_access_users: false,
+                                can_access_editor_settings: false,
                             }),
                         },
                     },
@@ -284,5 +313,68 @@ describe('AppSidebar', () => {
         const sectionCalls = NavSectionMock.mock.calls;
         const sectionLabels = sectionCalls.map((call) => call[0].label);
         expect(sectionLabels).not.toContain('Administration');
+
+        // Verify Editor Settings is NOT in footer (Issue #379)
+        const footerArgs = NavFooterMock.mock.calls[0][0];
+        const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
+        expect(footerTitles).not.toContain('Editor Settings');
+    });
+
+    it('renders partial Administration section for group leader (Issue #379)', async () => {
+        // Reset mocks for this test
+        vi.clearAllMocks();
+
+        // Mock group leader user with partial administration access
+        vi.doMock('@inertiajs/react', async (importOriginal) => {
+            const actual = await importOriginal<typeof import('@inertiajs/react')>();
+            return {
+                ...actual,
+                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
+                    <a href={href}>{children}</a>
+                ),
+                usePage: () => ({
+                    props: {
+                        auth: {
+                            user: createMockUser({
+                                role: 'group_leader',
+                                can_manage_users: true,
+                                can_access_logs: false,
+                                can_access_old_datasets: false,
+                                can_access_statistics: true,
+                                can_access_users: true,
+                                can_access_editor_settings: true,
+                            }),
+                        },
+                    },
+                }),
+            };
+        });
+
+        // Need to re-import to get fresh module with new mock
+        vi.resetModules();
+        const { AppSidebar } = await import('@/components/app-sidebar');
+
+        render(<AppSidebar />);
+
+        // Should render NavSection components (4 sections for group leader with partial admin)
+        expect(NavSectionMock).toHaveBeenCalled();
+        expect(NavSectionMock).toHaveBeenCalledTimes(4);
+
+        // Verify Administration section IS rendered
+        const sectionCalls = NavSectionMock.mock.calls;
+        const adminSection = sectionCalls.find((call) => call[0].label === 'Administration');
+        expect(adminSection).toBeDefined();
+
+        // Verify only Statistics and Users are shown (not Logs or Old Datasets)
+        const adminItems = adminSection![0].items.map((i: NavItem) => i.title);
+        expect(adminItems).toContain('Statistics (old)');
+        expect(adminItems).toContain('Users');
+        expect(adminItems).not.toContain('Logs');
+        expect(adminItems).not.toContain('Old Datasets');
+
+        // Verify Editor Settings IS in footer for group leader
+        const footerArgs = NavFooterMock.mock.calls[0][0];
+        const footerTitles = footerArgs.items.map((i: NavItem) => i.title);
+        expect(footerTitles).toContain('Editor Settings');
     });
 });
