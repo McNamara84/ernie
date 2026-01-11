@@ -18,8 +18,9 @@ test('guests are redirected to login when accessing editor settings', function (
     $this->get(route('settings'))->assertRedirect(route('login'));
 });
 
-test('authenticated users can view editor settings page', function () {
-    $user = User::factory()->create();
+test('admin users can view editor settings page', function () {
+    // Issue #379: Only Admin and Group Leader can access Editor Settings
+    $user = User::factory()->admin()->create();
     ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true]);
     // Use firstOrCreate since migration may have already created MainTitle
     TitleType::firstOrCreate(
@@ -46,8 +47,9 @@ test('authenticated users can view editor settings page', function () {
     );
 });
 
-test('authenticated users can update resource and title types and settings', function () {
-    $user = User::factory()->create();
+test('admin users can update resource and title types and settings', function () {
+    // Issue #379: Only Admin and Group Leader can access Editor Settings
+    $user = User::factory()->admin()->create();
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
     // Use firstOrCreate since migration may have already created MainTitle
     $title = TitleType::firstOrCreate(
@@ -113,7 +115,8 @@ test('authenticated users can update resource and title types and settings', fun
 });
 
 test('updating settings with invalid data returns errors', function () {
-    $user = User::factory()->create();
+    // Issue #379: Only Admin and Group Leader can access Editor Settings
+    $user = User::factory()->admin()->create();
     $type = ResourceType::create(['name' => 'Dataset', 'slug' => 'Dataset', 'is_active' => true, 'is_elmo_active' => true]);
     // Use firstOrCreate since migration may have already created MainTitle
     $title = TitleType::firstOrCreate(

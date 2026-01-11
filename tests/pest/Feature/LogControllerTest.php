@@ -31,13 +31,13 @@ describe('Log Routes Access Control', function () {
         $response->assertStatus(200);
     });
 
-    it('allows group leader to access logs', function () {
-        withoutVite();
+    it('denies group leader access to logs', function () {
+        // Issue #379: Only Admin can access Logs (Group Leader no longer has access)
         $groupLeader = User::factory()->groupLeader()->create();
 
         $response = $this->actingAs($groupLeader)->get(route('logs.index'));
 
-        $response->assertStatus(200);
+        $response->assertForbidden();
     });
 
     it('denies curator access to logs', function () {
@@ -80,12 +80,13 @@ describe('Log Data API Access Control', function () {
         $response->assertOk();
     });
 
-    it('allows group leader to access logs.data', function () {
+    it('denies group leader access to logs.data', function () {
+        // Issue #379: Only Admin can access Logs (Group Leader no longer has access)
         $groupLeader = User::factory()->groupLeader()->create();
 
         $response = $this->actingAs($groupLeader)->get(route('logs.data'));
 
-        $response->assertOk();
+        $response->assertForbidden();
     });
 });
 
@@ -260,14 +261,12 @@ describe('Log Index Page', function () {
         );
     });
 
-    it('shows can_delete as false for group leader', function () {
-        withoutVite();
+    it('denies group leader access to logs page entirely', function () {
+        // Issue #379: Group Leader no longer has access to Logs at all
         $groupLeader = User::factory()->groupLeader()->create();
 
         $response = $this->actingAs($groupLeader)->get(route('logs.index'));
 
-        $response->assertInertia(fn ($page) => $page
-            ->where('can_delete', false)
-        );
+        $response->assertForbidden();
     });
 });
