@@ -487,22 +487,38 @@ XML;
 test('recognizes GCMD keywords with legacy ELMO subjectScheme names', function () {
     $this->actingAs(User::factory()->create());
 
+    // Test all supported legacy format variations:
+    // - "NASA/GCMD Platforms Keywords" (without "Earth")
+    // - "GCMD Platforms" (short format)
+    // - "GCMD Instruments" (short format)
     $xml = <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
 <resource xmlns="http://datacite.org/schema/kernel-4">
   <subjects>
     <subject subjectScheme="NASA/GCMD Platforms Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/812304fb-2eaf-4ce8-ac49-2de68c025927">Rockets</subject>
+    <subject subjectScheme="GCMD Platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/9e9e86b0-d613-4069-abe2-8291a6fac3ef">Titan 34D</subject>
+    <subject subjectScheme="GCMD Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/d8480746-ff39-4de8-ba2e-b5de47890c78">ICE AUGERS</subject>
   </subjects>
 </resource>
 XML;
 
-    $file = UploadedFile::fake()->createWithContent('legacy-platforms.xml', $xml);
+    $file = UploadedFile::fake()->createWithContent('legacy-formats.xml', $xml);
 
     $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
         ->assertOk();
 
-    // Should recognize the legacy "Platforms Keywords" format (without "Earth")
-    $response->assertSessionDataCount(1, 'gcmdKeywords');
+    // All three legacy formats should be recognized
+    $response->assertSessionDataCount(3, 'gcmdKeywords');
+
+    // "NASA/GCMD Platforms Keywords" (without "Earth")
     $response->assertSessionDataPath('gcmdKeywords.0.scheme', 'Platforms');
     $response->assertSessionDataPath('gcmdKeywords.0.uuid', '812304fb-2eaf-4ce8-ac49-2de68c025927');
+
+    // "GCMD Platforms" (short format)
+    $response->assertSessionDataPath('gcmdKeywords.1.scheme', 'Platforms');
+    $response->assertSessionDataPath('gcmdKeywords.1.uuid', '9e9e86b0-d613-4069-abe2-8291a6fac3ef');
+
+    // "GCMD Instruments" (short format)
+    $response->assertSessionDataPath('gcmdKeywords.2.scheme', 'Instruments');
+    $response->assertSessionDataPath('gcmdKeywords.2.uuid', 'd8480746-ff39-4de8-ba2e-b5de47890c78');
 });

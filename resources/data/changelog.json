@@ -27,7 +27,7 @@
         "fixes": [
             {
                 "title": "GCMD Thesauri Keywords Not Loading from XML",
-                "description": "Fixed an issue where GCMD keywords from Earth Platforms and Instruments thesauri were not being correctly imported from ELMO XML files. The system now supports all naming conventions used by ELMO for the three GCMD vocabularies (NASA/GCMD Earth Science Keywords, NASA/GCMD Earth Platforms Keywords, NASA/GCMD Instruments)."
+                "description": "Fixed an issue where GCMD keywords from Earth Platforms and Instruments thesauri were not being correctly imported from ELMO XML files. The system now supports all naming conventions: official formats (NASA/GCMD Earth Science Keywords, NASA/GCMD Earth Platforms Keywords, NASA/GCMD Instruments), legacy formats (NASA/GCMD Platforms Keywords), and short formats (GCMD Platforms, GCMD Instruments)."
             },
             {
                 "title": "Resources Search and Year Filter",
