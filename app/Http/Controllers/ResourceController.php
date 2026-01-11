@@ -582,11 +582,11 @@ class ResourceController extends Controller
 
         // Year range filter
         if (isset($filters['year_from'])) {
-            $query->where('year', '>=', $filters['year_from']);
+            $query->where('publication_year', '>=', $filters['year_from']);
         }
 
         if (isset($filters['year_to'])) {
-            $query->where('year', '<=', $filters['year_to']);
+            $query->where('publication_year', '<=', $filters['year_to']);
         }
 
         // Text search (title, DOI)
@@ -595,7 +595,7 @@ class ResourceController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('doi', 'like', "%{$search}%")
                     ->orWhereHas('titles', function ($titleQuery) use ($search) {
-                        $titleQuery->where('title', 'like', "%{$search}%");
+                        $titleQuery->where('value', 'like', "%{$search}%");
                     });
             });
         }
@@ -673,8 +673,13 @@ class ResourceController extends Controller
                 $query->orderBy('id', $sortDirection);
                 break;
 
+            case 'year':
+                // Map 'year' sort key to actual database column
+                $query->orderBy('publication_year', $sortDirection);
+                break;
+
             default:
-                // Direct column sorting (id, doi, year, created_at, updated_at)
+                // Direct column sorting (id, doi, created_at, updated_at)
                 $query->orderBy($sortKey, $sortDirection);
                 break;
         }

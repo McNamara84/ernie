@@ -182,16 +182,24 @@ LOG;
     });
 
     it('filters logs by search term', function () {
+        // Generate a unique search term to avoid conflicts with parallel tests
+        $uniqueId = uniqid('warning_test_', true);
+
+        // Write a log entry with the unique identifier using Laravel's Log facade
+        // This ensures the log is written to the correct location
+        \Illuminate\Support\Facades\Log::warning("Test warning message {$uniqueId}");
+
         $admin = User::factory()->admin()->create();
 
-        $response = $this->actingAs($admin)->get(route('logs.data', ['search' => 'warning']));
+        // Search for our unique warning message
+        $response = $this->actingAs($admin)->get(route('logs.data', ['search' => $uniqueId]));
 
         $response->assertOk();
         $data = $response->json('data');
 
         expect(count($data))->toBeGreaterThan(0);
         foreach ($data as $log) {
-            expect(strtolower($log['message'].$log['context']))->toContain('warning');
+            expect(strtolower($log['message'].$log['context']))->toContain(strtolower($uniqueId));
         }
     });
 
