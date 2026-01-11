@@ -5,6 +5,49 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { NavItem } from '@/types';
 
+// Configurable mock user - can be changed per test
+let mockUser = {
+    id: 1,
+    name: 'Test User',
+    email: 'test@example.com',
+    role: 'admin',
+    can_manage_users: true,
+    can_register_production_doi: true,
+    can_access_logs: true,
+    can_access_old_datasets: true,
+    can_access_statistics: true,
+    can_access_users: true,
+    can_access_editor_settings: true,
+};
+
+// Helper to set mock user for each test
+const setMockUser = (
+    overrides: Partial<{
+        role: string;
+        can_manage_users: boolean;
+        can_access_logs: boolean;
+        can_access_old_datasets: boolean;
+        can_access_statistics: boolean;
+        can_access_users: boolean;
+        can_access_editor_settings: boolean;
+    }> = {}
+) => {
+    mockUser = {
+        id: 1,
+        name: 'Test User',
+        email: 'test@example.com',
+        role: 'admin',
+        can_manage_users: true,
+        can_register_production_doi: true,
+        can_access_logs: true,
+        can_access_old_datasets: true,
+        can_access_statistics: true,
+        can_access_users: true,
+        can_access_editor_settings: true,
+        ...overrides,
+    };
+};
+
 const NavMainMock = vi.hoisted(() =>
     vi.fn(({ items }: { items: NavItem[] }) => (
         <nav data-testid="nav-main">
@@ -12,11 +55,7 @@ const NavMainMock = vi.hoisted(() =>
                 const href = typeof item.href === 'string' ? item.href : item.href.url;
                 return (
                     <div key={item.title}>
-                        {item.disabled ? (
-                            <span>{item.title}</span>
-                        ) : (
-                            <a href={href}>{item.title}</a>
-                        )}
+                        {item.disabled ? <span>{item.title}</span> : <a href={href}>{item.title}</a>}
                     </div>
                 );
             })}
@@ -49,11 +88,7 @@ const NavSectionMock = vi.hoisted(() =>
                 const href = typeof item.href === 'string' ? item.href : item.href.url;
                 return (
                     <div key={item.title}>
-                        {item.disabled ? (
-                            <span>{item.title}</span>
-                        ) : (
-                            <a href={href}>{item.title}</a>
-                        )}
+                        {item.disabled ? <span>{item.title}</span> : <a href={href}>{item.title}</a>}
                     </div>
                 );
             })}
@@ -77,85 +112,46 @@ vi.mock('@/components/ui/sidebar', () => ({
     SidebarGroupLabel: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
     SidebarSeparator: () => <hr />,
 }));
+
+// Use a getter function so mockUser changes are reflected
 vi.mock('@inertiajs/react', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@inertiajs/react')>();
     return {
         ...actual,
-        Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
-            <a href={href}>{children}</a>
-        ),
+        Link: ({ children, href }: { children?: React.ReactNode; href: string }) => <a href={href}>{children}</a>,
         usePage: () => ({
             props: {
                 auth: {
-                    user: {
-                        id: 1,
-                        name: 'Test User',
-                        email: 'test@example.com',
-                        role: 'admin',
-                        can_manage_users: true,
-                        can_register_production_doi: true,
-                        // Granular permissions (Issue #379)
-                        can_access_logs: true,
-                        can_access_old_datasets: true,
-                        can_access_statistics: true,
-                        can_access_users: true,
-                        can_access_editor_settings: true,
-                    },
+                    user: mockUser,
                 },
             },
         }),
     };
 });
+
 vi.mock('@/components/app-logo', () => ({
     default: () => <span>Logo</span>,
 }));
 
-// Helper to create mock page props for different user roles (Issue #379)
-const createMockUser = (overrides: Partial<{
-    role: string;
-    can_manage_users: boolean;
-    can_access_logs: boolean;
-    can_access_old_datasets: boolean;
-    can_access_statistics: boolean;
-    can_access_users: boolean;
-    can_access_editor_settings: boolean;
-}> = {}) => ({
-    id: 1,
-    name: 'Test User',
-    email: 'test@example.com',
-    role: 'admin',
-    can_manage_users: true,
-    can_register_production_doi: true,
-    // Granular permissions (Issue #379)
-    can_access_logs: true,
-    can_access_old_datasets: true,
-    can_access_statistics: true,
-    can_access_users: true,
-    can_access_editor_settings: true,
-    ...overrides,
-});
+// Import component once - mocks are already set up
+import { AppSidebar } from '@/components/app-sidebar';
 
 describe('AppSidebar', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Reset to admin user by default
+        setMockUser();
     });
 
-    it('renders navigation sections with correct items for admin user', async () => {
-        // Mock admin user
-        vi.doMock('@inertiajs/react', async (importOriginal) => {
-            const actual = await importOriginal<typeof import('@inertiajs/react')>();
-            return {
-                ...actual,
-                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
-                    <a href={href}>{children}</a>
-                ),
-                usePage: () => ({
-                    props: { auth: { user: createMockUser() } },
-                }),
-            };
+    it('renders navigation sections with correct items for admin user', () => {
+        setMockUser({
+            role: 'admin',
+            can_access_logs: true,
+            can_access_old_datasets: true,
+            can_access_statistics: true,
+            can_access_users: true,
+            can_access_editor_settings: true,
         });
-
-        const { AppSidebar } = await import('@/components/app-sidebar');
 
         render(<AppSidebar />);
 
@@ -212,39 +208,17 @@ describe('AppSidebar', () => {
         expect(screen.getByTestId('nav-user')).toBeInTheDocument();
     });
 
-    it('does not render Administration section for non-admin users (beginner)', async () => {
-        // Reset mocks for this test
-        vi.clearAllMocks();
-
+    it('does not render Administration section for non-admin users (beginner)', () => {
         // Mock beginner user without administration access (Issue #379)
-        vi.doMock('@inertiajs/react', async (importOriginal) => {
-            const actual = await importOriginal<typeof import('@inertiajs/react')>();
-            return {
-                ...actual,
-                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
-                    <a href={href}>{children}</a>
-                ),
-                usePage: () => ({
-                    props: {
-                        auth: {
-                            user: createMockUser({
-                                role: 'beginner',
-                                can_manage_users: false,
-                                can_access_logs: false,
-                                can_access_old_datasets: false,
-                                can_access_statistics: false,
-                                can_access_users: false,
-                                can_access_editor_settings: false,
-                            }),
-                        },
-                    },
-                }),
-            };
+        setMockUser({
+            role: 'beginner',
+            can_manage_users: false,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_editor_settings: false,
         });
-
-        // Need to re-import to get fresh module with new mock
-        vi.resetModules();
-        const { AppSidebar } = await import('@/components/app-sidebar');
 
         render(<AppSidebar />);
 
@@ -269,39 +243,17 @@ describe('AppSidebar', () => {
         expect(footerTitles).toContain('Documentation');
     });
 
-    it('does not render Administration section for curator users', async () => {
-        // Reset mocks for this test
-        vi.clearAllMocks();
-
+    it('does not render Administration section for curator users', () => {
         // Mock curator user without administration access (Issue #379)
-        vi.doMock('@inertiajs/react', async (importOriginal) => {
-            const actual = await importOriginal<typeof import('@inertiajs/react')>();
-            return {
-                ...actual,
-                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
-                    <a href={href}>{children}</a>
-                ),
-                usePage: () => ({
-                    props: {
-                        auth: {
-                            user: createMockUser({
-                                role: 'curator',
-                                can_manage_users: false,
-                                can_access_logs: false,
-                                can_access_old_datasets: false,
-                                can_access_statistics: false,
-                                can_access_users: false,
-                                can_access_editor_settings: false,
-                            }),
-                        },
-                    },
-                }),
-            };
+        setMockUser({
+            role: 'curator',
+            can_manage_users: false,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: false,
+            can_access_users: false,
+            can_access_editor_settings: false,
         });
-
-        // Need to re-import to get fresh module with new mock
-        vi.resetModules();
-        const { AppSidebar } = await import('@/components/app-sidebar');
 
         render(<AppSidebar />);
 
@@ -320,39 +272,17 @@ describe('AppSidebar', () => {
         expect(footerTitles).not.toContain('Editor Settings');
     });
 
-    it('renders partial Administration section for group leader (Issue #379)', async () => {
-        // Reset mocks for this test
-        vi.clearAllMocks();
-
+    it('renders partial Administration section for group leader (Issue #379)', () => {
         // Mock group leader user with partial administration access
-        vi.doMock('@inertiajs/react', async (importOriginal) => {
-            const actual = await importOriginal<typeof import('@inertiajs/react')>();
-            return {
-                ...actual,
-                Link: ({ children, href }: { children?: React.ReactNode; href: string }) => (
-                    <a href={href}>{children}</a>
-                ),
-                usePage: () => ({
-                    props: {
-                        auth: {
-                            user: createMockUser({
-                                role: 'group_leader',
-                                can_manage_users: true,
-                                can_access_logs: false,
-                                can_access_old_datasets: false,
-                                can_access_statistics: true,
-                                can_access_users: true,
-                                can_access_editor_settings: true,
-                            }),
-                        },
-                    },
-                }),
-            };
+        setMockUser({
+            role: 'group_leader',
+            can_manage_users: true,
+            can_access_logs: false,
+            can_access_old_datasets: false,
+            can_access_statistics: true,
+            can_access_users: true,
+            can_access_editor_settings: true,
         });
-
-        // Need to re-import to get fresh module with new mock
-        vi.resetModules();
-        const { AppSidebar } = await import('@/components/app-sidebar');
 
         render(<AppSidebar />);
 
