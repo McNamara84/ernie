@@ -162,20 +162,20 @@ class DoiSuggestionService
         }
 
         // Pattern: gfz.[code].[jahr].[nummer]
-        if (preg_match('/^gfz\.([a-z0-9]+)\.(\d{4})\.(\d+)$/i', $suffix, $matches)) {
+        if (preg_match('/^(gfz)\.([a-z0-9]+)\.(\d{4})\.(\d+)$/i', $suffix, $matches)) {
             return $this->findNextAvailable(
                 $prefix,
-                fn (int $num) => sprintf('gfz.%s.%s.%03d', $matches[1], $matches[2], $num),
-                (int) $matches[3]
+                fn (int $num) => sprintf('%s.%s.%s.%03d', $matches[1], $matches[2], $matches[3], $num),
+                (int) $matches[4]
             );
         }
 
         // Pattern: gfz.[s].[s].[jahr].[nummer]
-        if (preg_match('/^gfz\.(\d+)\.(\d+)\.(\d{4})\.(\d+)$/i', $suffix, $matches)) {
+        if (preg_match('/^(gfz)\.(\d+)\.(\d+)\.(\d{4})\.(\d+)$/i', $suffix, $matches)) {
             return $this->findNextAvailable(
                 $prefix,
-                fn (int $num) => sprintf('gfz.%s.%s.%s.%03d', $matches[1], $matches[2], $matches[3], $num),
-                (int) $matches[4]
+                fn (int $num) => sprintf('%s.%s.%s.%s.%03d', $matches[1], $matches[2], $matches[3], $matches[4], $num),
+                (int) $matches[5]
             );
         }
 
