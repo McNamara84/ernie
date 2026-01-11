@@ -65,7 +65,10 @@ Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [Voc
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
 
-// DOI validation endpoint
-Route::post('/v1/doi/validate', [DoiValidationController::class, 'validate']);
+// DOI validation endpoint - requires authentication and rate limiting
+// Allows 60 requests per minute per user to prevent abuse
+Route::middleware(['auth', 'throttle:doi-validation'])->group(function () {
+    Route::post('/v1/doi/validate', [DoiValidationController::class, 'validate']);
+});
 
 Route::get('/v1/doc', ApiDocController::class);

@@ -14,6 +14,10 @@
         ],
         "improvements": [
             {
+                "title": "DOI Validation Security Enhancements",
+                "description": "The DOI validation API endpoint now requires user authentication and includes rate limiting (60 requests per minute per user) to prevent abuse. Administrators can now edit DOIs even after a resource has been saved, allowing for typo corrections when needed."
+            },
+            {
                 "title": "Improved Date Created Handling for Imports",
                 "description": "When importing resources via XML upload or DataCite API, the original 'Date Created' value is now preserved if present in the source data. If no creation date exists, the current date is automatically set as fallback. Existing creation dates are never overwritten during updates, ensuring data integrity."
             },

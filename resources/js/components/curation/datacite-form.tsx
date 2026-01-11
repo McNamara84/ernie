@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertCircle, Calendar, CheckCircle, Circle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,7 +17,7 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { hasValidDateValue } from '@/lib/date-utils';
-import type { MSLLaboratory, RelatedIdentifier } from '@/types';
+import type { MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
@@ -327,6 +328,10 @@ export default function DataCiteForm({
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
 
+    // Get current user's role to allow admins to edit DOI even after save
+    const { auth } = usePage<SharedData>().props;
+    const isAdmin = auth.user?.role === 'admin';
+
     // Stable callback for setting auto-switch state
     const setShouldAutoSwitchToMsl = useCallback((value: boolean) => {
         setAutoSwitchToMslState(value);
@@ -350,14 +355,19 @@ export default function DataCiteForm({
     });
 
     // Check if DOI field should be readonly (already saved with a valid DOI)
-    const isDoiReadonly = Boolean(initialResourceId && initialDoi && initialDoi.trim() !== '');
+    // Admins can always edit the DOI field, even after the resource has been saved
+    const isDoiReadonly = Boolean(
+        initialResourceId && initialDoi && initialDoi.trim() !== '' && !isAdmin
+    );
 
     // Handler to use the suggested DOI from the conflict modal
+    // Note: We don't re-validate the suggested DOI because it was already verified as available
+    // by the backend's DoiSuggestionService when generating the suggestion
     const handleUseSuggestedDoi = useCallback((suggestedDoi: string) => {
         setForm((prev) => ({ ...prev, doi: suggestedDoi }));
-        // Validate the new DOI
-        validateDoi(suggestedDoi);
-    }, [validateDoi]);
+        // Show success toast to confirm the DOI was accepted
+        toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+    }, []);
 
     // Helper to handle field blur: mark as touched AND trigger validation
     const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
@@ -1717,9 +1727,13 @@ export default function DataCiteForm({
                                 validationMessages={getFieldState('doi').messages}
                                 touched={getFieldState('doi').touched}
                                 placeholder="10.xxxx/xxxxx"
-                                labelTooltip={isDoiReadonly 
-                                    ? "DOI cannot be changed after the resource has been saved"
-                                    : "Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"}
+                                labelTooltip={
+                                    isDoiReadonly 
+                                        ? "DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI."
+                                        : initialResourceId && initialDoi && isAdmin
+                                            ? "As an administrator, you can edit this DOI. Be careful when changing registered DOIs."
+                                            : "Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
+                                }
                                 className="md:col-span-3"
                                 readOnly={isDoiReadonly}
                                 disabled={isDoiValidating}

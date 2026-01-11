@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from 'axios';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Response from the DOI validation API endpoint
@@ -115,6 +115,18 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
     const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Ref for abort controller to cancel pending requests
     const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Cleanup on unmount: clear timeout and abort any pending requests
+    useEffect(() => {
+        return () => {
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     const resetValidation = useCallback(() => {
         setIsValid(null);

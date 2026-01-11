@@ -1,5 +1,5 @@
 import { AlertTriangle, CheckCircle2, ClipboardCopy, ExternalLink } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,16 @@ export function DoiConflictModal({
     onUseSuggested,
 }: DoiConflictModalProps) {
     const [copiedField, setCopiedField] = useState<'suggested' | 'last' | null>(null);
+    const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Cleanup timeout on unmount or when copiedField changes
+    useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const copyToClipboard = useCallback(async (text: string, field: 'suggested' | 'last') => {
         try {
@@ -54,8 +64,13 @@ export function DoiConflictModal({
             setCopiedField(field);
             toast.success('DOI in die Zwischenablage kopiert');
             
+            // Clear any existing timeout before setting a new one
+            if (copyTimeoutRef.current) {
+                clearTimeout(copyTimeoutRef.current);
+            }
+            
             // Reset the copied state after 2 seconds
-            setTimeout(() => {
+            copyTimeoutRef.current = setTimeout(() => {
                 setCopiedField(null);
             }, 2000);
         } catch {

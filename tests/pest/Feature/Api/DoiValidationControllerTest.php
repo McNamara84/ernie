@@ -6,8 +6,10 @@ use App\Models\TitleType;
 use App\Models\User;
 
 beforeEach(function () {
-    // Create a user for authenticated requests if needed
+    // Create and authenticate a user for all requests
+    // The DOI validation endpoint requires authentication
     $this->user = User::factory()->create();
+    $this->actingAs($this->user);
 });
 
 describe('DoiValidationController - Format Validation', function () {
@@ -298,5 +300,18 @@ describe('DoiValidationController - Edge Cases', function () {
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['exclude_resource_id']);
+    });
+});
+
+describe('DoiValidationController - Authentication', function () {
+    test('rejects unauthenticated requests', function () {
+        // Create a fresh test case without authentication
+        auth()->logout();
+
+        $response = $this->postJson('/api/v1/doi/validate', [
+            'doi' => '10.5880/test.2026.001',
+        ]);
+
+        $response->assertStatus(401);
     });
 });

@@ -215,6 +215,8 @@ class DoiSuggestionService
      * @param  string  $prefix  The DOI prefix (e.g., "10.5880")
      * @param  callable  $suffixGenerator  Function that generates suffix from number
      * @param  int  $startNumber  The starting number to increment from
+     *
+     * @throws \RuntimeException If no available DOI is found within the maximum attempts
      */
     private function findNextAvailable(string $prefix, callable $suffixGenerator, int $startNumber): string
     {
@@ -231,31 +233,40 @@ class DoiSuggestionService
             $number++;
         }
 
-        // If we couldn't find one in 100 attempts, return the last tried
-        return $prefix.'/'.$suffixGenerator($number);
+        // Log warning and throw exception if no available DOI found
+        \Log::warning('Could not find available DOI after {attempts} attempts', [
+            'prefix' => $prefix,
+            'start_number' => $startNumber,
+            'attempts' => $maxAttempts,
+        ]);
+
+        throw new \RuntimeException(
+            "Could not find an available DOI after {$maxAttempts} attempts. Please contact an administrator."
+        );
     }
 
     /**
      * Generate a fallback suggestion when pattern is not recognized.
      *
      * Uses the base part of the suffix with current year and sequential number.
+     * Uses PHP processing for cross-database compatibility (SQLite in tests, MySQL/MariaDB in production).
      */
     private function generateFallbackSuggestion(string $prefix, string $suffix): string
     {
-        $year = (string) date('Y');
+        $year = (string) now()->year;
 
         // Try to extract a project identifier from the suffix
         if (preg_match('/^([a-z0-9-]+)/i', $suffix, $matches)) {
             $projectId = strtolower($matches[1]);
 
             // Find the highest number for this project and year
-            $pattern = $prefix.'/'.$projectId.'.'.$year.'.%';
+            // Use a more specific pattern that matches the expected DOI format: project.year.NNN
+            $basePattern = $prefix.'/'.$projectId.'.'.$year.'.';
 
-            // Get all matching DOIs and find the highest number in PHP
-            // (avoiding MySQL-specific SUBSTRING_INDEX function)
-            $dois = Resource::where('doi', 'LIKE', $pattern)
-                ->pluck('doi')
-                ->toArray();
+            // Query DOIs matching our pattern and find max number in PHP
+            // This approach is compatible with both SQLite (tests) and MySQL/MariaDB (production)
+            $dois = Resource::where('doi', 'LIKE', $basePattern.'%')
+                ->pluck('doi');
 
             $maxNum = 0;
             foreach ($dois as $doi) {

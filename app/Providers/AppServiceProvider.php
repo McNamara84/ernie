@@ -51,6 +51,12 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('orcid-api', function (Request $request) {
             return Limit::perMinute(30)->by($request->ip());
         });
+
+        // Rate limiter for DOI validation endpoint
+        // Allows 60 requests per minute per authenticated user
+        RateLimiter::for('doi-validation', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
     }
 
     /**
