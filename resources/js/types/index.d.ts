@@ -46,9 +46,16 @@ export interface User {
     role?: UserRole;
     role_label?: string;
     is_active?: boolean;
+    // Gate-based permissions
     can_manage_users?: boolean;
-    can_access_administration?: boolean;
+    can_register_production_doi?: boolean;
     can_delete_logs?: boolean;
+    // Granular access permissions (Issue #379)
+    can_access_logs?: boolean;
+    can_access_old_datasets?: boolean;
+    can_access_statistics?: boolean;
+    can_access_users?: boolean;
+    can_access_editor_settings?: boolean;
     deactivated_at?: string | null;
     deactivated_by?: {
         id: number;
