@@ -27,6 +27,7 @@
 # Build artifacts
 /public/hot
 /public/build
+/public/storage
 
 # Development files
 docker-compose.yml
