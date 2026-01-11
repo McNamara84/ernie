@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\DataCiteController;
+use App\Http\Controllers\Api\DoiValidationController;
 use App\Http\Controllers\ApiDocController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\DateTypeController;
@@ -63,4 +64,8 @@ Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [Vocab
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
+
+// DOI validation endpoint
+Route::post('/v1/doi/validate', [DoiValidationController::class, 'validate']);
+
 Route::get('/v1/doc', ApiDocController::class);
