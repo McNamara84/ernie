@@ -2,6 +2,12 @@
     {
         "version": "1.0.0dev",
         "date": "2026-01-11",
+        "features": [
+            {
+                "title": "Automatic DataCite Synchronization",
+                "description": "When saving a resource that has a registered DOI, metadata is now automatically synchronized with DataCite. If the sync fails due to API errors or timeouts, the save operation still succeeds, and a warning notification is displayed. Resources without a DOI are saved normally without any DataCite interaction."
+            }
+        ],
         "improvements": [
             {
                 "title": "Improved Date Created Handling for Imports",
