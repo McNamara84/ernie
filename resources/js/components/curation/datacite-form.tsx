@@ -1,4 +1,3 @@
-import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertCircle, Calendar, CheckCircle, Circle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,30 +16,8 @@ import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validat
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { hasValidDateValue } from '@/lib/date-utils';
-import type { MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
+import type { MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
-
-/**
- * Helper hook to safely get admin status from Inertia page props.
- * Returns the provided prop value if available, otherwise tries to read from usePage.
- * Falls back to false if neither is available (e.g., in test environments).
- */
-function useIsAdmin(isUserAdminProp?: boolean): boolean {
-    // If prop is explicitly provided, use it (allows testing without Inertia context)
-    if (isUserAdminProp !== undefined) {
-        return isUserAdminProp;
-    }
-    
-    // Try to read from Inertia page context
-    try {
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const { auth } = usePage<SharedData>().props;
-        return auth.user?.role === 'admin';
-    } catch {
-        // Not in Inertia context (e.g., unit tests)
-        return false;
-    }
-}
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
     validateDate,
@@ -352,7 +329,8 @@ export default function DataCiteForm({
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
 
     // Get current user's admin status to allow admins to edit DOI even after save
-    const isAdmin = useIsAdmin(isUserAdmin);
+    // The prop is passed from the parent page component (editor.tsx) which has access to Inertia context
+    const isAdmin = isUserAdmin ?? false;
 
     // Stable callback for setting auto-switch state
     const setShouldAutoSwitchToMsl = useCallback((value: boolean) => {
@@ -1738,11 +1716,11 @@ export default function DataCiteForm({
                                 id="doi"
                                 label="DOI"
                                 value={form.doi || ''}
-                                onChange={(e) => !isDoiReadonly && handleChange('doi', e.target.value)}
+                                onChange={(e) => handleChange('doi', e.target.value)}
                                 onBlur={(e) => {
                                     markFieldTouched('doi');
                                     // Trigger async DOI validation (duplicate check)
-                                    if (!isDoiReadonly && e.target.value.trim()) {
+                                    if (e.target.value.trim()) {
                                         validateDoi(e.target.value);
                                     }
                                 }}

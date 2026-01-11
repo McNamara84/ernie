@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 import DataCiteForm, { type InitialAuthor, type InitialContributor } from '@/components/curation/datacite-form';
@@ -16,6 +16,7 @@ import {
     type RelatedIdentifier,
     type ResourceType,
     type Role,
+    type SharedData,
     type TitleType,
 } from '@/types';
 
@@ -75,6 +76,10 @@ export default function Editor({
     const [contributorInstitutionRoles, setContributorInstitutionRoles] = useState<Role[] | null>(null);
     const [authorRoles, setAuthorRoles] = useState<Role[] | null>(null);
     const [error, setError] = useState(false);
+
+    // Get admin status from Inertia shared data to pass to DataCiteForm
+    const { auth } = usePage<SharedData>().props;
+    const isUserAdmin = auth.user?.role === 'admin';
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -222,6 +227,7 @@ export default function Editor({
                             initialRelatedWorks={relatedWorks}
                             initialFundingReferences={fundingReferences}
                             initialMslLaboratories={mslLaboratories}
+                            isUserAdmin={isUserAdmin}
                         />
                     )}
             </div>

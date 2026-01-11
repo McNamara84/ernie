@@ -54,8 +54,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Rate limiter for DOI validation endpoint
         // Allows 60 requests per minute per authenticated user
+        // Note: This endpoint requires authentication, so user() will always be defined
         RateLimiter::for('doi-validation', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            /** @var \App\Models\User $user */
+            $user = $request->user();
+
+            return Limit::perMinute(60)->by((string) $user->id);
         });
     }
 

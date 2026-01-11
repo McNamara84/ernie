@@ -53,7 +53,24 @@ class DoiValidationController extends Controller
 
         // DOI already exists - provide suggestions
         $lastAssignedDoi = $this->doiSuggestionService->getLastAssignedDoi();
-        $suggestedDoi = $this->doiSuggestionService->suggestNextDoi($doi);
+        
+        // Try to get a suggested DOI, handling the case where no available DOI can be found
+        try {
+            $suggestedDoi = $this->doiSuggestionService->suggestNextDoi($doi);
+        } catch (\RuntimeException $e) {
+            // Could not find an available DOI after maximum attempts
+            return response()->json([
+                'is_valid_format' => true,
+                'exists' => true,
+                'existing_resource' => [
+                    'id' => $existingResource['id'],
+                    'title' => $existingResource['title'],
+                ],
+                'last_assigned_doi' => $lastAssignedDoi,
+                'suggested_doi' => null,
+                'error' => 'Could not generate a DOI suggestion. Please contact an administrator.',
+            ]);
+        }
 
         return response()->json([
             'is_valid_format' => true,

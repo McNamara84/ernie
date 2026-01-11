@@ -154,11 +154,13 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
             return;
         }
 
+        // Set validating state immediately to provide user feedback that validation is queued
+        setIsValidating(true);
+        setError(null);
+        setConflictData(null);
+
         // Debounce the validation request
         debounceTimeoutRef.current = setTimeout(async () => {
-            setIsValidating(true);
-            setError(null);
-            setConflictData(null);
 
             // Create a new abort controller for this request
             const abortController = new AbortController();

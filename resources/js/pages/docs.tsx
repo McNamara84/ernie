@@ -229,7 +229,7 @@ export default function Docs({ userRole }: DocsProps) {
                     <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
                         <p className="text-sm text-amber-900 dark:text-amber-100">
                             <strong>Note:</strong> Once a resource is saved with a DOI, the DOI field becomes read-only to prevent accidental changes.
-                            <strong> Administrators</strong> can still edit DOIs when needed (e.g., to correct typos), but should exercise caution
+                            <strong>Administrators</strong> can still edit DOIs when needed (e.g., to correct typos), but should exercise caution
                             when modifying registered DOIs.
                         </p>
                     </div>

@@ -73,7 +73,9 @@ export function DoiConflictModal({
             copyTimeoutRef.current = setTimeout(() => {
                 setCopiedField(null);
             }, 2000);
-        } catch {
+        } catch (error) {
+            // Log the error for debugging (clipboard access may be denied due to permissions)
+            console.error('Failed to copy to clipboard:', error);
             toast.error('Kopieren fehlgeschlagen');
         }
     }, []);

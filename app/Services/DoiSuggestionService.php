@@ -234,7 +234,7 @@ class DoiSuggestionService
         }
 
         // Log warning and throw exception if no available DOI found
-        \Log::warning('Could not find available DOI after {attempts} attempts', [
+        \Log::warning('Could not find available DOI after :attempts attempts', [
             'prefix' => $prefix,
             'start_number' => $startNumber,
             'attempts' => $maxAttempts,
@@ -248,12 +248,16 @@ class DoiSuggestionService
     /**
      * Generate a fallback suggestion when pattern is not recognized.
      *
-     * Uses the base part of the suffix with current year and sequential number.
+     * Uses the base part of the suffix with the specified year and sequential number.
      * Uses PHP processing for cross-database compatibility (SQLite in tests, MySQL/MariaDB in production).
+     *
+     * @param  string  $prefix  The DOI prefix
+     * @param  string  $suffix  The original DOI suffix
+     * @param  string|null  $year  The year to use for the suggestion (defaults to current year)
      */
-    private function generateFallbackSuggestion(string $prefix, string $suffix): string
+    private function generateFallbackSuggestion(string $prefix, string $suffix, ?string $year = null): string
     {
-        $year = (string) now()->year;
+        $year = $year ?? (string) now()->year;
 
         // Try to extract a project identifier from the suffix
         if (preg_match('/^([a-z0-9-]+)/i', $suffix, $matches)) {
