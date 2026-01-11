@@ -56,10 +56,10 @@ class AppServiceProvider extends ServiceProvider
      * They are used for global permissions that are not tied to a specific model.
      *
      * Role-based access control (Issue #379):
-     * - Admin: Full access to all areas
-     * - Group Leader: All areas except Logs and Old Datasets
-     * - Curator: Like Group Leader, but without Users, Editor Settings, Old Datasets
-     * - Beginner: Same as Curator, restricted to test DOI registration
+     * - Admin: Full access to all areas (Logs, Old Datasets, Statistics, Users, Editor Settings)
+     * - Group Leader: Statistics, Users, Editor Settings (no Logs, no Old Datasets)
+     * - Curator: No access to any administrative features
+     * - Beginner: Same as Curator, additionally restricted to test DOI registration only
      */
     private function defineGates(): void
     {
