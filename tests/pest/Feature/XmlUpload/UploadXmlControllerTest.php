@@ -444,3 +444,65 @@ XML;
     $response->assertSessionDataPath('dates.1.dateType', 'available');
     $response->assertSessionDataPath('dates.2.dateType', 'copyrighted');
 });
+
+test('extracts GCMD keywords from all three thesauri', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <subjects>
+    <subject>Free keyword</subject>
+    <subject subjectScheme="NASA/GCMD Earth Science Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/4e366444-01ea-4517-9d93-56f55ddf41b7">BIODIVERSITY FUNCTIONS</subject>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/812304fb-2eaf-4ce8-ac49-2de68c025927">Rockets</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/d8480746-ff39-4de8-ba2e-b5de47890c78">ICE AUGERS</subject>
+  </subjects>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('gcmd-keywords.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Should extract all three GCMD thesauri keywords
+    $response->assertSessionDataCount(3, 'gcmdKeywords');
+
+    // Science Keywords
+    $response->assertSessionDataPath('gcmdKeywords.0.scheme', 'Science Keywords');
+    $response->assertSessionDataPath('gcmdKeywords.0.uuid', '4e366444-01ea-4517-9d93-56f55ddf41b7');
+    $response->assertSessionDataPath('gcmdKeywords.0.text', 'BIODIVERSITY FUNCTIONS');
+
+    // Platforms
+    $response->assertSessionDataPath('gcmdKeywords.1.scheme', 'Platforms');
+    $response->assertSessionDataPath('gcmdKeywords.1.uuid', '812304fb-2eaf-4ce8-ac49-2de68c025927');
+    $response->assertSessionDataPath('gcmdKeywords.1.text', 'Rockets');
+
+    // Instruments
+    $response->assertSessionDataPath('gcmdKeywords.2.scheme', 'Instruments');
+    $response->assertSessionDataPath('gcmdKeywords.2.uuid', 'd8480746-ff39-4de8-ba2e-b5de47890c78');
+    $response->assertSessionDataPath('gcmdKeywords.2.text', 'ICE AUGERS');
+});
+
+test('recognizes GCMD keywords with legacy ELMO subjectScheme names', function () {
+    $this->actingAs(User::factory()->create());
+
+    $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xmlns="http://datacite.org/schema/kernel-4">
+  <subjects>
+    <subject subjectScheme="NASA/GCMD Platforms Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/812304fb-2eaf-4ce8-ac49-2de68c025927">Rockets</subject>
+  </subjects>
+</resource>
+XML;
+
+    $file = UploadedFile::fake()->createWithContent('legacy-platforms.xml', $xml);
+
+    $response = $this->postJson('/dashboard/upload-xml', ['file' => $file])
+        ->assertOk();
+
+    // Should recognize the legacy "Platforms Keywords" format (without "Earth")
+    $response->assertSessionDataCount(1, 'gcmdKeywords');
+    $response->assertSessionDataPath('gcmdKeywords.0.scheme', 'Platforms');
+    $response->assertSessionDataPath('gcmdKeywords.0.uuid', '812304fb-2eaf-4ce8-ac49-2de68c025927');
+});
