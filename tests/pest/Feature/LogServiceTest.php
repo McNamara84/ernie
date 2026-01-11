@@ -5,6 +5,10 @@ declare(strict_types=1);
 use App\Services\LogService;
 use Illuminate\Support\Facades\File;
 
+// Mark this test file as serial to prevent race conditions when writing to laravel.log
+// These tests modify the shared log file and cannot run in parallel
+uses()->group('serial');
+
 beforeEach(function () {
     $this->logService = new LogService;
     $this->logPath = storage_path('logs/laravel.log');

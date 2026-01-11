@@ -3,6 +3,7 @@ import { AlertCircle, Calendar, CheckCircle, Circle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { SectionHeader } from '@/components/curation/section-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
+import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -100,6 +102,7 @@ export default function DataCiteForm({
     initialMslLaboratories = [],
     initialRelatedWorks = [],
     initialFundingReferences = [],
+    isUserAdmin,
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -325,6 +328,10 @@ export default function DataCiteForm({
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
 
+    // Get current user's admin status to allow admins to edit DOI even after save
+    // The prop is passed from the parent page component (editor.tsx) which has access to Inertia context
+    const isAdmin = isUserAdmin ?? false;
+
     // Stable callback for setting auto-switch state
     const setShouldAutoSwitchToMsl = useCallback((value: boolean) => {
         setAutoSwitchToMslState(value);
@@ -332,6 +339,35 @@ export default function DataCiteForm({
 
     // Form validation hook
     const { validateField, markFieldTouched, getFieldState, getFieldMessages } = useFormValidation();
+
+    // DOI validation hook for duplicate checking
+    const {
+        isValidating: isDoiValidating,
+        conflictData,
+        showConflictModal,
+        setShowConflictModal,
+        validateDoi,
+    } = useDoiValidation({
+        excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
+        onSuccess: () => {
+            toast.success('DOI ist verfügbar', { duration: 2000 });
+        },
+    });
+
+    // Check if DOI field should be readonly (already saved with a valid DOI)
+    // Admins can always edit the DOI field, even after the resource has been saved
+    const isDoiReadonly = Boolean(
+        initialResourceId && initialDoi && initialDoi.trim() !== '' && !isAdmin
+    );
+
+    // Handler to use the suggested DOI from the conflict modal
+    // Note: We don't re-validate the suggested DOI because it was already verified as available
+    // by the backend's DoiSuggestionService when generating the suggestion
+    const handleUseSuggestedDoi = useCallback((suggestedDoi: string) => {
+        setForm((prev) => ({ ...prev, doi: suggestedDoi }));
+        // Show success toast to confirm the DOI was accepted
+        toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+    }, []);
 
     // Helper to handle field blur: mark as touched AND trigger validation
     const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
@@ -344,7 +380,7 @@ export default function DataCiteForm({
         });
     };
 
-    // DOI validation rules
+    // DOI validation rules (format only - duplicate check is done via useDoiValidation hook)
     const doiValidationRules: ValidationRule[] = [
         {
             validate: (value) => {
@@ -358,7 +394,6 @@ export default function DataCiteForm({
                 return null;
             },
         },
-        // TODO: Add async DOI registration check in separate effect
     ];
 
     // Year validation rules
@@ -1682,12 +1717,26 @@ export default function DataCiteForm({
                                 label="DOI"
                                 value={form.doi || ''}
                                 onChange={(e) => handleChange('doi', e.target.value)}
-                                onValidationBlur={() => markFieldTouched('doi')}
+                                onBlur={(e) => {
+                                    markFieldTouched('doi');
+                                    // Trigger async DOI validation (duplicate check)
+                                    if (e.target.value.trim()) {
+                                        validateDoi(e.target.value);
+                                    }
+                                }}
                                 validationMessages={getFieldState('doi').messages}
                                 touched={getFieldState('doi').touched}
                                 placeholder="10.xxxx/xxxxx"
-                                labelTooltip="Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
+                                labelTooltip={
+                                    isDoiReadonly 
+                                        ? "DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI."
+                                        : initialResourceId && initialDoi && isAdmin
+                                            ? "As an administrator, you can edit this DOI. Be careful when changing registered DOIs."
+                                            : "Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
+                                }
                                 className="md:col-span-3"
+                                readOnly={isDoiReadonly}
+                                disabled={isDoiValidating}
                             />
                             <InputField
                                 id="year"
@@ -2141,6 +2190,20 @@ export default function DataCiteForm({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* DOI Conflict Modal */}
+            {conflictData && (
+                <DoiConflictModal
+                    open={showConflictModal}
+                    onOpenChange={setShowConflictModal}
+                    existingDoi={conflictData.existingDoi}
+                    existingResourceTitle={conflictData.existingResourceTitle}
+                    existingResourceId={conflictData.existingResourceId}
+                    lastAssignedDoi={conflictData.lastAssignedDoi}
+                    suggestedDoi={conflictData.suggestedDoi}
+                    onUseSuggested={handleUseSuggestedDoi}
+                />
+            )}
         </form>
     );
 }

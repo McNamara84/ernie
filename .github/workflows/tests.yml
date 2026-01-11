@@ -103,4 +103,8 @@ jobs:
           php artisan config:show app.url || echo "Could not show app.url"
 
       - name: Tests
-        run: ./vendor/bin/pest --parallel
+        run: |
+          # Run serial tests first (tests that modify shared resources like log files)
+          ./vendor/bin/pest --group=serial
+          # Run remaining tests in parallel (excluding serial group)
+          ./vendor/bin/pest --parallel --exclude-group=serial

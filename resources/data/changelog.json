@@ -4,11 +4,19 @@
         "date": "2026-01-11",
         "features": [
             {
+                "title": "DOI Duplicate Detection and Suggestions",
+                "description": "The DOI field in the curation form now automatically validates entered DOIs against the database. When a duplicate is detected, an interactive modal appears showing the conflicting resource with a clickable link to view it. The system suggests the next available DOI based on the entered pattern, and provides one-click copy functionality. This prevents accidental DOI conflicts and streamlines the metadata curation workflow."
+            },
+            {
                 "title": "Automatic DataCite Synchronization",
                 "description": "When saving a resource that has a registered DOI, metadata is now automatically synchronized with DataCite. If the sync fails due to API errors or timeouts, the save operation still succeeds, and a warning notification is displayed. Resources without a DOI are saved normally without any DataCite interaction."
             }
         ],
         "improvements": [
+            {
+                "title": "DOI Validation Security Enhancements",
+                "description": "The DOI validation API endpoint now requires user authentication and includes rate limiting (60 requests per minute per user) to prevent abuse. Administrators can now edit DOIs even after a resource has been saved, allowing for typo corrections when needed."
+            },
             {
                 "title": "Improved Date Created Handling for Imports",
                 "description": "When importing resources via XML upload or DataCite API, the original 'Date Created' value is now preserved if present in the source data. If no creation date exists, the current date is automatically set as fallback. Existing creation dates are never overwritten during updates, ensuring data integrity."

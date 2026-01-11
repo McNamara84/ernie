@@ -26,6 +26,13 @@ const renderForm = vi.fn(() => null);
 
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+    usePage: () => ({
+        props: {
+            auth: {
+                user: { id: 1, name: 'Test User', role: 'curator' },
+            },
+        },
+    }),
 }));
 
 vi.mock('@/layouts/app-layout', () => ({
