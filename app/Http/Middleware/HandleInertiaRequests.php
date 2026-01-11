@@ -54,10 +54,16 @@ class HandleInertiaRequests extends Middleware
                     ...$request->user()->toArray(),
                     'role' => $request->user()->role->value,
                     'role_label' => $request->user()->role->label(),
+                    // Gate-based permissions (Issue #379)
                     'can_manage_users' => $request->user()->can('manage-users'),
                     'can_register_production_doi' => $request->user()->can('register-production-doi'),
-                    'can_access_administration' => $request->user()->can('access-administration'),
                     'can_delete_logs' => $request->user()->can('delete-logs'),
+                    // Granular access permissions (Issue #379)
+                    'can_access_logs' => $request->user()->can('access-logs'),
+                    'can_access_old_datasets' => $request->user()->can('access-old-datasets'),
+                    'can_access_statistics' => $request->user()->can('access-statistics'),
+                    'can_access_users' => $request->user()->can('access-users'),
+                    'can_access_editor_settings' => $request->user()->can('access-editor-settings'),
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',

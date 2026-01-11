@@ -135,14 +135,10 @@ if (in_array(config('app.env'), ['local', 'testing'], true)) {
 }
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Administration routes (Admin & Group Leader only)
-    // These routes require the 'access-administration' gate
-    Route::middleware(['can:access-administration'])->group(function () {
+    // Old Datasets routes (Admin only - Issue #379)
+    Route::middleware(['can:access-old-datasets'])->group(function () {
         Route::get('old-datasets', [OldDatasetController::class, 'index'])
             ->name('old-datasets');
-
-        Route::get('old-statistics', [OldDataStatisticsController::class, 'index'])
-            ->name('old-statistics');
 
         Route::get('old-datasets/filter-options', [OldDatasetController::class, 'getFilterOptions'])
             ->name('old-datasets.filter-options');
@@ -182,8 +178,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('old-datasets/{id}/msl-laboratories', [OldDatasetController::class, 'getMslLaboratories'])
             ->name('old-datasets.msl-laboratories');
+    });
 
-        // Logs routes
+    // Statistics routes (Admin, Group Leader - Issue #379)
+    Route::middleware(['can:access-statistics'])->group(function () {
+        Route::get('old-statistics', [OldDataStatisticsController::class, 'index'])
+            ->name('old-statistics');
+    });
+
+    // Logs routes (Admin only - Issue #379)
+    Route::middleware(['can:access-logs'])->group(function () {
         Route::get('logs', [\App\Http\Controllers\LogController::class, 'index'])
             ->name('logs.index');
 
@@ -302,9 +306,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->name('vocabularies.msl-vocabulary-url');
 
-    // User Management routes (Admin & Group Leader only)
-    // Uses 'can:access-administration' gate (replaces deprecated 'can.manage.users' middleware)
-    Route::middleware(['can:access-administration'])->prefix('users')->group(function () {
+    // User Management routes (Admin & Group Leader only - Issue #379)
+    Route::middleware(['can:access-users'])->prefix('users')->group(function () {
         Route::get('/', [App\Http\Controllers\UserController::class, 'index'])
             ->name('users.index');
         Route::post('/', [App\Http\Controllers\UserController::class, 'store'])

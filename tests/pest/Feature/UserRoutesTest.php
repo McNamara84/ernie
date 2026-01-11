@@ -74,7 +74,8 @@ describe('User Management Routes', function () {
         );
     });
 
-    it('applies can:access-administration gate middleware to all user routes', function () {
+    it('applies can:access-users gate middleware to all user routes', function () {
+        // Issue #379: User routes now use can:access-users gate (Admin + Group Leader)
         $routes = collect(Route::getRoutes())->filter(function ($route) {
             $name = $route->getName() ?? '';
 
@@ -84,7 +85,7 @@ describe('User Management Routes', function () {
         foreach ($routes as $route) {
             $middleware = $route->middleware();
             expect($middleware)
-                ->toContain('can:access-administration')
+                ->toContain('can:access-users')
                 ->and($middleware)
                 ->toContain('web')
                 ->and($middleware)
