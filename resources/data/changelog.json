@@ -4,6 +4,10 @@
         "date": "2026-01-11",
         "improvements": [
             {
+                "title": "Improved Date Created Handling for Imports",
+                "description": "When importing resources via XML upload or DataCite API, the original 'Date Created' value is now preserved if present in the source data. If no creation date exists, the current date is automatically set as fallback. Existing creation dates are never overwritten during updates, ensuring data integrity."
+            },
+            {
                 "title": "Full License Names on Landing Pages",
                 "description": "Landing pages now display the complete license name (e.g., 'Creative Commons Attribution 4.0 International') instead of just the short identifier. Creative Commons licenses additionally show their iconic symbols (CC, BY, SA, NC, ND). Hovering over a license badge reveals the SPDX identifier as a tooltip."
             },
