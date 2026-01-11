@@ -11,10 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
+import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
-import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { hasValidDateValue } from '@/lib/date-utils';
 import type { MSLLaboratory, RelatedIdentifier } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
@@ -338,7 +338,6 @@ export default function DataCiteForm({
     // DOI validation hook for duplicate checking
     const {
         isValidating: isDoiValidating,
-        isValid: isDoiValid,
         conflictData,
         showConflictModal,
         setShowConflictModal,
