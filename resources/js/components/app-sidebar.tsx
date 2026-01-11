@@ -65,38 +65,53 @@ export function AppSidebar() {
         },
     ];
 
-    // ADMINISTRATION section - only visible for admins and group leaders
-    const administrationItems: NavItem[] = auth.user?.can_access_administration
-        ? [
-              {
-                  title: 'Old Datasets',
-                  href: '/old-datasets',
-                  icon: Database,
-              },
-              {
-                  title: 'Statistics (old)',
-                  href: '/old-statistics',
-                  icon: BarChart3,
-              },
-              {
-                  title: 'Users',
-                  href: '/users',
-                  icon: Users,
-              },
-              {
-                  title: 'Logs',
-                  href: '/logs',
-                  icon: ScrollText,
-              },
-          ]
-        : [];
+    // ADMINISTRATION section - dynamically built based on granular permissions (Issue #379)
+    const administrationItems: NavItem[] = [];
 
-    const footerNavItems: NavItem[] = [
-        {
+    if (auth.user?.can_access_old_datasets) {
+        administrationItems.push({
+            title: 'Old Datasets',
+            href: '/old-datasets',
+            icon: Database,
+        });
+    }
+
+    if (auth.user?.can_access_statistics) {
+        administrationItems.push({
+            title: 'Statistics (old)',
+            href: '/old-statistics',
+            icon: BarChart3,
+        });
+    }
+
+    if (auth.user?.can_access_users) {
+        administrationItems.push({
+            title: 'Users',
+            href: '/users',
+            icon: Users,
+        });
+    }
+
+    if (auth.user?.can_access_logs) {
+        administrationItems.push({
+            title: 'Logs',
+            href: '/logs',
+            icon: ScrollText,
+        });
+    }
+
+    // Footer navigation - Editor Settings only for users with permission (Issue #379)
+    const footerNavItems: NavItem[] = [];
+
+    if (auth.user?.can_access_editor_settings) {
+        footerNavItems.push({
             title: 'Editor Settings',
             href: settings(),
             icon: Settings,
-        },
+        });
+    }
+
+    footerNavItems.push(
         {
             title: 'Changelog',
             href: '/changelog',
@@ -107,7 +122,7 @@ export function AppSidebar() {
             href: '/docs',
             icon: BookOpen,
         },
-    ];
+    );
 
     return (
         <Sidebar collapsible="icon" variant="inset">
