@@ -6,6 +6,8 @@ use App\Enums\UserRole;
 use App\Models\Resource;
 use App\Models\User;
 use App\Observers\ResourceObserver;
+use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteServiceInterface;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +21,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind DataCiteServiceInterface to the real implementation
+        // This binding is overridden by TestingServiceProvider in testing environment
+        $this->app->bind(DataCiteServiceInterface::class, DataCiteRegistrationService::class);
     }
 
     /**
