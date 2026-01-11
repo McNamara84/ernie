@@ -222,6 +222,16 @@ export default function DataCiteForm({
         }
         return [];
     });
+    // Extract imported 'created' date from initial data (for XML/DataCite imports)
+    // This date should be preserved and sent to the backend instead of using today's date
+    const importedCreatedDate = useMemo(() => {
+        if (initialDates && initialDates.length > 0) {
+            const createdDate = initialDates.find((date) => date.dateType.toLowerCase() === 'created');
+            return createdDate?.startDate || null;
+        }
+        return null;
+    }, [initialDates]);
+
     const [dates, setDates] = useState<DateEntry[]>(() => {
         if (initialDates && initialDates.length > 0) {
             // Filter out auto-managed date types ('created' and 'updated')
@@ -1467,6 +1477,8 @@ export default function DataCiteForm({
                 awardUri: string;
                 awardTitle: string;
             }[];
+            // Imported 'created' date from XML/DataCite import (Issue #371)
+            importedCreatedDate: string | null;
             resourceId?: number;
         } = {
             doi: form.doi?.trim() || null,
@@ -1533,6 +1545,8 @@ export default function DataCiteForm({
                 awardUri: funding.awardUri,
                 awardTitle: funding.awardTitle,
             })),
+            // Pass imported 'created' date to backend (Issue #371)
+            importedCreatedDate,
         };
 
         if (resolvedResourceId !== null) {

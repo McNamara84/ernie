@@ -291,3 +291,148 @@ describe('ResourceStorageService', function () {
             ->and($subject->value_uri)->toBe('https://gcmd.earthdata.nasa.gov/kms/concept/test-uuid');
     });
 });
+
+describe('ResourceStorageService - Issue #371: Date Created Handling', function () {
+    beforeEach(function () {
+        $this->service = app(ResourceStorageService::class);
+        $this->user = User::factory()->create();
+
+        // Ensure basic seed data exists
+        if (TitleType::where('slug', 'MainTitle')->doesntExist()) {
+            $this->artisan('db:seed', ['--class' => 'TitleTypeSeeder']);
+        }
+        if (ResourceType::count() === 0) {
+            $this->artisan('db:seed', ['--class' => 'ResourceTypeSeeder']);
+        }
+        $this->artisan('db:seed', ['--class' => 'DateTypeSeeder']);
+    });
+
+    it('uses imported created date when provided for new resources', function () {
+        $resourceType = ResourceType::first();
+        $importedDate = '2023-05-15';
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'importedCreatedDate' => $importedDate,
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+        // Find the 'created' date
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBe($importedDate)
+            ->and($isUpdate)->toBeFalse();
+    });
+
+    it('uses current date as fallback when no imported created date is provided', function () {
+        $resourceType = ResourceType::first();
+        $today = now()->format('Y-m-d');
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            // No importedCreatedDate provided
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBe($today);
+    });
+
+    it('preserves existing created date on resource update', function () {
+        $resourceType = ResourceType::first();
+        $originalDate = '2021-03-01';
+
+        // Create initial resource with an imported date
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Original Title', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'importedCreatedDate' => $originalDate,
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+        $originalResourceId = $resource->id;
+
+        // Update the resource (even with a new importedCreatedDate, it should be ignored)
+        $updateData = [
+            'resourceId' => $originalResourceId,
+            'year' => 2025,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Updated Title', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'Jane', 'lastName' => 'Smith', 'position' => 0],
+            ],
+            'importedCreatedDate' => '2026-01-01', // This should be ignored on update
+        ];
+
+        [$updatedResource, $wasUpdate] = $this->service->store($updateData, $this->user->id);
+
+        $createdDate = $updatedResource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($wasUpdate)->toBeTrue()
+            ->and($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBe($originalDate); // Original date preserved
+    });
+
+    it('handles empty string as no imported date', function () {
+        $resourceType = ResourceType::first();
+        $today = now()->format('Y-m-d');
+
+        $data = [
+            'resourceId' => null,
+            'year' => 2024,
+            'resourceType' => $resourceType->id,
+            'titles' => [
+                ['title' => 'Test Resource', 'titleType' => 'MainTitle'],
+            ],
+            'authors' => [
+                ['type' => 'person', 'firstName' => 'John', 'lastName' => 'Doe', 'position' => 0],
+            ],
+            'importedCreatedDate' => '', // Empty string should fall back to current date
+        ];
+
+        [$resource, $isUpdate] = $this->service->store($data, $this->user->id);
+
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBe($today);
+    });
+});

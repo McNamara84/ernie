@@ -588,3 +588,136 @@ describe('DataCiteToResourceTransformer', function (): void {
     });
 
 });
+
+describe('DataCiteToResourceTransformer - Issue #371: Date Created Handling', function (): void {
+
+    beforeEach(function (): void {
+        test()->seed(\Database\Seeders\ResourceTypeSeeder::class);
+        test()->seed(\Database\Seeders\TitleTypeSeeder::class);
+        test()->seed(\Database\Seeders\DateTypeSeeder::class);
+    });
+
+    it('preserves imported Created date from DataCite response', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer();
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/created.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test with Created Date']],
+                'creators' => [
+                    ['familyName' => 'Doe', 'givenName' => 'John', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2022-06-15', 'dateType' => 'Created'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Find the 'Created' date
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBe('2022-06-15');
+    });
+
+    it('adds fallback Created date with current date when not in DataCite response', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer();
+        $today = now()->format('Y-m-d');
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/nocreated.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test without Created Date']],
+                'creators' => [
+                    ['familyName' => 'Smith', 'givenName' => 'Jane', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2024-01-01', 'dateType' => 'Issued'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Find the 'Created' date
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBe($today);
+    });
+
+    it('adds fallback Created date when dates array is empty', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer();
+        $today = now()->format('Y-m-d');
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/nodates.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test without any Dates']],
+                'creators' => [
+                    ['familyName' => 'Brown', 'givenName' => 'Bob', 'nameType' => 'Personal'],
+                ],
+                // No dates array at all
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Find the 'Created' date
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate)->not->toBeNull()
+            ->and($createdDate->date_value)->toBe($today);
+    });
+
+    it('does not duplicate Created date when already present', function (): void {
+        $user = User::factory()->create();
+        $transformer = new DataCiteToResourceTransformer();
+
+        $doiData = [
+            'attributes' => [
+                'doi' => '10.5880/hascreated.2024.001',
+                'publicationYear' => 2024,
+                'titles' => [['title' => 'Test with existing Created Date']],
+                'creators' => [
+                    ['familyName' => 'Test', 'givenName' => 'User', 'nameType' => 'Personal'],
+                ],
+                'dates' => [
+                    ['date' => '2020-01-01', 'dateType' => 'Created'],
+                    ['date' => '2024-06-01', 'dateType' => 'Issued'],
+                ],
+            ],
+        ];
+
+        $resource = $transformer->transform($doiData, $user->id);
+
+        // Count 'Created' dates - should be exactly 1
+        $createdDatesCount = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->count();
+
+        expect($createdDatesCount)->toBe(1);
+
+        // Verify it's the imported date, not a fallback
+        $createdDate = $resource->dates()->whereHas('dateType', function ($q) {
+            $q->whereRaw('LOWER(slug) = ?', ['created']);
+        })->first();
+
+        expect($createdDate->date_value)->toBe('2020-01-01');
+    });
+
+});
