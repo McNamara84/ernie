@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-10",
+        "date": "2026-01-11",
         "improvements": [
             {
                 "title": "Full License Names on Landing Pages",
@@ -25,6 +25,10 @@
             }
         ],
         "fixes": [
+            {
+                "title": "GCMD Thesauri Keywords Not Loading from XML",
+                "description": "Fixed an issue where GCMD keywords from Earth Platforms and Instruments thesauri were not being correctly imported from ELMO XML files. The system now supports all naming conventions used by ELMO for the three GCMD vocabularies (NASA/GCMD Earth Science Keywords, NASA/GCMD Earth Platforms Keywords, NASA/GCMD Instruments)."
+            },
             {
                 "title": "Resources Search and Year Filter",
                 "description": "Fixed a 500 server error that occurred when using the search field or year range filter on the Resources page. The issue was caused by incorrect database column names in the filter queries."
