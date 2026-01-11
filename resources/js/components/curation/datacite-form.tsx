@@ -1561,8 +1561,39 @@ export default function DataCiteForm({
                 },
             });
 
-            const data = response.data as { message?: string } | null;
+            // Extended response type for DataCite sync (Issue #383)
+            interface SaveResponse {
+                message?: string;
+                resource?: { id: number };
+                dataCiteSync?: {
+                    attempted: boolean;
+                    success: boolean;
+                    errorMessage: string | null;
+                    doi: string | null;
+                };
+                warning?: string;
+            }
+
+            const data = response.data as SaveResponse | null;
             setSuccessMessage(data?.message || 'Successfully saved resource.');
+
+            // DataCite sync feedback via toast notifications
+            if (data?.dataCiteSync?.attempted) {
+                if (data.dataCiteSync.success) {
+                    // Success: Show confirmation that DOI was synced
+                    toast.success('DataCite metadata synchronized', {
+                        description: `DOI ${data.dataCiteSync.doi} has been updated.`,
+                        duration: 4000,
+                    });
+                } else {
+                    // Warning: Sync failed but save succeeded
+                    toast.warning('DataCite update failed', {
+                        description: data.dataCiteSync.errorMessage || 'Please try manually later.',
+                        duration: 8000,
+                    });
+                }
+            }
+
             setShowSuccessModal(true);
         } catch (error) {
             if (axios.isAxiosError(error)) {
