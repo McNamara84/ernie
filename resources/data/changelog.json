@@ -4,6 +4,10 @@
         "date": "2026-01-11",
         "features": [
             {
+                "title": "DOI Duplicate Detection and Suggestions",
+                "description": "The DOI field in the curation form now automatically validates entered DOIs against the database. When a duplicate is detected, an interactive modal appears showing the conflicting resource with a clickable link to view it. The system suggests the next available DOI based on the entered pattern, and provides one-click copy functionality. This prevents accidental DOI conflicts and streamlines the metadata curation workflow."
+            },
+            {
                 "title": "Automatic DataCite Synchronization",
                 "description": "When saving a resource that has a registered DOI, metadata is now automatically synchronized with DataCite. If the sync fails due to API errors or timeouts, the save operation still succeeds, and a warning notification is displayed. Resources without a DOI are saved normally without any DataCite interaction."
             }
