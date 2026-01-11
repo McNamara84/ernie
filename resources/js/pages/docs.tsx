@@ -199,6 +199,33 @@ export default function Docs({ userRole }: DocsProps) {
                     <h3>Registering DOIs for Datasets</h3>
                     <p>Once your dataset has a published landing page, you can register a Digital Object Identifier (DOI) through DataCite.</p>
 
+                    <h4>DOI Duplicate Detection</h4>
+                    <p>
+                        When entering a DOI in the curation form, the system automatically validates it against the database. If the DOI
+                        already exists:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>
+                            An <strong>interactive modal</strong> appears showing the conflicting resource with a clickable link
+                        </li>
+                        <li>
+                            The system suggests the <strong>next available DOI</strong> based on the entered pattern
+                        </li>
+                        <li>
+                            One-click <strong>copy functionality</strong> allows you to quickly use the suggested DOI
+                        </li>
+                        <li>
+                            The <strong>last assigned DOI</strong> in the system is displayed for reference
+                        </li>
+                    </ul>
+
+                    <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                            <strong>Tip:</strong> The DOI validation happens automatically when you leave the DOI field (on blur). This prevents
+                            accidental DOI conflicts and streamlines the metadata curation workflow.
+                        </p>
+                    </div>
+
                     <h4>Prerequisites</h4>
                     <ul className="list-inside list-disc space-y-1">
                         <li>
