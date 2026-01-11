@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Models\Resource;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
 use function Pest\Laravel\actingAs;
-use function Pest\Laravel\get;
+
+uses(RefreshDatabase::class);
 
 /**
  * Test: Resources Filter and Sort Investigation
