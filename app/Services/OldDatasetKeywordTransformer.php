@@ -8,10 +8,17 @@ class OldDatasetKeywordTransformer
 {
     /**
      * Maps old thesaurus names to scheme names.
+     * Supports both legacy ELMO format and current NASA/GCMD naming conventions.
      */
     private const SCHEME_MAP = [
+        // Science Keywords - single standard format
         'NASA/GCMD Earth Science Keywords' => 'Science Keywords',
+        // Platforms - support both legacy and current ELMO formats
+        'NASA/GCMD Earth Platforms Keywords' => 'Platforms',
+        'NASA/GCMD Platforms Keywords' => 'Platforms',
         'GCMD Platforms' => 'Platforms',
+        // Instruments - support both legacy and current ELMO formats
+        'NASA/GCMD Instruments' => 'Instruments',
         'GCMD Instruments' => 'Instruments',
     ];
 
