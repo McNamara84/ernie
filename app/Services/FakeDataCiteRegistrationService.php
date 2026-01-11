@@ -10,7 +10,7 @@ use App\Models\Resource;
  * Returns successful responses without making actual API calls
  * Used in E2E tests where HTTP mocking is not available
  */
-class FakeDataCiteRegistrationService
+class FakeDataCiteRegistrationService implements DataCiteServiceInterface
 {
     /**
      * Available DOI prefixes for testing

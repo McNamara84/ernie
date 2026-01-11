@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Log;
  *
  * @see https://support.datacite.org/docs/api API Documentation
  */
-class DataCiteRegistrationService
+class DataCiteRegistrationService implements DataCiteServiceInterface
 {
     /**
      * The DataCite API client instance

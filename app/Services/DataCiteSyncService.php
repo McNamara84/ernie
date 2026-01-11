@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Log;
 class DataCiteSyncService
 {
     public function __construct(
-        private readonly DataCiteRegistrationService $registrationService,
+        private readonly DataCiteServiceInterface $registrationService,
     ) {}
 
     /**
