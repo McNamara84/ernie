@@ -19,6 +19,28 @@ import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
 import { hasValidDateValue } from '@/lib/date-utils';
 import type { MSLLaboratory, RelatedIdentifier, SharedData } from '@/types';
 import type { GCMDKeyword, SelectedKeyword } from '@/types/gcmd';
+
+/**
+ * Helper hook to safely get admin status from Inertia page props.
+ * Returns the provided prop value if available, otherwise tries to read from usePage.
+ * Falls back to false if neither is available (e.g., in test environments).
+ */
+function useIsAdmin(isUserAdminProp?: boolean): boolean {
+    // If prop is explicitly provided, use it (allows testing without Inertia context)
+    if (isUserAdminProp !== undefined) {
+        return isUserAdminProp;
+    }
+    
+    // Try to read from Inertia page context
+    try {
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        const { auth } = usePage<SharedData>().props;
+        return auth.user?.role === 'admin';
+    } catch {
+        // Not in Inertia context (e.g., unit tests)
+        return false;
+    }
+}
 import { getVocabularyTypeFromScheme } from '@/types/gcmd';
 import {
     validateDate,
@@ -103,6 +125,7 @@ export default function DataCiteForm({
     initialMslLaboratories = [],
     initialRelatedWorks = [],
     initialFundingReferences = [],
+    isUserAdmin,
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -328,9 +351,8 @@ export default function DataCiteForm({
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
 
-    // Get current user's role to allow admins to edit DOI even after save
-    const { auth } = usePage<SharedData>().props;
-    const isAdmin = auth.user?.role === 'admin';
+    // Get current user's admin status to allow admins to edit DOI even after save
+    const isAdmin = useIsAdmin(isUserAdmin);
 
     // Stable callback for setting auto-switch state
     const setShouldAutoSwitchToMsl = useCallback((value: boolean) => {
