@@ -12,6 +12,8 @@ use App\Models\Title;
 use App\Models\User;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteSyncResult;
+use App\Services\DataCiteSyncService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
 use App\Services\ResourceCacheService;
@@ -47,7 +49,8 @@ class ResourceController extends Controller
      */
     public function __construct(
         private readonly ResourceCacheService $cacheService,
-        private readonly ResourceStorageService $storageService
+        private readonly ResourceStorageService $storageService,
+        private readonly DataCiteSyncService $syncService,
     ) {}
 
     private const ALLOWED_SORT_KEYS = [
@@ -150,15 +153,29 @@ class ResourceController extends Controller
             ], 500);
         }
 
+        // Automatic DataCite synchronization (Issue #383)
+        // If resource has a DOI, sync metadata with DataCite
+        $syncResult = $this->syncService->syncIfRegistered($resource);
+
         $message = $isUpdate ? 'Successfully updated resource.' : 'Successfully saved resource.';
         $status = $isUpdate ? 200 : 201;
 
-        return response()->json([
+        // Build response with sync status
+        $response = [
             'message' => $message,
             'resource' => [
                 'id' => $resource->id,
             ],
-        ], $status);
+            'dataCiteSync' => $syncResult->toArray(),
+        ];
+
+        // Add warning to message if sync failed
+        if ($syncResult->hasFailed()) {
+            $response['message'] = $message.' However, DataCite update failed.';
+            $response['warning'] = $syncResult->errorMessage;
+        }
+
+        return response()->json($response, $status);
     }
 
     /**

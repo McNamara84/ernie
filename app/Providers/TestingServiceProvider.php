@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\DataCiteRegistrationService;
+use App\Services\DataCiteServiceInterface;
 use App\Services\FakeDataCiteRegistrationService;
 use Illuminate\Support\ServiceProvider;
 
@@ -31,6 +32,11 @@ class TestingServiceProvider extends ServiceProvider
             }
 
             return new DataCiteRegistrationService;
+        });
+
+        // Also bind the interface to the same resolution logic
+        $this->app->bind(DataCiteServiceInterface::class, function ($app) {
+            return $app->make(DataCiteRegistrationService::class);
         });
     }
 
