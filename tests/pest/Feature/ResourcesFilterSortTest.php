@@ -10,12 +10,10 @@ use function Pest\Laravel\actingAs;
 uses(RefreshDatabase::class);
 
 /**
- * Test: Resources Filter and Sort Investigation
- * 
+ * Test: Resources Filter and Sort Validation
+ *
  * This test systematically tests all filter and sort options on the /resources route
- * to identify which combinations cause 500 errors.
- * 
- * Bug Report: Some filter and sort options on /resources return 500 errors.
+ * to ensure all combinations work correctly.
  */
 
 beforeEach(function () {

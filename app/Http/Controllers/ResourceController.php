@@ -673,8 +673,13 @@ class ResourceController extends Controller
                 $query->orderBy('id', $sortDirection);
                 break;
 
+            case 'year':
+                // Map 'year' sort key to actual database column
+                $query->orderBy('publication_year', $sortDirection);
+                break;
+
             default:
-                // Direct column sorting (id, doi, year, created_at, updated_at)
+                // Direct column sorting (id, doi, created_at, updated_at)
                 $query->orderBy($sortKey, $sortDirection);
                 break;
         }
