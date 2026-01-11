@@ -18,15 +18,15 @@
     <subject>Test Keyword 1</subject>
     <subject>Test Keyword 2</subject>
     <subject>Test Keyword 3</subject>
-    <subject subjectScheme="Science Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/4e366444-01ea-4517-9d93-56f55ddf41b7">BIODIVERSITY FUNCTIONS</subject>
-    <subject subjectScheme="Science Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/833b6958-fc93-473c-aadb-bb65da7578e5">HYDROGEN GAS VERTICAL/GEOGRAPHIC DISTRIBUTION</subject>
-    <subject subjectScheme="Platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/812304fb-2eaf-4ce8-ac49-2de68c025927">Rockets</subject>
-    <subject subjectScheme="Platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/9e9e86b0-d613-4069-abe2-8291a6fac3ef">Titan 34D</subject>
-    <subject subjectScheme="Platforms" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/a044e8ff-8225-4bba-85c4-80ea394e007b">Titan IIID</subject>
-    <subject subjectScheme="Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/d8480746-ff39-4de8-ba2e-b5de47890c78">ICE AUGERS</subject>
-    <subject subjectScheme="Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/96471be4-6078-477d-8e66-c02b92f594d4">DREDGING DEVICES</subject>
-    <subject subjectScheme="Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/f5a3c5f6-b575-48f4-8479-2bc4092c8f99">EDDY CORRELATION DEVICES</subject>
-    <subject subjectScheme="Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/b867df1d-a9dd-4c68-89db-1290217890a4">Charged Coupled Devices</subject>
+    <subject subjectScheme="NASA/GCMD Earth Science Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/4e366444-01ea-4517-9d93-56f55ddf41b7">BIODIVERSITY FUNCTIONS</subject>
+    <subject subjectScheme="NASA/GCMD Earth Science Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/833b6958-fc93-473c-aadb-bb65da7578e5">HYDROGEN GAS VERTICAL/GEOGRAPHIC DISTRIBUTION</subject>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/812304fb-2eaf-4ce8-ac49-2de68c025927">Rockets</subject>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/9e9e86b0-d613-4069-abe2-8291a6fac3ef">Titan 34D</subject>
+    <subject subjectScheme="NASA/GCMD Earth Platforms Keywords" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/a044e8ff-8225-4bba-85c4-80ea394e007b">Titan IIID</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/d8480746-ff39-4de8-ba2e-b5de47890c78">ICE AUGERS</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/96471be4-6078-477d-8e66-c02b92f594d4">DREDGING DEVICES</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/f5a3c5f6-b575-48f4-8479-2bc4092c8f99">EDDY CORRELATION DEVICES</subject>
+    <subject subjectScheme="NASA/GCMD Instruments" valueURI="https://gcmd.earthdata.nasa.gov/kms/concept/b867df1d-a9dd-4c68-89db-1290217890a4">Charged Coupled Devices</subject>
   </subjects>
   <contributors>
     <contributor contributorType="ContactPerson">
