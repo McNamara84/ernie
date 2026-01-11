@@ -86,6 +86,9 @@ class StoreResourceRequest extends FormRequest
             'dates.*.startDate' => ['nullable', 'date'],
             'dates.*.endDate' => ['nullable', 'date'],
             'dates.*.dateInformation' => ['nullable', 'string', 'max:255'],
+            // Imported 'created' date from XML/DataCite import (Issue #371)
+            // If provided, this date is used instead of the current date for new resources
+            'importedCreatedDate' => ['nullable', 'date'],
             'freeKeywords' => ['nullable', 'array'],
             'freeKeywords.*' => ['string', 'max:255'],
             'gcmdKeywords' => ['nullable', 'array'],

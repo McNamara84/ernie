@@ -18,6 +18,7 @@ use App\Models\TitleType;
 use App\Services\Entities\AffiliationService;
 use App\Services\Entities\InstitutionService;
 use App\Services\Entities\PersonService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -574,11 +575,21 @@ class ResourceStorageService
         }
 
         // Auto-manage 'created' date: Set only on new resources (not on updates)
+        // Issue #371: If an imported 'created' date is provided (from XML/DataCite import),
+        // use that date instead of the current date. This preserves the original creation
+        // date from external sources like ELMO.
         if (! $isUpdate && $createdDateTypeId !== null) {
-            // Create a 'created' date with current timestamp for new resources
+            // Check if an imported created date was provided
+            $importedCreatedDate = $data['importedCreatedDate'] ?? null;
+
+            // Use imported date if available, otherwise use current date as fallback
+            $createdDateValue = $importedCreatedDate !== null && $importedCreatedDate !== ''
+                ? Carbon::parse($importedCreatedDate)->format('Y-m-d')
+                : now()->format('Y-m-d');
+
             $resource->dates()->create([
                 'date_type_id' => $createdDateTypeId,
-                'date_value' => now()->format('Y-m-d'),
+                'date_value' => $createdDateValue,
                 'start_date' => null,
                 'end_date' => null,
                 'date_information' => null,
