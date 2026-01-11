@@ -8,9 +8,13 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::middleware('auth')->group(function () {
-    Route::get('settings', [EditorSettingsController::class, 'index'])->name('settings');
-    Route::post('settings', [EditorSettingsController::class, 'update'])->name('settings.update');
+    // Editor Settings (Admin, Group Leader only - Issue #379)
+    Route::middleware(['can:access-editor-settings'])->group(function () {
+        Route::get('settings', [EditorSettingsController::class, 'index'])->name('settings');
+        Route::post('settings', [EditorSettingsController::class, 'update'])->name('settings.update');
+    });
 
+    // Personal settings (all authenticated users)
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('settings/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
