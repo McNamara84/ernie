@@ -26,6 +26,13 @@ export interface DOIResolutionResult {
  * Validate DOI format according to DOI syntax
  * DOIs start with "10." followed by a registrant code and a suffix
  * Also accepts DOI URLs (https://doi.org/... or http://dx.doi.org/...)
+ *
+ * Note on regex pattern: The pattern uses \S+ (non-whitespace) for the suffix,
+ * which is intentionally permissive. According to the DOI specification (ISO 26324),
+ * DOI suffixes can contain virtually any printable character including parentheses,
+ * angle brackets, and other special characters. The current pattern validates
+ * the basic structure while allowing legitimate complex suffixes.
+ * See: https://www.doi.org/doi_handbook/2_Numbering.html
  */
 export function validateDOIFormat(doi: string): ValidationResult {
     const trimmed = doi.trim();

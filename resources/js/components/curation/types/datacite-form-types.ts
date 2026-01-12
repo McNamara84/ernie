@@ -180,6 +180,8 @@ export interface DataCiteFormProps {
     initialRelatedWorks?: RelatedIdentifier[];
     initialFundingReferences?: FundingReferenceEntry[];
     initialMslLaboratories?: MSLLaboratory[];
+    /** Optional: Whether the current user is an admin (used for DOI editing permissions) */
+    isUserAdmin?: boolean;
 }
 
 // ============================================================================

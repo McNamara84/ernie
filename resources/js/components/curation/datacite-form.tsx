@@ -3,6 +3,7 @@ import { AlertCircle, Calendar, CheckCircle, Circle } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { DoiConflictModal } from '@/components/curation/modals/doi-conflict-modal';
 import { SectionHeader } from '@/components/curation/section-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState } from '@/components/ui/empty-state';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ValidationAlert } from '@/components/ui/validation-alert';
+import { useDoiValidation } from '@/hooks/use-doi-validation';
 import { useFormValidation, type ValidationRule } from '@/hooks/use-form-validation';
 import { validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import { useRorAffiliations } from '@/hooks/use-ror-affiliations';
@@ -100,6 +102,7 @@ export default function DataCiteForm({
     initialMslLaboratories = [],
     initialRelatedWorks = [],
     initialFundingReferences = [],
+    isUserAdmin,
 }: DataCiteFormProps) {
     const MAX_TITLES = maxTitles;
     const MAX_LICENSES = maxLicenses;
@@ -137,6 +140,9 @@ export default function DataCiteForm({
     // Tracking refs for MSL notification
     const hasNotifiedMslUnlock = useRef<boolean>(false);
     const hasInitialMslTriggers = useRef<boolean>(false);
+    // Refs to track MSL scroll/animation timeouts for cleanup (separate refs to avoid overwriting)
+    const mslScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mslAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
@@ -325,6 +331,10 @@ export default function DataCiteForm({
     // State to trigger auto-switch to MSL tab when it becomes available
     const [shouldAutoSwitchToMsl, setAutoSwitchToMslState] = useState<boolean>(false);
 
+    // Get current user's admin status to allow admins to edit DOI even after save
+    // The prop is passed from the parent page component (editor.tsx) which has access to Inertia context
+    const isAdmin = isUserAdmin ?? false;
+
     // Stable callback for setting auto-switch state
     const setShouldAutoSwitchToMsl = useCallback((value: boolean) => {
         setAutoSwitchToMslState(value);
@@ -333,19 +343,30 @@ export default function DataCiteForm({
     // Form validation hook
     const { validateField, markFieldTouched, getFieldState, getFieldMessages } = useFormValidation();
 
-    // Helper to handle field blur: mark as touched AND trigger validation
-    const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
-        markFieldTouched(fieldId);
-        validateField({
-            fieldId,
-            value,
-            rules,
-            formData: form,
-        });
-    };
+    // DOI validation hook for duplicate checking
+    const {
+        isValidating: isDoiValidating,
+        conflictData,
+        showConflictModal,
+        setShowConflictModal,
+        validateDoi,
+        resetValidation: resetDoiValidation,
+    } = useDoiValidation({
+        excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
+        onSuccess: () => {
+            toast.success('DOI ist verfügbar', { duration: 2000 });
+        },
+    });
 
-    // DOI validation rules
-    const doiValidationRules: ValidationRule[] = [
+    // Check if DOI field should be readonly (already saved with a valid DOI)
+    // Admins can always edit the DOI field, even after the resource has been saved
+    const isDoiReadonly = Boolean(
+        initialResourceId && initialDoi && initialDoi.trim() !== '' && !isAdmin
+    );
+
+    // DOI validation rules (format only - duplicate check is done via useDoiValidation hook)
+    // Memoized to prevent unnecessary callback recreations
+    const doiValidationRules: ValidationRule[] = useMemo(() => [
         {
             validate: (value) => {
                 if (!value || String(value).trim() === '') {
@@ -358,8 +379,40 @@ export default function DataCiteForm({
                 return null;
             },
         },
-        // TODO: Add async DOI registration check in separate effect
-    ];
+    ], []);
+
+    // Handler to use the suggested DOI from the conflict modal
+    // Note: The backend already verified this DOI is available, but we still need to
+    // trigger format validation so the field shows the correct validation state
+    const handleUseSuggestedDoi = useCallback((suggestedDoi: string) => {
+        setForm((prev) => ({ ...prev, doi: suggestedDoi }));
+        // Trigger format validation to update the field's validation state
+        markFieldTouched('doi');
+        validateField({
+            fieldId: 'doi',
+            value: suggestedDoi,
+            rules: doiValidationRules,
+            // Use functional update pattern to get current form state
+            formData: { doi: suggestedDoi },
+        });
+        // Clear any existing DOI conflict state since this is a verified available DOI
+        resetDoiValidation();
+        // Show success toast to confirm the DOI was accepted
+        toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+    // Note: 'form' is intentionally excluded - we use functional update for setForm
+    // and only need the new DOI value for validation
+    }, [markFieldTouched, validateField, doiValidationRules, resetDoiValidation]);
+
+    // Helper to handle field blur: mark as touched AND trigger validation
+    const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
+        markFieldTouched(fieldId);
+        validateField({
+            fieldId,
+            value,
+            rules,
+            formData: form,
+        });
+    };
 
     // Year validation rules
     const yearValidationRules: ValidationRule[] = [
@@ -622,6 +675,9 @@ export default function DataCiteForm({
     // Automatically open MSL section when it becomes visible
     // Also notify user with toast, scroll to section, and switch to MSL tab
     useEffect(() => {
+        // Track if component is still mounted for async operations
+        let isMounted = true;
+        
         if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
 
@@ -638,11 +694,11 @@ export default function DataCiteForm({
                 // Trigger auto-switch to MSL tab
                 setShouldAutoSwitchToMsl(true);
 
-                // Handle scroll and tab-switch with promise chain for better testability
-                const scrollAndSwitchTab = async () => {
-                    // Wait for accordion animation
-                    await new Promise<void>((resolve) => setTimeout(resolve, 300));
-
+                // Handle scroll and tab-switch with timeouts that can be cancelled
+                // First timeout: wait for accordion animation
+                mslScrollTimeoutRef.current = setTimeout(() => {
+                    if (!isMounted) return;
+                    
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
                         setOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
@@ -654,20 +710,33 @@ export default function DataCiteForm({
                         block: 'start',
                     });
 
-                    // Wait for scroll animation to complete
-                    await new Promise<void>((resolve) => setTimeout(resolve, 500));
-
-                    // Reset auto-switch flag after animation completes
-                    setShouldAutoSwitchToMsl(false);
-                };
-
-                void scrollAndSwitchTab();
+                    // Second timeout: wait for scroll animation to complete
+                    // Uses separate ref to avoid overwriting the first timeout's ref
+                    mslAnimationTimeoutRef.current = setTimeout(() => {
+                        if (!isMounted) return;
+                        // Reset auto-switch flag after animation completes
+                        setShouldAutoSwitchToMsl(false);
+                    }, 500);
+                }, 300);
             }
         } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
             // Reset notification flag when MSL section is hidden
             hasNotifiedMslUnlock.current = false;
         }
+        
+        // Cleanup: cancel any pending timeouts when effect re-runs or component unmounts
+        return () => {
+            isMounted = false;
+            if (mslScrollTimeoutRef.current) {
+                clearTimeout(mslScrollTimeoutRef.current);
+                mslScrollTimeoutRef.current = null;
+            }
+            if (mslAnimationTimeoutRef.current) {
+                clearTimeout(mslAnimationTimeoutRef.current);
+                mslAnimationTimeoutRef.current = null;
+            }
+        };
     }, [shouldShowMSLSection, openAccordionItems, setShouldAutoSwitchToMsl]);
 
     // MSL validation info - show recommendation when section is visible but no laboratories selected
@@ -1682,12 +1751,27 @@ export default function DataCiteForm({
                                 label="DOI"
                                 value={form.doi || ''}
                                 onChange={(e) => handleChange('doi', e.target.value)}
-                                onValidationBlur={() => markFieldTouched('doi')}
+                                onBlur={(e) => {
+                                    // Trigger format validation (shows errors immediately)
+                                    handleFieldBlur('doi', e.target.value, doiValidationRules);
+                                    // Trigger async DOI validation (duplicate check)
+                                    if (e.target.value.trim()) {
+                                        validateDoi(e.target.value);
+                                    }
+                                }}
                                 validationMessages={getFieldState('doi').messages}
                                 touched={getFieldState('doi').touched}
                                 placeholder="10.xxxx/xxxxx"
-                                labelTooltip="Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
+                                labelTooltip={
+                                    isDoiReadonly 
+                                        ? "DOI cannot be changed after the resource has been saved. Only administrators can edit the DOI."
+                                        : initialResourceId && initialDoi && isAdmin
+                                            ? "As an administrator, you can edit this DOI. Be careful when changing registered DOIs."
+                                            : "Enter DOI in format 10.xxxx/xxxxx or https://doi.org/10.xxxx/xxxxx"
+                                }
                                 className="md:col-span-3"
+                                readOnly={isDoiReadonly}
+                                disabled={isDoiValidating}
                             />
                             <InputField
                                 id="year"
@@ -2141,6 +2225,21 @@ export default function DataCiteForm({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* DOI Conflict Modal */}
+            {conflictData && (
+                <DoiConflictModal
+                    open={showConflictModal}
+                    onOpenChange={setShowConflictModal}
+                    existingDoi={conflictData.existingDoi}
+                    existingResourceTitle={conflictData.existingResourceTitle}
+                    existingResourceId={conflictData.existingResourceId}
+                    lastAssignedDoi={conflictData.lastAssignedDoi}
+                    suggestedDoi={conflictData.suggestedDoi}
+                    hasSuggestion={conflictData.hasSuggestion}
+                    onUseSuggested={handleUseSuggestedDoi}
+                />
+            )}
         </form>
     );
 }

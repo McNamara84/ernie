@@ -14,6 +14,13 @@ vi.mock('@inertiajs/react', () => ({
         if (title) document.title = title;
         return <>{children}</>;
     },
+    usePage: () => ({
+        props: {
+            auth: {
+                user: { id: 1, name: 'Test User', role: 'curator' },
+            },
+        },
+    }),
 }));
 
 vi.mock('@/components/curation/datacite-form', () => ({
