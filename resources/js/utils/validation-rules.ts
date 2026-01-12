@@ -9,6 +9,13 @@
  * - 10.xxxx/xxxxx
  * - https://doi.org/10.xxxx/xxxxx
  * Returns normalized DOI (10.xxxx/xxxxx format)
+ *
+ * Note on regex pattern: The pattern uses \S+ (non-whitespace) for the suffix,
+ * which is intentionally permissive. According to the DOI specification (ISO 26324),
+ * DOI suffixes can contain virtually any printable character including parentheses,
+ * angle brackets, and other special characters. The current pattern validates
+ * the basic structure while allowing legitimate complex suffixes.
+ * See: https://www.doi.org/doi_handbook/2_Numbering.html
  */
 export interface DOIValidationResult {
     isValid: boolean;

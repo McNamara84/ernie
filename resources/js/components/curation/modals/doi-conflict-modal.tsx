@@ -13,6 +13,9 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
+/** Timeout duration in milliseconds for resetting the copied state indicator */
+const COPY_SUCCESS_TIMEOUT_MS = 2000;
+
 export interface DoiConflictModalProps {
     /** Whether the modal is open */
     open: boolean;
@@ -69,14 +72,18 @@ export function DoiConflictModal({
                 clearTimeout(copyTimeoutRef.current);
             }
             
-            // Reset the copied state after 2 seconds
+            // Reset the copied state after timeout
             copyTimeoutRef.current = setTimeout(() => {
                 setCopiedField(null);
-            }, 2000);
+            }, COPY_SUCCESS_TIMEOUT_MS);
         } catch (error) {
-            // Log the error for debugging (clipboard access may be denied due to permissions)
+            // Log the full error for debugging
             console.error('Failed to copy to clipboard:', error);
-            toast.error('Kopieren fehlgeschlagen');
+            // Provide user-friendly error message with guidance
+            toast.error(
+                'Kopieren fehlgeschlagen. Bitte stellen Sie sicher, dass die Seite über HTTPS geladen wird und Ihr Browser Zugriff auf die Zwischenablage hat.',
+                { duration: 5000 }
+            );
         }
     }, []);
 

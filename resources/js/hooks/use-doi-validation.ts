@@ -2,6 +2,16 @@ import axios, { isAxiosError } from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
+ * Default error messages for DOI validation.
+ * These are in German to match the application's primary language.
+ * Consider moving to a translation file for full i18n support.
+ */
+const DEFAULT_ERROR_MESSAGES = {
+    INVALID_FORMAT: 'Ungültiges DOI-Format',
+    VALIDATION_FAILED: 'Validierung fehlgeschlagen',
+} as const;
+
+/**
  * Response from the DOI validation API endpoint
  */
 export interface DoiValidationResponse {
@@ -41,6 +51,11 @@ export interface UseDoiValidationOptions {
     onConflict?: (conflictData: DoiConflictData) => void;
     /** Callback when an error occurs */
     onError?: (error: string) => void;
+    /** Custom error messages (optional, defaults to German messages) */
+    errorMessages?: {
+        invalidFormat?: string;
+        validationFailed?: string;
+    };
 }
 
 /**
@@ -102,8 +117,15 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
         debounceMs = 300, 
         onSuccess, 
         onConflict, 
-        onError 
+        onError,
+        errorMessages,
     } = options;
+
+    // Merge custom error messages with defaults
+    const messages = {
+        invalidFormat: errorMessages?.invalidFormat ?? DEFAULT_ERROR_MESSAGES.INVALID_FORMAT,
+        validationFailed: errorMessages?.validationFailed ?? DEFAULT_ERROR_MESSAGES.VALIDATION_FAILED,
+    };
 
     const [isValidating, setIsValidating] = useState(false);
     const [isValid, setIsValid] = useState<boolean | null>(null);
@@ -183,8 +205,8 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 // Check if format is valid
                 if (!data.is_valid_format) {
                     setIsValid(false);
-                    setError(data.error || 'Ungültiges DOI-Format');
-                    onError?.(data.error || 'Ungültiges DOI-Format');
+                    setError(data.error || messages.invalidFormat);
+                    onError?.(data.error || messages.invalidFormat);
                     return;
                 }
 
@@ -218,16 +240,16 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                     const responseData = err.response.data as DoiValidationResponse;
                     if (!responseData.is_valid_format) {
                         setIsValid(false);
-                        setError(responseData.error || 'Ungültiges DOI-Format');
-                        onError?.(responseData.error || 'Ungültiges DOI-Format');
+                        setError(responseData.error || messages.invalidFormat);
+                        onError?.(responseData.error || messages.invalidFormat);
                         return;
                     }
                 }
 
                 // Handle other errors
                 const errorMessage = isAxiosError(err) 
-                    ? err.response?.data?.message || 'Validierung fehlgeschlagen'
-                    : 'Validierung fehlgeschlagen';
+                    ? err.response?.data?.message || messages.validationFailed
+                    : messages.validationFailed;
                 
                 setError(errorMessage);
                 setIsValid(false);

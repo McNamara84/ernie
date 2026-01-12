@@ -15,6 +15,11 @@ use App\Models\Resource;
 class DoiSuggestionService
 {
     /**
+     * Maximum number of attempts to find an available DOI.
+     * This prevents infinite loops when searching for the next available DOI number.
+     */
+    private const MAX_DOI_SUGGESTION_ATTEMPTS = 100;
+    /**
      * Check if a DOI already exists in the database.
      *
      * @param  string  $doi  The DOI to check
@@ -220,7 +225,7 @@ class DoiSuggestionService
      */
     private function findNextAvailable(string $prefix, callable $suffixGenerator, int $startNumber): string
     {
-        $maxAttempts = 100;
+        $maxAttempts = self::MAX_DOI_SUGGESTION_ATTEMPTS;
         $number = $startNumber + 1;
 
         for ($i = 0; $i < $maxAttempts; $i++) {
