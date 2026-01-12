@@ -1730,7 +1730,8 @@ export default function DataCiteForm({
                                 value={form.doi || ''}
                                 onChange={(e) => handleChange('doi', e.target.value)}
                                 onBlur={(e) => {
-                                    markFieldTouched('doi');
+                                    // Trigger format validation (shows errors immediately)
+                                    handleFieldBlur('doi', e.target.value, doiValidationRules);
                                     // Trigger async DOI validation (duplicate check)
                                     if (e.target.value.trim()) {
                                         validateDoi(e.target.value);

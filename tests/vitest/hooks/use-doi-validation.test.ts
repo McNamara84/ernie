@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type DoiValidationResponse,useDoiValidation } from '@/hooks/use-doi-validation';
+import { type DoiValidationResponse, useDoiValidation } from '@/hooks/use-doi-validation';
 
 // Mock axios
 vi.mock('axios', () => ({
