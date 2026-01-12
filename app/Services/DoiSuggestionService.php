@@ -118,7 +118,10 @@ class DoiSuggestionService
     }
 
     /**
-     * Normalize a DOI by removing URL prefix and trimming whitespace.
+     * Normalize a DOI by removing URL prefix, trimming whitespace, and converting to lowercase.
+     *
+     * DOIs are case-insensitive per the DOI specification, so we normalize to lowercase
+     * to ensure consistent handling throughout the system.
      */
     public function normalizeDoi(string $doi): string
     {
@@ -129,7 +132,9 @@ class DoiSuggestionService
             $doi = $matches[1];
         }
 
-        return $doi;
+        // Normalize to lowercase for consistent case handling
+        // DOIs are case-insensitive per the DOI specification
+        return strtolower($doi);
     }
 
     /**
@@ -217,6 +222,9 @@ class DoiSuggestionService
     /**
      * Find the next available DOI by incrementing the number until one is available.
      *
+     * This method is optimized to fetch all potential conflicting DOIs in a single query
+     * rather than checking each candidate individually in a loop.
+     *
      * @param  string  $prefix  The DOI prefix (e.g., "10.5880")
      * @param  callable  $suffixGenerator  Function that generates suffix from number
      * @param  int  $startNumber  The starting number to increment from
@@ -226,13 +234,31 @@ class DoiSuggestionService
     private function findNextAvailable(string $prefix, callable $suffixGenerator, int $startNumber): string
     {
         $maxAttempts = self::MAX_DOI_SUGGESTION_ATTEMPTS;
+
+        // Generate the base pattern for the LIKE query by using number 0
+        // The suffix pattern will be like "project.2026." for pattern "project.2026.NNN"
+        $sampleSuffix = $suffixGenerator(0);
+        // Extract the base pattern (everything before the final number)
+        $basePattern = preg_replace('/\d+$/', '', $sampleSuffix);
+        $likePattern = $prefix . '/' . $basePattern . '%';
+
+        // Fetch all existing DOIs matching the pattern in a single query
+        $existingDois = Resource::where('doi', 'LIKE', $likePattern)
+            ->pluck('doi')
+            ->map(fn (string $doi) => strtolower($doi))
+            ->toArray();
+
+        // Convert to a Set for O(1) lookup
+        $existingDoiSet = array_flip($existingDois);
+
+        // Find the first available DOI starting from startNumber + 1
         $number = $startNumber + 1;
-
         for ($i = 0; $i < $maxAttempts; $i++) {
-            $candidateDoi = $prefix.'/'.$suffixGenerator($number);
+            $candidateDoi = strtolower($prefix . '/' . $suffixGenerator($number));
 
-            if (! $this->checkDoiExists($candidateDoi)) {
-                return $candidateDoi;
+            if (! isset($existingDoiSet[$candidateDoi])) {
+                // Return with original case from generator
+                return $prefix . '/' . $suffixGenerator($number);
             }
 
             $number++;

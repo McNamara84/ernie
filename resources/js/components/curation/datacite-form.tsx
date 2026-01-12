@@ -2230,6 +2230,7 @@ export default function DataCiteForm({
                     existingResourceId={conflictData.existingResourceId}
                     lastAssignedDoi={conflictData.lastAssignedDoi}
                     suggestedDoi={conflictData.suggestedDoi}
+                    hasSuggestion={conflictData.hasSuggestion}
                     onUseSuggested={handleUseSuggestedDoi}
                 />
             )}
