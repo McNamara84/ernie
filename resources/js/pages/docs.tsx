@@ -330,24 +330,35 @@ export default function Docs({ userRole }: DocsProps) {
                     <h3>Managing Users</h3>
                     <p>
                         As a <strong>{userRole}</strong>, you have permission to manage users in the system. ERNIE uses a closed application model
-                        where all users must be created via the command line.
+                        where users are created by administrators or group leaders.
                     </p>
 
                     <h4>Creating New Users</h4>
-                    <p>To create a new user, run the following command in the terminal:</p>
+                    <p>
+                        Navigate to <code>/users</code> and click the <strong>"Create User"</strong> button. Enter the new user's name and email
+                        address. The system will:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>Create the account with the <strong>Beginner</strong> role</li>
+                        <li>Send a personalized <strong>welcome email</strong> from ERNIE</li>
+                        <li>The email contains a secure link (valid for 72 hours) to set their password</li>
+                    </ul>
+
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                            <strong>Link Expired?</strong> If the welcome link expires, users can request a new one directly from the welcome page,
+                            or you can use the "Resend Welcome Email" button in the user management interface.
+                        </p>
+                    </div>
+
+                    <h4>First User (Command Line)</h4>
+                    <p>The first user must be created via the terminal:</p>
 
                     <DocsCodeBlock code="php artisan add-user <name> <email> <password>" />
 
                     <p className="text-sm text-muted-foreground">
-                        Replace <code>&lt;name&gt;</code>, <code>&lt;email&gt;</code>, and <code>&lt;password&gt;</code> with the new user's
-                        information.
+                        The first user automatically becomes an <strong>admin</strong>.
                     </p>
-
-                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
-                        <p className="text-sm text-blue-900 dark:text-blue-100">
-                            <strong>First User:</strong> The first user created in the system automatically becomes an <strong>admin</strong>.
-                        </p>
-                    </div>
 
                     <h4>User Roles & Permissions</h4>
                     <div className="space-y-2">
@@ -378,7 +389,8 @@ export default function Docs({ userRole }: DocsProps) {
                     <ul className="list-inside list-disc space-y-1">
                         <li>Change user roles (within your permission level)</li>
                         <li>Activate/deactivate user accounts</li>
-                        <li>Reset user passwords</li>
+                        <li>Resend welcome emails (for users who haven't set their password)</li>
+                        <li>Send password reset links</li>
                     </ul>
 
                     {userRole === 'group_leader' && (

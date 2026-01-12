@@ -1,8 +1,12 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-11",
+        "date": "2026-01-12",
         "features": [
+            {
+                "title": "Welcome Email for New Users",
+                "description": "New users now receive a dedicated welcome email with a personalized message from ERNIE when their account is created. The email contains a secure link (valid for 72 hours) to set their initial password. If the link expires, users can request a new one directly from the welcome page. This replaces the previous workflow that used the generic password reset email."
+            },
             {
                 "title": "DOI Duplicate Detection and Suggestions",
                 "description": "The DOI field in the curation form now automatically validates entered DOIs against the database. When a duplicate is detected, an interactive modal appears showing the conflicting resource with a clickable link to view it. The system suggests the next available DOI based on the entered pattern, and provides one-click copy functionality. This prevents accidental DOI conflicts and streamlines the metadata curation workflow."

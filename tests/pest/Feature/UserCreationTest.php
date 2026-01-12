@@ -1,8 +1,9 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Mail\WelcomeNewUser;
 use App\Models\User;
-use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Mail;
 
 beforeEach(function () {
     $this->admin = User::factory()->create(['role' => UserRole::ADMIN]);
@@ -13,9 +14,7 @@ beforeEach(function () {
 
 describe('User Creation', function () {
     it('allows admin to create a new user', function () {
-        Password::shouldReceive('sendResetLink')
-            ->once()
-            ->andReturn(Password::RESET_LINK_SENT);
+        Mail::fake();
 
         $response = $this->actingAs($this->admin)->post('/users', [
             'name' => 'New User',
@@ -30,12 +29,14 @@ describe('User Creation', function () {
             'role' => UserRole::BEGINNER->value,
             'is_active' => true,
         ]);
+
+        Mail::assertQueued(WelcomeNewUser::class, function ($mail) {
+            return $mail->hasTo('newuser@example.com');
+        });
     });
 
     it('allows group leader to create a new user', function () {
-        Password::shouldReceive('sendResetLink')
-            ->once()
-            ->andReturn(Password::RESET_LINK_SENT);
+        Mail::fake();
 
         $response = $this->actingAs($this->groupLeader)->post('/users', [
             'name' => 'New User',
@@ -123,9 +124,7 @@ describe('User Creation', function () {
     });
 
     it('creates user with beginner role regardless of who creates it', function () {
-        Password::shouldReceive('sendResetLink')
-            ->once()
-            ->andReturn(Password::RESET_LINK_SENT);
+        Mail::fake();
 
         $this->actingAs($this->admin)->post('/users', [
             'name' => 'New Beginner',
@@ -138,10 +137,13 @@ describe('User Creation', function () {
         expect($user->is_active)->toBeTrue();
     });
 
-    it('shows warning when password reset email fails', function () {
-        Password::shouldReceive('sendResetLink')
+    it('shows warning when welcome email fails due to transport error', function () {
+        Mail::shouldReceive('to')
             ->once()
-            ->andReturn(Password::RESET_THROTTLED);
+            ->andReturnSelf();
+        Mail::shouldReceive('send')
+            ->once()
+            ->andThrow(new \Symfony\Component\Mailer\Exception\TransportException('SMTP error'));
 
         $response = $this->actingAs($this->admin)->post('/users', [
             'name' => 'New User',
