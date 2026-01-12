@@ -234,10 +234,10 @@ class DoiSuggestionService
         }
 
         // Log warning and throw exception if no available DOI found
-        \Log::warning('Could not find available DOI after {attempts} attempts', [
+        \Log::warning('Could not find available DOI after maximum attempts', [
             'prefix' => $prefix,
             'start_number' => $startNumber,
-            'attempts' => $maxAttempts,
+            'max_attempts' => $maxAttempts,
         ]);
 
         throw new \RuntimeException(

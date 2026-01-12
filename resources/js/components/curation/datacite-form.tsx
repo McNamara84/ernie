@@ -347,6 +347,7 @@ export default function DataCiteForm({
         showConflictModal,
         setShowConflictModal,
         validateDoi,
+        resetValidation: resetDoiValidation,
     } = useDoiValidation({
         excludeResourceId: initialResourceId ? parseInt(initialResourceId, 10) : undefined,
         onSuccess: () => {
@@ -360,27 +361,8 @@ export default function DataCiteForm({
         initialResourceId && initialDoi && initialDoi.trim() !== '' && !isAdmin
     );
 
-    // Handler to use the suggested DOI from the conflict modal
-    // Note: We don't re-validate the suggested DOI because it was already verified as available
-    // by the backend's DoiSuggestionService when generating the suggestion
-    const handleUseSuggestedDoi = useCallback((suggestedDoi: string) => {
-        setForm((prev) => ({ ...prev, doi: suggestedDoi }));
-        // Show success toast to confirm the DOI was accepted
-        toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
-    }, []);
-
-    // Helper to handle field blur: mark as touched AND trigger validation
-    const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
-        markFieldTouched(fieldId);
-        validateField({
-            fieldId,
-            value,
-            rules,
-            formData: form,
-        });
-    };
-
     // DOI validation rules (format only - duplicate check is done via useDoiValidation hook)
+    // Defined before handleUseSuggestedDoi because it references these rules
     const doiValidationRules: ValidationRule[] = [
         {
             validate: (value) => {
@@ -395,6 +377,36 @@ export default function DataCiteForm({
             },
         },
     ];
+
+    // Handler to use the suggested DOI from the conflict modal
+    // Note: The backend already verified this DOI is available, but we still need to
+    // trigger format validation so the field shows the correct validation state
+    const handleUseSuggestedDoi = useCallback((suggestedDoi: string) => {
+        setForm((prev) => ({ ...prev, doi: suggestedDoi }));
+        // Trigger format validation to update the field's validation state
+        markFieldTouched('doi');
+        validateField({
+            fieldId: 'doi',
+            value: suggestedDoi,
+            rules: doiValidationRules,
+            formData: { ...form, doi: suggestedDoi },
+        });
+        // Clear any existing DOI conflict state since this is a verified available DOI
+        resetDoiValidation();
+        // Show success toast to confirm the DOI was accepted
+        toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
+    }, [form, markFieldTouched, validateField, doiValidationRules, resetDoiValidation]);
+
+    // Helper to handle field blur: mark as touched AND trigger validation
+    const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {
+        markFieldTouched(fieldId);
+        validateField({
+            fieldId,
+            value,
+            rules,
+            formData: form,
+        });
+    };
 
     // Year validation rules
     const yearValidationRules: ValidationRule[] = [
