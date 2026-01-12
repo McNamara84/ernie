@@ -364,8 +364,8 @@ export default function DataCiteForm({
     );
 
     // DOI validation rules (format only - duplicate check is done via useDoiValidation hook)
-    // Defined before handleUseSuggestedDoi because it references these rules
-    const doiValidationRules: ValidationRule[] = [
+    // Memoized to prevent unnecessary callback recreations
+    const doiValidationRules: ValidationRule[] = useMemo(() => [
         {
             validate: (value) => {
                 if (!value || String(value).trim() === '') {
@@ -378,7 +378,7 @@ export default function DataCiteForm({
                 return null;
             },
         },
-    ];
+    ], []);
 
     // Handler to use the suggested DOI from the conflict modal
     // Note: The backend already verified this DOI is available, but we still need to
@@ -391,13 +391,16 @@ export default function DataCiteForm({
             fieldId: 'doi',
             value: suggestedDoi,
             rules: doiValidationRules,
-            formData: { ...form, doi: suggestedDoi },
+            // Use functional update pattern to get current form state
+            formData: { doi: suggestedDoi },
         });
         // Clear any existing DOI conflict state since this is a verified available DOI
         resetDoiValidation();
         // Show success toast to confirm the DOI was accepted
         toast.success('Vorgeschlagene DOI übernommen', { duration: 2000 });
-    }, [form, markFieldTouched, validateField, doiValidationRules, resetDoiValidation]);
+    // Note: 'form' is intentionally excluded - we use functional update for setForm
+    // and only need the new DOI value for validation
+    }, [markFieldTouched, validateField, doiValidationRules, resetDoiValidation]);
 
     // Helper to handle field blur: mark as touched AND trigger validation
     const handleFieldBlur = (fieldId: string, value: unknown, rules: ValidationRule[]) => {

@@ -315,3 +315,40 @@ describe('DoiValidationController - Authentication', function () {
         $response->assertStatus(401);
     });
 });
+
+describe('DoiValidationController - Error Handling', function () {
+    test('returns null suggested_doi when suggestion generation fails', function () {
+        // Create a resource with a DOI
+        $resource = Resource::factory()->create([
+            'doi' => '10.5880/error.test.001',
+        ]);
+
+        // Mock the DoiSuggestionService to throw RuntimeException
+        $mockService = Mockery::mock(\App\Services\DoiSuggestionService::class);
+        $mockService->shouldReceive('isValidDoiFormat')->andReturn(true);
+        $mockService->shouldReceive('getResourceByDoi')->andReturn([
+            'id' => $resource->id,
+            'title' => 'Test Resource',
+        ]);
+        $mockService->shouldReceive('getLastAssignedDoi')->andReturn('10.5880/error.test.001');
+        $mockService->shouldReceive('suggestNextDoi')
+            ->andThrow(new \RuntimeException('Could not find available DOI after maximum attempts'));
+
+        app()->instance(\App\Services\DoiSuggestionService::class, $mockService);
+
+        $response = $this->postJson('/api/v1/doi/validate', [
+            'doi' => '10.5880/error.test.001',
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'is_valid_format' => true,
+                'exists' => true,
+                'suggested_doi' => null,
+            ])
+            ->assertJsonStructure(['error']);
+
+        // Verify error message is present
+        expect($response->json('error'))->toContain('Could not generate a DOI suggestion');
+    });
+});

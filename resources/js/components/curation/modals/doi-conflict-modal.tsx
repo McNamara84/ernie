@@ -31,6 +31,8 @@ export interface DoiConflictModalProps {
     lastAssignedDoi: string;
     /** The suggested next available DOI */
     suggestedDoi: string;
+    /** Whether a valid suggestion is available (defaults to true for backwards compatibility) */
+    hasSuggestion?: boolean;
     /** Callback when user chooses to use the suggested DOI */
     onUseSuggested?: (doi: string) => void;
 }
@@ -47,10 +49,16 @@ export function DoiConflictModal({
     existingResourceId,
     lastAssignedDoi,
     suggestedDoi,
+    hasSuggestion = true,
     onUseSuggested,
 }: DoiConflictModalProps) {
     const [copiedField, setCopiedField] = useState<'suggested' | 'last' | null>(null);
     const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    
+    // Check if Clipboard API is available (requires secure context)
+    const isClipboardAvailable = typeof navigator !== 'undefined' 
+        && typeof navigator.clipboard !== 'undefined'
+        && typeof navigator.clipboard.writeText === 'function';
 
     // Cleanup timeout on unmount or when copiedField changes
     useEffect(() => {
@@ -62,6 +70,15 @@ export function DoiConflictModal({
     }, []);
 
     const copyToClipboard = useCallback(async (text: string, field: 'suggested' | 'last') => {
+        // Feature detection: check if Clipboard API is available
+        if (!isClipboardAvailable) {
+            toast.error(
+                'Die Zwischenablage ist in diesem Browser nicht verfügbar. Bitte kopieren Sie die DOI manuell.',
+                { duration: 5000 }
+            );
+            return;
+        }
+        
         try {
             await navigator.clipboard.writeText(text);
             setCopiedField(field);
@@ -85,7 +102,7 @@ export function DoiConflictModal({
                 { duration: 5000 }
             );
         }
-    }, []);
+    }, [isClipboardAvailable]);
 
     const handleUseSuggested = useCallback(() => {
         onUseSuggested?.(suggestedDoi);
@@ -167,41 +184,49 @@ export function DoiConflictModal({
                         </div>
                     </div>
 
-                    {/* Suggested DOI */}
-                    <div className="space-y-2">
-                        <div className="text-sm font-medium text-primary">
-                            Vorgeschlagene DOI:
+                    {/* Suggested DOI - only show if suggestion is available */}
+                    {hasSuggestion && suggestedDoi ? (
+                        <div className="space-y-2">
+                            <div className="text-sm font-medium text-primary">
+                                Vorgeschlagene DOI:
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <code className="flex-1 rounded bg-primary/10 px-2 py-1 font-mono text-sm font-medium text-primary">
+                                    {suggestedDoi}
+                                </code>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => copyToClipboard(suggestedDoi, 'suggested')}
+                                    className={cn(
+                                        'shrink-0 transition-colors',
+                                        copiedField === 'suggested' && 'border-green-500 text-green-600'
+                                    )}
+                                    aria-label="Vorgeschlagene DOI kopieren"
+                                >
+                                    {copiedField === 'suggested' ? (
+                                        <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                                    ) : (
+                                        <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+                                    )}
+                                </Button>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <code className="flex-1 rounded bg-primary/10 px-2 py-1 font-mono text-sm font-medium text-primary">
-                                {suggestedDoi}
-                            </code>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => copyToClipboard(suggestedDoi, 'suggested')}
-                                className={cn(
-                                    'shrink-0 transition-colors',
-                                    copiedField === 'suggested' && 'border-green-500 text-green-600'
-                                )}
-                                aria-label="Vorgeschlagene DOI kopieren"
-                            >
-                                {copiedField === 'suggested' ? (
-                                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                                ) : (
-                                    <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
-                                )}
-                            </Button>
+                    ) : (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950">
+                            <p className="text-sm text-amber-900 dark:text-amber-100">
+                                Es konnte kein DOI-Vorschlag generiert werden. Bitte wenden Sie sich an einen Administrator.
+                            </p>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
                     <Button type="button" variant="outline" onClick={handleClose}>
                         Schließen
                     </Button>
-                    {onUseSuggested && (
+                    {onUseSuggested && hasSuggestion && suggestedDoi && (
                         <Button type="button" onClick={handleUseSuggested}>
                             Vorschlag übernehmen
                         </Button>

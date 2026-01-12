@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from 'axios';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * Default error messages for DOI validation.
@@ -35,6 +35,8 @@ export interface DoiConflictData {
     existingResourceTitle?: string;
     lastAssignedDoi: string;
     suggestedDoi: string;
+    /** Whether a valid suggestion is available (false when backend couldn't generate one) */
+    hasSuggestion: boolean;
 }
 
 /**
@@ -121,11 +123,11 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
         errorMessages,
     } = options;
 
-    // Merge custom error messages with defaults
-    const messages = {
+    // Memoize error messages to prevent unnecessary callback recreations
+    const messages = useMemo(() => ({
         invalidFormat: errorMessages?.invalidFormat ?? DEFAULT_ERROR_MESSAGES.INVALID_FORMAT,
         validationFailed: errorMessages?.validationFailed ?? DEFAULT_ERROR_MESSAGES.VALIDATION_FAILED,
-    };
+    }), [errorMessages?.invalidFormat, errorMessages?.validationFailed]);
 
     const [isValidating, setIsValidating] = useState(false);
     const [isValid, setIsValid] = useState<boolean | null>(null);
@@ -212,12 +214,20 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
 
                 // Check if DOI already exists
                 if (data.exists) {
+                    // Handle case where backend couldn't generate a suggestion
+                    // (e.g., after max attempts reached). In this case, we don't
+                    // show a suggestion to avoid misleading the user.
+                    const suggestedDoi = data.suggested_doi ?? null;
+                    
                     const conflict: DoiConflictData = {
                         existingDoi: trimmedDoi,
                         existingResourceId: data.existing_resource?.id,
                         existingResourceTitle: data.existing_resource?.title ?? undefined,
                         lastAssignedDoi: data.last_assigned_doi ?? trimmedDoi,
-                        suggestedDoi: data.suggested_doi ?? trimmedDoi,
+                        // Only provide suggestedDoi if backend actually returned one
+                        suggestedDoi: suggestedDoi ?? '',
+                        // Flag to indicate if suggestion is available
+                        hasSuggestion: suggestedDoi !== null,
                     };
                     setConflictData(conflict);
                     setShowConflictModal(true);
@@ -258,7 +268,9 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 setIsValidating(false);
             }
         }, debounceMs);
-    }, [excludeResourceId, debounceMs, onSuccess, onConflict, onError, resetValidation]);
+    // Note: resetValidation is intentionally omitted from deps - it's a stable callback with no dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages]);
 
     return {
         isValidating,

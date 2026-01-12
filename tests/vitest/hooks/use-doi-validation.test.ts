@@ -174,6 +174,7 @@ describe('useDoiValidation', () => {
                 existingDoi: '10.5880/test.2026.001',
                 existingResourceId: 456,
                 existingResourceTitle: 'Existing Resource',
+                hasSuggestion: true,
                 lastAssignedDoi: '10.5880/test.2026.003',
                 suggestedDoi: '10.5880/test.2026.004',
             });
@@ -275,6 +276,165 @@ describe('useDoiValidation', () => {
             });
 
             expect(result.current.showConflictModal).toBe(false);
+        });
+    });
+
+    describe('Network errors and cancellation', () => {
+        it('should handle network errors gracefully', async () => {
+            const networkError = new Error('Network Error');
+            vi.mocked(axios.post).mockRejectedValueOnce(networkError);
+            vi.mocked(axios.isCancel).mockReturnValue(false);
+
+            const onError = vi.fn();
+            const { result } = renderHook(() =>
+                useDoiValidation({ debounceMs: 0, onError })
+            );
+
+            await act(async () => {
+                result.current.validateDoi('10.5880/test.2026.001');
+            });
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(100);
+            });
+
+            await waitFor(() => {
+                expect(result.current.isValid).toBe(false);
+            });
+
+            expect(result.current.error).toBe('Validierung fehlgeschlagen');
+            expect(onError).toHaveBeenCalledWith('Validierung fehlgeschlagen');
+        });
+
+        it('should ignore cancelled requests', async () => {
+            // First call will be cancelled
+            const cancelledError = new Error('Request cancelled');
+            vi.mocked(axios.post).mockRejectedValueOnce(cancelledError);
+            vi.mocked(axios.isCancel).mockReturnValueOnce(true);
+
+            const onError = vi.fn();
+            const { result } = renderHook(() =>
+                useDoiValidation({ debounceMs: 0, onError })
+            );
+
+            await act(async () => {
+                result.current.validateDoi('10.5880/test.2026.001');
+            });
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(100);
+            });
+
+            // Error should not be set for cancelled requests
+            expect(result.current.error).toBeNull();
+            expect(onError).not.toHaveBeenCalled();
+        });
+
+        it('should cancel previous request when new validation starts', async () => {
+            const mockResponse: DoiValidationResponse = {
+                is_valid_format: true,
+                exists: false,
+            };
+
+            vi.mocked(axios.post).mockResolvedValue({ data: mockResponse });
+
+            const { result } = renderHook(() =>
+                useDoiValidation({ debounceMs: 100 })
+            );
+
+            // Start first validation
+            await act(async () => {
+                result.current.validateDoi('10.5880/first');
+            });
+
+            // Start second validation before first completes (should cancel first)
+            await act(async () => {
+                result.current.validateDoi('10.5880/second');
+            });
+
+            // Advance past debounce
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(200);
+            });
+
+            // Only the second request should have been made
+            expect(axios.post).toHaveBeenCalledTimes(1);
+            expect(axios.post).toHaveBeenCalledWith(
+                '/api/v1/doi/validate',
+                expect.objectContaining({ doi: '10.5880/second' }),
+                expect.any(Object)
+            );
+        });
+    });
+
+    describe('Null suggested DOI handling', () => {
+        it('should handle null suggested_doi from backend', async () => {
+            const mockResponse: DoiValidationResponse = {
+                is_valid_format: true,
+                exists: true,
+                existing_resource: {
+                    id: 456,
+                    title: 'Existing Resource',
+                },
+                last_assigned_doi: '10.5880/test.2026.003',
+                suggested_doi: undefined, // Simulating null from backend
+            };
+
+            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+
+            const { result } = renderHook(() =>
+                useDoiValidation({ debounceMs: 0 })
+            );
+
+            await act(async () => {
+                result.current.validateDoi('10.5880/test.2026.001');
+            });
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(100);
+            });
+
+            await waitFor(() => {
+                expect(result.current.conflictData).not.toBeNull();
+            });
+
+            // Should have hasSuggestion = false when no suggestion available
+            expect(result.current.conflictData?.hasSuggestion).toBe(false);
+            expect(result.current.conflictData?.suggestedDoi).toBe('');
+        });
+
+        it('should set hasSuggestion to true when suggestion is available', async () => {
+            const mockResponse: DoiValidationResponse = {
+                is_valid_format: true,
+                exists: true,
+                existing_resource: {
+                    id: 456,
+                    title: 'Existing Resource',
+                },
+                last_assigned_doi: '10.5880/test.2026.003',
+                suggested_doi: '10.5880/test.2026.004',
+            };
+
+            vi.mocked(axios.post).mockResolvedValueOnce({ data: mockResponse });
+
+            const { result } = renderHook(() =>
+                useDoiValidation({ debounceMs: 0 })
+            );
+
+            await act(async () => {
+                result.current.validateDoi('10.5880/test.2026.001');
+            });
+
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(100);
+            });
+
+            await waitFor(() => {
+                expect(result.current.conflictData).not.toBeNull();
+            });
+
+            expect(result.current.conflictData?.hasSuggestion).toBe(true);
+            expect(result.current.conflictData?.suggestedDoi).toBe('10.5880/test.2026.004');
         });
     });
 });
