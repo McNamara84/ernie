@@ -64,7 +64,7 @@ class WelcomeController extends Controller
         // Verify signature again for security
         if (! $request->hasValidSignature()) {
             return redirect()->route('login')
-                ->with('error', 'This link has expired. Please request a new welcome email.');
+                ->with('error', 'This link is invalid or has expired. Please request a new welcome email.');
         }
 
         // Prevent setting password twice
