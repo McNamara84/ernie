@@ -140,8 +140,9 @@ export default function DataCiteForm({
     // Tracking refs for MSL notification
     const hasNotifiedMslUnlock = useRef<boolean>(false);
     const hasInitialMslTriggers = useRef<boolean>(false);
-    // Ref to track MSL scroll/animation timeouts for cleanup
+    // Refs to track MSL scroll/animation timeouts for cleanup (separate refs to avoid overwriting)
     const mslScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mslAnimationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
@@ -710,7 +711,8 @@ export default function DataCiteForm({
                     });
 
                     // Second timeout: wait for scroll animation to complete
-                    mslScrollTimeoutRef.current = setTimeout(() => {
+                    // Uses separate ref to avoid overwriting the first timeout's ref
+                    mslAnimationTimeoutRef.current = setTimeout(() => {
                         if (!isMounted) return;
                         // Reset auto-switch flag after animation completes
                         setShouldAutoSwitchToMsl(false);
@@ -729,6 +731,10 @@ export default function DataCiteForm({
             if (mslScrollTimeoutRef.current) {
                 clearTimeout(mslScrollTimeoutRef.current);
                 mslScrollTimeoutRef.current = null;
+            }
+            if (mslAnimationTimeoutRef.current) {
+                clearTimeout(mslAnimationTimeoutRef.current);
+                mslAnimationTimeoutRef.current = null;
             }
         };
     }, [shouldShowMSLSection, openAccordionItems, setShouldAutoSwitchToMsl]);
