@@ -140,6 +140,8 @@ export default function DataCiteForm({
     // Tracking refs for MSL notification
     const hasNotifiedMslUnlock = useRef<boolean>(false);
     const hasInitialMslTriggers = useRef<boolean>(false);
+    // Ref to track MSL scroll/animation timeouts for cleanup
+    const mslScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [form, setForm] = useState<DataCiteFormData>({
         doi: initialDoi,
@@ -669,6 +671,9 @@ export default function DataCiteForm({
     // Automatically open MSL section when it becomes visible
     // Also notify user with toast, scroll to section, and switch to MSL tab
     useEffect(() => {
+        // Track if component is still mounted for async operations
+        let isMounted = true;
+        
         if (shouldShowMSLSection && !openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => [...prev, 'msl-laboratories']);
 
@@ -685,11 +690,11 @@ export default function DataCiteForm({
                 // Trigger auto-switch to MSL tab
                 setShouldAutoSwitchToMsl(true);
 
-                // Handle scroll and tab-switch with promise chain for better testability
-                const scrollAndSwitchTab = async () => {
-                    // Wait for accordion animation
-                    await new Promise<void>((resolve) => setTimeout(resolve, 300));
-
+                // Handle scroll and tab-switch with timeouts that can be cancelled
+                // First timeout: wait for accordion animation
+                mslScrollTimeoutRef.current = setTimeout(() => {
+                    if (!isMounted) return;
+                    
                     if (!openAccordionItems.includes('controlled-vocabularies')) {
                         // Open the controlled vocabularies accordion first
                         setOpenAccordionItems((prev) => [...prev, 'controlled-vocabularies']);
@@ -701,20 +706,28 @@ export default function DataCiteForm({
                         block: 'start',
                     });
 
-                    // Wait for scroll animation to complete
-                    await new Promise<void>((resolve) => setTimeout(resolve, 500));
-
-                    // Reset auto-switch flag after animation completes
-                    setShouldAutoSwitchToMsl(false);
-                };
-
-                void scrollAndSwitchTab();
+                    // Second timeout: wait for scroll animation to complete
+                    mslScrollTimeoutRef.current = setTimeout(() => {
+                        if (!isMounted) return;
+                        // Reset auto-switch flag after animation completes
+                        setShouldAutoSwitchToMsl(false);
+                    }, 500);
+                }, 300);
             }
         } else if (!shouldShowMSLSection && openAccordionItems.includes('msl-laboratories')) {
             setOpenAccordionItems((prev) => prev.filter((item) => item !== 'msl-laboratories'));
             // Reset notification flag when MSL section is hidden
             hasNotifiedMslUnlock.current = false;
         }
+        
+        // Cleanup: cancel any pending timeouts when effect re-runs or component unmounts
+        return () => {
+            isMounted = false;
+            if (mslScrollTimeoutRef.current) {
+                clearTimeout(mslScrollTimeoutRef.current);
+                mslScrollTimeoutRef.current = null;
+            }
+        };
     }, [shouldShowMSLSection, openAccordionItems, setShouldAutoSwitchToMsl]);
 
     // MSL validation info - show recommendation when section is visible but no laboratories selected
