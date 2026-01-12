@@ -389,7 +389,6 @@ export default function Docs({ userRole }: DocsProps) {
                     <ul className="list-inside list-disc space-y-1">
                         <li>Change user roles (within your permission level)</li>
                         <li>Activate/deactivate user accounts</li>
-                        <li>Resend welcome emails (for users who haven't set their password)</li>
                         <li>Send password reset links</li>
                     </ul>
 

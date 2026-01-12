@@ -148,7 +148,6 @@ describe('Welcome Page - Expired Signature', function () {
         $response->assertInertia(fn ($page) => $page
             ->component('auth/welcome-expired')
             ->has('email')
-            ->has('userId')
         );
     });
 

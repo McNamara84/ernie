@@ -32,12 +32,14 @@ Route::middleware('guest')->group(function () {
     // Welcome flow for new users (signed URLs, 72h validity)
     // Note: resend route must come before {user} route to avoid parameter matching
     Route::post('welcome/resend', [WelcomeController::class, 'resend'])
+        ->middleware('throttle:3,1')
         ->name('welcome.resend');
 
     Route::get('welcome/{user}', [WelcomeController::class, 'show'])
         ->name('welcome.show');
 
     Route::post('welcome/{user}', [WelcomeController::class, 'store'])
+        ->middleware('throttle:5,1')
         ->name('welcome.store');
 });
 

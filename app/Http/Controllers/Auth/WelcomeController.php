@@ -37,7 +37,6 @@ class WelcomeController extends Controller
         if (! $request->hasValidSignature()) {
             return Inertia::render('auth/welcome-expired', [
                 'email' => $user->email,
-                'userId' => $user->id,
             ]);
         }
 
@@ -122,6 +121,6 @@ class WelcomeController extends Controller
 
         // Always show success to prevent email enumeration
         return redirect()->route('login')
-            ->with('status', 'If your account exists and hasn\'t been activated yet, a new welcome email has been sent.');
+            ->with('status', "If your account exists and hasn't been activated yet, a new welcome email has been sent.");
     }
 }

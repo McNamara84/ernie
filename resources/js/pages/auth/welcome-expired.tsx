@@ -10,7 +10,6 @@ import AuthLayout from '@/layouts/auth-layout';
 
 interface WelcomeExpiredProps {
     email: string;
-    userId: number;
 }
 
 export default function WelcomeExpired({ email }: WelcomeExpiredProps) {
