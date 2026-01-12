@@ -22,7 +22,7 @@ describe('Welcome Email', function () {
             'email' => 'newuser@example.com',
         ]);
 
-        Mail::assertQueued(WelcomeNewUser::class, function ($mail) {
+        Mail::assertSent(WelcomeNewUser::class, function ($mail) {
             return $mail->hasTo('newuser@example.com');
         });
     });
@@ -189,7 +189,7 @@ describe('Welcome Resend', function () {
         $response->assertRedirect(route('login'));
         $response->assertSessionHas('status');
 
-        Mail::assertQueued(WelcomeNewUser::class, function ($mail) {
+        Mail::assertSent(WelcomeNewUser::class, function ($mail) {
             return $mail->hasTo('pending@example.com');
         });
     });
@@ -209,7 +209,7 @@ describe('Welcome Resend', function () {
         $response->assertRedirect(route('login'));
         $response->assertSessionHas('status');
 
-        Mail::assertNotQueued(WelcomeNewUser::class);
+        Mail::assertNotSent(WelcomeNewUser::class);
     });
 
     it('does not reveal if email exists (security)', function () {
@@ -222,7 +222,7 @@ describe('Welcome Resend', function () {
         $response->assertRedirect(route('login'));
         $response->assertSessionHas('status');
 
-        Mail::assertNotQueued(WelcomeNewUser::class);
+        Mail::assertNotSent(WelcomeNewUser::class);
     });
 });
 

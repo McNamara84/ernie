@@ -30,7 +30,7 @@ describe('User Creation', function () {
             'is_active' => true,
         ]);
 
-        Mail::assertQueued(WelcomeNewUser::class, function ($mail) {
+        Mail::assertSent(WelcomeNewUser::class, function ($mail) {
             return $mail->hasTo('newuser@example.com');
         });
     });

@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Models\User;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -19,10 +17,12 @@ use Illuminate\Support\Facades\URL;
  * Sent to new users when their account is created by a Group Leader or Admin.
  * Contains a signed URL to set their initial password.
  * Written from ERNIE's perspective as the metadata curation assistant.
+ *
+ * Note: This mailable is sent synchronously (not queued) to provide immediate
+ * feedback if email delivery fails, allowing the admin to take action.
  */
-class WelcomeNewUser extends Mailable implements ShouldQueue
+class WelcomeNewUser extends Mailable
 {
-    use Queueable;
     use SerializesModels;
 
     /**
