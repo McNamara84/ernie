@@ -8,11 +8,13 @@ use App\Http\Requests\ReactivateUserRequest;
 use App\Http\Requests\ResetUserPasswordRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRoleRequest;
+use App\Mail\WelcomeNewUser;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -67,14 +69,14 @@ class UserController extends Controller
 
     /**
      * Store a newly created user.
-     * Creates user with Beginner role and sends password reset email.
+     * Creates user with Beginner role and sends welcome email with password setup link.
      */
     public function store(StoreUserRequest $request): RedirectResponse
     {
         // Authorization is handled by StoreUserRequest::authorize()
 
         // Create user with intentionally unusable random password.
-        // Users must set their password via the reset link sent to their email.
+        // Users must set their password via the welcome link sent to their email.
         $user = User::create([
             'name' => $request->validated()['name'],
             'email' => $request->validated()['email'],
@@ -83,42 +85,31 @@ class UserController extends Controller
             'is_active' => true,
         ]);
 
-        // Send password reset email with exception handling.
+        // Send welcome email with signed URL for password setup.
         // This prevents mail server configuration issues from causing 500 errors.
-        // Note: InvalidArgumentException (malformed email) is already prevented by
-        // StoreUserRequest validation. If it somehow occurred, it would be caught
-        // by the generic \Exception handler below and logged appropriately.
         try {
-            $status = Password::sendResetLink([
-                'email' => $user->email,
-            ]);
+            Mail::to($user->email)->send(new WelcomeNewUser($user));
 
-            if ($status === Password::RESET_LINK_SENT) {
-                return redirect()->back()->with('success', "User '{$user->name}' has been created. A password reset link has been sent to their email.");
-            }
-
-            // Password facade returned an error status (e.g., throttled)
-            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent. Please use the password reset button to send it manually.");
+            return redirect()->back()->with('success', "User '{$user->name}' has been created. A welcome email has been sent to their address.");
         } catch (TransportExceptionInterface $e) {
             // Mail server connection failed (SMTP unreachable, timeout, etc.)
-            Log::error('Failed to send password reset email for new user - mail transport error', [
+            Log::error('Failed to send welcome email for new user - mail transport error', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'error' => $e->getMessage(),
             ]);
 
-            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent (mail server error). Please use the password reset button to send it manually.");
+            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the welcome email could not be sent (mail server error). Please use the resend option.");
         } catch (\Exception $e) {
             // Other unexpected exceptions (configuration errors, etc.)
-            // Log with higher severity since these are unexpected
-            Log::error('Failed to send password reset email for new user - unexpected error', [
+            Log::error('Failed to send welcome email for new user - unexpected error', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'error' => $e->getMessage(),
                 'exception_class' => get_class($e),
             ]);
 
-            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the password reset email could not be sent. Please use the password reset button to send it manually.");
+            return redirect()->back()->with('warning', "User '{$user->name}' has been created, but the welcome email could not be sent. Please use the resend option.");
         }
     }
 
