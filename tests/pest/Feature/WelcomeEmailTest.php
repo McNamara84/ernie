@@ -132,7 +132,7 @@ describe('Welcome Page - Valid Signature', function () {
 });
 
 describe('Welcome Page - Expired Signature', function () {
-    it('shows expired page when signature is invalid', function () {
+    it('shows expired page when signature is invalid without exposing email', function () {
         $user = User::factory()->create(['password_set_at' => null]);
 
         // Create URL with expired signature
@@ -147,7 +147,7 @@ describe('Welcome Page - Expired Signature', function () {
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) => $page
             ->component('auth/welcome-expired')
-            ->has('email')
+            ->where('email', '') // Email should be empty to prevent enumeration
         );
     });
 

@@ -90,7 +90,7 @@ class UserController extends Controller
         try {
             Mail::to($user->email)->send(new WelcomeNewUser($user));
 
-            return redirect()->back()->with('success', "User '{$user->name}' has been created. A welcome email has been sent to their address.");
+            return redirect()->back()->with('success', "User '{$user->name}' has been created. A welcome email has been sent to {$user->email}.");
         } catch (TransportExceptionInterface $e) {
             // Mail server connection failed (SMTP unreachable, timeout, etc.)
             Log::error('Failed to send welcome email for new user - mail transport error', [

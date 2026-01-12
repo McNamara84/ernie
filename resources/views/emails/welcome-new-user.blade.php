@@ -34,9 +34,9 @@
         </p>
     </div>
     
-    <p style="color: #999999; font-size: 11px; text-align: center; margin-top: 16px;">
+    <p style="color: #999999; font-size: 11px; text-align: center; margin-top: 16px; overflow-wrap: break-word; word-wrap: break-word;">
         If the button above doesn't work, copy and paste this link into your browser:<br>
-        <a href="{{ $welcomeUrl }}" style="color: #2563eb; word-break: break-all;">{{ $welcomeUrl }}</a>
+        <a href="{{ $welcomeUrl }}" style="color: #2563eb; word-break: break-all; overflow-wrap: break-word;">{{ $welcomeUrl }}</a>
     </p>
 </body>
 </html>

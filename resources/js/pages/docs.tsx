@@ -346,8 +346,8 @@ export default function Docs({ userRole }: DocsProps) {
 
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                         <p className="text-sm text-blue-900 dark:text-blue-100">
-                            <strong>Link Expired?</strong> If the welcome link expires, users can request a new one directly from the welcome page,
-                            or you can use the "Resend Welcome Email" button in the user management interface.
+                            <strong>Link Expired?</strong> If the welcome link expires, users can request a new one directly from the expired
+                            welcome page by entering their email address.
                         </p>
                     </div>
 

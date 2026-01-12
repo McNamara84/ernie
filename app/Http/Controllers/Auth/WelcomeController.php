@@ -34,9 +34,10 @@ class WelcomeController extends Controller
     public function show(Request $request, User $user): Response|RedirectResponse
     {
         // Check if URL signature is valid
+        // SECURITY: Do not expose user email if signature is invalid to prevent enumeration
         if (! $request->hasValidSignature()) {
             return Inertia::render('auth/welcome-expired', [
-                'email' => $user->email,
+                'email' => '',
             ]);
         }
 
@@ -76,10 +77,18 @@ class WelcomeController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $user->update([
-            'password' => Hash::make($validated['password']),
-            'password_set_at' => now(),
-        ]);
+        // Use atomic update to prevent race condition
+        $updated = User::where('id', $user->id)
+            ->whereNull('password_set_at')
+            ->update([
+                'password' => Hash::make($validated['password']),
+                'password_set_at' => now(),
+            ]);
+
+        if ($updated === 0) {
+            return redirect()->route('login')
+                ->with('status', 'Your password has already been set. Please log in.');
+        }
 
         return redirect()->route('login')
             ->with('status', 'Your password has been set successfully. Please log in.');

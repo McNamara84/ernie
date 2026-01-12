@@ -28,7 +28,16 @@ export default function WelcomeExpired({ email }: WelcomeExpiredProps) {
                     <div className="grid gap-6">
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
-                            <Input id="email" type="email" name="email" defaultValue={email} className="bg-muted mt-1 block w-full" readOnly />
+                            <Input
+                                id="email"
+                                type="email"
+                                name="email"
+                                defaultValue={email}
+                                placeholder="Enter your email address"
+                                className={email ? 'bg-muted' : ''}
+                                readOnly={!!email}
+                                required
+                            />
                         </div>
 
                         <Button type="submit" className="w-full" disabled={processing}>
