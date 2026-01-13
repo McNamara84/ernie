@@ -91,8 +91,18 @@ export default defineConfig(() => {
                 reportsDirectory: 'coverage',
                 include: ['resources/js/**/*.{js,ts,jsx,tsx}'],
                 exclude: [
+                    // Test files and mocks
                     'tests/vitest/**',
                     'resources/js/**/__mocks__/**',
+                    // Auto-generated Wayfinder files (Laravel route helpers)
+                    'resources/js/actions/**',
+                    'resources/js/routes/**',
+                    // Application entry points (not unit-testable)
+                    'resources/js/app.tsx',
+                    'resources/js/ssr.tsx',
+                    // Type definitions (no executable code)
+                    'resources/js/types/**/*.d.ts',
+                    'resources/js/**/*.d.ts',
                 ],
             },
         },
