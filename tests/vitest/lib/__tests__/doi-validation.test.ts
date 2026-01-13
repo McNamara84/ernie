@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateDOIFormat, validateHandleFormat, validateIdentifierFormat, validateURLFormat } from '@/lib/doi-validation';
+import { supportsMetadataResolution, validateDOIFormat, validateHandleFormat, validateIdentifierFormat, validateURLFormat } from '@/lib/doi-validation';
 
 describe('doi-validation', () => {
     describe('validateHandleFormat', () => {
@@ -154,6 +154,44 @@ describe('doi-validation', () => {
         it('should route Handle URL to Handle validator', () => {
             const result = validateIdentifierFormat('http://hdl.handle.net/11708/test', 'Handle');
             expect(result.isValid).toBe(true);
+        });
+
+        it('should validate non-empty unknown type identifiers', () => {
+            const result = validateIdentifierFormat('some-identifier', 'ISBN');
+            expect(result.isValid).toBe(true);
+            expect(result.format).toBe('valid');
+        });
+
+        it('should reject empty unknown type identifiers', () => {
+            const result = validateIdentifierFormat('', 'ISBN');
+            expect(result.isValid).toBe(false);
+            expect(result.format).toBe('invalid');
+            expect(result.message).toBe('Identifier cannot be empty');
+        });
+
+        it('should reject whitespace-only unknown type identifiers', () => {
+            const result = validateIdentifierFormat('   ', 'ARK');
+            expect(result.isValid).toBe(false);
+            expect(result.format).toBe('invalid');
+        });
+    });
+
+    describe('supportsMetadataResolution', () => {
+        it('should return true for DOI type', () => {
+            expect(supportsMetadataResolution('DOI')).toBe(true);
+        });
+
+        it('should return false for URL type', () => {
+            expect(supportsMetadataResolution('URL')).toBe(false);
+        });
+
+        it('should return false for Handle type', () => {
+            expect(supportsMetadataResolution('Handle')).toBe(false);
+        });
+
+        it('should return false for unknown types', () => {
+            expect(supportsMetadataResolution('ISBN')).toBe(false);
+            expect(supportsMetadataResolution('ARK')).toBe(false);
         });
     });
 });
