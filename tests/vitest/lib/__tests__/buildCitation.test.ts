@@ -243,4 +243,247 @@ describe('buildCitation', () => {
             'Author, Test (2022): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
         );
     });
+
+    it('handles missing DOI with fallback message', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    creatorable: {
+                        type: 'Person',
+                        given_name: 'Test',
+                        family_name: 'Author',
+                    },
+                },
+            ],
+            titles: [{ title: 'Test Dataset', title_type: 'MainTitle' }],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Author, Test (2024): Test Dataset. GFZ Data Services. DOI not available'
+        );
+    });
+
+    it('handles missing titles with Untitled', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    creatorable: {
+                        type: 'Person',
+                        given_name: 'Test',
+                        family_name: 'Author',
+                    },
+                },
+            ],
+            titles: [],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Author, Test (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('handles missing publisher with default GFZ Data Services', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    creatorable: {
+                        type: 'Person',
+                        given_name: 'Test',
+                        family_name: 'Author',
+                    },
+                },
+            ],
+            titles: [{ title: 'Test Dataset', title_type: 'MainTitle' }],
+            year: 2024,
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Author, Test (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('uses title field over deprecated value field', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    creatorable: {
+                        type: 'Person',
+                        given_name: 'Test',
+                        family_name: 'Author',
+                    },
+                },
+            ],
+            titles: [{ title: 'New Title', value: 'Old Title', title_type: 'MainTitle' }],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Author, Test (2024): New Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('falls back to title without title_type when no MainTitle', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    creatorable: {
+                        type: 'Person',
+                        given_name: 'Test',
+                        family_name: 'Author',
+                    },
+                },
+            ],
+            titles: [{ title: 'Alternative Title', title_type: null }],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Author, Test (2024): Alternative Title. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('handles institution_name in old structure', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    institution_name: 'Legacy Institution',
+                },
+            ],
+            titles: [{ title: 'Test Dataset', title_type: 'MainTitle' }],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Legacy Institution (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('handles old structure with only family_name', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    family_name: 'OnlyFamily',
+                },
+            ],
+            titles: [{ title: 'Test Dataset', title_type: 'MainTitle' }],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'OnlyFamily (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('filters out null creator entries', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    // No valid name data - should be filtered out
+                },
+                {
+                    id: 2,
+                    position: 2,
+                    creatorable: {
+                        type: 'Person',
+                        given_name: 'Valid',
+                        family_name: 'Author',
+                    },
+                },
+            ],
+            titles: [{ title: 'Test Dataset', title_type: 'MainTitle' }],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Author, Valid (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('handles undefined creators property', () => {
+        const resource = {
+            titles: [{ title: 'Test Dataset', title_type: 'MainTitle' }],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Unknown Creator (2024): Test Dataset. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
+
+    it('handles undefined titles property', () => {
+        const resource = {
+            creators: [
+                {
+                    id: 1,
+                    position: 1,
+                    creatorable: {
+                        type: 'Person',
+                        given_name: 'Test',
+                        family_name: 'Author',
+                    },
+                },
+            ],
+            year: 2024,
+            publisher: 'GFZ Data Services',
+            doi: '10.5880/GFZ.TEST',
+        };
+
+        const citation = buildCitation(resource);
+
+        expect(citation).toBe(
+            'Author, Test (2024): Untitled. GFZ Data Services. https://doi.org/10.5880/GFZ.TEST'
+        );
+    });
 });
