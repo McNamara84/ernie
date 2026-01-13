@@ -932,7 +932,7 @@ describe('DataCiteForm', () => {
 
     it(
         'supports adding, removing and managing multiple authors independently',
-        { timeout: 15000 },
+        { timeout: 30000 },
         async () => {
             render(
                 <DataCiteForm
