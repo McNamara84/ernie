@@ -127,7 +127,7 @@ describe('DescriptionField', () => {
     });
 
     it('shows validation messages when Abstract is touched and has errors', () => {
-        const validationMessages = [{ type: 'error' as const, message: 'Abstract is required' }];
+        const validationMessages = [{ severity: 'error' as const, message: 'Abstract is required' }];
         render(
             <DescriptionField
                 {...defaultProps}
@@ -140,7 +140,7 @@ describe('DescriptionField', () => {
     });
 
     it('does not show validation messages when Abstract is not touched', () => {
-        const validationMessages = [{ type: 'error' as const, message: 'Abstract is required' }];
+        const validationMessages = [{ severity: 'error' as const, message: 'Abstract is required' }];
         render(
             <DescriptionField
                 {...defaultProps}
@@ -177,7 +177,7 @@ describe('DescriptionField', () => {
     });
 
     it('sets aria-invalid on Abstract when validation fails', () => {
-        const validationMessages = [{ type: 'error' as const, message: 'Required' }];
+        const validationMessages = [{ severity: 'error' as const, message: 'Required' }];
         render(
             <DescriptionField
                 {...defaultProps}
