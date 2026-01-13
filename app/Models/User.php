@@ -15,6 +15,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string $name
  * @property string $email
  * @property string|null $password
+ * @property \Illuminate\Support\Carbon|null $password_set_at
  * @property string|null $remember_token
  * @property UserRole $role
  * @property bool $is_active
@@ -39,6 +40,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'password_set_at',
         'font_size_preference',
         'role',
         'is_active',
@@ -64,6 +66,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'password_set_at' => 'datetime',
             'role' => UserRole::class,
             'is_active' => 'boolean',
             'deactivated_at' => 'datetime',

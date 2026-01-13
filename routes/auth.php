@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\Auth\WelcomeController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -27,6 +28,19 @@ Route::middleware('guest')->group(function () {
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    // Welcome flow for new users (signed URLs, 72h validity)
+    // Note: resend route must come before {user} route to avoid parameter matching
+    Route::post('welcome/resend', [WelcomeController::class, 'resend'])
+        ->middleware('throttle:3,1')
+        ->name('welcome.resend');
+
+    Route::get('welcome/{user}', [WelcomeController::class, 'show'])
+        ->name('welcome.show');
+
+    Route::post('welcome/{user}', [WelcomeController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('welcome.store');
 });
 
 Route::middleware('auth')->group(function () {
