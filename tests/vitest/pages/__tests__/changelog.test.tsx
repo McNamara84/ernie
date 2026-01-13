@@ -133,16 +133,34 @@ describe('Changelog', () => {
         window.scrollTo = vi.fn();
         Element.prototype.scrollIntoView = vi.fn();
         
-        // Mock IntersectionObserver
-        global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-            observe: vi.fn(),
-            unobserve: vi.fn(),
-            disconnect: vi.fn(),
-            root: null,
-            rootMargin: '',
-            thresholds: [],
-            takeRecords: vi.fn(),
-        })) as unknown as typeof IntersectionObserver;
+        // Mock IntersectionObserver with callback execution
+        global.IntersectionObserver = vi.fn().mockImplementation(function (this: IntersectionObserver, callback: IntersectionObserverCallback) {
+            return {
+                observe: vi.fn((target: Element) => {
+                    // Immediately trigger callback with isIntersecting: true
+                    callback(
+                        [
+                            {
+                                target,
+                                isIntersecting: true,
+                                intersectionRatio: 1,
+                                boundingClientRect: target.getBoundingClientRect(),
+                                intersectionRect: target.getBoundingClientRect(),
+                                rootBounds: null,
+                                time: Date.now(),
+                            },
+                        ] as IntersectionObserverEntry[],
+                        this
+                    );
+                }),
+                unobserve: vi.fn(),
+                disconnect: vi.fn(),
+                root: null,
+                rootMargin: '',
+                thresholds: [],
+                takeRecords: vi.fn(() => []),
+            };
+        }) as unknown as typeof IntersectionObserver;
     });
 
     it('renders releases on a timeline, expands the latest by default, and toggles grouped details', async () => {
