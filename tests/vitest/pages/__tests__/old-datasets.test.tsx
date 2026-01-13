@@ -1,4 +1,4 @@
-import { render, screen, waitFor,within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor,within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, type MockInstance,vi } from 'vitest';
@@ -152,6 +152,7 @@ describe('OldDatasets page', () => {
     });
 
     afterEach(() => {
+        cleanup();
         vi.restoreAllMocks();
         if (originalIntersectionObserver) {
             globalThis.IntersectionObserver = originalIntersectionObserver;
@@ -318,93 +319,120 @@ describe('OldDatasets page', () => {
     });
 
     it('allows sorting by ID and toggling direction while persisting preference', async () => {
+        // Reset mocks to ensure clean state
+        mockedAxios.get.mockReset();
+        
         const user = userEvent.setup();
 
-        mockedAxios.get
-            .mockResolvedValueOnce({
-                // First call: filter-options
-                data: {
-                    resource_types: ['Dataset', 'Image', 'Software'],
-                    statuses: ['published', 'review', 'draft'],
-                    curators: ['Alice', 'Bob', 'Charlie'],
-                    year_range: { min: 2020, max: 2024 },
-                },
-            })
-            .mockResolvedValueOnce({
-                // Second call: load-more with sort by ID asc
-                data: {
-                    datasets: [
-                        {
-                            id: 1,
-                            identifier: '10.1234/example-one',
-                            title: 'Ascending dataset first',
-                            resourcetypegeneral: 'Dataset',
-                            curator: 'Alice',
-                            created_at: '2024-01-01T10:00:00Z',
-                            updated_at: '2024-01-02T10:00:00Z',
-                            publicstatus: 'review',
-                        },
-                        {
-                            id: 2,
-                            identifier: '10.1234/example-two',
-                            title: 'Ascending dataset second',
-                            resourcetypegeneral: 'Image',
-                            curator: 'Bob',
-                            created_at: '2024-02-01T12:00:00Z',
-                            updated_at: '2024-02-02T12:00:00Z',
-                            publicstatus: 'published',
-                        },
-                    ],
-                    pagination: {
-                        current_page: 1,
-                        last_page: 3,
-                        per_page: 20,
-                        total: 60,
-                        from: 1,
-                        to: 20,
-                        has_more: true,
-                    },
-                    sort: { key: 'id', direction: 'asc' },
-                },
-            })
-            .mockResolvedValueOnce({
-                data: {
-                    datasets: [
-                        {
-                            id: 2,
-                            identifier: '10.1234/example-two',
-                            title: 'Descending dataset first',
-                            resourcetypegeneral: 'Image',
-                            curator: 'Bob',
-                            created_at: '2024-02-01T12:00:00Z',
-                            updated_at: '2024-02-02T12:00:00Z',
-                            publicstatus: 'published',
-                        },
-                        {
-                            id: 1,
-                            identifier: '10.1234/example-one',
-                            title: 'Descending dataset second',
-                            resourcetypegeneral: 'Dataset',
-                            curator: 'Alice',
-                            created_at: '2024-01-01T10:00:00Z',
-                            updated_at: '2024-01-02T10:00:00Z',
-                            publicstatus: 'review',
-                        },
-                    ],
-                    pagination: {
-                        current_page: 1,
-                        last_page: 3,
-                        per_page: 20,
-                        total: 60,
-                        from: 1,
-                        to: 20,
-                        has_more: true,
-                    },
-                    sort: { key: 'id', direction: 'desc' },
-                },
-            });
+        const filterOptionsResponse = {
+            data: {
+                resource_types: ['Dataset', 'Image', 'Software'],
+                statuses: ['published', 'review', 'draft'],
+                curators: ['Alice', 'Bob', 'Charlie'],
+                year_range: { min: 2020, max: 2024 },
+            },
+        };
 
-        render(<OldDatasets {...baseProps} />);
+        const ascendingResponse = {
+            data: {
+                datasets: [
+                    {
+                        id: 1,
+                        identifier: '10.1234/example-one',
+                        title: 'Ascending dataset first',
+                        resourcetypegeneral: 'Dataset',
+                        curator: 'Alice',
+                        created_at: '2024-01-01T10:00:00Z',
+                        updated_at: '2024-01-02T10:00:00Z',
+                        publicstatus: 'review',
+                    },
+                    {
+                        id: 2,
+                        identifier: '10.1234/example-two',
+                        title: 'Ascending dataset second',
+                        resourcetypegeneral: 'Image',
+                        curator: 'Bob',
+                        created_at: '2024-02-01T12:00:00Z',
+                        updated_at: '2024-02-02T12:00:00Z',
+                        publicstatus: 'published',
+                    },
+                ],
+                pagination: {
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 20,
+                    total: 2,
+                    from: 1,
+                    to: 2,
+                    has_more: false,
+                },
+                sort: { key: 'id', direction: 'asc' },
+            },
+        };
+
+        const descendingResponse = {
+            data: {
+                datasets: [
+                    {
+                        id: 2,
+                        identifier: '10.1234/example-two',
+                        title: 'Descending dataset first',
+                        resourcetypegeneral: 'Image',
+                        curator: 'Bob',
+                        created_at: '2024-02-01T12:00:00Z',
+                        updated_at: '2024-02-02T12:00:00Z',
+                        publicstatus: 'published',
+                    },
+                    {
+                        id: 1,
+                        identifier: '10.1234/example-one',
+                        title: 'Descending dataset second',
+                        resourcetypegeneral: 'Dataset',
+                        curator: 'Alice',
+                        created_at: '2024-01-01T10:00:00Z',
+                        updated_at: '2024-01-02T10:00:00Z',
+                        publicstatus: 'review',
+                    },
+                ],
+                pagination: {
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 20,
+                    total: 2,
+                    from: 1,
+                    to: 2,
+                    has_more: false,
+                },
+                sort: { key: 'id', direction: 'desc' },
+            },
+        };
+
+        // Use mockImplementation for more control over which response to return
+        mockedAxios.get.mockImplementation(function(url: string) {
+            if (url.includes('filter-options')) {
+                return Promise.resolve(filterOptionsResponse);
+            }
+            if (url.includes('sort_direction=desc')) {
+                return Promise.resolve(descendingResponse);
+            }
+            if (url.includes('sort_direction=asc')) {
+                return Promise.resolve(ascendingResponse);
+            }
+            // Default fallback
+            return Promise.resolve(ascendingResponse);
+        });
+
+        // Use props with has_more: false to prevent automatic loadMore on initial render
+        const propsWithNoMoreData = {
+            ...baseProps,
+            pagination: {
+                ...baseProps.pagination,
+                has_more: false,
+                last_page: 1,
+            },
+        };
+
+        render(<OldDatasets {...propsWithNoMoreData} />);
 
         const idSortButton = screen.getByRole('button', {
             name: /Sort by the dataset ID from the legacy database/i,
@@ -534,6 +562,9 @@ describe('OldDatasets page', () => {
     });
 
     it('surfaces a retry affordance when refreshing the datasets for a new sort fails', async () => {
+        // Reset mocks to ensure clean state
+        mockedAxios.get.mockReset();
+        
         const axiosError = Object.assign(new Error('Request failed with status code 500'), {
             isAxiosError: true,
             response: {
@@ -547,48 +578,71 @@ describe('OldDatasets page', () => {
             },
         });
 
-        mockedAxios.get
-            .mockResolvedValueOnce({
-                // First call: filter-options on mount
-                data: {
-                    resource_types: ['Dataset', 'Image', 'Software'],
-                    statuses: ['published', 'review', 'draft'],
-                    curators: ['Alice', 'Bob', 'Riley'],
-                    year_range: { min: 2020, max: 2024 },
-                },
-            })
-            .mockRejectedValueOnce(axiosError) // Second call: sort change triggers load-more (error)
-            .mockResolvedValueOnce({
-                // Third call: retry after error (successful)
-                data: {
-                    datasets: [
-                        {
-                            id: 42,
-                            identifier: '10.4242/refreshed',
-                            title: 'Refreshed dataset after retry',
-                            resourcetypegeneral: 'Dataset',
-                            curator: 'Riley',
-                            created_at: '2024-03-01T00:00:00Z',
-                            updated_at: '2024-03-02T00:00:00Z',
-                            publicstatus: 'published',
-                        },
-                    ],
-                    pagination: {
-                        current_page: 1,
-                        last_page: 3,
-                        per_page: 20,
-                        total: 60,
-                        from: 1,
-                        to: 20,
-                        has_more: true,
+        const filterOptionsResponse = {
+            data: {
+                resource_types: ['Dataset', 'Image', 'Software'],
+                statuses: ['published', 'review', 'draft'],
+                curators: ['Alice', 'Bob', 'Riley'],
+                year_range: { min: 2020, max: 2024 },
+            },
+        };
+
+        const successResponse = {
+            data: {
+                datasets: [
+                    {
+                        id: 42,
+                        identifier: '10.4242/refreshed',
+                        title: 'Refreshed dataset after retry',
+                        resourcetypegeneral: 'Dataset',
+                        curator: 'Riley',
+                        created_at: '2024-03-01T00:00:00Z',
+                        updated_at: '2024-03-02T00:00:00Z',
+                        publicstatus: 'published',
                     },
-                    sort: { key: 'id', direction: 'asc' },
+                ],
+                pagination: {
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: 20,
+                    total: 1,
+                    from: 1,
+                    to: 1,
+                    has_more: false,
                 },
-            });
+                sort: { key: 'id', direction: 'asc' },
+            },
+        };
+
+        // Use props with has_more: false to prevent automatic loadMore on initial render
+        const propsWithNoMoreData = {
+            ...baseProps,
+            pagination: {
+                ...baseProps.pagination,
+                has_more: false,
+                last_page: 1,
+            },
+        };
+
+        let sortCallCount = 0;
+        mockedAxios.get.mockImplementation(function(url: string) {
+            if (url.includes('filter-options')) {
+                return Promise.resolve(filterOptionsResponse);
+            }
+            if (url.includes('load-more')) {
+                sortCallCount++;
+                // First sort call fails, subsequent calls succeed
+                if (sortCallCount === 1) {
+                    return Promise.reject(axiosError);
+                }
+                return Promise.resolve(successResponse);
+            }
+            return Promise.resolve(filterOptionsResponse);
+        });
 
         const user = userEvent.setup();
 
-        render(<OldDatasets {...baseProps} />);
+        render(<OldDatasets {...propsWithNoMoreData} />);
 
         // Wait for initial render with props data
         await screen.findByText('Concise dataset title');
