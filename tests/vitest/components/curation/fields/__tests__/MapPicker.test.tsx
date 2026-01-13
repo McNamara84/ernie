@@ -14,23 +14,12 @@ const mockMap = {
     panTo: vi.fn(),
     fitBounds: vi.fn(),
     setZoom: vi.fn(),
-    addListener: vi.fn(() => ({ remove: vi.fn() })),
-    get: vi.fn((key: string) => {
+    addListener: vi.fn(function() { return { remove: vi.fn() }; }),
+    get: vi.fn(function(key: string) {
         // Return default values for map properties
         if (key === 'draggable') return true;
         return undefined;
     }),
-};
-
-const mockRectangle = {
-    setMap: vi.fn(),
-    setBounds: vi.fn(),
-    getBounds: vi.fn(() => ({
-        north: 48.2,
-        south: 48.1,
-        east: 11.7,
-        west: 11.5,
-    })),
 };
 
 vi.mock('@vis.gl/react-google-maps', () => ({
@@ -61,23 +50,45 @@ vi.mock('@vis.gl/react-google-maps', () => ({
 }));
 
 // Mock Google Maps global objects
+const mockGeocoderResult = {
+    results: [
+        {
+            geometry: {
+                location: {
+                    lat: () => 48.137154,
+                    lng: () => 11.576124,
+                },
+            },
+        },
+    ],
+};
+
+class MockGeocoder {
+    geocode() {
+        return Promise.resolve(mockGeocoderResult);
+    }
+}
+
+// Create a mock Rectangle class that can be spied on
+const MockRectangle = vi.fn(function MockRectangle() {
+    return {
+        setMap: vi.fn(),
+        setBounds: vi.fn(),
+        getBounds: function() {
+            return {
+                north: 48.2,
+                south: 48.1,
+                east: 11.7,
+                west: 11.5,
+            };
+        },
+    };
+});
+
 global.google = {
     maps: {
-        Rectangle: vi.fn().mockImplementation(() => mockRectangle),
-        Geocoder: vi.fn().mockImplementation(() => ({
-            geocode: vi.fn().mockResolvedValue({
-                results: [
-                    {
-                        geometry: {
-                            location: {
-                                lat: () => 48.137154,
-                                lng: () => 11.576124,
-                            },
-                        },
-                    },
-                ],
-            }),
-        })),
+        Rectangle: MockRectangle,
+        Geocoder: MockGeocoder,
     },
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
@@ -106,8 +117,6 @@ describe('MapPicker', () => {
         mockMap.fitBounds.mockClear();
         mockMap.setZoom.mockClear();
         mockMap.addListener.mockClear();
-        mockRectangle.setMap.mockClear();
-        mockRectangle.setBounds.mockClear();
         vi.clearAllMocks();
     });
 
