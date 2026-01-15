@@ -15,6 +15,17 @@ vi.mock('@inertiajs/react', () => ({
         post: vi.fn(),
         processing: false,
     }),
+    usePage: () => ({
+        props: {
+            auth: {
+                user: {
+                    id: 1,
+                    name: 'Admin User',
+                    role: 'admin',
+                },
+            },
+        },
+    }),
 }));
 
 vi.mock('@/layouts/app-layout', () => ({

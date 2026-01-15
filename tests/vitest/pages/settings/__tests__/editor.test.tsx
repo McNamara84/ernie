@@ -16,6 +16,17 @@ const useFormMock = vi.fn((initial) => ({
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     useForm: (initial: unknown) => useFormMock(initial),
+    usePage: () => ({
+        props: {
+            auth: {
+                user: {
+                    id: 1,
+                    name: 'Admin User',
+                    role: 'admin',
+                },
+            },
+        },
+    }),
 }));
 
 const settingsRoute = vi.hoisted(() => ({ url: '/settings' }));
