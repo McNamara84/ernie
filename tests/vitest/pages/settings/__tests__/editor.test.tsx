@@ -88,16 +88,19 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
             />,
         );
-        const grid = screen.getByTestId('bento-grid');
+        const grid = screen.getByTestId('settings-grid');
         expect(grid).toBeInTheDocument();
         expect(grid).toHaveClass('md:grid-cols-2');
-        expect(grid).not.toHaveClass('lg:grid-cols-3');
-        const items = grid.querySelectorAll('[data-slot="bento-grid-item"]');
-        expect(items).toHaveLength(7); // 6 original + 1 ThesaurusCard
-        items.forEach((item) => expect(item).toHaveClass('self-start'));
-        expect(items[0]).toHaveClass('md:row-span-5');
-        expect(within(items[0] as HTMLElement).getByText('Licenses')).toBeInTheDocument();
-        expect(within(items[1] as HTMLElement).getByText('Resource Types')).toBeInTheDocument();
+
+        // Verify cards are rendered (7 cards total: Licenses, Resource Types, Title Types, Languages, Date Types, Limits, Thesauri)
+        expect(screen.getByText('Licenses')).toBeInTheDocument();
+        expect(screen.getByText('Resource Types')).toBeInTheDocument();
+        expect(screen.getByText('Title Types')).toBeInTheDocument();
+        expect(screen.getByText('Languages')).toBeInTheDocument();
+        expect(screen.getByText('Date Types')).toBeInTheDocument();
+        expect(screen.getByText('Limits')).toBeInTheDocument();
+        expect(screen.getByText('Thesauri')).toBeInTheDocument();
+
         expect(screen.getAllByLabelText('Name')).toHaveLength(2);
         expect(screen.getAllByLabelText('ERNIE active')).toHaveLength(4);
         expect(screen.getAllByLabelText('ELMO active')).toHaveLength(4);

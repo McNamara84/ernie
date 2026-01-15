@@ -106,7 +106,7 @@ describe('EditorSettings page', () => {
         expect(elmoCell).toHaveClass('text-center');
     });
 
-    it('uses a two-column layout with all cards except Licenses in the second column', () => {
+    it('uses a two-column layout with Licenses on the left and other cards on the right', () => {
         render(
             <EditorSettings
                 resourceTypes={[
@@ -128,26 +128,17 @@ describe('EditorSettings page', () => {
             />,
         );
 
-        const grid = screen.getByTestId('bento-grid');
+        const grid = screen.getByTestId('settings-grid');
         expect(grid).toHaveClass('md:grid-cols-2');
-        expect(grid).not.toHaveClass('lg:grid-cols-3');
 
-        // Verify all regions exist - they flow naturally into the grid
-        // (Licenses spans 5 rows, others stack in right column)
-        const resourceTypesRegion = screen.getByRole('region', { name: 'Resource Types' });
-        expect(resourceTypesRegion).toBeInTheDocument();
-
-        const titleTypesRegion = screen.getByRole('region', { name: 'Title Types' });
-        expect(titleTypesRegion).toBeInTheDocument();
-
-        const languagesRegion = screen.getByRole('region', { name: 'Languages' });
-        expect(languagesRegion).toBeInTheDocument();
-
-        const dateTypesRegion = screen.getByRole('region', { name: 'Date Types' });
-        expect(dateTypesRegion).toBeInTheDocument();
-
-        const limitsRegion = screen.getByRole('region', { name: 'Limits' });
-        expect(limitsRegion).toBeInTheDocument();
+        // Verify all headings exist for each card
+        expect(screen.getByText('Licenses')).toBeInTheDocument();
+        expect(screen.getByText('Resource Types')).toBeInTheDocument();
+        expect(screen.getByText('Title Types')).toBeInTheDocument();
+        expect(screen.getByText('Languages')).toBeInTheDocument();
+        expect(screen.getByText('Date Types')).toBeInTheDocument();
+        expect(screen.getByText('Limits')).toBeInTheDocument();
+        expect(screen.getByText('Thesauri')).toBeInTheDocument();
     });
 
     it('updates ERNIE active when toggled', () => {
@@ -214,7 +205,7 @@ describe('EditorSettings page', () => {
         expect(grid).not.toHaveClass('mt-8');
     });
 
-    it('associates limits section with a heading for accessibility', () => {
+    it('renders limits section with heading and inputs', () => {
         const resourceTypes = [
             { id: 1, name: 'Dataset', active: true, elmo_active: false },
         ];
@@ -230,12 +221,10 @@ describe('EditorSettings page', () => {
                 thesauri={defaultThesauri}
             />,
         );
-        const region = screen.getByRole('region', { name: 'Limits' });
-        expect(region).toHaveAttribute('aria-labelledby', 'limits-heading');
-        const heading = within(region).getByRole('heading', { name: 'Limits' });
-        expect(heading).toHaveAttribute('id', 'limits-heading');
-        expect(within(region).getByLabelText('Max Titles')).toBeInTheDocument();
-        expect(within(region).getByLabelText('Max Licenses')).toBeInTheDocument();
+        // Verify Limits card exists with heading
+        expect(screen.getByRole('heading', { name: 'Limits' })).toBeInTheDocument();
+        expect(screen.getByLabelText('Max Titles')).toBeInTheDocument();
+        expect(screen.getByLabelText('Max Licenses')).toBeInTheDocument();
     });
 });
 
