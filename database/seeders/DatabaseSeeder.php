@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             LanguageSeeder::class,
             RightsSeeder::class,
             PublisherSeeder::class,
+            ThesaurusSettingSeeder::class,
         ]);
 
         // Only create test data in testing environment (for automated tests)
