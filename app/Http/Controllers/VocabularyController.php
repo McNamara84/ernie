@@ -166,16 +166,23 @@ class VocabularyController extends Controller
     /**
      * Determine if the current request is an ELMO API request.
      *
-     * ELMO requests come through the /api/* routes with the elmo.api-key middleware
-     * and/or contain an X-API-Key header.
-     *
-     * Note: Some /api/* routes like thesauri-availability are unauthenticated and
-     * used by the ERNIE frontend. Those routes should explicitly check is_active
-     * instead of relying on this method. See thesauriAvailability() for example.
+     * ELMO requests are identified by the presence of the elmo.api-key middleware
+     * on the current route. This is more reliable than URL pattern matching
+     * because some /api/* routes (like thesauri-availability) are used by
+     * the ERNIE frontend and should not be treated as ELMO requests.
      */
     private function isElmoRequest(): bool
     {
-        // Check if request path starts with 'api/' or has API key header
-        return request()->is('api/*') || request()->hasHeader('X-API-Key');
+        $route = request()->route();
+
+        // Check if the current route has the elmo.api-key middleware applied
+        if ($route !== null) {
+            $middleware = $route->gatherMiddleware();
+
+            return in_array('elmo.api-key', $middleware, true);
+        }
+
+        // Fallback: check for X-API-Key header (for requests outside Laravel routing)
+        return request()->hasHeader('X-API-Key');
     }
 }
