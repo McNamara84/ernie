@@ -214,4 +214,235 @@ describe('Logs/Index', () => {
         // Should show page indicators or navigation
         expect(screen.getByText(/Page 1 of 3/)).toBeInTheDocument();
     });
+
+    it('shows Previous and Next pagination buttons', () => {
+        render(<Index {...defaultProps} />);
+
+        expect(screen.getByRole('button', { name: /Previous/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Next/i })).toBeInTheDocument();
+    });
+
+    it('disables Previous button on first page', () => {
+        render(<Index {...defaultProps} />);
+
+        const prevButton = screen.getByRole('button', { name: /Previous/i });
+        expect(prevButton).toBeDisabled();
+    });
+
+    it('enables Next button when not on last page', () => {
+        render(<Index {...defaultProps} />);
+
+        const nextButton = screen.getByRole('button', { name: /Next/i });
+        expect(nextButton).not.toBeDisabled();
+    });
+
+    it('disables Next button on last page', () => {
+        render(<Index {...defaultProps} pagination={{ ...defaultPagination, current_page: 3, last_page: 3 }} />);
+
+        const nextButton = screen.getByRole('button', { name: /Next/i });
+        expect(nextButton).toBeDisabled();
+    });
+
+    it('navigates to next page when Next is clicked', async () => {
+        const { router } = await import('@inertiajs/react');
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        const nextButton = screen.getByRole('button', { name: /Next/i });
+        await user.click(nextButton);
+
+        await waitFor(() => {
+            expect(router.get).toHaveBeenCalledWith(
+                '/logs',
+                expect.objectContaining({
+                    page: 2,
+                }),
+                expect.any(Object),
+            );
+        });
+    });
+
+    it('navigates to previous page when Previous is clicked', async () => {
+        const { router } = await import('@inertiajs/react');
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} pagination={{ ...defaultPagination, current_page: 2 }} />);
+
+        const prevButton = screen.getByRole('button', { name: /Previous/i });
+        await user.click(prevButton);
+
+        await waitFor(() => {
+            expect(router.get).toHaveBeenCalledWith(
+                '/logs',
+                expect.objectContaining({
+                    page: 1,
+                }),
+                expect.any(Object),
+            );
+        });
+    });
+
+    it('hides pagination when only one page exists', () => {
+        render(<Index {...defaultProps} pagination={{ ...defaultPagination, current_page: 1, last_page: 1 }} />);
+
+        expect(screen.queryByRole('button', { name: /Previous/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Next/i })).not.toBeInTheDocument();
+    });
+
+    it('expands log context when row is clicked', async () => {
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        // Find the row with context
+        const row = screen.getByText('An error occurred in the application').closest('tr');
+        expect(row).toBeInTheDocument();
+
+        // Click to expand
+        await user.click(row!);
+
+        // Should show context
+        await waitFor(() => {
+            expect(screen.getByText(/"user_id": 123/)).toBeInTheDocument();
+        });
+    });
+
+    it('collapses log context when row is clicked again', async () => {
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        const row = screen.getByText('An error occurred in the application').closest('tr');
+
+        // Click to expand
+        await user.click(row!);
+        await waitFor(() => {
+            expect(screen.getByText(/"user_id": 123/)).toBeInTheDocument();
+        });
+
+        // Click to collapse
+        await user.click(row!);
+        await waitFor(() => {
+            expect(screen.queryByText(/"user_id": 123/)).not.toBeInTheDocument();
+        });
+    });
+
+    it('shows expand hint for logs with context', () => {
+        render(<Index {...defaultProps} />);
+
+        expect(screen.getAllByText('Click to expand stack trace').length).toBeGreaterThan(0);
+    });
+
+    it('renders delete button for each log entry when can_delete is true', () => {
+        render(<Index {...defaultProps} />);
+
+        // Each log entry should have a delete button
+        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
+        expect(deleteButtons.length).toBe(defaultLogs.length);
+    });
+
+    it('opens delete confirmation dialog when delete button is clicked', async () => {
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        // Find the first delete button
+        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
+        await user.click(deleteButtons[0]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Delete log entry?')).toBeInTheDocument();
+        });
+    });
+
+    it('confirms deletion when Delete button in dialog is clicked', async () => {
+        const { router } = await import('@inertiajs/react');
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        // Open dialog
+        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
+        await user.click(deleteButtons[0]);
+
+        // Click Delete in dialog
+        await waitFor(() => {
+            expect(screen.getByText('Delete log entry?')).toBeInTheDocument();
+        });
+
+        const confirmButton = screen.getByRole('button', { name: /^Delete$/i });
+        await user.click(confirmButton);
+
+        await waitFor(() => {
+            expect(router.delete).toHaveBeenCalledWith('/logs/entry', expect.objectContaining({
+                data: expect.objectContaining({
+                    line_number: 1,
+                }),
+            }));
+        });
+    });
+
+    it('cancels deletion when Cancel button in dialog is clicked', async () => {
+        const { router } = await import('@inertiajs/react');
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        // Open dialog
+        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
+        await user.click(deleteButtons[0]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Delete log entry?')).toBeInTheDocument();
+        });
+
+        // Click Cancel
+        const cancelButton = screen.getByRole('button', { name: /Cancel/i });
+        await user.click(cancelButton);
+
+        // Dialog should close
+        await waitFor(() => {
+            expect(screen.queryByText('Delete log entry?')).not.toBeInTheDocument();
+        });
+
+        expect(router.delete).not.toHaveBeenCalled();
+    });
+
+    it('selects level from dropdown', async () => {
+        const { router } = await import('@inertiajs/react');
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} />);
+
+        const combobox = screen.getByRole('combobox');
+        await user.click(combobox);
+
+        const errorOption = screen.getByRole('option', { name: /error/i });
+        await user.click(errorOption);
+
+        await waitFor(() => {
+            expect(router.get).toHaveBeenCalledWith(
+                '/logs',
+                expect.objectContaining({
+                    level: 'error',
+                }),
+                expect.any(Object),
+            );
+        });
+    });
+
+    it('clears level filter when "all" is selected', async () => {
+        const { router } = await import('@inertiajs/react');
+        const user = userEvent.setup();
+        render(<Index {...defaultProps} filters={{ ...defaultFilters, level: 'error' }} />);
+
+        const combobox = screen.getByRole('combobox');
+        await user.click(combobox);
+
+        const allOption = screen.getByRole('option', { name: /all levels/i });
+        await user.click(allOption);
+
+        await waitFor(() => {
+            expect(router.get).toHaveBeenCalledWith(
+                '/logs',
+                expect.objectContaining({
+                    level: '',
+                }),
+                expect.any(Object),
+            );
+        });
+    });
 });
