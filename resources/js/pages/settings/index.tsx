@@ -553,7 +553,7 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                         </div>
                     </BentoGridItem>
 
-                    <BentoGridItem aria-labelledby="thesauri-heading" className="md:row-span-2">
+                    <BentoGridItem aria-labelledby="thesauri-heading" className="md:col-start-2 md:row-span-2">
                         <h2 id="thesauri-heading" className="text-lg font-semibold">
                             Thesauri
                         </h2>

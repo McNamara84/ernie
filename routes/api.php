@@ -11,7 +11,6 @@ use App\Http\Controllers\OrcidController;
 use App\Http\Controllers\ResourceTypeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RorAffiliationController;
-use App\Http\Controllers\Settings\ThesaurusSettingsController;
 use App\Http\Controllers\TitleTypeController;
 use App\Http\Controllers\VocabularyController;
 use Illuminate\Support\Facades\Route;
@@ -76,12 +75,6 @@ Route::middleware(['auth', 'throttle:doi-validation'])->group(function () {
     Route::post('/v1/doi/validate', [DoiValidationController::class, 'validate']);
 });
 
-// Thesaurus settings API - requires authentication
-Route::middleware('auth')->prefix('v1/thesauri')->group(function () {
-    Route::get('/', [ThesaurusSettingsController::class, 'index']);
-    Route::post('/{type}/check', [ThesaurusSettingsController::class, 'checkStatus']);
-    Route::post('/{type}/update', [ThesaurusSettingsController::class, 'triggerUpdate']);
-    Route::get('/update-status/{jobId}', [ThesaurusSettingsController::class, 'updateStatus']);
-});
+// Thesaurus settings API - moved to web.php for session-based authentication
 
 Route::get('/v1/doc', ApiDocController::class);

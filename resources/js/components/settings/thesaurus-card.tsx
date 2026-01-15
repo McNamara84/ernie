@@ -68,7 +68,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
         setCheckError(null);
 
         try {
-            const response = await fetch(`/api/v1/thesauri/${thesaurus.type}/check`, {
+            const response = await fetch(`/thesauri/${thesaurus.type}/check`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
     const pollJobStatus = useCallback(
         async (jobId: string) => {
             try {
-                const response = await fetch(`/api/v1/thesauri/update-status/${jobId}`, {
+                const response = await fetch(`/thesauri/update-status/${jobId}`, {
                     credentials: 'include',
                 });
 
@@ -128,7 +128,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
 
     const triggerUpdate = useCallback(async () => {
         try {
-            const response = await fetch(`/api/v1/thesauri/${thesaurus.type}/update`, {
+            const response = await fetch(`/thesauri/${thesaurus.type}/update`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

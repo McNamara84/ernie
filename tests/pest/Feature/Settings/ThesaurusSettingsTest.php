@@ -34,16 +34,24 @@ beforeEach(function () {
 });
 
 describe('ThesaurusSettingsController', function () {
-    test('guests cannot access thesaurus settings API', function () {
-        $this->getJson('/api/v1/thesauri')
-            ->assertUnauthorized();
+    test('guests cannot access thesaurus settings', function () {
+        $this->get('/thesauri')
+            ->assertRedirect('/login');
     });
 
-    test('authenticated users can list thesauri', function () {
-        $user = User::factory()->create();
+    test('non-admin users cannot access thesaurus settings', function () {
+        $user = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $this->actingAs($user)
-            ->getJson('/api/v1/thesauri')
+            ->get('/thesauri')
+            ->assertForbidden();
+    });
+
+    test('admins can list thesauri', function () {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->getJson('/thesauri')
             ->assertOk()
             ->assertJsonCount(3)
             ->assertJsonFragment([
@@ -58,7 +66,7 @@ describe('ThesaurusSettingsController', function () {
         $curator = User::factory()->create(['role' => UserRole::CURATOR]);
 
         $this->actingAs($curator)
-            ->postJson('/api/v1/thesauri/science_keywords/update')
+            ->postJson('/thesauri/science_keywords/update')
             ->assertForbidden();
     });
 
@@ -66,13 +74,13 @@ describe('ThesaurusSettingsController', function () {
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)
-            ->postJson('/api/v1/thesauri/science_keywords/update')
+            ->postJson('/thesauri/science_keywords/update')
             ->assertOk()
             ->assertJsonStructure(['jobId', 'message']);
     });
 
-    test('users can poll update status', function () {
-        $user = User::factory()->create();
+    test('admins can poll update status', function () {
+        $admin = User::factory()->admin()->create();
         $jobId = Str::uuid()->toString();
 
         Cache::put("thesaurus_update:{$jobId}", [
@@ -80,18 +88,18 @@ describe('ThesaurusSettingsController', function () {
             'thesaurusType' => 'science_keywords',
         ], now()->addHour());
 
-        $this->actingAs($user)
-            ->getJson("/api/v1/thesauri/update-status/{$jobId}")
+        $this->actingAs($admin)
+            ->getJson("/thesauri/update-status/{$jobId}")
             ->assertOk()
             ->assertJsonFragment(['status' => 'running']);
     });
 
     test('polling returns 404 for unknown job', function () {
-        $user = User::factory()->create();
+        $admin = User::factory()->admin()->create();
         $unknownJobId = Str::uuid()->toString();
 
-        $this->actingAs($user)
-            ->getJson("/api/v1/thesauri/update-status/{$unknownJobId}")
+        $this->actingAs($admin)
+            ->getJson("/thesauri/update-status/{$unknownJobId}")
             ->assertNotFound();
     });
 });
