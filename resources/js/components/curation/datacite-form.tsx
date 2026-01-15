@@ -584,45 +584,98 @@ export default function DataCiteForm({
     });
     const [isLoadingVocabularies, setIsLoadingVocabularies] = useState(true);
 
-    // Load GCMD vocabularies from web routes on mount
+    // Track which thesauri are enabled in settings
+    const [thesauriAvailability, setThesauriAvailability] = useState<{
+        science_keywords: boolean;
+        platforms: boolean;
+        instruments: boolean;
+    }>({
+        science_keywords: true,
+        platforms: true,
+        instruments: true,
+    });
+
+    // Load thesauri availability and GCMD vocabularies from web routes on mount
     useEffect(() => {
         const loadVocabularies = async () => {
             try {
-                const [scienceRes, platformsRes, instrumentsRes] = await Promise.all([
-                    fetch('/vocabularies/gcmd-science-keywords'),
-                    fetch('/vocabularies/gcmd-platforms'),
-                    fetch('/vocabularies/gcmd-instruments'),
-                ]);
+                // First, check which thesauri are available
+                let availability = { science_keywords: true, platforms: true, instruments: true };
+                try {
+                    const availabilityRes = await fetch('/api/v1/vocabularies/thesauri-availability');
+                    if (availabilityRes.ok) {
+                        const availabilityData = await availabilityRes.json();
+                        availability = {
+                            science_keywords: availabilityData.science_keywords?.available ?? true,
+                            platforms: availabilityData.platforms?.available ?? true,
+                            instruments: availabilityData.instruments?.available ?? true,
+                        };
+                        setThesauriAvailability(availability);
+                    }
+                } catch {
+                    // If availability check fails, assume all are available
+                    console.warn('Failed to check thesauri availability, assuming all are enabled');
+                }
 
-                if (!scienceRes.ok || !platformsRes.ok || !instrumentsRes.ok) {
-                    console.error('Failed to load GCMD vocabularies', {
-                        science: scienceRes.status,
-                        platforms: platformsRes.status,
-                        instruments: instrumentsRes.status,
-                    });
+                // Only fetch vocabularies that are enabled
+                const fetchPromises: Promise<Response>[] = [];
+                const fetchOrder: ('science' | 'platforms' | 'instruments')[] = [];
+
+                if (availability.science_keywords) {
+                    fetchPromises.push(fetch('/vocabularies/gcmd-science-keywords'));
+                    fetchOrder.push('science');
+                }
+                if (availability.platforms) {
+                    fetchPromises.push(fetch('/vocabularies/gcmd-platforms'));
+                    fetchOrder.push('platforms');
+                }
+                if (availability.instruments) {
+                    fetchPromises.push(fetch('/vocabularies/gcmd-instruments'));
+                    fetchOrder.push('instruments');
+                }
+
+                if (fetchPromises.length === 0) {
+                    // No thesauri enabled
+                    setIsLoadingVocabularies(false);
                     return;
                 }
 
-                const [scienceData, platformsData, instrumentsData] = await Promise.all([
-                    scienceRes.json(),
-                    platformsRes.json(),
-                    instrumentsRes.json(),
-                ]);
+                const responses = await Promise.all(fetchPromises);
+
+                // Build vocabulary object based on successful responses
+                const vocabularies: typeof gcmdVocabularies = {
+                    science: [],
+                    platforms: [],
+                    instruments: [],
+                    msl: [],
+                };
+
+                // Process each response with its corresponding key
+                const parsePromises = responses.map(async (response, index) => {
+                    const key = fetchOrder[index];
+                    if (response.ok) {
+                        const data = await response.json();
+                        return { key, data: data?.data || [] };
+                    }
+                    console.error(`Failed to load GCMD vocabulary: ${key}`);
+                    return { key, data: [] };
+                });
+
+                const results = await Promise.all(parsePromises);
+                for (const { key, data } of results) {
+                    vocabularies[key] = data;
+                }
 
                 if (import.meta.env.DEV) {
                     console.debug('Loaded GCMD vocabularies:', {
-                        science: scienceData.data?.length || 0,
-                        platforms: platformsData.data?.length || 0,
-                        instruments: instrumentsData.data?.length || 0,
+                        science: vocabularies.science.length,
+                        platforms: vocabularies.platforms.length,
+                        instruments: vocabularies.instruments.length,
+                        availability,
                     });
                 }
 
-                setGcmdVocabularies({
-                    science: scienceData.data || [],
-                    platforms: platformsData.data || [],
-                    instruments: instrumentsData.data || [],
-                    msl: [], // MSL will be loaded conditionally
-                });
+                setGcmdVocabularies(vocabularies);
             } catch (error) {
                 console.error('Error loading GCMD vocabularies:', error);
             } finally {
@@ -1998,6 +2051,7 @@ export default function DataCiteForm({
                                 onChange={setGcmdKeywords}
                                 showMslTab={shouldShowMSLSection}
                                 autoSwitchToMsl={shouldAutoSwitchToMsl}
+                                enabledThesauri={thesauriAvailability}
                             />
                         )}
                     </AccordionContent>

@@ -63,6 +63,10 @@ Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-science-keywords',
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-platforms', [VocabularyController::class, 'gcmdPlatforms']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/gcmd-instruments', [VocabularyController::class, 'gcmdInstruments']);
 Route::middleware('elmo.api-key')->get('/v1/vocabularies/msl', [VocabularyController::class, 'mslVocabulary']);
+
+// Thesauri availability - returns which thesauri are enabled (no auth required for frontend)
+Route::get('/v1/vocabularies/thesauri-availability', [VocabularyController::class, 'thesauriAvailability']);
+
 Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'])->where('doi', '.*');
 
 // DOI validation endpoint - requires authentication and rate limiting
@@ -70,5 +74,8 @@ Route::get('/datacite/citation/{doi}', [DataCiteController::class, 'getCitation'
 Route::middleware(['auth', 'throttle:doi-validation'])->group(function () {
     Route::post('/v1/doi/validate', [DoiValidationController::class, 'validate']);
 });
+
+// Thesaurus settings API routes (check, update, update-status) are in web.php
+// because they require session-based authentication via can:manage-thesauri gate
 
 Route::get('/v1/doc', ApiDocController::class);

@@ -6,6 +6,7 @@ use App\Enums\CacheKey;
 use App\Exceptions\VocabularyCorruptedException;
 use App\Exceptions\VocabularyNotFoundException;
 use App\Exceptions\VocabularyReadException;
+use App\Models\ThesaurusSetting;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -24,6 +25,10 @@ class VocabularyController extends Controller
      */
     public function gcmdScienceKeywords(): JsonResponse
     {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
         return $this->getCachedVocabulary(
             CacheKey::GCMD_SCIENCE_KEYWORDS,
             'gcmd-science-keywords.json',
@@ -36,6 +41,10 @@ class VocabularyController extends Controller
      */
     public function gcmdPlatforms(): JsonResponse
     {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_PLATFORMS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
         return $this->getCachedVocabulary(
             CacheKey::GCMD_PLATFORMS,
             'gcmd-platforms.json',
@@ -48,6 +57,10 @@ class VocabularyController extends Controller
      */
     public function gcmdInstruments(): JsonResponse
     {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_INSTRUMENTS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
         return $this->getCachedVocabulary(
             CacheKey::GCMD_INSTRUMENTS,
             'gcmd-instruments.json',
@@ -114,5 +127,62 @@ class VocabularyController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Return thesauri availability status for the frontend.
+     *
+     * This endpoint is always used by the ERNIE frontend, so we check
+     * is_active (not is_elmo_active) regardless of the route prefix.
+     */
+    public function thesauriAvailability(): JsonResponse
+    {
+        $thesauri = ThesaurusSetting::all()->mapWithKeys(fn (ThesaurusSetting $t) => [
+            $t->type => [
+                'available' => $t->is_active,
+                'displayName' => $t->display_name,
+            ],
+        ]);
+
+        return response()->json($thesauri);
+    }
+
+    /**
+     * Check if a thesaurus is active for the current request context.
+     */
+    private function isThesaurusActive(string $type): bool
+    {
+        $setting = ThesaurusSetting::where('type', $type)->first();
+
+        if (!$setting) {
+            return true; // Default to active if no setting exists
+        }
+
+        // For ELMO (API) requests, check is_elmo_active
+        // For ERNIE requests, check is_active
+        return $this->isElmoRequest() ? $setting->is_elmo_active : $setting->is_active;
+    }
+
+    /**
+     * Determine if the current request is an ELMO API request.
+     *
+     * ELMO requests are identified by the presence of the elmo.api-key middleware
+     * on the current route. This is more reliable than URL pattern matching
+     * because some /api/* routes (like thesauri-availability) are used by
+     * the ERNIE frontend and should not be treated as ELMO requests.
+     */
+    private function isElmoRequest(): bool
+    {
+        $route = request()->route();
+
+        // Check if the current route has the elmo.api-key middleware applied
+        if ($route !== null) {
+            $middleware = $route->gatherMiddleware();
+
+            return in_array('elmo.api-key', $middleware, true);
+        }
+
+        // Fallback: check for X-API-Key header (for requests outside Laravel routing)
+        return request()->hasHeader('X-API-Key');
     }
 }

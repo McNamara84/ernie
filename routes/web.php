@@ -203,6 +203,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('logs.clear');
     });
 
+    // Thesaurus settings routes (Admin only)
+    Route::middleware(['can:manage-thesauri'])->prefix('thesauri')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'index'])
+            ->name('thesauri.index');
+        Route::post('/{type}/check', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'checkStatus'])
+            ->name('thesauri.check');
+        Route::post('/{type}/update', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'triggerUpdate'])
+            ->name('thesauri.update');
+        Route::get('/update-status/{jobId}', [\App\Http\Controllers\Settings\ThesaurusSettingsController::class, 'updateStatus'])
+            ->name('thesauri.update-status');
+    });
+
     // Resources routes (new curated resources)
     Route::get('resources/filter-options', [ResourceController::class, 'getFilterOptions'])
         ->name('resources.filter-options');

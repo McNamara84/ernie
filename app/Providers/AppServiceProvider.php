@@ -120,5 +120,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('delete-logs', function (User $user): bool {
             return $user->role === UserRole::ADMIN;
         });
+
+        // Manage thesauri (trigger updates) - Admin only
+        Gate::define('manage-thesauri', function (User $user): bool {
+            return $user->role === UserRole::ADMIN;
+        });
     }
 }

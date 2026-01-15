@@ -432,8 +432,33 @@ export default function Docs({ userRole }: DocsProps) {
                     <DocsCodeBlock code="php artisan spdx:sync-licenses" />
                     <p className="text-sm text-muted-foreground">Run monthly to keep the license database current.</p>
 
-                    <h5 className="mt-4">Update GCMD Vocabularies</h5>
-                    <p>Fetch controlled vocabularies from NASA's Global Change Master Directory (GCMD):</p>
+                    <h5 className="mt-4">Manage GCMD Thesauri</h5>
+                    <p>
+                        GCMD (Global Change Master Directory) thesauri can now be managed directly from the{' '}
+                        <a href="/settings" className="text-primary hover:underline">
+                            Editor Settings
+                        </a>{' '}
+                        page via the <strong>Thesauri</strong> card. This provides:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Enable/Disable:</strong> Toggle individual thesauri (Science Keywords, Platforms, Instruments) for ERNIE
+                            and/or ELMO independently
+                        </li>
+                        <li>
+                            <strong>Check for Updates:</strong> Compare local concept counts with NASA's remote API
+                        </li>
+                        <li>
+                            <strong>Trigger Updates:</strong> Download the latest vocabulary data with one click
+                        </li>
+                    </ul>
+                    <p className="text-sm text-muted-foreground">
+                        When a thesaurus is disabled for ERNIE, its tab is automatically hidden in the Controlled Keywords field of the
+                        curation form.
+                    </p>
+
+                    <h5 className="mt-4">Update GCMD Vocabularies (CLI)</h5>
+                    <p>Alternatively, fetch controlled vocabularies via command line:</p>
                     <DocsCodeBlock code="php artisan get-gcmd-science-keywords" />
                     <DocsCodeBlock code="php artisan get-gcmd-platforms" />
                     <DocsCodeBlock code="php artisan get-gcmd-instruments" />

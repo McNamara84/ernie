@@ -4,6 +4,10 @@
         "date": "2026-01-12",
         "features": [
             {
+                "title": "Thesauri Management in Editor Settings",
+                "description": "A new 'Thesauri' card in Editor Settings enables administrators to manage GCMD (Global Change Master Directory) thesauri: Science Keywords, Platforms, and Instruments. Each thesaurus can be individually enabled or disabled for ERNIE (editor) and ELMO (API) independently. The card displays concept counts, last update timestamps, and allows checking for updates against NASA's remote API. Administrators can trigger background updates that download the latest vocabulary data. When a thesaurus is disabled, its tab is automatically hidden in the Controlled Keywords field of the curation form."
+            },
+            {
                 "title": "Welcome Email for New Users",
                 "description": "New users now receive a dedicated welcome email with a personalized message from ERNIE when their account is created. The email contains a secure link (valid for 72 hours) to set their initial password. If the link expires, users can request a new one directly from the welcome page. This replaces the previous workflow that used the generic password reset email."
             },
