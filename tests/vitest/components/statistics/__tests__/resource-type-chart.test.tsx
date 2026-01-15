@@ -84,8 +84,8 @@ describe('ResourceTypeChart', () => {
         ];
         render(<ResourceTypeChart data={largeData} />);
 
-        // German locale formats 1500000 as "1.500.000"
-        expect(screen.getByText('1.500.000')).toBeInTheDocument();
+        // Locale-independent: matches "1,500,000" (en) or "1.500.000" (de)
+        expect(screen.getByText(/1[.,]500[.,]000/)).toBeInTheDocument();
     });
 
     it('cycles through colors for more than 16 types', () => {

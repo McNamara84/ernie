@@ -17,8 +17,8 @@ describe('CurrentYearChart', () => {
     it('renders the total publications count', () => {
         render(<CurrentYearChart data={mockData} />);
 
-        // German locale formats 1250 as "1.250"
-        expect(screen.getByText('1.250')).toBeInTheDocument();
+        // Locale-independent: matches "1,250" (en) or "1.250" (de)
+        expect(screen.getByText(/1[.,]250/)).toBeInTheDocument();
     });
 
     it('displays the current year in the description', () => {
@@ -54,8 +54,8 @@ describe('CurrentYearChart', () => {
         };
         render(<CurrentYearChart data={largeData} />);
 
-        // German locale formats 1500000 as "1.500.000"
-        expect(screen.getByText('1.500.000')).toBeInTheDocument();
+        // Locale-independent: matches "1,500,000" (en) or "1.500.000" (de)
+        expect(screen.getByText(/1[.,]500[.,]000/)).toBeInTheDocument();
     });
 
     it('displays different years correctly', () => {

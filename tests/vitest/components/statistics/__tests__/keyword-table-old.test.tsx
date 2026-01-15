@@ -96,7 +96,7 @@ describe('KeywordTableOld', () => {
         };
         render(<KeywordTableOld data={largeData} />);
 
-        // German locale formats as 15.000
-        expect(screen.getByText('15.000')).toBeInTheDocument();
+        // Locale-independent: matches "15,000" (en) or "15.000" (de)
+        expect(screen.getByText(/15[.,]000/)).toBeInTheDocument();
     });
 });
