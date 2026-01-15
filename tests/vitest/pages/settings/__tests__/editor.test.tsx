@@ -56,11 +56,22 @@ vi.mock('@/components/ui/label', () => ({
     ),
 }));
 
-// Default thesauri mock data for tests
+vi.mock('@/components/settings/thesaurus-card', () => ({
+    ThesaurusCard: () => <div data-testid="thesaurus-card-mock">Thesaurus Card Mock</div>,
+}));
+
+// Default thesauri mock data for tests (full props)
 const defaultThesauri = [
     { type: 'science_keywords', displayName: 'Science Keywords', isActive: true, isElmoActive: false, exists: true, conceptCount: 100, lastUpdated: null },
     { type: 'platforms', displayName: 'Platforms', isActive: true, isElmoActive: false, exists: true, conceptCount: 50, lastUpdated: null },
     { type: 'instruments', displayName: 'Instruments', isActive: true, isElmoActive: false, exists: true, conceptCount: 200, lastUpdated: null },
+];
+
+// Form data thesauri (only what useForm needs)
+const defaultThesauriFormData = [
+    { type: 'science_keywords', isActive: true, isElmoActive: false },
+    { type: 'platforms', isActive: true, isElmoActive: false },
+    { type: 'instruments', isActive: true, isElmoActive: false },
 ];
 
 describe('EditorSettings page', () => {
@@ -82,7 +93,7 @@ describe('EditorSettings page', () => {
         expect(grid).toHaveClass('md:grid-cols-2');
         expect(grid).not.toHaveClass('lg:grid-cols-3');
         const items = grid.querySelectorAll('[data-slot="bento-grid-item"]');
-        expect(items).toHaveLength(6);
+        expect(items).toHaveLength(7); // 6 original + 1 ThesaurusCard
         items.forEach((item) => expect(item).toHaveClass('self-start'));
         expect(items[0]).toHaveClass('md:row-span-5');
         expect(within(items[0] as HTMLElement).getByText('Licenses')).toBeInTheDocument();
@@ -135,7 +146,7 @@ describe('EditorSettings page', () => {
                 ],
                 maxTitles: 10,
                 maxLicenses: 5,
-                thesauri: defaultThesauri,
+                thesauri: defaultThesauriFormData,
             }),
         );
     });
@@ -153,6 +164,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -194,6 +206,7 @@ describe('EditorSettings page', () => {
                 ],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -237,6 +250,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -278,6 +292,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -315,6 +330,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: setDataMock,
             post: vi.fn(),
@@ -352,6 +368,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: vi.fn(),
             post: postMock,
@@ -387,6 +404,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -425,6 +443,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: vi.fn(),
             post: vi.fn(),
@@ -464,6 +483,7 @@ describe('EditorSettings page', () => {
                 dateTypes: [],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauriFormData,
             },
             setData: setDataMock,
             post: vi.fn(),

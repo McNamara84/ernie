@@ -58,6 +58,10 @@ vi.mock('@/components/ui/checkbox', () => ({
     ),
 }));
 
+vi.mock('@/components/settings/thesaurus-card', () => ({
+    ThesaurusCard: () => <div data-testid="thesaurus-card-mock">Thesaurus Card Mock</div>,
+}));
+
 // Default thesauri mock data for tests
 const defaultThesauri = [
     { type: 'science_keywords', displayName: 'Science Keywords', isActive: true, isElmoActive: false, exists: true, conceptCount: 100, lastUpdated: null },
