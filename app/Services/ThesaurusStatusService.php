@@ -35,7 +35,9 @@ class ThesaurusStatusService
 
         $content = Storage::get($filePath);
 
-        if ($content === null) {
+        // Storage::get() can return null in edge cases (e.g., file deleted between exists() and get())
+        // Handle both null and empty string cases
+        if ($content === null || $content === '') {
             return [
                 'exists' => false,
                 'conceptCount' => 0,

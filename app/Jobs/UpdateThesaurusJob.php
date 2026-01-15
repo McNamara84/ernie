@@ -13,6 +13,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Background job for updating a GCMD thesaurus from NASA KMS API.
@@ -58,7 +59,7 @@ class UpdateThesaurusJob implements ShouldQueue
         }
 
         // Validate UUID format
-        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $jobId)) {
+        if (! Str::isUuid($jobId)) {
             throw new \InvalidArgumentException(
                 "Invalid jobId format. Expected UUID, got: {$jobId}"
             );

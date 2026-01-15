@@ -166,12 +166,12 @@ class VocabularyController extends Controller
     /**
      * Determine if the current request is an ELMO API request.
      *
-     * ELMO requests come through the /api/v1/vocabularies/ routes with
-     * the elmo.api-key middleware and use X-API-Key header.
+     * ELMO requests come through the /api/* routes (including /api/v1/vocabularies/)
+     * with the elmo.api-key middleware, or contain an X-API-Key header.
      */
     private function isElmoRequest(): bool
     {
-        // Check if request is coming through the API route (prefix starts with 'api/')
+        // Check if request path starts with 'api/' or has API key header
         return request()->is('api/*') || request()->hasHeader('X-API-Key');
     }
 }

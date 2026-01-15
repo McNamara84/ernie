@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { AlertCircle, Calendar, CheckCircle2, Database, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -7,6 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { type SharedData } from '@/types';
+
+/**
+ * Extract CSRF token from cookies for fetch requests.
+ * Centralizes CSRF token extraction to avoid duplication.
+ */
+function getCsrfToken(): string {
+    return decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || '');
+}
 
 export interface ThesaurusData {
     type: string;
@@ -72,7 +80,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || ''),
+                    'X-XSRF-TOKEN': getCsrfToken(),
                 },
                 credentials: 'include',
             });
@@ -132,7 +140,7 @@ function ThesaurusRow({ thesaurus, onActiveChange, onElmoActiveChange, onUpdateC
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-XSRF-TOKEN': decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || ''),
+                    'X-XSRF-TOKEN': getCsrfToken(),
                 },
                 credentials: 'include',
             });
@@ -339,11 +347,12 @@ export interface ThesaurusCardProps {
 }
 
 export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange }: ThesaurusCardProps) {
-    // Force a page reload after update to get fresh data from backend
+    // Reload page data after update to get fresh data from backend
+    // Using Inertia's router.reload() for smoother UX (preserves scroll position)
     const handleUpdateComplete = useCallback(() => {
         // Small delay to show the success message before reload
         setTimeout(() => {
-            window.location.reload();
+            router.reload({ only: ['thesauri'] });
         }, 1500);
     }, []);
 

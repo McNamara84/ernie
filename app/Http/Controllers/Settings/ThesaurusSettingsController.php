@@ -144,7 +144,7 @@ class ThesaurusSettingsController extends Controller
     public function updateStatus(string $jobId): JsonResponse
     {
         // Validate UUID format
-        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $jobId)) {
+        if (! Str::isUuid($jobId)) {
             return response()->json([
                 'error' => 'Invalid job ID format',
             ], 400);
