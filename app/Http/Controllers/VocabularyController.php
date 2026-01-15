@@ -131,14 +131,15 @@ class VocabularyController extends Controller
 
     /**
      * Return thesauri availability status for the frontend.
+     *
+     * This endpoint is always used by the ERNIE frontend, so we check
+     * is_active (not is_elmo_active) regardless of the route prefix.
      */
     public function thesauriAvailability(): JsonResponse
     {
-        $isElmoRequest = request()->hasHeader('X-ELMO-API-Key');
-
         $thesauri = ThesaurusSetting::all()->mapWithKeys(fn (ThesaurusSetting $t) => [
             $t->type => [
-                'available' => $isElmoRequest ? $t->is_elmo_active : $t->is_active,
+                'available' => $t->is_active,
                 'displayName' => $t->display_name,
             ],
         ]);
@@ -159,8 +160,18 @@ class VocabularyController extends Controller
 
         // For ELMO (API) requests, check is_elmo_active
         // For ERNIE requests, check is_active
-        $isElmoRequest = request()->hasHeader('X-ELMO-API-Key');
+        return $this->isElmoRequest() ? $setting->is_elmo_active : $setting->is_active;
+    }
 
-        return $isElmoRequest ? $setting->is_elmo_active : $setting->is_active;
+    /**
+     * Determine if the current request is an ELMO API request.
+     *
+     * ELMO requests come through the /api/v1/vocabularies/ routes with
+     * the elmo.api-key middleware and use X-API-Key header.
+     */
+    private function isElmoRequest(): bool
+    {
+        // Check if request is coming through the API route (prefix starts with 'api/')
+        return request()->is('api/*') || request()->hasHeader('X-API-Key');
     }
 }
