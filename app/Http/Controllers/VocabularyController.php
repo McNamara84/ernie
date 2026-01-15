@@ -6,6 +6,7 @@ use App\Enums\CacheKey;
 use App\Exceptions\VocabularyCorruptedException;
 use App\Exceptions\VocabularyNotFoundException;
 use App\Exceptions\VocabularyReadException;
+use App\Models\ThesaurusSetting;
 use App\Services\VocabularyCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -24,6 +25,10 @@ class VocabularyController extends Controller
      */
     public function gcmdScienceKeywords(): JsonResponse
     {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_SCIENCE_KEYWORDS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
         return $this->getCachedVocabulary(
             CacheKey::GCMD_SCIENCE_KEYWORDS,
             'gcmd-science-keywords.json',
@@ -36,6 +41,10 @@ class VocabularyController extends Controller
      */
     public function gcmdPlatforms(): JsonResponse
     {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_PLATFORMS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
         return $this->getCachedVocabulary(
             CacheKey::GCMD_PLATFORMS,
             'gcmd-platforms.json',
@@ -48,6 +57,10 @@ class VocabularyController extends Controller
      */
     public function gcmdInstruments(): JsonResponse
     {
+        if (!$this->isThesaurusActive(ThesaurusSetting::TYPE_INSTRUMENTS)) {
+            return response()->json(['error' => 'Thesaurus is disabled'], 404);
+        }
+
         return $this->getCachedVocabulary(
             CacheKey::GCMD_INSTRUMENTS,
             'gcmd-instruments.json',
@@ -114,5 +127,40 @@ class VocabularyController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Return thesauri availability status for the frontend.
+     */
+    public function thesauriAvailability(): JsonResponse
+    {
+        $isElmoRequest = request()->hasHeader('X-ELMO-API-Key');
+
+        $thesauri = ThesaurusSetting::all()->mapWithKeys(fn (ThesaurusSetting $t) => [
+            $t->type => [
+                'available' => $isElmoRequest ? $t->is_elmo_active : $t->is_active,
+                'displayName' => $t->display_name,
+            ],
+        ]);
+
+        return response()->json($thesauri);
+    }
+
+    /**
+     * Check if a thesaurus is active for the current request context.
+     */
+    private function isThesaurusActive(string $type): bool
+    {
+        $setting = ThesaurusSetting::where('type', $type)->first();
+
+        if (!$setting) {
+            return true; // Default to active if no setting exists
+        }
+
+        // For ELMO (API) requests, check is_elmo_active
+        // For ERNIE requests, check is_active
+        $isElmoRequest = request()->hasHeader('X-ELMO-API-Key');
+
+        return $isElmoRequest ? $setting->is_elmo_active : $setting->is_active;
     }
 }

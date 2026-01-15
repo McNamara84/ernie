@@ -24,6 +24,12 @@ import { GCMDTree } from './gcmd-tree';
  */
 const MIN_SEARCH_LENGTH = 3;
 
+interface ThesauriAvailability {
+    science_keywords: boolean;
+    platforms: boolean;
+    instruments: boolean;
+}
+
 interface ControlledVocabulariesFieldProps {
     scienceKeywords: GCMDKeyword[];
     platforms: GCMDKeyword[];
@@ -33,6 +39,7 @@ interface ControlledVocabulariesFieldProps {
     onChange: (keywords: SelectedKeyword[]) => void;
     showMslTab?: boolean; // Control MSL tab visibility
     autoSwitchToMsl?: boolean; // Auto-switch to MSL tab when it becomes available
+    enabledThesauri?: ThesauriAvailability; // Which thesauri are enabled in settings
 }
 
 /**
@@ -76,8 +83,23 @@ export default function ControlledVocabulariesField({
     onChange,
     showMslTab = false,
     autoSwitchToMsl = false,
+    enabledThesauri = { science_keywords: true, platforms: true, instruments: true },
 }: ControlledVocabulariesFieldProps) {
-    const [activeTab, setActiveTab] = useState<GCMDVocabularyType>('science');
+    // Determine which tabs are available based on enabled thesauri
+    const showScienceTab = enabledThesauri.science_keywords;
+    const showPlatformsTab = enabledThesauri.platforms;
+    const showInstrumentsTab = enabledThesauri.instruments;
+
+    // Determine default active tab based on what's available
+    const getDefaultTab = (): GCMDVocabularyType => {
+        if (showScienceTab) return 'science';
+        if (showPlatformsTab) return 'platforms';
+        if (showInstrumentsTab) return 'instruments';
+        if (showMslTab) return 'msl';
+        return 'science'; // Fallback
+    };
+
+    const [activeTab, setActiveTab] = useState<GCMDVocabularyType>(getDefaultTab);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Track if auto-switch has already occurred to prevent interference with manual tab changes
@@ -95,6 +117,22 @@ export default function ControlledVocabulariesField({
             hasAutoSwitched.current = false;
         }
     }, [autoSwitchToMsl, showMslTab]);
+
+    // Switch to an available tab if the current tab becomes unavailable
+    useEffect(() => {
+        const isCurrentTabAvailable =
+            (activeTab === 'science' && showScienceTab) ||
+            (activeTab === 'platforms' && showPlatformsTab) ||
+            (activeTab === 'instruments' && showInstrumentsTab) ||
+            (activeTab === 'msl' && showMslTab);
+
+        if (!isCurrentTabAvailable) {
+            if (showScienceTab) setActiveTab('science');
+            else if (showPlatformsTab) setActiveTab('platforms');
+            else if (showInstrumentsTab) setActiveTab('instruments');
+            else if (showMslTab) setActiveTab('msl');
+        }
+    }, [activeTab, showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab]);
 
     // Debounce search query to avoid excessive re-renders
     // Only trigger search after user stops typing for 300ms
@@ -195,12 +233,30 @@ export default function ControlledVocabulariesField({
         [keywordsByVocabulary],
     );
 
+    // Check if any thesauri are available
+    const hasAnyThesaurus = showScienceTab || showPlatformsTab || showInstrumentsTab || showMslTab;
+
     return (
         <div className="space-y-4">
+            {/* Show message if no thesauri are enabled */}
+            {!hasAnyThesaurus && (
+                <div className="rounded-md border border-muted bg-muted/50 p-4 text-center text-sm text-muted-foreground">
+                    No controlled vocabularies are currently enabled. Contact an administrator to enable GCMD thesauri in the
+                    settings.
+                </div>
+            )}
+
             {/* Selected Keywords Display */}
             {selectedKeywords.length > 0 && (
                 <div className="space-y-3">
-                    {(['science', 'platforms', 'instruments', ...(showMslTab ? ['msl' as const] : [])] as GCMDVocabularyType[]).map((type) => {
+                    {(
+                        [
+                            ...(showScienceTab ? ['science' as const] : []),
+                            ...(showPlatformsTab ? ['platforms' as const] : []),
+                            ...(showInstrumentsTab ? ['instruments' as const] : []),
+                            ...(showMslTab ? ['msl' as const] : []),
+                        ] as GCMDVocabularyType[]
+                    ).map((type) => {
                         const keywords = keywordsByVocabulary[type];
                         if (keywords.length === 0) return null;
 
@@ -265,28 +321,31 @@ export default function ControlledVocabulariesField({
                 </div>
             )}
 
-            {/* Search Input - searches across all vocabulary types */}
-            <div className="relative">
-                <Search
-                    className={cn(
-                        'absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform',
-                        isSearching ? 'animate-pulse text-primary' : 'text-muted-foreground',
-                    )}
-                />
-                <Input
-                    type="text"
-                    placeholder={`Search all vocabularies (min. ${MIN_SEARCH_LENGTH} characters)...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                />
-                {searchQuery && (
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute top-1/2 right-1 h-7 w-7 -translate-y-1/2 transform p-0"
-                        onClick={() => setSearchQuery('')}
+            {/* Search and Tabs - only show if at least one thesaurus is available */}
+            {hasAnyThesaurus && (
+                <>
+                    {/* Search Input - searches across all vocabulary types */}
+                    <div className="relative">
+                        <Search
+                            className={cn(
+                                'absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform',
+                                isSearching ? 'animate-pulse text-primary' : 'text-muted-foreground',
+                            )}
+                        />
+                        <Input
+                            type="text"
+                            placeholder={`Search all vocabularies (min. ${MIN_SEARCH_LENGTH} characters)...`}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9"
+                        />
+                        {searchQuery && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute top-1/2 right-1 h-7 w-7 -translate-y-1/2 transform p-0"
+                                onClick={() => setSearchQuery('')}
                         aria-label="Clear search"
                     >
                         <X className="h-4 w-4" />
@@ -296,37 +355,65 @@ export default function ControlledVocabulariesField({
 
             {/* Tabs for vocabulary types */}
             <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as GCMDVocabularyType)}>
-                <TabsList className={cn('grid w-full', showMslTab ? 'grid-cols-4' : 'grid-cols-3')}>
-                    <TabsTrigger value="science" className="relative">
-                        Science Keywords
-                        {hasKeywords('science') && (
-                            <span
-                                className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                aria-label="Has keywords"
-                                title="This vocabulary has selected keywords"
-                            />
-                        )}
-                    </TabsTrigger>
-                    <TabsTrigger value="platforms" className="relative">
-                        Platforms
-                        {hasKeywords('platforms') && (
-                            <span
-                                className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                aria-label="Has keywords"
-                                title="This vocabulary has selected keywords"
-                            />
-                        )}
-                    </TabsTrigger>
-                    <TabsTrigger value="instruments" className="relative">
-                        Instruments
-                        {hasKeywords('instruments') && (
-                            <span
-                                className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
-                                aria-label="Has keywords"
-                                title="This vocabulary has selected keywords"
-                            />
-                        )}
-                    </TabsTrigger>
+                <TabsList
+                    className={cn(
+                        'grid w-full',
+                        // Dynamically calculate grid columns based on visible tabs
+                        (() => {
+                            const visibleCount = [showScienceTab, showPlatformsTab, showInstrumentsTab, showMslTab].filter(
+                                Boolean,
+                            ).length;
+                            switch (visibleCount) {
+                                case 1:
+                                    return 'grid-cols-1';
+                                case 2:
+                                    return 'grid-cols-2';
+                                case 3:
+                                    return 'grid-cols-3';
+                                case 4:
+                                    return 'grid-cols-4';
+                                default:
+                                    return 'grid-cols-3';
+                            }
+                        })(),
+                    )}
+                >
+                    {showScienceTab && (
+                        <TabsTrigger value="science" className="relative">
+                            Science Keywords
+                            {hasKeywords('science') && (
+                                <span
+                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                    aria-label="Has keywords"
+                                    title="This vocabulary has selected keywords"
+                                />
+                            )}
+                        </TabsTrigger>
+                    )}
+                    {showPlatformsTab && (
+                        <TabsTrigger value="platforms" className="relative">
+                            Platforms
+                            {hasKeywords('platforms') && (
+                                <span
+                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                    aria-label="Has keywords"
+                                    title="This vocabulary has selected keywords"
+                                />
+                            )}
+                        </TabsTrigger>
+                    )}
+                    {showInstrumentsTab && (
+                        <TabsTrigger value="instruments" className="relative">
+                            Instruments
+                            {hasKeywords('instruments') && (
+                                <span
+                                    className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500"
+                                    aria-label="Has keywords"
+                                    title="This vocabulary has selected keywords"
+                                />
+                            )}
+                        </TabsTrigger>
+                    )}
                     {showMslTab && (
                         <TabsTrigger value="msl" className="relative">
                             MSL Vocabulary
@@ -373,6 +460,8 @@ export default function ControlledVocabulariesField({
                     )}
                 </TabsContent>
             </Tabs>
+                </>
+            )}
         </div>
     );
 }
