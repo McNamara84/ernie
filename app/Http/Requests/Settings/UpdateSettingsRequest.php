@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Settings;
 
+use App\Models\ThesaurusSetting;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateSettingsRequest extends FormRequest
 {
@@ -37,6 +39,11 @@ class UpdateSettingsRequest extends FormRequest
             'dateTypes.*.active' => ['required', 'boolean'],
             'maxTitles' => ['required', 'integer', 'min:1'],
             'maxLicenses' => ['required', 'integer', 'min:1'],
+            // Thesaurus settings (optional - only sent when thesauri card is present)
+            'thesauri' => ['sometimes', 'array'],
+            'thesauri.*.type' => ['required', 'string', Rule::in(ThesaurusSetting::getValidTypes())],
+            'thesauri.*.isActive' => ['required', 'boolean'],
+            'thesauri.*.isElmoActive' => ['required', 'boolean'],
         ];
     }
 }

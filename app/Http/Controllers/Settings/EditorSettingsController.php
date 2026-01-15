@@ -9,7 +9,9 @@ use App\Models\Language;
 use App\Models\ResourceType;
 use App\Models\Right;
 use App\Models\Setting;
+use App\Models\ThesaurusSetting;
 use App\Models\TitleType;
+use App\Services\ThesaurusStatusService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -17,6 +19,10 @@ use Inertia\Response;
 
 class EditorSettingsController extends Controller
 {
+    public function __construct(
+        private readonly ThesaurusStatusService $thesaurusStatusService
+    ) {}
+
     public function index(): Response
     {
         // Map database fields to frontend expected field names
@@ -52,6 +58,21 @@ class EditorSettingsController extends Controller
             'elmo_active' => false, // DateType doesn't have is_elmo_active
         ]);
 
+        // Get thesaurus settings with local status information
+        $thesauri = ThesaurusSetting::orderBy('id')->get()->map(function (ThesaurusSetting $thesaurus) {
+            $localStatus = $this->thesaurusStatusService->getLocalStatus($thesaurus);
+
+            return [
+                'type' => $thesaurus->type,
+                'displayName' => $thesaurus->display_name,
+                'isActive' => $thesaurus->is_active,
+                'isElmoActive' => $thesaurus->is_elmo_active,
+                'exists' => $localStatus['exists'],
+                'conceptCount' => $localStatus['conceptCount'],
+                'lastUpdated' => $localStatus['lastUpdated'],
+            ];
+        });
+
         return Inertia::render('settings/index', [
             'resourceTypes' => $resourceTypes,
             'titleTypes' => $titleTypes,
@@ -60,6 +81,7 @@ class EditorSettingsController extends Controller
             'dateTypes' => $dateTypes,
             'maxTitles' => (int) Setting::getValue('max_titles', Setting::DEFAULT_LIMIT),
             'maxLicenses' => (int) Setting::getValue('max_licenses', Setting::DEFAULT_LIMIT),
+            'thesauri' => $thesauri,
         ]);
     }
 
@@ -140,6 +162,21 @@ class EditorSettingsController extends Controller
             // Update max settings - inside transaction to ensure atomicity
             Setting::updateOrCreate(['key' => 'max_titles'], ['value' => $validated['maxTitles']]);
             Setting::updateOrCreate(['key' => 'max_licenses'], ['value' => $validated['maxLicenses']]);
+
+            // Update thesaurus settings if provided
+            if (isset($validated['thesauri'])) {
+                /** @var array<int, array{type: string, isActive: bool, isElmoActive: bool}> $thesauri */
+                $thesauri = $validated['thesauri'];
+                foreach ($thesauri as $thesaurus) {
+                    DB::table('thesaurus_settings')
+                        ->where('type', $thesaurus['type'])
+                        ->update([
+                            'is_active' => $thesaurus['isActive'],
+                            'is_elmo_active' => $thesaurus['isElmoActive'],
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
         });
 
         return back()->with('success', 'Settings updated');
