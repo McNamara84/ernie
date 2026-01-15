@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FundingReferenceItem } from '@/components/curation/fields/funding-reference/funding-reference-item';
-
 import type { FundingReferenceEntry, RorFunder } from '@/components/curation/fields/funding-reference/types';
 
 describe('FundingReferenceItem', () => {

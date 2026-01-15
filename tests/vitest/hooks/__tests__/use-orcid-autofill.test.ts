@@ -1,7 +1,7 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useOrcidAutofill, type PersonEntry } from '@/hooks/use-orcid-autofill';
+import { type PersonEntry,useOrcidAutofill } from '@/hooks/use-orcid-autofill';
 import { OrcidService } from '@/services/orcid';
 
 // Mock the OrcidService

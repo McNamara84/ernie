@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { isSessionWarmedUp, resetWarmupState, warmupSession } from '@/lib/session-warmup';

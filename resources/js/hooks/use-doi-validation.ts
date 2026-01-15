@@ -268,9 +268,7 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
                 setIsValidating(false);
             }
         }, debounceMs);
-    // Note: resetValidation is intentionally omitted from deps - it's a stable callback with no dependencies
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages]);
+    }, [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation]);
 
     return {
         isValidating,

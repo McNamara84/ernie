@@ -10,7 +10,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Papa from 'papaparse';
-import { describe, expect, it, vi, beforeEach, type MockInstance } from 'vitest';
+import { beforeEach, describe, expect, it, type MockInstance,vi } from 'vitest';
 
 import { CsvImportDialog } from '@/components/curation/fields/csv-import-dialog';
 

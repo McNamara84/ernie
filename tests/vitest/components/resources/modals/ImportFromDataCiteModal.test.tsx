@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
-import { describe, expect, it, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, Mock,vi } from 'vitest';
 
 import ImportFromDataCiteModal from '@/components/resources/modals/ImportFromDataCiteModal';
 
@@ -36,6 +36,7 @@ vi.mock('sonner', () => ({
 
 describe('ImportFromDataCiteModal', () => {
     const mockOnClose = vi.fn();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockOnSuccess = vi.fn();
 
     beforeEach(() => {

@@ -1,8 +1,8 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import { useFundingReferenceValidation, validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 import type { FundingReferenceEntry } from '@/components/curation/fields/funding-reference/types';
+import { useFundingReferenceValidation, validateAllFundingReferences } from '@/hooks/use-funding-reference-validation';
 
 describe('use-funding-reference-validation', () => {
     describe('useFundingReferenceValidation', () => {
