@@ -94,6 +94,11 @@ class ThesaurusStatusService
     /**
      * Compare local and remote concept counts.
      *
+     * An update is considered available when the remote concept count is greater
+     * than the local count. This indicates new concepts have been added to the
+     * NASA GCMD thesaurus. We don't trigger updates when remote < local because
+     * concept deletions in NASA's vocabulary are rare and may indicate API issues.
+     *
      * @return array{localCount: int, remoteCount: int, updateAvailable: bool, lastUpdated: string|null}
      *
      * @throws \RuntimeException If the API request fails
@@ -106,7 +111,7 @@ class ThesaurusStatusService
         return [
             'localCount' => $localStatus['conceptCount'],
             'remoteCount' => $remoteCount,
-            'updateAvailable' => $remoteCount !== $localStatus['conceptCount'],
+            'updateAvailable' => $remoteCount > $localStatus['conceptCount'],
             'lastUpdated' => $localStatus['lastUpdated'],
         ];
     }

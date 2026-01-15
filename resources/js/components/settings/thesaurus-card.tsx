@@ -16,6 +16,9 @@ function getCsrfToken(): string {
     return decodeURIComponent(document.cookie.match(/XSRF-TOKEN=([^;]+)/)?.[1] || '');
 }
 
+/** Delay before reloading page after successful thesaurus update (in ms) */
+const UPDATE_SUCCESS_RELOAD_DELAY_MS = 1500;
+
 export interface ThesaurusData {
     type: string;
     displayName: string;
@@ -353,7 +356,7 @@ export function ThesaurusCard({ thesauri, onActiveChange, onElmoActiveChange }: 
         // Small delay to show the success message before reload
         setTimeout(() => {
             router.reload({ only: ['thesauri'] });
-        }, 1500);
+        }, UPDATE_SUCCESS_RELOAD_DELAY_MS);
     }, []);
 
     return (

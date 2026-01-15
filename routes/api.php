@@ -75,6 +75,7 @@ Route::middleware(['auth', 'throttle:doi-validation'])->group(function () {
     Route::post('/v1/doi/validate', [DoiValidationController::class, 'validate']);
 });
 
-// Thesaurus settings API - moved to web.php for session-based authentication
+// Thesaurus settings API routes (check, update, update-status) are in web.php
+// because they require session-based authentication via can:manage-thesauri gate
 
 Route::get('/v1/doc', ApiDocController::class);

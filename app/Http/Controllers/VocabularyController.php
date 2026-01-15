@@ -166,8 +166,12 @@ class VocabularyController extends Controller
     /**
      * Determine if the current request is an ELMO API request.
      *
-     * ELMO requests come through the /api/* routes (including /api/v1/vocabularies/)
-     * with the elmo.api-key middleware, or contain an X-API-Key header.
+     * ELMO requests come through the /api/* routes with the elmo.api-key middleware
+     * and/or contain an X-API-Key header.
+     *
+     * Note: Some /api/* routes like thesauri-availability are unauthenticated and
+     * used by the ERNIE frontend. Those routes should explicitly check is_active
+     * instead of relying on this method. See thesauriAvailability() for example.
      */
     private function isElmoRequest(): bool
     {
