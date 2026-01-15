@@ -586,11 +586,14 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                             </CardHeader>
                             <CardContent>
                                 <ThesaurusCard
-                                    thesauri={thesauri.map((t, i) => ({
-                                        ...t,
-                                        isActive: data.thesauri[i].isActive,
-                                        isElmoActive: data.thesauri[i].isElmoActive,
-                                    }))}
+                                    thesauri={thesauri.map((t) => {
+                                        const formData = data.thesauri.find((d) => d.type === t.type);
+                                        return {
+                                            ...t,
+                                            isActive: formData?.isActive ?? t.isActive,
+                                            isElmoActive: formData?.isElmoActive ?? t.isElmoActive,
+                                        };
+                                    })}
                                     onActiveChange={handleThesaurusActiveChange}
                                     onElmoActiveChange={handleThesaurusElmoActiveChange}
                                 />

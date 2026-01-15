@@ -642,17 +642,7 @@ export default function DataCiteForm({
 
                 const responses = await Promise.all(fetchPromises);
 
-                // Check for failures
-                const failedResponses = responses.filter((r) => !r.ok);
-                if (failedResponses.length > 0) {
-                    console.error('Failed to load some GCMD vocabularies');
-                }
-
-                // Parse successful responses
-                const dataPromises = responses.filter((r) => r.ok).map((r) => r.json());
-                const dataResults = await Promise.all(dataPromises);
-
-                // Build vocabulary object based on what was fetched
+                // Build vocabulary object based on successful responses
                 const vocabularies: typeof gcmdVocabularies = {
                     science: [],
                     platforms: [],
@@ -660,13 +650,20 @@ export default function DataCiteForm({
                     msl: [],
                 };
 
-                let dataIndex = 0;
-                for (let i = 0; i < fetchOrder.length; i++) {
-                    if (responses[i].ok) {
-                        const key = fetchOrder[i];
-                        vocabularies[key] = dataResults[dataIndex]?.data || [];
-                        dataIndex++;
+                // Process each response with its corresponding key
+                const parsePromises = responses.map(async (response, index) => {
+                    const key = fetchOrder[index];
+                    if (response.ok) {
+                        const data = await response.json();
+                        return { key, data: data?.data || [] };
                     }
+                    console.error(`Failed to load GCMD vocabulary: ${key}`);
+                    return { key, data: [] };
+                });
+
+                const results = await Promise.all(parsePromises);
+                for (const { key, data } of results) {
+                    vocabularies[key] = data;
                 }
 
                 if (import.meta.env.DEV) {
