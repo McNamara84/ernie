@@ -333,18 +333,25 @@ describe('Logs/Index', () => {
     it('renders delete button for each log entry when can_delete is true', () => {
         render(<Index {...defaultProps} />);
 
-        // Each log entry should have a delete button
-        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
-        expect(deleteButtons.length).toBe(defaultLogs.length);
+        // Each log entry should have a delete button (Trash2 icon)
+        const table = screen.getByRole('table');
+        const rows = table.querySelectorAll('tbody tr');
+        expect(rows.length).toBe(defaultLogs.length);
     });
 
     it('opens delete confirmation dialog when delete button is clicked', async () => {
         const user = userEvent.setup();
         render(<Index {...defaultProps} />);
 
-        // Find the first delete button
-        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
-        await user.click(deleteButtons[0]);
+        // Find all buttons in table
+        const table = screen.getByRole('table');
+        const deleteButtons = table.querySelectorAll('button');
+        
+        // Click the first delete button (skip row clicks)
+        const firstDeleteBtn = Array.from(deleteButtons).find(btn => btn.querySelector('svg'));
+        if (firstDeleteBtn) {
+            await user.click(firstDeleteBtn);
+        }
 
         await waitFor(() => {
             expect(screen.getByText('Delete log entry?')).toBeInTheDocument();
@@ -356,9 +363,13 @@ describe('Logs/Index', () => {
         const user = userEvent.setup();
         render(<Index {...defaultProps} />);
 
-        // Open dialog
-        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
-        await user.click(deleteButtons[0]);
+        // Open dialog - find delete button in table
+        const table = screen.getByRole('table');
+        const deleteButtons = table.querySelectorAll('button');
+        const firstDeleteBtn = Array.from(deleteButtons).find(btn => btn.querySelector('svg'));
+        if (firstDeleteBtn) {
+            await user.click(firstDeleteBtn);
+        }
 
         // Click Delete in dialog
         await waitFor(() => {
@@ -383,8 +394,12 @@ describe('Logs/Index', () => {
         render(<Index {...defaultProps} />);
 
         // Open dialog
-        const deleteButtons = screen.getAllByRole('button', { name: '' }).filter((btn) => btn.querySelector('.lucide-trash-2'));
-        await user.click(deleteButtons[0]);
+        const table = screen.getByRole('table');
+        const deleteButtons = table.querySelectorAll('button');
+        const firstDeleteBtn = Array.from(deleteButtons).find(btn => btn.querySelector('svg'));
+        if (firstDeleteBtn) {
+            await user.click(firstDeleteBtn);
+        }
 
         await waitFor(() => {
             expect(screen.getByText('Delete log entry?')).toBeInTheDocument();
