@@ -45,6 +45,13 @@ vi.mock('@/components/ui/label', () => ({
     ),
 }));
 
+// Default thesauri mock data for tests
+const defaultThesauri = [
+    { type: 'science_keywords', displayName: 'Science Keywords', isActive: true, isElmoActive: false, exists: true, conceptCount: 100, lastUpdated: null },
+    { type: 'platforms', displayName: 'Platforms', isActive: true, isElmoActive: false, exists: true, conceptCount: 50, lastUpdated: null },
+    { type: 'instruments', displayName: 'Instruments', isActive: true, isElmoActive: false, exists: true, conceptCount: 200, lastUpdated: null },
+];
+
 describe('EditorSettings page', () => {
     it('renders resource and title types and settings fields', () => {
         render(
@@ -56,6 +63,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[{ id: 1, name: 'Accepted', slug: 'accepted', description: 'Test description', active: true, elmo_active: false }]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
         const grid = screen.getByTestId('bento-grid');
@@ -116,6 +124,7 @@ describe('EditorSettings page', () => {
                 ],
                 maxTitles: 10,
                 maxLicenses: 5,
+                thesauri: defaultThesauri,
             }),
         );
     });
@@ -151,6 +160,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -191,6 +201,7 @@ describe('EditorSettings page', () => {
                 ]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -233,6 +244,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -273,6 +285,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -306,6 +319,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -342,6 +356,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -376,6 +391,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -416,6 +432,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -451,6 +468,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={10}
                 maxLicenses={5}
+                thesauri={defaultThesauri}
             />,
         );
 

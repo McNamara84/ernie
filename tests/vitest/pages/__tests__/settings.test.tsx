@@ -47,6 +47,13 @@ vi.mock('@/components/ui/checkbox', () => ({
     ),
 }));
 
+// Default thesauri mock data for tests
+const defaultThesauri = [
+    { type: 'science_keywords', displayName: 'Science Keywords', isActive: true, isElmoActive: false, exists: true, conceptCount: 100, lastUpdated: null },
+    { type: 'platforms', displayName: 'Platforms', isActive: true, isElmoActive: false, exists: true, conceptCount: 50, lastUpdated: null },
+    { type: 'instruments', displayName: 'Instruments', isActive: true, isElmoActive: false, exists: true, conceptCount: 200, lastUpdated: null },
+];
+
 beforeEach(() => {
     setData.mockClear();
 });
@@ -65,6 +72,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         const [ernieHeader] = screen.getAllByRole('columnheader', {
@@ -101,6 +109,7 @@ describe('EditorSettings page', () => {
                 ]}
                 maxTitles={5}
                 maxLicenses={10}
+                thesauri={defaultThesauri}
             />,
         );
 
@@ -139,6 +148,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -160,6 +170,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));
@@ -181,6 +192,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         const grid = screen.getByLabelText('Max Titles').closest('div')!.parentElement;
@@ -200,6 +212,7 @@ describe('EditorSettings page', () => {
                 dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         const region = screen.getByRole('region', { name: 'Limits' });
@@ -225,6 +238,7 @@ describe('License settings', () => {
                 dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -248,6 +262,7 @@ describe('Language settings', () => {
                 dateTypes={[]}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -271,6 +286,7 @@ describe('Date Type settings', () => {
                 dateTypes={dateTypes}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         fireEvent.click(screen.getByLabelText('ERNIE active'));
@@ -292,6 +308,7 @@ describe('Date Type settings', () => {
                 dateTypes={dateTypes}
                 maxTitles={1}
                 maxLicenses={1}
+                thesauri={defaultThesauri}
             />,
         );
         fireEvent.click(screen.getByLabelText('ELMO active'));
