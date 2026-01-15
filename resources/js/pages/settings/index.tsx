@@ -1,5 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 
+import { ThesaurusCard, type ThesaurusData } from '@/components/settings/thesaurus-card';
 import { BentoGrid, BentoGridItem } from '@/components/ui/bento-grid';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -57,11 +58,12 @@ interface EditorSettingsProps {
     dateTypes: DateTypeRow[];
     maxTitles: number;
     maxLicenses: number;
+    thesauri: ThesaurusData[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Editor Settings', href: settings().url }];
 
-export default function EditorSettings({ resourceTypes, titleTypes, licenses, languages, dateTypes, maxTitles, maxLicenses }: EditorSettingsProps) {
+export default function EditorSettings({ resourceTypes, titleTypes, licenses, languages, dateTypes, maxTitles, maxLicenses, thesauri }: EditorSettingsProps) {
     const { data, setData, post, processing } = useForm({
         resourceTypes: resourceTypes.map((r) => ({
             id: r.id,
@@ -100,6 +102,11 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
         })),
         maxTitles,
         maxLicenses,
+        thesauri: thesauri.map((t) => ({
+            type: t.type,
+            isActive: t.isActive,
+            isElmoActive: t.isElmoActive,
+        })),
     });
 
     const handleTypeChange = (index: number, value: string) => {
@@ -183,6 +190,20 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
         setData(
             'dateTypes',
             data.dateTypes.map((d, i) => (i === index ? { ...d, elmo_active: value } : d)),
+        );
+    };
+
+    const handleThesaurusActiveChange = (type: string, isActive: boolean) => {
+        setData(
+            'thesauri',
+            data.thesauri.map((t) => (t.type === type ? { ...t, isActive } : t)),
+        );
+    };
+
+    const handleThesaurusElmoActiveChange = (type: string, isElmoActive: boolean) => {
+        setData(
+            'thesauri',
+            data.thesauri.map((t) => (t.type === type ? { ...t, isElmoActive } : t)),
         );
     };
 
@@ -530,6 +551,24 @@ export default function EditorSettings({ resourceTypes, titleTypes, licenses, la
                                 />
                             </div>
                         </div>
+                    </BentoGridItem>
+
+                    <BentoGridItem aria-labelledby="thesauri-heading" className="md:row-span-2">
+                        <h2 id="thesauri-heading" className="text-lg font-semibold">
+                            Thesauri
+                        </h2>
+                        <p className="text-muted-foreground mb-4 text-sm">
+                            Manage GCMD controlled vocabularies for scientific keywords, platforms, and instruments.
+                        </p>
+                        <ThesaurusCard
+                            thesauri={thesauri.map((t, i) => ({
+                                ...t,
+                                isActive: data.thesauri[i].isActive,
+                                isElmoActive: data.thesauri[i].isElmoActive,
+                            }))}
+                            onActiveChange={handleThesaurusActiveChange}
+                            onElmoActiveChange={handleThesaurusElmoActiveChange}
+                        />
                     </BentoGridItem>
                 </BentoGrid>
                 <Button type="submit" className="self-start" disabled={processing}>
