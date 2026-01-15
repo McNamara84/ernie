@@ -273,4 +273,52 @@ describe('Users/Index', () => {
             );
         });
     });
+
+    it('shows role select for users other than system admin', () => {
+        render(<Index {...defaultProps} />);
+
+        // Should have role selects for non-system-admin users
+        const roleSelects = screen.getAllByRole('combobox');
+        expect(roleSelects.length).toBeGreaterThan(0);
+    });
+
+    it('shows role badges for each user', () => {
+        render(<Index {...defaultProps} />);
+
+        expect(screen.getByText('Admin')).toBeInTheDocument();
+        expect(screen.getByText('Curator')).toBeInTheDocument();
+        expect(screen.getByText('Beginner')).toBeInTheDocument();
+    });
+
+    it('renders with empty available_roles gracefully', () => {
+        render(<Index {...defaultProps} available_roles={[]} />);
+
+        expect(screen.getByTestId('users-table')).toBeInTheDocument();
+    });
+
+    it('hides deactivate button for current user', () => {
+        render(<Index {...defaultProps} />);
+
+        // The current user (id=1) should not have a deactivate button
+        // Count deactivate buttons - should be 1 for user 2 (user 3 is already deactivated)
+        const deactivateButtons = screen.getAllByRole('button', { name: /Deactivate/i });
+        expect(deactivateButtons.length).toBe(1);
+    });
+
+    it('displays table headers correctly', () => {
+        render(<Index {...defaultProps} />);
+
+        expect(screen.getByText('Name')).toBeInTheDocument();
+        expect(screen.getByText('Email')).toBeInTheDocument();
+        expect(screen.getByText('Role')).toBeInTheDocument();
+        expect(screen.getByText('Status')).toBeInTheDocument();
+        expect(screen.getByText('Registered')).toBeInTheDocument();
+        expect(screen.getByText('Actions')).toBeInTheDocument();
+    });
+
+    it('renders card with correct title', () => {
+        render(<Index {...defaultProps} />);
+
+        expect(screen.getByText('User Management')).toBeInTheDocument();
+    });
 });
