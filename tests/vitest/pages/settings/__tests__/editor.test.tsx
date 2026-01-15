@@ -114,4 +114,164 @@ describe('EditorSettings page', () => {
             }),
         );
     });
+
+    it('renders licenses table with correct data', () => {
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [],
+                titleTypes: [],
+                licenses: [
+                    { id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0', active: true, elmo_active: false },
+                    { id: 2, identifier: 'CC0', name: 'Public Domain', active: false, elmo_active: true },
+                ],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+            },
+            setData: vi.fn(),
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[
+                    { id: 1, identifier: 'CC-BY-4.0', name: 'Creative Commons Attribution 4.0', active: true, elmo_active: false },
+                    { id: 2, identifier: 'CC0', name: 'Public Domain', active: false, elmo_active: true },
+                ]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+            />,
+        );
+
+        expect(screen.getByText('CC-BY-4.0')).toBeInTheDocument();
+        expect(screen.getByText('Creative Commons Attribution 4.0')).toBeInTheDocument();
+        expect(screen.getByText('CC0')).toBeInTheDocument();
+        expect(screen.getByText('Public Domain')).toBeInTheDocument();
+    });
+
+    it('renders date types table with name and slug', () => {
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [],
+                titleTypes: [],
+                licenses: [],
+                languages: [],
+                dateTypes: [
+                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true, elmo_active: true },
+                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false, elmo_active: false },
+                ],
+                maxTitles: 10,
+                maxLicenses: 5,
+            },
+            setData: vi.fn(),
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[
+                    { id: 1, name: 'Collected', slug: 'collected', description: 'Date when data was collected', active: true, elmo_active: true },
+                    { id: 2, name: 'Created', slug: 'created', description: 'Date of creation', active: false, elmo_active: false },
+                ]}
+                maxTitles={10}
+                maxLicenses={5}
+            />,
+        );
+
+        // Date Types table shows name and slug columns
+        expect(screen.getByText('Collected')).toBeInTheDocument();
+        expect(screen.getByText('collected')).toBeInTheDocument();
+        expect(screen.getByText('Created')).toBeInTheDocument();
+        expect(screen.getByText('created')).toBeInTheDocument();
+        // Note: description is in data but not rendered in the table
+    });
+
+    it('renders languages table with code and name', () => {
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [],
+                titleTypes: [],
+                licenses: [],
+                languages: [
+                    { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
+                    { id: 2, code: 'de', name: 'German', active: true, elmo_active: true },
+                ],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+            },
+            setData: vi.fn(),
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[
+                    { id: 1, code: 'en', name: 'English', active: true, elmo_active: false },
+                    { id: 2, code: 'de', name: 'German', active: true, elmo_active: true },
+                ]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+            />,
+        );
+
+        expect(screen.getByText('en')).toBeInTheDocument();
+        expect(screen.getByText('English')).toBeInTheDocument();
+        expect(screen.getByText('de')).toBeInTheDocument();
+        expect(screen.getByText('German')).toBeInTheDocument();
+    });
+
+    it('displays multiple resource types', () => {
+        useFormMock.mockReturnValueOnce({
+            data: {
+                resourceTypes: [
+                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: true },
+                ],
+                titleTypes: [],
+                licenses: [],
+                languages: [],
+                dateTypes: [],
+                maxTitles: 10,
+                maxLicenses: 5,
+            },
+            setData: vi.fn(),
+            post: vi.fn(),
+            processing: false,
+        });
+
+        render(
+            <EditorSettings
+                resourceTypes={[
+                    { id: 1, name: 'Dataset', active: true, elmo_active: false },
+                    { id: 2, name: 'Collection', active: false, elmo_active: true },
+                ]}
+                titleTypes={[]}
+                licenses={[]}
+                languages={[]}
+                dateTypes={[]}
+                maxTitles={10}
+                maxLicenses={5}
+            />,
+        );
+
+        expect(screen.getByDisplayValue('Dataset')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Collection')).toBeInTheDocument();
+    });
 });
