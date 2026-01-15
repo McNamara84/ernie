@@ -21,17 +21,54 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
     value: ResizeObserver,
 });
 
-// Mock IntersectionObserver for infinite scrolling tests
-class IntersectionObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+// Mock IntersectionObserver for infinite scrolling and lazy loading tests
+class MockIntersectionObserver implements IntersectionObserver {
+    readonly root: Element | Document | null = null;
+    readonly rootMargin: string = '';
+    readonly thresholds: ReadonlyArray<number> = [];
+    private callback: IntersectionObserverCallback;
+    private elements: Set<Element> = new Set();
+
+    constructor(callback: IntersectionObserverCallback) {
+        this.callback = callback;
+    }
+
+    observe(target: Element) {
+        this.elements.add(target);
+        // Immediately call callback with isIntersecting: true to simulate visibility
+        this.callback(
+            [
+                {
+                    target,
+                    isIntersecting: true,
+                    intersectionRatio: 1,
+                    boundingClientRect: target.getBoundingClientRect(),
+                    intersectionRect: target.getBoundingClientRect(),
+                    rootBounds: null,
+                    time: Date.now(),
+                },
+            ],
+            this
+        );
+    }
+
+    unobserve(target: Element) {
+        this.elements.delete(target);
+    }
+
+    disconnect() {
+        this.elements.clear();
+    }
+
+    takeRecords(): IntersectionObserverEntry[] {
+        return [];
+    }
 }
 
 Object.defineProperty(globalThis, 'IntersectionObserver', {
     writable: true,
     configurable: true,
-    value: IntersectionObserver,
+    value: MockIntersectionObserver,
 });
 
 // Mock matchMedia for accessibility tests (prefers-reduced-motion)

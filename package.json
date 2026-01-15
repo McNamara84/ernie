@@ -45,7 +45,8 @@
     "@types/papaparse": "^5.3.16",
     "@types/qrcode.react": "^1.0.5",
     "@types/yaireo__tagify": "^4.27.0",
-    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/browser": "^4.0.17",
+    "@vitest/coverage-v8": "^4.0.17",
     "dotenv": "^17.2.3",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^10.0.1",
@@ -53,12 +54,13 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "jsdom": "^26.1.0",
+    "playwright": "^1.57.0",
     "prettier": "^3.4.2",
     "prettier-plugin-organize-imports": "^4.1.0",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "start-server-and-test": "^2.1.2",
     "typescript-eslint": "^8.23.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.17"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
