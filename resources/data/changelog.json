@@ -4,6 +4,10 @@
         "date": "2026-01-12",
         "features": [
             {
+                "title": "Landing Page Template Modification",
+                "description": "The landing page template can now be changed after initial creation. A preview function shows the new design before saving, allowing data curators to correct template selection errors."
+            },
+            {
                 "title": "Thesauri Management in Editor Settings",
                 "description": "A new 'Thesauri' card in Editor Settings enables administrators to manage GCMD (Global Change Master Directory) thesauri: Science Keywords, Platforms, and Instruments. Each thesaurus can be individually enabled or disabled for ERNIE (editor) and ELMO (API) independently. The card displays concept counts, last update timestamps, and allows checking for updates against NASA's remote API. Administrators can trigger background updates that download the latest vocabulary data. When a thesaurus is disabled, its tab is automatically hidden in the Controlled Keywords field of the curation form."
             },
@@ -21,6 +25,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Landing Page Authorization",
+                "description": "Only Curators, Group Leaders, and Admins can create and edit landing pages. Beginners no longer have access to landing page management functions."
+            },
             {
                 "title": "DOI Validation Security Enhancements",
                 "description": "The DOI validation API endpoint now requires user authentication and includes rate limiting (60 requests per minute per user) to prevent abuse. Administrators can now edit DOIs even after a resource has been saved, allowing for typo corrections when needed."
