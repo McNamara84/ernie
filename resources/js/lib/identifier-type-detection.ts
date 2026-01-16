@@ -307,6 +307,28 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'PURL';
     }
 
+    // RRID (Research Resource Identifier) detection
+    // RRIDs identify research resources like antibodies, cell lines, organisms, tools
+    // Format: RRID:Authority_LocalID (e.g., RRID:AB_90755, RRID:CVCL_0030)
+    // Authorities: AB (Antibody), CVCL (Cellosaurus), SCR (SciCrunch), IMSR_JAX, MMRRC, Addgene, SAMN
+    // Special cases: IMSR_JAX:000664 (colon after authority), SAMN19842595 (no underscore)
+
+    // RRID with prefix: RRID:Authority_LocalID or RRID: Authority_LocalID
+    // Supports: RRID:AB_90755, RRID:IMSR_JAX:000664, RRID:SAMN19842595
+    if (trimmed.match(/^rrid:?\s*[a-z]+[_:]?[a-z0-9_:-]+$/i)) {
+        return 'RRID';
+    }
+
+    // RRID with SciCrunch resolver URL: https://scicrunch.org/resolver/RRID:...
+    if (trimmed.match(/^https?:\/\/scicrunch\.org\/resolver\/RRID:[a-z]+[_:]?[a-z0-9_:-]+$/i)) {
+        return 'RRID';
+    }
+
+    // RRID with rrid.site portal URL: https://rrid.site/RRID:...
+    if (trimmed.match(/^https?:\/\/rrid\.site\/RRID:[a-z]+[_:]?[a-z0-9_:-]+$/i)) {
+        return 'RRID';
+    }
+
     // LISSN (Linking ISSN / ISSN-L) detection
     // LISSN links different media versions of the same serial publication
     // Must be checked before EISSN since LISSN has more specific prefixes

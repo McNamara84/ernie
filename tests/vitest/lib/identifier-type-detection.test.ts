@@ -5656,6 +5656,286 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    // ==================== RRID (Research Resource Identifier) ====================
+    // Research Resource Identifiers for antibodies, cell lines, organisms, tools
+    // Format: RRID:Authority_LocalID (e.g., RRID:AB_90755, RRID:CVCL_0030)
+    describe('RRID detection', () => {
+        describe('RRID with prefix detection', () => {
+            // Test case 1: Antibody Registry
+            it('detects Antibody RRID: RRID:AB_90755', () => {
+                expect(detectIdentifierType('RRID:AB_90755')).toBe('RRID');
+            });
+
+            // Test case 2: Cellosaurus - HeLa Cell Line
+            it('detects Cellosaurus RRID: RRID:CVCL_0030', () => {
+                expect(detectIdentifierType('RRID:CVCL_0030')).toBe('RRID');
+            });
+
+            // Test case 3: Cellosaurus - Generic Cell Line
+            it('detects Cellosaurus RRID: RRID:CVCL_1074', () => {
+                expect(detectIdentifierType('RRID:CVCL_1074')).toBe('RRID');
+            });
+
+            // Test case 4: SciCrunch Tool Registry
+            it('detects SciCrunch RRID: RRID:SCR_003070', () => {
+                expect(detectIdentifierType('RRID:SCR_003070')).toBe('RRID');
+            });
+
+            // Test case 5: Jackson Laboratory Mouse Strain
+            it('detects IMSR_JAX RRID: RRID:IMSR_JAX:000664', () => {
+                expect(detectIdentifierType('RRID:IMSR_JAX:000664')).toBe('RRID');
+            });
+
+            // Test case 6: MMRRC Mutant Mouse Resource Center
+            it('detects MMRRC RRID: RRID:MMRRC_026409-UCD', () => {
+                expect(detectIdentifierType('RRID:MMRRC_026409-UCD')).toBe('RRID');
+            });
+
+            // Test case 7: Addgene Plasmid Repository
+            it('detects Addgene RRID: RRID:Addgene_44362', () => {
+                expect(detectIdentifierType('RRID:Addgene_44362')).toBe('RRID');
+            });
+
+            // Test case 8: NCBI BioSamples
+            it('detects SAMN RRID: RRID:SAMN19842595', () => {
+                expect(detectIdentifierType('RRID:SAMN19842595')).toBe('RRID');
+            });
+
+            // Test case 9: SciCrunch Core Facility
+            it('detects SCR RRID: RRID:SCR_017934', () => {
+                expect(detectIdentifierType('RRID:SCR_017934')).toBe('RRID');
+            });
+
+            // Test case 10: MATLAB Software
+            it('detects SCR RRID: RRID:SCR_001622', () => {
+                expect(detectIdentifierType('RRID:SCR_001622')).toBe('RRID');
+            });
+        });
+
+        describe('RRID with SciCrunch resolver URL', () => {
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:AB_90755', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:AB_90755')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:CVCL_0030', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:CVCL_0030')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:SCR_003070', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SCR_003070')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:IMSR_JAX:000664', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:IMSR_JAX:000664')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:MMRRC_026409-UCD', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:MMRRC_026409-UCD')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:Addgene_44362', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:Addgene_44362')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:SAMN19842595', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SAMN19842595')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:SCR_017934', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SCR_017934')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL: https://scicrunch.org/resolver/RRID:SCR_001622', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SCR_001622')).toBe('RRID');
+            });
+
+            it('detects SciCrunch URL HTTP: http://scicrunch.org/resolver/RRID:AB_90755', () => {
+                expect(detectIdentifierType('http://scicrunch.org/resolver/RRID:AB_90755')).toBe('RRID');
+            });
+        });
+
+        describe('RRID with rrid.site portal URL', () => {
+            it('detects rrid.site URL: https://rrid.site/RRID:AB_90755', () => {
+                expect(detectIdentifierType('https://rrid.site/RRID:AB_90755')).toBe('RRID');
+            });
+
+            it('detects rrid.site URL: https://rrid.site/RRID:CVCL_0030', () => {
+                expect(detectIdentifierType('https://rrid.site/RRID:CVCL_0030')).toBe('RRID');
+            });
+
+            it('detects rrid.site URL: https://rrid.site/RRID:SCR_003070', () => {
+                expect(detectIdentifierType('https://rrid.site/RRID:SCR_003070')).toBe('RRID');
+            });
+
+            it('detects rrid.site URL HTTP: http://rrid.site/RRID:AB_90755', () => {
+                expect(detectIdentifierType('http://rrid.site/RRID:AB_90755')).toBe('RRID');
+            });
+        });
+
+        describe('RRID edge cases', () => {
+            it('handles lowercase rrid prefix', () => {
+                expect(detectIdentifierType('rrid:AB_90755')).toBe('RRID');
+            });
+
+            it('handles RRID with space after colon', () => {
+                expect(detectIdentifierType('RRID: AB_90755')).toBe('RRID');
+            });
+
+            it('handles whitespace trimming', () => {
+                expect(detectIdentifierType('  RRID:AB_90755  ')).toBe('RRID');
+            });
+
+            it('handles mixed case authority', () => {
+                expect(detectIdentifierType('RRID:Addgene_44362')).toBe('RRID');
+            });
+
+            it('handles authority with colon (IMSR_JAX)', () => {
+                expect(detectIdentifierType('RRID:IMSR_JAX:000664')).toBe('RRID');
+            });
+
+            it('handles LocalID with hyphen (MMRRC)', () => {
+                expect(detectIdentifierType('RRID:MMRRC_026409-UCD')).toBe('RRID');
+            });
+
+            it('handles long numeric LocalID (SAMN)', () => {
+                expect(detectIdentifierType('RRID:SAMN19842595')).toBe('RRID');
+            });
+
+            it('handles short LocalID', () => {
+                expect(detectIdentifierType('RRID:AB_1')).toBe('RRID');
+            });
+        });
+
+        describe('Real-world RRID examples', () => {
+            // 1. Antibody Registry - Anti-GFP Antikörper
+            it('detects Antibody RRID prefix: RRID:AB_90755', () => {
+                expect(detectIdentifierType('RRID:AB_90755')).toBe('RRID');
+            });
+            it('detects Antibody SciCrunch URL: https://scicrunch.org/resolver/RRID:AB_90755', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:AB_90755')).toBe('RRID');
+            });
+            it('detects Antibody rrid.site URL: https://rrid.site/RRID:AB_90755', () => {
+                expect(detectIdentifierType('https://rrid.site/RRID:AB_90755')).toBe('RRID');
+            });
+
+            // 2. Cellosaurus - HeLa Cell Line
+            it('detects HeLa RRID prefix: RRID:CVCL_0030', () => {
+                expect(detectIdentifierType('RRID:CVCL_0030')).toBe('RRID');
+            });
+            it('detects HeLa SciCrunch URL: https://scicrunch.org/resolver/RRID:CVCL_0030', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:CVCL_0030')).toBe('RRID');
+            });
+            it('detects HeLa rrid.site URL: https://rrid.site/RRID:CVCL_0030', () => {
+                expect(detectIdentifierType('https://rrid.site/RRID:CVCL_0030')).toBe('RRID');
+            });
+
+            // 3. Cellosaurus - Generic Cell Line
+            it('detects CVCL_1074 RRID: RRID:CVCL_1074', () => {
+                expect(detectIdentifierType('RRID:CVCL_1074')).toBe('RRID');
+            });
+            it('detects CVCL_1074 SciCrunch: https://scicrunch.org/resolver/RRID:CVCL_1074', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:CVCL_1074')).toBe('RRID');
+            });
+
+            // 4. SciCrunch Tool Registry
+            it('detects SCR_003070 RRID: RRID:SCR_003070', () => {
+                expect(detectIdentifierType('RRID:SCR_003070')).toBe('RRID');
+            });
+            it('detects SCR_003070 SciCrunch: https://scicrunch.org/resolver/RRID:SCR_003070', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SCR_003070')).toBe('RRID');
+            });
+            it('detects SCR_003070 rrid.site: https://rrid.site/RRID:SCR_003070', () => {
+                expect(detectIdentifierType('https://rrid.site/RRID:SCR_003070')).toBe('RRID');
+            });
+
+            // 5. Jackson Laboratory Mouse Strain
+            it('detects IMSR_JAX RRID: RRID:IMSR_JAX:000664', () => {
+                expect(detectIdentifierType('RRID:IMSR_JAX:000664')).toBe('RRID');
+            });
+            it('detects IMSR_JAX SciCrunch: https://scicrunch.org/resolver/RRID:IMSR_JAX:000664', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:IMSR_JAX:000664')).toBe('RRID');
+            });
+
+            // 6. MMRRC Mutant Mouse Resource Center
+            it('detects MMRRC RRID: RRID:MMRRC_026409-UCD', () => {
+                expect(detectIdentifierType('RRID:MMRRC_026409-UCD')).toBe('RRID');
+            });
+            it('detects MMRRC SciCrunch: https://scicrunch.org/resolver/RRID:MMRRC_026409-UCD', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:MMRRC_026409-UCD')).toBe('RRID');
+            });
+
+            // 7. Addgene Plasmid Repository
+            it('detects Addgene RRID: RRID:Addgene_44362', () => {
+                expect(detectIdentifierType('RRID:Addgene_44362')).toBe('RRID');
+            });
+            it('detects Addgene SciCrunch: https://scicrunch.org/resolver/RRID:Addgene_44362', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:Addgene_44362')).toBe('RRID');
+            });
+
+            // 8. NCBI BioSamples
+            it('detects SAMN RRID: RRID:SAMN19842595', () => {
+                expect(detectIdentifierType('RRID:SAMN19842595')).toBe('RRID');
+            });
+            it('detects SAMN SciCrunch: https://scicrunch.org/resolver/RRID:SAMN19842595', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SAMN19842595')).toBe('RRID');
+            });
+
+            // 9. SciCrunch Core Facility
+            it('detects SCR_017934 RRID: RRID:SCR_017934', () => {
+                expect(detectIdentifierType('RRID:SCR_017934')).toBe('RRID');
+            });
+            it('detects SCR_017934 SciCrunch: https://scicrunch.org/resolver/RRID:SCR_017934', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SCR_017934')).toBe('RRID');
+            });
+
+            // 10. MATLAB Software
+            it('detects SCR_001622 RRID: RRID:SCR_001622', () => {
+                expect(detectIdentifierType('RRID:SCR_001622')).toBe('RRID');
+            });
+            it('detects SCR_001622 SciCrunch: https://scicrunch.org/resolver/RRID:SCR_001622', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:SCR_001622')).toBe('RRID');
+            });
+        });
+
+        describe('RRID should NOT be detected for non-RRID identifiers', () => {
+            it('should not detect plain authority_id as RRID (no prefix)', () => {
+                expect(detectIdentifierType('AB_90755')).not.toBe('RRID');
+            });
+
+            it('should not detect DOI as RRID', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('RRID');
+            });
+
+            it('should not detect PMID as RRID', () => {
+                expect(detectIdentifierType('PMID: 26360422')).not.toBe('RRID');
+            });
+
+            it('should not detect ISSN as RRID', () => {
+                expect(detectIdentifierType('ISSN 1234-5678')).not.toBe('RRID');
+            });
+
+            it('should not detect LSID as RRID', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).not.toBe('RRID');
+            });
+
+            it('should not detect plain URL as RRID', () => {
+                expect(detectIdentifierType('https://example.org/resource/123')).not.toBe('RRID');
+            });
+
+            it('should not detect IGSN as RRID', () => {
+                expect(detectIdentifierType('IGSN:AU1234567')).not.toBe('RRID');
+            });
+
+            it('should not detect Handle as RRID', () => {
+                expect(detectIdentifierType('2128/1885')).not.toBe('RRID');
+            });
+
+            it('should not detect SciCrunch URL without RRID as RRID', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/AB_90755')).not.toBe('RRID');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
