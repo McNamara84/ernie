@@ -21,14 +21,27 @@ test.describe('Related Work Identifier Type Detection', () => {
     test.beforeEach(async ({ page }) => {
         await loginAsTestUser(page);
         await page.goto('/editor');
-        await page.waitForSelector('[data-slot="accordion-trigger"]');
 
-        // Expand Related Work accordion
+        // Wait for the page to be fully loaded
+        await page.waitForLoadState('networkidle');
+
+        // Find the Related Work accordion trigger
         const relatedWorkAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Related Work/i });
+        await relatedWorkAccordion.waitFor({ state: 'visible', timeout: 10000 });
+
+        // Scroll into view to ensure it's clickable
+        await relatedWorkAccordion.scrollIntoViewIfNeeded();
+
+        // Click to expand the accordion
         await relatedWorkAccordion.click();
 
-        // Wait for accordion content to be visible (more reliable than fixed timeout)
-        await page.waitForSelector('#related-identifier', { state: 'visible', timeout: 10000 });
+        // Wait for accordion content to have data-state="open"
+        const accordionContent = page.locator('[data-slot="accordion-content"]', { has: page.locator('#related-identifier') });
+        await accordionContent.waitFor({ state: 'visible', timeout: 10000 });
+
+        // Now wait for the input to be visible and interactable
+        const identifierInput = page.locator('#related-identifier');
+        await identifierInput.waitFor({ state: 'visible', timeout: 10000 });
     });
 
     /**
