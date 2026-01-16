@@ -57,12 +57,14 @@ test.describe('Related Work Identifier Type Detection', () => {
         await identifierInput.waitFor({ state: 'visible', timeout: 10000 });
         await identifierInput.fill(identifier);
 
-        // Wait for validation to complete (debounced)
-        await page.waitForTimeout(1000);
-
-        // Click the Add button using stable data-testid
+        // Wait for the Add button to become enabled (validation complete)
+        // The button is disabled while: identifier is empty, validation is running, or validation failed
         const addButton = page.getByTestId('add-related-work-button');
         await addButton.waitFor({ state: 'visible', timeout: 5000 });
+
+        // Wait until button is enabled (validation debounce + API call can take several seconds in CI)
+        await expect(addButton).toBeEnabled({ timeout: 15000 });
+
         await addButton.click();
 
         // Wait for the identifier type badge to appear using stable data-testid
