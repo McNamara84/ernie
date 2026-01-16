@@ -7,15 +7,28 @@ use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Rules\SafeUrl;
 use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class LandingPageController extends Controller
 {
+    use AuthorizesRequests;
+    /**
+     * Allowed landing page templates.
+     *
+     * When adding new templates, update this list and create the corresponding
+     * React component in resources/js/Pages/LandingPages/.
+     *
+     * @var list<string>
+     */
+    public const ALLOWED_TEMPLATES = ['default_gfz'];
+
     /**
      * Display the public landing page.
      */
@@ -70,8 +83,10 @@ class LandingPageController extends Controller
      */
     public function store(Request $request, Resource $resource): JsonResponse
     {
+        $this->authorize('create', LandingPage::class);
+
         $validated = $request->validate([
-            'template' => 'required|string|in:default_gfz,minimal,detailed',
+            'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
             'is_published' => 'boolean',
             'status' => 'sometimes|string|in:draft,published',
@@ -244,13 +259,6 @@ class LandingPageController extends Controller
      */
     public function update(Request $request, Resource $resource): JsonResponse
     {
-        $validated = $request->validate([
-            'template' => 'sometimes|string|in:default_gfz,minimal,detailed',
-            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
-            'is_published' => 'sometimes|boolean',
-            'status' => 'sometimes|string|in:draft,published',
-        ]);
-
         $landingPage = $resource->landingPage;
 
         if (! $landingPage) {
@@ -258,6 +266,15 @@ class LandingPageController extends Controller
                 'message' => 'Landing page not found',
             ], 404);
         }
+
+        $this->authorize('update', $landingPage);
+
+        $validated = $request->validate([
+            'template' => ['sometimes', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
+            'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
+            'is_published' => 'sometimes|boolean',
+            'status' => 'sometimes|string|in:draft,published',
+        ]);
 
         // Determine requested publication status change (if any).
         // Support both 'status' (preferred) and 'is_published' (legacy) fields.
@@ -322,6 +339,8 @@ class LandingPageController extends Controller
                 'message' => 'Landing page not found',
             ], 404);
         }
+
+        $this->authorize('delete', $landingPage);
 
         // Prevent deletion of published landing pages
         if ($landingPage->isPublished()) {
