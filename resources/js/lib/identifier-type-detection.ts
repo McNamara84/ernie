@@ -263,6 +263,33 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'EISSN';
     }
 
+    // ISTC (International Standard Text Code) detection
+    // Format: 16 hexadecimal characters (0-9, A-J) in groups: XXX-YYYY-ZZZZ-ZZZZ-C
+    // Components: Registration Agency (3) - Year (4) - Work Element (8) - Check (1)
+    // Note: ISTC uses extended hex (0-9, A-J) not standard hex (0-9, A-F)
+
+    // ISTC with URN format: urn:istc:...
+    if (trimmed.match(/^urn:istc:[0-9A-Ja-j-]+$/i)) {
+        return 'ISTC';
+    }
+
+    // ISTC with explicit prefix: ISTC XXX-YYYY-..., ISTC: XXX-..., ISTC (Bowker): ...
+    if (trimmed.match(/^istc\s*(?:\([^)]+\))?:?\s*[0-9A-Ja-j]{3}-?[0-9]{4}-?[0-9A-Ja-j]{4}-?[0-9A-Ja-j]{4}-?[0-9A-Ja-j]$/i)) {
+        return 'ISTC';
+    }
+
+    // ISTC with hyphens: XXX-YYYY-ZZZZ-ZZZZ-C (16 chars total, displayed as 3-4-4-4-1)
+    // RA (3 hex) - Year (4 digits) - Work (8 hex split 4-4) - Check (1 hex)
+    if (trimmed.match(/^[0-9A-Ja-j]{3}-[0-9]{4}-[0-9A-Ja-j]{4}-[0-9A-Ja-j]{4}-[0-9A-Ja-j]$/i)) {
+        return 'ISTC';
+    }
+
+    // ISTC compact format: 16 characters without hyphens
+    // Pattern: 3 hex + 4 digits + 8 hex + 1 hex = 16 chars
+    if (trimmed.match(/^[0-9A-Ja-j]{3}[0-9]{4}[0-9A-Ja-j]{9}$/i)) {
+        return 'ISTC';
+    }
+
     // ARK with resolver URL patterns (must be checked before generic URL)
     // Matches various ARK resolvers: n2t.net, ark.bnf.fr, familysearch.org, archive.org, data.bnf.fr, etc.
     // ARK format in URL: https://resolver/ark:/NAAN/Name or https://resolver/ark:NAAN/Name

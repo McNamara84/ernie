@@ -3944,6 +3944,453 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    describe('ISTC detection', () => {
+        /**
+         * ISTC (International Standard Text Code) uniquely identifies textual works.
+         *
+         * Format: 16 characters in groups XXX-YYYY-ZZZZ-ZZZZ-C
+         * - XXX = Registration Agency (3 extended hex: 0-9, A-J)
+         * - YYYY = Year (4 digits)
+         * - ZZZZZZZZ = Work element (8 extended hex, displayed as two 4-char groups)
+         * - C = Check digit (1 extended hex)
+         *
+         * Extended hexadecimal uses 0-9 and A-J (not A-F like standard hex).
+         * Can be displayed with or without hyphens.
+         *
+         * Common patterns:
+         * - With hyphens: 0A9-2010-31F4-CB2C-B
+         * - Compact: 0A9201031F4CB2CB
+         * - URN format: urn:istc:0A9201031F4CB2CB
+         * - With prefix: ISTC 0A9-2010-31F4-CB2C-B
+         */
+
+        describe('ISTC with hyphens (XXX-YYYY-ZZZZ-ZZZZ-C)', () => {
+            it('detects ISO standard example: 0A9-2010-31F4-CB2C-B', () => {
+                expect(detectIdentifierType('0A9-2010-31F4-CB2C-B')).toBe('ISTC');
+            });
+
+            it('detects Hamlet example: 03A-2009-000C-299F-D', () => {
+                expect(detectIdentifierType('03A-2009-000C-299F-D')).toBe('ISTC');
+            });
+
+            it('detects Pride and Prejudice: 0B7-1998-F5A3-1D8E-2', () => {
+                expect(detectIdentifierType('0B7-1998-F5A3-1D8E-2')).toBe('ISTC');
+            });
+
+            it('detects modern publication: 1C3-2020-AA5D-47BC-F', () => {
+                expect(detectIdentifierType('1C3-2020-AA5D-47BC-F')).toBe('ISTC');
+            });
+
+            it('detects Bowker registration: 2D5-2015-BB7E-C9A1-3', () => {
+                expect(detectIdentifierType('2D5-2015-BB7E-C9A1-3')).toBe('ISTC');
+            });
+
+            it('detects Nielsen registration: 0E4-2018-CD3F-E7B2-A', () => {
+                expect(detectIdentifierType('0E4-2018-CD3F-E7B2-A')).toBe('ISTC');
+            });
+
+            it('detects abridged edition: 3F6-2016-DE9G-F8C4-5', () => {
+                expect(detectIdentifierType('3F6-2016-DE9G-F8C4-5')).toBe('ISTC');
+            });
+
+            it('detects academic text: 4A7-2021-EF5H-A9D3-6', () => {
+                expect(detectIdentifierType('4A7-2021-EF5H-A9D3-6')).toBe('ISTC');
+            });
+
+            it('detects translated work: 5B8-2019-FG6I-B0E2-7', () => {
+                expect(detectIdentifierType('5B8-2019-FG6I-B0E2-7')).toBe('ISTC');
+            });
+
+            it('detects 2024 publication: 6C9-2024-GH7J-C1F3-8', () => {
+                expect(detectIdentifierType('6C9-2024-GH7J-C1F3-8')).toBe('ISTC');
+            });
+        });
+
+        describe('ISTC compact format (16 characters)', () => {
+            it('detects ISO standard compact: 0A9201031F4CB2CB', () => {
+                expect(detectIdentifierType('0A9201031F4CB2CB')).toBe('ISTC');
+            });
+
+            it('detects Hamlet compact: 03A2009000C299FD', () => {
+                expect(detectIdentifierType('03A2009000C299FD')).toBe('ISTC');
+            });
+
+            it('detects Pride and Prejudice compact: 0B71998F5A31D8E2', () => {
+                expect(detectIdentifierType('0B71998F5A31D8E2')).toBe('ISTC');
+            });
+
+            it('detects modern publication compact: 1C32020AA5D47BCF', () => {
+                expect(detectIdentifierType('1C32020AA5D47BCF')).toBe('ISTC');
+            });
+
+            it('detects Bowker compact: 2D52015BB7EC9A13', () => {
+                expect(detectIdentifierType('2D52015BB7EC9A13')).toBe('ISTC');
+            });
+
+            it('detects Nielsen compact: 0E42018CD3FE7B2A', () => {
+                expect(detectIdentifierType('0E42018CD3FE7B2A')).toBe('ISTC');
+            });
+
+            it('detects abridged compact: 3F62016DE9GF8C45', () => {
+                expect(detectIdentifierType('3F62016DE9GF8C45')).toBe('ISTC');
+            });
+
+            it('detects academic compact: 4A72021EF5HA9D36', () => {
+                expect(detectIdentifierType('4A72021EF5HA9D36')).toBe('ISTC');
+            });
+
+            it('detects translated compact: 5B82019FG6IB0E27', () => {
+                expect(detectIdentifierType('5B82019FG6IB0E27')).toBe('ISTC');
+            });
+
+            it('detects 2024 compact: 6C92024GH7JC1F38', () => {
+                expect(detectIdentifierType('6C92024GH7JC1F38')).toBe('ISTC');
+            });
+        });
+
+        describe('ISTC with ISTC prefix', () => {
+            it('detects ISTC prefix: ISTC 0A9-2010-31F4-CB2C-B', () => {
+                expect(detectIdentifierType('ISTC 0A9-2010-31F4-CB2C-B')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 03A-2009-000C-299F-D', () => {
+                expect(detectIdentifierType('ISTC 03A-2009-000C-299F-D')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 0B7-1998-F5A3-1D8E-2', () => {
+                expect(detectIdentifierType('ISTC 0B7-1998-F5A3-1D8E-2')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 1C3-2020-AA5D-47BC-F', () => {
+                expect(detectIdentifierType('ISTC 1C3-2020-AA5D-47BC-F')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 2D5-2015-BB7E-C9A1-3', () => {
+                expect(detectIdentifierType('ISTC 2D5-2015-BB7E-C9A1-3')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 0E4-2018-CD3F-E7B2-A', () => {
+                expect(detectIdentifierType('ISTC 0E4-2018-CD3F-E7B2-A')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 3F6-2016-DE9G-F8C4-5', () => {
+                expect(detectIdentifierType('ISTC 3F6-2016-DE9G-F8C4-5')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 4A7-2021-EF5H-A9D3-6', () => {
+                expect(detectIdentifierType('ISTC 4A7-2021-EF5H-A9D3-6')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 5B8-2019-FG6I-B0E2-7', () => {
+                expect(detectIdentifierType('ISTC 5B8-2019-FG6I-B0E2-7')).toBe('ISTC');
+            });
+
+            it('detects ISTC prefix: ISTC 6C9-2024-GH7J-C1F3-8', () => {
+                expect(detectIdentifierType('ISTC 6C9-2024-GH7J-C1F3-8')).toBe('ISTC');
+            });
+        });
+
+        describe('ISTC with agency annotations', () => {
+            it('detects ISTC with Bowker reference: ISTC (Bowker): 2D5-2015-BB7E-C9A1-3', () => {
+                expect(detectIdentifierType('ISTC (Bowker): 2D5-2015-BB7E-C9A1-3')).toBe('ISTC');
+            });
+
+            it('detects ISTC with Nielsen reference: ISTC (Nielsen): 0E4-2018-CD3F-E7B2-A', () => {
+                expect(detectIdentifierType('ISTC (Nielsen): 0E4-2018-CD3F-E7B2-A')).toBe('ISTC');
+            });
+        });
+
+        describe('ISTC with URN format', () => {
+            it('detects URN: urn:istc:0A9201031F4CB2CB', () => {
+                expect(detectIdentifierType('urn:istc:0A9201031F4CB2CB')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:03A2009000C299FD', () => {
+                expect(detectIdentifierType('urn:istc:03A2009000C299FD')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:0B71998F5A31D8E2', () => {
+                expect(detectIdentifierType('urn:istc:0B71998F5A31D8E2')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:1C32020AA5D47BCF', () => {
+                expect(detectIdentifierType('urn:istc:1C32020AA5D47BCF')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:2D52015BB7EC9A13', () => {
+                expect(detectIdentifierType('urn:istc:2D52015BB7EC9A13')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:0E42018CD3FE7B2A', () => {
+                expect(detectIdentifierType('urn:istc:0E42018CD3FE7B2A')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:3F62016DE9GF8C45', () => {
+                expect(detectIdentifierType('urn:istc:3F62016DE9GF8C45')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:4A72021EF5HA9D36', () => {
+                expect(detectIdentifierType('urn:istc:4A72021EF5HA9D36')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:5B82019FG6IB0E27', () => {
+                expect(detectIdentifierType('urn:istc:5B82019FG6IB0E27')).toBe('ISTC');
+            });
+
+            it('detects URN: urn:istc:6C92024GH7JC1F38', () => {
+                expect(detectIdentifierType('urn:istc:6C92024GH7JC1F38')).toBe('ISTC');
+            });
+
+            it('detects URN with hyphens: urn:istc:0A92010-31F4CB2CB', () => {
+                expect(detectIdentifierType('urn:istc:0A92010-31F4CB2CB')).toBe('ISTC');
+            });
+        });
+
+        describe('ISTC edge cases', () => {
+            it('handles lowercase: 0a9-2010-31f4-cb2c-b', () => {
+                expect(detectIdentifierType('0a9-2010-31f4-cb2c-b')).toBe('ISTC');
+            });
+
+            it('handles mixed case: 0A9-2010-31f4-CB2c-B', () => {
+                expect(detectIdentifierType('0A9-2010-31f4-CB2c-B')).toBe('ISTC');
+            });
+
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  0A9-2010-31F4-CB2C-B  ')).toBe('ISTC');
+            });
+
+            it('handles URN with whitespace', () => {
+                expect(detectIdentifierType('  urn:istc:0A9201031F4CB2CB  ')).toBe('ISTC');
+            });
+        });
+
+        describe('real-world ISTC examples from user requirements', () => {
+            // 1. ISO 21047 Standard Example
+            it('detects ISO example with hyphens: 0A9-2010-31F4-CB2C-B', () => {
+                expect(detectIdentifierType('0A9-2010-31F4-CB2C-B')).toBe('ISTC');
+            });
+
+            it('detects ISO example compact: 0A9201031F4CB2CB', () => {
+                expect(detectIdentifierType('0A9201031F4CB2CB')).toBe('ISTC');
+            });
+
+            it('detects ISO example with prefix: ISTC 0A9-2010-31F4-CB2C-B', () => {
+                expect(detectIdentifierType('ISTC 0A9-2010-31F4-CB2C-B')).toBe('ISTC');
+            });
+
+            it('detects ISO example URN: urn:istc:0A92010-31F4CB2CB', () => {
+                expect(detectIdentifierType('urn:istc:0A92010-31F4CB2CB')).toBe('ISTC');
+            });
+
+            // 2. Hamlet (Shakespeare)
+            it('detects Hamlet with hyphens: 03A-2009-000C-299F-D', () => {
+                expect(detectIdentifierType('03A-2009-000C-299F-D')).toBe('ISTC');
+            });
+
+            it('detects Hamlet compact: 03A2009000C299FD', () => {
+                expect(detectIdentifierType('03A2009000C299FD')).toBe('ISTC');
+            });
+
+            it('detects Hamlet with prefix: ISTC 03A-2009-000C-299F-D', () => {
+                expect(detectIdentifierType('ISTC 03A-2009-000C-299F-D')).toBe('ISTC');
+            });
+
+            it('detects Hamlet URN: urn:istc:03A2009000C299FD', () => {
+                expect(detectIdentifierType('urn:istc:03A2009000C299FD')).toBe('ISTC');
+            });
+
+            // 3. Pride and Prejudice (Jane Austen)
+            it('detects Pride and Prejudice with hyphens: 0B7-1998-F5A3-1D8E-2', () => {
+                expect(detectIdentifierType('0B7-1998-F5A3-1D8E-2')).toBe('ISTC');
+            });
+
+            it('detects Pride and Prejudice compact: 0B71998F5A31D8E2', () => {
+                expect(detectIdentifierType('0B71998F5A31D8E2')).toBe('ISTC');
+            });
+
+            it('detects Pride and Prejudice with prefix: ISTC 0B7-1998-F5A3-1D8E-2', () => {
+                expect(detectIdentifierType('ISTC 0B7-1998-F5A3-1D8E-2')).toBe('ISTC');
+            });
+
+            it('detects Pride and Prejudice URN: urn:istc:0B71998F5A31D8E2', () => {
+                expect(detectIdentifierType('urn:istc:0B71998F5A31D8E2')).toBe('ISTC');
+            });
+
+            // 4. Modern Literary Publication (2020)
+            it('detects 2020 publication with hyphens: 1C3-2020-AA5D-47BC-F', () => {
+                expect(detectIdentifierType('1C3-2020-AA5D-47BC-F')).toBe('ISTC');
+            });
+
+            it('detects 2020 publication compact: 1C32020AA5D47BCF', () => {
+                expect(detectIdentifierType('1C32020AA5D47BCF')).toBe('ISTC');
+            });
+
+            it('detects 2020 publication with prefix: ISTC 1C3-2020-AA5D-47BC-F', () => {
+                expect(detectIdentifierType('ISTC 1C3-2020-AA5D-47BC-F')).toBe('ISTC');
+            });
+
+            it('detects 2020 publication URN: urn:istc:1C32020AA5D47BCF', () => {
+                expect(detectIdentifierType('urn:istc:1C32020AA5D47BCF')).toBe('ISTC');
+            });
+
+            // 5. Bowker Registration (USA)
+            it('detects Bowker with hyphens: 2D5-2015-BB7E-C9A1-3', () => {
+                expect(detectIdentifierType('2D5-2015-BB7E-C9A1-3')).toBe('ISTC');
+            });
+
+            it('detects Bowker compact: 2D52015BB7EC9A13', () => {
+                expect(detectIdentifierType('2D52015BB7EC9A13')).toBe('ISTC');
+            });
+
+            it('detects Bowker with agency ref: ISTC (Bowker): 2D5-2015-BB7E-C9A1-3', () => {
+                expect(detectIdentifierType('ISTC (Bowker): 2D5-2015-BB7E-C9A1-3')).toBe('ISTC');
+            });
+
+            it('detects Bowker URN: urn:istc:2D52015BB7EC9A13', () => {
+                expect(detectIdentifierType('urn:istc:2D52015BB7EC9A13')).toBe('ISTC');
+            });
+
+            // 6. Nielsen Registration (UK)
+            it('detects Nielsen with hyphens: 0E4-2018-CD3F-E7B2-A', () => {
+                expect(detectIdentifierType('0E4-2018-CD3F-E7B2-A')).toBe('ISTC');
+            });
+
+            it('detects Nielsen compact: 0E42018CD3FE7B2A', () => {
+                expect(detectIdentifierType('0E42018CD3FE7B2A')).toBe('ISTC');
+            });
+
+            it('detects Nielsen with agency ref: ISTC (Nielsen): 0E4-2018-CD3F-E7B2-A', () => {
+                expect(detectIdentifierType('ISTC (Nielsen): 0E4-2018-CD3F-E7B2-A')).toBe('ISTC');
+            });
+
+            it('detects Nielsen URN: urn:istc:0E42018CD3FE7B2A', () => {
+                expect(detectIdentifierType('urn:istc:0E42018CD3FE7B2A')).toBe('ISTC');
+            });
+
+            // 7. Abridged/Adapted Edition
+            it('detects abridged with hyphens: 3F6-2016-DE9G-F8C4-5', () => {
+                expect(detectIdentifierType('3F6-2016-DE9G-F8C4-5')).toBe('ISTC');
+            });
+
+            it('detects abridged compact: 3F62016DE9GF8C45', () => {
+                expect(detectIdentifierType('3F62016DE9GF8C45')).toBe('ISTC');
+            });
+
+            it('detects abridged with prefix: ISTC 3F6-2016-DE9G-F8C4-5', () => {
+                expect(detectIdentifierType('ISTC 3F6-2016-DE9G-F8C4-5')).toBe('ISTC');
+            });
+
+            it('detects abridged URN: urn:istc:3F62016DE9GF8C45', () => {
+                expect(detectIdentifierType('urn:istc:3F62016DE9GF8C45')).toBe('ISTC');
+            });
+
+            // 8. Academic/Scientific Text
+            it('detects academic with hyphens: 4A7-2021-EF5H-A9D3-6', () => {
+                expect(detectIdentifierType('4A7-2021-EF5H-A9D3-6')).toBe('ISTC');
+            });
+
+            it('detects academic compact: 4A72021EF5HA9D36', () => {
+                expect(detectIdentifierType('4A72021EF5HA9D36')).toBe('ISTC');
+            });
+
+            it('detects academic with prefix: ISTC 4A7-2021-EF5H-A9D3-6', () => {
+                expect(detectIdentifierType('ISTC 4A7-2021-EF5H-A9D3-6')).toBe('ISTC');
+            });
+
+            it('detects academic URN: urn:istc:4A72021EF5HA9D36', () => {
+                expect(detectIdentifierType('urn:istc:4A72021EF5HA9D36')).toBe('ISTC');
+            });
+
+            // 9. Translated Work
+            it('detects translated with hyphens: 5B8-2019-FG6I-B0E2-7', () => {
+                expect(detectIdentifierType('5B8-2019-FG6I-B0E2-7')).toBe('ISTC');
+            });
+
+            it('detects translated compact: 5B82019FG6IB0E27', () => {
+                expect(detectIdentifierType('5B82019FG6IB0E27')).toBe('ISTC');
+            });
+
+            it('detects translated with prefix: ISTC 5B8-2019-FG6I-B0E2-7', () => {
+                expect(detectIdentifierType('ISTC 5B8-2019-FG6I-B0E2-7')).toBe('ISTC');
+            });
+
+            it('detects translated URN: urn:istc:5B82019FG6IB0E27', () => {
+                expect(detectIdentifierType('urn:istc:5B82019FG6IB0E27')).toBe('ISTC');
+            });
+
+            // 10. Current Publication (2024)
+            it('detects 2024 publication with hyphens: 6C9-2024-GH7J-C1F3-8', () => {
+                expect(detectIdentifierType('6C9-2024-GH7J-C1F3-8')).toBe('ISTC');
+            });
+
+            it('detects 2024 publication compact: 6C92024GH7JC1F38', () => {
+                expect(detectIdentifierType('6C92024GH7JC1F38')).toBe('ISTC');
+            });
+
+            it('detects 2024 publication with prefix: ISTC 6C9-2024-GH7J-C1F3-8', () => {
+                expect(detectIdentifierType('ISTC 6C9-2024-GH7J-C1F3-8')).toBe('ISTC');
+            });
+
+            it('detects 2024 publication URN: urn:istc:6C92024GH7JC1F38', () => {
+                expect(detectIdentifierType('urn:istc:6C92024GH7JC1F38')).toBe('ISTC');
+            });
+        });
+
+        describe('ISTC should NOT be detected for non-ISTC identifiers', () => {
+            it('should not detect plain URLs as ISTC', () => {
+                expect(detectIdentifierType('https://example.com/resource')).not.toBe('ISTC');
+            });
+
+            it('should not detect DOIs as ISTC', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('ISTC');
+            });
+
+            it('should not detect arXiv IDs as ISTC', () => {
+                expect(detectIdentifierType('2501.13958')).not.toBe('ISTC');
+            });
+
+            it('should not detect bibcodes as ISTC', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).not.toBe('ISTC');
+            });
+
+            it('should not detect handles as ISTC', () => {
+                expect(detectIdentifierType('11234/56789')).not.toBe('ISTC');
+            });
+
+            it('should not detect ARK as ISTC', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('ISTC');
+            });
+
+            it('should not detect CSTR as ISTC', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).not.toBe('ISTC');
+            });
+
+            it('should not detect EAN-13 as ISTC', () => {
+                expect(detectIdentifierType('4006381333931')).not.toBe('ISTC');
+            });
+
+            it('should not detect ISBN as ISTC', () => {
+                expect(detectIdentifierType('978-0-306-40615-7')).not.toBe('ISTC');
+            });
+
+            it('should not detect EISSN as ISTC', () => {
+                expect(detectIdentifierType('0378-5955')).not.toBe('ISTC');
+            });
+
+            it('should not detect IGSN as ISTC', () => {
+                expect(detectIdentifierType('igsn:AU1101')).not.toBe('ISTC');
+            });
+
+            it('should not detect 15-character hex string as ISTC', () => {
+                expect(detectIdentifierType('0A9201031F4CB2C')).not.toBe('ISTC');
+            });
+
+            it('should not detect 17-character hex string as ISTC', () => {
+                expect(detectIdentifierType('0A9201031F4CB2CBA')).not.toBe('ISTC');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
