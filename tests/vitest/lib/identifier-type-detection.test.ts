@@ -6200,6 +6200,429 @@ describe('detectIdentifierType', () => {
         });
     });
 
+    // ==================== URN (Uniform Resource Name) ====================
+    // URN is a persistent identifier scheme defined by RFC 8141
+    // Format: urn:NID:NSS where NID is Namespace Identifier and NSS is Namespace Specific String
+    // Note: Specific URN namespaces (isbn, lsid, igsn, issn, istc) are detected as their specific types
+    describe('URN detection', () => {
+        describe('URN:ISBN format (should be detected as ISBN, not URN)', () => {
+            // Test case 1: ISBN (International Standard Book Number)
+            it('detects urn:isbn:0143039431 as ISBN', () => {
+                expect(detectIdentifierType('urn:isbn:0143039431')).toBe('ISBN');
+            });
+
+            it('detects urn:isbn:9780143039433 as ISBN (ISBN-13)', () => {
+                expect(detectIdentifierType('urn:isbn:9780143039433')).toBe('ISBN');
+            });
+
+            it('detects urn:isbn:0-14303-943-1 as ISBN (with hyphens)', () => {
+                expect(detectIdentifierType('urn:isbn:0-14303-943-1')).toBe('ISBN');
+            });
+
+            it('detects URN:ISBN:0143039431 as ISBN (uppercase URN)', () => {
+                expect(detectIdentifierType('URN:ISBN:0143039431')).toBe('ISBN');
+            });
+
+            it('detects urn:ISBN:978-0-14303-943-3 as ISBN (mixed case)', () => {
+                expect(detectIdentifierType('urn:ISBN:978-0-14303-943-3')).toBe('ISBN');
+            });
+        });
+
+        describe('URN:UUID format (UUID Version 4)', () => {
+            // Test case 2: UUID Version 4 (Universally Unique Identifier)
+            it('detects urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6 as URN', () => {
+                expect(detectIdentifierType('urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6')).toBe('URN');
+            });
+
+            it('detects urn:uuid:6e8bc430-9c3a-11d9-9669-0800200c9a66 as URN', () => {
+                expect(detectIdentifierType('urn:uuid:6e8bc430-9c3a-11d9-9669-0800200c9a66')).toBe('URN');
+            });
+
+            it('detects URN:UUID:F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6 as URN (uppercase)', () => {
+                expect(detectIdentifierType('URN:UUID:F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6')).toBe('URN');
+            });
+
+            it('detects urn:uuid:550e8400-e29b-41d4-a716-446655440000 as URN (v4 UUID)', () => {
+                expect(detectIdentifierType('urn:uuid:550e8400-e29b-41d4-a716-446655440000')).toBe('URN');
+            });
+        });
+
+        describe('URN:OID format (Object Identifier)', () => {
+            // Test case 3: OID (Object Identifier)
+            it('detects urn:oid:2.100.3 as URN', () => {
+                expect(detectIdentifierType('urn:oid:2.100.3')).toBe('URN');
+            });
+
+            it('detects urn:oid:2.999.999.999.999 as URN (deep hierarchy)', () => {
+                expect(detectIdentifierType('urn:oid:2.999.999.999.999')).toBe('URN');
+            });
+
+            it('detects urn:oid:1.3.6.1.4.1.9.9.13.1.3.1.3.1 as URN (SNMP OID)', () => {
+                expect(detectIdentifierType('urn:oid:1.3.6.1.4.1.9.9.13.1.3.1.3.1')).toBe('URN');
+            });
+
+            it('detects URN:OID:2.16.840.1.113883.2.4.3.11.60.40.2 as URN (HL7 OID)', () => {
+                expect(detectIdentifierType('URN:OID:2.16.840.1.113883.2.4.3.11.60.40.2')).toBe('URN');
+            });
+        });
+
+        describe('URN:NBN format (National Bibliography Number)', () => {
+            // Test case 4: German National Bibliography Number (NBN)
+            it('detects urn:nbn:de:gbv:7-isbn-90-6984-508-3-8 as URN', () => {
+                expect(detectIdentifierType('urn:nbn:de:gbv:7-isbn-90-6984-508-3-8')).toBe('URN');
+            });
+
+            it('detects urn:nbn:de:kobv:b55_20050411083 as URN', () => {
+                expect(detectIdentifierType('urn:nbn:de:kobv:b55_20050411083')).toBe('URN');
+            });
+
+            it('detects urn:nbn:de:0001-2008033116 as URN (DNB format)', () => {
+                expect(detectIdentifierType('urn:nbn:de:0001-2008033116')).toBe('URN');
+            });
+
+            // Test case 9: Swedish NBN
+            it('detects urn:nbn:se:uu:diva-123456 as URN (Swedish)', () => {
+                expect(detectIdentifierType('urn:nbn:se:uu:diva-123456')).toBe('URN');
+            });
+
+            it('detects urn:nbn:fi:uta-201602261332 as URN (Finnish)', () => {
+                expect(detectIdentifierType('urn:nbn:fi:uta-201602261332')).toBe('URN');
+            });
+
+            it('detects urn:nbn:nl:ui:13-r6a-l5y as URN (Dutch)', () => {
+                expect(detectIdentifierType('urn:nbn:nl:ui:13-r6a-l5y')).toBe('URN');
+            });
+
+            it('detects URN:NBN:DE:GBV:7-ISBN-90-6984-508-3-8 as URN (uppercase)', () => {
+                expect(detectIdentifierType('URN:NBN:DE:GBV:7-ISBN-90-6984-508-3-8')).toBe('URN');
+            });
+        });
+
+        describe('URN:IPTC format (International Press Telecommunications Council)', () => {
+            // Test case 5: IPTC NewsML
+            it('detects urn:iptc:newsml:1.0 as URN', () => {
+                expect(detectIdentifierType('urn:iptc:newsml:1.0')).toBe('URN');
+            });
+
+            it('detects urn:iptc:nitf:1.1 as URN', () => {
+                expect(detectIdentifierType('urn:iptc:nitf:1.1')).toBe('URN');
+            });
+
+            it('detects urn:iptc:std:nar:2008-05-22 as URN (NewsML-G2)', () => {
+                expect(detectIdentifierType('urn:iptc:std:nar:2008-05-22')).toBe('URN');
+            });
+
+            it('detects URN:IPTC:NEWSML:1.0 as URN (uppercase)', () => {
+                expect(detectIdentifierType('URN:IPTC:NEWSML:1.0')).toBe('URN');
+            });
+        });
+
+        describe('URN:EXAMPLE format (for documentation/testing)', () => {
+            // Test case 6: Example URN (für Dokumentation)
+            it('detects urn:example:animal:ferret:nose as URN', () => {
+                expect(detectIdentifierType('urn:example:animal:ferret:nose')).toBe('URN');
+            });
+
+            it('detects urn:example:object as URN', () => {
+                expect(detectIdentifierType('urn:example:object')).toBe('URN');
+            });
+
+            // Test case 10: RFC Example URN with SHA-1
+            it('detects urn:example:sha-1:29ead03e784b2f636a23ffff95ed12b56e2f2637 as URN', () => {
+                expect(detectIdentifierType('urn:example:sha-1:29ead03e784b2f636a23ffff95ed12b56e2f2637')).toBe('URN');
+            });
+
+            it('detects URN:EXAMPLE:ANIMAL:FERRET:NOSE as URN (uppercase)', () => {
+                expect(detectIdentifierType('URN:EXAMPLE:ANIMAL:FERRET:NOSE')).toBe('URN');
+            });
+        });
+
+        describe('URN:STALWART format (JMAP Extensions)', () => {
+            // Test case 7: Stalwart JMAP Extensions
+            it('detects urn:stalwart:jmap:mailfilter as URN', () => {
+                expect(detectIdentifierType('urn:stalwart:jmap:mailfilter')).toBe('URN');
+            });
+
+            it('detects urn:stalwart:davlock:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6 as URN', () => {
+                expect(detectIdentifierType('urn:stalwart:davlock:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6')).toBe('URN');
+            });
+
+            it('detects urn:stalwart:davsync:resource123 as URN', () => {
+                expect(detectIdentifierType('urn:stalwart:davsync:resource123')).toBe('URN');
+            });
+
+            it('detects URN:STALWART:JMAP:MAILFILTER as URN (uppercase)', () => {
+                expect(detectIdentifierType('URN:STALWART:JMAP:MAILFILTER')).toBe('URN');
+            });
+        });
+
+        describe('URN:LSID format (should be detected as LSID, not URN)', () => {
+            // Test case 8: LSID (Life Science Identifier) as URN
+            it('detects urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2 as LSID', () => {
+                expect(detectIdentifierType('urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2')).toBe('LSID');
+            });
+
+            it('detects urn:lsid:uniprot.org:protein:P12345:1 as LSID', () => {
+                expect(detectIdentifierType('urn:lsid:uniprot.org:protein:P12345:1')).toBe('LSID');
+            });
+
+            it('detects urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3 as LSID', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+
+            it('detects URN:LSID:ZOOBANK.ORG:ACT:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC as LSID (uppercase)', () => {
+                expect(detectIdentifierType('URN:LSID:ZOOBANK.ORG:ACT:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+        });
+
+        describe('URN:ISSN format (should be detected as EISSN, not URN)', () => {
+            // ISSN URN should be detected as EISSN
+            it('detects urn:issn:0317-8471 as EISSN', () => {
+                expect(detectIdentifierType('urn:issn:0317-8471')).toBe('EISSN');
+            });
+
+            it('detects urn:issn:2049-3630 as EISSN', () => {
+                expect(detectIdentifierType('urn:issn:2049-3630')).toBe('EISSN');
+            });
+
+            it('detects URN:ISSN:0317-8471 as EISSN (uppercase)', () => {
+                expect(detectIdentifierType('URN:ISSN:0317-8471')).toBe('EISSN');
+            });
+        });
+
+        describe('URN:IGSN format (should be detected as IGSN, not URN)', () => {
+            // IGSN URN should be detected as IGSN
+            it('detects urn:igsn:SSH000SUA as IGSN', () => {
+                expect(detectIdentifierType('urn:igsn:SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects urn:igsn:IEEJH0001 as IGSN', () => {
+                expect(detectIdentifierType('urn:igsn:IEEJH0001')).toBe('IGSN');
+            });
+
+            it('detects URN:IGSN:SSH000SUA as IGSN (uppercase)', () => {
+                expect(detectIdentifierType('URN:IGSN:SSH000SUA')).toBe('IGSN');
+            });
+        });
+
+        describe('URN:ISTC format (should be detected as ISTC, not URN)', () => {
+            // ISTC URN should be detected as ISTC
+            it('detects urn:istc:0A9-2002-12B4A105-6 as ISTC', () => {
+                expect(detectIdentifierType('urn:istc:0A9-2002-12B4A105-6')).toBe('ISTC');
+            });
+
+            it('detects URN:ISTC:0A9-2002-12B4A105-6 as ISTC (uppercase)', () => {
+                expect(detectIdentifierType('URN:ISTC:0A9-2002-12B4A105-6')).toBe('ISTC');
+            });
+        });
+
+        describe('Other URN namespaces', () => {
+            // Additional URN namespaces from RFC registrations
+            it('detects urn:ietf:rfc:3986 as URN (IETF RFC)', () => {
+                expect(detectIdentifierType('urn:ietf:rfc:3986')).toBe('URN');
+            });
+
+            it('detects urn:ietf:params:xml:ns:xmpp-stanzas as URN (IETF params)', () => {
+                expect(detectIdentifierType('urn:ietf:params:xml:ns:xmpp-stanzas')).toBe('URN');
+            });
+
+            it('detects urn:oasis:names:tc:SAML:2.0:protocol as URN (OASIS SAML)', () => {
+                expect(detectIdentifierType('urn:oasis:names:tc:SAML:2.0:protocol')).toBe('URN');
+            });
+
+            it('detects urn:mpeg:mpeg7:schema:2001 as URN (MPEG)', () => {
+                expect(detectIdentifierType('urn:mpeg:mpeg7:schema:2001')).toBe('URN');
+            });
+
+            it('detects urn:iso:std:iso:20022:tech:xsd:camt.053.001.02 as URN (ISO)', () => {
+                expect(detectIdentifierType('urn:iso:std:iso:20022:tech:xsd:camt.053.001.02')).toBe('URN');
+            });
+
+            it('detects urn:xmlorg:sax as URN (XML.org)', () => {
+                expect(detectIdentifierType('urn:xmlorg:sax')).toBe('URN');
+            });
+
+            it('detects urn:publicid:-:W3C:DTD+HTML+4.01:EN as URN (public ID)', () => {
+                expect(detectIdentifierType('urn:publicid:-:W3C:DTD+HTML+4.01:EN')).toBe('URN');
+            });
+
+            it('detects urn:ogc:def:crs:EPSG::4326 as URN (OGC/EPSG)', () => {
+                expect(detectIdentifierType('urn:ogc:def:crs:EPSG::4326')).toBe('URN');
+            });
+
+            it('detects urn:epc:id:sgtin:0614141.107346.2017 as URN (EPC/RFID)', () => {
+                expect(detectIdentifierType('urn:epc:id:sgtin:0614141.107346.2017')).toBe('URN');
+            });
+
+            it('detects urn:lex:eu:council:directive:2010-03-09;2010-19-UE as URN (legal)', () => {
+                expect(detectIdentifierType('urn:lex:eu:council:directive:2010-03-09;2010-19-UE')).toBe('URN');
+            });
+        });
+
+        describe('URN with resolver URLs', () => {
+            // German NBN resolver
+            it('detects nbn-resolving.de URL as URN', () => {
+                expect(detectIdentifierType('https://nbn-resolving.de/urn:nbn:de:gbv:7-isbn-90-6984-508-3-8')).toBe('URN');
+            });
+
+            it('detects nbn-resolving.org URL as URN', () => {
+                expect(detectIdentifierType('https://nbn-resolving.org/urn:nbn:de:0001-2008033116')).toBe('URN');
+            });
+
+            // Finnish NBN resolver
+            it('detects urn.fi resolver URL as URN', () => {
+                expect(detectIdentifierType('https://urn.fi/urn:nbn:fi:uta-201602261332')).toBe('URN');
+            });
+
+            // Swedish NBN resolver
+            it('detects urn.kb.se resolver URL as URN', () => {
+                expect(detectIdentifierType('https://urn.kb.se/resolve?urn=urn:nbn:se:uu:diva-123456')).toBe('URN');
+            });
+
+            // Dutch NBN resolver
+            it('detects persistent-identifier.nl URL as URN', () => {
+                expect(detectIdentifierType('https://persistent-identifier.nl/urn:nbn:nl:ui:13-r6a-l5y')).toBe('URN');
+            });
+
+            // Name-to-Thing (N2T) resolver
+            it('detects n2t.net URN resolver URL as URN', () => {
+                expect(detectIdentifierType('https://n2t.net/urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6')).toBe('URN');
+            });
+        });
+
+        describe('URN edge cases', () => {
+            it('detects URN with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6  ')).toBe('URN');
+            });
+
+            it('detects URN with mixed case NID', () => {
+                expect(detectIdentifierType('urn:Nbn:de:gbv:7-isbn-90-6984-508-3-8')).toBe('URN');
+            });
+
+            it('detects URN with very long NSS', () => {
+                expect(detectIdentifierType('urn:ietf:params:xml:ns:xmpp-core:bind:2:session:1:auth:0:register:1')).toBe('URN');
+            });
+
+            it('detects URN with special characters in NSS (percent-encoded)', () => {
+                expect(detectIdentifierType('urn:example:foo%20bar')).toBe('URN');
+            });
+
+            it('detects URN with plus sign in NSS', () => {
+                expect(detectIdentifierType('urn:publicid:-:W3C:DTD+HTML+4.01:EN')).toBe('URN');
+            });
+
+            it('detects URN with double colon in NSS (OGC)', () => {
+                expect(detectIdentifierType('urn:ogc:def:crs:EPSG::4326')).toBe('URN');
+            });
+
+            it('detects URN with semicolon in NSS (legal)', () => {
+                expect(detectIdentifierType('urn:lex:eu:council:directive:2010-03-09;2010-19-UE')).toBe('URN');
+            });
+
+            it('detects URN with dots in NSS (EPC)', () => {
+                expect(detectIdentifierType('urn:epc:id:sgtin:0614141.107346.2017')).toBe('URN');
+            });
+        });
+
+        describe('real-world URN examples from user requirements', () => {
+            // Test case 1: ISBN URN
+            it('detects real ISBN URN: urn:isbn:0143039431', () => {
+                expect(detectIdentifierType('urn:isbn:0143039431')).toBe('ISBN');
+            });
+
+            // Test case 2: UUID URN
+            it('detects real UUID URN: urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6', () => {
+                expect(detectIdentifierType('urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6')).toBe('URN');
+            });
+
+            // Test case 3: OID URN
+            it('detects real OID URN: urn:oid:2.100.3', () => {
+                expect(detectIdentifierType('urn:oid:2.100.3')).toBe('URN');
+            });
+
+            // Test case 4: German NBN URN
+            it('detects real German NBN URN: urn:nbn:de:gbv:7-isbn-90-6984-508-3-8', () => {
+                expect(detectIdentifierType('urn:nbn:de:gbv:7-isbn-90-6984-508-3-8')).toBe('URN');
+            });
+
+            // Test case 5: IPTC URN
+            it('detects real IPTC URN: urn:iptc:newsml:1.0', () => {
+                expect(detectIdentifierType('urn:iptc:newsml:1.0')).toBe('URN');
+            });
+
+            // Test case 6: Example URN
+            it('detects real Example URN: urn:example:animal:ferret:nose', () => {
+                expect(detectIdentifierType('urn:example:animal:ferret:nose')).toBe('URN');
+            });
+
+            // Test case 7: Stalwart URN
+            it('detects real Stalwart URN: urn:stalwart:jmap:mailfilter', () => {
+                expect(detectIdentifierType('urn:stalwart:jmap:mailfilter')).toBe('URN');
+            });
+
+            // Test case 8: LSID URN
+            it('detects real LSID URN: urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2', () => {
+                expect(detectIdentifierType('urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2')).toBe('LSID');
+            });
+
+            // Test case 9: Swedish NBN URN
+            it('detects real Swedish NBN URN: urn:nbn:se:uu:diva-123456', () => {
+                expect(detectIdentifierType('urn:nbn:se:uu:diva-123456')).toBe('URN');
+            });
+
+            // Test case 10: Example SHA-1 URN
+            it('detects real Example SHA-1 URN: urn:example:sha-1:29ead03e784b2f636a23ffff95ed12b56e2f2637', () => {
+                expect(detectIdentifierType('urn:example:sha-1:29ead03e784b2f636a23ffff95ed12b56e2f2637')).toBe('URN');
+            });
+        });
+
+        describe('URN should NOT be detected for other identifier types', () => {
+            it('should not detect DOI as URN', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('URN');
+            });
+
+            it('should not detect DOI URL as URN', () => {
+                expect(detectIdentifierType('https://doi.org/10.5880/fidgeo.2025.072')).not.toBe('URN');
+            });
+
+            it('should not detect Handle as URN', () => {
+                expect(detectIdentifierType('hdl:2128/1885')).not.toBe('URN');
+            });
+
+            it('should not detect ARK as URN', () => {
+                expect(detectIdentifierType('ark:/12345/abc123')).not.toBe('URN');
+            });
+
+            it('should not detect PURL as URN', () => {
+                expect(detectIdentifierType('http://purl.org/dc/terms/subject')).not.toBe('URN');
+            });
+
+            it('should not detect w3id as URN', () => {
+                expect(detectIdentifierType('https://w3id.org/ro/crate/1.1')).not.toBe('URN');
+            });
+
+            it('should not detect generic URL as URN', () => {
+                expect(detectIdentifierType('https://www.example.com/page')).not.toBe('URN');
+            });
+
+            it('should not detect PMID as URN', () => {
+                expect(detectIdentifierType('PMID: 26360422')).not.toBe('URN');
+            });
+
+            it('should not detect RRID as URN', () => {
+                expect(detectIdentifierType('RRID:AB_90755')).not.toBe('URN');
+            });
+
+            it('should not detect text without urn: prefix as URN', () => {
+                expect(detectIdentifierType('uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6')).not.toBe('URN');
+            });
+
+            it('should not detect plain text as URN', () => {
+                expect(detectIdentifierType('some random text')).not.toBe('URN');
+            });
+        });
+    });
+
     // ==================== URL (Generic Web URL) ====================
     // Generic URLs are used as fallback when no specific identifier type matches
     // URLs that resolve to specific identifiers (DOI, PMID, etc.) are detected as those types
