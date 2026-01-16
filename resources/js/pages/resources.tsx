@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import axios, { isAxiosError } from 'axios';
 import { ArrowDown, ArrowUp, ArrowUpDown, Eye, PencilLine, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
 import { editor as editorRoute } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem, type User as AuthUser } from '@/types';
 import {
     type ResourceFilterOptions,
     type ResourceFilterState,
@@ -295,6 +295,9 @@ function ResourcesPage({
     sort: initialSort,
     canImportFromDataCite,
 }: ResourcesProps) {
+    const { auth } = usePage<{ auth: { user: AuthUser } }>().props;
+    const canManageLandingPages = auth.user?.can_manage_landing_pages ?? false;
+
     const [resources, setResources] = useState<Resource[]>(initialResources);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<ResourceSortState>(initialSort || DEFAULT_SORT);
@@ -1186,16 +1189,18 @@ function ResourcesPage({
                                                                     >
                                                                         <PencilLine aria-hidden="true" className="size-4" />
                                                                     </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        onClick={() => handleSetupLandingPage(resource)}
-                                                                        aria-label={`Setup landing page for resource ${resourceLabel}`}
-                                                                        title={`Setup landing page for resource ${resourceLabel}`}
-                                                                    >
-                                                                        <Eye aria-hidden="true" className="size-4" />
-                                                                    </Button>
+                                                                    {canManageLandingPages && (
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            onClick={() => handleSetupLandingPage(resource)}
+                                                                            aria-label={`Setup landing page for resource ${resourceLabel}`}
+                                                                            title={`Setup landing page for resource ${resourceLabel}`}
+                                                                        >
+                                                                            <Eye aria-hidden="true" className="size-4" />
+                                                                        </Button>
+                                                                    )}
                                                                     {resource.landingPage && (
                                                                         <Button
                                                                             type="button"

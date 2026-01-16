@@ -56,6 +56,8 @@ export interface User {
     can_access_statistics?: boolean;
     can_access_users?: boolean;
     can_access_editor_settings?: boolean;
+    // Landing page management permission (Issue #375)
+    can_manage_landing_pages?: boolean;
     deactivated_at?: string | null;
     deactivated_by?: {
         id: number;

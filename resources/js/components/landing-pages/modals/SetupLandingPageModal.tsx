@@ -1,6 +1,6 @@
 import axios, { isAxiosError } from 'axios';
 import { Copy, Eye, Globe } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -190,6 +190,15 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
     };
 
+    /**
+     * Track whether the user has made unsaved changes to the configuration.
+     * Used to determine if session-based preview should be used and to show visual feedback.
+     */
+    const hasUnsavedChanges = useMemo(() => {
+        if (!currentConfig) return false;
+        return template !== currentConfig.template || ftpUrl !== (currentConfig.ftp_url ?? '');
+    }, [currentConfig, template, ftpUrl]);
+
     const copyToClipboard = async (text: string, label: string) => {
         try {
             // Ensure we copy a full URL (with origin) for sharing.
@@ -204,21 +213,22 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
         }
     };
 
+    /**
+     * Open a preview of the landing page.
+     *
+     * If the user has made unsaved changes (template or FTP URL), we use the
+     * session-based preview to show the new configuration before saving.
+     * Otherwise, we open the existing saved preview/public URL.
+     */
     const openPreview = async () => {
-        // If we have an existing landing page with preview URL, open it
-        if (currentConfig && previewUrl) {
-            window.open(previewUrl, '_blank');
-            return;
-        }
+        // If there are unsaved changes or no saved config, use session-based preview
+        // This allows users to preview template changes before saving
+        if (hasUnsavedChanges || !currentConfig) {
+            if (!resource.id) {
+                toast.error('Unable to generate preview');
+                return;
+            }
 
-        // If published, use public URL
-        if (currentConfig && isPublished && currentConfig.public_url) {
-            window.open(currentConfig.public_url, '_blank');
-            return;
-        }
-
-        // No saved landing page - use session-based temporary preview
-        if (resource.id) {
             try {
                 const payload = {
                     template,
@@ -233,7 +243,7 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                 const fallbackPreviewUrl = `/resources/${resource.id}/landing-page/preview`;
                 window.open(previewUrlFromServer || fallbackPreviewUrl, '_blank');
             } catch (error) {
-                console.error('Failed to create temporary preview:', error);
+                console.error('Failed to create preview:', error);
 
                 let errorMessage = 'Failed to create preview';
                 if (isAxiosError(error) && error.response?.data?.message) {
@@ -242,9 +252,23 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
 
                 toast.error(errorMessage);
             }
-        } else {
-            toast.error('Unable to generate preview');
+            return;
         }
+
+        // No unsaved changes - use existing saved URLs
+        // If published, use public URL
+        if (currentConfig.status === 'published' && currentConfig.public_url) {
+            window.open(currentConfig.public_url, '_blank');
+            return;
+        }
+
+        // If draft with preview URL, use that
+        if (previewUrl) {
+            window.open(previewUrl, '_blank');
+            return;
+        }
+
+        toast.error('Unable to generate preview');
     };
 
     return (
@@ -297,6 +321,13 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
                             />
                             <p className="text-sm text-muted-foreground">Direct link to download the primary data files</p>
                         </div>
+
+                        {/* Unsaved Changes Warning */}
+                        {hasUnsavedChanges && (
+                            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
+                                You have unsaved changes. Preview will show the new configuration.
+                            </div>
+                        )}
 
                         {/* Status Toggle */}
                         <div className="flex items-center justify-between rounded-lg border p-4">
