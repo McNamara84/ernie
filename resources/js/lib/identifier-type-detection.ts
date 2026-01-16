@@ -239,21 +239,18 @@ export function detectIdentifierType(value: string): IdentifierType {
     }
 
     // EISSN with prefix patterns: EISSN NNNN-NNNN, e-ISSN NNNN-NNNN, eISSN NNNN-NNNN
-    // Also supports: ISSN NNNN-NNNN (Online), e-ISSN: NNNN-NNNN
-    if (trimmed.match(/^(?:e-?issn:?\s*|issn\s+\d{4}-?\d{3}[\dXx]\s*\(online\)$)/i)) {
-        // Extract ISSN portion and validate
-        const issnMatch = trimmed.match(/\d{4}-?\d{3}[\dXx]/i);
-        if (issnMatch) {
-            return 'EISSN';
-        }
-    }
-
-    // EISSN with explicit prefix (EISSN, e-ISSN, eISSN followed by ISSN number)
-    if (trimmed.match(/^e-?issn:?\s*\d{4}-?\d{3}[\dXx]$/i)) {
+    // Also supports: ISSN NNNN-NNNN, p-ISSN NNNN-NNNN, pISSN NNNN-NNNN
+    // All ISSN variants (print and electronic) are detected as EISSN in DataCite schema
+    if (trimmed.match(/^(?:e-?issn|p-?issn|issn):?\s*\d{4}-?\d{3}[\dXx]$/i)) {
         return 'EISSN';
     }
 
-    // EISSN standard format with hyphen: NNNN-NNNC (C = check digit 0-9 or X)
+    // EISSN with explicit prefix and parenthetical type (ISSN 0378-5955 (Online))
+    if (trimmed.match(/^issn\s+\d{4}-?\d{3}[\dXx]\s*\((?:online|print)\)$/i)) {
+        return 'EISSN';
+    }
+
+    // EISSN/ISSN standard format with hyphen: NNNN-NNNC (C = check digit 0-9 or X)
     // ISSN is always 8 digits with a check digit that can be 0-9 or X
     // Must have hyphen in position 5 for standard format
     if (trimmed.match(/^\d{4}-\d{3}[\dXx]$/)) {
