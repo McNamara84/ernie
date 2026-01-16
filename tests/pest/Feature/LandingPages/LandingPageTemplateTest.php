@@ -19,7 +19,16 @@ use App\Models\User;
 uses()->group('landing-pages', 'template-change');
 
 describe('Landing Page Template Modification', function () {
-    test('can update template on existing landing page', function () {
+    /**
+     * Placeholder test: Verifies the template update endpoint accepts valid templates.
+     *
+     * Currently only 'default_gfz' template exists, so this test cannot verify
+     * actual template switching. When additional templates are added:
+     * 1. Update ALLOWED_TEMPLATES in LandingPageController
+     * 2. Replace this test with one that changes from 'default_gfz' to a new template
+     * 3. Verify the template value actually changes in the database
+     */
+    test('template update endpoint accepts valid template value', function () {
         $user = User::factory()->create(['role' => UserRole::CURATOR]);
         $resource = Resource::factory()->create();
         $landingPage = LandingPage::factory()->create([
@@ -28,9 +37,6 @@ describe('Landing Page Template Modification', function () {
             'is_published' => false,
         ]);
 
-        // Note: Currently only 'default_gfz' template exists. When additional templates
-        // are added (e.g., 'minimal', 'academic'), update this test to verify switching
-        // between different templates. The validation infrastructure is already in place.
         $response = $this->actingAs($user)
             ->putJson("/resources/{$resource->id}/landing-page", [
                 'template' => 'default_gfz',
