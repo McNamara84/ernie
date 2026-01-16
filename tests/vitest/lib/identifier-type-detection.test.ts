@@ -6623,6 +6623,248 @@ describe('detectIdentifierType', () => {
         });
     });
 
+    // ==================== w3id (W3C Permanent Identifier) ====================
+    // w3id.org provides persistent URLs for web resources, particularly ontologies and vocabularies
+    // Note: w3id is a distinct identifier type, not PURL (though both are persistent URLs)
+    describe('w3id detection', () => {
+        describe('Basic w3id.org URLs', () => {
+            // Test case 1: Data Privacy Vocabulary (DPV)
+            it('detects w3id with trailing slash: https://w3id.org/dpv/', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv/')).toBe('w3id');
+            });
+
+            it('detects w3id without trailing slash: https://w3id.org/dpv', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv')).toBe('w3id');
+            });
+
+            it('detects w3id with fragment: https://w3id.org/dpv#Purpose', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv#Purpose')).toBe('w3id');
+            });
+
+            it('detects w3id with HTTP (auto-upgrade): http://w3id.org/dpv/', () => {
+                expect(detectIdentifierType('http://w3id.org/dpv/')).toBe('w3id');
+            });
+        });
+
+        describe('w3id with nested paths', () => {
+            // Test case 2: DPV Examples
+            it('detects w3id nested path: https://w3id.org/dpv/examples', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv/examples')).toBe('w3id');
+            });
+
+            // Test case 3: Security Vocabulary (Linked Data Signatures)
+            it('detects w3id security suites: https://w3id.org/security/suites/secp256k1-2019', () => {
+                expect(detectIdentifierType('https://w3id.org/security/suites/secp256k1-2019')).toBe('w3id');
+            });
+
+            it('detects w3id security suites alternative: https://w3id.org/security/suites/ed25519-2018', () => {
+                expect(detectIdentifierType('https://w3id.org/security/suites/ed25519-2018')).toBe('w3id');
+            });
+
+            // Test case 4: Ontologies Directory
+            it('detects w3id ontologies namespace: https://w3id.org/ontologies/', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/')).toBe('w3id');
+            });
+
+            // Test case 5: Games Vocabulary
+            it('detects w3id games spec with fragment: https://w3id.org/games/spec/coil#', () => {
+                expect(detectIdentifierType('https://w3id.org/games/spec/coil#')).toBe('w3id');
+            });
+
+            // Test case 6: DID Context
+            it('detects w3id DID context: https://w3id.org/did/v1/', () => {
+                expect(detectIdentifierType('https://w3id.org/did/v1/')).toBe('w3id');
+            });
+
+            // Test case 7: Security Suites Prefix
+            it('detects w3id security suites prefix: https://w3id.org/security/suites/', () => {
+                expect(detectIdentifierType('https://w3id.org/security/suites/')).toBe('w3id');
+            });
+
+            // Test case 8: Open Data Vocabulary
+            it('detects w3id opendata vocab: https://w3id.org/opendata/vocab/', () => {
+                expect(detectIdentifierType('https://w3id.org/opendata/vocab/')).toBe('w3id');
+            });
+
+            // Test case 9: Custom Organization Ontology
+            it('detects w3id custom organization ontology: https://w3id.org/myorganization/ontology/', () => {
+                expect(detectIdentifierType('https://w3id.org/myorganization/ontology/')).toBe('w3id');
+            });
+
+            // Test case 10: Global Soil Information System (GloSIS)
+            it('detects w3id glosis: https://w3id.org/glosis/', () => {
+                expect(detectIdentifierType('https://w3id.org/glosis/')).toBe('w3id');
+            });
+        });
+
+        describe('w3id case insensitivity', () => {
+            it('detects w3id with uppercase W3ID: HTTPS://W3ID.ORG/DPV/', () => {
+                expect(detectIdentifierType('HTTPS://W3ID.ORG/DPV/')).toBe('w3id');
+            });
+
+            it('detects w3id with mixed case: https://W3ID.org/Security/Suites/', () => {
+                expect(detectIdentifierType('https://W3ID.org/Security/Suites/')).toBe('w3id');
+            });
+        });
+
+        describe('w3id edge cases', () => {
+            it('detects w3id with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  https://w3id.org/dpv/  ')).toBe('w3id');
+            });
+
+            it('detects w3id with deep nesting: https://w3id.org/a/b/c/d/e', () => {
+                expect(detectIdentifierType('https://w3id.org/a/b/c/d/e')).toBe('w3id');
+            });
+
+            it('detects w3id with numbers in path: https://w3id.org/version2/ontology', () => {
+                expect(detectIdentifierType('https://w3id.org/version2/ontology')).toBe('w3id');
+            });
+
+            it('detects w3id with underscores: https://w3id.org/my_namespace/my_ontology', () => {
+                expect(detectIdentifierType('https://w3id.org/my_namespace/my_ontology')).toBe('w3id');
+            });
+
+            it('detects w3id with dots in path: https://w3id.org/namespace/v1.0', () => {
+                expect(detectIdentifierType('https://w3id.org/namespace/v1.0')).toBe('w3id');
+            });
+
+            it('detects w3id with hyphens: https://w3id.org/my-namespace/my-ontology', () => {
+                expect(detectIdentifierType('https://w3id.org/my-namespace/my-ontology')).toBe('w3id');
+            });
+
+            it('detects w3id with fragment and path: https://w3id.org/dpv/legal/eu/gdpr#LegalBasis', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv/legal/eu/gdpr#LegalBasis')).toBe('w3id');
+            });
+
+            it('detects w3id with only namespace (no path): https://w3id.org/ro', () => {
+                expect(detectIdentifierType('https://w3id.org/ro')).toBe('w3id');
+            });
+        });
+
+        describe('real-world w3id examples from user requirements', () => {
+            // Test case 1: Data Privacy Vocabulary
+            it('detects real DPV w3id: https://w3id.org/dpv/', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv/')).toBe('w3id');
+            });
+
+            it('detects real DPV w3id with fragment: https://w3id.org/dpv#Purpose', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv#Purpose')).toBe('w3id');
+            });
+
+            // Test case 2: DPV Examples
+            it('detects real DPV examples w3id: https://w3id.org/dpv/examples', () => {
+                expect(detectIdentifierType('https://w3id.org/dpv/examples')).toBe('w3id');
+            });
+
+            // Test case 3: Security Vocabulary
+            it('detects real security suites w3id: https://w3id.org/security/suites/secp256k1-2019', () => {
+                expect(detectIdentifierType('https://w3id.org/security/suites/secp256k1-2019')).toBe('w3id');
+            });
+
+            // Test case 4: Ontologies Directory
+            it('detects real ontologies w3id: https://w3id.org/ontologies/', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/')).toBe('w3id');
+            });
+
+            // Test case 5: Games Vocabulary
+            it('detects real games spec w3id: https://w3id.org/games/spec/coil#', () => {
+                expect(detectIdentifierType('https://w3id.org/games/spec/coil#')).toBe('w3id');
+            });
+
+            // Test case 6: DID Context
+            it('detects real DID context w3id: https://w3id.org/did/v1/', () => {
+                expect(detectIdentifierType('https://w3id.org/did/v1/')).toBe('w3id');
+            });
+
+            // Test case 7: Security Suites Prefix
+            it('detects real security suites prefix w3id: https://w3id.org/security/suites/', () => {
+                expect(detectIdentifierType('https://w3id.org/security/suites/')).toBe('w3id');
+            });
+
+            // Test case 8: Open Data Vocabulary
+            it('detects real opendata vocab w3id: https://w3id.org/opendata/vocab/', () => {
+                expect(detectIdentifierType('https://w3id.org/opendata/vocab/')).toBe('w3id');
+            });
+
+            // Test case 9: Custom Organization Ontology
+            it('detects real organization ontology w3id: https://w3id.org/myorganization/ontology/', () => {
+                expect(detectIdentifierType('https://w3id.org/myorganization/ontology/')).toBe('w3id');
+            });
+
+            // Test case 10: GloSIS
+            it('detects real GloSIS w3id: https://w3id.org/glosis/', () => {
+                expect(detectIdentifierType('https://w3id.org/glosis/')).toBe('w3id');
+            });
+
+            // Additional well-known w3id namespaces
+            it('detects RO-Crate w3id: https://w3id.org/ro/crate/1.1', () => {
+                expect(detectIdentifierType('https://w3id.org/ro/crate/1.1')).toBe('w3id');
+            });
+
+            it('detects Schema.org Actions w3id: https://w3id.org/schema.org/Action', () => {
+                expect(detectIdentifierType('https://w3id.org/schema.org/Action')).toBe('w3id');
+            });
+
+            it('detects Linked Building Data w3id: https://w3id.org/lbd/bot#', () => {
+                expect(detectIdentifierType('https://w3id.org/lbd/bot#')).toBe('w3id');
+            });
+
+            it('detects DCAT-AP w3id: https://w3id.org/dcat-ap/de', () => {
+                expect(detectIdentifierType('https://w3id.org/dcat-ap/de')).toBe('w3id');
+            });
+        });
+
+        describe('w3id should NOT be detected for other identifier types', () => {
+            it('should not detect DOI as w3id', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('w3id');
+            });
+
+            it('should not detect DOI URL as w3id', () => {
+                expect(detectIdentifierType('https://doi.org/10.5880/fidgeo.2025.072')).not.toBe('w3id');
+            });
+
+            it('should not detect purl.org as w3id', () => {
+                expect(detectIdentifierType('http://purl.org/dc/terms/subject')).not.toBe('w3id');
+            });
+
+            it('should not detect purl.oclc.org as w3id', () => {
+                expect(detectIdentifierType('http://purl.oclc.org/ooxml/drawingml/main')).not.toBe('w3id');
+            });
+
+            it('should not detect Handle as w3id', () => {
+                expect(detectIdentifierType('hdl:2128/1885')).not.toBe('w3id');
+            });
+
+            it('should not detect ARK as w3id', () => {
+                expect(detectIdentifierType('ark:/12345/abc123')).not.toBe('w3id');
+            });
+
+            it('should not detect generic URL as w3id', () => {
+                expect(detectIdentifierType('https://www.example.com/page')).not.toBe('w3id');
+            });
+
+            it('should not detect URN as w3id', () => {
+                expect(detectIdentifierType('urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6')).not.toBe('w3id');
+            });
+
+            it('should not detect similar domain as w3id (w3id.com)', () => {
+                expect(detectIdentifierType('https://w3id.com/something')).not.toBe('w3id');
+            });
+
+            it('should not detect subdomain as w3id (sub.w3id.org)', () => {
+                expect(detectIdentifierType('https://sub.w3id.org/something')).not.toBe('w3id');
+            });
+
+            it('should not detect w3.org as w3id', () => {
+                expect(detectIdentifierType('https://www.w3.org/TR/html5/')).not.toBe('w3id');
+            });
+
+            it('should not detect plain text as w3id', () => {
+                expect(detectIdentifierType('w3id dpv purpose')).not.toBe('w3id');
+            });
+        });
+    });
+
     // ==================== URL (Generic Web URL) ====================
     // Generic URLs are used as fallback when no specific identifier type matches
     // URLs that resolve to specific identifiers (DOI, PMID, etc.) are detected as those types
