@@ -5078,6 +5078,327 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    // ==================== PMID (PubMed ID) ====================
+    // PubMed identifiers for biomedical literature
+    // Numeric IDs typically 1-9 digits (currently up to ~40 million)
+    describe('PMID detection', () => {
+        describe('PMID with prefix detection', () => {
+            // Test case 1: Standard Biomedical Literature Example
+            it('detects PMID with colon: PMID: 26360422', () => {
+                expect(detectIdentifierType('PMID: 26360422')).toBe('PMID');
+            });
+
+            it('detects PMID without colon: PMID 26360422', () => {
+                expect(detectIdentifierType('PMID 26360422')).toBe('PMID');
+            });
+
+            it('detects PubMed ID prefix: PubMed ID 26360422', () => {
+                expect(detectIdentifierType('PubMed ID 26360422')).toBe('PMID');
+            });
+
+            // Test case 2: NCBI LinkOut Testing PMID
+            it('detects PMID: 18984876', () => {
+                expect(detectIdentifierType('PMID: 18984876')).toBe('PMID');
+            });
+
+            // Test case 3: NCBI Test-PMID (2009)
+            it('detects PMID 20042755', () => {
+                expect(detectIdentifierType('PMID 20042755')).toBe('PMID');
+            });
+
+            // Test case 4: NCBI Test-PMID (2003-2004)
+            it('detects PMID: 14316043', () => {
+                expect(detectIdentifierType('PMID: 14316043')).toBe('PMID');
+            });
+
+            // Test case 5: Moderne PMID (2023-2024 Bereich)
+            it('detects PMID: 34255994', () => {
+                expect(detectIdentifierType('PMID: 34255994')).toBe('PMID');
+            });
+
+            // Test case 6: NIH-finanzierter Artikel
+            it('detects PMID 24255994', () => {
+                expect(detectIdentifierType('PMID 24255994')).toBe('PMID');
+            });
+
+            // Test case 7: NCBI LinkOut Test (2005)
+            it('detects PMID: 15390390', () => {
+                expect(detectIdentifierType('PMID: 15390390')).toBe('PMID');
+            });
+
+            // Test case 8: Test-PMID (2002)
+            it('detects PMID 12337850', () => {
+                expect(detectIdentifierType('PMID 12337850')).toBe('PMID');
+            });
+
+            // Test case 9: Weitere Test-PMID (2002)
+            it('detects PMID: 12076440', () => {
+                expect(detectIdentifierType('PMID: 12076440')).toBe('PMID');
+            });
+
+            // Test case 10: Noch eine Test-PMID (2002)
+            it('detects PMID 12259237', () => {
+                expect(detectIdentifierType('PMID 12259237')).toBe('PMID');
+            });
+        });
+
+        describe('PMID with PubMed URL detection', () => {
+            it('detects PubMed HTTPS URL: https://pubmed.ncbi.nlm.nih.gov/26360422', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/26360422')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/18984876', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/18984876')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/20042755', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/20042755')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/14316043', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/14316043')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/34255994', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/34255994')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/24255994', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/24255994')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/15390390', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/15390390')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/12337850', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/12337850')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/12076440', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/12076440')).toBe('PMID');
+            });
+
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/12259237', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/12259237')).toBe('PMID');
+            });
+        });
+
+        describe('PMID with legacy NCBI URL detection', () => {
+            it('detects legacy NCBI URL HTTP: http://www.ncbi.nlm.nih.gov/pubmed/26360422', () => {
+                expect(detectIdentifierType('http://www.ncbi.nlm.nih.gov/pubmed/26360422')).toBe('PMID');
+            });
+
+            it('detects legacy NCBI URL HTTPS: https://www.ncbi.nlm.nih.gov/pubmed/18984876', () => {
+                expect(detectIdentifierType('https://www.ncbi.nlm.nih.gov/pubmed/18984876')).toBe('PMID');
+            });
+
+            it('detects legacy NCBI URL without www: http://ncbi.nlm.nih.gov/pubmed/20042755', () => {
+                expect(detectIdentifierType('http://ncbi.nlm.nih.gov/pubmed/20042755')).toBe('PMID');
+            });
+
+            it('detects legacy NCBI URL without www HTTPS: https://ncbi.nlm.nih.gov/pubmed/14316043', () => {
+                expect(detectIdentifierType('https://ncbi.nlm.nih.gov/pubmed/14316043')).toBe('PMID');
+            });
+        });
+
+        describe('PMID with search field syntax detection', () => {
+            it('detects PMID search field: 26360422 [pmid]', () => {
+                expect(detectIdentifierType('26360422 [pmid]')).toBe('PMID');
+            });
+
+            it('detects UID search field: 26360422 [uid]', () => {
+                expect(detectIdentifierType('26360422 [uid]')).toBe('PMID');
+            });
+
+            it('detects PMID search field: 20042755 [uid]', () => {
+                expect(detectIdentifierType('20042755 [uid]')).toBe('PMID');
+            });
+
+            it('detects PMID search field: 34255994 [pmid]', () => {
+                expect(detectIdentifierType('34255994 [pmid]')).toBe('PMID');
+            });
+
+            it('detects PMID search field uppercase: 26360422 [PMID]', () => {
+                expect(detectIdentifierType('26360422 [PMID]')).toBe('PMID');
+            });
+
+            it('detects UID search field uppercase: 26360422 [UID]', () => {
+                expect(detectIdentifierType('26360422 [UID]')).toBe('PMID');
+            });
+        });
+
+        describe('PMID edge cases', () => {
+            it('handles lowercase pmid prefix', () => {
+                expect(detectIdentifierType('pmid: 26360422')).toBe('PMID');
+            });
+
+            it('handles pmid prefix without space after colon', () => {
+                expect(detectIdentifierType('PMID:26360422')).toBe('PMID');
+            });
+
+            it('handles PubMed ID with extra spaces', () => {
+                expect(detectIdentifierType('PubMed  ID  26360422')).toBe('PMID');
+            });
+
+            it('handles whitespace trimming', () => {
+                expect(detectIdentifierType('  PMID: 26360422  ')).toBe('PMID');
+            });
+
+            it('handles short PMID (1 digit)', () => {
+                expect(detectIdentifierType('PMID: 1')).toBe('PMID');
+            });
+
+            it('handles short PMID URL (1 digit)', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/1')).toBe('PMID');
+            });
+
+            it('handles long PMID (9 digits)', () => {
+                expect(detectIdentifierType('PMID: 123456789')).toBe('PMID');
+            });
+
+            it('handles search field without space before bracket', () => {
+                expect(detectIdentifierType('26360422[pmid]')).toBe('PMID');
+            });
+        });
+
+        describe('Real-world PMID examples', () => {
+            // 1. Standard Biomedical Literature Example (2015)
+            it('detects PMID prefix: PMID: 26360422', () => {
+                expect(detectIdentifierType('PMID: 26360422')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/26360422', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/26360422')).toBe('PMID');
+            });
+            it('detects legacy URL: http://www.ncbi.nlm.nih.gov/pubmed/26360422', () => {
+                expect(detectIdentifierType('http://www.ncbi.nlm.nih.gov/pubmed/26360422')).toBe('PMID');
+            });
+            it('detects search field: 26360422 [pmid]', () => {
+                expect(detectIdentifierType('26360422 [pmid]')).toBe('PMID');
+            });
+
+            // 2. NCBI LinkOut Testing PMID
+            it('detects PMID prefix: PMID: 18984876', () => {
+                expect(detectIdentifierType('PMID: 18984876')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/18984876', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/18984876')).toBe('PMID');
+            });
+
+            // 3. NCBI Test-PMID (2009)
+            it('detects PMID prefix: PMID 20042755', () => {
+                expect(detectIdentifierType('PMID 20042755')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/20042755', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/20042755')).toBe('PMID');
+            });
+            it('detects UID search field: 20042755 [uid]', () => {
+                expect(detectIdentifierType('20042755 [uid]')).toBe('PMID');
+            });
+
+            // 4. NCBI Test-PMID (2003-2004)
+            it('detects PMID prefix: PMID: 14316043', () => {
+                expect(detectIdentifierType('PMID: 14316043')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/14316043', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/14316043')).toBe('PMID');
+            });
+
+            // 5. Moderne PMID (2023-2024 Bereich)
+            it('detects PMID prefix: PMID: 34255994', () => {
+                expect(detectIdentifierType('PMID: 34255994')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/34255994', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/34255994')).toBe('PMID');
+            });
+            it('detects search field: 34255994 [pmid]', () => {
+                expect(detectIdentifierType('34255994 [pmid]')).toBe('PMID');
+            });
+
+            // 6. NIH-finanzierter Artikel mit PMCID
+            it('detects PMID prefix: PMID 24255994', () => {
+                expect(detectIdentifierType('PMID 24255994')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/24255994', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/24255994')).toBe('PMID');
+            });
+
+            // 7. NCBI LinkOut Test (2005)
+            it('detects PMID prefix: PMID: 15390390', () => {
+                expect(detectIdentifierType('PMID: 15390390')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/15390390', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/15390390')).toBe('PMID');
+            });
+
+            // 8. Test-PMID (2002)
+            it('detects PMID prefix: PMID 12337850', () => {
+                expect(detectIdentifierType('PMID 12337850')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/12337850', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/12337850')).toBe('PMID');
+            });
+
+            // 9. Weitere Test-PMID (2002)
+            it('detects PMID prefix: PMID: 12076440', () => {
+                expect(detectIdentifierType('PMID: 12076440')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/12076440', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/12076440')).toBe('PMID');
+            });
+
+            // 10. Noch eine Test-PMID (2002)
+            it('detects PMID prefix: PMID 12259237', () => {
+                expect(detectIdentifierType('PMID 12259237')).toBe('PMID');
+            });
+            it('detects PubMed URL: https://pubmed.ncbi.nlm.nih.gov/12259237', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/12259237')).toBe('PMID');
+            });
+        });
+
+        describe('PMID should NOT be detected for non-PMID identifiers', () => {
+            it('should not detect plain number as PMID (no prefix)', () => {
+                expect(detectIdentifierType('26360422')).not.toBe('PMID');
+            });
+
+            it('should not detect DOI as PMID', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('PMID');
+            });
+
+            it('should not detect ISSN as PMID', () => {
+                expect(detectIdentifierType('ISSN 1234-5678')).not.toBe('PMID');
+            });
+
+            it('should not detect ISBN as PMID', () => {
+                expect(detectIdentifierType('ISBN 978-3-16-148410-0')).not.toBe('PMID');
+            });
+
+            it('should not detect PMC URL as PMID', () => {
+                expect(detectIdentifierType('https://pmc.ncbi.nlm.nih.gov/articles/PMC5555555/')).not.toBe('PMID');
+            });
+
+            it('should not detect PMCID prefix as PMID', () => {
+                expect(detectIdentifierType('PMCID: PMC5555555')).not.toBe('PMID');
+            });
+
+            it('should not detect random URL as PMID', () => {
+                expect(detectIdentifierType('https://example.org/article/12345')).not.toBe('PMID');
+            });
+
+            it('should not detect Handle as PMID', () => {
+                expect(detectIdentifierType('2128/1885')).not.toBe('PMID');
+            });
+
+            it('should not detect LSID as PMID', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).not.toBe('PMID');
+            });
+
+            it('should not detect PMID-like number in wrong format as PMID', () => {
+                expect(detectIdentifierType('PM ID 26360422')).not.toBe('PMID');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {

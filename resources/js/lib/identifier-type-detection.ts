@@ -254,6 +254,30 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'LSID';
     }
 
+    // PMID (PubMed ID) detection
+    // PubMed identifiers are numeric IDs for biomedical literature
+    // Range: typically 1-9 digits (currently up to ~40 million)
+
+    // PMID with PubMed URL: https://pubmed.ncbi.nlm.nih.gov/NNNNNNN
+    if (trimmed.match(/^https?:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d{1,9}$/i)) {
+        return 'PMID';
+    }
+
+    // PMID with legacy NCBI URL: http://www.ncbi.nlm.nih.gov/pubmed/NNNNNNN
+    if (trimmed.match(/^https?:\/\/(?:www\.)?ncbi\.nlm\.nih\.gov\/pubmed\/\d{1,9}$/i)) {
+        return 'PMID';
+    }
+
+    // PMID with prefix: PMID: NNNNNNN, PMID NNNNNNN, PubMed ID NNNNNNN
+    if (trimmed.match(/^(?:pmid|pubmed\s*id):?\s*\d{1,9}$/i)) {
+        return 'PMID';
+    }
+
+    // PMID with search field syntax: NNNNNNN [pmid] or NNNNNNN [uid]
+    if (trimmed.match(/^\d{1,9}\s*\[(?:pmid|uid)\]$/i)) {
+        return 'PMID';
+    }
+
     // LISSN (Linking ISSN / ISSN-L) detection
     // LISSN links different media versions of the same serial publication
     // Must be checked before EISSN since LISSN has more specific prefixes
