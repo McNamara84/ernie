@@ -350,6 +350,97 @@ test.describe('Related Work Identifier Type Detection', () => {
         });
     });
 
+    test.describe('CSTR Detection', () => {
+        /**
+         * CSTR (China Science and Technology Resource) is a persistent identifier system
+         * for Chinese scientific data resources.
+         *
+         * Format: CSTR:RA_CODE.TYPE.NAMESPACE.LOCAL_ID
+         * - RA_CODE = 5-digit Registration Authority code (e.g., 31253, 50001)
+         * - TYPE = 2-digit resource type code (e.g., 11 = ScienceDB, 22 = Material Science)
+         * - NAMESPACE = Repository namespace
+         * - LOCAL_ID = Local identifier
+         */
+
+        test.describe('CSTR with prefix (CSTR:...)', () => {
+            test('detects ScienceDB standard CSTR: CSTR:31253.11.sciencedb.j00001.00123', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'CSTR:31253.11.sciencedb.j00001.00123', 'CSTR');
+            });
+
+            test('detects lowercase cstr: prefix', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'cstr:31253.11.sciencedb.j00001.00123', 'CSTR');
+            });
+
+            test('detects climate data CSTR', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'CSTR:31253.11.sciencedb.CC_000001', 'CSTR');
+            });
+
+            test('detects biodiversity CSTR with hyphen', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'CSTR:31253.11.bio-resources.BD_999999', 'CSTR');
+            });
+
+            test('detects chemical structures CSTR', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'CSTR:31253.11.chem_structures.compound_xyz', 'CSTR');
+            });
+
+            test('detects genome sequence CSTR with UUID', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'CSTR:31253.11.genomedb.seq-d041e5f0-a1b2-c3d4-e5f6-789abcdef000',
+                    'CSTR',
+                );
+            });
+
+            test('detects material science CSTR (different RA_CODE)', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'CSTR:50001.22.material_science.data_001', 'CSTR');
+            });
+
+            test('detects research project CSTR with deep path', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'CSTR:31253.11.sciencedb.research_project.2024.january.experiment_001.raw_data',
+                    'CSTR',
+                );
+            });
+        });
+
+        test.describe('CSTR bare format (without prefix)', () => {
+            test('detects bare ScienceDB CSTR: 31253.11.sciencedb.j00001.00123', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '31253.11.sciencedb.j00001.00123', 'CSTR');
+            });
+
+            test('detects bare material science CSTR', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '50001.22.material_science.data_001', 'CSTR');
+            });
+        });
+
+        test.describe('CSTR with resolver URLs', () => {
+            test('detects identifiers.org CSTR URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://identifiers.org/cstr:31253.11.sciencedb.j00001.00123',
+                    'CSTR',
+                );
+            });
+
+            test('detects bioregistry.io CSTR URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://bioregistry.io/cstr:31253.11.sciencedb.j00001.00123',
+                    'CSTR',
+                );
+            });
+
+            test('detects bioregistry.io bio-resources URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://bioregistry.io/cstr:31253.11.bio-resources.BD_999999',
+                    'CSTR',
+                );
+            });
+        });
+    });
+
     test.describe('Non-DOI identifiers should not be detected as DOI', () => {
         test('detects plain URL as URL, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'https://example.com/resource', 'URL');
@@ -373,6 +464,10 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         test('detects bibcode as bibcode, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, '2024AJ....167...20Z', 'bibcode');
+        });
+
+        test('detects CSTR as CSTR, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, 'CSTR:31253.11.sciencedb.j00001.00123', 'CSTR');
         });
     });
 });

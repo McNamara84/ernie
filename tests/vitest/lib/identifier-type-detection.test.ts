@@ -710,6 +710,296 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    describe('CSTR detection', () => {
+        /**
+         * CSTR (China Science and Technology Resource) is a persistent identifier system
+         * for Chinese scientific data resources.
+         *
+         * Format: CSTR:RA_CODE.TYPE.NAMESPACE.LOCAL_ID
+         * - RA_CODE = 5-digit Registration Authority code (e.g., 31253, 50001)
+         * - TYPE = 2-digit resource type code (e.g., 11 = ScienceDB, 22 = Material Science)
+         * - NAMESPACE = Repository namespace (letters, numbers, underscores, hyphens)
+         * - LOCAL_ID = Local identifier (varies by repository)
+         *
+         * Resolvers: identifiers.org/cstr:..., bioregistry.io/cstr:...
+         */
+
+        describe('CSTR with full prefix (CSTR:...)', () => {
+            it('detects ScienceDB standard CSTR', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).toBe('CSTR');
+            });
+
+            it('detects lowercase cstr: prefix', () => {
+                expect(detectIdentifierType('cstr:31253.11.sciencedb.j00001.00123')).toBe('CSTR');
+            });
+
+            it('detects climate data CSTR', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.CC_000001')).toBe('CSTR');
+            });
+
+            it('detects biodiversity CSTR with hyphen', () => {
+                expect(detectIdentifierType('CSTR:31253.11.bio-resources.BD_999999')).toBe('CSTR');
+            });
+
+            it('detects CSTR with underscores', () => {
+                expect(detectIdentifierType('CSTR:31253.11.bio_resources.BD_999999')).toBe('CSTR');
+            });
+
+            it('detects chemical structures CSTR', () => {
+                expect(detectIdentifierType('CSTR:31253.11.chem_structures.compound_xyz')).toBe('CSTR');
+            });
+
+            it('detects CSTR with tilde versioning', () => {
+                expect(detectIdentifierType('CSTR:31253.11.chem_structures~2024~v1.5')).toBe('CSTR');
+            });
+
+            it('detects genome sequence CSTR', () => {
+                expect(detectIdentifierType('CSTR:31253.11.genomedb.sequence_12345')).toBe('CSTR');
+            });
+
+            it('detects CSTR with UUID-like ID', () => {
+                expect(
+                    detectIdentifierType('CSTR:31253.11.genomedb.seq-d041e5f0-a1b2-c3d4-e5f6-789abcdef000'),
+                ).toBe('CSTR');
+            });
+
+            it('detects material science CSTR (different RA_CODE)', () => {
+                expect(detectIdentifierType('CSTR:50001.22.material_science.data_001')).toBe('CSTR');
+            });
+
+            it('detects CSTR with file extension', () => {
+                expect(detectIdentifierType('CSTR:31253.11.datasets.paper_data_2024.v3.csv')).toBe('CSTR');
+            });
+
+            it('detects research project CSTR with deep path', () => {
+                expect(
+                    detectIdentifierType(
+                        'CSTR:31253.11.sciencedb.research_project.2024.january.experiment_001.raw_data',
+                    ),
+                ).toBe('CSTR');
+            });
+
+            it('detects CSTR with pure UUID', () => {
+                expect(detectIdentifierType('CSTR:31253.11.d041e5f0-a1b2-c3d4-e5f6-789abcdef000')).toBe('CSTR');
+            });
+
+            it('detects CSTR with UUID without hyphens', () => {
+                expect(detectIdentifierType('CSTR:31253.11.d041e5f0a1b2c3d4e5f6789abcdef000')).toBe('CSTR');
+            });
+
+            it('detects physics dataset CSTR', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.physics_dataset_2024_spring')).toBe('CSTR');
+            });
+
+            it('detects CSTR with alternative tilde format', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb~physics~dataset~2024~spring')).toBe('CSTR');
+            });
+        });
+
+        describe('CSTR bare format (without prefix)', () => {
+            it('detects bare ScienceDB CSTR', () => {
+                expect(detectIdentifierType('31253.11.sciencedb.j00001.00123')).toBe('CSTR');
+            });
+
+            it('detects bare climate data CSTR', () => {
+                expect(detectIdentifierType('31253.11.sciencedb.CC_000001')).toBe('CSTR');
+            });
+
+            it('detects bare CSTR with hyphen', () => {
+                expect(detectIdentifierType('31253.11.bio-resources.BD_999999')).toBe('CSTR');
+            });
+
+            it('detects bare material science CSTR', () => {
+                expect(detectIdentifierType('50001.22.material_science.data_001')).toBe('CSTR');
+            });
+
+            it('detects bare CSTR with deep path', () => {
+                expect(
+                    detectIdentifierType(
+                        '31253.11.sciencedb.research_project.2024.january.experiment_001.raw_data',
+                    ),
+                ).toBe('CSTR');
+            });
+        });
+
+        describe('CSTR with resolver URLs', () => {
+            it('detects identifiers.org CSTR URL', () => {
+                expect(
+                    detectIdentifierType('https://identifiers.org/cstr:31253.11.sciencedb.j00001.00123'),
+                ).toBe('CSTR');
+            });
+
+            it('detects bioregistry.io CSTR URL', () => {
+                expect(
+                    detectIdentifierType('https://bioregistry.io/cstr:31253.11.sciencedb.j00001.00123'),
+                ).toBe('CSTR');
+            });
+
+            it('detects identifiers.org climate data URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/cstr:31253.11.sciencedb.CC_000001')).toBe(
+                    'CSTR',
+                );
+            });
+
+            it('detects bioregistry.io bio-resources URL', () => {
+                expect(
+                    detectIdentifierType('https://bioregistry.io/cstr:31253.11.bio-resources.BD_999999'),
+                ).toBe('CSTR');
+            });
+
+            it('detects identifiers.org chemical structures URL', () => {
+                expect(
+                    detectIdentifierType('https://identifiers.org/cstr:31253.11.chem_structures.compound_xyz'),
+                ).toBe('CSTR');
+            });
+
+            it('detects identifiers.org genome URL', () => {
+                expect(
+                    detectIdentifierType('https://identifiers.org/cstr:31253.11.genomedb.sequence_12345'),
+                ).toBe('CSTR');
+            });
+
+            it('detects bioregistry.io material science URL', () => {
+                expect(
+                    detectIdentifierType('https://bioregistry.io/cstr:50001.22.material_science.data_001'),
+                ).toBe('CSTR');
+            });
+
+            it('detects bioregistry.io UUID URL', () => {
+                expect(
+                    detectIdentifierType(
+                        'https://bioregistry.io/cstr:31253.11.d041e5f0-a1b2-c3d4-e5f6-789abcdef000',
+                    ),
+                ).toBe('CSTR');
+            });
+
+            it('detects identifiers.org physics URL', () => {
+                expect(
+                    detectIdentifierType(
+                        'https://identifiers.org/cstr:31253.11.sciencedb.physics_dataset_2024_spring',
+                    ),
+                ).toBe('CSTR');
+            });
+
+            it('detects http URL (without https)', () => {
+                expect(
+                    detectIdentifierType('http://identifiers.org/cstr:31253.11.sciencedb.j00001.00123'),
+                ).toBe('CSTR');
+            });
+
+            it('detects identifiers.org deep path URL', () => {
+                expect(
+                    detectIdentifierType(
+                        'https://identifiers.org/cstr:31253.11.sciencedb.research_project.2024.january.experiment_001.raw_data',
+                    ),
+                ).toBe('CSTR');
+            });
+        });
+
+        describe('CSTR case handling', () => {
+            it('detects CSTR with uppercase prefix', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).toBe('CSTR');
+            });
+
+            it('detects CSTR with lowercase prefix', () => {
+                expect(detectIdentifierType('cstr:31253.11.sciencedb.j00001.00123')).toBe('CSTR');
+            });
+
+            it('detects CSTR with mixed case prefix', () => {
+                expect(detectIdentifierType('Cstr:31253.11.sciencedb.j00001.00123')).toBe('CSTR');
+            });
+        });
+
+        describe('CSTR edge cases', () => {
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  CSTR:31253.11.sciencedb.j00001.00123  ')).toBe('CSTR');
+            });
+
+            it('handles URL with leading/trailing whitespace', () => {
+                expect(
+                    detectIdentifierType('  https://identifiers.org/cstr:31253.11.sciencedb.j00001.00123  '),
+                ).toBe('CSTR');
+            });
+        });
+
+        describe('real-world CSTR examples from user requirements', () => {
+            const realWorldCstrs = [
+                { input: 'CSTR:31253.11.sciencedb.j00001.00123', description: 'ScienceDB Standard' },
+                { input: 'cstr:31253.11.sciencedb.j00001.00123', description: 'ScienceDB lowercase' },
+                { input: '31253.11.sciencedb.j00001.00123', description: 'ScienceDB bare' },
+                {
+                    input: 'https://identifiers.org/cstr:31253.11.sciencedb.j00001.00123',
+                    description: 'ScienceDB identifiers.org',
+                },
+                {
+                    input: 'https://bioregistry.io/cstr:31253.11.sciencedb.j00001.00123',
+                    description: 'ScienceDB bioregistry.io',
+                },
+                { input: 'CSTR:31253.11.sciencedb.CC_000001', description: 'Climate data' },
+                { input: 'CSTR:31253.11.bio-resources.BD_999999', description: 'Biodiversity with hyphen' },
+                { input: 'CSTR:31253.11.bio_resources.BD_999999', description: 'Biodiversity with underscore' },
+                { input: 'CSTR:31253.11.chem_structures.compound_xyz', description: 'Chemical structures' },
+                { input: 'CSTR:31253.11.chem_structures~2024~v1.5', description: 'Chemical with tilde versioning' },
+                { input: 'CSTR:31253.11.genomedb.sequence_12345', description: 'Genome sequence' },
+                {
+                    input: 'CSTR:31253.11.genomedb.seq-d041e5f0-a1b2-c3d4-e5f6-789abcdef000',
+                    description: 'Genome with UUID',
+                },
+                { input: 'CSTR:50001.22.material_science.data_001', description: 'Material science (RA 50001)' },
+                { input: 'CSTR:31253.11.datasets.paper_data_2024.v3.csv', description: 'File with extension' },
+                {
+                    input: 'CSTR:31253.11.sciencedb.research_project.2024.january.experiment_001.raw_data',
+                    description: 'Deep path structure',
+                },
+                { input: 'CSTR:31253.11.d041e5f0-a1b2-c3d4-e5f6-789abcdef000', description: 'Pure UUID' },
+                { input: 'CSTR:31253.11.d041e5f0a1b2c3d4e5f6789abcdef000', description: 'UUID without hyphens' },
+                { input: 'CSTR:31253.11.sciencedb.physics_dataset_2024_spring', description: 'Physics dataset' },
+                { input: 'CSTR:31253.11.sciencedb~physics~dataset~2024~spring', description: 'Tilde alternative' },
+            ];
+
+            realWorldCstrs.forEach(({ input, description }) => {
+                it(`detects ${description}: ${input}`, () => {
+                    expect(detectIdentifierType(input)).toBe('CSTR');
+                });
+            });
+        });
+
+        describe('CSTR should NOT be detected for non-CSTR identifiers', () => {
+            it('should not detect plain URLs as CSTR', () => {
+                expect(detectIdentifierType('https://example.com/path')).not.toBe('CSTR');
+            });
+
+            it('should not detect DOIs as CSTR', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('CSTR');
+            });
+
+            it('should not detect arXiv IDs as CSTR', () => {
+                expect(detectIdentifierType('2501.13958')).not.toBe('CSTR');
+            });
+
+            it('should not detect bibcodes as CSTR', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).not.toBe('CSTR');
+            });
+
+            it('should not detect handles as CSTR', () => {
+                expect(detectIdentifierType('11234/56789')).not.toBe('CSTR');
+            });
+
+            it('should not detect ARK as CSTR', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('CSTR');
+            });
+
+            it('should not detect random numbers with dots as CSTR', () => {
+                // Must have valid RA_CODE.TYPE.NAMESPACE.LOCAL_ID structure
+                expect(detectIdentifierType('12345.67.89')).not.toBe('CSTR');
+            });
+
+            it('should not detect short numeric string as CSTR', () => {
+                expect(detectIdentifierType('1234.56.test')).not.toBe('CSTR');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
