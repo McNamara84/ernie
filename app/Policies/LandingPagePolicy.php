@@ -71,13 +71,4 @@ class LandingPagePolicy
     {
         return in_array($user->role, self::MANAGEMENT_ROLES, true);
     }
-
-    /**
-     * Determine whether the user can manage landing pages (general check).
-     * Used for UI visibility checks via Inertia shared data.
-     */
-    public function manage(User $user): bool
-    {
-        return in_array($user->role, self::MANAGEMENT_ROLES, true);
-    }
 }

@@ -196,8 +196,12 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
      */
     const hasUnsavedChanges = useMemo(() => {
         if (!currentConfig) return false;
-        return template !== currentConfig.template || ftpUrl !== (currentConfig.ftp_url ?? '');
-    }, [currentConfig, template, ftpUrl]);
+        return (
+            template !== currentConfig.template ||
+            ftpUrl !== (currentConfig.ftp_url ?? '') ||
+            isPublished !== (currentConfig.status === 'published')
+        );
+    }, [currentConfig, template, ftpUrl, isPublished]);
 
     const copyToClipboard = async (text: string, label: string) => {
         try {

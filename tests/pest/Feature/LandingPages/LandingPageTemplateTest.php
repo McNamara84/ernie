@@ -28,9 +28,12 @@ describe('Landing Page Template Modification', function () {
             'is_published' => false,
         ]);
 
+        // Note: Currently only 'default_gfz' template exists. When additional templates
+        // are added (e.g., 'minimal', 'academic'), update this test to verify switching
+        // between different templates. The validation infrastructure is already in place.
         $response = $this->actingAs($user)
             ->putJson("/resources/{$resource->id}/landing-page", [
-                'template' => 'default_gfz', // Currently only one template, but structure supports more
+                'template' => 'default_gfz',
             ]);
 
         $response->assertOk();
@@ -150,5 +153,27 @@ describe('Landing Page Preview Session Storage', function () {
 
         $response->assertUnprocessable()
             ->assertJsonValidationErrors(['template']);
+    });
+
+    test('beginner cannot create session preview', function () {
+        $user = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $resource = Resource::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->postJson("/resources/{$resource->id}/landing-page/preview", [
+                'template' => 'default_gfz',
+            ]);
+
+        $response->assertForbidden();
+    });
+
+    test('beginner cannot clear session preview', function () {
+        $user = User::factory()->create(['role' => UserRole::BEGINNER]);
+        $resource = Resource::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->deleteJson("/resources/{$resource->id}/landing-page/preview");
+
+        $response->assertForbidden();
     });
 });

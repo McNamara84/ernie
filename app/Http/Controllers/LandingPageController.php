@@ -25,6 +25,9 @@ class LandingPageController extends Controller
      * When adding new templates, update this list and create the corresponding
      * React component in resources/js/Pages/LandingPages/.
      *
+     * Note: This constant is also used by LandingPagePreviewController for
+     * session-based preview validation to ensure template consistency.
+     *
      * @var list<string>
      */
     public const ALLOWED_TEMPLATES = ['default_gfz'];
