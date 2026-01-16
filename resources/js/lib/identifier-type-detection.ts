@@ -143,6 +143,40 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'CSTR';
     }
 
+    // ISBN (International Standard Book Number) detection
+    // Must be checked before EAN-13 since ISBN-13 starts with 978 or 979
+
+    // ISBN with OpenEdition URL: isbn.openedition.org/978-...
+    if (trimmed.match(/^https?:\/\/isbn\.openedition\.org\/97[89]/i)) {
+        return 'ISBN';
+    }
+
+    // ISBN with URN format: urn:isbn:...
+    if (trimmed.match(/^urn:isbn:/i)) {
+        return 'ISBN';
+    }
+
+    // ISBN with explicit prefix: ISBN-13:, ISBN-10:, ISBN:, ISBN followed by number
+    // Matches: ISBN-13: 978-..., ISBN 978-..., ISBN: 0-306-..., ISBN (eBook): 978-...
+    if (trimmed.match(/^isbn(?:-?(?:13|10))?[:\s]+/i)) {
+        return 'ISBN';
+    }
+
+    // ISBN-13 compact or with hyphens (starts with 978 or 979)
+    // Format: 978XXXXXXXXXX or 979XXXXXXXXXX (13 digits total)
+    // Or with hyphens: 978-X-XX-XXXXXX-X
+    const isbnCandidate = trimmed.replace(/[-\s]/g, '');
+    if (/^97[89]\d{10}$/.test(isbnCandidate)) {
+        return 'ISBN';
+    }
+
+    // ISBN-10 format (legacy): 10 digits, last may be X
+    // Format: XXXXXXXXXX or X-XXX-XXXXX-X
+    const isbn10Candidate = trimmed.replace(/[-\s]/g, '');
+    if (/^\d{9}[\dXx]$/.test(isbn10Candidate)) {
+        return 'ISBN';
+    }
+
     // EAN-13 (European Article Number) URL patterns
     // Matches: https://identifiers.org/ean13:..., GS1 Digital Link URLs
     if (trimmed.match(/^https?:\/\/(?:identifiers\.org\/ean13:|gs1\.[^/]+\/01\/)/i)) {
@@ -156,8 +190,9 @@ export function detectIdentifierType(value: string): IdentifierType {
 
     // EAN-13 compact format: exactly 13 digits (may have hyphens/spaces)
     // First remove hyphens and spaces to check if it's 13 digits
+    // Note: ISBN-13 (978/979) is already handled above
     const eanCandidate = trimmed.replace(/[-\s]/g, '');
-    if (/^\d{13}$/.test(eanCandidate)) {
+    if (/^\d{13}$/.test(eanCandidate) && !/^97[89]/.test(eanCandidate)) {
         // Validate it's not another identifier type by checking prefix patterns
         // EAN-13 country codes: 000-019 (USA/Canada), 020-029 (store internal), 030-039 (USA drugs),
         // 040-049 (used to define company prefix), 050-059 (coupons), 060-139 (USA/Canada),

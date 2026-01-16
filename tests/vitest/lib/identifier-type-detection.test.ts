@@ -1063,8 +1063,9 @@ describe('detectIdentifierType', () => {
                 expect(detectIdentifierType('2012345678900')).toBe('EAN13');
             });
 
-            it('detects ISBN as EAN-13 (978 prefix)', () => {
-                expect(detectIdentifierType('9780141026626')).toBe('EAN13');
+            // NOTE: ISBNs with 978/979 prefix are now detected as ISBN, not EAN-13
+            it('detects ISBN as ISBN (978 prefix takes precedence over EAN-13)', () => {
+                expect(detectIdentifierType('9780141026626')).toBe('ISBN');
             });
         });
 
@@ -1089,8 +1090,9 @@ describe('detectIdentifierType', () => {
                 expect(detectIdentifierType('731-8120-00000-2')).toBe('EAN13');
             });
 
-            it('detects ISBN as EAN-13 with hyphens', () => {
-                expect(detectIdentifierType('978-0-141-02662-6')).toBe('EAN13');
+            // NOTE: ISBNs with 978/979 prefix are now detected as ISBN, not EAN-13
+            it('detects ISBN as ISBN with hyphens (978 prefix takes precedence over EAN-13)', () => {
+                expect(detectIdentifierType('978-0-141-02662-6')).toBe('ISBN');
             });
 
             it('detects USA/Canada UPC-A with hyphens', () => {
@@ -1211,7 +1213,8 @@ describe('detectIdentifierType', () => {
                 expect(detectIdentifierType('urn:gtin-13:7318120000002')).toBe('EAN13');
             });
 
-            it('detects urn:ean13 with ISBN', () => {
+            // NOTE: urn:ean13 with ISBN still detected as EAN13 (explicit URN scheme)
+            it('detects urn:ean13 with ISBN as EAN13 (explicit URN scheme)', () => {
                 expect(detectIdentifierType('urn:ean13:9780141026626')).toBe('EAN13');
             });
 
@@ -1247,11 +1250,10 @@ describe('detectIdentifierType', () => {
                 { input: '4006381 333931', description: 'German product with space' },
                 { input: 'https://identifiers.org/ean13:4006381333931', description: 'German identifiers.org' },
                 { input: 'urn:ean13:4006381333931', description: 'German URN format' },
-                // ISBN → EAN-13
-                { input: '9780141026626', description: 'ISBN compact' },
-                { input: '978-0-141-02662-6', description: 'ISBN with hyphens' },
-                { input: 'https://identifiers.org/ean13:9780141026626', description: 'ISBN identifiers.org' },
-                { input: 'urn:ean13:9780141026626', description: 'ISBN URN format' },
+                // NOTE: ISBN → now detected as ISBN, not EAN-13
+                // identifiers.org/ean13: and urn:ean13: still force EAN-13 detection
+                { input: 'https://identifiers.org/ean13:9780141026626', description: 'ISBN identifiers.org (explicit EAN13 scheme)' },
+                { input: 'urn:ean13:9780141026626', description: 'ISBN URN format (explicit EAN13 scheme)' },
                 // French product (L'Oréal)
                 { input: '3595384751201', description: 'French product compact' },
                 { input: '359-5384-75120-1', description: 'French product with hyphens' },
@@ -3139,6 +3141,490 @@ describe('detectIdentifierType', () => {
 
             it('should not detect random text as IGSN', () => {
                 expect(detectIdentifierType('just-some-random-text')).not.toBe('IGSN');
+            });
+        });
+    });
+
+    describe('ISBN detection', () => {
+        /**
+         * ISBN (International Standard Book Number) identifies books uniquely.
+         *
+         * Format variations:
+         * - ISBN-13: 13 digits starting with 978 or 979 (modern standard)
+         * - ISBN-10: 10 digits, last may be X (legacy format)
+         * - With hyphens: 978-0-306-40615-7
+         * - URN format: urn:isbn:978-0-306-40615-7
+         * - With prefix: ISBN-13: 978-..., ISBN 978-..., ISBN: 0-306-...
+         * - OpenEdition URL: isbn.openedition.org/978-...
+         */
+
+        describe('ISBN-13 compact format (13 digits)', () => {
+            it('detects scientific reference book: 9780306406157', () => {
+                expect(detectIdentifierType('9780306406157')).toBe('ISBN');
+            });
+
+            it('detects The Last Unicorn: 9780451450523', () => {
+                expect(detectIdentifierType('9780451450523')).toBe('ISBN');
+            });
+
+            it('detects Piper German publisher: 9783492241245', () => {
+                expect(detectIdentifierType('9783492241245')).toBe('ISBN');
+            });
+
+            it('detects Oxford University Press: 9780198758159', () => {
+                expect(detectIdentifierType('9780198758159')).toBe('ISBN');
+            });
+
+            it('detects Gallimard French publisher: 9782070748921', () => {
+                expect(detectIdentifierType('9782070748921')).toBe('ISBN');
+            });
+
+            it('detects Open Edition eBook: 9782354102375', () => {
+                expect(detectIdentifierType('9782354102375')).toBe('ISBN');
+            });
+
+            it('detects Kodansha Japanese publisher: 9784065278345', () => {
+                expect(detectIdentifierType('9784065278345')).toBe('ISBN');
+            });
+
+            it('detects eBook ISBN: 9781481258327', () => {
+                expect(detectIdentifierType('9781481258327')).toBe('ISBN');
+            });
+
+            it('detects Audiobook ISBN: 9780062468673', () => {
+                expect(detectIdentifierType('9780062468673')).toBe('ISBN');
+            });
+
+            it('detects 979 prefix (modern): 9791234567890', () => {
+                expect(detectIdentifierType('9791234567890')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN-13 with hyphens', () => {
+            it('detects with hyphens: 978-0-306-40615-7', () => {
+                expect(detectIdentifierType('978-0-306-40615-7')).toBe('ISBN');
+            });
+
+            it('detects The Last Unicorn: 978-0-451-45052-3', () => {
+                expect(detectIdentifierType('978-0-451-45052-3')).toBe('ISBN');
+            });
+
+            it('detects Piper: 978-3-492-24124-5', () => {
+                expect(detectIdentifierType('978-3-492-24124-5')).toBe('ISBN');
+            });
+
+            it('detects Oxford: 978-0-19-875815-9', () => {
+                expect(detectIdentifierType('978-0-19-875815-9')).toBe('ISBN');
+            });
+
+            it('detects Gallimard: 978-2-07-074892-1', () => {
+                expect(detectIdentifierType('978-2-07-074892-1')).toBe('ISBN');
+            });
+
+            it('detects OpenEdition: 978-2-35410-237-5', () => {
+                expect(detectIdentifierType('978-2-35410-237-5')).toBe('ISBN');
+            });
+
+            it('detects Kodansha: 978-4-06-527834-5', () => {
+                expect(detectIdentifierType('978-4-06-527834-5')).toBe('ISBN');
+            });
+
+            it('detects eBook: 978-1-4812-5832-7', () => {
+                expect(detectIdentifierType('978-1-4812-5832-7')).toBe('ISBN');
+            });
+
+            it('detects Audiobook: 978-0-06-246867-3', () => {
+                expect(detectIdentifierType('978-0-06-246867-3')).toBe('ISBN');
+            });
+
+            it('detects 979 prefix with hyphens: 979-1-23-456789-0', () => {
+                expect(detectIdentifierType('979-1-23-456789-0')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN-10 compact format (legacy)', () => {
+            it('detects ISBN-10: 0306406152', () => {
+                expect(detectIdentifierType('0306406152')).toBe('ISBN');
+            });
+
+            it('detects The Last Unicorn ISBN-10: 0451450523', () => {
+                expect(detectIdentifierType('0451450523')).toBe('ISBN');
+            });
+
+            it('detects ISBN-10 with X check digit: 080442957X', () => {
+                expect(detectIdentifierType('080442957X')).toBe('ISBN');
+            });
+
+            it('detects ISBN-10 with lowercase x: 080442957x', () => {
+                expect(detectIdentifierType('080442957x')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN-10 with hyphens (legacy)', () => {
+            it('detects ISBN-10 with hyphens: 0-306-40615-2', () => {
+                expect(detectIdentifierType('0-306-40615-2')).toBe('ISBN');
+            });
+
+            it('detects The Last Unicorn ISBN-10: 0-451-45052-3', () => {
+                expect(detectIdentifierType('0-451-45052-3')).toBe('ISBN');
+            });
+
+            it('detects ISBN-10 with X: 0-8044-2957-X', () => {
+                expect(detectIdentifierType('0-8044-2957-X')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN with URN format', () => {
+            it('detects URN ISBN-13: urn:isbn:978-0-306-40615-7', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-306-40615-7')).toBe('ISBN');
+            });
+
+            it('detects URN ISBN-10: urn:isbn:0-306-40615-2', () => {
+                expect(detectIdentifierType('urn:isbn:0-306-40615-2')).toBe('ISBN');
+            });
+
+            it('detects URN The Last Unicorn: urn:isbn:978-0-451-45052-3', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-451-45052-3')).toBe('ISBN');
+            });
+
+            it('detects URN Piper: urn:isbn:978-3-492-24124-5', () => {
+                expect(detectIdentifierType('urn:isbn:978-3-492-24124-5')).toBe('ISBN');
+            });
+
+            it('detects URN Oxford: urn:isbn:978-0-19-875815-9', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-19-875815-9')).toBe('ISBN');
+            });
+
+            it('detects URN Gallimard: urn:isbn:978-2-07-074892-1', () => {
+                expect(detectIdentifierType('urn:isbn:978-2-07-074892-1')).toBe('ISBN');
+            });
+
+            it('detects URN OpenEdition: urn:isbn:978-2-35410-237-5', () => {
+                expect(detectIdentifierType('urn:isbn:978-2-35410-237-5')).toBe('ISBN');
+            });
+
+            it('detects URN Kodansha: urn:isbn:978-4-06-527834-5', () => {
+                expect(detectIdentifierType('urn:isbn:978-4-06-527834-5')).toBe('ISBN');
+            });
+
+            it('detects URN eBook: urn:isbn:978-1-4812-5832-7', () => {
+                expect(detectIdentifierType('urn:isbn:978-1-4812-5832-7')).toBe('ISBN');
+            });
+
+            it('detects URN Audiobook: urn:isbn:978-0-06-246867-3', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-06-246867-3')).toBe('ISBN');
+            });
+
+            it('detects URN 979 prefix: urn:isbn:979-1-23-456789-0', () => {
+                expect(detectIdentifierType('urn:isbn:979-1-23-456789-0')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN with explicit prefix', () => {
+            it('detects ISBN-13 prefix: ISBN-13: 978-0-306-40615-7', () => {
+                expect(detectIdentifierType('ISBN-13: 978-0-306-40615-7')).toBe('ISBN');
+            });
+
+            it('detects ISBN prefix: ISBN 978-0-451-45052-3', () => {
+                expect(detectIdentifierType('ISBN 978-0-451-45052-3')).toBe('ISBN');
+            });
+
+            it('detects ISBN prefix without space: ISBN:978-0-19-875815-9', () => {
+                expect(detectIdentifierType('ISBN:978-0-19-875815-9')).toBe('ISBN');
+            });
+
+            it('detects ISBN-10 prefix: ISBN-10: 0-306-40615-2', () => {
+                expect(detectIdentifierType('ISBN-10: 0-306-40615-2')).toBe('ISBN');
+            });
+
+            it('detects ISBN (eBook) format: ISBN (eBook): 978-1-4812-5832-7', () => {
+                expect(detectIdentifierType('ISBN (eBook): 978-1-4812-5832-7')).toBe('ISBN');
+            });
+
+            it('detects ISBN (Audio) format: ISBN (Audio): 978-0-06-246867-3', () => {
+                expect(detectIdentifierType('ISBN (Audio): 978-0-06-246867-3')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN with OpenEdition URL', () => {
+            it('detects OpenEdition URL: https://isbn.openedition.org/978-3-492-24124-5', () => {
+                expect(detectIdentifierType('https://isbn.openedition.org/978-3-492-24124-5')).toBe('ISBN');
+            });
+
+            it('detects OpenEdition Gallimard: https://isbn.openedition.org/978-2-07-074892-1', () => {
+                expect(detectIdentifierType('https://isbn.openedition.org/978-2-07-074892-1')).toBe('ISBN');
+            });
+
+            it('detects OpenEdition eBook: https://isbn.openedition.org/978-2-35410-237-5', () => {
+                expect(detectIdentifierType('https://isbn.openedition.org/978-2-35410-237-5')).toBe('ISBN');
+            });
+
+            it('detects http OpenEdition URL: http://isbn.openedition.org/9780306406157', () => {
+                expect(detectIdentifierType('http://isbn.openedition.org/9780306406157')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN edge cases', () => {
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  9780306406157  ')).toBe('ISBN');
+            });
+
+            it('handles ISBN-13 with spaces instead of hyphens', () => {
+                expect(detectIdentifierType('978 0 306 40615 7')).toBe('ISBN');
+            });
+
+            it('handles ISBN-10 with spaces', () => {
+                expect(detectIdentifierType('0 306 40615 2')).toBe('ISBN');
+            });
+
+            it('handles URN with whitespace', () => {
+                expect(detectIdentifierType('  urn:isbn:978-0-306-40615-7  ')).toBe('ISBN');
+            });
+        });
+
+        describe('real-world ISBN examples from user requirements', () => {
+            // 1. Scientific Reference Book (English)
+            it('detects scientific book compact: 9780306406157', () => {
+                expect(detectIdentifierType('9780306406157')).toBe('ISBN');
+            });
+
+            it('detects scientific book with hyphens: 978-0-306-40615-7', () => {
+                expect(detectIdentifierType('978-0-306-40615-7')).toBe('ISBN');
+            });
+
+            it('detects scientific book ISBN-10: 0306406152', () => {
+                expect(detectIdentifierType('0306406152')).toBe('ISBN');
+            });
+
+            it('detects scientific book ISBN-10 hyphens: 0-306-40615-2', () => {
+                expect(detectIdentifierType('0-306-40615-2')).toBe('ISBN');
+            });
+
+            it('detects scientific book URN: urn:isbn:978-0-306-40615-7', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-306-40615-7')).toBe('ISBN');
+            });
+
+            it('detects scientific book URN ISBN-10: urn:isbn:0-306-40615-2', () => {
+                expect(detectIdentifierType('urn:isbn:0-306-40615-2')).toBe('ISBN');
+            });
+
+            it('detects scientific book with prefix: ISBN-13: 978-0-306-40615-7', () => {
+                expect(detectIdentifierType('ISBN-13: 978-0-306-40615-7')).toBe('ISBN');
+            });
+
+            // 2. The Last Unicorn (English Classic)
+            it('detects Last Unicorn compact: 9780451450523', () => {
+                expect(detectIdentifierType('9780451450523')).toBe('ISBN');
+            });
+
+            it('detects Last Unicorn with hyphens: 978-0-451-45052-3', () => {
+                expect(detectIdentifierType('978-0-451-45052-3')).toBe('ISBN');
+            });
+
+            it('detects Last Unicorn ISBN-10: 0451450523', () => {
+                expect(detectIdentifierType('0451450523')).toBe('ISBN');
+            });
+
+            it('detects Last Unicorn ISBN-10 hyphens: 0-451-45052-3', () => {
+                expect(detectIdentifierType('0-451-45052-3')).toBe('ISBN');
+            });
+
+            it('detects Last Unicorn URN: urn:isbn:978-0-451-45052-3', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-451-45052-3')).toBe('ISBN');
+            });
+
+            it('detects Last Unicorn with tag: ISBN 978-0-451-45052-3', () => {
+                expect(detectIdentifierType('ISBN 978-0-451-45052-3')).toBe('ISBN');
+            });
+
+            // 3. German Publisher (Piper)
+            it('detects Piper compact: 9783492241245', () => {
+                expect(detectIdentifierType('9783492241245')).toBe('ISBN');
+            });
+
+            it('detects Piper with hyphens: 978-3-492-24124-5', () => {
+                expect(detectIdentifierType('978-3-492-24124-5')).toBe('ISBN');
+            });
+
+            it('detects Piper URN: urn:isbn:978-3-492-24124-5', () => {
+                expect(detectIdentifierType('urn:isbn:978-3-492-24124-5')).toBe('ISBN');
+            });
+
+            it('detects Piper with prefix: ISBN-13: 978-3-492-24124-5', () => {
+                expect(detectIdentifierType('ISBN-13: 978-3-492-24124-5')).toBe('ISBN');
+            });
+
+            it('detects Piper OpenEdition: https://isbn.openedition.org/978-3-492-24124-5', () => {
+                expect(detectIdentifierType('https://isbn.openedition.org/978-3-492-24124-5')).toBe('ISBN');
+            });
+
+            // 4. Oxford University Press (UK)
+            it('detects Oxford compact: 9780198758159', () => {
+                expect(detectIdentifierType('9780198758159')).toBe('ISBN');
+            });
+
+            it('detects Oxford with hyphens: 978-0-19-875815-9', () => {
+                expect(detectIdentifierType('978-0-19-875815-9')).toBe('ISBN');
+            });
+
+            it('detects Oxford URN: urn:isbn:978-0-19-875815-9', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-19-875815-9')).toBe('ISBN');
+            });
+
+            it('detects Oxford with tag: ISBN 978-0-19-875815-9', () => {
+                expect(detectIdentifierType('ISBN 978-0-19-875815-9')).toBe('ISBN');
+            });
+
+            // 5. French Publisher (Gallimard)
+            it('detects Gallimard compact: 9782070748921', () => {
+                expect(detectIdentifierType('9782070748921')).toBe('ISBN');
+            });
+
+            it('detects Gallimard with hyphens: 978-2-07-074892-1', () => {
+                expect(detectIdentifierType('978-2-07-074892-1')).toBe('ISBN');
+            });
+
+            it('detects Gallimard URN: urn:isbn:978-2-07-074892-1', () => {
+                expect(detectIdentifierType('urn:isbn:978-2-07-074892-1')).toBe('ISBN');
+            });
+
+            it('detects Gallimard OpenEdition: https://isbn.openedition.org/978-2-07-074892-1', () => {
+                expect(detectIdentifierType('https://isbn.openedition.org/978-2-07-074892-1')).toBe('ISBN');
+            });
+
+            // 6. Open Access eBook (OpenEdition)
+            it('detects OpenEdition eBook compact: 9782354102375', () => {
+                expect(detectIdentifierType('9782354102375')).toBe('ISBN');
+            });
+
+            it('detects OpenEdition eBook with hyphens: 978-2-35410-237-5', () => {
+                expect(detectIdentifierType('978-2-35410-237-5')).toBe('ISBN');
+            });
+
+            it('detects OpenEdition eBook URN: urn:isbn:978-2-35410-237-5', () => {
+                expect(detectIdentifierType('urn:isbn:978-2-35410-237-5')).toBe('ISBN');
+            });
+
+            it('detects OpenEdition resolver: https://isbn.openedition.org/978-2-35410-237-5', () => {
+                expect(detectIdentifierType('https://isbn.openedition.org/978-2-35410-237-5')).toBe('ISBN');
+            });
+
+            // 7. Japanese Publisher (Kodansha)
+            it('detects Kodansha compact: 9784065278345', () => {
+                expect(detectIdentifierType('9784065278345')).toBe('ISBN');
+            });
+
+            it('detects Kodansha with hyphens: 978-4-06-527834-5', () => {
+                expect(detectIdentifierType('978-4-06-527834-5')).toBe('ISBN');
+            });
+
+            it('detects Kodansha URN: urn:isbn:978-4-06-527834-5', () => {
+                expect(detectIdentifierType('urn:isbn:978-4-06-527834-5')).toBe('ISBN');
+            });
+
+            it('detects Kodansha with prefix: ISBN-13: 978-4-06-527834-5', () => {
+                expect(detectIdentifierType('ISBN-13: 978-4-06-527834-5')).toBe('ISBN');
+            });
+
+            // 8. E-Book (Electronic ISBN)
+            it('detects eBook compact: 9781481258327', () => {
+                expect(detectIdentifierType('9781481258327')).toBe('ISBN');
+            });
+
+            it('detects eBook with hyphens: 978-1-4812-5832-7', () => {
+                expect(detectIdentifierType('978-1-4812-5832-7')).toBe('ISBN');
+            });
+
+            it('detects eBook URN: urn:isbn:978-1-4812-5832-7', () => {
+                expect(detectIdentifierType('urn:isbn:978-1-4812-5832-7')).toBe('ISBN');
+            });
+
+            it('detects eBook format tag: ISBN (eBook): 978-1-4812-5832-7', () => {
+                expect(detectIdentifierType('ISBN (eBook): 978-1-4812-5832-7')).toBe('ISBN');
+            });
+
+            // 9. Audiobook (Audio ISBN)
+            it('detects Audiobook compact: 9780062468673', () => {
+                expect(detectIdentifierType('9780062468673')).toBe('ISBN');
+            });
+
+            it('detects Audiobook with hyphens: 978-0-06-246867-3', () => {
+                expect(detectIdentifierType('978-0-06-246867-3')).toBe('ISBN');
+            });
+
+            it('detects Audiobook URN: urn:isbn:978-0-06-246867-3', () => {
+                expect(detectIdentifierType('urn:isbn:978-0-06-246867-3')).toBe('ISBN');
+            });
+
+            it('detects Audiobook format tag: ISBN (Audio): 978-0-06-246867-3', () => {
+                expect(detectIdentifierType('ISBN (Audio): 978-0-06-246867-3')).toBe('ISBN');
+            });
+
+            // 10. New 979 Prefix (Modern Standard)
+            it('detects 979 prefix compact: 9791234567890', () => {
+                expect(detectIdentifierType('9791234567890')).toBe('ISBN');
+            });
+
+            it('detects 979 prefix with hyphens: 979-1-23-456789-0', () => {
+                expect(detectIdentifierType('979-1-23-456789-0')).toBe('ISBN');
+            });
+
+            it('detects 979 prefix URN: urn:isbn:979-1-23-456789-0', () => {
+                expect(detectIdentifierType('urn:isbn:979-1-23-456789-0')).toBe('ISBN');
+            });
+
+            it('detects 979 prefix with tag: ISBN-13: 979-1-23-456789-0', () => {
+                expect(detectIdentifierType('ISBN-13: 979-1-23-456789-0')).toBe('ISBN');
+            });
+        });
+
+        describe('ISBN should NOT be detected for non-ISBN identifiers', () => {
+            it('should not detect plain URLs as ISBN', () => {
+                expect(detectIdentifierType('https://example.com/resource')).not.toBe('ISBN');
+            });
+
+            it('should not detect DOIs as ISBN', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('ISBN');
+            });
+
+            it('should not detect arXiv IDs as ISBN', () => {
+                expect(detectIdentifierType('2501.13958')).not.toBe('ISBN');
+            });
+
+            it('should not detect bibcodes as ISBN', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).not.toBe('ISBN');
+            });
+
+            it('should not detect handles as ISBN', () => {
+                expect(detectIdentifierType('11234/56789')).not.toBe('ISBN');
+            });
+
+            it('should not detect ARK as ISBN', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('ISBN');
+            });
+
+            it('should not detect CSTR as ISBN', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).not.toBe('ISBN');
+            });
+
+            it('should not detect non-978/979 EAN-13 as ISBN', () => {
+                expect(detectIdentifierType('4006381333931')).not.toBe('ISBN');
+            });
+
+            it('should not detect EISSN as ISBN', () => {
+                expect(detectIdentifierType('0378-5955')).not.toBe('ISBN');
+            });
+
+            it('should not detect IGSN as ISBN', () => {
+                expect(detectIdentifierType('igsn:AU1101')).not.toBe('ISBN');
+            });
+
+            it('should not detect 9-digit number as ISBN', () => {
+                expect(detectIdentifierType('123456789')).not.toBe('ISBN');
+            });
+
+            it('should not detect 11-digit number as ISBN', () => {
+                expect(detectIdentifierType('12345678901')).not.toBe('ISBN');
             });
         });
     });
