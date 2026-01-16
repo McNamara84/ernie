@@ -86,6 +86,28 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'bibcode';
     }
 
+    // CSTR (China Science and Technology Resource) URL patterns
+    // Matches: https://identifiers.org/cstr:..., https://bioregistry.io/cstr:...
+    if (trimmed.match(/^https?:\/\/(?:identifiers\.org|bioregistry\.io)\/cstr:/i)) {
+        return 'CSTR';
+    }
+
+    // CSTR with prefix: CSTR:RA_CODE.TYPE.NAMESPACE.LOCAL_ID or cstr:...
+    // Format: CSTR:NNNNN.NN.namespace.local_id
+    // RA_CODE is typically 5 digits (e.g., 31253, 50001)
+    // TYPE is typically 2 digits (e.g., 11, 22)
+    // NAMESPACE and LOCAL_ID can contain letters, numbers, underscores, hyphens, dots, tildes
+    if (trimmed.match(/^cstr:\d{5}\.\d{2}\.\S+/i)) {
+        return 'CSTR';
+    }
+
+    // CSTR bare format (without prefix): RA_CODE.TYPE.NAMESPACE.LOCAL_ID
+    // Must start with 5 digits, then 2 digits after dot, then namespace/id
+    // This is less common but valid
+    if (trimmed.match(/^\d{5}\.\d{2}\.[A-Za-z_][A-Za-z0-9_.~-]*\.\S+$/)) {
+        return 'CSTR';
+    }
+
     // ARK with resolver URL patterns (must be checked before generic URL)
     // Matches various ARK resolvers: n2t.net, ark.bnf.fr, familysearch.org, archive.org, data.bnf.fr, etc.
     // ARK format in URL: https://resolver/ark:/NAAN/Name or https://resolver/ark:NAAN/Name

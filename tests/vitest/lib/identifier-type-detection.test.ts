@@ -525,6 +525,191 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    describe('bibcode detection', () => {
+        /**
+         * Bibcodes are 19-character identifiers used by the Astrophysics Data System (ADS)
+         * Format: YYYYJJJJJVVVVMPPPPA
+         * - YYYY = 4-digit year
+         * - JJJJJ = 5-character journal abbreviation (padded with dots)
+         * - VVVV = 4-character volume number (padded with dots)
+         * - M = qualifier (L for letter, A for article number, . for normal)
+         * - PPPP = 4-character page number (padded with dots)
+         * - A = first letter of first author's last name
+         */
+
+        describe('standard journal bibcodes', () => {
+            it('detects Astronomical Journal bibcode', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).toBe('bibcode');
+            });
+
+            it('detects Astronomical Journal bibcode with single digit page', () => {
+                expect(detectIdentifierType('2024AJ....167....5L')).toBe('bibcode');
+            });
+
+            it('detects Astrophysical Journal bibcode with Letter qualifier', () => {
+                expect(detectIdentifierType('1970ApJ...161L..77K')).toBe('bibcode');
+            });
+
+            it('detects classic Astronomical Journal bibcode', () => {
+                expect(detectIdentifierType('1974AJ.....79..819H')).toBe('bibcode');
+            });
+
+            it('detects Monthly Notices of the Royal Astronomical Society bibcode', () => {
+                expect(detectIdentifierType('1924MNRAS..84..308E')).toBe('bibcode');
+            });
+
+            it('detects Astrophysical Journal Letters bibcode', () => {
+                expect(detectIdentifierType('2024ApJ...963L...2S')).toBe('bibcode');
+            });
+
+            it('detects Astrophysical Journal standard bibcode', () => {
+                expect(detectIdentifierType('2023ApJ...958...84B')).toBe('bibcode');
+            });
+        });
+
+        describe('bibcodes with special characters', () => {
+            it('detects Astronomy & Astrophysics bibcode (with ampersand)', () => {
+                expect(detectIdentifierType('2024A&A...687A..74T')).toBe('bibcode');
+            });
+
+            it('detects A&A with article number qualifier', () => {
+                expect(detectIdentifierType('2023A&A...680A.123B')).toBe('bibcode');
+            });
+        });
+
+        describe('special bibcode formats', () => {
+            it('detects arXiv preprint tracked in ADS', () => {
+                expect(detectIdentifierType('2024arXiv240413032B')).toBe('bibcode');
+            });
+
+            it('detects JWST proposal bibcode', () => {
+                expect(detectIdentifierType('2023jwst.prop.4537H')).toBe('bibcode');
+            });
+
+            it('detects PhD thesis bibcode', () => {
+                expect(detectIdentifierType('2020PhDT........15M')).toBe('bibcode');
+            });
+
+            it('detects Science journal bibcode', () => {
+                expect(detectIdentifierType('2024Sci...383..988G')).toBe('bibcode');
+            });
+
+            it('detects Nature journal bibcode', () => {
+                expect(detectIdentifierType('2024Natur.625..253K')).toBe('bibcode');
+            });
+        });
+
+        describe('ADS URL formats', () => {
+            it('detects ui.adsabs.harvard.edu URL', () => {
+                expect(detectIdentifierType('https://ui.adsabs.harvard.edu/abs/2024AJ....167...20Z')).toBe('bibcode');
+            });
+
+            it('detects adsabs.harvard.edu URL (without ui prefix)', () => {
+                expect(detectIdentifierType('https://adsabs.harvard.edu/abs/2024AJ....167...20Z')).toBe('bibcode');
+            });
+
+            it('detects ADS URL with abstract suffix', () => {
+                expect(detectIdentifierType('https://ui.adsabs.harvard.edu/abs/2024AJ....167...20Z/abstract')).toBe(
+                    'bibcode',
+                );
+            });
+
+            it('detects ADS URL with references suffix', () => {
+                expect(detectIdentifierType('https://ui.adsabs.harvard.edu/abs/2024AJ....167...20Z/references')).toBe(
+                    'bibcode',
+                );
+            });
+
+            it('detects ADS URL with A&A bibcode (URL encoded ampersand)', () => {
+                expect(detectIdentifierType('https://ui.adsabs.harvard.edu/abs/2024A%26A...687A..74T')).toBe('bibcode');
+            });
+
+            it('detects http ADS URL', () => {
+                expect(detectIdentifierType('http://ui.adsabs.harvard.edu/abs/2024AJ....167...20Z')).toBe('bibcode');
+            });
+        });
+
+        describe('bibcode case handling', () => {
+            it('detects lowercase journal abbreviation', () => {
+                // Journal abbreviations in bibcodes are case-sensitive but ADS accepts both
+                expect(detectIdentifierType('2024aj....167...20Z')).toBe('bibcode');
+            });
+
+            it('detects mixed case bibcode', () => {
+                expect(detectIdentifierType('2024Aj....167...20Z')).toBe('bibcode');
+            });
+        });
+
+        describe('bibcode edge cases', () => {
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  2024AJ....167...20Z  ')).toBe('bibcode');
+            });
+
+            it('handles ADS URL with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  https://ui.adsabs.harvard.edu/abs/2024AJ....167...20Z  ')).toBe(
+                    'bibcode',
+                );
+            });
+        });
+
+        describe('real-world bibcode examples from user requirements', () => {
+            const realWorldBibcodes = [
+                { input: '2024AJ....167...20Z', description: 'Breakthrough Listen Study' },
+                { input: '2024AJ....167....5L', description: 'JWST Brown Dwarf' },
+                { input: '1970ApJ...161L..77K', description: 'Historical with Letter marker' },
+                { input: '1974AJ.....79..819H', description: 'Classic paper' },
+                { input: '1924MNRAS..84..308E', description: 'Eddington 1924' },
+                { input: '2024ApJ...963L...2S', description: 'JWST Letters' },
+                { input: '2023ApJ...958...84B', description: 'Complex Organic Molecules' },
+                { input: '2024A&A...687A..74T', description: 'A&A with ampersand' },
+                { input: '2024arXiv240413032B', description: 'arXiv tracked in ADS' },
+                { input: '2023jwst.prop.4537H', description: 'JWST Proposal' },
+            ];
+
+            realWorldBibcodes.forEach(({ input, description }) => {
+                it(`detects ${description}: ${input}`, () => {
+                    expect(detectIdentifierType(input)).toBe('bibcode');
+                });
+            });
+        });
+
+        describe('bibcode should NOT be detected for non-bibcode identifiers', () => {
+            it('should not detect plain URLs as bibcode', () => {
+                expect(detectIdentifierType('https://example.com/path')).not.toBe('bibcode');
+            });
+
+            it('should not detect DOIs as bibcode', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('bibcode');
+            });
+
+            it('should not detect arXiv IDs as bibcode', () => {
+                // arXiv ID format is different from ADS arXiv bibcode format
+                expect(detectIdentifierType('2501.13958')).not.toBe('bibcode');
+            });
+
+            it('should not detect arXiv with prefix as bibcode', () => {
+                expect(detectIdentifierType('arXiv:2501.13958')).not.toBe('bibcode');
+            });
+
+            it('should not detect handles as bibcode', () => {
+                expect(detectIdentifierType('11234/56789')).not.toBe('bibcode');
+            });
+
+            it('should not detect ARK as bibcode', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('bibcode');
+            });
+
+            it('should not detect random 19-character string as bibcode', () => {
+                // 19 chars but doesn't match bibcode pattern
+                expect(detectIdentifierType('ABCDEFGHIJKLMNOPQRS')).not.toBe('bibcode');
+            });
+
+            it('should not detect string starting with non-digit as bibcode', () => {
+                expect(detectIdentifierType('ABCD1234567890ABCDE')).not.toBe('bibcode');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {

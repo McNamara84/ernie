@@ -253,6 +253,103 @@ test.describe('Related Work Identifier Type Detection', () => {
         });
     });
 
+    test.describe('bibcode Detection', () => {
+        /**
+         * Bibcodes are 19-character identifiers used by the Astrophysics Data System (ADS)
+         * Format: YYYYJJJJJVVVVMPPPPA
+         * - YYYY = 4-digit year
+         * - JJJJJ = 5-character journal abbreviation (padded with dots)
+         * - VVVV = 4-character volume number (padded with dots)
+         * - M = qualifier (L for letter, A for article number, . for normal)
+         * - PPPP = 4-character page number (padded with dots)
+         * - A = first letter of first author's last name
+         */
+
+        test.describe('standard journal bibcodes', () => {
+            test('detects Astronomical Journal bibcode: 2024AJ....167...20Z', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2024AJ....167...20Z', 'bibcode');
+            });
+
+            test('detects AJ bibcode with single digit page: 2024AJ....167....5L', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2024AJ....167....5L', 'bibcode');
+            });
+
+            test('detects ApJ bibcode with Letter qualifier: 1970ApJ...161L..77K', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '1970ApJ...161L..77K', 'bibcode');
+            });
+
+            test('detects classic AJ bibcode: 1974AJ.....79..819H', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '1974AJ.....79..819H', 'bibcode');
+            });
+
+            test('detects MNRAS bibcode: 1924MNRAS..84..308E', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '1924MNRAS..84..308E', 'bibcode');
+            });
+
+            test('detects ApJ Letters bibcode: 2024ApJ...963L...2S', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2024ApJ...963L...2S', 'bibcode');
+            });
+
+            test('detects standard ApJ bibcode: 2023ApJ...958...84B', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2023ApJ...958...84B', 'bibcode');
+            });
+        });
+
+        test.describe('bibcodes with special characters', () => {
+            test('detects A&A bibcode (with ampersand): 2024A&A...687A..74T', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2024A&A...687A..74T', 'bibcode');
+            });
+        });
+
+        test.describe('special bibcode formats', () => {
+            test('detects arXiv preprint tracked in ADS: 2024arXiv240413032B', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2024arXiv240413032B', 'bibcode');
+            });
+
+            test('detects JWST proposal bibcode: 2023jwst.prop.4537H', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2023jwst.prop.4537H', 'bibcode');
+            });
+
+            test('detects Science journal bibcode: 2024Sci...383..988G', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2024Sci...383..988G', 'bibcode');
+            });
+
+            test('detects Nature journal bibcode: 2024Natur.625..253K', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2024Natur.625..253K', 'bibcode');
+            });
+        });
+
+        test.describe('ADS URL formats', () => {
+            test('detects ui.adsabs.harvard.edu URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://ui.adsabs.harvard.edu/abs/2024AJ....167...20Z',
+                    'bibcode',
+                );
+            });
+
+            test('detects adsabs.harvard.edu URL (without ui prefix)', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://adsabs.harvard.edu/abs/2024AJ....167...20Z', 'bibcode');
+            });
+
+            test('detects ADS URL with abstract suffix', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://ui.adsabs.harvard.edu/abs/2024AJ....167...20Z/abstract',
+                    'bibcode',
+                );
+            });
+
+            test('detects ADS URL with A&A bibcode (URL encoded ampersand)', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://ui.adsabs.harvard.edu/abs/2024A%26A...687A..74T',
+                    'bibcode',
+                );
+            });
+        });
+    });
+
     test.describe('Non-DOI identifiers should not be detected as DOI', () => {
         test('detects plain URL as URL, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'https://example.com/resource', 'URL');
@@ -272,6 +369,10 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         test('detects arXiv as arXiv, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'arXiv:2501.13958', 'arXiv');
+        });
+
+        test('detects bibcode as bibcode, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, '2024AJ....167...20Z', 'bibcode');
         });
     });
 });
