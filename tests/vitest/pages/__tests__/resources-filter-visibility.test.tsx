@@ -11,6 +11,15 @@ vi.mock('@inertiajs/react', () => ({
         reload: vi.fn(),
         get: vi.fn(),
     },
+    usePage: () => ({
+        props: {
+            auth: {
+                user: {
+                    can_manage_landing_pages: true,
+                },
+            },
+        },
+    }),
 }));
 
 // Mock axios
