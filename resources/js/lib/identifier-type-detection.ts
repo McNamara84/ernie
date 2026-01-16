@@ -18,6 +18,41 @@ import type { IdentifierType } from '@/types';
 export function detectIdentifierType(value: string): IdentifierType {
     const trimmed = value.trim();
 
+    // IGSN (International Generic Sample Number) detection
+    // Must be checked before DOI since IGSN has DOI-like formats (10.60516/..., 10.58052/...)
+
+    // IGSN DOI URL patterns: https://doi.org/10.60516/..., https://doi.org/10.58052/..., etc.
+    // Known IGSN DOI prefixes: 10.60516 (Australia), 10.58052 (SESAR USA), 10.60510 (MARUM/ICDP/GFZ),
+    // 10.58108 (CSIRO), 10.58095 (MARUM)
+    if (trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/10\.(?:60516|58052|60510|58108|58095)\/\S+/i)) {
+        return 'IGSN';
+    }
+
+    // IGSN Legacy Handle URL: https://igsn.org/10.273/...
+    if (trimmed.match(/^https?:\/\/igsn\.org\/10\.273\/\S+/i)) {
+        return 'IGSN';
+    }
+
+    // IGSN with DOI prefix (bare): 10.60516/..., 10.58052/..., etc.
+    if (trimmed.match(/^10\.(?:60516|58052|60510|58108|58095)\/\S+$/)) {
+        return 'IGSN';
+    }
+
+    // IGSN Legacy Handle (bare): 10.273/...
+    if (trimmed.match(/^10\.273\/\S+$/)) {
+        return 'IGSN';
+    }
+
+    // IGSN with explicit prefix: IGSN CODE, IGSN:CODE, igsn:CODE
+    if (trimmed.match(/^igsn:?\s*[A-Za-z0-9]+$/i)) {
+        return 'IGSN';
+    }
+
+    // IGSN with URN format: urn:igsn:CODE
+    if (trimmed.match(/^urn:igsn:[A-Za-z0-9]+$/i)) {
+        return 'IGSN';
+    }
+
     // DOI with URL prefix (https://doi.org/... or https://dx.doi.org/...)
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
     if (doiUrlMatch) {
@@ -211,8 +246,36 @@ export function detectIdentifierType(value: string): IdentifierType {
 
     // Handle URL patterns (must be checked before generic URL)
     // Matches: http://hdl.handle.net/prefix/suffix or https://hdl.handle.net/prefix/suffix
-    if (trimmed.match(/^https?:\/\/hdl\.handle\.net\/\S+/i)) {
+    // Also matches API URLs: https://hdl.handle.net/api/handles/prefix/suffix
+    // And with query params: ?noredirect, ?auth
+    if (trimmed.match(/^https?:\/\/hdl\.handle\.net\/(?:api\/handles\/)?\S+/i)) {
         return 'Handle';
+    }
+
+    // Handle with hdl:// protocol: hdl://prefix/suffix
+    if (trimmed.match(/^hdl:\/\/\S+/i)) {
+        return 'Handle';
+    }
+
+    // Handle with URN format: urn:handle:prefix/suffix
+    if (trimmed.match(/^urn:handle:\S+/i)) {
+        return 'Handle';
+    }
+
+    // Handle with custom resolvers (e.g., GWDG)
+    // Matches: https://vm11.pid.gwdg.de:8445/objects/prefix/suffix
+    if (trimmed.match(/^https?:\/\/[^/]+\/objects\/\d+(?:\.\w+)?\/\S+/i)) {
+        return 'Handle';
+    }
+
+    // IGSN bare code format (must be before URL and Handle)
+    // IGSN codes are alphanumeric, typically 4-15 characters, starting with allocating agent prefix
+    // Common prefixes: AU (Australia), SSH (SESAR), BGR (Germany), ICDP, CSR (CSIRO), GFZ, MBCR (MARUM), ARDC
+    // Pattern: 2-4 letter prefix + alphanumeric suffix
+    // Note: This is a heuristic - bare codes without prefix are harder to detect reliably
+    // Examples: AU1101, SSH000SUA, BGRB5054RX05201, ICDP5054ESYI201, CSRWA275, GFZ000001ABC
+    if (trimmed.match(/^(?:AU|SSH|BGR[A-Z]?|ICDP|CSR[A-Z]?|GFZ|MBCR|ARDC)[A-Z0-9]{2,12}$/i)) {
+        return 'IGSN';
     }
 
     // URL patterns
@@ -220,8 +283,12 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'URL';
     }
 
-    // Handle patterns (bare format: prefix/suffix where prefix is numeric)
-    if (trimmed.match(/^\d+\/\S+$/)) {
+    // Handle patterns (bare format: prefix/suffix)
+    // Prefix can be:
+    // - Simple numeric: 2142/103380
+    // - With dots: 21.T11998/..., 21.11145/..., 10.1594/...
+    // Suffix can contain: alphanumerics, hyphens, underscores, dots, colons
+    if (trimmed.match(/^\d+(?:\.\w+)?\/\S+$/)) {
         return 'Handle';
     }
 

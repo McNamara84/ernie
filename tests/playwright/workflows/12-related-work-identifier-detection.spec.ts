@@ -639,6 +639,136 @@ test.describe('Related Work Identifier Type Detection', () => {
         });
     });
 
+    test.describe('Handle detection', () => {
+        /**
+         * Handle System identifiers are persistent identifiers for digital objects.
+         *
+         * Format: prefix/suffix
+         * - Prefix: Numeric or alphanumeric with dots (e.g., 2142, 21.T11998, 10.1594)
+         * - Suffix: Alphanumeric with hyphens, underscores, dots, colons
+         */
+
+        test.describe('Handle compact format', () => {
+            test('detects simple numeric prefix: 2142/103380', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2142/103380', 'Handle');
+            });
+
+            test('detects BiCIKL specimen: 11148/btv1b8449691v', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '11148/btv1b8449691v', 'Handle');
+            });
+
+            test('detects FDO type: 21.T11998/0000-001A-3905-1', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '21.T11998/0000-001A-3905-1', 'Handle');
+            });
+
+            test('detects PIDINST: 21.T11148/7adfcd13b3b01de0d875', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '21.T11148/7adfcd13b3b01de0d875', 'Handle');
+            });
+
+            test('detects GWDG: 21.11145/8fefa88dea', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '21.11145/8fefa88dea', 'Handle');
+            });
+
+            test('detects UUID-based: 11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', 'Handle');
+            });
+
+            test('detects hierarchical: 1234/test.object.climate.2024.v1', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '1234/test.object.climate.2024.v1', 'Handle');
+            });
+
+            test('detects descriptive: 2142/data_archive_collection_2024_001', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2142/data_archive_collection_2024_001', 'Handle');
+            });
+        });
+
+        test.describe('Handle with https resolver URL', () => {
+            test('detects https URL: https://hdl.handle.net/2142/103380', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://hdl.handle.net/2142/103380', 'Handle');
+            });
+
+            test('detects FDO https URL: https://hdl.handle.net/21.T11998/0000-001A-3905-1', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://hdl.handle.net/21.T11998/0000-001A-3905-1', 'Handle');
+            });
+
+            test('detects GWDG https URL: https://hdl.handle.net/21.11145/8fefa88dea', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://hdl.handle.net/21.11145/8fefa88dea', 'Handle');
+            });
+        });
+
+        test.describe('Handle with noredirect query parameter', () => {
+            test('detects URL with noredirect: https://hdl.handle.net/2142/103380?noredirect', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://hdl.handle.net/2142/103380?noredirect', 'Handle');
+            });
+
+            test('detects FDO with noredirect: https://hdl.handle.net/21.T11998/0000-001A-3905-1?noredirect', async ({
+                page,
+            }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://hdl.handle.net/21.T11998/0000-001A-3905-1?noredirect',
+                    'Handle',
+                );
+            });
+        });
+
+        test.describe('Handle REST API URLs', () => {
+            test('detects API URL: https://hdl.handle.net/api/handles/2142/103380', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://hdl.handle.net/api/handles/2142/103380', 'Handle');
+            });
+
+            test('detects FDO API URL: https://hdl.handle.net/api/handles/21.T11998/0000-001A-3905-1', async ({
+                page,
+            }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://hdl.handle.net/api/handles/21.T11998/0000-001A-3905-1',
+                    'Handle',
+                );
+            });
+        });
+
+        test.describe('Handle with hdl:// protocol', () => {
+            test('detects hdl:// protocol: hdl://11148/btv1b8449691v', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'hdl://11148/btv1b8449691v', 'Handle');
+            });
+
+            test('detects hdl:// for FDO: hdl://21.T11998/0000-001A-3905-1', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'hdl://21.T11998/0000-001A-3905-1', 'Handle');
+            });
+
+            test('detects hdl:// for CORDRA: hdl://21.T11148/c2c8c452912d57a44117', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'hdl://21.T11148/c2c8c452912d57a44117', 'Handle');
+            });
+        });
+
+        test.describe('Handle with URN format', () => {
+            test('detects URN format: urn:handle:2142/103380', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:handle:2142/103380', 'Handle');
+            });
+
+            test('detects URN for FDO: urn:handle:21.T11998/0000-001A-3905-1', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:handle:21.T11998/0000-001A-3905-1', 'Handle');
+            });
+
+            test('detects URN for GWDG: urn:handle:21.11145/8fefa88dea', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:handle:21.11145/8fefa88dea', 'Handle');
+            });
+        });
+
+        test.describe('Handle with custom resolvers', () => {
+            test('detects GWDG resolver: https://vm11.pid.gwdg.de:8445/objects/21.11145/8fefa88dea', async ({
+                page,
+            }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://vm11.pid.gwdg.de:8445/objects/21.11145/8fefa88dea',
+                    'Handle',
+                );
+            });
+        });
+    });
+
     test.describe('Non-DOI identifiers should not be detected as DOI', () => {
         test('detects plain URL as URL, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'https://example.com/resource', 'URL');
@@ -674,6 +804,160 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         test('detects EISSN as EISSN, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, '0378-5955', 'EISSN');
+        });
+
+        test('detects Handle with FDO prefix as Handle, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, '21.T11998/0000-001A-3905-1', 'Handle');
+        });
+
+        test('detects IGSN with igsn: prefix as IGSN, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, 'igsn:AU1101', 'IGSN');
+        });
+    });
+
+    test.describe('IGSN detection', () => {
+        /**
+         * IGSN (International Generic Sample Number) is a persistent identifier
+         * for physical samples in geoscience research.
+         *
+         * Formats tested:
+         * - Bare code: AU1101, SSH000SUA
+         * - With IGSN prefix: IGSN AU1101
+         * - With igsn: tag: igsn:AU1101
+         * - DOI form: 10.60516/AU1101
+         * - DOI URL: https://doi.org/10.60516/AU1101
+         * - Legacy Handle: https://igsn.org/10.273/AU1101
+         * - URN: urn:igsn:AU1101
+         */
+
+        test.describe('IGSN bare code format', () => {
+            test('detects Geoscience Australia IGSN: AU1101', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'AU1101', 'IGSN');
+            });
+
+            test('detects SESAR USA IGSN: SSH000SUA', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'SSH000SUA', 'IGSN');
+            });
+
+            test('detects BGR Germany IGSN: BGRB5054RX05201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'BGRB5054RX05201', 'IGSN');
+            });
+
+            test('detects ICDP IGSN: ICDP5054ESYI201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ICDP5054ESYI201', 'IGSN');
+            });
+
+            test('detects CSIRO IGSN: CSRWA275', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'CSRWA275', 'IGSN');
+            });
+
+            test('detects GFZ IGSN: GFZ000001ABC', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'GFZ000001ABC', 'IGSN');
+            });
+
+            test('detects MARUM IGSN: MBCR5034RC57001', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'MBCR5034RC57001', 'IGSN');
+            });
+
+            test('detects ARDC IGSN: ARDC2024001XYZ', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ARDC2024001XYZ', 'IGSN');
+            });
+        });
+
+        test.describe('IGSN with igsn: tag prefix', () => {
+            test('detects igsn:AU1101', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'igsn:AU1101', 'IGSN');
+            });
+
+            test('detects igsn:SSH000SUA', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'igsn:SSH000SUA', 'IGSN');
+            });
+
+            test('detects igsn:BGRB5054RX05201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'igsn:BGRB5054RX05201', 'IGSN');
+            });
+
+            test('detects igsn:ICDP5054ESYI201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'igsn:ICDP5054ESYI201', 'IGSN');
+            });
+        });
+
+        test.describe('IGSN DOI form (bare)', () => {
+            test('detects 10.60516/AU1101', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '10.60516/AU1101', 'IGSN');
+            });
+
+            test('detects 10.58052/SSH000SUA', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '10.58052/SSH000SUA', 'IGSN');
+            });
+
+            test('detects 10.60510/BGRB5054RX05201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '10.60510/BGRB5054RX05201', 'IGSN');
+            });
+
+            test('detects 10.58108/CSRWA275', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '10.58108/CSRWA275', 'IGSN');
+            });
+
+            test('detects 10.58095/MBCR5034RC57001', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '10.58095/MBCR5034RC57001', 'IGSN');
+            });
+        });
+
+        test.describe('IGSN DOI URL form', () => {
+            test('detects https://doi.org/10.60516/AU1101', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://doi.org/10.60516/AU1101', 'IGSN');
+            });
+
+            test('detects https://doi.org/10.58052/SSH000SUA', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://doi.org/10.58052/SSH000SUA', 'IGSN');
+            });
+
+            test('detects https://doi.org/10.60510/ICDP5054ESYI201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://doi.org/10.60510/ICDP5054ESYI201', 'IGSN');
+            });
+
+            test('detects https://doi.org/10.58108/CSRWA275', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://doi.org/10.58108/CSRWA275', 'IGSN');
+            });
+        });
+
+        test.describe('IGSN legacy Handle URL', () => {
+            test('detects https://igsn.org/10.273/AU1101', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://igsn.org/10.273/AU1101', 'IGSN');
+            });
+
+            test('detects https://igsn.org/10.273/BGRB5054RX05201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://igsn.org/10.273/BGRB5054RX05201', 'IGSN');
+            });
+        });
+
+        test.describe('IGSN URN format', () => {
+            test('detects urn:igsn:AU1101', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:igsn:AU1101', 'IGSN');
+            });
+
+            test('detects urn:igsn:SSH000SUA', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:igsn:SSH000SUA', 'IGSN');
+            });
+
+            test('detects urn:igsn:ICDP5054ESYI201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:igsn:ICDP5054ESYI201', 'IGSN');
+            });
+
+            test('detects urn:igsn:GFZ000001ABC', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:igsn:GFZ000001ABC', 'IGSN');
+            });
+        });
+
+        test.describe('IGSN case-insensitive handling', () => {
+            test('detects lowercase igsn:au1101', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'igsn:au1101', 'IGSN');
+            });
+
+            test('detects lowercase igsn:ssh000sua', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'igsn:ssh000sua', 'IGSN');
+            });
         });
     });
 });

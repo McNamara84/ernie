@@ -1956,6 +1956,1192 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    describe('Handle detection', () => {
+        /**
+         * Handle System identifiers are persistent identifiers for digital objects.
+         *
+         * Format: prefix/suffix
+         * - Prefix: Numeric or alphanumeric with dots (e.g., 2142, 21.T11998, 10.1594)
+         * - Suffix: Alphanumeric with hyphens, underscores, dots, colons
+         *
+         * Common patterns:
+         * - Simple numeric prefix: 2142/103380
+         * - DOI-style prefix: 10.1594/WDCC/CMIP5.NCCNMpc
+         * - FDO type prefix: 21.T11998/0000-001A-3905-1
+         * - Research prefix: 21.11145/8fefa88dea
+         *
+         * URLs:
+         * - hdl.handle.net: https://hdl.handle.net/prefix/suffix
+         * - API: https://hdl.handle.net/api/handles/prefix/suffix
+         * - hdl:// protocol: hdl://prefix/suffix
+         * - URN: urn:handle:prefix/suffix
+         */
+
+        describe('Handle compact format (prefix/suffix)', () => {
+            it('detects simple numeric prefix Handle: 2142/103380', () => {
+                expect(detectIdentifierType('2142/103380')).toBe('Handle');
+            });
+
+            it('detects BiCIKL specimen Handle: 11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects DOI-style prefix Handle: 10.1594/WDCC/CMIP5.NCCNMpc', () => {
+                expect(detectIdentifierType('10.1594/WDCC/CMIP5.NCCNMpc')).toBe('Handle');
+            });
+
+            it('detects FDO type Handle: 21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('21.T11998/0000-001A-3905-1')).toBe('Handle');
+            });
+
+            it('detects PIDINST instrument Handle: 21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('21.T11148/7adfcd13b3b01de0d875')).toBe('Handle');
+            });
+
+            it('detects CORDRA Handle: 21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('21.T11148/c2c8c452912d57a44117')).toBe('Handle');
+            });
+
+            it('detects GWDG Handle: 21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            it('detects UUID-based Handle: 11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(detectIdentifierType('11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000')).toBe('Handle');
+            });
+
+            it('detects hierarchical Handle: 1234/test.object.climate.2024.v1', () => {
+                expect(detectIdentifierType('1234/test.object.climate.2024.v1')).toBe('Handle');
+            });
+
+            it('detects descriptive Handle: 2142/data_archive_collection_2024_001', () => {
+                expect(detectIdentifierType('2142/data_archive_collection_2024_001')).toBe('Handle');
+            });
+        });
+
+        describe('Handle with http resolver URL', () => {
+            it('detects http hdl.handle.net URL: http://hdl.handle.net/2142/103380', () => {
+                expect(detectIdentifierType('http://hdl.handle.net/2142/103380')).toBe('Handle');
+            });
+
+            it('detects http URL for BiCIKL: http://hdl.handle.net/11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('http://hdl.handle.net/11148/btv1b8449691v')).toBe('Handle');
+            });
+        });
+
+        describe('Handle with https resolver URL', () => {
+            it('detects https hdl.handle.net URL: https://hdl.handle.net/2142/103380', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/103380')).toBe('Handle');
+            });
+
+            it('detects https URL for BiCIKL: https://hdl.handle.net/11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects https URL for WDCC: https://hdl.handle.net/10.1594/WDCC/CMIP5.NCCNMpc', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/10.1594/WDCC/CMIP5.NCCNMpc')).toBe('Handle');
+            });
+
+            it('detects https URL for FDO: https://hdl.handle.net/21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11998/0000-001A-3905-1')).toBe('Handle');
+            });
+
+            it('detects https URL for PIDINST: https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875')).toBe('Handle');
+            });
+
+            it('detects https URL for CORDRA: https://hdl.handle.net/21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/c2c8c452912d57a44117')).toBe('Handle');
+            });
+
+            it('detects https URL for GWDG: https://hdl.handle.net/21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            it('detects https URL for UUID: https://hdl.handle.net/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects https URL for hierarchical: https://hdl.handle.net/1234/test.object.climate.2024.v1', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/1234/test.object.climate.2024.v1')).toBe('Handle');
+            });
+
+            it('detects https URL for descriptive: https://hdl.handle.net/2142/data_archive_collection_2024_001', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/data_archive_collection_2024_001')).toBe(
+                    'Handle',
+                );
+            });
+        });
+
+        describe('Handle with noredirect query parameter', () => {
+            it('detects URL with noredirect: https://hdl.handle.net/2142/103380?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/103380?noredirect')).toBe('Handle');
+            });
+
+            it('detects BiCIKL with noredirect: https://hdl.handle.net/11148/btv1b8449691v?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/11148/btv1b8449691v?noredirect')).toBe('Handle');
+            });
+
+            it('detects FDO with noredirect: https://hdl.handle.net/21.T11998/0000-001A-3905-1?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11998/0000-001A-3905-1?noredirect')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects PIDINST with noredirect: https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875?noredirect')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects CORDRA with noredirect: https://hdl.handle.net/21.T11148/c2c8c452912d57a44117?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/c2c8c452912d57a44117?noredirect')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects hierarchical with noredirect: https://hdl.handle.net/1234/test.object.climate.2024.v1?noredirect', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/1234/test.object.climate.2024.v1?noredirect'),
+                ).toBe('Handle');
+            });
+        });
+
+        describe('Handle with auth query parameter', () => {
+            it('detects URL with auth: https://hdl.handle.net/2142/data_archive_collection_2024_001?auth', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/data_archive_collection_2024_001?auth')).toBe(
+                    'Handle',
+                );
+            });
+        });
+
+        describe('Handle REST API URLs', () => {
+            it('detects API URL: https://hdl.handle.net/api/handles/2142/103380', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/2142/103380')).toBe('Handle');
+            });
+
+            it('detects API URL for BiCIKL: https://hdl.handle.net/api/handles/11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects API URL for WDCC: https://hdl.handle.net/api/handles/10.1594/WDCC/CMIP5.NCCNMpc', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/10.1594/WDCC/CMIP5.NCCNMpc')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects API URL for FDO: https://hdl.handle.net/api/handles/21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.T11998/0000-001A-3905-1')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects API URL for PIDINST: https://hdl.handle.net/api/handles/21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.T11148/7adfcd13b3b01de0d875')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects API URL for CORDRA: https://hdl.handle.net/api/handles/21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.T11148/c2c8c452912d57a44117')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects API URL for GWDG: https://hdl.handle.net/api/handles/21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            it('detects API URL for UUID: https://hdl.handle.net/api/handles/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/api/handles/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000'),
+                ).toBe('Handle');
+            });
+
+            it('detects API URL for hierarchical: https://hdl.handle.net/api/handles/1234/test.object.climate.2024.v1', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/api/handles/1234/test.object.climate.2024.v1'),
+                ).toBe('Handle');
+            });
+
+            it('detects API URL for descriptive: https://hdl.handle.net/api/handles/2142/data_archive_collection_2024_001', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/api/handles/2142/data_archive_collection_2024_001'),
+                ).toBe('Handle');
+            });
+        });
+
+        describe('Handle with hdl:// protocol', () => {
+            it('detects hdl:// protocol: hdl://11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('hdl://11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects hdl:// for FDO: hdl://21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('hdl://21.T11998/0000-001A-3905-1')).toBe('Handle');
+            });
+
+            it('detects hdl:// for CORDRA: hdl://21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('hdl://21.T11148/c2c8c452912d57a44117')).toBe('Handle');
+            });
+
+            it('detects hdl:// for UUID: hdl://11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(detectIdentifierType('hdl://11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000')).toBe('Handle');
+            });
+
+            it('detects hdl:// for descriptive: hdl://2142/data_archive_collection_2024_001', () => {
+                expect(detectIdentifierType('hdl://2142/data_archive_collection_2024_001')).toBe('Handle');
+            });
+        });
+
+        describe('Handle with URN format', () => {
+            it('detects URN format: urn:handle:2142/103380', () => {
+                expect(detectIdentifierType('urn:handle:2142/103380')).toBe('Handle');
+            });
+
+            it('detects URN for BiCIKL: urn:handle:11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('urn:handle:11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects URN for FDO: urn:handle:21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('urn:handle:21.T11998/0000-001A-3905-1')).toBe('Handle');
+            });
+
+            it('detects URN for PIDINST: urn:handle:21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('urn:handle:21.T11148/7adfcd13b3b01de0d875')).toBe('Handle');
+            });
+
+            it('detects URN for GWDG: urn:handle:21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('urn:handle:21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            it('detects URN for hierarchical: urn:handle:1234/test.object.climate.2024.v1', () => {
+                expect(detectIdentifierType('urn:handle:1234/test.object.climate.2024.v1')).toBe('Handle');
+            });
+        });
+
+        describe('Handle with custom resolvers', () => {
+            it('detects GWDG resolver URL: https://vm11.pid.gwdg.de:8445/objects/21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('https://vm11.pid.gwdg.de:8445/objects/21.11145/8fefa88dea')).toBe(
+                    'Handle',
+                );
+            });
+        });
+
+        describe('Handle edge cases', () => {
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  2142/103380  ')).toBe('Handle');
+            });
+
+            it('handles URL with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  https://hdl.handle.net/2142/103380  ')).toBe('Handle');
+            });
+
+            it('handles URN with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  urn:handle:11148/btv1b8449691v  ')).toBe('Handle');
+            });
+
+            it('handles hdl:// with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  hdl://21.T11998/0000-001A-3905-1  ')).toBe('Handle');
+            });
+        });
+
+        describe('real-world Handle examples from user requirements', () => {
+            // 1. Library of Congress (LOC) Handle
+            it('detects LOC compact: 2142/103380', () => {
+                expect(detectIdentifierType('2142/103380')).toBe('Handle');
+            });
+
+            it('detects LOC http resolver: http://hdl.handle.net/2142/103380', () => {
+                expect(detectIdentifierType('http://hdl.handle.net/2142/103380')).toBe('Handle');
+            });
+
+            it('detects LOC https resolver: https://hdl.handle.net/2142/103380', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/103380')).toBe('Handle');
+            });
+
+            it('detects LOC with noredirect: https://hdl.handle.net/2142/103380?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/103380?noredirect')).toBe('Handle');
+            });
+
+            it('detects LOC REST API: https://hdl.handle.net/api/handles/2142/103380', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/2142/103380')).toBe('Handle');
+            });
+
+            it('detects LOC URN: urn:handle:2142/103380', () => {
+                expect(detectIdentifierType('urn:handle:2142/103380')).toBe('Handle');
+            });
+
+            // 2. BiCIKL Digital Specimen Handle
+            it('detects BiCIKL compact: 11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects BiCIKL https: https://hdl.handle.net/11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects BiCIKL hdl protocol: hdl://11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('hdl://11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects BiCIKL noredirect: https://hdl.handle.net/11148/btv1b8449691v?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/11148/btv1b8449691v?noredirect')).toBe('Handle');
+            });
+
+            it('detects BiCIKL API: https://hdl.handle.net/api/handles/11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            it('detects BiCIKL URN: urn:handle:11148/btv1b8449691v', () => {
+                expect(detectIdentifierType('urn:handle:11148/btv1b8449691v')).toBe('Handle');
+            });
+
+            // 3. WDCC Climate Data (DOI-style prefix)
+            it('detects WDCC compact: 10.1594/WDCC/CMIP5.NCCNMpc', () => {
+                expect(detectIdentifierType('10.1594/WDCC/CMIP5.NCCNMpc')).toBe('Handle');
+            });
+
+            it('detects WDCC Handle URL: https://hdl.handle.net/10.1594/WDCC/CMIP5.NCCNMpc', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/10.1594/WDCC/CMIP5.NCCNMpc')).toBe('Handle');
+            });
+
+            it('detects WDCC API: https://hdl.handle.net/api/handles/10.1594/WDCC/CMIP5.NCCNMpc', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/10.1594/WDCC/CMIP5.NCCNMpc')).toBe(
+                    'Handle',
+                );
+            });
+
+            // 4. FAIR Digital Object Type Definition
+            it('detects FDO compact: 21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('21.T11998/0000-001A-3905-1')).toBe('Handle');
+            });
+
+            it('detects FDO https with noredirect: https://hdl.handle.net/21.T11998/0000-001A-3905-1?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11998/0000-001A-3905-1?noredirect')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects FDO hdl protocol: hdl://21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('hdl://21.T11998/0000-001A-3905-1')).toBe('Handle');
+            });
+
+            it('detects FDO API: https://hdl.handle.net/api/handles/21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.T11998/0000-001A-3905-1')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects FDO URN: urn:handle:21.T11998/0000-001A-3905-1', () => {
+                expect(detectIdentifierType('urn:handle:21.T11998/0000-001A-3905-1')).toBe('Handle');
+            });
+
+            // 5. PIDINST Instrument Identifier
+            it('detects PIDINST compact: 21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('21.T11148/7adfcd13b3b01de0d875')).toBe('Handle');
+            });
+
+            it('detects PIDINST https: https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875')).toBe('Handle');
+            });
+
+            it('detects PIDINST noredirect: https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/7adfcd13b3b01de0d875?noredirect')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects PIDINST API: https://hdl.handle.net/api/handles/21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.T11148/7adfcd13b3b01de0d875')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects PIDINST URN: urn:handle:21.T11148/7adfcd13b3b01de0d875', () => {
+                expect(detectIdentifierType('urn:handle:21.T11148/7adfcd13b3b01de0d875')).toBe('Handle');
+            });
+
+            // 6. CORDRA FDO Record Handle
+            it('detects CORDRA compact: 21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('21.T11148/c2c8c452912d57a44117')).toBe('Handle');
+            });
+
+            it('detects CORDRA https: https://hdl.handle.net/21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/c2c8c452912d57a44117')).toBe('Handle');
+            });
+
+            it('detects CORDRA API: https://hdl.handle.net/api/handles/21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.T11148/c2c8c452912d57a44117')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects CORDRA noredirect: https://hdl.handle.net/21.T11148/c2c8c452912d57a44117?noredirect', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.T11148/c2c8c452912d57a44117?noredirect')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects CORDRA hdl protocol: hdl://21.T11148/c2c8c452912d57a44117', () => {
+                expect(detectIdentifierType('hdl://21.T11148/c2c8c452912d57a44117')).toBe('Handle');
+            });
+
+            // 7. GWDG Research Infrastructure Handle
+            it('detects GWDG compact: 21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            it('detects GWDG custom resolver: https://vm11.pid.gwdg.de:8445/objects/21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('https://vm11.pid.gwdg.de:8445/objects/21.11145/8fefa88dea')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects GWDG hdl.handle.net: https://hdl.handle.net/21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            it('detects GWDG API: https://hdl.handle.net/api/handles/21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            it('detects GWDG URN: urn:handle:21.11145/8fefa88dea', () => {
+                expect(detectIdentifierType('urn:handle:21.11145/8fefa88dea')).toBe('Handle');
+            });
+
+            // 8. UUID-based Handle
+            it('detects UUID compact: 11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(detectIdentifierType('11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000')).toBe('Handle');
+            });
+
+            it('detects UUID https: https://hdl.handle.net/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects UUID hdl protocol: hdl://11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(detectIdentifierType('hdl://11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000')).toBe('Handle');
+            });
+
+            it('detects UUID API: https://hdl.handle.net/api/handles/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/api/handles/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000'),
+                ).toBe('Handle');
+            });
+
+            it('detects UUID noredirect: https://hdl.handle.net/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000?noredirect', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/11148/d041e5f0-a1b2-c3d4-e5f6-789abcdef000?noredirect'),
+                ).toBe('Handle');
+            });
+
+            // 9. Hierarchisch strukturierter Handle
+            it('detects hierarchical compact: 1234/test.object.climate.2024.v1', () => {
+                expect(detectIdentifierType('1234/test.object.climate.2024.v1')).toBe('Handle');
+            });
+
+            it('detects hierarchical https: https://hdl.handle.net/1234/test.object.climate.2024.v1', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/1234/test.object.climate.2024.v1')).toBe('Handle');
+            });
+
+            it('detects hierarchical API: https://hdl.handle.net/api/handles/1234/test.object.climate.2024.v1', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/api/handles/1234/test.object.climate.2024.v1')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects hierarchical noredirect: https://hdl.handle.net/1234/test.object.climate.2024.v1?noredirect', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/1234/test.object.climate.2024.v1?noredirect'),
+                ).toBe('Handle');
+            });
+
+            it('detects hierarchical URN: urn:handle:1234/test.object.climate.2024.v1', () => {
+                expect(detectIdentifierType('urn:handle:1234/test.object.climate.2024.v1')).toBe('Handle');
+            });
+
+            // 10. Generischer Organisations-Handle
+            it('detects descriptive compact: 2142/data_archive_collection_2024_001', () => {
+                expect(detectIdentifierType('2142/data_archive_collection_2024_001')).toBe('Handle');
+            });
+
+            it('detects descriptive https: https://hdl.handle.net/2142/data_archive_collection_2024_001', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/data_archive_collection_2024_001')).toBe(
+                    'Handle',
+                );
+            });
+
+            it('detects descriptive hdl protocol: hdl://2142/data_archive_collection_2024_001', () => {
+                expect(detectIdentifierType('hdl://2142/data_archive_collection_2024_001')).toBe('Handle');
+            });
+
+            it('detects descriptive API: https://hdl.handle.net/api/handles/2142/data_archive_collection_2024_001', () => {
+                expect(
+                    detectIdentifierType('https://hdl.handle.net/api/handles/2142/data_archive_collection_2024_001'),
+                ).toBe('Handle');
+            });
+
+            it('detects descriptive auth: https://hdl.handle.net/2142/data_archive_collection_2024_001?auth', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2142/data_archive_collection_2024_001?auth')).toBe(
+                    'Handle',
+                );
+            });
+        });
+
+        describe('Handle should NOT be detected for non-Handle identifiers', () => {
+            it('should not detect plain URLs as Handle', () => {
+                expect(detectIdentifierType('https://example.com/resource')).not.toBe('Handle');
+            });
+
+            it('should not detect arXiv IDs as Handle', () => {
+                expect(detectIdentifierType('2501.13958')).not.toBe('Handle');
+            });
+
+            it('should not detect bibcodes as Handle', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).not.toBe('Handle');
+            });
+
+            it('should not detect ARK as Handle', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('Handle');
+            });
+
+            it('should not detect CSTR as Handle', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).not.toBe('Handle');
+            });
+
+            it('should not detect EAN-13 as Handle', () => {
+                expect(detectIdentifierType('4006381333931')).not.toBe('Handle');
+            });
+
+            it('should not detect EISSN as Handle', () => {
+                expect(detectIdentifierType('0378-5955')).not.toBe('Handle');
+            });
+
+            it('should not detect text without slash as Handle', () => {
+                expect(detectIdentifierType('just-some-text')).not.toBe('Handle');
+            });
+        });
+    });
+
+    describe('IGSN detection', () => {
+        /**
+         * IGSN (International Generic Sample Number) is a persistent identifier
+         * for physical samples in geoscience research.
+         *
+         * Format variations:
+         * - Bare code: AU1101, SSH000SUA, BGRB5054RX05201
+         * - With IGSN prefix: IGSN AU1101, IGSN:AU1101
+         * - With igsn: tag: igsn:AU1101
+         * - DOI form: 10.60516/AU1101, 10.58052/SSH000SUA
+         * - DOI URL: https://doi.org/10.60516/AU1101
+         * - Legacy Handle: https://igsn.org/10.273/AU1101
+         * - URN: urn:igsn:AU1101
+         */
+
+        describe('IGSN bare code format', () => {
+            it('detects Geoscience Australia IGSN: AU1101', () => {
+                expect(detectIdentifierType('AU1101')).toBe('IGSN');
+            });
+
+            it('detects SESAR USA IGSN: SSH000SUA', () => {
+                expect(detectIdentifierType('SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects BGR Germany IGSN: BGRB5054RX05201', () => {
+                expect(detectIdentifierType('BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects ICDP IGSN: ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects ICDP borehole IGSN: ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects CSIRO IGSN: CSRWA275', () => {
+                expect(detectIdentifierType('CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects CSIRO collection IGSN: CSRWASC00001', () => {
+                expect(detectIdentifierType('CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects GFZ IGSN: GFZ000001ABC', () => {
+                expect(detectIdentifierType('GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects MARUM IGSN: MBCR5034RC57001', () => {
+                expect(detectIdentifierType('MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects ARDC IGSN: ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('ARDC2024001XYZ')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN with IGSN prefix', () => {
+            it('detects IGSN space prefix: IGSN AU1101', () => {
+                expect(detectIdentifierType('IGSN AU1101')).toBe('IGSN');
+            });
+
+            it('detects IGSN space prefix: IGSN SSH000SUA', () => {
+                expect(detectIdentifierType('IGSN SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects IGSN space prefix: IGSN BGRB5054RX05201', () => {
+                expect(detectIdentifierType('IGSN BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects IGSN space prefix: IGSN ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('IGSN ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects IGSN space prefix: IGSN CSRWA275', () => {
+                expect(detectIdentifierType('IGSN CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects IGSN space prefix: IGSN GFZ000001ABC', () => {
+                expect(detectIdentifierType('IGSN GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects IGSN space prefix: IGSN ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('IGSN ARDC2024001XYZ')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN with igsn: tag prefix', () => {
+            it('detects igsn: tag: igsn:AU1101', () => {
+                expect(detectIdentifierType('igsn:AU1101')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:SSH000SUA', () => {
+                expect(detectIdentifierType('igsn:SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:BGRB5054RX05201', () => {
+                expect(detectIdentifierType('igsn:BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('igsn:ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('igsn:ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:CSRWA275', () => {
+                expect(detectIdentifierType('igsn:CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:CSRWASC00001', () => {
+                expect(detectIdentifierType('igsn:CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:GFZ000001ABC', () => {
+                expect(detectIdentifierType('igsn:GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:MBCR5034RC57001', () => {
+                expect(detectIdentifierType('igsn:MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects igsn: tag: igsn:ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('igsn:ARDC2024001XYZ')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN DOI form (bare)', () => {
+            it('detects IGSN DOI: 10.60516/AU1101', () => {
+                expect(detectIdentifierType('10.60516/AU1101')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.58052/SSH000SUA', () => {
+                expect(detectIdentifierType('10.58052/SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.60510/BGRB5054RX05201', () => {
+                expect(detectIdentifierType('10.60510/BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.60510/ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('10.60510/ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.60510/ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('10.60510/ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.58108/CSRWA275', () => {
+                expect(detectIdentifierType('10.58108/CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.58108/CSRWASC00001', () => {
+                expect(detectIdentifierType('10.58108/CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.60510/GFZ000001ABC', () => {
+                expect(detectIdentifierType('10.60510/GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.58095/MBCR5034RC57001', () => {
+                expect(detectIdentifierType('10.58095/MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI: 10.60516/ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('10.60516/ARDC2024001XYZ')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN DOI URL form', () => {
+            it('detects IGSN DOI URL: https://doi.org/10.60516/AU1101', () => {
+                expect(detectIdentifierType('https://doi.org/10.60516/AU1101')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.58052/SSH000SUA', () => {
+                expect(detectIdentifierType('https://doi.org/10.58052/SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.60510/BGRB5054RX05201', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.60510/ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.60510/ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.58108/CSRWA275', () => {
+                expect(detectIdentifierType('https://doi.org/10.58108/CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.58108/CSRWASC00001', () => {
+                expect(detectIdentifierType('https://doi.org/10.58108/CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.60510/GFZ000001ABC', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.58095/MBCR5034RC57001', () => {
+                expect(detectIdentifierType('https://doi.org/10.58095/MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects IGSN DOI URL: https://doi.org/10.60516/ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('https://doi.org/10.60516/ARDC2024001XYZ')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN legacy Handle URL', () => {
+            it('detects legacy Handle: https://igsn.org/10.273/AU1101', () => {
+                expect(detectIdentifierType('https://igsn.org/10.273/AU1101')).toBe('IGSN');
+            });
+
+            it('detects legacy Handle: https://igsn.org/10.273/BGRB5054RX05201', () => {
+                expect(detectIdentifierType('https://igsn.org/10.273/BGRB5054RX05201')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN URN format', () => {
+            it('detects URN: urn:igsn:AU1101', () => {
+                expect(detectIdentifierType('urn:igsn:AU1101')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:SSH000SUA', () => {
+                expect(detectIdentifierType('urn:igsn:SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:BGRB5054RX05201', () => {
+                expect(detectIdentifierType('urn:igsn:BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('urn:igsn:ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('urn:igsn:ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:CSRWA275', () => {
+                expect(detectIdentifierType('urn:igsn:CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:CSRWASC00001', () => {
+                expect(detectIdentifierType('urn:igsn:CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:GFZ000001ABC', () => {
+                expect(detectIdentifierType('urn:igsn:GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:MBCR5034RC57001', () => {
+                expect(detectIdentifierType('urn:igsn:MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects URN: urn:igsn:ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('urn:igsn:ARDC2024001XYZ')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN case-insensitive handling', () => {
+            it('detects lowercase igsn: tag: igsn:au1101', () => {
+                expect(detectIdentifierType('igsn:au1101')).toBe('IGSN');
+            });
+
+            it('detects lowercase bare code: ssh000sua', () => {
+                expect(detectIdentifierType('ssh000sua')).toBe('IGSN');
+            });
+
+            it('detects lowercase igsn: tag: igsn:icdp5054esyi201', () => {
+                expect(detectIdentifierType('igsn:icdp5054esyi201')).toBe('IGSN');
+            });
+
+            it('detects lowercase igsn: tag: igsn:csrwa275', () => {
+                expect(detectIdentifierType('igsn:csrwa275')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN edge cases', () => {
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  IGSN AU1101  ')).toBe('IGSN');
+            });
+
+            it('handles DOI URL with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  https://doi.org/10.60516/AU1101  ')).toBe('IGSN');
+            });
+
+            it('handles URN with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  urn:igsn:SSH000SUA  ')).toBe('IGSN');
+            });
+        });
+
+        describe('real-world IGSN examples from user requirements', () => {
+            // 1. Geoscience Australia Sample
+            it('detects AU bare code: AU1101', () => {
+                expect(detectIdentifierType('AU1101')).toBe('IGSN');
+            });
+
+            it('detects AU with IGSN prefix: IGSN AU1101', () => {
+                expect(detectIdentifierType('IGSN AU1101')).toBe('IGSN');
+            });
+
+            it('detects AU with igsn: tag: igsn:AU1101', () => {
+                expect(detectIdentifierType('igsn:AU1101')).toBe('IGSN');
+            });
+
+            it('detects AU DOI form: 10.60516/AU1101', () => {
+                expect(detectIdentifierType('10.60516/AU1101')).toBe('IGSN');
+            });
+
+            it('detects AU DOI URL: https://doi.org/10.60516/AU1101', () => {
+                expect(detectIdentifierType('https://doi.org/10.60516/AU1101')).toBe('IGSN');
+            });
+
+            it('detects AU legacy Handle: https://igsn.org/10.273/AU1101', () => {
+                expect(detectIdentifierType('https://igsn.org/10.273/AU1101')).toBe('IGSN');
+            });
+
+            it('detects AU URN: urn:igsn:AU1101', () => {
+                expect(detectIdentifierType('urn:igsn:AU1101')).toBe('IGSN');
+            });
+
+            it('detects AU case-insensitive: igsn:au1101', () => {
+                expect(detectIdentifierType('igsn:au1101')).toBe('IGSN');
+            });
+
+            // 2. Susquehanna Shale Hills CZO (USA) - SESAR
+            it('detects SSH bare code: SSH000SUA', () => {
+                expect(detectIdentifierType('SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects SSH with IGSN prefix: IGSN SSH000SUA', () => {
+                expect(detectIdentifierType('IGSN SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects SSH with igsn: tag: igsn:SSH000SUA', () => {
+                expect(detectIdentifierType('igsn:SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects SSH DOI form: 10.58052/SSH000SUA', () => {
+                expect(detectIdentifierType('10.58052/SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects SSH DOI URL: https://doi.org/10.58052/SSH000SUA', () => {
+                expect(detectIdentifierType('https://doi.org/10.58052/SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects SSH URN: urn:igsn:SSH000SUA', () => {
+                expect(detectIdentifierType('urn:igsn:SSH000SUA')).toBe('IGSN');
+            });
+
+            it('detects SSH case-insensitive: ssh000sua', () => {
+                expect(detectIdentifierType('ssh000sua')).toBe('IGSN');
+            });
+
+            // 3. German Federal Geological Survey (BGR) Bohrkernsample
+            it('detects BGR bare code: BGRB5054RX05201', () => {
+                expect(detectIdentifierType('BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects BGR with IGSN prefix: IGSN BGRB5054RX05201', () => {
+                expect(detectIdentifierType('IGSN BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects BGR with igsn: tag: igsn:BGRB5054RX05201', () => {
+                expect(detectIdentifierType('igsn:BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects BGR modern DOI: 10.60510/BGRB5054RX05201', () => {
+                expect(detectIdentifierType('10.60510/BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects BGR DOI URL: https://doi.org/10.60510/BGRB5054RX05201', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects BGR legacy Handle: https://igsn.org/10.273/BGRB5054RX05201', () => {
+                expect(detectIdentifierType('https://igsn.org/10.273/BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            it('detects BGR URN: urn:igsn:BGRB5054RX05201', () => {
+                expect(detectIdentifierType('urn:igsn:BGRB5054RX05201')).toBe('IGSN');
+            });
+
+            // 4. International Continental Drilling Program (ICDP) Sample
+            it('detects ICDP bare code: ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects ICDP with IGSN prefix: IGSN ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('IGSN ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects ICDP with igsn: tag: igsn:ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('igsn:ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects ICDP DOI form: 10.60510/ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('10.60510/ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects ICDP DOI URL: https://doi.org/10.60510/ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects ICDP URN: urn:igsn:ICDP5054ESYI201', () => {
+                expect(detectIdentifierType('urn:igsn:ICDP5054ESYI201')).toBe('IGSN');
+            });
+
+            it('detects ICDP case-insensitive: igsn:icdp5054esyi201', () => {
+                expect(detectIdentifierType('igsn:icdp5054esyi201')).toBe('IGSN');
+            });
+
+            // 5. ICDP Borehole Sampling Feature
+            it('detects ICDP borehole bare code: ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects ICDP borehole with IGSN prefix: IGSN ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('IGSN ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects ICDP borehole with igsn: tag: igsn:ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('igsn:ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects ICDP borehole DOI form: 10.60510/ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('10.60510/ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects ICDP borehole DOI URL: https://doi.org/10.60510/ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            it('detects ICDP borehole URN: urn:igsn:ICDP5054EEW1001', () => {
+                expect(detectIdentifierType('urn:igsn:ICDP5054EEW1001')).toBe('IGSN');
+            });
+
+            // 6. CSIRO Australian Resources Research Centre Sample
+            it('detects CSIRO bare code: CSRWA275', () => {
+                expect(detectIdentifierType('CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects CSIRO with IGSN prefix: IGSN CSRWA275', () => {
+                expect(detectIdentifierType('IGSN CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects CSIRO with igsn: tag: igsn:CSRWA275', () => {
+                expect(detectIdentifierType('igsn:CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects CSIRO DOI form: 10.58108/CSRWA275', () => {
+                expect(detectIdentifierType('10.58108/CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects CSIRO DOI URL: https://doi.org/10.58108/CSRWA275', () => {
+                expect(detectIdentifierType('https://doi.org/10.58108/CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects CSIRO URN: urn:igsn:CSRWA275', () => {
+                expect(detectIdentifierType('urn:igsn:CSRWA275')).toBe('IGSN');
+            });
+
+            it('detects CSIRO case-insensitive: igsn:csrwa275', () => {
+                expect(detectIdentifierType('igsn:csrwa275')).toBe('IGSN');
+            });
+
+            // 7. CSIRO Sub-Collection
+            it('detects CSIRO collection bare code: CSRWASC00001', () => {
+                expect(detectIdentifierType('CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects CSIRO collection with IGSN prefix: IGSN CSRWASC00001', () => {
+                expect(detectIdentifierType('IGSN CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects CSIRO collection with igsn: tag: igsn:CSRWASC00001', () => {
+                expect(detectIdentifierType('igsn:CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects CSIRO collection DOI form: 10.58108/CSRWASC00001', () => {
+                expect(detectIdentifierType('10.58108/CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects CSIRO collection DOI URL: https://doi.org/10.58108/CSRWASC00001', () => {
+                expect(detectIdentifierType('https://doi.org/10.58108/CSRWASC00001')).toBe('IGSN');
+            });
+
+            it('detects CSIRO collection URN: urn:igsn:CSRWASC00001', () => {
+                expect(detectIdentifierType('urn:igsn:CSRWASC00001')).toBe('IGSN');
+            });
+
+            // 8. GFZ Potsdam
+            it('detects GFZ bare code: GFZ000001ABC', () => {
+                expect(detectIdentifierType('GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects GFZ with IGSN prefix: IGSN GFZ000001ABC', () => {
+                expect(detectIdentifierType('IGSN GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects GFZ with igsn: tag: igsn:GFZ000001ABC', () => {
+                expect(detectIdentifierType('igsn:GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects GFZ DOI form: 10.60510/GFZ000001ABC', () => {
+                expect(detectIdentifierType('10.60510/GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects GFZ DOI URL: https://doi.org/10.60510/GFZ000001ABC', () => {
+                expect(detectIdentifierType('https://doi.org/10.60510/GFZ000001ABC')).toBe('IGSN');
+            });
+
+            it('detects GFZ URN: urn:igsn:GFZ000001ABC', () => {
+                expect(detectIdentifierType('urn:igsn:GFZ000001ABC')).toBe('IGSN');
+            });
+
+            // 9. MARUM Universität Bremen
+            it('detects MARUM bare code: MBCR5034RC57001', () => {
+                expect(detectIdentifierType('MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects MARUM with IGSN prefix: IGSN MBCR5034RC57001', () => {
+                expect(detectIdentifierType('IGSN MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects MARUM with igsn: tag: igsn:MBCR5034RC57001', () => {
+                expect(detectIdentifierType('igsn:MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects MARUM DOI form: 10.58095/MBCR5034RC57001', () => {
+                expect(detectIdentifierType('10.58095/MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects MARUM DOI URL: https://doi.org/10.58095/MBCR5034RC57001', () => {
+                expect(detectIdentifierType('https://doi.org/10.58095/MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            it('detects MARUM URN: urn:igsn:MBCR5034RC57001', () => {
+                expect(detectIdentifierType('urn:igsn:MBCR5034RC57001')).toBe('IGSN');
+            });
+
+            // 10. ARDC Australian Universities Service
+            it('detects ARDC bare code: ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('ARDC2024001XYZ')).toBe('IGSN');
+            });
+
+            it('detects ARDC with IGSN prefix: IGSN ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('IGSN ARDC2024001XYZ')).toBe('IGSN');
+            });
+
+            it('detects ARDC with igsn: tag: igsn:ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('igsn:ARDC2024001XYZ')).toBe('IGSN');
+            });
+
+            it('detects ARDC DOI form: 10.60516/ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('10.60516/ARDC2024001XYZ')).toBe('IGSN');
+            });
+
+            it('detects ARDC DOI URL: https://doi.org/10.60516/ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('https://doi.org/10.60516/ARDC2024001XYZ')).toBe('IGSN');
+            });
+
+            it('detects ARDC URN: urn:igsn:ARDC2024001XYZ', () => {
+                expect(detectIdentifierType('urn:igsn:ARDC2024001XYZ')).toBe('IGSN');
+            });
+        });
+
+        describe('IGSN should NOT be detected for non-IGSN identifiers', () => {
+            it('should not detect plain URLs as IGSN', () => {
+                expect(detectIdentifierType('https://example.com/resource')).not.toBe('IGSN');
+            });
+
+            it('should not detect DOIs as IGSN', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('IGSN');
+            });
+
+            it('should not detect arXiv IDs as IGSN', () => {
+                expect(detectIdentifierType('2501.13958')).not.toBe('IGSN');
+            });
+
+            it('should not detect bibcodes as IGSN', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).not.toBe('IGSN');
+            });
+
+            it('should not detect handles as IGSN', () => {
+                expect(detectIdentifierType('11234/56789')).not.toBe('IGSN');
+            });
+
+            it('should not detect ARK as IGSN', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('IGSN');
+            });
+
+            it('should not detect CSTR as IGSN', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).not.toBe('IGSN');
+            });
+
+            it('should not detect EAN-13 as IGSN', () => {
+                expect(detectIdentifierType('4006381333931')).not.toBe('IGSN');
+            });
+
+            it('should not detect EISSN as IGSN', () => {
+                expect(detectIdentifierType('0378-5955')).not.toBe('IGSN');
+            });
+
+            it('should not detect random text as IGSN', () => {
+                expect(detectIdentifierType('just-some-random-text')).not.toBe('IGSN');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
