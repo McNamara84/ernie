@@ -125,6 +125,134 @@ test.describe('Related Work Identifier Type Detection', () => {
         });
     });
 
+    test.describe('ARK Detection', () => {
+        test.describe('compact ARK format', () => {
+            test('detects BnF manuscript ARK: ark:12148/btv1b8449691v/f29', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ark:12148/btv1b8449691v/f29', 'ARK');
+            });
+
+            test('detects Smithsonian specimen ARK with UUID', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ark:65665/381440f27-3f74-4eb9-ac11-b4d633a7da3d', 'ARK');
+            });
+
+            test('detects FamilySearch genealogy ARK: ark:61903/1:1:K98H-2G2', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ark:61903/1:1:K98H-2G2', 'ARK');
+            });
+
+            test('detects Internet Archive ARK: ark:13960/t5z64fc55', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ark:13960/t5z64fc55', 'ARK');
+            });
+
+            test('detects UNT Digital Library ARK: ark:67531/metadc107835', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ark:67531/metadc107835', 'ARK');
+            });
+        });
+
+        test.describe('old ARK format with slash (ark:/NAAN/Name)', () => {
+            test('detects ARK with slash after colon', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'ark:/12148/btv1b8449691v/f29', 'ARK');
+            });
+        });
+
+        test.describe('ARK with resolver URLs', () => {
+            test('detects n2t.net ARK URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://n2t.net/ark:/12148/btv1b8449691v/f29', 'ARK');
+            });
+
+            test('detects ark.bnf.fr ARK URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://ark.bnf.fr/ark:12148/btv1b8449691v/f29', 'ARK');
+            });
+
+            test('detects FamilySearch resolver ARK URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://www.familysearch.org/ark:/61903/1:1:K98H-2G2', 'ARK');
+            });
+
+            test('detects archive.org ARK URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://archive.org/details/ark:/13960/t5z64fc55', 'ARK');
+            });
+
+            test('detects data.bnf.fr ARK URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'http://data.bnf.fr/ark:/12148/cb166125510', 'ARK');
+            });
+        });
+    });
+
+    test.describe('arXiv Detection', () => {
+        test.describe('arXiv new format bare', () => {
+            test('detects bare arXiv ID: 2501.13958', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2501.13958', 'arXiv');
+            });
+
+            test('detects versioned arXiv ID: 2501.13958v3', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2501.13958v3', 'arXiv');
+            });
+
+            test('detects old arXiv format: 0704.0001', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '0704.0001', 'arXiv');
+            });
+        });
+
+        test.describe('arXiv with arXiv: prefix', () => {
+            test('detects arXiv:2501.13958', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'arXiv:2501.13958', 'arXiv');
+            });
+
+            test('detects arXiv:2501.13958v3', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'arXiv:2501.13958v3', 'arXiv');
+            });
+
+            test('detects arXiv:hep-th/9901001 (old format)', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'arXiv:hep-th/9901001', 'arXiv');
+            });
+
+            test('detects arXiv:astro-ph/9310023 (old format)', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'arXiv:astro-ph/9310023', 'arXiv');
+            });
+        });
+
+        test.describe('arXiv old format bare (category/YYMMNNN)', () => {
+            test('detects hep-th/9901001', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'hep-th/9901001', 'arXiv');
+            });
+
+            test('detects astro-ph/9310023', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'astro-ph/9310023', 'arXiv');
+            });
+        });
+
+        test.describe('arXiv URLs', () => {
+            test('detects abstract URL: https://arxiv.org/abs/2501.13958', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://arxiv.org/abs/2501.13958', 'arXiv');
+            });
+
+            test('detects PDF URL: https://arxiv.org/pdf/2501.13958.pdf', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://arxiv.org/pdf/2501.13958.pdf', 'arXiv');
+            });
+
+            test('detects HTML URL: https://arxiv.org/html/2501.13958v3', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://arxiv.org/html/2501.13958v3', 'arXiv');
+            });
+
+            test('detects source URL: https://arxiv.org/src/2501.05547', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://arxiv.org/src/2501.05547', 'arXiv');
+            });
+
+            test('detects old format abstract URL: https://arxiv.org/abs/hep-th/9901001', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://arxiv.org/abs/hep-th/9901001', 'arXiv');
+            });
+        });
+
+        test.describe('arXiv DOIs should be detected as DOI', () => {
+            test('detects arXiv DOI URL as DOI', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://doi.org/10.48550/arXiv.2501.13958', 'DOI');
+            });
+
+            test('detects bare arXiv DOI as DOI', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '10.48550/arXiv.2501.13958', 'DOI');
+            });
+        });
+    });
+
     test.describe('Non-DOI identifiers should not be detected as DOI', () => {
         test('detects plain URL as URL, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'https://example.com/resource', 'URL');
@@ -136,6 +264,14 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         test('detects bare Handle as Handle, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, '11234/56789', 'Handle');
+        });
+
+        test('detects ARK as ARK, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, 'ark:12148/btv1b8449691v/f29', 'ARK');
+        });
+
+        test('detects arXiv as arXiv, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, 'arXiv:2501.13958', 'arXiv');
         });
     });
 });
