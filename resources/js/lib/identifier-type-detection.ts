@@ -10,6 +10,8 @@ import type { IdentifierType } from '@/types';
  * - ARK (Archival Resource Key)
  * - Handle (Handle System identifiers)
  * - URL (Uniform Resource Locator)
+ * - URN (Uniform Resource Name)
+ * - w3id (W3C Permanent Identifier)
  * - More identifier types to be added
  *
  * @param value - The identifier string to analyze
@@ -17,6 +19,13 @@ import type { IdentifierType } from '@/types';
  */
 export function detectIdentifierType(value: string): IdentifierType {
     const trimmed = value.trim();
+
+    // Early rejection: strings with only spaces between parts that look like DOIs are invalid
+    // e.g., "10.5880 with spaces" should not match as DOI
+    if (/^10\.\d+\s+\S/.test(trimmed)) {
+        // This looks like a DOI prefix followed by space and more text - not a valid DOI
+        return 'URL';
+    }
 
     // IGSN (International Generic Sample Number) detection
     // Must be checked before DOI since IGSN has DOI-like formats (10.60516/..., 10.58052/...)
@@ -51,6 +60,13 @@ export function detectIdentifierType(value: string): IdentifierType {
     // IGSN with URN format: urn:igsn:CODE
     if (trimmed.match(/^urn:igsn:[A-Za-z0-9]+$/i)) {
         return 'IGSN';
+    }
+
+    // Handle with known Handle-only prefixes (must be checked BEFORE DOI)
+    // 10.1594 is WDCC (World Data Center for Climate) - registered as Handle, not DOI
+    // These prefixes look like DOIs but are actually Handle prefixes
+    if (trimmed.match(/^10\.1594\/\S+$/)) {
+        return 'Handle';
     }
 
     // DOI with URL prefix (https://doi.org/... or https://dx.doi.org/...)
@@ -146,8 +162,11 @@ export function detectIdentifierType(value: string): IdentifierType {
     // ISBN (International Standard Book Number) detection
     // Must be checked before EAN-13 since ISBN-13 starts with 978 or 979
 
-    // ISBN with OpenEdition URL: isbn.openedition.org/978-...
+    // ISBN with OpenEdition URL: isbn.openedition.org/978-... or books.openedition.org/isbn/978...
     if (trimmed.match(/^https?:\/\/isbn\.openedition\.org\/97[89]/i)) {
+        return 'ISBN';
+    }
+    if (trimmed.match(/^https?:\/\/books\.openedition\.org\/isbn\/97[89]/i)) {
         return 'ISBN';
     }
 
@@ -278,9 +297,21 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'PMID';
     }
 
+    // w3id (W3C Permanent Identifier) detection
+    // w3id.org provides persistent URLs for web resources, particularly ontologies and vocabularies
+    // Note: w3id is a distinct identifier type, NOT the same as PURL
+    // Must be checked BEFORE PURL since w3id.org was previously misdetected as PURL
+
+    // w3id with w3id.org domain: http(s)://w3id.org/namespace[/path][#fragment]
+    // Supports: paths, trailing slashes, fragments, all alphanumeric/special chars in path
+    if (trimmed.match(/^https?:\/\/w3id\.org\/[a-z0-9._\/-]+(?:#[a-z0-9._-]*)?$/i)) {
+        return 'w3id';
+    }
+
     // PURL (Persistent URL) detection
     // PURLs are persistent URLs that redirect to actual resource locations
-    // Common domains: purl.org, purl.oclc.org, w3id.org, purl.lib.*, purl.example.org
+    // Common domains: purl.org, purl.oclc.org, purl.lib.*, purl.example.org
+    // Note: w3id.org is now handled separately as 'w3id' type
 
     // PURL with purl.org domain: http(s)://purl.org/path
     if (trimmed.match(/^https?:\/\/purl\.org\/[a-z0-9._\/-]+$/i)) {
@@ -289,11 +320,6 @@ export function detectIdentifierType(value: string): IdentifierType {
 
     // PURL with purl.oclc.org domain (original OCLC PURL service)
     if (trimmed.match(/^https?:\/\/purl\.oclc\.org\/[a-z0-9._\/-]+$/i)) {
-        return 'PURL';
-    }
-
-    // PURL with w3id.org domain (W3C permanent identifiers)
-    if (trimmed.match(/^https?:\/\/w3id\.org\/[a-z0-9._\/-]+$/i)) {
         return 'PURL';
     }
 
@@ -431,8 +457,9 @@ export function detectIdentifierType(value: string): IdentifierType {
 
     // ARK with resolver URL patterns (must be checked before generic URL)
     // Matches various ARK resolvers: n2t.net, ark.bnf.fr, familysearch.org, archive.org, data.bnf.fr, etc.
-    // ARK format in URL: https://resolver/ark:/NAAN/Name or https://resolver/ark:NAAN/Name
-    if (trimmed.match(/^https?:\/\/[^/]+\/ark:\/?\d{5,}\/\S+/i)) {
+    // ARK format in URL: https://resolver/ark:/NAAN/Name, https://resolver/path/ark:/NAAN/Name
+    // Also handles: https://archive.org/details/ark:/13960/t5z64fc55
+    if (trimmed.match(/^https?:\/\/[^/]+(?:\/[^/]+)*\/ark:\/?\d{5,}\/\S+/i)) {
         return 'ARK';
     }
 
@@ -474,6 +501,46 @@ export function detectIdentifierType(value: string): IdentifierType {
     // Examples: AU1101, SSH000SUA, BGRB5054RX05201, ICDP5054ESYI201, CSRWA275, GFZ000001ABC
     if (trimmed.match(/^(?:AU|SSH|BGR[A-Z]?|ICDP|CSR[A-Z]?|GFZ|MBCR|ARDC)[A-Z0-9]{2,12}$/i)) {
         return 'IGSN';
+    }
+
+    // URN (Uniform Resource Name) detection - RFC 8141
+    // Format: urn:NID:NSS where NID is Namespace Identifier and NSS is Namespace Specific String
+    // Note: Specific URN namespaces (isbn, lsid, igsn, issn, istc, handle) are detected as their specific types above
+    // This section handles generic URN namespaces: uuid, oid, nbn, iptc, example, ietf, oasis, etc.
+
+    // URN resolver URLs (must be checked before generic URL)
+    // German NBN resolver: https://nbn-resolving.de/urn:nbn:... or https://nbn-resolving.org/...
+    if (trimmed.match(/^https?:\/\/nbn-resolving\.(?:de|org)\/urn:[a-z0-9][a-z0-9-]{0,31}:\S+$/i)) {
+        return 'URN';
+    }
+
+    // Finnish NBN resolver: https://urn.fi/urn:nbn:fi:...
+    if (trimmed.match(/^https?:\/\/urn\.fi\/urn:[a-z0-9][a-z0-9-]{0,31}:\S+$/i)) {
+        return 'URN';
+    }
+
+    // Swedish NBN resolver: https://urn.kb.se/resolve?urn=urn:nbn:se:...
+    if (trimmed.match(/^https?:\/\/urn\.kb\.se\/resolve\?urn=urn:[a-z0-9][a-z0-9-]{0,31}:\S+$/i)) {
+        return 'URN';
+    }
+
+    // Dutch NBN resolver: https://persistent-identifier.nl/urn:nbn:nl:...
+    if (trimmed.match(/^https?:\/\/persistent-identifier\.nl\/urn:[a-z0-9][a-z0-9-]{0,31}:\S+$/i)) {
+        return 'URN';
+    }
+
+    // Name-to-Thing (N2T) URN resolver: https://n2t.net/urn:...
+    if (trimmed.match(/^https?:\/\/n2t\.net\/urn:[a-z0-9][a-z0-9-]{0,31}:\S+$/i)) {
+        return 'URN';
+    }
+
+    // Generic URN format: urn:NID:NSS
+    // NID: 2-32 chars, alphanumeric and hyphens, must start with letter or digit
+    // NSS: Namespace Specific String, can contain various characters including :, /, #, ?, +, %, ;, etc.
+    // Common NIDs: uuid, oid, nbn, iptc, example, ietf, oasis, mpeg, iso, ogc, epc, lex, publicid, xmlorg, stalwart
+    // Excluded: isbn (→ ISBN), lsid (→ LSID), igsn (→ IGSN), issn (→ EISSN), istc (→ ISTC), handle (→ Handle)
+    if (trimmed.match(/^urn:(?!isbn:|lsid:|igsn:|issn:|istc:|handle:)[a-z0-9][a-z0-9-]{0,31}:\S+$/i)) {
+        return 'URN';
     }
 
     // URL patterns
