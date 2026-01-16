@@ -441,6 +441,89 @@ test.describe('Related Work Identifier Type Detection', () => {
         });
     });
 
+    test.describe('EAN-13 Detection', () => {
+        /**
+         * EAN-13 (European Article Number) is a 13-digit barcode standard
+         * for product identification globally.
+         *
+         * Format: CCXXXXXPPPPPK (Country + Manufacturer + Product + Check digit)
+         */
+
+        test.describe('EAN-13 compact format', () => {
+            test('detects German product EAN-13: 4006381333931', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '4006381333931', 'EAN13');
+            });
+
+            test('detects French product EAN-13: 3595384751201', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '3595384751201', 'EAN13');
+            });
+
+            test('detects Italian product EAN-13: 8008698001248', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '8008698001248', 'EAN13');
+            });
+
+            test('detects Japanese product EAN-13: 4901234123457', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '4901234123457', 'EAN13');
+            });
+
+            test('detects ISBN as EAN-13 (978 prefix): 9780141026626', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '9780141026626', 'EAN13');
+            });
+
+            test('detects USA/Canada UPC-A with EAN-13 prefix: 0012345678905', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '0012345678905', 'EAN13');
+            });
+
+            test('detects store internal EAN-13 (20-29 range): 2012345678900', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2012345678900', 'EAN13');
+            });
+        });
+
+        test.describe('EAN-13 with hyphens', () => {
+            test('detects German EAN-13 with hyphens: 400-6381-33393-1', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '400-6381-33393-1', 'EAN13');
+            });
+
+            test('detects ISBN with hyphens: 978-0-141-02662-6', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '978-0-141-02662-6', 'EAN13');
+            });
+        });
+
+        test.describe('EAN-13 with spaces', () => {
+            test('detects German EAN-13 with space: 4006381 333931', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '4006381 333931', 'EAN13');
+            });
+        });
+
+        test.describe('EAN-13 with resolver URLs', () => {
+            test('detects identifiers.org EAN-13 URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(
+                    page,
+                    'https://identifiers.org/ean13:4006381333931',
+                    'EAN13',
+                );
+            });
+
+            test('detects GS1 Digital Link URL', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://gs1.example.com/01/4006381333931', 'EAN13');
+            });
+        });
+
+        test.describe('EAN-13 with URN format', () => {
+            test('detects urn:ean13 format', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:ean13:4006381333931', 'EAN13');
+            });
+
+            test('detects urn:gtin format', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:gtin:3595384751201', 'EAN13');
+            });
+
+            test('detects urn:gtin-13 format', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:gtin-13:7318120000002', 'EAN13');
+            });
+        });
+    });
+
     test.describe('Non-DOI identifiers should not be detected as DOI', () => {
         test('detects plain URL as URL, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'https://example.com/resource', 'URL');
@@ -468,6 +551,10 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         test('detects CSTR as CSTR, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'CSTR:31253.11.sciencedb.j00001.00123', 'CSTR');
+        });
+
+        test('detects EAN-13 as EAN13, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, '4006381333931', 'EAN13');
         });
     });
 });

@@ -1000,6 +1000,340 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    describe('EAN-13 detection', () => {
+        /**
+         * EAN-13 (European Article Number) is a 13-digit barcode standard
+         * used for product identification globally.
+         *
+         * Format: CCXXXXXPPPPPK
+         * - CC = Country/region code (2-3 digits)
+         * - XXXXX = Manufacturer code (variable length)
+         * - PPPPP = Product code (variable length)
+         * - K = Check digit (1 digit, calculated via algorithm)
+         *
+         * Common prefixes:
+         * - 000-019, 060-139: USA/Canada (UPC compatible)
+         * - 200-299: Store internal use
+         * - 300-379: France
+         * - 400-440: Germany
+         * - 450-459, 490-499: Japan
+         * - 500-509: UK
+         * - 690-699: China
+         * - 730-739: Sweden
+         * - 800-839: Italy
+         * - 840-849: Spain
+         * - 978-979: ISBN (books)
+         */
+
+        describe('EAN-13 compact format (13 digits)', () => {
+            it('detects German product EAN-13', () => {
+                expect(detectIdentifierType('4006381333931')).toBe('EAN13');
+            });
+
+            it('detects French product EAN-13', () => {
+                expect(detectIdentifierType('3595384751201')).toBe('EAN13');
+            });
+
+            it('detects Italian product EAN-13', () => {
+                expect(detectIdentifierType('8008698001248')).toBe('EAN13');
+            });
+
+            it('detects Japanese product EAN-13', () => {
+                expect(detectIdentifierType('4901234123457')).toBe('EAN13');
+            });
+
+            it('detects Swedish product EAN-13', () => {
+                expect(detectIdentifierType('7318120000002')).toBe('EAN13');
+            });
+
+            it('detects Spanish product EAN-13', () => {
+                expect(detectIdentifierType('8471969023458')).toBe('EAN13');
+            });
+
+            it('detects UK product EAN-13', () => {
+                expect(detectIdentifierType('5906003113027')).toBe('EAN13');
+            });
+
+            it('detects USA/Canada UPC-A with EAN-13 prefix', () => {
+                expect(detectIdentifierType('0012345678905')).toBe('EAN13');
+            });
+
+            it('detects store internal use EAN-13 (20-29 range)', () => {
+                expect(detectIdentifierType('2012345678900')).toBe('EAN13');
+            });
+
+            it('detects ISBN as EAN-13 (978 prefix)', () => {
+                expect(detectIdentifierType('9780141026626')).toBe('EAN13');
+            });
+        });
+
+        describe('EAN-13 with hyphens', () => {
+            it('detects German product EAN-13 with hyphens', () => {
+                expect(detectIdentifierType('400-6381-33393-1')).toBe('EAN13');
+            });
+
+            it('detects French product EAN-13 with hyphens', () => {
+                expect(detectIdentifierType('359-5384-75120-1')).toBe('EAN13');
+            });
+
+            it('detects Italian product EAN-13 with hyphens', () => {
+                expect(detectIdentifierType('800-8698-00124-8')).toBe('EAN13');
+            });
+
+            it('detects Japanese product EAN-13 with hyphens', () => {
+                expect(detectIdentifierType('490-1234-12345-7')).toBe('EAN13');
+            });
+
+            it('detects Swedish product EAN-13 with hyphens', () => {
+                expect(detectIdentifierType('731-8120-00000-2')).toBe('EAN13');
+            });
+
+            it('detects ISBN as EAN-13 with hyphens', () => {
+                expect(detectIdentifierType('978-0-141-02662-6')).toBe('EAN13');
+            });
+
+            it('detects USA/Canada UPC-A with hyphens', () => {
+                expect(detectIdentifierType('001-2345-67890-5')).toBe('EAN13');
+            });
+        });
+
+        describe('EAN-13 with alternative formats', () => {
+            it('detects German EAN-13 with alternative hyphen format', () => {
+                expect(detectIdentifierType('4006-381-333-931')).toBe('EAN13');
+            });
+
+            it('detects French EAN-13 with alternative format', () => {
+                expect(detectIdentifierType('3595-384-751-201')).toBe('EAN13');
+            });
+
+            it('detects with 7+6 digit split', () => {
+                expect(detectIdentifierType('8008698-001248')).toBe('EAN13');
+            });
+
+            it('detects with 7+6 digit split (Japanese)', () => {
+                expect(detectIdentifierType('4901234-123457')).toBe('EAN13');
+            });
+        });
+
+        describe('EAN-13 with spaces', () => {
+            it('detects German EAN-13 with spaces', () => {
+                expect(detectIdentifierType('4006381 333931')).toBe('EAN13');
+            });
+
+            it('detects French EAN-13 with spaces', () => {
+                expect(detectIdentifierType('3595384 751201')).toBe('EAN13');
+            });
+
+            it('detects Italian EAN-13 with spaces', () => {
+                expect(detectIdentifierType('8008698 001248')).toBe('EAN13');
+            });
+
+            it('detects Japanese EAN-13 with spaces', () => {
+                expect(detectIdentifierType('4901234 123457')).toBe('EAN13');
+            });
+
+            it('detects Swedish EAN-13 with spaces', () => {
+                expect(detectIdentifierType('7318120 000002')).toBe('EAN13');
+            });
+        });
+
+        describe('EAN-13 with resolver URLs', () => {
+            it('detects identifiers.org EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:4006381333931')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org ISBN EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:9780141026626')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org Italian EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:8008698001248')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org Japanese EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:4901234123457')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org Swedish EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:7318120000002')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org Spanish EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:8471969023458')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org UK EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:5906003113027')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org USA EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:0012345678905')).toBe('EAN13');
+            });
+
+            it('detects identifiers.org store internal EAN-13 URL', () => {
+                expect(detectIdentifierType('https://identifiers.org/ean13:2012345678900')).toBe('EAN13');
+            });
+        });
+
+        describe('EAN-13 with GS1 Digital Link URLs', () => {
+            it('detects GS1 Digital Link German product', () => {
+                expect(detectIdentifierType('https://gs1.example.com/01/4006381333931')).toBe('EAN13');
+            });
+
+            it('detects GS1 Digital Link French product', () => {
+                expect(detectIdentifierType('https://gs1.example.com/01/3595384751201')).toBe('EAN13');
+            });
+
+            it('detects GS1 Digital Link Japanese product', () => {
+                expect(detectIdentifierType('https://gs1.example.com/01/4901234123457')).toBe('EAN13');
+            });
+
+            it('detects GS1 Digital Link Spanish product', () => {
+                expect(detectIdentifierType('https://gs1.example.com/01/8471969023458')).toBe('EAN13');
+            });
+
+            it('detects GS1 Digital Link UK product', () => {
+                expect(detectIdentifierType('https://gs1.example.com/01/5906003113027')).toBe('EAN13');
+            });
+        });
+
+        describe('EAN-13 with URN format', () => {
+            it('detects urn:ean13 format', () => {
+                expect(detectIdentifierType('urn:ean13:4006381333931')).toBe('EAN13');
+            });
+
+            it('detects urn:gtin format', () => {
+                expect(detectIdentifierType('urn:gtin:3595384751201')).toBe('EAN13');
+            });
+
+            it('detects urn:gtin-13 format', () => {
+                expect(detectIdentifierType('urn:gtin-13:7318120000002')).toBe('EAN13');
+            });
+
+            it('detects urn:ean13 with ISBN', () => {
+                expect(detectIdentifierType('urn:ean13:9780141026626')).toBe('EAN13');
+            });
+
+            it('detects urn:gtin with store internal', () => {
+                expect(detectIdentifierType('urn:gtin:2012345678900')).toBe('EAN13');
+            });
+
+            it('detects urn:ean13 with Italian product', () => {
+                expect(detectIdentifierType('urn:ean13:8008698001248')).toBe('EAN13');
+            });
+        });
+
+        describe('EAN-13 edge cases', () => {
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  4006381333931  ')).toBe('EAN13');
+            });
+
+            it('handles URL with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  https://identifiers.org/ean13:4006381333931  ')).toBe('EAN13');
+            });
+
+            it('handles URN with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  urn:ean13:4006381333931  ')).toBe('EAN13');
+            });
+        });
+
+        describe('real-world EAN-13 examples from user requirements', () => {
+            const realWorldEan13s = [
+                // German product (BASF)
+                { input: '4006381333931', description: 'German product compact' },
+                { input: '400-6381-33393-1', description: 'German product with hyphens' },
+                { input: '4006-381-333-931', description: 'German product alternative format' },
+                { input: '4006381 333931', description: 'German product with space' },
+                { input: 'https://identifiers.org/ean13:4006381333931', description: 'German identifiers.org' },
+                { input: 'urn:ean13:4006381333931', description: 'German URN format' },
+                // ISBN → EAN-13
+                { input: '9780141026626', description: 'ISBN compact' },
+                { input: '978-0-141-02662-6', description: 'ISBN with hyphens' },
+                { input: 'https://identifiers.org/ean13:9780141026626', description: 'ISBN identifiers.org' },
+                { input: 'urn:ean13:9780141026626', description: 'ISBN URN format' },
+                // French product (L'Oréal)
+                { input: '3595384751201', description: 'French product compact' },
+                { input: '359-5384-75120-1', description: 'French product with hyphens' },
+                { input: '3595384 751201', description: 'French product with space' },
+                { input: 'urn:gtin:3595384751201', description: 'French URN gtin format' },
+                // Italian product (Pasta)
+                { input: '8008698001248', description: 'Italian product compact' },
+                { input: '800-8698-00124-8', description: 'Italian product with hyphens' },
+                { input: '8008698 001248', description: 'Italian product with space' },
+                { input: 'https://identifiers.org/ean13:8008698001248', description: 'Italian identifiers.org' },
+                // Japanese product
+                { input: '4901234123457', description: 'Japanese product compact' },
+                { input: '490-1234-12345-7', description: 'Japanese product with hyphens' },
+                { input: '4901234 123457', description: 'Japanese product with space' },
+                // Swedish product
+                { input: '7318120000002', description: 'Swedish product compact' },
+                { input: '731-8120-00000-2', description: 'Swedish product with hyphens' },
+                { input: 'urn:gtin-13:7318120000002', description: 'Swedish URN gtin-13 format' },
+                // Spanish product
+                { input: '8471969023458', description: 'Spanish product compact' },
+                { input: '847-1969-02345-8', description: 'Spanish product with hyphens' },
+                // USA/Canada UPC-A with EAN-13 prefix
+                { input: '0012345678905', description: 'USA/Canada UPC-A compact' },
+                { input: '001-2345-67890-5', description: 'USA/Canada UPC-A with hyphens' },
+                // UK product
+                { input: '5906003113027', description: 'UK product compact' },
+                { input: '590-6003-11302-7', description: 'UK product with hyphens' },
+                // Store internal use
+                { input: '2012345678900', description: 'Store internal compact' },
+                { input: '201-2345-67890-0', description: 'Store internal with hyphens' },
+                { input: 'urn:gtin:2012345678900', description: 'Store internal URN gtin' },
+            ];
+
+            realWorldEan13s.forEach(({ input, description }) => {
+                it(`detects ${description}: ${input}`, () => {
+                    expect(detectIdentifierType(input)).toBe('EAN13');
+                });
+            });
+        });
+
+        describe('EAN-13 should NOT be detected for non-EAN-13 identifiers', () => {
+            it('should not detect plain URLs as EAN-13', () => {
+                expect(detectIdentifierType('https://example.com/path')).not.toBe('EAN13');
+            });
+
+            it('should not detect DOIs as EAN-13', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('EAN13');
+            });
+
+            it('should not detect arXiv IDs as EAN-13', () => {
+                expect(detectIdentifierType('2501.13958')).not.toBe('EAN13');
+            });
+
+            it('should not detect bibcodes as EAN-13', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).not.toBe('EAN13');
+            });
+
+            it('should not detect handles as EAN-13', () => {
+                expect(detectIdentifierType('11234/56789')).not.toBe('EAN13');
+            });
+
+            it('should not detect ARK as EAN-13', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('EAN13');
+            });
+
+            it('should not detect CSTR as EAN-13', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).not.toBe('EAN13');
+            });
+
+            it('should not detect 12-digit number as EAN-13', () => {
+                expect(detectIdentifierType('123456789012')).not.toBe('EAN13');
+            });
+
+            it('should not detect 14-digit number as EAN-13', () => {
+                expect(detectIdentifierType('12345678901234')).not.toBe('EAN13');
+            });
+
+            it('should not detect alphanumeric string as EAN-13', () => {
+                expect(detectIdentifierType('400638133393A')).not.toBe('EAN13');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
