@@ -225,6 +225,35 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'EAN13';
     }
 
+    // LSID (Life Science Identifier) detection - ISO 21047
+    // Format: urn:lsid:authority:namespace:objectid[:version]
+    // Examples: urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3
+    //           urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC
+
+    // LSID URN format: urn:lsid:authority:namespace:objectid[:version]
+    // Authority: domain name (e.g., ebi.ac.uk, zoobank.org, ncbi.nlm.nih.gov)
+    // Namespace: identifier type (e.g., SWISS-PROT.accession, PDB, GenBank.accession, act, pub, namebank)
+    // ObjectID: unique identifier (alphanumeric, UUID, or numeric)
+    // Version: optional revision number
+    if (trimmed.match(/^urn:lsid:[a-z0-9.-]+:[a-z0-9._-]+:[a-z0-9._-]+(?::\d+)?$/i)) {
+        return 'LSID';
+    }
+
+    // LSID with lsid.io resolver: https://lsid.io/urn:lsid:...
+    if (trimmed.match(/^https?:\/\/lsid\.io\/urn:lsid:[a-z0-9.-]+:[a-z0-9._-]+:[a-z0-9._-]+(?::\d+)?$/i)) {
+        return 'LSID';
+    }
+
+    // LSID with ServiceLocator pattern: http://authority/ws/services/ServiceLocator?lsid=urn:lsid:...
+    if (trimmed.match(/^https?:\/\/[a-z0-9.-]+\/ws\/services\/ServiceLocator\?lsid=urn:lsid:[a-z0-9.-]+:[a-z0-9._-]+:[a-z0-9._-]+(?::\d+)?$/i)) {
+        return 'LSID';
+    }
+
+    // LSID with ZooBank resolver: http://zoobank.org/urn:lsid:zoobank.org:...
+    if (trimmed.match(/^https?:\/\/zoobank\.org\/urn:lsid:zoobank\.org:[a-z0-9._-]+:[a-z0-9._-]+$/i)) {
+        return 'LSID';
+    }
+
     // LISSN (Linking ISSN / ISSN-L) detection
     // LISSN links different media versions of the same serial publication
     // Must be checked before EISSN since LISSN has more specific prefixes

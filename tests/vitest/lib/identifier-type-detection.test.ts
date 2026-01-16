@@ -4745,6 +4745,339 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    // ==================== LSID (Life Science Identifier) ====================
+    // ISO 21047 standard for life science identifiers
+    // Format: urn:lsid:authority:namespace:objectid[:version]
+    describe('LSID detection', () => {
+        describe('LSID URN format detection', () => {
+            // Test case 1: EBI SWISS-PROT Protein
+            it('detects EBI SWISS-PROT LSID: urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+
+            it('detects EBI SWISS-PROT LSID without version: urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355')).toBe('LSID');
+            });
+
+            it('detects EBI SWISS-PROT LSID uppercase: URN:LSID:ebi.ac.uk:SWISS-PROT.accession:P34355:3', () => {
+                expect(detectIdentifierType('URN:LSID:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+
+            // Test case 2: RCSB Protein Data Bank (PDB)
+            it('detects RCSB PDB LSID: urn:lsid:rcsb.org:PDB:1D4X:22', () => {
+                expect(detectIdentifierType('urn:lsid:rcsb.org:PDB:1D4X:22')).toBe('LSID');
+            });
+
+            it('detects RCSB PDB LSID without version: urn:lsid:rcsb.org:PDB:1D4X', () => {
+                expect(detectIdentifierType('urn:lsid:rcsb.org:PDB:1D4X')).toBe('LSID');
+            });
+
+            // Test case 3: NCBI GenBank DNA Sequence
+            it('detects NCBI GenBank LSID: urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2', () => {
+                expect(detectIdentifierType('urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2')).toBe('LSID');
+            });
+
+            it('detects NCBI GenBank LSID without version: urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063', () => {
+                expect(detectIdentifierType('urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063')).toBe('LSID');
+            });
+
+            // Test case 4: ZooBank Taxonomic Act (UUID ObjectID)
+            it('detects ZooBank act LSID: urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC', () => {
+                expect(detectIdentifierType('urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+
+            it('detects ZooBank act LSID uppercase: URN:LSID:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC', () => {
+                expect(detectIdentifierType('URN:LSID:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+
+            // Test case 5: ZooBank Publication
+            it('detects ZooBank pub LSID: urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7', () => {
+                expect(detectIdentifierType('urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7')).toBe('LSID');
+            });
+
+            // Test case 6: uBio NameBank (numeric ObjectID)
+            it('detects uBio namebank LSID: urn:lsid:ubio.org:namebank:11000140', () => {
+                expect(detectIdentifierType('urn:lsid:ubio.org:namebank:11000140')).toBe('LSID');
+            });
+
+            it('detects uBio namebank LSID uppercase: URN:LSID:ubio.org:namebank:11000140', () => {
+                expect(detectIdentifierType('URN:LSID:ubio.org:namebank:11000140')).toBe('LSID');
+            });
+
+            // Test case 7: Index Fungorum
+            it('detects Index Fungorum LSID: urn:lsid:index-fungorum.org:name:12345:2', () => {
+                expect(detectIdentifierType('urn:lsid:index-fungorum.org:name:12345:2')).toBe('LSID');
+            });
+
+            it('detects Index Fungorum LSID without version: urn:lsid:index-fungorum.org:name:12345', () => {
+                expect(detectIdentifierType('urn:lsid:index-fungorum.org:name:12345')).toBe('LSID');
+            });
+
+            // Test case 8: IPNI Plant Names
+            it('detects IPNI LSID: urn:lsid:ipni.org:name:60011573-2:1', () => {
+                expect(detectIdentifierType('urn:lsid:ipni.org:name:60011573-2:1')).toBe('LSID');
+            });
+
+            it('detects IPNI LSID uppercase: URN:LSID:ipni.org:name:60011573-2:1', () => {
+                expect(detectIdentifierType('URN:LSID:ipni.org:name:60011573-2:1')).toBe('LSID');
+            });
+
+            // Test case 9: GBIF Specimen (UUID ObjectID)
+            it('detects GBIF specimen LSID: urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1', () => {
+                expect(detectIdentifierType('urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1')).toBe('LSID');
+            });
+
+            // Test case 10: EBI UniProt Entry
+            it('detects EBI UniProt LSID: urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5')).toBe('LSID');
+            });
+
+            it('detects EBI UniProt LSID without version: urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2')).toBe('LSID');
+            });
+        });
+
+        describe('LSID with lsid.io resolver', () => {
+            it('detects lsid.io EBI SWISS-PROT: https://lsid.io/urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+
+            it('detects lsid.io RCSB PDB: https://lsid.io/urn:lsid:rcsb.org:PDB:1D4X:22', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:rcsb.org:PDB:1D4X:22')).toBe('LSID');
+            });
+
+            it('detects lsid.io NCBI GenBank: https://lsid.io/urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2')).toBe('LSID');
+            });
+
+            it('detects lsid.io ZooBank act: https://lsid.io/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+
+            it('detects lsid.io ZooBank pub: https://lsid.io/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7')).toBe('LSID');
+            });
+
+            it('detects lsid.io uBio namebank: https://lsid.io/urn:lsid:ubio.org:namebank:11000140', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ubio.org:namebank:11000140')).toBe('LSID');
+            });
+
+            it('detects lsid.io Index Fungorum: https://lsid.io/urn:lsid:index-fungorum.org:name:12345:2', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:index-fungorum.org:name:12345:2')).toBe('LSID');
+            });
+
+            it('detects lsid.io IPNI: https://lsid.io/urn:lsid:ipni.org:name:60011573-2:1', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ipni.org:name:60011573-2:1')).toBe('LSID');
+            });
+
+            it('detects lsid.io GBIF specimen: https://lsid.io/urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1')).toBe('LSID');
+            });
+
+            it('detects lsid.io EBI UniProt: https://lsid.io/urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5')).toBe('LSID');
+            });
+        });
+
+        describe('LSID with ServiceLocator resolver', () => {
+            it('detects ServiceLocator EBI SWISS-PROT: http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3', () => {
+                expect(detectIdentifierType('http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+
+            it('detects ServiceLocator EBI UniProt: http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5', () => {
+                expect(detectIdentifierType('http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5')).toBe('LSID');
+            });
+        });
+
+        describe('LSID with ZooBank resolver', () => {
+            it('detects ZooBank HTTP act: http://zoobank.org/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC', () => {
+                expect(detectIdentifierType('http://zoobank.org/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+
+            it('detects ZooBank HTTP pub: http://zoobank.org/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7', () => {
+                expect(detectIdentifierType('http://zoobank.org/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7')).toBe('LSID');
+            });
+        });
+
+        describe('LSID edge cases', () => {
+            it('handles mixed case urn:LSID: prefix', () => {
+                expect(detectIdentifierType('urn:LSID:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+
+            it('handles version 0', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:0')).toBe('LSID');
+            });
+
+            it('handles long version numbers', () => {
+                expect(detectIdentifierType('urn:lsid:rcsb.org:PDB:1D4X:12345')).toBe('LSID');
+            });
+
+            it('handles numeric-only ObjectID', () => {
+                expect(detectIdentifierType('urn:lsid:ubio.org:namebank:123456789')).toBe('LSID');
+            });
+
+            it('handles ObjectID with underscores', () => {
+                expect(detectIdentifierType('urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063')).toBe('LSID');
+            });
+
+            it('handles ObjectID with hyphens (UUID format)', () => {
+                expect(detectIdentifierType('urn:lsid:zoobank.org:act:8bdc0735-fea4-4298-83fa-d04f67c3fbec')).toBe('LSID');
+            });
+
+            it('handles authority with multiple subdomains', () => {
+                expect(detectIdentifierType('urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2')).toBe('LSID');
+            });
+
+            it('handles namespace with dot notation', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5')).toBe('LSID');
+            });
+
+            it('handles authority with hyphen', () => {
+                expect(detectIdentifierType('urn:lsid:index-fungorum.org:name:12345:2')).toBe('LSID');
+            });
+
+            it('handles whitespace trimming', () => {
+                expect(detectIdentifierType('  urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3  ')).toBe('LSID');
+            });
+        });
+
+        describe('Real-world LSID examples', () => {
+            // 1. EBI SWISS-PROT Protein
+            it('detects EBI SWISS-PROT URN: urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+            it('detects EBI SWISS-PROT lsid.io: https://lsid.io/urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+            it('detects EBI SWISS-PROT ServiceLocator: http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3', () => {
+                expect(detectIdentifierType('http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+            });
+
+            // 2. RCSB Protein Data Bank
+            it('detects RCSB PDB URN: urn:lsid:rcsb.org:PDB:1D4X:22', () => {
+                expect(detectIdentifierType('urn:lsid:rcsb.org:PDB:1D4X:22')).toBe('LSID');
+            });
+            it('detects RCSB PDB lsid.io: https://lsid.io/urn:lsid:rcsb.org:PDB:1D4X:22', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:rcsb.org:PDB:1D4X:22')).toBe('LSID');
+            });
+
+            // 3. NCBI GenBank
+            it('detects NCBI GenBank URN: urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2', () => {
+                expect(detectIdentifierType('urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2')).toBe('LSID');
+            });
+            it('detects NCBI GenBank lsid.io: https://lsid.io/urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ncbi.nlm.nih.gov:GenBank.accession:NT_001063:2')).toBe('LSID');
+            });
+
+            // 4. ZooBank Taxonomic Act
+            it('detects ZooBank act URN: urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC', () => {
+                expect(detectIdentifierType('urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+            it('detects ZooBank act lsid.io: https://lsid.io/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+            it('detects ZooBank act HTTP: http://zoobank.org/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC', () => {
+                expect(detectIdentifierType('http://zoobank.org/urn:lsid:zoobank.org:act:8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).toBe('LSID');
+            });
+
+            // 5. ZooBank Publication
+            it('detects ZooBank pub URN: urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7', () => {
+                expect(detectIdentifierType('urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7')).toBe('LSID');
+            });
+            it('detects ZooBank pub lsid.io: https://lsid.io/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7')).toBe('LSID');
+            });
+            it('detects ZooBank pub HTTP: http://zoobank.org/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7', () => {
+                expect(detectIdentifierType('http://zoobank.org/urn:lsid:zoobank.org:pub:01D63FEF-5F8E-496A-95F0-BD8A8B78AAE7')).toBe('LSID');
+            });
+
+            // 6. uBio NameBank
+            it('detects uBio namebank URN: urn:lsid:ubio.org:namebank:11000140', () => {
+                expect(detectIdentifierType('urn:lsid:ubio.org:namebank:11000140')).toBe('LSID');
+            });
+            it('detects uBio namebank lsid.io: https://lsid.io/urn:lsid:ubio.org:namebank:11000140', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ubio.org:namebank:11000140')).toBe('LSID');
+            });
+
+            // 7. Index Fungorum
+            it('detects Index Fungorum URN: urn:lsid:index-fungorum.org:name:12345:2', () => {
+                expect(detectIdentifierType('urn:lsid:index-fungorum.org:name:12345:2')).toBe('LSID');
+            });
+            it('detects Index Fungorum lsid.io: https://lsid.io/urn:lsid:index-fungorum.org:name:12345:2', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:index-fungorum.org:name:12345:2')).toBe('LSID');
+            });
+
+            // 8. IPNI Plant Names
+            it('detects IPNI URN: urn:lsid:ipni.org:name:60011573-2:1', () => {
+                expect(detectIdentifierType('urn:lsid:ipni.org:name:60011573-2:1')).toBe('LSID');
+            });
+            it('detects IPNI lsid.io: https://lsid.io/urn:lsid:ipni.org:name:60011573-2:1', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ipni.org:name:60011573-2:1')).toBe('LSID');
+            });
+
+            // 9. GBIF Specimen
+            it('detects GBIF specimen URN: urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1', () => {
+                expect(detectIdentifierType('urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1')).toBe('LSID');
+            });
+            it('detects GBIF specimen lsid.io: https://lsid.io/urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:gbif.org:specimen:f77f0770-d88d-4c22-be56-7ab8f6269cbe:1')).toBe('LSID');
+            });
+
+            // 10. EBI UniProt Entry
+            it('detects EBI UniProt URN: urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5')).toBe('LSID');
+            });
+            it('detects EBI UniProt lsid.io: https://lsid.io/urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5')).toBe('LSID');
+            });
+            it('detects EBI UniProt ServiceLocator: http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5', () => {
+                expect(detectIdentifierType('http://ebi.ac.uk/ws/services/ServiceLocator?lsid=urn:lsid:ebi.ac.uk:UniProt.accession:Q9UBC2:5')).toBe('LSID');
+            });
+        });
+
+        describe('LSID should NOT be detected for non-LSID identifiers', () => {
+            it('should not detect plain URN as LSID', () => {
+                expect(detectIdentifierType('urn:isbn:0451450523')).not.toBe('LSID');
+            });
+
+            it('should not detect DOI as LSID', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('LSID');
+            });
+
+            it('should not detect Handle as LSID', () => {
+                expect(detectIdentifierType('2128/1885')).not.toBe('LSID');
+            });
+
+            it('should not detect URL as LSID', () => {
+                expect(detectIdentifierType('https://example.org/resource/123')).not.toBe('LSID');
+            });
+
+            it('should not detect IGSN as LSID', () => {
+                expect(detectIdentifierType('IGSN:AU1234567')).not.toBe('LSID');
+            });
+
+            it('should not detect ARK as LSID', () => {
+                expect(detectIdentifierType('ark:/12345/abc123')).not.toBe('LSID');
+            });
+
+            it('should not detect ISSN as LSID', () => {
+                expect(detectIdentifierType('ISSN 1234-5678')).not.toBe('LSID');
+            });
+
+            it('should not detect UUID without LSID prefix as LSID', () => {
+                expect(detectIdentifierType('8BDC0735-FEA4-4298-83FA-D04F67C3FBEC')).not.toBe('LSID');
+            });
+
+            it('should not detect incomplete LSID (missing namespace) as LSID', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:P34355')).not.toBe('LSID');
+            });
+
+            it('should not detect invalid LSID authority as LSID', () => {
+                expect(detectIdentifierType('urn:lsid::namespace:objectid')).not.toBe('LSID');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
