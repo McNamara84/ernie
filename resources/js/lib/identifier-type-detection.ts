@@ -225,6 +225,20 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'EAN13';
     }
 
+    // LISSN (Linking ISSN / ISSN-L) detection
+    // LISSN links different media versions of the same serial publication
+    // Must be checked before EISSN since LISSN has more specific prefixes
+
+    // LISSN with portal.issn.org URL: https://portal.issn.org/resource/ISSN-L/NNNN-NNNN
+    if (trimmed.match(/^https?:\/\/portal\.issn\.org\/resource\/ISSN-L\/\d{4}-?\d{3}[\dXx]$/i)) {
+        return 'LISSN';
+    }
+
+    // LISSN with explicit prefix: LISSN NNNN-NNNN, ISSN-L NNNN-NNNN
+    if (trimmed.match(/^(?:lissn|issn-l):?\s*\d{4}-?\d{3}[\dXx]$/i)) {
+        return 'LISSN';
+    }
+
     // EISSN (Electronic ISSN) URL patterns
     // Matches: https://portal.issn.org/resource/ISSN/NNNN-NNNN
     // Matches: https://identifiers.org/issn:NNNN-NNNN

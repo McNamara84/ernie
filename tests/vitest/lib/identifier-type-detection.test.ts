@@ -4391,6 +4391,360 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    describe('LISSN detection', () => {
+        /**
+         * LISSN (Linking ISSN / ISSN-L) links different media versions of the same
+         * serial publication together. The ISSN-L is typically the ISSN of the
+         * first published medium (usually print).
+         *
+         * Format: Same as ISSN (NNNN-NNNC where C = check digit 0-9 or X)
+         *
+         * Key characteristics:
+         * - Links print, online, CD-ROM versions of same publication
+         * - Usually equals the p-ISSN of the first medium
+         * - Registered in the ISSN-L database
+         *
+         * Common patterns:
+         * - LISSN NNNN-NNNN
+         * - ISSN-L NNNN-NNNN
+         * - https://portal.issn.org/resource/ISSN-L/NNNN-NNNN
+         */
+
+        describe('LISSN with LISSN prefix', () => {
+            it('detects LISSN prefix: LISSN 1756-6606', () => {
+                expect(detectIdentifierType('LISSN 1756-6606')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 0264-2875', () => {
+                expect(detectIdentifierType('LISSN 0264-2875')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 1188-1534', () => {
+                expect(detectIdentifierType('LISSN 1188-1534')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 0378-5955', () => {
+                expect(detectIdentifierType('LISSN 0378-5955')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 0001-6772', () => {
+                expect(detectIdentifierType('LISSN 0001-6772')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 1748-7188', () => {
+                expect(detectIdentifierType('LISSN 1748-7188')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 2589-7500', () => {
+                expect(detectIdentifierType('LISSN 2589-7500')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 2375-2548', () => {
+                expect(detectIdentifierType('LISSN 2375-2548')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix: LISSN 1932-6203', () => {
+                expect(detectIdentifierType('LISSN 1932-6203')).toBe('LISSN');
+            });
+
+            it('detects LISSN prefix with X check digit: LISSN 2296-858X', () => {
+                expect(detectIdentifierType('LISSN 2296-858X')).toBe('LISSN');
+            });
+        });
+
+        describe('LISSN with ISSN-L prefix', () => {
+            it('detects ISSN-L prefix: ISSN-L 1756-6606', () => {
+                expect(detectIdentifierType('ISSN-L 1756-6606')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 0264-2875', () => {
+                expect(detectIdentifierType('ISSN-L 0264-2875')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 1188-1534', () => {
+                expect(detectIdentifierType('ISSN-L 1188-1534')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 0378-5955', () => {
+                expect(detectIdentifierType('ISSN-L 0378-5955')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 0001-6772', () => {
+                expect(detectIdentifierType('ISSN-L 0001-6772')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 1748-7188', () => {
+                expect(detectIdentifierType('ISSN-L 1748-7188')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 2589-7500', () => {
+                expect(detectIdentifierType('ISSN-L 2589-7500')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 2375-2548', () => {
+                expect(detectIdentifierType('ISSN-L 2375-2548')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix: ISSN-L 1932-6203', () => {
+                expect(detectIdentifierType('ISSN-L 1932-6203')).toBe('LISSN');
+            });
+
+            it('detects ISSN-L prefix with X check digit: ISSN-L 2296-858X', () => {
+                expect(detectIdentifierType('ISSN-L 2296-858X')).toBe('LISSN');
+            });
+        });
+
+        describe('LISSN with portal.issn.org ISSN-L URL', () => {
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/1756-6606', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1756-6606')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/0264-2875', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/0264-2875')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/1188-1534', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1188-1534')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/0378-5955', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/0378-5955')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/0001-6772', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/0001-6772')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/1748-7188', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1748-7188')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/2589-7500', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/2589-7500')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/2375-2548', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/2375-2548')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL: https://portal.issn.org/resource/ISSN-L/1932-6203', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1932-6203')).toBe('LISSN');
+            });
+
+            it('detects portal ISSN-L URL with X: https://portal.issn.org/resource/ISSN-L/2296-858X', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/2296-858X')).toBe('LISSN');
+            });
+        });
+
+        describe('LISSN edge cases', () => {
+            it('handles lowercase lissn prefix', () => {
+                expect(detectIdentifierType('lissn 1756-6606')).toBe('LISSN');
+            });
+
+            it('handles lowercase issn-l prefix', () => {
+                expect(detectIdentifierType('issn-l 1756-6606')).toBe('LISSN');
+            });
+
+            it('handles LISSN with colon', () => {
+                expect(detectIdentifierType('LISSN: 1756-6606')).toBe('LISSN');
+            });
+
+            it('handles ISSN-L with colon', () => {
+                expect(detectIdentifierType('ISSN-L: 0264-2875')).toBe('LISSN');
+            });
+
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  LISSN 1756-6606  ')).toBe('LISSN');
+            });
+
+            it('handles ISSN-L with lowercase x check digit', () => {
+                expect(detectIdentifierType('ISSN-L 2296-858x')).toBe('LISSN');
+            });
+
+            it('handles compact format with LISSN prefix', () => {
+                expect(detectIdentifierType('LISSN 17566606')).toBe('LISSN');
+            });
+
+            it('handles compact format with ISSN-L prefix', () => {
+                expect(detectIdentifierType('ISSN-L 02642875')).toBe('LISSN');
+            });
+        });
+
+        describe('real-world LISSN examples from user requirements', () => {
+            // 1. Nature Communications (Print + Online)
+            it('detects Nature Communications LISSN: LISSN 1756-6606', () => {
+                expect(detectIdentifierType('LISSN 1756-6606')).toBe('LISSN');
+            });
+
+            it('detects Nature Communications ISSN-L: ISSN-L 1756-6606', () => {
+                expect(detectIdentifierType('ISSN-L 1756-6606')).toBe('LISSN');
+            });
+
+            it('detects Nature Communications portal: https://portal.issn.org/resource/ISSN-L/1756-6606', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1756-6606')).toBe('LISSN');
+            });
+
+            // 2. Dance Research (Print + Online)
+            it('detects Dance Research LISSN: LISSN 0264-2875', () => {
+                expect(detectIdentifierType('LISSN 0264-2875')).toBe('LISSN');
+            });
+
+            it('detects Dance Research ISSN-L: ISSN-L 0264-2875', () => {
+                expect(detectIdentifierType('ISSN-L 0264-2875')).toBe('LISSN');
+            });
+
+            it('detects Dance Research portal: https://portal.issn.org/resource/ISSN-L/0264-2875', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/0264-2875')).toBe('LISSN');
+            });
+
+            // 3. Plant Varieties Journal (Print + Online + CD-ROM)
+            it('detects Plant Varieties LISSN: LISSN 1188-1534', () => {
+                expect(detectIdentifierType('LISSN 1188-1534')).toBe('LISSN');
+            });
+
+            it('detects Plant Varieties ISSN-L: ISSN-L 1188-1534', () => {
+                expect(detectIdentifierType('ISSN-L 1188-1534')).toBe('LISSN');
+            });
+
+            it('detects Plant Varieties portal: https://portal.issn.org/resource/ISSN-L/1188-1534', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1188-1534')).toBe('LISSN');
+            });
+
+            // 4. Hearing Research (Elsevier, Print + Online)
+            it('detects Hearing Research LISSN: LISSN 0378-5955', () => {
+                expect(detectIdentifierType('LISSN 0378-5955')).toBe('LISSN');
+            });
+
+            it('detects Hearing Research ISSN-L: ISSN-L 0378-5955', () => {
+                expect(detectIdentifierType('ISSN-L 0378-5955')).toBe('LISSN');
+            });
+
+            it('detects Hearing Research portal: https://portal.issn.org/resource/ISSN-L/0378-5955', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/0378-5955')).toBe('LISSN');
+            });
+
+            // 5. Acta Physiologica Scandinavica (Print + Online)
+            it('detects Acta Physiologica LISSN: LISSN 0001-6772', () => {
+                expect(detectIdentifierType('LISSN 0001-6772')).toBe('LISSN');
+            });
+
+            it('detects Acta Physiologica ISSN-L: ISSN-L 0001-6772', () => {
+                expect(detectIdentifierType('ISSN-L 0001-6772')).toBe('LISSN');
+            });
+
+            it('detects Acta Physiologica portal: https://portal.issn.org/resource/ISSN-L/0001-6772', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/0001-6772')).toBe('LISSN');
+            });
+
+            // 6. Algorithms for Molecular Biology (Online Only)
+            it('detects Algorithms Mol Bio LISSN: LISSN 1748-7188', () => {
+                expect(detectIdentifierType('LISSN 1748-7188')).toBe('LISSN');
+            });
+
+            it('detects Algorithms Mol Bio ISSN-L: ISSN-L 1748-7188', () => {
+                expect(detectIdentifierType('ISSN-L 1748-7188')).toBe('LISSN');
+            });
+
+            it('detects Algorithms Mol Bio portal: https://portal.issn.org/resource/ISSN-L/1748-7188', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1748-7188')).toBe('LISSN');
+            });
+
+            // 7. The Lancet Digital Health (Online Only)
+            it('detects Lancet Digital Health LISSN: LISSN 2589-7500', () => {
+                expect(detectIdentifierType('LISSN 2589-7500')).toBe('LISSN');
+            });
+
+            it('detects Lancet Digital Health ISSN-L: ISSN-L 2589-7500', () => {
+                expect(detectIdentifierType('ISSN-L 2589-7500')).toBe('LISSN');
+            });
+
+            it('detects Lancet Digital Health portal: https://portal.issn.org/resource/ISSN-L/2589-7500', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/2589-7500')).toBe('LISSN');
+            });
+
+            // 8. Science Advances (AAAS, Online Only)
+            it('detects Science Advances LISSN: LISSN 2375-2548', () => {
+                expect(detectIdentifierType('LISSN 2375-2548')).toBe('LISSN');
+            });
+
+            it('detects Science Advances ISSN-L: ISSN-L 2375-2548', () => {
+                expect(detectIdentifierType('ISSN-L 2375-2548')).toBe('LISSN');
+            });
+
+            it('detects Science Advances portal: https://portal.issn.org/resource/ISSN-L/2375-2548', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/2375-2548')).toBe('LISSN');
+            });
+
+            // 9. PLOS ONE (Online Open Access)
+            it('detects PLOS ONE LISSN: LISSN 1932-6203', () => {
+                expect(detectIdentifierType('LISSN 1932-6203')).toBe('LISSN');
+            });
+
+            it('detects PLOS ONE ISSN-L: ISSN-L 1932-6203', () => {
+                expect(detectIdentifierType('ISSN-L 1932-6203')).toBe('LISSN');
+            });
+
+            it('detects PLOS ONE portal: https://portal.issn.org/resource/ISSN-L/1932-6203', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1932-6203')).toBe('LISSN');
+            });
+
+            // 10. Frontiers in Medicine (Online Open Access with X Check Digit)
+            it('detects Frontiers in Medicine LISSN: LISSN 2296-858X', () => {
+                expect(detectIdentifierType('LISSN 2296-858X')).toBe('LISSN');
+            });
+
+            it('detects Frontiers in Medicine ISSN-L: ISSN-L 2296-858X', () => {
+                expect(detectIdentifierType('ISSN-L 2296-858X')).toBe('LISSN');
+            });
+
+            it('detects Frontiers in Medicine portal: https://portal.issn.org/resource/ISSN-L/2296-858X', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/2296-858X')).toBe('LISSN');
+            });
+        });
+
+        describe('LISSN should NOT be detected for non-LISSN identifiers', () => {
+            it('should not detect plain ISSN as LISSN (requires prefix)', () => {
+                expect(detectIdentifierType('1756-6606')).not.toBe('LISSN');
+            });
+
+            it('should not detect eISSN prefix as LISSN', () => {
+                expect(detectIdentifierType('eISSN 1756-6606')).not.toBe('LISSN');
+            });
+
+            it('should not detect p-ISSN prefix as LISSN', () => {
+                expect(detectIdentifierType('p-ISSN 1756-6606')).not.toBe('LISSN');
+            });
+
+            it('should not detect portal ISSN URL as LISSN', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1756-6606')).not.toBe('LISSN');
+            });
+
+            it('should not detect urn:issn as LISSN', () => {
+                expect(detectIdentifierType('urn:issn:1756-6606')).not.toBe('LISSN');
+            });
+
+            it('should not detect plain URLs as LISSN', () => {
+                expect(detectIdentifierType('https://example.com/resource')).not.toBe('LISSN');
+            });
+
+            it('should not detect DOIs as LISSN', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('LISSN');
+            });
+
+            it('should not detect ISBN as LISSN', () => {
+                expect(detectIdentifierType('978-0-306-40615-7')).not.toBe('LISSN');
+            });
+
+            it('should not detect ISTC as LISSN', () => {
+                expect(detectIdentifierType('0A9-2010-31F4-CB2C-B')).not.toBe('LISSN');
+            });
+
+            it('should not detect compact ISSN without prefix as LISSN', () => {
+                expect(detectIdentifierType('17566606')).not.toBe('LISSN');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
