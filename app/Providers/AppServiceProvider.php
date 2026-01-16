@@ -125,5 +125,13 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('manage-thesauri', function (User $user): bool {
             return $user->role === UserRole::ADMIN;
         });
+
+        // Manage landing pages (create, update, delete)
+        // Beginners can only view landing pages, not manage them
+        Gate::define('manage-landing-pages', function (User $user): bool {
+            return $user->role === UserRole::ADMIN
+                || $user->role === UserRole::GROUP_LEADER
+                || $user->role === UserRole::CURATOR;
+        });
     }
 }

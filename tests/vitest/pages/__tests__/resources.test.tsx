@@ -22,6 +22,15 @@ const editorRouteMock = vi.hoisted(
 vi.mock('@inertiajs/react', () => ({
     Head: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     router: routerMock,
+    usePage: () => ({
+        props: {
+            auth: {
+                user: {
+                    can_manage_landing_pages: true,
+                },
+            },
+        },
+    }),
 }));
 
 vi.mock('@/lib/curation-query', () => ({

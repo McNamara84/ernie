@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\LandingPage;
 use App\Models\Resource;
 use App\Models\User;
@@ -12,7 +13,9 @@ uses()->group('landing-pages');
 beforeEach(function () {
     withoutVite();
 
-    $this->user = User::factory()->create();
+    // Use a Curator role to satisfy LandingPagePolicy authorization
+    // Only ADMIN, GROUP_LEADER, and CURATOR can manage landing pages
+    $this->user = User::factory()->create(['role' => UserRole::CURATOR]);
     $this->resource = Resource::factory()->create();
 });
 
