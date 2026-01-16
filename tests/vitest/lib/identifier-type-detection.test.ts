@@ -5467,22 +5467,24 @@ describe('detectIdentifierType', () => {
             });
         });
 
-        describe('PURL with w3id.org domain', () => {
-            // Test case 6: W3ID Ontologies
-            it('detects W3ID PURL HTTPS: https://w3id.org/ontologies/example/', () => {
-                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('PURL');
+        describe('PURL with w3id.org domain (Note: w3id is now a separate identifier type)', () => {
+            // Note: w3id.org URLs are now detected as 'w3id', not 'PURL'
+            // w3id is a distinct identifier type for W3C permanent identifiers
+            // These tests verify that w3id.org is NOT detected as PURL
+            it('detects W3ID HTTPS as w3id (not PURL): https://w3id.org/ontologies/example/', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('w3id');
             });
 
-            it('detects W3ID PURL HTTP: http://w3id.org/ontologies/example/', () => {
-                expect(detectIdentifierType('http://w3id.org/ontologies/example/')).toBe('PURL');
+            it('detects W3ID HTTP as w3id (not PURL): http://w3id.org/ontologies/example/', () => {
+                expect(detectIdentifierType('http://w3id.org/ontologies/example/')).toBe('w3id');
             });
 
-            it('detects W3ID with nested path: https://w3id.org/some/nested/path', () => {
-                expect(detectIdentifierType('https://w3id.org/some/nested/path')).toBe('PURL');
+            it('detects W3ID with nested path as w3id: https://w3id.org/some/nested/path', () => {
+                expect(detectIdentifierType('https://w3id.org/some/nested/path')).toBe('w3id');
             });
 
-            it('detects W3ID with simple path: https://w3id.org/example', () => {
-                expect(detectIdentifierType('https://w3id.org/example')).toBe('PURL');
+            it('detects W3ID with simple path as w3id: https://w3id.org/example', () => {
+                expect(detectIdentifierType('https://w3id.org/example')).toBe('w3id');
             });
         });
 
@@ -5585,9 +5587,9 @@ describe('detectIdentifierType', () => {
                 expect(detectIdentifierType('http://purl.org/lcnaf/n85010173')).toBe('PURL');
             });
 
-            // 6. W3ID Ontologies
-            it('detects W3ID HTTPS: https://w3id.org/ontologies/example/', () => {
-                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('PURL');
+            // 6. W3ID Ontologies (Note: w3id is now a separate type, not PURL)
+            it('detects W3ID HTTPS as w3id (not PURL): https://w3id.org/ontologies/example/', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('w3id');
             });
 
             // 7. Florida State University Library PURL
@@ -7096,9 +7098,9 @@ describe('detectIdentifierType', () => {
                 expect(detectIdentifierType('http://purl.org/dc/terms/')).not.toBe('URL');
             });
 
-            // W3ID URLs should be PURL
-            it('should detect W3ID URL as PURL, not URL', () => {
-                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('PURL');
+            // W3ID URLs should be w3id (not PURL, not URL)
+            it('should detect W3ID URL as w3id, not URL', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('w3id');
                 expect(detectIdentifierType('https://w3id.org/ontologies/example/')).not.toBe('URL');
             });
 
