@@ -29,12 +29,17 @@ test.describe('Related Work Identifier Type Detection', () => {
         const relatedWorkAccordion = page.getByTestId('related-work-accordion-trigger');
         await relatedWorkAccordion.waitFor({ state: 'visible', timeout: 10000 });
 
+        // Scroll to the accordion to ensure it's in view
+        await relatedWorkAccordion.scrollIntoViewIfNeeded();
+
+        // Small delay to ensure scroll is complete
+        await page.waitForTimeout(200);
+
         // Click to expand the accordion
         await relatedWorkAccordion.click();
 
-        // Wait for accordion content to be visible using data-testid
-        const accordionContent = page.getByTestId('related-work-accordion-content');
-        await accordionContent.waitFor({ state: 'visible', timeout: 10000 });
+        // Wait for the accordion to have data-state="open" attribute
+        await expect(page.getByTestId('related-work-section')).toHaveAttribute('data-state', 'open', { timeout: 10000 });
 
         // Now wait for the input to be visible and interactable
         const identifierInput = page.getByTestId('related-identifier-input');
