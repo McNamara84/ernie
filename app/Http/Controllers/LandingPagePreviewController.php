@@ -13,27 +13,21 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Handles temporary landing page previews stored in session
+ * Handles temporary landing page previews stored in session.
+ *
+ * This controller allows users to preview landing page configurations
+ * before saving them. The preview data is stored in the session and
+ * can be used to test different templates or FTP URLs.
  */
 class LandingPagePreviewController extends Controller
 {
-    /**
-     * When adding a new landing page template, update this list.
-     * The value must match an Inertia page under resources/js/Pages/LandingPages/.
-     *
-     * @var array<int, string>
-     */
-    private const ALLOWED_TEMPLATES = [
-        'default_gfz',
-    ];
-
     /**
      * Store preview data in session and return a preview URL
      */
     public function store(Request $request, Resource $resource): JsonResponse
     {
         $validated = $request->validate([
-            'template' => ['required', 'string', Rule::in(self::ALLOWED_TEMPLATES)],
+            'template' => ['required', 'string', Rule::in(LandingPageController::ALLOWED_TEMPLATES)],
             'ftp_url' => ['nullable', new SafeUrl, 'max:2048'],
         ]);
 
@@ -67,7 +61,7 @@ class LandingPagePreviewController extends Controller
         }
 
         $template = is_string($previewData['template'] ?? null) ? $previewData['template'] : 'default_gfz';
-        if (! in_array($template, self::ALLOWED_TEMPLATES, true)) {
+        if (! in_array($template, LandingPageController::ALLOWED_TEMPLATES, true)) {
             $template = 'default_gfz';
         }
 
