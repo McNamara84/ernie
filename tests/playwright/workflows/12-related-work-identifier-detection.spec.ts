@@ -25,21 +25,19 @@ test.describe('Related Work Identifier Type Detection', () => {
         // Wait for the page to be fully loaded
         await page.waitForLoadState('networkidle');
 
-        // Find the Related Work accordion trigger using stable data-testid
-        const relatedWorkAccordion = page.getByTestId('related-work-accordion-trigger');
-        await relatedWorkAccordion.waitFor({ state: 'visible', timeout: 10000 });
+        // Check if the accordion is already open (it's open by default in the editor)
+        const relatedWorkSection = page.getByTestId('related-work-section');
+        await relatedWorkSection.waitFor({ state: 'visible', timeout: 10000 });
 
-        // Scroll to the accordion to ensure it's in view
-        await relatedWorkAccordion.scrollIntoViewIfNeeded();
+        const isOpen = await relatedWorkSection.getAttribute('data-state') === 'open';
 
-        // Small delay to ensure scroll is complete
-        await page.waitForTimeout(200);
-
-        // Click to expand the accordion
-        await relatedWorkAccordion.click();
-
-        // Wait for the accordion to have data-state="open" attribute
-        await expect(page.getByTestId('related-work-section')).toHaveAttribute('data-state', 'open', { timeout: 10000 });
+        // Only click to open if it's currently closed
+        if (!isOpen) {
+            const relatedWorkAccordion = page.getByTestId('related-work-accordion-trigger');
+            await relatedWorkAccordion.scrollIntoViewIfNeeded();
+            await relatedWorkAccordion.click();
+            await expect(relatedWorkSection).toHaveAttribute('data-state', 'open', { timeout: 10000 });
+        }
 
         // Now wait for the input to be visible and interactable
         const identifierInput = page.getByTestId('related-identifier-input');
