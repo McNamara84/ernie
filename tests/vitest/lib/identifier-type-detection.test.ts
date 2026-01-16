@@ -6199,6 +6199,317 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    // ==================== URL (Generic Web URL) ====================
+    // Generic URLs are used as fallback when no specific identifier type matches
+    // URLs that resolve to specific identifiers (DOI, PMID, etc.) are detected as those types
+    describe('URL detection', () => {
+        describe('Generic URL detection (not specific identifier URLs)', () => {
+            // Test case 1: Wikipedia Artikel
+            it('detects Wikipedia URL: https://en.wikipedia.org/wiki/Persistent_identifier', () => {
+                expect(detectIdentifierType('https://en.wikipedia.org/wiki/Persistent_identifier')).toBe('URL');
+            });
+
+            it('detects Wikipedia URL with fragment: https://en.wikipedia.org/wiki/Persistent_identifier#History', () => {
+                expect(detectIdentifierType('https://en.wikipedia.org/wiki/Persistent_identifier#History')).toBe('URL');
+            });
+
+            it('detects Wikipedia permanent link: https://en.wikipedia.org/w/index.php?title=Persistent_identifier&oldid=1234567890', () => {
+                expect(detectIdentifierType('https://en.wikipedia.org/w/index.php?title=Persistent_identifier&oldid=1234567890')).toBe('URL');
+            });
+
+            it('detects Wikipedia HTTP URL: http://en.wikipedia.org/wiki/Persistent_identifier', () => {
+                expect(detectIdentifierType('http://en.wikipedia.org/wiki/Persistent_identifier')).toBe('URL');
+            });
+
+            // Test case 4: GitHub Repository
+            it('detects GitHub repository URL: https://github.com/octocat/Hello-World', () => {
+                expect(detectIdentifierType('https://github.com/octocat/Hello-World')).toBe('URL');
+            });
+
+            it('detects GitHub branch URL: https://github.com/octocat/Hello-World/tree/main', () => {
+                expect(detectIdentifierType('https://github.com/octocat/Hello-World/tree/main')).toBe('URL');
+            });
+
+            it('detects GitHub commit URL: https://github.com/octocat/Hello-World/commit/7fd1a46bf', () => {
+                expect(detectIdentifierType('https://github.com/octocat/Hello-World/commit/7fd1a46bf')).toBe('URL');
+            });
+
+            it('detects GitHub file URL: https://github.com/octocat/Hello-World/blob/main/README.md', () => {
+                expect(detectIdentifierType('https://github.com/octocat/Hello-World/blob/main/README.md')).toBe('URL');
+            });
+
+            it('detects GitHub raw URL: https://raw.githubusercontent.com/octocat/Hello-World/main/README.md', () => {
+                expect(detectIdentifierType('https://raw.githubusercontent.com/octocat/Hello-World/main/README.md')).toBe('URL');
+            });
+
+            // Test case 5: Zenodo Repository
+            it('detects Zenodo record URL: https://zenodo.org/record/1320264', () => {
+                expect(detectIdentifierType('https://zenodo.org/record/1320264')).toBe('URL');
+            });
+
+            // Test case 6: W3C Specification
+            it('detects W3C specification URL: https://www.w3.org/TR/rdf11-concepts/', () => {
+                expect(detectIdentifierType('https://www.w3.org/TR/rdf11-concepts/')).toBe('URL');
+            });
+
+            it('detects W3C alternate URL: https://www.w3.org/RDF/', () => {
+                expect(detectIdentifierType('https://www.w3.org/RDF/')).toBe('URL');
+            });
+
+            // Test case 7: NCBI Gene (not PubMed)
+            it('detects NCBI Gene URL: https://www.ncbi.nlm.nih.gov/gene/672', () => {
+                expect(detectIdentifierType('https://www.ncbi.nlm.nih.gov/gene/672')).toBe('URL');
+            });
+
+            // Test case 8: ORCID Profile
+            it('detects ORCID profile URL: https://orcid.org/0000-0001-2345-6789', () => {
+                expect(detectIdentifierType('https://orcid.org/0000-0001-2345-6789')).toBe('URL');
+            });
+
+            // Test case 9: DataCite
+            it('detects DataCite URL: https://www.datacite.org/dois.html', () => {
+                expect(detectIdentifierType('https://www.datacite.org/dois.html')).toBe('URL');
+            });
+
+            it('detects DataCite search URL: https://search.datacite.org/works?query=machine-learning', () => {
+                expect(detectIdentifierType('https://search.datacite.org/works?query=machine-learning')).toBe('URL');
+            });
+
+            // Test case 10: Internet Archive Wayback Machine
+            it('detects Wayback Machine URL: https://web.archive.org/web/20200101000000*/example.com', () => {
+                expect(detectIdentifierType('https://web.archive.org/web/20200101000000*/example.com')).toBe('URL');
+            });
+
+            it('detects Wayback Machine snapshot: https://web.archive.org/web/20200101120000/https://example.com/page', () => {
+                expect(detectIdentifierType('https://web.archive.org/web/20200101120000/https://example.com/page')).toBe('URL');
+            });
+        });
+
+        describe('URL edge cases', () => {
+            it('handles HTTP protocol', () => {
+                expect(detectIdentifierType('http://example.org/resource')).toBe('URL');
+            });
+
+            it('handles HTTPS protocol', () => {
+                expect(detectIdentifierType('https://example.org/resource')).toBe('URL');
+            });
+
+            it('handles URL with port', () => {
+                expect(detectIdentifierType('https://example.org:8080/resource')).toBe('URL');
+            });
+
+            it('handles URL with query string', () => {
+                expect(detectIdentifierType('https://example.org/search?q=test&page=1')).toBe('URL');
+            });
+
+            it('handles URL with fragment', () => {
+                expect(detectIdentifierType('https://example.org/page#section')).toBe('URL');
+            });
+
+            it('handles URL with query and fragment', () => {
+                expect(detectIdentifierType('https://example.org/page?id=1#section')).toBe('URL');
+            });
+
+            it('handles URL with subdomain', () => {
+                expect(detectIdentifierType('https://api.example.org/v1/resource')).toBe('URL');
+            });
+
+            it('handles URL with IP address', () => {
+                expect(detectIdentifierType('http://192.168.1.1/admin')).toBe('URL');
+            });
+
+            it('handles URL with encoded characters', () => {
+                expect(detectIdentifierType('https://example.org/path%20with%20spaces')).toBe('URL');
+            });
+
+            it('handles whitespace trimming', () => {
+                expect(detectIdentifierType('  https://example.org/resource  ')).toBe('URL');
+            });
+
+            it('handles long paths', () => {
+                expect(detectIdentifierType('https://example.org/very/long/path/to/resource/file.html')).toBe('URL');
+            });
+
+            it('handles URL with authentication', () => {
+                expect(detectIdentifierType('https://user:pass@example.org/resource')).toBe('URL');
+            });
+        });
+
+        describe('Real-world URL examples', () => {
+            // 1. Wikipedia Artikel
+            it('detects Wikipedia HTTPS: https://en.wikipedia.org/wiki/Persistent_identifier', () => {
+                expect(detectIdentifierType('https://en.wikipedia.org/wiki/Persistent_identifier')).toBe('URL');
+            });
+            it('detects Wikipedia with fragment: https://en.wikipedia.org/wiki/Persistent_identifier#History', () => {
+                expect(detectIdentifierType('https://en.wikipedia.org/wiki/Persistent_identifier#History')).toBe('URL');
+            });
+            it('detects Wikipedia permanent link: https://en.wikipedia.org/w/index.php?title=Persistent_identifier&oldid=1234567890', () => {
+                expect(detectIdentifierType('https://en.wikipedia.org/w/index.php?title=Persistent_identifier&oldid=1234567890')).toBe('URL');
+            });
+
+            // 4. GitHub Repository
+            it('detects GitHub repo: https://github.com/octocat/Hello-World', () => {
+                expect(detectIdentifierType('https://github.com/octocat/Hello-World')).toBe('URL');
+            });
+            it('detects GitHub commit: https://github.com/octocat/Hello-World/commit/7fd1a46bf', () => {
+                expect(detectIdentifierType('https://github.com/octocat/Hello-World/commit/7fd1a46bf')).toBe('URL');
+            });
+            it('detects GitHub file: https://github.com/octocat/Hello-World/blob/main/README.md', () => {
+                expect(detectIdentifierType('https://github.com/octocat/Hello-World/blob/main/README.md')).toBe('URL');
+            });
+
+            // 5. Zenodo
+            it('detects Zenodo record: https://zenodo.org/record/1320264', () => {
+                expect(detectIdentifierType('https://zenodo.org/record/1320264')).toBe('URL');
+            });
+
+            // 6. W3C Specification
+            it('detects W3C TR: https://www.w3.org/TR/rdf11-concepts/', () => {
+                expect(detectIdentifierType('https://www.w3.org/TR/rdf11-concepts/')).toBe('URL');
+            });
+
+            // 7. NCBI Gene
+            it('detects NCBI Gene: https://www.ncbi.nlm.nih.gov/gene/672', () => {
+                expect(detectIdentifierType('https://www.ncbi.nlm.nih.gov/gene/672')).toBe('URL');
+            });
+
+            // 8. ORCID Profile
+            it('detects ORCID: https://orcid.org/0000-0001-2345-6789', () => {
+                expect(detectIdentifierType('https://orcid.org/0000-0001-2345-6789')).toBe('URL');
+            });
+
+            // 9. DataCite
+            it('detects DataCite: https://www.datacite.org/dois.html', () => {
+                expect(detectIdentifierType('https://www.datacite.org/dois.html')).toBe('URL');
+            });
+
+            // 10. Internet Archive
+            it('detects Wayback: https://web.archive.org/web/20200101120000/https://example.com/page', () => {
+                expect(detectIdentifierType('https://web.archive.org/web/20200101120000/https://example.com/page')).toBe('URL');
+            });
+        });
+
+        describe('Specific identifier URLs should NOT be detected as generic URL', () => {
+            // Test case 2: PubMed URLs should be PMID
+            it('should detect PubMed URL as PMID, not URL', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/26360422')).toBe('PMID');
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/26360422')).not.toBe('URL');
+            });
+
+            it('should detect legacy PubMed URL as PMID, not URL', () => {
+                expect(detectIdentifierType('https://www.ncbi.nlm.nih.gov/pubmed/26360422')).toBe('PMID');
+                expect(detectIdentifierType('https://www.ncbi.nlm.nih.gov/pubmed/26360422')).not.toBe('URL');
+            });
+
+            // Test case 3: DOI URLs should be DOI
+            it('should detect DOI URL as DOI, not URL', () => {
+                expect(detectIdentifierType('https://doi.org/10.1038/nature12373')).toBe('DOI');
+                expect(detectIdentifierType('https://doi.org/10.1038/nature12373')).not.toBe('URL');
+            });
+
+            it('should detect legacy DOI URL as DOI, not URL', () => {
+                expect(detectIdentifierType('https://dx.doi.org/10.1038/nature12373')).toBe('DOI');
+                expect(detectIdentifierType('https://dx.doi.org/10.1038/nature12373')).not.toBe('URL');
+            });
+
+            // Handle URLs should be Handle
+            it('should detect Handle URL as Handle, not URL', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2128/1885')).toBe('Handle');
+                expect(detectIdentifierType('https://hdl.handle.net/2128/1885')).not.toBe('URL');
+            });
+
+            // ARK URLs should be ARK
+            it('should detect ARK URL as ARK, not URL', () => {
+                expect(detectIdentifierType('https://n2t.net/ark:/12345/abc123')).toBe('ARK');
+                expect(detectIdentifierType('https://n2t.net/ark:/12345/abc123')).not.toBe('URL');
+            });
+
+            // PURL URLs should be PURL
+            it('should detect PURL URL as PURL, not URL', () => {
+                expect(detectIdentifierType('http://purl.org/dc/terms/')).toBe('PURL');
+                expect(detectIdentifierType('http://purl.org/dc/terms/')).not.toBe('URL');
+            });
+
+            // W3ID URLs should be PURL
+            it('should detect W3ID URL as PURL, not URL', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('PURL');
+                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).not.toBe('URL');
+            });
+
+            // SciCrunch RRID URLs should be RRID
+            it('should detect SciCrunch RRID URL as RRID, not URL', () => {
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:AB_90755')).toBe('RRID');
+                expect(detectIdentifierType('https://scicrunch.org/resolver/RRID:AB_90755')).not.toBe('URL');
+            });
+
+            // ISSN Portal URLs should be EISSN
+            it('should detect ISSN portal URL as EISSN, not URL', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1234-5678')).toBe('EISSN');
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1234-5678')).not.toBe('URL');
+            });
+
+            // LISSN Portal URLs should be LISSN
+            it('should detect LISSN portal URL as LISSN, not URL', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1234-5678')).toBe('LISSN');
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN-L/1234-5678')).not.toBe('URL');
+            });
+
+            // LSID URLs should be LSID
+            it('should detect lsid.io URL as LSID, not URL', () => {
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).toBe('LSID');
+                expect(detectIdentifierType('https://lsid.io/urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).not.toBe('URL');
+            });
+
+            // ISBN OpenEdition URLs should be ISBN
+            it('should detect OpenEdition ISBN URL as ISBN, not URL', () => {
+                expect(detectIdentifierType('https://books.openedition.org/isbn/9783161484100')).toBe('ISBN');
+                expect(detectIdentifierType('https://books.openedition.org/isbn/9783161484100')).not.toBe('URL');
+            });
+        });
+
+        describe('URL should NOT be detected for non-URL identifiers', () => {
+            it('should not detect bare DOI as URL', () => {
+                expect(detectIdentifierType('10.1038/nature12373')).not.toBe('URL');
+            });
+
+            it('should not detect PMID with prefix as URL', () => {
+                expect(detectIdentifierType('PMID: 26360422')).not.toBe('URL');
+            });
+
+            it('should not detect ISBN with prefix as URL', () => {
+                expect(detectIdentifierType('ISBN 978-3-16-148410-0')).not.toBe('URL');
+            });
+
+            it('should not detect ISSN as URL', () => {
+                expect(detectIdentifierType('ISSN 1234-5678')).not.toBe('URL');
+            });
+
+            it('should not detect RRID with prefix as URL', () => {
+                expect(detectIdentifierType('RRID:AB_90755')).not.toBe('URL');
+            });
+
+            it('should not detect UPC with prefix as URL', () => {
+                expect(detectIdentifierType('UPC: 036000291452')).not.toBe('URL');
+            });
+
+            it('should not detect IGSN with prefix as URL', () => {
+                expect(detectIdentifierType('IGSN: AU1234567')).not.toBe('URL');
+            });
+
+            it('should not detect ARK prefix as URL', () => {
+                expect(detectIdentifierType('ark:/12345/abc123')).not.toBe('URL');
+            });
+
+            it('should not detect Handle bare format as URL', () => {
+                expect(detectIdentifierType('2128/1885')).not.toBe('URL');
+            });
+
+            it('should not detect LSID URN as URL', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).not.toBe('URL');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
