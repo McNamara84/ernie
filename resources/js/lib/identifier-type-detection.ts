@@ -278,6 +278,35 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'PMID';
     }
 
+    // PURL (Persistent URL) detection
+    // PURLs are persistent URLs that redirect to actual resource locations
+    // Common domains: purl.org, purl.oclc.org, w3id.org, purl.lib.*, purl.example.org
+
+    // PURL with purl.org domain: http(s)://purl.org/path
+    if (trimmed.match(/^https?:\/\/purl\.org\/[a-z0-9._\/-]+$/i)) {
+        return 'PURL';
+    }
+
+    // PURL with purl.oclc.org domain (original OCLC PURL service)
+    if (trimmed.match(/^https?:\/\/purl\.oclc\.org\/[a-z0-9._\/-]+$/i)) {
+        return 'PURL';
+    }
+
+    // PURL with w3id.org domain (W3C permanent identifiers)
+    if (trimmed.match(/^https?:\/\/w3id\.org\/[a-z0-9._\/-]+$/i)) {
+        return 'PURL';
+    }
+
+    // PURL with institutional purl.lib.* domain (library PURLs)
+    if (trimmed.match(/^https?:\/\/purl\.lib\.[a-z0-9.-]+\/[a-z0-9._\/?=&-]+$/i)) {
+        return 'PURL';
+    }
+
+    // PURL with generic purl.*.org or purl.*.edu pattern
+    if (trimmed.match(/^https?:\/\/purl\.[a-z0-9.-]+\.(?:org|edu)\/[a-z0-9._\/-]+$/i)) {
+        return 'PURL';
+    }
+
     // LISSN (Linking ISSN / ISSN-L) detection
     // LISSN links different media versions of the same serial publication
     // Must be checked before EISSN since LISSN has more specific prefixes

@@ -5399,6 +5399,263 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    // ==================== PURL (Persistent URL) ====================
+    // Persistent URLs that redirect to actual resource locations
+    // Common domains: purl.org, purl.oclc.org, w3id.org, purl.lib.*
+    describe('PURL detection', () => {
+        describe('PURL with purl.org domain', () => {
+            // Test case 1: Dublin Core Metadata Terms
+            it('detects Dublin Core PURL HTTP: http://purl.org/dc/terms/', () => {
+                expect(detectIdentifierType('http://purl.org/dc/terms/')).toBe('PURL');
+            });
+
+            it('detects Dublin Core PURL HTTPS: https://purl.org/dc/terms/', () => {
+                expect(detectIdentifierType('https://purl.org/dc/terms/')).toBe('PURL');
+            });
+
+            // Test case 2: ISBN PURL
+            it('detects ISBN PURL HTTP: http://purl.org/isbn/0395363411', () => {
+                expect(detectIdentifierType('http://purl.org/isbn/0395363411')).toBe('PURL');
+            });
+
+            it('detects ISBN PURL HTTPS: https://purl.org/isbn/0395363411', () => {
+                expect(detectIdentifierType('https://purl.org/isbn/0395363411')).toBe('PURL');
+            });
+
+            // Test case 4: Open Biomedical Ontologies (OBO)
+            it('detects OBO PURL HTTP: http://purl.org/obo/OBI_0000070', () => {
+                expect(detectIdentifierType('http://purl.org/obo/OBI_0000070')).toBe('PURL');
+            });
+
+            it('detects OBO PURL HTTPS: https://purl.org/obo/OBI_0000070', () => {
+                expect(detectIdentifierType('https://purl.org/obo/OBI_0000070')).toBe('PURL');
+            });
+
+            // Test case 5: Library of Congress Names Authority File
+            it('detects LCNAF PURL: http://purl.org/lcnaf/n85010173', () => {
+                expect(detectIdentifierType('http://purl.org/lcnaf/n85010173')).toBe('PURL');
+            });
+
+            // Test case 8: DOAP Ontology
+            it('detects DOAP PURL HTTP: http://purl.org/doap/', () => {
+                expect(detectIdentifierType('http://purl.org/doap/')).toBe('PURL');
+            });
+
+            it('detects DOAP PURL HTTPS: https://purl.org/doap/', () => {
+                expect(detectIdentifierType('https://purl.org/doap/')).toBe('PURL');
+            });
+
+            // Test case 9: Open Data Commons Terms
+            it('detects ODC PURL: http://purl.org/odc/terms/', () => {
+                expect(detectIdentifierType('http://purl.org/odc/terms/')).toBe('PURL');
+            });
+        });
+
+        describe('PURL with purl.oclc.org domain', () => {
+            // Test case 3: OCLC Keith Home PURL
+            it('detects OCLC Keith PURL: http://purl.oclc.org/keith/home', () => {
+                expect(detectIdentifierType('http://purl.oclc.org/keith/home')).toBe('PURL');
+            });
+
+            it('detects OCLC PURL with path: http://purl.oclc.org/documents/123', () => {
+                expect(detectIdentifierType('http://purl.oclc.org/documents/123')).toBe('PURL');
+            });
+
+            it('detects OCLC PURL HTTPS: https://purl.oclc.org/keith/home', () => {
+                expect(detectIdentifierType('https://purl.oclc.org/keith/home')).toBe('PURL');
+            });
+        });
+
+        describe('PURL with w3id.org domain', () => {
+            // Test case 6: W3ID Ontologies
+            it('detects W3ID PURL HTTPS: https://w3id.org/ontologies/example/', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('PURL');
+            });
+
+            it('detects W3ID PURL HTTP: http://w3id.org/ontologies/example/', () => {
+                expect(detectIdentifierType('http://w3id.org/ontologies/example/')).toBe('PURL');
+            });
+
+            it('detects W3ID with nested path: https://w3id.org/some/nested/path', () => {
+                expect(detectIdentifierType('https://w3id.org/some/nested/path')).toBe('PURL');
+            });
+
+            it('detects W3ID with simple path: https://w3id.org/example', () => {
+                expect(detectIdentifierType('https://w3id.org/example')).toBe('PURL');
+            });
+        });
+
+        describe('PURL with institutional purl.lib.* domain', () => {
+            // Test case 7: Florida State University Library PURL
+            it('detects FSU Library PURL: http://purl.lib.fsu.edu/cgi-bin/docnumber=fsu_lib_000001', () => {
+                expect(detectIdentifierType('http://purl.lib.fsu.edu/cgi-bin/docnumber=fsu_lib_000001')).toBe('PURL');
+            });
+
+            it('detects Library PURL with simple path: http://purl.lib.harvard.edu/documents/123', () => {
+                expect(detectIdentifierType('http://purl.lib.harvard.edu/documents/123')).toBe('PURL');
+            });
+
+            it('detects Library PURL HTTPS: https://purl.lib.stanford.edu/resources/abc', () => {
+                expect(detectIdentifierType('https://purl.lib.stanford.edu/resources/abc')).toBe('PURL');
+            });
+        });
+
+        describe('PURL with generic purl.*.org/edu pattern', () => {
+            // Test case 10: Generic Institutional PURL
+            it('detects generic institutional PURL: http://purl.example.org/documents/research/2024/001', () => {
+                expect(detectIdentifierType('http://purl.example.org/documents/research/2024/001')).toBe('PURL');
+            });
+
+            it('detects generic edu PURL: http://purl.mit.edu/resources/paper123', () => {
+                expect(detectIdentifierType('http://purl.mit.edu/resources/paper123')).toBe('PURL');
+            });
+
+            it('detects generic org PURL HTTPS: https://purl.archive.org/items/12345', () => {
+                expect(detectIdentifierType('https://purl.archive.org/items/12345')).toBe('PURL');
+            });
+        });
+
+        describe('PURL edge cases', () => {
+            it('handles trailing slash in path', () => {
+                expect(detectIdentifierType('http://purl.org/dc/elements/')).toBe('PURL');
+            });
+
+            it('handles multiple path segments', () => {
+                expect(detectIdentifierType('http://purl.org/ontology/bibo/Document')).toBe('PURL');
+            });
+
+            it('handles underscores in path', () => {
+                expect(detectIdentifierType('http://purl.org/obo/OBI_0000070')).toBe('PURL');
+            });
+
+            it('handles hyphens in path', () => {
+                expect(detectIdentifierType('http://purl.org/net/provenance/ns-20091210')).toBe('PURL');
+            });
+
+            it('handles dots in path', () => {
+                expect(detectIdentifierType('http://purl.org/dc/dcmitype/Collection.html')).toBe('PURL');
+            });
+
+            it('handles numeric paths', () => {
+                expect(detectIdentifierType('http://purl.org/isbn/0395363411')).toBe('PURL');
+            });
+
+            it('handles whitespace trimming', () => {
+                expect(detectIdentifierType('  http://purl.org/dc/terms/  ')).toBe('PURL');
+            });
+
+            it('handles mixed case in path', () => {
+                expect(detectIdentifierType('http://purl.org/DC/Terms/')).toBe('PURL');
+            });
+        });
+
+        describe('Real-world PURL examples', () => {
+            // 1. Dublin Core Metadata Terms
+            it('detects Dublin Core HTTP: http://purl.org/dc/terms/', () => {
+                expect(detectIdentifierType('http://purl.org/dc/terms/')).toBe('PURL');
+            });
+            it('detects Dublin Core HTTPS: https://purl.org/dc/terms/', () => {
+                expect(detectIdentifierType('https://purl.org/dc/terms/')).toBe('PURL');
+            });
+
+            // 2. ISBN PURL
+            it('detects ISBN PURL HTTP: http://purl.org/isbn/0395363411', () => {
+                expect(detectIdentifierType('http://purl.org/isbn/0395363411')).toBe('PURL');
+            });
+            it('detects ISBN PURL HTTPS: https://purl.org/isbn/0395363411', () => {
+                expect(detectIdentifierType('https://purl.org/isbn/0395363411')).toBe('PURL');
+            });
+
+            // 3. OCLC Keith Home PURL
+            it('detects OCLC Keith PURL: http://purl.oclc.org/keith/home', () => {
+                expect(detectIdentifierType('http://purl.oclc.org/keith/home')).toBe('PURL');
+            });
+
+            // 4. Open Biomedical Ontologies
+            it('detects OBO HTTP: http://purl.org/obo/OBI_0000070', () => {
+                expect(detectIdentifierType('http://purl.org/obo/OBI_0000070')).toBe('PURL');
+            });
+            it('detects OBO HTTPS: https://purl.org/obo/OBI_0000070', () => {
+                expect(detectIdentifierType('https://purl.org/obo/OBI_0000070')).toBe('PURL');
+            });
+
+            // 5. Library of Congress Names Authority File
+            it('detects LCNAF PURL: http://purl.org/lcnaf/n85010173', () => {
+                expect(detectIdentifierType('http://purl.org/lcnaf/n85010173')).toBe('PURL');
+            });
+
+            // 6. W3ID Ontologies
+            it('detects W3ID HTTPS: https://w3id.org/ontologies/example/', () => {
+                expect(detectIdentifierType('https://w3id.org/ontologies/example/')).toBe('PURL');
+            });
+
+            // 7. Florida State University Library PURL
+            it('detects FSU Library: http://purl.lib.fsu.edu/cgi-bin/docnumber=fsu_lib_000001', () => {
+                expect(detectIdentifierType('http://purl.lib.fsu.edu/cgi-bin/docnumber=fsu_lib_000001')).toBe('PURL');
+            });
+
+            // 8. DOAP Ontology
+            it('detects DOAP HTTP: http://purl.org/doap/', () => {
+                expect(detectIdentifierType('http://purl.org/doap/')).toBe('PURL');
+            });
+            it('detects DOAP HTTPS: https://purl.org/doap/', () => {
+                expect(detectIdentifierType('https://purl.org/doap/')).toBe('PURL');
+            });
+
+            // 9. Open Data Commons Terms
+            it('detects ODC Terms: http://purl.org/odc/terms/', () => {
+                expect(detectIdentifierType('http://purl.org/odc/terms/')).toBe('PURL');
+            });
+
+            // 10. Generic Institutional PURL
+            it('detects generic institutional: http://purl.example.org/documents/research/2024/001', () => {
+                expect(detectIdentifierType('http://purl.example.org/documents/research/2024/001')).toBe('PURL');
+            });
+        });
+
+        describe('PURL should NOT be detected for non-PURL identifiers', () => {
+            it('should not detect plain URL as PURL', () => {
+                expect(detectIdentifierType('https://example.org/resource/123')).not.toBe('PURL');
+            });
+
+            it('should not detect DOI URL as PURL', () => {
+                expect(detectIdentifierType('https://doi.org/10.5880/fidgeo.2025.072')).not.toBe('PURL');
+            });
+
+            it('should not detect Handle URL as PURL', () => {
+                expect(detectIdentifierType('https://hdl.handle.net/2128/1885')).not.toBe('PURL');
+            });
+
+            it('should not detect PubMed URL as PURL', () => {
+                expect(detectIdentifierType('https://pubmed.ncbi.nlm.nih.gov/26360422')).not.toBe('PURL');
+            });
+
+            it('should not detect ARK URL as PURL', () => {
+                expect(detectIdentifierType('https://n2t.net/ark:/12345/abc123')).not.toBe('PURL');
+            });
+
+            it('should not detect bare purl.org without path as PURL', () => {
+                expect(detectIdentifierType('http://purl.org')).not.toBe('PURL');
+            });
+
+            it('should not detect bare purl.org/ without path as PURL', () => {
+                expect(detectIdentifierType('http://purl.org/')).not.toBe('PURL');
+            });
+
+            it('should not detect DOI as PURL', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('PURL');
+            });
+
+            it('should not detect ISSN as PURL', () => {
+                expect(detectIdentifierType('ISSN 1234-5678')).not.toBe('PURL');
+            });
+
+            it('should not detect LSID as PURL', () => {
+                expect(detectIdentifierType('urn:lsid:ebi.ac.uk:SWISS-PROT.accession:P34355:3')).not.toBe('PURL');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
