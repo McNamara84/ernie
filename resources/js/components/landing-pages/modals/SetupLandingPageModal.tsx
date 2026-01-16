@@ -255,16 +255,17 @@ export default function SetupLandingPageModal({ resource, isOpen, onClose, onSuc
             return;
         }
 
-        // No unsaved changes - use existing saved URLs
-        // If published, use public URL
-        if (currentConfig.status === 'published' && currentConfig.public_url) {
-            window.open(currentConfig.public_url, '_blank');
+        // No unsaved changes - use existing saved preview URL (with token)
+        // Always use preview URL for the Preview button, even if published,
+        // to maintain consistency and distinguish from the Public URL copy action
+        if (previewUrl) {
+            window.open(previewUrl, '_blank');
             return;
         }
 
-        // If draft with preview URL, use that
-        if (previewUrl) {
-            window.open(previewUrl, '_blank');
+        // Fallback to public URL if no preview URL is available
+        if (currentConfig.status === 'published' && currentConfig.public_url) {
+            window.open(currentConfig.public_url, '_blank');
             return;
         }
 
