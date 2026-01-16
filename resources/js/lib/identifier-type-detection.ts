@@ -329,6 +329,27 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'RRID';
     }
 
+    // UPC (Universal Product Code) detection
+    // UPC-A is a 12-digit barcode used primarily in the US and Canada for retail products
+    // Format: NNNNNNNNNNNN (12 digits) or with hyphens/spaces
+    // Number System (0-9) + Company Prefix (5 digits) + Product Code (5 digits) + Check Digit
+
+    // UPC with prefix: UPC: NNNNNNNNNNNN, UPC-A: NNNNNNNNNNNN, GTIN-12: NNNNNNNNNNNN
+    // Supports: UPC, UPCA, UPC-A, GTIN12, GTIN-12
+    const upcMatch = trimmed.match(/^(?:upc-?a?|gtin-?12):?\s*(\d[\d\s-]{10,14}\d)$/i);
+    if (upcMatch) {
+        // Verify it has exactly 12 digits when stripped of formatting
+        const digitsOnly = upcMatch[1].replace(/[^\d]/g, '');
+        if (digitsOnly.length === 12) {
+            return 'UPC';
+        }
+    }
+
+    // UPC-E (compressed 8-digit format) with prefix
+    if (trimmed.match(/^upc-?e:?\s*\d{8}$/i)) {
+        return 'UPC';
+    }
+
     // LISSN (Linking ISSN / ISSN-L) detection
     // LISSN links different media versions of the same serial publication
     // Must be checked before EISSN since LISSN has more specific prefixes

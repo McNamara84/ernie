@@ -5936,6 +5936,269 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    // ==================== UPC (Universal Product Code) ====================
+    // UPC-A is a 12-digit barcode used primarily in retail
+    // Format: NNNNNNNNNNNN (Number System + Company Prefix + Product Code + Check Digit)
+    describe('UPC detection', () => {
+        describe('UPC with prefix detection', () => {
+            // Test case 1: Coca-Cola Original
+            it('detects UPC prefix: UPC: 036000291452', () => {
+                expect(detectIdentifierType('UPC: 036000291452')).toBe('UPC');
+            });
+
+            // Test case 2: Gillette Fusion Razor
+            it('detects UPC-A prefix: UPC-A: 070992500006', () => {
+                expect(detectIdentifierType('UPC-A: 070992500006')).toBe('UPC');
+            });
+
+            // Test case 3: Generic Lebensmittel
+            it('detects UPC prefix: UPC: 012000005263', () => {
+                expect(detectIdentifierType('UPC: 012000005263')).toBe('UPC');
+            });
+
+            // Test case 4: Buch
+            it('detects UPC: 025993042104', () => {
+                expect(detectIdentifierType('UPC: 025993042104')).toBe('UPC');
+            });
+
+            // Test case 5: Elektronik-Gerät
+            it('detects UPC: 042000000526', () => {
+                expect(detectIdentifierType('UPC: 042000000526')).toBe('UPC');
+            });
+
+            // Test case 6: Store-Marke Produkt
+            it('detects GTIN-12 prefix: GTIN-12: 014200000005', () => {
+                expect(detectIdentifierType('GTIN-12: 014200000005')).toBe('UPC');
+            });
+
+            // Test case 7: Gewichtetes Produkt
+            it('detects UPC with number system 1: UPC: 141234567890', () => {
+                expect(detectIdentifierType('UPC: 141234567890')).toBe('UPC');
+            });
+
+            // Test case 8: Spezialprodukt
+            it('detects UPC: 048001001234', () => {
+                expect(detectIdentifierType('UPC: 048001001234')).toBe('UPC');
+            });
+
+            // Test case 9: Target Private Label
+            it('detects UPC: 015100000001', () => {
+                expect(detectIdentifierType('UPC: 015100000001')).toBe('UPC');
+            });
+
+            // Test case 10: Amazon Retailer Item
+            it('detects UPC prefix: UPC: 020123456789', () => {
+                expect(detectIdentifierType('UPC: 020123456789')).toBe('UPC');
+            });
+        });
+
+        describe('UPC with hyphens', () => {
+            it('detects UPC with hyphens: UPC: 0-36000-29145-2', () => {
+                expect(detectIdentifierType('UPC: 0-36000-29145-2')).toBe('UPC');
+            });
+
+            it('detects UPC-A with hyphens: UPC-A: 0-70992-50000-6', () => {
+                expect(detectIdentifierType('UPC-A: 0-70992-50000-6')).toBe('UPC');
+            });
+
+            it('detects UPC with hyphens: UPC: 0-12000-00526-3', () => {
+                expect(detectIdentifierType('UPC: 0-12000-00526-3')).toBe('UPC');
+            });
+
+            it('detects UPC with hyphens: UPC: 0-25993-04210-4', () => {
+                expect(detectIdentifierType('UPC: 0-25993-04210-4')).toBe('UPC');
+            });
+
+            it('detects GTIN-12 with hyphens: GTIN-12: 0-14200-00000-5', () => {
+                expect(detectIdentifierType('GTIN-12: 0-14200-00000-5')).toBe('UPC');
+            });
+
+            it('detects UPC with hyphens number system 1: UPC: 1-41234-56789-0', () => {
+                expect(detectIdentifierType('UPC: 1-41234-56789-0')).toBe('UPC');
+            });
+        });
+
+        describe('UPC with spaces', () => {
+            it('detects UPC with spaces: UPC: 0 36000 2914 52', () => {
+                expect(detectIdentifierType('UPC: 0 36000 2914 52')).toBe('UPC');
+            });
+
+            it('detects GTIN12 with spaces: GTIN12: 0 70992 5000 06', () => {
+                expect(detectIdentifierType('GTIN12: 0 70992 5000 06')).toBe('UPC');
+            });
+        });
+
+        describe('UPC-E compressed format', () => {
+            it('detects UPC-E prefix: UPC-E: 04252600', () => {
+                expect(detectIdentifierType('UPC-E: 04252600')).toBe('UPC');
+            });
+
+            it('detects UPCE prefix without hyphen: UPCE: 04252600', () => {
+                expect(detectIdentifierType('UPCE: 04252600')).toBe('UPC');
+            });
+
+            it('detects UPC-E lowercase: upc-e: 04252600', () => {
+                expect(detectIdentifierType('upc-e: 04252600')).toBe('UPC');
+            });
+        });
+
+        describe('UPC edge cases', () => {
+            it('handles lowercase upc prefix', () => {
+                expect(detectIdentifierType('upc: 036000291452')).toBe('UPC');
+            });
+
+            it('handles UPC without colon', () => {
+                expect(detectIdentifierType('UPC 036000291452')).toBe('UPC');
+            });
+
+            it('handles GTIN-12 without hyphen', () => {
+                expect(detectIdentifierType('GTIN12: 014200000005')).toBe('UPC');
+            });
+
+            it('handles whitespace trimming', () => {
+                expect(detectIdentifierType('  UPC: 036000291452  ')).toBe('UPC');
+            });
+
+            it('handles UPC-A without hyphen', () => {
+                expect(detectIdentifierType('UPCA: 070992500006')).toBe('UPC');
+            });
+
+            it('handles mixed formatting', () => {
+                expect(detectIdentifierType('UPC: 0-36000-2914-52')).toBe('UPC');
+            });
+        });
+
+        describe('Real-world UPC examples', () => {
+            // 1. Coca-Cola Original
+            it('detects Coca-Cola UPC: UPC: 036000291452', () => {
+                expect(detectIdentifierType('UPC: 036000291452')).toBe('UPC');
+            });
+            it('detects Coca-Cola UPC with hyphens: UPC: 0-36000-29145-2', () => {
+                expect(detectIdentifierType('UPC: 0-36000-29145-2')).toBe('UPC');
+            });
+            it('detects Coca-Cola GTIN-12: GTIN-12: 036000291452', () => {
+                expect(detectIdentifierType('GTIN-12: 036000291452')).toBe('UPC');
+            });
+
+            // 2. Gillette Fusion Razor
+            it('detects Gillette UPC-A: UPC-A: 070992500006', () => {
+                expect(detectIdentifierType('UPC-A: 070992500006')).toBe('UPC');
+            });
+            it('detects Gillette UPC with hyphens: UPC: 0-70992-50000-6', () => {
+                expect(detectIdentifierType('UPC: 0-70992-50000-6')).toBe('UPC');
+            });
+            it('detects Gillette GTIN-12: GTIN-12: 070992500006', () => {
+                expect(detectIdentifierType('GTIN-12: 070992500006')).toBe('UPC');
+            });
+
+            // 3. Generic Lebensmittel
+            it('detects Apple Juice UPC: UPC: 012000005263', () => {
+                expect(detectIdentifierType('UPC: 012000005263')).toBe('UPC');
+            });
+            it('detects Apple Juice UPC with hyphens: UPC: 0-12000-00526-3', () => {
+                expect(detectIdentifierType('UPC: 0-12000-00526-3')).toBe('UPC');
+            });
+
+            // 4. Buch
+            it('detects Book UPC: UPC: 025993042104', () => {
+                expect(detectIdentifierType('UPC: 025993042104')).toBe('UPC');
+            });
+            it('detects Book UPC with hyphens: UPC: 0-25993-04210-4', () => {
+                expect(detectIdentifierType('UPC: 0-25993-04210-4')).toBe('UPC');
+            });
+
+            // 5. Elektronik-Gerät
+            it('detects Electronics UPC: UPC: 042000000526', () => {
+                expect(detectIdentifierType('UPC: 042000000526')).toBe('UPC');
+            });
+            it('detects Electronics UPC with hyphens: UPC: 0-42000-00052-6', () => {
+                expect(detectIdentifierType('UPC: 0-42000-00052-6')).toBe('UPC');
+            });
+
+            // 6. Store-Marke Produkt
+            it('detects Walmart GTIN-12: GTIN-12: 014200000005', () => {
+                expect(detectIdentifierType('GTIN-12: 014200000005')).toBe('UPC');
+            });
+            it('detects Walmart UPC with hyphens: UPC: 0-14200-00000-5', () => {
+                expect(detectIdentifierType('UPC: 0-14200-00000-5')).toBe('UPC');
+            });
+
+            // 7. Gewichtetes Produkt
+            it('detects Weighted UPC: UPC: 141234567890', () => {
+                expect(detectIdentifierType('UPC: 141234567890')).toBe('UPC');
+            });
+            it('detects Weighted UPC with hyphens: UPC: 1-41234-56789-0', () => {
+                expect(detectIdentifierType('UPC: 1-41234-56789-0')).toBe('UPC');
+            });
+
+            // 8. Spezialprodukt (Pharmazie)
+            it('detects Pharma UPC: UPC: 048001001234', () => {
+                expect(detectIdentifierType('UPC: 048001001234')).toBe('UPC');
+            });
+            it('detects Pharma UPC with hyphens: UPC: 0-48001-00123-4', () => {
+                expect(detectIdentifierType('UPC: 0-48001-00123-4')).toBe('UPC');
+            });
+
+            // 9. Target Private Label
+            it('detects Target UPC: UPC: 015100000001', () => {
+                expect(detectIdentifierType('UPC: 015100000001')).toBe('UPC');
+            });
+            it('detects Target UPC with hyphens: UPC: 0-15100-00000-1', () => {
+                expect(detectIdentifierType('UPC: 0-15100-00000-1')).toBe('UPC');
+            });
+
+            // 10. Amazon Retailer Item
+            it('detects Amazon UPC: UPC: 020123456789', () => {
+                expect(detectIdentifierType('UPC: 020123456789')).toBe('UPC');
+            });
+            it('detects Amazon UPC with hyphens: UPC: 0-20123-45678-9', () => {
+                expect(detectIdentifierType('UPC: 0-20123-45678-9')).toBe('UPC');
+            });
+        });
+
+        describe('UPC should NOT be detected for non-UPC identifiers', () => {
+            it('should not detect plain 12 digits as UPC (no prefix)', () => {
+                expect(detectIdentifierType('036000291452')).not.toBe('UPC');
+            });
+
+            it('should not detect EAN-13 as UPC (13 digits)', () => {
+                expect(detectIdentifierType('UPC: 4006381333931')).not.toBe('UPC');
+            });
+
+            it('should not detect ISBN as UPC', () => {
+                expect(detectIdentifierType('ISBN 978-3-16-148410-0')).not.toBe('UPC');
+            });
+
+            it('should not detect DOI as UPC', () => {
+                expect(detectIdentifierType('10.5880/fidgeo.2025.072')).not.toBe('UPC');
+            });
+
+            it('should not detect ISSN as UPC', () => {
+                expect(detectIdentifierType('ISSN 1234-5678')).not.toBe('UPC');
+            });
+
+            it('should not detect 11-digit number with UPC prefix as UPC', () => {
+                expect(detectIdentifierType('UPC: 03600029145')).not.toBe('UPC');
+            });
+
+            it('should not detect 13-digit number with UPC prefix as UPC', () => {
+                expect(detectIdentifierType('UPC: 0360002914521')).not.toBe('UPC');
+            });
+
+            it('should not detect Handle as UPC', () => {
+                expect(detectIdentifierType('2128/1885')).not.toBe('UPC');
+            });
+
+            it('should not detect PMID as UPC', () => {
+                expect(detectIdentifierType('PMID: 26360422')).not.toBe('UPC');
+            });
+
+            it('should not detect RRID as UPC', () => {
+                expect(detectIdentifierType('RRID:AB_90755')).not.toBe('UPC');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {
