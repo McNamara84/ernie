@@ -1334,6 +1334,628 @@ describe('detectIdentifierType', () => {
             });
         });
     });
+
+    describe('EISSN detection', () => {
+        /**
+         * EISSN (Electronic International Standard Serial Number) is an 8-digit
+         * identifier for electronic serial publications (journals, magazines, etc.).
+         *
+         * Format: NNNN-NNNC
+         * - NNNN = 4 digits
+         * - NNN = 3 digits
+         * - C = Check digit (0-9 or X, where X represents 10)
+         *
+         * The check digit is calculated using a modulo 11 algorithm.
+         * When the result is 10, the letter X is used as the check digit.
+         *
+         * Common prefixes for EISSN:
+         * - EISSN, e-ISSN, eISSN
+         * - urn:issn:
+         * - https://portal.issn.org/resource/ISSN/
+         * - https://identifiers.org/issn:
+         * - https://www.worldcat.org/issn/
+         */
+
+        describe('EISSN standard format with hyphen (NNNN-NNNC)', () => {
+            it('detects Hearing Research Journal EISSN', () => {
+                expect(detectIdentifierType('0378-5955')).toBe('EISSN');
+            });
+
+            it('detects Nature Communications EISSN', () => {
+                expect(detectIdentifierType('2041-1723')).toBe('EISSN');
+            });
+
+            it('detects Lancet Digital Health EISSN', () => {
+                expect(detectIdentifierType('2589-7500')).toBe('EISSN');
+            });
+
+            it('detects Science Advances EISSN', () => {
+                expect(detectIdentifierType('2375-2548')).toBe('EISSN');
+            });
+
+            it('detects PLOS ONE EISSN', () => {
+                expect(detectIdentifierType('1932-6203')).toBe('EISSN');
+            });
+
+            it('detects Frontiers in Medicine EISSN with X check digit', () => {
+                expect(detectIdentifierType('2296-858X')).toBe('EISSN');
+            });
+
+            it('detects Journal of Medical Internet Research EISSN', () => {
+                expect(detectIdentifierType('1438-8871')).toBe('EISSN');
+            });
+
+            it('detects BMC Medicine EISSN', () => {
+                expect(detectIdentifierType('1741-7015')).toBe('EISSN');
+            });
+
+            it('detects Scientific Reports EISSN', () => {
+                expect(detectIdentifierType('2045-2322')).toBe('EISSN');
+            });
+
+            it('detects eLife EISSN with X check digit', () => {
+                expect(detectIdentifierType('2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN compact format (8 digits without hyphen)', () => {
+            it('detects Hearing Research compact EISSN', () => {
+                expect(detectIdentifierType('03785955')).toBe('EISSN');
+            });
+
+            it('detects Nature Communications compact EISSN', () => {
+                expect(detectIdentifierType('20411723')).toBe('EISSN');
+            });
+
+            it('detects Lancet Digital Health compact EISSN', () => {
+                expect(detectIdentifierType('25897500')).toBe('EISSN');
+            });
+
+            it('detects Science Advances compact EISSN', () => {
+                expect(detectIdentifierType('23752548')).toBe('EISSN');
+            });
+
+            it('detects PLOS ONE compact EISSN', () => {
+                expect(detectIdentifierType('19326203')).toBe('EISSN');
+            });
+
+            it('detects Frontiers in Medicine compact EISSN with X check digit', () => {
+                expect(detectIdentifierType('2296858X')).toBe('EISSN');
+            });
+
+            it('detects Journal of Medical Internet Research compact EISSN', () => {
+                expect(detectIdentifierType('14388871')).toBe('EISSN');
+            });
+
+            it('detects BMC Medicine compact EISSN', () => {
+                expect(detectIdentifierType('17417015')).toBe('EISSN');
+            });
+
+            it('detects Scientific Reports compact EISSN', () => {
+                expect(detectIdentifierType('20452322')).toBe('EISSN');
+            });
+
+            it('detects eLife compact EISSN with X check digit', () => {
+                expect(detectIdentifierType('2050084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with EISSN prefix', () => {
+            it('detects EISSN prefix format: EISSN 0378-5955', () => {
+                expect(detectIdentifierType('EISSN 0378-5955')).toBe('EISSN');
+            });
+
+            it('detects EISSN prefix format: EISSN 2041-1723', () => {
+                expect(detectIdentifierType('EISSN 2041-1723')).toBe('EISSN');
+            });
+
+            it('detects EISSN prefix format: EISSN 2589-7500', () => {
+                expect(detectIdentifierType('EISSN 2589-7500')).toBe('EISSN');
+            });
+
+            it('detects EISSN prefix format: EISSN 2296-858X', () => {
+                expect(detectIdentifierType('EISSN 2296-858X')).toBe('EISSN');
+            });
+
+            it('detects EISSN prefix format: EISSN 2050-084X', () => {
+                expect(detectIdentifierType('EISSN 2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with e-ISSN prefix', () => {
+            it('detects e-ISSN prefix format: e-ISSN 0378-5955', () => {
+                expect(detectIdentifierType('e-ISSN 0378-5955')).toBe('EISSN');
+            });
+
+            it('detects e-ISSN prefix format: e-ISSN 2041-1723', () => {
+                expect(detectIdentifierType('e-ISSN 2041-1723')).toBe('EISSN');
+            });
+
+            it('detects e-ISSN prefix format: e-ISSN 2296-858X', () => {
+                expect(detectIdentifierType('e-ISSN 2296-858X')).toBe('EISSN');
+            });
+
+            it('detects e-ISSN prefix format: e-ISSN 2050-084X', () => {
+                expect(detectIdentifierType('e-ISSN 2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with eISSN prefix', () => {
+            it('detects eISSN prefix format: eISSN 2041-1723', () => {
+                expect(detectIdentifierType('eISSN 2041-1723')).toBe('EISSN');
+            });
+
+            it('detects eISSN prefix format: eISSN 2589-7500', () => {
+                expect(detectIdentifierType('eISSN 2589-7500')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with alternative notation (colon)', () => {
+            it('detects e-ISSN: prefix format: e-ISSN: 2375-2548', () => {
+                expect(detectIdentifierType('e-ISSN: 2375-2548')).toBe('EISSN');
+            });
+
+            it('detects e-ISSN: prefix format: e-ISSN: 2050-084X', () => {
+                expect(detectIdentifierType('e-ISSN: 2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with URN format', () => {
+            it('detects urn:issn format: urn:issn:0378-5955', () => {
+                expect(detectIdentifierType('urn:issn:0378-5955')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:2041-1723', () => {
+                expect(detectIdentifierType('urn:issn:2041-1723')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:2589-7500', () => {
+                expect(detectIdentifierType('urn:issn:2589-7500')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:2375-2548', () => {
+                expect(detectIdentifierType('urn:issn:2375-2548')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:1932-6203', () => {
+                expect(detectIdentifierType('urn:issn:1932-6203')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:2296-858X', () => {
+                expect(detectIdentifierType('urn:issn:2296-858X')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:1438-8871', () => {
+                expect(detectIdentifierType('urn:issn:1438-8871')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:1741-7015', () => {
+                expect(detectIdentifierType('urn:issn:1741-7015')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:2045-2322', () => {
+                expect(detectIdentifierType('urn:issn:2045-2322')).toBe('EISSN');
+            });
+
+            it('detects urn:issn format: urn:issn:2050-084X', () => {
+                expect(detectIdentifierType('urn:issn:2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with portal.issn.org URL', () => {
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/0378-5955', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/0378-5955')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/2041-1723', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2041-1723')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/2589-7500', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2589-7500')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/2375-2548', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2375-2548')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/1932-6203', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1932-6203')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/2296-858X', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2296-858X')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/1438-8871', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1438-8871')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/1741-7015', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1741-7015')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/2045-2322', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2045-2322')).toBe('EISSN');
+            });
+
+            it('detects portal.issn.org URL: https://portal.issn.org/resource/ISSN/2050-084X', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with identifiers.org URL', () => {
+            it('detects identifiers.org URL: https://identifiers.org/issn:0378-5955', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:0378-5955')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:2041-1723', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2041-1723')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:2589-7500', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2589-7500')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:2375-2548', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2375-2548')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:1932-6203', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:1932-6203')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:2296-858X', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2296-858X')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:1438-8871', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:1438-8871')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:1741-7015', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:1741-7015')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:2045-2322', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2045-2322')).toBe('EISSN');
+            });
+
+            it('detects identifiers.org URL: https://identifiers.org/issn:2050-084X', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN with worldcat.org URL', () => {
+            it('detects worldcat.org URL: https://www.worldcat.org/issn/0378-5955', () => {
+                expect(detectIdentifierType('https://www.worldcat.org/issn/0378-5955')).toBe('EISSN');
+            });
+
+            it('detects worldcat.org URL: https://www.worldcat.org/issn/2041-1723', () => {
+                expect(detectIdentifierType('https://www.worldcat.org/issn/2041-1723')).toBe('EISSN');
+            });
+
+            it('detects worldcat.org URL: https://www.worldcat.org/issn/2296-858X', () => {
+                expect(detectIdentifierType('https://www.worldcat.org/issn/2296-858X')).toBe('EISSN');
+            });
+
+            it('detects worldcat.org URL: https://www.worldcat.org/issn/2050-084X', () => {
+                expect(detectIdentifierType('https://www.worldcat.org/issn/2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN edge cases', () => {
+            it('handles leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  0378-5955  ')).toBe('EISSN');
+            });
+
+            it('handles URN with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  urn:issn:2041-1723  ')).toBe('EISSN');
+            });
+
+            it('handles URL with leading/trailing whitespace', () => {
+                expect(detectIdentifierType('  https://portal.issn.org/resource/ISSN/2589-7500  ')).toBe('EISSN');
+            });
+
+            it('handles lowercase x check digit', () => {
+                expect(detectIdentifierType('2296-858x')).toBe('EISSN');
+            });
+
+            it('handles uppercase X check digit', () => {
+                expect(detectIdentifierType('2296-858X')).toBe('EISSN');
+            });
+
+            it('handles compact format with lowercase x', () => {
+                expect(detectIdentifierType('2050084x')).toBe('EISSN');
+            });
+        });
+
+        describe('real-world EISSN examples from user requirements', () => {
+            // 1. Hearing Research Journal (Elsevier Online)
+            it('detects Hearing Research compact: 03785955', () => {
+                expect(detectIdentifierType('03785955')).toBe('EISSN');
+            });
+
+            it('detects Hearing Research with prefix: EISSN 0378-5955', () => {
+                expect(detectIdentifierType('EISSN 0378-5955')).toBe('EISSN');
+            });
+
+            it('detects Hearing Research alternative: e-ISSN 0378-5955', () => {
+                expect(detectIdentifierType('e-ISSN 0378-5955')).toBe('EISSN');
+            });
+
+            it('detects Hearing Research URN: urn:issn:0378-5955', () => {
+                expect(detectIdentifierType('urn:issn:0378-5955')).toBe('EISSN');
+            });
+
+            it('detects Hearing Research portal: https://portal.issn.org/resource/ISSN/0378-5955', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/0378-5955')).toBe('EISSN');
+            });
+
+            it('detects Hearing Research identifiers.org: https://identifiers.org/issn:0378-5955', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:0378-5955')).toBe('EISSN');
+            });
+
+            it('detects Hearing Research worldcat: https://www.worldcat.org/issn/0378-5955', () => {
+                expect(detectIdentifierType('https://www.worldcat.org/issn/0378-5955')).toBe('EISSN');
+            });
+
+            // 2. Nature Communications (Online Edition)
+            it('detects Nature Communications compact: 20411723', () => {
+                expect(detectIdentifierType('20411723')).toBe('EISSN');
+            });
+
+            it('detects Nature Communications with prefix: EISSN 2041-1723', () => {
+                expect(detectIdentifierType('EISSN 2041-1723')).toBe('EISSN');
+            });
+
+            it('detects Nature Communications alternative: eISSN 2041-1723', () => {
+                expect(detectIdentifierType('eISSN 2041-1723')).toBe('EISSN');
+            });
+
+            it('detects Nature Communications URN: urn:issn:2041-1723', () => {
+                expect(detectIdentifierType('urn:issn:2041-1723')).toBe('EISSN');
+            });
+
+            it('detects Nature Communications portal: https://portal.issn.org/resource/ISSN/2041-1723', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2041-1723')).toBe('EISSN');
+            });
+
+            it('detects Nature Communications identifiers.org: https://identifiers.org/issn:2041-1723', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2041-1723')).toBe('EISSN');
+            });
+
+            // 3. Lancet Digital Health (Online)
+            it('detects Lancet Digital Health compact: 25897500', () => {
+                expect(detectIdentifierType('25897500')).toBe('EISSN');
+            });
+
+            it('detects Lancet Digital Health with prefix: EISSN 2589-7500', () => {
+                expect(detectIdentifierType('EISSN 2589-7500')).toBe('EISSN');
+            });
+
+            it('detects Lancet Digital Health URN: urn:issn:2589-7500', () => {
+                expect(detectIdentifierType('urn:issn:2589-7500')).toBe('EISSN');
+            });
+
+            it('detects Lancet Digital Health portal: https://portal.issn.org/resource/ISSN/2589-7500', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2589-7500')).toBe('EISSN');
+            });
+
+            it('detects Lancet Digital Health identifiers.org: https://identifiers.org/issn:2589-7500', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2589-7500')).toBe('EISSN');
+            });
+
+            // 4. Science Advances (Online, AAAS)
+            it('detects Science Advances compact: 23752548', () => {
+                expect(detectIdentifierType('23752548')).toBe('EISSN');
+            });
+
+            it('detects Science Advances with prefix: EISSN 2375-2548', () => {
+                expect(detectIdentifierType('EISSN 2375-2548')).toBe('EISSN');
+            });
+
+            it('detects Science Advances alternative: e-ISSN: 2375-2548', () => {
+                expect(detectIdentifierType('e-ISSN: 2375-2548')).toBe('EISSN');
+            });
+
+            it('detects Science Advances URN: urn:issn:2375-2548', () => {
+                expect(detectIdentifierType('urn:issn:2375-2548')).toBe('EISSN');
+            });
+
+            it('detects Science Advances portal: https://portal.issn.org/resource/ISSN/2375-2548', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2375-2548')).toBe('EISSN');
+            });
+
+            it('detects Science Advances identifiers.org: https://identifiers.org/issn:2375-2548', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2375-2548')).toBe('EISSN');
+            });
+
+            // 5. PLOS ONE (Open Access Online)
+            it('detects PLOS ONE compact: 19326203', () => {
+                expect(detectIdentifierType('19326203')).toBe('EISSN');
+            });
+
+            it('detects PLOS ONE with prefix: EISSN 1932-6203', () => {
+                expect(detectIdentifierType('EISSN 1932-6203')).toBe('EISSN');
+            });
+
+            it('detects PLOS ONE URN: urn:issn:1932-6203', () => {
+                expect(detectIdentifierType('urn:issn:1932-6203')).toBe('EISSN');
+            });
+
+            it('detects PLOS ONE portal: https://portal.issn.org/resource/ISSN/1932-6203', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1932-6203')).toBe('EISSN');
+            });
+
+            it('detects PLOS ONE identifiers.org: https://identifiers.org/issn:1932-6203', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:1932-6203')).toBe('EISSN');
+            });
+
+            // 6. Frontiers in Medicine (Online Open Access) - with X check digit
+            it('detects Frontiers in Medicine with prefix: EISSN 2296-858X', () => {
+                expect(detectIdentifierType('EISSN 2296-858X')).toBe('EISSN');
+            });
+
+            it('detects Frontiers in Medicine alternative: e-ISSN 2296-858X', () => {
+                expect(detectIdentifierType('e-ISSN 2296-858X')).toBe('EISSN');
+            });
+
+            it('detects Frontiers in Medicine URN: urn:issn:2296-858X', () => {
+                expect(detectIdentifierType('urn:issn:2296-858X')).toBe('EISSN');
+            });
+
+            it('detects Frontiers in Medicine portal: https://portal.issn.org/resource/ISSN/2296-858X', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2296-858X')).toBe('EISSN');
+            });
+
+            it('detects Frontiers in Medicine identifiers.org: https://identifiers.org/issn:2296-858X', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2296-858X')).toBe('EISSN');
+            });
+
+            // 7. Journal of Medical Internet Research (Online)
+            it('detects JMIR compact: 14388871', () => {
+                expect(detectIdentifierType('14388871')).toBe('EISSN');
+            });
+
+            it('detects JMIR with prefix: EISSN 1438-8871', () => {
+                expect(detectIdentifierType('EISSN 1438-8871')).toBe('EISSN');
+            });
+
+            it('detects JMIR alternative: e-ISSN 1438-8871', () => {
+                expect(detectIdentifierType('e-ISSN 1438-8871')).toBe('EISSN');
+            });
+
+            it('detects JMIR URN: urn:issn:1438-8871', () => {
+                expect(detectIdentifierType('urn:issn:1438-8871')).toBe('EISSN');
+            });
+
+            it('detects JMIR portal: https://portal.issn.org/resource/ISSN/1438-8871', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1438-8871')).toBe('EISSN');
+            });
+
+            it('detects JMIR identifiers.org: https://identifiers.org/issn:1438-8871', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:1438-8871')).toBe('EISSN');
+            });
+
+            // 8. BMC Medicine (Online Open Access)
+            it('detects BMC Medicine compact: 17417015', () => {
+                expect(detectIdentifierType('17417015')).toBe('EISSN');
+            });
+
+            it('detects BMC Medicine with prefix: EISSN 1741-7015', () => {
+                expect(detectIdentifierType('EISSN 1741-7015')).toBe('EISSN');
+            });
+
+            it('detects BMC Medicine alternative: e-ISSN 1741-7015', () => {
+                expect(detectIdentifierType('e-ISSN 1741-7015')).toBe('EISSN');
+            });
+
+            it('detects BMC Medicine URN: urn:issn:1741-7015', () => {
+                expect(detectIdentifierType('urn:issn:1741-7015')).toBe('EISSN');
+            });
+
+            it('detects BMC Medicine portal: https://portal.issn.org/resource/ISSN/1741-7015', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/1741-7015')).toBe('EISSN');
+            });
+
+            it('detects BMC Medicine identifiers.org: https://identifiers.org/issn:1741-7015', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:1741-7015')).toBe('EISSN');
+            });
+
+            // 9. Scientific Reports (Online Open Access, Nature)
+            it('detects Scientific Reports compact: 20452322', () => {
+                expect(detectIdentifierType('20452322')).toBe('EISSN');
+            });
+
+            it('detects Scientific Reports with prefix: EISSN 2045-2322', () => {
+                expect(detectIdentifierType('EISSN 2045-2322')).toBe('EISSN');
+            });
+
+            it('detects Scientific Reports URN: urn:issn:2045-2322', () => {
+                expect(detectIdentifierType('urn:issn:2045-2322')).toBe('EISSN');
+            });
+
+            it('detects Scientific Reports portal: https://portal.issn.org/resource/ISSN/2045-2322', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2045-2322')).toBe('EISSN');
+            });
+
+            it('detects Scientific Reports identifiers.org: https://identifiers.org/issn:2045-2322', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2045-2322')).toBe('EISSN');
+            });
+
+            // 10. eLife (Online Open Access Journal) - with X check digit
+            it('detects eLife with prefix: EISSN 2050-084X', () => {
+                expect(detectIdentifierType('EISSN 2050-084X')).toBe('EISSN');
+            });
+
+            it('detects eLife alternative: e-ISSN: 2050-084X', () => {
+                expect(detectIdentifierType('e-ISSN: 2050-084X')).toBe('EISSN');
+            });
+
+            it('detects eLife URN: urn:issn:2050-084X', () => {
+                expect(detectIdentifierType('urn:issn:2050-084X')).toBe('EISSN');
+            });
+
+            it('detects eLife portal: https://portal.issn.org/resource/ISSN/2050-084X', () => {
+                expect(detectIdentifierType('https://portal.issn.org/resource/ISSN/2050-084X')).toBe('EISSN');
+            });
+
+            it('detects eLife identifiers.org: https://identifiers.org/issn:2050-084X', () => {
+                expect(detectIdentifierType('https://identifiers.org/issn:2050-084X')).toBe('EISSN');
+            });
+        });
+
+        describe('EISSN should NOT be detected for non-EISSN identifiers', () => {
+            it('should not detect plain URLs as EISSN', () => {
+                expect(detectIdentifierType('https://example.com/1234-5678')).not.toBe('EISSN');
+            });
+
+            it('should not detect DOIs as EISSN', () => {
+                expect(detectIdentifierType('10.1234/5678')).not.toBe('EISSN');
+            });
+
+            it('should not detect arXiv IDs as EISSN', () => {
+                expect(detectIdentifierType('2501.13958')).not.toBe('EISSN');
+            });
+
+            it('should not detect bibcodes as EISSN', () => {
+                expect(detectIdentifierType('2024AJ....167...20Z')).not.toBe('EISSN');
+            });
+
+            it('should not detect handles as EISSN', () => {
+                expect(detectIdentifierType('11234/56789')).not.toBe('EISSN');
+            });
+
+            it('should not detect ARK as EISSN', () => {
+                expect(detectIdentifierType('ark:12148/btv1b8449691v')).not.toBe('EISSN');
+            });
+
+            it('should not detect CSTR as EISSN', () => {
+                expect(detectIdentifierType('CSTR:31253.11.sciencedb.j00001.00123')).not.toBe('EISSN');
+            });
+
+            it('should not detect EAN-13 as EISSN', () => {
+                expect(detectIdentifierType('4006381333931')).not.toBe('EISSN');
+            });
+
+            it('should not detect 7-digit number as EISSN', () => {
+                expect(detectIdentifierType('1234567')).not.toBe('EISSN');
+            });
+
+            it('should not detect 9-digit number as EISSN', () => {
+                expect(detectIdentifierType('123456789')).not.toBe('EISSN');
+            });
+
+            it('should not detect alphanumeric string with wrong format as EISSN', () => {
+                expect(detectIdentifierType('12AB-56CD')).not.toBe('EISSN');
+            });
+
+            it('should not detect hyphen in wrong position as EISSN', () => {
+                expect(detectIdentifierType('12345-678')).not.toBe('EISSN');
+            });
+        });
+    });
 });
 
 describe('normalizeIdentifier', () => {

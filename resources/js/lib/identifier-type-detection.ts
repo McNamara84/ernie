@@ -155,6 +155,47 @@ export function detectIdentifierType(value: string): IdentifierType {
         return 'EAN13';
     }
 
+    // EISSN (Electronic ISSN) URL patterns
+    // Matches: https://portal.issn.org/resource/ISSN/NNNN-NNNN
+    // Matches: https://identifiers.org/issn:NNNN-NNNN
+    // Matches: https://www.worldcat.org/issn/NNNN-NNNN
+    if (trimmed.match(/^https?:\/\/(?:portal\.issn\.org\/resource\/ISSN\/|identifiers\.org\/issn:|www\.worldcat\.org\/issn\/)\d{4}-?\d{3}[\dXx]$/i)) {
+        return 'EISSN';
+    }
+
+    // EISSN with URN prefix: urn:issn:NNNN-NNNN
+    if (trimmed.match(/^urn:issn:\d{4}-?\d{3}[\dXx]$/i)) {
+        return 'EISSN';
+    }
+
+    // EISSN with prefix patterns: EISSN NNNN-NNNN, e-ISSN NNNN-NNNN, eISSN NNNN-NNNN
+    // Also supports: ISSN NNNN-NNNN (Online), e-ISSN: NNNN-NNNN
+    if (trimmed.match(/^(?:e-?issn:?\s*|issn\s+\d{4}-?\d{3}[\dXx]\s*\(online\)$)/i)) {
+        // Extract ISSN portion and validate
+        const issnMatch = trimmed.match(/\d{4}-?\d{3}[\dXx]/i);
+        if (issnMatch) {
+            return 'EISSN';
+        }
+    }
+
+    // EISSN with explicit prefix (EISSN, e-ISSN, eISSN followed by ISSN number)
+    if (trimmed.match(/^e-?issn:?\s*\d{4}-?\d{3}[\dXx]$/i)) {
+        return 'EISSN';
+    }
+
+    // EISSN standard format with hyphen: NNNN-NNNC (C = check digit 0-9 or X)
+    // ISSN is always 8 digits with a check digit that can be 0-9 or X
+    // Must have hyphen in position 5 for standard format
+    if (trimmed.match(/^\d{4}-\d{3}[\dXx]$/)) {
+        return 'EISSN';
+    }
+
+    // EISSN compact format: NNNNNNCC (8 digits, last may be X)
+    // Only detect if exactly 8 characters and last is digit or X
+    if (trimmed.match(/^\d{7}[\dXx]$/i)) {
+        return 'EISSN';
+    }
+
     // ARK with resolver URL patterns (must be checked before generic URL)
     // Matches various ARK resolvers: n2t.net, ark.bnf.fr, familysearch.org, archive.org, data.bnf.fr, etc.
     // ARK format in URL: https://resolver/ark:/NAAN/Name or https://resolver/ark:NAAN/Name

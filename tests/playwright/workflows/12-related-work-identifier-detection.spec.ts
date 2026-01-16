@@ -524,6 +524,121 @@ test.describe('Related Work Identifier Type Detection', () => {
         });
     });
 
+    test.describe('EISSN detection', () => {
+        /**
+         * EISSN (Electronic International Standard Serial Number) is an 8-digit
+         * identifier for electronic serial publications.
+         *
+         * Format: NNNN-NNNC (where C = check digit 0-9 or X)
+         */
+
+        test.describe('EISSN standard format with hyphen', () => {
+            test('detects Hearing Research Journal EISSN: 0378-5955', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '0378-5955', 'EISSN');
+            });
+
+            test('detects Nature Communications EISSN: 2041-1723', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2041-1723', 'EISSN');
+            });
+
+            test('detects Lancet Digital Health EISSN: 2589-7500', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2589-7500', 'EISSN');
+            });
+
+            test('detects Science Advances EISSN: 2375-2548', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2375-2548', 'EISSN');
+            });
+
+            test('detects PLOS ONE EISSN: 1932-6203', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '1932-6203', 'EISSN');
+            });
+
+            test('detects Frontiers in Medicine EISSN with X: 2296-858X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2296-858X', 'EISSN');
+            });
+
+            test('detects eLife EISSN with X: 2050-084X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2050-084X', 'EISSN');
+            });
+        });
+
+        test.describe('EISSN compact format (8 digits)', () => {
+            test('detects Hearing Research compact: 03785955', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '03785955', 'EISSN');
+            });
+
+            test('detects Nature Communications compact: 20411723', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '20411723', 'EISSN');
+            });
+
+            test('detects Frontiers compact with X: 2296858X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2296858X', 'EISSN');
+            });
+
+            test('detects eLife compact with X: 2050084X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '2050084X', 'EISSN');
+            });
+        });
+
+        test.describe('EISSN with prefix', () => {
+            test('detects EISSN prefix: EISSN 0378-5955', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'EISSN 0378-5955', 'EISSN');
+            });
+
+            test('detects e-ISSN prefix: e-ISSN 2041-1723', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'e-ISSN 2041-1723', 'EISSN');
+            });
+
+            test('detects eISSN prefix: eISSN 2589-7500', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'eISSN 2589-7500', 'EISSN');
+            });
+
+            test('detects e-ISSN: with colon: e-ISSN: 2375-2548', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'e-ISSN: 2375-2548', 'EISSN');
+            });
+        });
+
+        test.describe('EISSN with URN format', () => {
+            test('detects urn:issn format: urn:issn:0378-5955', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:issn:0378-5955', 'EISSN');
+            });
+
+            test('detects urn:issn with X: urn:issn:2296-858X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'urn:issn:2296-858X', 'EISSN');
+            });
+        });
+
+        test.describe('EISSN with portal.issn.org URL', () => {
+            test('detects portal URL: https://portal.issn.org/resource/ISSN/0378-5955', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://portal.issn.org/resource/ISSN/0378-5955', 'EISSN');
+            });
+
+            test('detects portal URL with X: https://portal.issn.org/resource/ISSN/2296-858X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://portal.issn.org/resource/ISSN/2296-858X', 'EISSN');
+            });
+        });
+
+        test.describe('EISSN with identifiers.org URL', () => {
+            test('detects identifiers.org URL: https://identifiers.org/issn:0378-5955', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://identifiers.org/issn:0378-5955', 'EISSN');
+            });
+
+            test('detects identifiers.org with X: https://identifiers.org/issn:2050-084X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://identifiers.org/issn:2050-084X', 'EISSN');
+            });
+        });
+
+        test.describe('EISSN with worldcat.org URL', () => {
+            test('detects worldcat URL: https://www.worldcat.org/issn/0378-5955', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://www.worldcat.org/issn/0378-5955', 'EISSN');
+            });
+
+            test('detects worldcat URL with X: https://www.worldcat.org/issn/2296-858X', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, 'https://www.worldcat.org/issn/2296-858X', 'EISSN');
+            });
+        });
+    });
+
     test.describe('Non-DOI identifiers should not be detected as DOI', () => {
         test('detects plain URL as URL, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'https://example.com/resource', 'URL');
@@ -555,6 +670,10 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         test('detects EAN-13 as EAN13, not DOI', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, '4006381333931', 'EAN13');
+        });
+
+        test('detects EISSN as EISSN, not DOI', async ({ page }) => {
+            await addRelatedWorkAndVerifyType(page, '0378-5955', 'EISSN');
         });
     });
 });
