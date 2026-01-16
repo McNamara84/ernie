@@ -121,6 +121,7 @@ export default function RelatedWorkQuickAdd({
                     <div className="relative">
                         <Input
                             id="related-identifier"
+                            data-testid="related-identifier-input"
                             type="text"
                             value={identifier}
                             onChange={(e) => {
@@ -191,6 +192,7 @@ export default function RelatedWorkQuickAdd({
                         disabled={!identifier.trim() || validation.status === 'invalid' || validation.status === 'validating'}
                         size="icon"
                         aria-label="Add related work"
+                        data-testid="add-related-work-button"
                     >
                         <Plus className="h-4 w-4" />
                     </Button>

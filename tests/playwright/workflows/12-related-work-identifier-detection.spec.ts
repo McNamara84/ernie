@@ -25,22 +25,19 @@ test.describe('Related Work Identifier Type Detection', () => {
         // Wait for the page to be fully loaded
         await page.waitForLoadState('networkidle');
 
-        // Find the Related Work accordion trigger
-        const relatedWorkAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Related Work/i });
+        // Find the Related Work accordion trigger using stable data-testid
+        const relatedWorkAccordion = page.getByTestId('related-work-accordion-trigger');
         await relatedWorkAccordion.waitFor({ state: 'visible', timeout: 10000 });
-
-        // Scroll into view to ensure it's clickable
-        await relatedWorkAccordion.scrollIntoViewIfNeeded();
 
         // Click to expand the accordion
         await relatedWorkAccordion.click();
 
-        // Wait for accordion content to have data-state="open"
-        const accordionContent = page.locator('[data-slot="accordion-content"]', { has: page.locator('#related-identifier') });
+        // Wait for accordion content to be visible using data-testid
+        const accordionContent = page.getByTestId('related-work-accordion-content');
         await accordionContent.waitFor({ state: 'visible', timeout: 10000 });
 
         // Now wait for the input to be visible and interactable
-        const identifierInput = page.locator('#related-identifier');
+        const identifierInput = page.getByTestId('related-identifier-input');
         await identifierInput.waitFor({ state: 'visible', timeout: 10000 });
     });
 
@@ -52,29 +49,22 @@ test.describe('Related Work Identifier Type Detection', () => {
         identifier: string,
         expectedType: string,
     ) {
-        // Wait for and enter the identifier
-        const identifierInput = page.locator('#related-identifier');
+        // Wait for and enter the identifier using stable data-testid
+        const identifierInput = page.getByTestId('related-identifier-input');
         await identifierInput.waitFor({ state: 'visible', timeout: 10000 });
         await identifierInput.fill(identifier);
 
         // Wait for validation to complete (debounced)
         await page.waitForTimeout(1000);
 
-        // Click the Add button (wait for it to be enabled)
-        const addButton = page.locator('button[aria-label="Add related work"]');
+        // Click the Add button using stable data-testid
+        const addButton = page.getByTestId('add-related-work-button');
         await addButton.waitFor({ state: 'visible', timeout: 5000 });
         await addButton.click();
 
-        // Wait for the item to be added (wait for listitem to appear)
-        const items = page.locator('[role="listitem"]');
-        await items.first().waitFor({ state: 'visible', timeout: 5000 });
-
-        // Find the last added item's identifier type badge
-        // The badge shows the identifier type in the item list
-        const lastItem = items.last();
-        const typeBadge = lastItem.locator('.text-xs', { hasText: expectedType });
-
-        await expect(typeBadge).toBeVisible({ timeout: 5000 });
+        // Wait for the identifier type badge to appear using stable data-testid
+        const typeBadge = page.getByTestId('identifier-type-badge').filter({ hasText: expectedType });
+        await expect(typeBadge.first()).toBeVisible({ timeout: 5000 });
     }
 
     test.describe('DOI Detection', () => {
