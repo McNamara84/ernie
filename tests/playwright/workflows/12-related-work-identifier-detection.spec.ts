@@ -26,7 +26,9 @@ test.describe('Related Work Identifier Type Detection', () => {
         // Expand Related Work accordion
         const relatedWorkAccordion = page.locator('[data-slot="accordion-trigger"]', { hasText: /Related Work/i });
         await relatedWorkAccordion.click();
-        await page.waitForTimeout(300); // Wait for accordion animation
+
+        // Wait for accordion content to be visible (more reliable than fixed timeout)
+        await page.waitForSelector('#related-identifier', { state: 'visible', timeout: 10000 });
     });
 
     /**
@@ -37,27 +39,29 @@ test.describe('Related Work Identifier Type Detection', () => {
         identifier: string,
         expectedType: string,
     ) {
-        // Enter the identifier
+        // Wait for and enter the identifier
         const identifierInput = page.locator('#related-identifier');
+        await identifierInput.waitFor({ state: 'visible', timeout: 10000 });
         await identifierInput.fill(identifier);
 
         // Wait for validation to complete (debounced)
         await page.waitForTimeout(1000);
 
-        // Click the Add button
+        // Click the Add button (wait for it to be enabled)
         const addButton = page.locator('button[aria-label="Add related work"]');
+        await addButton.waitFor({ state: 'visible', timeout: 5000 });
         await addButton.click();
 
-        // Wait for the item to be added
-        await page.waitForTimeout(300);
+        // Wait for the item to be added (wait for listitem to appear)
+        const items = page.locator('[role="listitem"]');
+        await items.first().waitFor({ state: 'visible', timeout: 5000 });
 
         // Find the last added item's identifier type badge
         // The badge shows the identifier type in the item list
-        const items = page.locator('[role="listitem"]');
         const lastItem = items.last();
         const typeBadge = lastItem.locator('.text-xs', { hasText: expectedType });
 
-        await expect(typeBadge).toBeVisible();
+        await expect(typeBadge).toBeVisible({ timeout: 5000 });
     }
 
     test.describe('DOI Detection', () => {
