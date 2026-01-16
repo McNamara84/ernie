@@ -69,13 +69,13 @@ const PMID_PREFIX = /^(?:pmid|pubmed\s*id):?\s*\d{1,9}$/i;
 const PMID_SEARCH_FIELD = /^\d{1,9}\s*\[(?:pmid|uid)\]$/i;
 
 // w3id patterns
-const W3ID_URL = /^https?:\/\/w3id\.org\/[a-z0-9._\/-]+(?:#[a-z0-9._-]*)?$/i;
+const W3ID_URL = /^https?:\/\/w3id\.org\/[a-z0-9._/-]+(?:#[a-z0-9._-]*)?$/i;
 
 // PURL patterns
-const PURL_ORG = /^https?:\/\/purl\.org\/[a-z0-9._\/-]+$/i;
-const PURL_OCLC = /^https?:\/\/purl\.oclc\.org\/[a-z0-9._\/-]+$/i;
-const PURL_LIB = /^https?:\/\/purl\.lib\.[a-z0-9.-]+\/[a-z0-9._\/?=&-]+$/i;
-const PURL_GENERIC = /^https?:\/\/purl\.[a-z0-9.-]+\.(?:org|edu)\/[a-z0-9._\/-]+$/i;
+const PURL_ORG = /^https?:\/\/purl\.org\/[a-z0-9._/-]+$/i;
+const PURL_OCLC = /^https?:\/\/purl\.oclc\.org\/[a-z0-9._/-]+$/i;
+const PURL_LIB = /^https?:\/\/purl\.lib\.[a-z0-9.-]+\/[a-z0-9._/?=&-]+$/i;
+const PURL_GENERIC = /^https?:\/\/purl\.[a-z0-9.-]+\.(?:org|edu)\/[a-z0-9._/-]+$/i;
 
 // RRID patterns
 const RRID_PREFIX = /^rrid:?\s*[a-z]+[_:]?[a-z0-9_:-]+$/i;
