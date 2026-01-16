@@ -26,6 +26,7 @@ export interface DOIResolutionResult {
  * Validate DOI format according to DOI syntax
  * DOIs start with "10." followed by a registrant code and a suffix
  * Also accepts DOI URLs (https://doi.org/... or http://dx.doi.org/...)
+ * and doi: prefix format (doi:10.xxxx/...)
  *
  * Note on regex pattern: The pattern uses \S+ (non-whitespace) for the suffix,
  * which is intentionally permissive. According to the DOI specification (ISO 26324),
@@ -39,7 +40,9 @@ export function validateDOIFormat(doi: string): ValidationResult {
 
     // Check if it's a DOI URL and extract the DOI part
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-    const doiToValidate = doiUrlMatch ? doiUrlMatch[1] : trimmed;
+    // Also check for doi: prefix
+    const doiPrefixMatch = trimmed.match(/^doi:(.+)/i);
+    const doiToValidate = doiUrlMatch ? doiUrlMatch[1] : doiPrefixMatch ? doiPrefixMatch[1] : trimmed;
 
     // Basic DOI pattern: 10.xxxx/yyyy
     const doiPattern = /^10\.\d{4,}(?:\.\d+)*\/\S+$/;
@@ -143,9 +146,10 @@ export function validateIdentifierFormat(identifier: string, type: string): Vali
 export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<DOIResolutionResult> {
     const trimmed = doi.trim();
 
-    // Extract bare DOI if URL format
+    // Extract bare DOI if URL format or doi: prefix
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-    const bareDOI = doiUrlMatch ? doiUrlMatch[1] : trimmed;
+    const doiPrefixMatch = trimmed.match(/^doi:(.+)/i);
+    const bareDOI = doiUrlMatch ? doiUrlMatch[1] : doiPrefixMatch ? doiPrefixMatch[1] : trimmed;
 
     // First validate format locally
     const formatValidation = validateDOIFormat(bareDOI);
