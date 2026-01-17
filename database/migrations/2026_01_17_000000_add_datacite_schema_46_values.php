@@ -34,6 +34,7 @@ return new class extends Migration
         DB::table('contributor_types')->insertOrIgnore([
             'name' => 'Translator',
             'slug' => 'Translator',
+            'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -42,6 +43,7 @@ return new class extends Migration
         DB::table('identifier_types')->insertOrIgnore([
             'name' => 'CSTR',
             'slug' => 'CSTR',
+            'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -50,6 +52,7 @@ return new class extends Migration
         DB::table('identifier_types')->insertOrIgnore([
             'name' => 'RRID',
             'slug' => 'RRID',
+            'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -58,6 +61,7 @@ return new class extends Migration
         DB::table('relation_types')->insertOrIgnore([
             'name' => 'Has Translation',
             'slug' => 'HasTranslation',
+            'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -66,6 +70,7 @@ return new class extends Migration
         DB::table('relation_types')->insertOrIgnore([
             'name' => 'Is Translation Of',
             'slug' => 'IsTranslationOf',
+            'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
