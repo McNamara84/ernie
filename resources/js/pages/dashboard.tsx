@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { IgsnCsvUpload } from '@/components/igsn-csv-upload';
 import AppLayout from '@/layouts/app-layout';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { latestVersion } from '@/lib/version';
@@ -374,6 +375,9 @@ export default function Dashboard({ onXmlFiles = handleXmlFiles }: DashboardProp
                         </div>
                     </CardContent>
                 </Card>
+
+                {/* IGSN CSV Upload Section */}
+                <IgsnCsvUpload />
             </div>
 
             {/* Easter Egg: Unicorn overlay */}
