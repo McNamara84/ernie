@@ -122,6 +122,8 @@ class IgsnController extends Controller
 
     /**
      * Export an IGSN resource as DataCite JSON.
+     *
+     * All authenticated users can export IGSNs (confirmed requirement).
      */
     public function exportJson(Resource $resource): StreamedResponse
     {
@@ -136,12 +138,17 @@ class IgsnController extends Controller
 
         // Generate filename from IGSN (stored in doi field)
         $igsn = $resource->doi ?? "resource-{$resource->id}";
-        $safeIgsn = preg_replace('/[^a-zA-Z0-9._-]/', '-', $igsn) ?? $igsn;
+        $safeIgsn = preg_replace('/[^a-zA-Z0-9._-]/', '-', $igsn);
+        if ($safeIgsn === null) {
+            // preg_replace returns null only on PCRE error
+            report(new \RuntimeException("preg_replace failed for IGSN: {$igsn}"));
+            $safeIgsn = "resource-{$resource->id}";
+        }
         $filename = "igsn-{$safeIgsn}.json";
 
         // Return as download
         return response()->streamDownload(function () use ($dataCiteData): void {
-            echo json_encode($dataCiteData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            echo json_encode($dataCiteData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         }, $filename, [
             'Content-Type' => 'application/json',
         ]);
