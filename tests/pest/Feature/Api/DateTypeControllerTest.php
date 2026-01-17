@@ -16,11 +16,13 @@ beforeEach(function () {
 
 test('returns all date types ordered by name', function () {
     $response = $this->getJson('/api/v1/date-types')->assertOk();
-    expect($response->json())->toHaveCount(4);
+    // 4 from beforeEach + 1 Coverage from migration = 5 total
+    expect($response->json())->toHaveCount(5);
     expect(array_column($response->json(), 'name'))->toBe([
         'Accepted',
         'Available',
         'Collected',
+        'Coverage',
         'Other',
     ]);
 });

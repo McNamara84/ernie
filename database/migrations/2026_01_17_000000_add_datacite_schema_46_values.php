@@ -21,10 +21,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add Coverage dateType
+        // Add Coverage dateType (inactive by default - admin must enable)
         DB::table('date_types')->insertOrIgnore([
             'name' => 'Coverage',
             'slug' => 'Coverage',
+            'is_active' => false,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
