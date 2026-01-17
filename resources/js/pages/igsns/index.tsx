@@ -249,7 +249,10 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Button variant="ghost" size="icon" className="size-8" asChild>
-                                                                        <a href={`/igsns/${igsn.id}/export/json`} download>
+                                                                        <a
+                                                                            href={`/igsns/${igsn.id}/export/json`}
+                                                                            download={`igsn-${igsn.igsn ?? `resource-${igsn.id}`}.json`}
+                                                                        >
                                                                             <FileJson className="size-4" />
                                                                         </a>
                                                                     </Button>

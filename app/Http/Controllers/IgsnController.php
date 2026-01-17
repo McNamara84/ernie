@@ -146,11 +146,12 @@ class IgsnController extends Controller
         }
         $filename = "igsn-{$safeIgsn}.json";
 
-        // Return as download
+        // Return as download with explicit Content-Disposition header
         return response()->streamDownload(function () use ($dataCiteData): void {
             echo json_encode($dataCiteData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         }, $filename, [
-            'Content-Type' => 'application/json',
+            'Content-Type' => 'application/json; charset=utf-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
 
