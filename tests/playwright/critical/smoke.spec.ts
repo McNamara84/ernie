@@ -34,9 +34,9 @@ test.describe('Critical E2E Workflows', () => {
     
     // Go to dashboard and upload XML
     await page.goto('/dashboard');
-    await expect(page.locator('text=Dropzone for XML files')).toBeVisible();
+    await expect(page.getByTestId('unified-dropzone')).toBeVisible();
     
-    const fileInput = page.locator('input[type="file"][accept=".xml"]');
+    const fileInput = page.getByTestId('unified-file-input');
     const xmlFilePath = resolveDatasetExample('datacite-xml-example-full-v4.xml');
     await fileInput.setInputFiles(xmlFilePath);
     
