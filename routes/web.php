@@ -285,6 +285,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('dashboard/upload-igsn-csv', UploadIgsnCsvController::class)
         ->name('dashboard.upload-igsn-csv');
 
+    // IGSNs (Physical Samples) routes
+    Route::get('igsns', [\App\Http\Controllers\IgsnController::class, 'index'])
+        ->name('igsns.index');
+
     Route::get('dashboard', function () {
         return Inertia::render('dashboard', [
             'resourceCount' => Resource::count(),

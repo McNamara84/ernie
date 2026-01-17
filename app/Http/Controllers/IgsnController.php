@@ -1,0 +1,370 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Controllers;
+
+use App\Models\GeoLocation;
+use App\Models\Person;
+use App\Models\Resource;
+use App\Models\ResourceCreator;
+use App\Models\ResourceType;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+/**
+ * Controller for IGSN (International Generic Sample Number) resources.
+ *
+ * Handles listing and display of physical sample resources with IGSN identifiers.
+ */
+class IgsnController extends Controller
+{
+    private const DEFAULT_PER_PAGE = 50;
+
+    private const MIN_PER_PAGE = 1;
+
+    private const MAX_PER_PAGE = 100;
+
+    private const DEFAULT_SORT_KEY = 'updated_at';
+
+    private const DEFAULT_SORT_DIRECTION = 'desc';
+
+    private const ALLOWED_SORT_KEYS = [
+        'id',
+        'igsn',
+        'title',
+        'sample_type',
+        'material',
+        'collection_date',
+        'upload_status',
+        'created_at',
+        'updated_at',
+    ];
+
+    private const ALLOWED_SORT_DIRECTIONS = ['asc', 'desc'];
+
+    /**
+     * Display a listing of IGSNs (Physical Sample resources).
+     */
+    public function index(Request $request): Response
+    {
+        $page = max(1, (int) $request->query('page', 1));
+        $perPage = (int) $request->query('per_page', self::DEFAULT_PER_PAGE);
+        $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
+
+        [$sortKey, $sortDirection] = $this->resolveSortState($request);
+        $filters = $this->extractFilters($request);
+
+        $query = $this->buildQuery();
+
+        $this->applyFilters($query, $filters);
+        $this->applySorting($query, $sortKey, $sortDirection);
+
+        $paginated = $query->paginate($perPage, ['*'], 'page', $page);
+
+        $igsns = $paginated->getCollection()->map(function (Resource $resource) {
+            return $this->transformResource($resource);
+        });
+
+        return Inertia::render('igsns/index', [
+            'igsns' => $igsns,
+            'pagination' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+                'from' => $paginated->firstItem(),
+                'to' => $paginated->lastItem(),
+                'has_more' => $paginated->hasMorePages(),
+            ],
+            'sort' => [
+                'key' => $sortKey,
+                'direction' => $sortDirection,
+            ],
+            'filters' => $filters,
+            'filterOptions' => $this->getFilterOptions(),
+        ]);
+    }
+
+    /**
+     * Build the base query for IGSN resources.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Resource>
+     */
+    private function buildQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        // Get the Physical Object resource type
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+
+        $query = Resource::query()
+            ->with([
+                'titles',
+                'igsnMetadata',
+                'geoLocations',
+                'creators.creatorable',
+                'dates.dateType',
+            ])
+            ->whereHas('igsnMetadata'); // Only resources with IGSN metadata
+
+        if ($physicalObjectType !== null) {
+            $query->where('resource_type_id', $physicalObjectType->id);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Transform a Resource into the IGSN list format.
+     *
+     * @return array<string, mixed>
+     */
+    private function transformResource(Resource $resource): array
+    {
+        $mainTitle = $resource->titles->firstWhere('title_type_id', 1)->title
+            ?? $resource->titles->first()->title
+            ?? 'Untitled';
+
+        $metadata = $resource->igsnMetadata;
+
+        // Get collection date from dates relation
+        $collectionDate = $resource->dates
+            ->first(function ($date) {
+                return $date->dateType->name === 'Collected';
+            });
+
+        // Get first geo location
+        $geoLocation = $resource->geoLocations->first();
+
+        // Get first creator
+        $firstCreator = $resource->creators->first();
+
+        return [
+            'id' => $resource->id,
+            'igsn' => $resource->doi, // IGSN is stored in DOI field
+            'title' => $mainTitle,
+            'sample_type' => $metadata?->sample_type,
+            'material' => $metadata?->material,
+            'collection_date' => $collectionDate?->date_value,
+            'location' => $geoLocation->place ?? $this->formatCoordinates($geoLocation),
+            'latitude' => $geoLocation?->point_latitude,
+            'longitude' => $geoLocation?->point_longitude,
+            'upload_status' => $metadata->upload_status ?? 'pending',
+            'upload_error_message' => $metadata?->upload_error_message,
+            'parent_resource_id' => $metadata?->parent_resource_id,
+            'collector' => $this->formatCreator($firstCreator),
+            'created_at' => $resource->created_at?->toISOString(),
+            'updated_at' => $resource->updated_at?->toISOString(),
+        ];
+    }
+
+    /**
+     * Format coordinates as a string.
+     */
+    private function formatCoordinates(?GeoLocation $geoLocation): ?string
+    {
+        if ($geoLocation === null || $geoLocation->point_latitude === null || $geoLocation->point_longitude === null) {
+            return null;
+        }
+
+        return sprintf('%.4f, %.4f', $geoLocation->point_latitude, $geoLocation->point_longitude);
+    }
+
+    /**
+     * Format creator name.
+     */
+    private function formatCreator(?ResourceCreator $creator): ?string
+    {
+        if ($creator === null || ! $creator->isPerson()) {
+            return null;
+        }
+
+        $person = $creator->creatorable;
+
+        if (! $person instanceof Person) {
+            return null;
+        }
+
+        if ($person->family_name && $person->given_name) {
+            return $person->family_name . ', ' . $person->given_name;
+        }
+
+        return $person->family_name ?? $person->given_name ?? null;
+    }
+
+    /**
+     * Resolve sort state from request.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function resolveSortState(Request $request): array
+    {
+        $sortKey = $request->query('sort', self::DEFAULT_SORT_KEY);
+        $sortDirection = $request->query('direction', self::DEFAULT_SORT_DIRECTION);
+
+        if (! is_string($sortKey) || ! in_array($sortKey, self::ALLOWED_SORT_KEYS, true)) {
+            $sortKey = self::DEFAULT_SORT_KEY;
+        }
+
+        if (! is_string($sortDirection) || ! in_array($sortDirection, self::ALLOWED_SORT_DIRECTIONS, true)) {
+            $sortDirection = self::DEFAULT_SORT_DIRECTION;
+        }
+
+        return [$sortKey, $sortDirection];
+    }
+
+    /**
+     * Extract filters from request.
+     *
+     * @return array<string, mixed>
+     */
+    private function extractFilters(Request $request): array
+    {
+        return [
+            'search' => $request->query('search', ''),
+            'upload_status' => $request->query('upload_status', ''),
+            'sample_type' => $request->query('sample_type', ''),
+            'material' => $request->query('material', ''),
+        ];
+    }
+
+    /**
+     * Apply filters to the query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyFilters(\Illuminate\Database\Eloquent\Builder $query, array $filters): void
+    {
+        // Search filter (IGSN or title)
+        $search = is_string($filters['search']) ? $filters['search'] : '';
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('doi', 'like', "%{$search}%")
+                    ->orWhereHas('titles', function ($titleQuery) use ($search) {
+                        $titleQuery->where('title', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // Upload status filter
+        $uploadStatus = is_string($filters['upload_status']) ? $filters['upload_status'] : '';
+        if ($uploadStatus !== '') {
+            $query->whereHas('igsnMetadata', function ($metaQuery) use ($uploadStatus) {
+                $metaQuery->where('upload_status', $uploadStatus);
+            });
+        }
+
+        // Sample type filter
+        $sampleType = is_string($filters['sample_type']) ? $filters['sample_type'] : '';
+        if ($sampleType !== '') {
+            $query->whereHas('igsnMetadata', function ($metaQuery) use ($sampleType) {
+                $metaQuery->where('sample_type', $sampleType);
+            });
+        }
+
+        // Material filter
+        $material = is_string($filters['material']) ? $filters['material'] : '';
+        if ($material !== '') {
+            $query->whereHas('igsnMetadata', function ($metaQuery) use ($material) {
+                $metaQuery->where('material', $material);
+            });
+        }
+    }
+
+    /**
+     * Apply sorting to the query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
+     */
+    private function applySorting(\Illuminate\Database\Eloquent\Builder $query, string $sortKey, string $sortDirection): void
+    {
+        switch ($sortKey) {
+            case 'igsn':
+                $query->orderBy('doi', $sortDirection);
+                break;
+
+            case 'title':
+                $query->orderBy(function ($q) {
+                    return $q->select('title')
+                        ->from('titles')
+                        ->whereColumn('titles.resource_id', 'resources.id')
+                        ->orderBy('position')
+                        ->limit(1);
+                }, $sortDirection);
+                break;
+
+            case 'sample_type':
+            case 'material':
+            case 'upload_status':
+                $query->orderBy(function ($q) use ($sortKey) {
+                    return $q->select($sortKey)
+                        ->from('igsn_metadata')
+                        ->whereColumn('igsn_metadata.resource_id', 'resources.id')
+                        ->limit(1);
+                }, $sortDirection);
+                break;
+
+            case 'collection_date':
+                $query->orderBy(function ($q) {
+                    return $q->select('date_value')
+                        ->from('resource_dates')
+                        ->join('date_types', 'resource_dates.date_type_id', '=', 'date_types.id')
+                        ->whereColumn('resource_dates.resource_id', 'resources.id')
+                        ->where('date_types.name', 'Collected')
+                        ->limit(1);
+                }, $sortDirection);
+                break;
+
+            default:
+                $query->orderBy($sortKey, $sortDirection);
+                break;
+        }
+    }
+
+    /**
+     * Get available filter options.
+     *
+     * @return array<string, list<string>>
+     */
+    private function getFilterOptions(): array
+    {
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+
+        $baseQuery = Resource::query()->whereHas('igsnMetadata');
+
+        if ($physicalObjectType !== null) {
+            $baseQuery->where('resource_type_id', $physicalObjectType->id);
+        }
+
+        // Get distinct sample types
+        /** @var list<string> $sampleTypes */
+        $sampleTypes = (clone $baseQuery)
+            ->join('igsn_metadata', 'resources.id', '=', 'igsn_metadata.resource_id')
+            ->whereNotNull('igsn_metadata.sample_type')
+            ->distinct()
+            ->pluck('igsn_metadata.sample_type')
+            ->filter()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Get distinct materials
+        /** @var list<string> $materials */
+        $materials = (clone $baseQuery)
+            ->join('igsn_metadata', 'resources.id', '=', 'igsn_metadata.resource_id')
+            ->whereNotNull('igsn_metadata.material')
+            ->distinct()
+            ->pluck('igsn_metadata.material')
+            ->filter()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        return [
+            'upload_statuses' => ['pending', 'validating', 'validated', 'registering', 'registered', 'error'],
+            'sample_types' => $sampleTypes,
+            'materials' => $materials,
+        ];
+    }
+}
