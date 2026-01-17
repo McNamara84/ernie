@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { detectIdentifierType } from '@/lib/identifier-type-detection';
 import type { IdentifierType, RelatedIdentifier, RelatedIdentifierFormData, RelationType } from '@/types';
 
 import RelatedWorkAdvancedAdd from './related-work-advanced-add';
@@ -13,48 +14,6 @@ import RelatedWorkQuickAdd from './related-work-quick-add';
 interface RelatedWorkFieldProps {
     relatedWorks: RelatedIdentifier[];
     onChange: (relatedWorks: RelatedIdentifier[]) => void;
-}
-
-/**
- * Auto-detect identifier type from the input value
- * Used to share detection logic across Simple/Advanced modes
- */
-function detectIdentifierType(value: string): IdentifierType {
-    const trimmed = value.trim();
-
-    // DOI with URL prefix
-    const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-    if (doiUrlMatch) {
-        return 'DOI';
-    }
-
-    // DOI patterns (without URL prefix)
-    if (trimmed.match(/^10\.\d{4,}/)) {
-        return 'DOI';
-    }
-
-    // Handle URL patterns (must be checked before generic URL)
-    // Matches: http://hdl.handle.net/prefix/suffix or https://hdl.handle.net/prefix/suffix
-    if (trimmed.match(/^https?:\/\/hdl\.handle\.net\/\S+/i)) {
-        return 'Handle';
-    }
-
-    // URL patterns
-    if (trimmed.match(/^https?:\/\//i)) {
-        return 'URL';
-    }
-
-    // Handle patterns (bare format: prefix/suffix where prefix is numeric)
-    if (trimmed.match(/^\d+\/\S+$/)) {
-        return 'Handle';
-    }
-
-    // Default to DOI if it looks like one
-    if (trimmed.includes('/') && !trimmed.includes(' ')) {
-        return 'DOI';
-    }
-
-    return 'URL';
 }
 
 /**
