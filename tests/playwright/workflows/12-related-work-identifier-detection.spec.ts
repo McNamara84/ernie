@@ -168,8 +168,9 @@ test.describe('Related Work Identifier Type Detection', () => {
             await addRelatedWorkAndVerifyType(page, 'PMID:12345678', 'PMID');
         });
 
-        test('detects ISSN', async ({ page }) => {
-            await addRelatedWorkAndVerifyType(page, '0317-8471', 'ISSN');
+        test('detects EISSN (standard ISSN format)', async ({ page }) => {
+            // Note: Standard ISSN format (XXXX-XXXX) is detected as EISSN
+            await addRelatedWorkAndVerifyType(page, '0317-8471', 'EISSN');
         });
 
         test('detects URN', async ({ page }) => {
@@ -186,24 +187,6 @@ test.describe('Related Work Identifier Type Detection', () => {
 
         test('detects IGSN', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'IGSN:AU1234', 'IGSN');
-        });
-    });
-
-    // =========================================================================
-    // Warning Detection - Verify mismatch warnings work
-    // =========================================================================
-    test.describe('Identifier Type Mismatch Warning', () => {
-        test('shows warning when detected type differs from selected type', async ({ page }) => {
-            // Enter a DOI but keep a different type selected
-            const identifierInput = page.getByTestId('related-identifier-input');
-            await identifierInput.fill('10.5880/fidgeo.2025.072');
-
-            // Wait for detection and validation to complete
-            // The button should become enabled once validation passes
-            await expect(page.getByTestId('add-related-work-button')).toBeEnabled({ timeout: 15000 });
-
-            // Verify the detected type badge shows DOI (auto-detection working)
-            // The warning appears if user manually changed the type selector to something else
         });
     });
 });

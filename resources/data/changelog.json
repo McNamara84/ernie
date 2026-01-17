@@ -5,7 +5,7 @@
         "features": [
             {
                 "title": "Enhanced Identifier Type Detection for Related Works",
-                "description": "The Related Work form now supports comprehensive auto-detection for 20+ identifier types including DOI, ARK, arXiv, Handle, ORCID, ISBN, ISSN, PMID, bibcode, URN, IGSN, EAN-13, and more. The system recognizes various formats such as bare identifiers, URLs with resolver prefixes, and protocol schemes (doi:, ark:, hdl:, urn:). A visual warning alert now appears when the detected identifier type differs from the manually selected type, helping curators catch potential classification errors."
+                "description": "The Related Work form now supports comprehensive auto-detection for 20+ identifier types including DOI, ARK, arXiv, Handle, ISBN, ISSN, PMID, bibcode, URN, IGSN, EAN-13, and more. The system recognizes various formats such as bare identifiers, URLs with resolver prefixes, and protocol schemes (doi:, ark:, hdl:, urn:). A visual warning alert now appears when the detected identifier type differs from the manually selected type, helping curators catch potential classification errors."
             },
             {
                 "title": "Landing Page Template Modification",
