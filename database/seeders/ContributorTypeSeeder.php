@@ -38,6 +38,7 @@ class ContributorTypeSeeder extends Seeder
             ['name' => 'Rights Holder', 'slug' => 'RightsHolder'],
             ['name' => 'Sponsor', 'slug' => 'Sponsor'],
             ['name' => 'Supervisor', 'slug' => 'Supervisor'],
+            ['name' => 'Translator', 'slug' => 'Translator'],
             ['name' => 'Work Package Leader', 'slug' => 'WorkPackageLeader'],
             ['name' => 'Other', 'slug' => 'Other'],
         ];

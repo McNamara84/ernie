@@ -25,6 +25,7 @@ class DateTypeSeeder extends Seeder
             ['name' => 'Available', 'slug' => 'Available'],
             ['name' => 'Copyrighted', 'slug' => 'Copyrighted'],
             ['name' => 'Collected', 'slug' => 'Collected'],
+            ['name' => 'Coverage', 'slug' => 'Coverage'],
             ['name' => 'Created', 'slug' => 'Created'],
             ['name' => 'Issued', 'slug' => 'Issued'],
             ['name' => 'Submitted', 'slug' => 'Submitted'],

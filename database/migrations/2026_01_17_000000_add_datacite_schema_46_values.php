@@ -1,0 +1,72 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * Adds DataCite Schema 4.6 controlled list values to existing databases.
+ *
+ * New values added:
+ * - dateType: Coverage
+ * - contributorType: Translator
+ * - relatedIdentifierType: CSTR, RRID
+ * - relationType: HasTranslation, IsTranslationOf
+ *
+ * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
+ */
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // Add Coverage dateType
+        DB::table('date_types')->insertOrIgnore([
+            'name' => 'Coverage',
+            'slug' => 'Coverage',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Add Translator contributorType
+        DB::table('contributor_types')->insertOrIgnore([
+            'name' => 'Translator',
+            'slug' => 'Translator',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Add CSTR identifierType
+        DB::table('identifier_types')->insertOrIgnore([
+            'name' => 'CSTR',
+            'slug' => 'CSTR',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Add RRID identifierType
+        DB::table('identifier_types')->insertOrIgnore([
+            'name' => 'RRID',
+            'slug' => 'RRID',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Add HasTranslation relationType
+        DB::table('relation_types')->insertOrIgnore([
+            'name' => 'Has Translation',
+            'slug' => 'HasTranslation',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Add IsTranslationOf relationType
+        DB::table('relation_types')->insertOrIgnore([
+            'name' => 'Is Translation Of',
+            'slug' => 'IsTranslationOf',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+};
