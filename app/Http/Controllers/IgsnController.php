@@ -13,10 +13,12 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Services\DataCiteJsonExporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Controller for IGSN (International Generic Sample Number) resources.
@@ -116,6 +118,33 @@ class IgsnController extends Controller
         return redirect()
             ->route('igsns.index')
             ->with('success', 'IGSN deleted successfully.');
+    }
+
+    /**
+     * Export an IGSN resource as DataCite JSON.
+     */
+    public function exportJson(Resource $resource): StreamedResponse
+    {
+        // Verify this is actually an IGSN resource (has igsnMetadata)
+        if ($resource->igsnMetadata === null) {
+            abort(404, 'IGSN not found.');
+        }
+
+        // Generate DataCite JSON
+        $exporter = new DataCiteJsonExporter();
+        $dataCiteData = $exporter->export($resource);
+
+        // Generate filename from IGSN (stored in doi field)
+        $igsn = $resource->doi ?? "resource-{$resource->id}";
+        $safeIgsn = preg_replace('/[^a-zA-Z0-9._-]/', '-', $igsn) ?? $igsn;
+        $filename = "igsn-{$safeIgsn}.json";
+
+        // Return as download
+        return response()->streamDownload(function () use ($dataCiteData): void {
+            echo json_encode($dataCiteData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }, $filename, [
+            'Content-Type' => 'application/json',
+        ]);
     }
 
     /**

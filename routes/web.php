@@ -288,6 +288,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // IGSNs (Physical Samples) routes
     Route::get('igsns', [\App\Http\Controllers\IgsnController::class, 'index'])
         ->name('igsns.index');
+    Route::get('igsns/{resource}/export/json', [\App\Http\Controllers\IgsnController::class, 'exportJson'])
+        ->name('igsns.export.json');
     Route::delete('igsns/{resource}', [\App\Http\Controllers\IgsnController::class, 'destroy'])
         ->name('igsns.destroy');
 
