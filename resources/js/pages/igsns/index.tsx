@@ -1,10 +1,20 @@
-import { Head } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -52,6 +62,7 @@ interface IgsnsPageProps {
     igsns: Igsn[];
     pagination: PaginationInfo;
     sort: SortState;
+    canDelete: boolean;
 }
 
 // ============================================================================
@@ -151,10 +162,13 @@ function SortableHeader({ label, sortKey, sortState, onSort, className }: Sortab
 // Main Component
 // ============================================================================
 
-function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort }: IgsnsPageProps) {
+function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: initialSort, canDelete }: IgsnsPageProps) {
     const [igsns, setIgsns] = useState<Igsn[]>(initialIgsns);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [sortState, setSortState] = useState<SortState>(initialSort || DEFAULT_SORT);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [igsnToDelete, setIgsnToDelete] = useState<Igsn | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Update state when props change (after navigation)
     useEffect(() => {
@@ -177,6 +191,27 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         },
         [sortState],
     );
+
+    const handleDeleteClick = useCallback((igsn: Igsn) => {
+        setIgsnToDelete(igsn);
+        setDeleteDialogOpen(true);
+    }, []);
+
+    const handleDeleteConfirm = useCallback(() => {
+        if (!igsnToDelete) return;
+
+        setIsDeleting(true);
+        router.delete(`/igsns/${igsnToDelete.id}`, {
+            onSuccess: () => {
+                setDeleteDialogOpen(false);
+                setIgsnToDelete(null);
+                setIsDeleting(false);
+            },
+            onError: () => {
+                setIsDeleting(false);
+            },
+        });
+    }, [igsnToDelete]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -215,7 +250,23 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                             {igsns.map((igsn) => (
                                                 <TableRow key={igsn.id} className={igsn.parent_resource_id ? 'bg-muted/30' : ''}>
                                                     <TableCell>
-                                                        {/* Actions column - empty for now */}
+                                                        {canDelete && (
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                                            onClick={() => handleDeleteClick(igsn)}
+                                                                        >
+                                                                            <Trash2 className="size-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>Delete IGSN</TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="font-mono text-sm">
                                                         {igsn.parent_resource_id && <span className="mr-2 text-muted-foreground">└</span>}
@@ -275,6 +326,30 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete IGSN</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete the IGSN{' '}
+                            <span className="font-mono font-semibold">{igsnToDelete?.igsn || igsnToDelete?.title}</span>?
+                            This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteConfirm}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </AppLayout>
     );
 }

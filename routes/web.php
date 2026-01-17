@@ -288,6 +288,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // IGSNs (Physical Samples) routes
     Route::get('igsns', [\App\Http\Controllers\IgsnController::class, 'index'])
         ->name('igsns.index');
+    Route::delete('igsns/{resource}', [\App\Http\Controllers\IgsnController::class, 'destroy'])
+        ->name('igsns.destroy');
 
     Route::get('dashboard', function () {
         return Inertia::render('dashboard', [

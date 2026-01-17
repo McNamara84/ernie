@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\GeoLocation;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -64,6 +66,10 @@ class IgsnController extends Controller
             return $this->transformResource($resource);
         });
 
+        // Check if current user is admin (only admins can delete IGSNs)
+        $user = $request->user();
+        $canDelete = $user !== null && $user->role === UserRole::ADMIN;
+
         return Inertia::render('igsns/index', [
             'igsns' => $igsns,
             'pagination' => [
@@ -79,7 +85,34 @@ class IgsnController extends Controller
                 'key' => $sortKey,
                 'direction' => $sortDirection,
             ],
+            'canDelete' => $canDelete,
         ]);
+    }
+
+    /**
+     * Delete an IGSN resource.
+     *
+     * Only admins can delete IGSN resources.
+     */
+    public function destroy(Request $request, Resource $resource): RedirectResponse
+    {
+        $user = $request->user();
+
+        // Only admins can delete IGSNs
+        if ($user === null || $user->role !== UserRole::ADMIN) {
+            abort(403, 'You are not authorized to delete this IGSN.');
+        }
+
+        // Verify this is actually an IGSN resource (has igsnMetadata)
+        if ($resource->igsnMetadata === null) {
+            abort(404, 'IGSN not found.');
+        }
+
+        $resource->delete();
+
+        return redirect()
+            ->route('igsns.index')
+            ->with('success', 'IGSN deleted successfully.');
     }
 
     /**
