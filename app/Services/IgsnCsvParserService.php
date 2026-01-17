@@ -365,14 +365,17 @@ class IgsnCsvParserService
             }
         }
 
-        // Get ORCID from 'orcid' column (CSV actual column name)
+        // Get ORCID from 'orcid' column (CSV actual column name) or 'collector_identifier' (unit test format)
         $orcid = $data['orcid'] ?? $data['collector_identifier'] ?? '';
+
+        // Get affiliation from 'affiliation' (real CSV) or 'collector_affiliation' (unit test format)
+        $affiliation = $data['affiliation'] ?? $data['collector_affiliation'] ?? '';
 
         return [
             'familyName' => $familyName ?: null,
             'givenName' => $givenName ?: null,
             'orcid' => $this->normalizeIdentifier($orcid),
-            'affiliation' => ! empty($data['affiliation']) ? $data['affiliation'] : null,
+            'affiliation' => ! empty($affiliation) ? $affiliation : null,
             'ror' => $this->normalizeIdentifier($data['ror'] ?? $data['collector_affiliation_identifier'] ?? ''),
         ];
     }
