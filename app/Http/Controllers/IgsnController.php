@@ -54,11 +54,8 @@ class IgsnController extends Controller
         $perPage = max(self::MIN_PER_PAGE, min(self::MAX_PER_PAGE, $perPage));
 
         [$sortKey, $sortDirection] = $this->resolveSortState($request);
-        $filters = $this->extractFilters($request);
 
         $query = $this->buildQuery();
-
-        $this->applyFilters($query, $filters);
         $this->applySorting($query, $sortKey, $sortDirection);
 
         $paginated = $query->paginate($perPage, ['*'], 'page', $page);
@@ -82,8 +79,6 @@ class IgsnController extends Controller
                 'key' => $sortKey,
                 'direction' => $sortDirection,
             ],
-            'filters' => $filters,
-            'filterOptions' => $this->getFilterOptions(),
         ]);
     }
 
@@ -214,65 +209,6 @@ class IgsnController extends Controller
     }
 
     /**
-     * Extract filters from request.
-     *
-     * @return array<string, mixed>
-     */
-    private function extractFilters(Request $request): array
-    {
-        return [
-            'search' => $request->query('search', ''),
-            'upload_status' => $request->query('upload_status', ''),
-            'sample_type' => $request->query('sample_type', ''),
-            'material' => $request->query('material', ''),
-        ];
-    }
-
-    /**
-     * Apply filters to the query.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
-     * @param  array<string, mixed>  $filters
-     */
-    private function applyFilters(\Illuminate\Database\Eloquent\Builder $query, array $filters): void
-    {
-        // Search filter (IGSN or title)
-        $search = is_string($filters['search']) ? $filters['search'] : '';
-        if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('doi', 'like', "%{$search}%")
-                    ->orWhereHas('titles', function ($titleQuery) use ($search) {
-                        $titleQuery->where('title', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        // Upload status filter
-        $uploadStatus = is_string($filters['upload_status']) ? $filters['upload_status'] : '';
-        if ($uploadStatus !== '') {
-            $query->whereHas('igsnMetadata', function ($metaQuery) use ($uploadStatus) {
-                $metaQuery->where('upload_status', $uploadStatus);
-            });
-        }
-
-        // Sample type filter
-        $sampleType = is_string($filters['sample_type']) ? $filters['sample_type'] : '';
-        if ($sampleType !== '') {
-            $query->whereHas('igsnMetadata', function ($metaQuery) use ($sampleType) {
-                $metaQuery->where('sample_type', $sampleType);
-            });
-        }
-
-        // Material filter
-        $material = is_string($filters['material']) ? $filters['material'] : '';
-        if ($material !== '') {
-            $query->whereHas('igsnMetadata', function ($metaQuery) use ($material) {
-                $metaQuery->where('material', $material);
-            });
-        }
-    }
-
-    /**
      * Apply sorting to the query.
      *
      * @param  \Illuminate\Database\Eloquent\Builder<Resource>  $query
@@ -320,51 +256,5 @@ class IgsnController extends Controller
                 $query->orderBy($sortKey, $sortDirection);
                 break;
         }
-    }
-
-    /**
-     * Get available filter options.
-     *
-     * @return array<string, list<string>>
-     */
-    private function getFilterOptions(): array
-    {
-        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
-
-        $baseQuery = Resource::query()->whereHas('igsnMetadata');
-
-        if ($physicalObjectType !== null) {
-            $baseQuery->where('resource_type_id', $physicalObjectType->id);
-        }
-
-        // Get distinct sample types
-        /** @var list<string> $sampleTypes */
-        $sampleTypes = (clone $baseQuery)
-            ->join('igsn_metadata', 'resources.id', '=', 'igsn_metadata.resource_id')
-            ->whereNotNull('igsn_metadata.sample_type')
-            ->distinct()
-            ->pluck('igsn_metadata.sample_type')
-            ->filter()
-            ->sort()
-            ->values()
-            ->toArray();
-
-        // Get distinct materials
-        /** @var list<string> $materials */
-        $materials = (clone $baseQuery)
-            ->join('igsn_metadata', 'resources.id', '=', 'igsn_metadata.resource_id')
-            ->whereNotNull('igsn_metadata.material')
-            ->distinct()
-            ->pluck('igsn_metadata.material')
-            ->filter()
-            ->sort()
-            ->values()
-            ->toArray();
-
-        return [
-            'upload_statuses' => ['pending', 'validating', 'validated', 'registering', 'registered', 'error'],
-            'sample_types' => $sampleTypes,
-            'materials' => $materials,
-        ];
     }
 }

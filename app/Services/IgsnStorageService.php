@@ -13,6 +13,7 @@ use App\Models\IgsnClassification;
 use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
+use App\Models\Person;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
@@ -225,7 +226,7 @@ class IgsnStorageService
             'coordinate_system' => $data['coordinate_system'] ?? null,
             'user_code' => $data['user_code'] ?? null,
             'description_json' => $this->parser->parseDescriptionJson($data['description'] ?? ''),
-            'upload_status' => IgsnMetadata::STATUS_VALIDATED,
+            'upload_status' => IgsnMetadata::STATUS_UPLOADED,
             'csv_filename' => $filename,
             'csv_row_number' => $data['_row_number'] ?? null,
         ]);
@@ -251,11 +252,11 @@ class IgsnStorageService
             'orcid' => $creator['orcid'] ?? null,
         ]);
 
-        // Create resource creator
+        // Create resource creator using polymorphic relation
         $resourceCreator = ResourceCreator::create([
             'resource_id' => $resource->id,
-            'person_id' => $person->id,
-            'institution_id' => null,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
             'position' => 0,
         ]);
 
@@ -315,8 +316,8 @@ class IgsnStorageService
         ResourceContributor::create([
             'resource_id' => $resource->id,
             'contributor_type_id' => $contributorTypeId,
-            'person_id' => $person->id,
-            'institution_id' => null,
+            'contributorable_type' => Person::class,
+            'contributorable_id' => $person->id,
             'position' => $position,
         ]);
     }

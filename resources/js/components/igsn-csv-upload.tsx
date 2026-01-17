@@ -1,3 +1,4 @@
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, Upload, XCircle } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -6,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { uploadIgsnCsv as uploadIgsnCsvRoute } from '@/routes/dashboard';
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, Upload, XCircle } from 'lucide-react';
 
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
 

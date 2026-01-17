@@ -119,6 +119,8 @@ class IgsnMetadata extends Model
      */
     public const STATUS_PENDING = 'pending';
 
+    public const STATUS_UPLOADED = 'uploaded';
+
     public const STATUS_VALIDATING = 'validating';
 
     public const STATUS_VALIDATED = 'validated';

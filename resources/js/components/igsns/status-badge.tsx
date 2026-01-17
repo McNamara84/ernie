@@ -1,7 +1,7 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-type UploadStatus = 'pending' | 'validating' | 'validated' | 'registering' | 'registered' | 'error';
+type UploadStatus = 'pending' | 'uploaded' | 'validating' | 'validated' | 'registering' | 'registered' | 'error';
 
 interface IgsnStatusBadgeProps {
     status: UploadStatus | string;
@@ -25,6 +25,11 @@ const statusConfig: Record<
         label: 'Pending',
         variant: 'secondary',
         className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+    },
+    uploaded: {
+        label: 'Uploaded',
+        variant: 'outline',
+        className: 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
     },
     validating: {
         label: 'Validating',
