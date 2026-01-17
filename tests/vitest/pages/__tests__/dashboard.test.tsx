@@ -58,6 +58,15 @@ vi.mock('@/routes', () => {
     };
 });
 
+vi.mock('@/routes/dashboard', () => ({
+    uploadXml: { url: () => '/dashboard/upload-xml' },
+    uploadIgsnCsv: { url: () => '/dashboard/upload-igsn-csv' },
+}));
+
+vi.mock('@/routes/igsns', () => ({
+    index: { url: () => '/igsns' },
+}));
+
 describe('Dashboard', () => {
     beforeEach(() => {
         usePageMock.mockReturnValue({ 
@@ -177,7 +186,7 @@ describe('Dashboard', () => {
 
     it('toggles dropzone highlight on drag events', () => {
         render(<Dashboard />);
-        const dropzone = screen.getByText(/drag & drop xml files here/i).parentElement as HTMLElement;
+        const dropzone = screen.getByTestId('unified-dropzone');
         expect(dropzone).toHaveClass('bg-muted');
         fireEvent.dragOver(dropzone);
         expect(dropzone).toHaveClass('bg-accent');
@@ -189,13 +198,13 @@ describe('Dashboard', () => {
         const { container } = render(<Dashboard />);
         const input = container.querySelector('input[type="file"]') as HTMLInputElement;
         const clickSpy = vi.spyOn(input, 'click');
-        fireEvent.click(screen.getByRole('button', { name: /upload/i }));
+        fireEvent.click(screen.getByRole('button', { name: /browse files/i }));
         expect(clickSpy).toHaveBeenCalled();
     });
 
     it('handles only xml files on drop', () => {
         render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
-        const dropzone = screen.getByText(/drag & drop xml files here/i).parentElement as HTMLElement;
+        const dropzone = screen.getByTestId('unified-dropzone');
         const xmlFile = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         const otherFile = new File(['data'], 'image.png', { type: 'image/png' });
         fireEvent.dragOver(dropzone, { dataTransfer: { files: [xmlFile, otherFile] } });
@@ -204,12 +213,13 @@ describe('Dashboard', () => {
         expect(handleXmlFilesSpy).toHaveBeenCalledWith([xmlFile]);
     });
 
-    it('ignores non-xml files on drop', () => {
+    it('ignores unsupported file types on drop', () => {
         render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
-        const dropzone = screen.getByText(/drag & drop xml files here/i).parentElement as HTMLElement;
-        const textFile = new File(['data'], 'readme.txt', { type: 'text/plain' });
-        fireEvent.dragOver(dropzone, { dataTransfer: { files: [textFile] } });
-        fireEvent.drop(dropzone, { dataTransfer: { files: [textFile] } });
+        const dropzone = screen.getByTestId('unified-dropzone');
+        const imageFile = new File(['data'], 'image.png', { type: 'image/png' });
+        fireEvent.dragOver(dropzone, { dataTransfer: { files: [imageFile] } });
+        fireEvent.drop(dropzone, { dataTransfer: { files: [imageFile] } });
+        // PNG files are not supported (only XML and CSV)
         expect(handleXmlFilesSpy).not.toHaveBeenCalled();
     });
 
@@ -226,7 +236,7 @@ describe('Dashboard', () => {
     it('shows an error alert when upload fails', async () => {
         handleXmlFilesSpy.mockRejectedValue(new Error('Invalid file'));
         render(<Dashboard onXmlFiles={handleXmlFilesSpy} />);
-        const dropzone = screen.getByText(/drag & drop xml files here/i).parentElement as HTMLElement;
+        const dropzone = screen.getByTestId('unified-dropzone');
         const xmlFile = new File(['<xml></xml>'], 'test.xml', { type: 'text/xml' });
         fireEvent.dragOver(dropzone, { dataTransfer: { files: [xmlFile] } });
         fireEvent.drop(dropzone, { dataTransfer: { files: [xmlFile] } });
