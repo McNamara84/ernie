@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read User|null $createdBy
  * @property-read User|null $updatedBy
  * @property-read LandingPage|null $landingPage
+ * @property-read IgsnMetadata|null $igsnMetadata
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Title> $titles
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceCreator> $creators
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ResourceContributor> $contributors
@@ -43,6 +45,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Right> $rights
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Size> $sizes
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Format> $formats
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnClassification> $igsnClassifications
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalAge> $igsnGeologicalAges
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, IgsnGeologicalUnit> $igsnGeologicalUnits
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/
  */
@@ -211,6 +216,46 @@ class Resource extends Model
     }
 
     // =========================================================================
+    // IGSN Relations (Physical Samples)
+    // =========================================================================
+
+    /** @return HasOne<IgsnMetadata, static> */
+    public function igsnMetadata(): HasOne
+    {
+        /** @var HasOne<IgsnMetadata, static> $relation */
+        $relation = $this->hasOne(IgsnMetadata::class);
+
+        return $relation;
+    }
+
+    /** @return HasMany<IgsnClassification, static> */
+    public function igsnClassifications(): HasMany
+    {
+        /** @var HasMany<IgsnClassification, static> $relation */
+        $relation = $this->hasMany(IgsnClassification::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return HasMany<IgsnGeologicalAge, static> */
+    public function igsnGeologicalAges(): HasMany
+    {
+        /** @var HasMany<IgsnGeologicalAge, static> $relation */
+        $relation = $this->hasMany(IgsnGeologicalAge::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    /** @return HasMany<IgsnGeologicalUnit, static> */
+    public function igsnGeologicalUnits(): HasMany
+    {
+        /** @var HasMany<IgsnGeologicalUnit, static> $relation */
+        $relation = $this->hasMany(IgsnGeologicalUnit::class)->orderBy('position');
+
+        return $relation;
+    }
+
+    // =========================================================================
     // User Relations
     // =========================================================================
 
@@ -288,5 +333,30 @@ class Resource extends Model
     public function getTemporalCoverageAttribute(): \Illuminate\Database\Eloquent\Collection
     {
         return $this->dates->filter(fn (ResourceDate $d) => $d->isCollected());
+    }
+
+    // =========================================================================
+    // Scopes
+    // =========================================================================
+
+    /**
+     * Scope query to only include IGSN resources (Physical Objects).
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeIgsns(Builder $query): Builder
+    {
+        return $query->whereHas('resourceType', fn (Builder $q) => $q->where('slug', 'physical-object'));
+    }
+
+    /**
+     * Check if this resource is an IGSN (Physical Object).
+     */
+    public function isIgsn(): bool
+    {
+        $this->loadMissing('resourceType');
+
+        return $this->resourceType?->slug === 'physical-object';
     }
 }

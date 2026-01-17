@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array<array{longitude: float, latitude: float}>|null $polygon_points
  * @property float|null $in_polygon_point_longitude
  * @property float|null $in_polygon_point_latitude
+ * @property float|null $elevation
+ * @property string|null $elevation_unit
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
@@ -41,6 +43,8 @@ class GeoLocation extends Model
         'place',
         'point_longitude',
         'point_latitude',
+        'elevation',
+        'elevation_unit',
         'west_bound_longitude',
         'east_bound_longitude',
         'south_bound_latitude',
@@ -53,6 +57,7 @@ class GeoLocation extends Model
     protected $casts = [
         'point_longitude' => 'decimal:8',
         'point_latitude' => 'decimal:8',
+        'elevation' => 'decimal:2',
         'west_bound_longitude' => 'decimal:8',
         'east_bound_longitude' => 'decimal:8',
         'south_bound_latitude' => 'decimal:8',
@@ -114,5 +119,13 @@ class GeoLocation extends Model
     public function hasPolygon(): bool
     {
         return $this->polygon_points !== null && count($this->polygon_points) >= 4;
+    }
+
+    /**
+     * Check if this has elevation defined.
+     */
+    public function hasElevation(): bool
+    {
+        return $this->elevation !== null;
     }
 }
