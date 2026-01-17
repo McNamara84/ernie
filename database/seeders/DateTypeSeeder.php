@@ -20,12 +20,13 @@ class DateTypeSeeder extends Seeder
     public function run(): void
     {
         // DataCite dateType controlled values
+        // Note: Coverage (Schema 4.6) is inactive by default - admin must enable
         $types = [
             ['name' => 'Accepted', 'slug' => 'Accepted'],
             ['name' => 'Available', 'slug' => 'Available'],
             ['name' => 'Copyrighted', 'slug' => 'Copyrighted'],
             ['name' => 'Collected', 'slug' => 'Collected'],
-            ['name' => 'Coverage', 'slug' => 'Coverage'],
+            ['name' => 'Coverage', 'slug' => 'Coverage', 'is_active' => false],
             ['name' => 'Created', 'slug' => 'Created'],
             ['name' => 'Issued', 'slug' => 'Issued'],
             ['name' => 'Submitted', 'slug' => 'Submitted'],
@@ -38,7 +39,10 @@ class DateTypeSeeder extends Seeder
         foreach ($types as $type) {
             DateType::firstOrCreate(
                 ['slug' => $type['slug']],
-                ['name' => $type['name']]
+                [
+                    'name' => $type['name'],
+                    'is_active' => $type['is_active'] ?? true,
+                ]
             );
         }
     }
