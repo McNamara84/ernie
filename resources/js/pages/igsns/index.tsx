@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, FileJson, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -245,6 +245,18 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                             {igsns.map((igsn) => (
                                                 <TableRow key={igsn.id} className={igsn.parent_resource_id ? 'bg-muted/30' : ''}>
                                                     <TableCell>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="size-8" asChild>
+                                                                        <a href={`/igsns/${igsn.id}/export/json`} download>
+                                                                            <FileJson className="size-4" />
+                                                                        </a>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>Export as DataCite JSON</TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                         {canDelete && (
                                                             <TooltipProvider>
                                                                 <Tooltip>
