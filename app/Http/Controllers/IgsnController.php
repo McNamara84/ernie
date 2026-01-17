@@ -10,6 +10,7 @@ use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
 use App\Models\ResourceType;
+use App\Models\TitleType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -149,9 +150,13 @@ class IgsnController extends Controller
      */
     private function transformResource(Resource $resource): array
     {
-        $mainTitle = $resource->titles->firstWhere('title_type_id', 1)->title
-            ?? $resource->titles->first()->title
-            ?? 'Untitled';
+        // Get MainTitle type ID dynamically (don't hardcode ID)
+        $mainTitleTypeId = TitleType::where('slug', 'MainTitle')->value('id');
+
+        // Find the main title by type, fallback to first title, then 'Untitled'
+        $mainTitleRecord = $resource->titles->firstWhere('title_type_id', $mainTitleTypeId)
+            ?? $resource->titles->first();
+        $mainTitle = $mainTitleRecord !== null ? $mainTitleRecord->value : 'Untitled';
 
         $metadata = $resource->igsnMetadata;
 

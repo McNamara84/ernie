@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import { AlertCircle, CheckCircle2, FileSpreadsheet, FileText, Loader2, Upload, XCircle } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 
@@ -6,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { buildCsrfHeaders } from '@/lib/csrf-token';
 import { uploadIgsnCsv as uploadIgsnCsvRoute } from '@/routes/dashboard';
+import { index as igsnIndexRoute } from '@/routes/igsns';
 
 type FileType = 'xml' | 'csv' | 'unknown';
 type UploadState = 'idle' | 'uploading' | 'success' | 'error';
@@ -103,10 +105,15 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
 
             if (data.success) {
                 setUploadState('success');
+                setCsvResult(data);
+                // Redirect to IGSN list after short delay to show success message
+                setTimeout(() => {
+                    router.visit(igsnIndexRoute.url());
+                }, 1500);
             } else {
                 setUploadState('error');
+                setCsvResult(data);
             }
-            setCsvResult(data);
         } catch (err) {
             setUploadState('error');
             setCsvResult({
