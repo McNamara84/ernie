@@ -9,6 +9,7 @@ use App\Models\GeoLocation;
 use App\Models\Person;
 use App\Models\Resource;
 use App\Models\ResourceCreator;
+use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use Illuminate\Http\RedirectResponse;
@@ -178,7 +179,7 @@ class IgsnController extends Controller
             'title' => $mainTitle,
             'sample_type' => $metadata?->sample_type,
             'material' => $metadata?->material,
-            'collection_date' => $collectionDate?->date_value,
+            'collection_date' => $this->formatCollectionDate($collectionDate),
             'location' => $geoLocation->place ?? $this->formatCoordinates($geoLocation),
             'latitude' => $geoLocation?->point_latitude,
             'longitude' => $geoLocation?->point_longitude,
@@ -189,6 +190,27 @@ class IgsnController extends Controller
             'created_at' => $resource->created_at?->toISOString(),
             'updated_at' => $resource->updated_at?->toISOString(),
         ];
+    }
+
+    /**
+     * Format collection date from ResourceDate model.
+     * Handles both single dates (date_value) and date ranges (start_date/end_date).
+     */
+    private function formatCollectionDate(?ResourceDate $date): ?string
+    {
+        if ($date === null) {
+            return null;
+        }
+
+        // If start_date and end_date are set, format as range
+        if ($date->start_date !== null) {
+            return $date->end_date !== null
+                ? "{$date->start_date} – {$date->end_date}"
+                : $date->start_date;
+        }
+
+        // Fall back to date_value for single dates
+        return $date->date_value;
     }
 
     /**

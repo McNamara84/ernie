@@ -398,15 +398,12 @@ class IgsnStorageService
             return;
         }
 
-        // Format as date range if both dates present
-        $dateValue = $dates['end'] !== null
-            ? "{$dates['start']}/{$dates['end']}"
-            : $dates['start'];
-
+        // Use start_date and end_date for date ranges (date_value is for single dates only)
         ResourceDate::create([
             'resource_id' => $resource->id,
             'date_type_id' => $this->collectedDateTypeId,
-            'value' => $dateValue,
+            'start_date' => $dates['start'],
+            'end_date' => $dates['end'],
         ]);
     }
 
