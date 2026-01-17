@@ -478,8 +478,8 @@ test.describe('Related Work Identifier Type Detection', () => {
                 await addRelatedWorkAndVerifyType(page, '4901234123457', 'EAN13');
             });
 
-            test('detects ISBN as EAN-13 (978 prefix): 9780141026626', async ({ page }) => {
-                await addRelatedWorkAndVerifyType(page, '9780141026626', 'EAN13');
+            test('detects ISBN-13 (978 prefix) as ISBN: 9780141026626', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '9780141026626', 'ISBN');
             });
 
             test('detects USA/Canada UPC-A with EAN-13 prefix: 0012345678905', async ({ page }) => {
@@ -496,8 +496,8 @@ test.describe('Related Work Identifier Type Detection', () => {
                 await addRelatedWorkAndVerifyType(page, '400-6381-33393-1', 'EAN13');
             });
 
-            test('detects ISBN with hyphens: 978-0-141-02662-6', async ({ page }) => {
-                await addRelatedWorkAndVerifyType(page, '978-0-141-02662-6', 'EAN13');
+            test('detects ISBN-13 with hyphens as ISBN: 978-0-141-02662-6', async ({ page }) => {
+                await addRelatedWorkAndVerifyType(page, '978-0-141-02662-6', 'ISBN');
             });
         });
 
