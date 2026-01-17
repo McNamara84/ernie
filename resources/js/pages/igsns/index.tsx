@@ -272,7 +272,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                         {igsn.parent_resource_id && <span className="mr-2 text-muted-foreground">└</span>}
                                                         {igsn.igsn || '-'}
                                                     </TableCell>
-                                                    <TableCell className="max-w-[350px] truncate" title={igsn.title}>
+                                                    <TableCell className="max-w-[350px] whitespace-normal break-words">
                                                         {igsn.title}
                                                     </TableCell>
                                                     <TableCell>{igsn.sample_type || '-'}</TableCell>
