@@ -341,10 +341,11 @@ class IgsnCsvParserService
      */
     private function parseCreator(array $data): array
     {
-        // Parse collector name - format: "Family, Given" or "Given Family"
-        $collectorName = $data['collector'] ?? '';
+        // Parse from collector field first (format: "FamilyName, GivenName" or "GivenName FamilyName")
+        // This is more reliable than dedicated givenName/familyName fields which are sometimes swapped
         $familyName = null;
         $givenName = null;
+        $collectorName = $data['collector'] ?? '';
 
         if ($collectorName !== '') {
             if (str_contains($collectorName, ',')) {
@@ -364,12 +365,15 @@ class IgsnCsvParserService
             }
         }
 
+        // Get ORCID from 'orcid' column (CSV actual column name)
+        $orcid = $data['orcid'] ?? $data['collector_identifier'] ?? '';
+
         return [
             'familyName' => $familyName ?: null,
             'givenName' => $givenName ?: null,
-            'orcid' => $this->normalizeIdentifier($data['collector_identifier'] ?? ''),
-            'affiliation' => ! empty($data['collector_affiliation']) ? $data['collector_affiliation'] : null,
-            'ror' => $this->normalizeIdentifier($data['collector_affiliation_identifier'] ?? ''),
+            'orcid' => $this->normalizeIdentifier($orcid),
+            'affiliation' => ! empty($data['affiliation']) ? $data['affiliation'] : null,
+            'ror' => $this->normalizeIdentifier($data['ror'] ?? $data['collector_affiliation_identifier'] ?? ''),
         ];
     }
 
