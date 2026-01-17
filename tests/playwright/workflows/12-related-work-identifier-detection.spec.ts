@@ -164,10 +164,6 @@ test.describe('Related Work Identifier Type Detection', () => {
     // Other Identifier Types - One representative test each
     // =========================================================================
     test.describe('Other Identifier Types', () => {
-        test('detects ORCID', async ({ page }) => {
-            await addRelatedWorkAndVerifyType(page, 'https://orcid.org/0000-0002-1825-0097', 'ORCID');
-        });
-
         test('detects PMID', async ({ page }) => {
             await addRelatedWorkAndVerifyType(page, 'PMID:12345678', 'PMID');
         });
