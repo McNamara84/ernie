@@ -96,21 +96,16 @@ const DEFAULT_DIRECTION_BY_KEY: Record<SortKey, 'asc' | 'desc'> = {
 // Helper Functions
 // ============================================================================
 
-const formatDate = (isoDate: string | null): string => {
-    if (!isoDate) return '-';
+const formatDateRange = (dateString: string | null): { start: string; end: string | null } => {
+    if (!dateString) return { start: '-', end: null };
 
-    try {
-        const date = new Date(isoDate);
-        if (isNaN(date.getTime())) return '-';
-
-        return new Intl.DateTimeFormat(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-        }).format(date);
-    } catch {
-        return '-';
+    // Check if it's a date range (contains " – " separator)
+    if (dateString.includes(' – ')) {
+        const [start, end] = dateString.split(' – ');
+        return { start, end };
     }
+
+    return { start: dateString, end: null };
 };
 
 const determineNextDirection = (currentState: SortState, targetKey: SortKey): 'asc' | 'desc' => {
@@ -277,7 +272,17 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                     </TableCell>
                                                     <TableCell>{igsn.sample_type || '-'}</TableCell>
                                                     <TableCell>{igsn.material || '-'}</TableCell>
-                                                    <TableCell>{formatDate(igsn.collection_date)}</TableCell>
+                                                    <TableCell>
+                                                        {(() => {
+                                                            const { start, end } = formatDateRange(igsn.collection_date);
+                                                            return (
+                                                                <div className="text-sm">
+                                                                    <div>{start}</div>
+                                                                    {end && <div>{end}</div>}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
                                                     <TableCell>
                                                         <TooltipProvider>
                                                             <Tooltip>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
+use App\Models\DateType;
 use App\Models\GeoLocation;
 use App\Models\Person;
 use App\Models\Resource;
@@ -161,11 +162,9 @@ class IgsnController extends Controller
 
         $metadata = $resource->igsnMetadata;
 
-        // Get collection date from dates relation
-        $collectionDate = $resource->dates
-            ->first(function ($date) {
-                return $date->dateType->name === 'Collected';
-            });
+        // Get collection date from dates relation (using date_type_id for reliable filtering)
+        $collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $collectionDate = $resource->dates->firstWhere('date_type_id', $collectedDateTypeId);
 
         // Get first geo location
         $geoLocation = $resource->geoLocations->first();
