@@ -4,6 +4,10 @@
         "date": "2026-01-17",
         "features": [
             {
+                "title": "IGSN CSV Upload and Dedicated List Page",
+                "description": "A new IGSN (International Generic Sample Number) management system has been added. Users can upload pipe-delimited CSV files containing IGSN metadata via the dashboard dropzone. Successfully uploaded IGSNs are displayed on a dedicated /igsns page with sortable columns for IGSN, Title, Sample Type, Material, Collection Date, and Upload Status. Administrators can delete IGSNs via a confirmation dialog. Physical Object resources are now excluded from the /resources page to avoid duplication."
+            },
+            {
                 "title": "Enhanced Identifier Type Detection for Related Works",
                 "description": "The Related Work form now supports comprehensive auto-detection for 20+ identifier types including DOI, ARK, arXiv, Handle, ISBN, ISSN, PMID, bibcode, URN, IGSN, EAN-13, and more. The system recognizes various formats such as bare identifiers, URLs with resolver prefixes, and protocol schemes (doi:, ark:, hdl:, urn:). A visual warning alert now appears when the detected identifier type differs from the manually selected type, helping curators catch potential classification errors."
             },

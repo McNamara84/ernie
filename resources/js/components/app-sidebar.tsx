@@ -55,7 +55,6 @@ export function AppSidebar() {
             title: 'IGSNs',
             href: '/igsns',
             icon: FlaskConical,
-            disabled: true,
         },
         {
             title: 'IGSN Editor',

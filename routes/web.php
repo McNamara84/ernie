@@ -9,6 +9,7 @@ use App\Http\Controllers\OldDatasetController;
 use App\Http\Controllers\OldDataStatisticsController;
 use App\Http\Controllers\ResourceController;
 use App\Http\Controllers\TestHelperController;
+use App\Http\Controllers\UploadIgsnCsvController;
 use App\Http\Controllers\UploadXmlController;
 use App\Http\Controllers\VocabularyController;
 use App\Models\Resource;
@@ -280,6 +281,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('dashboard/upload-xml', UploadXmlController::class)
         ->name('dashboard.upload-xml');
+
+    Route::post('dashboard/upload-igsn-csv', UploadIgsnCsvController::class)
+        ->name('dashboard.upload-igsn-csv');
+
+    // IGSNs (Physical Samples) routes
+    Route::get('igsns', [\App\Http\Controllers\IgsnController::class, 'index'])
+        ->name('igsns.index');
+    Route::delete('igsns/{resource}', [\App\Http\Controllers\IgsnController::class, 'destroy'])
+        ->name('igsns.destroy');
 
     Route::get('dashboard', function () {
         return Inertia::render('dashboard', [

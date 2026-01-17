@@ -261,6 +261,9 @@ class ResourceController extends Controller
 
     /**
      * API endpoint to get available filter options.
+     *
+     * Note: Physical Object resources are excluded from filters
+     * because they have their own dedicated page at /igsns.
      */
     public function getFilterOptions(): JsonResponse
     {
@@ -269,9 +272,10 @@ class ResourceController extends Controller
         $yearMin = null;
         $yearMax = null;
 
-        // Get distinct resource types
+        // Get distinct resource types (excluding Physical Object which has its own page)
         try {
             $resourceTypes = \App\Models\ResourceType::query()
+                ->where('slug', '!=', 'physical-object')
                 ->whereHas('resources')
                 ->orderBy('name')
                 ->get(['name', 'slug'])
@@ -396,6 +400,9 @@ class ResourceController extends Controller
      * - All lookup tables (resource types, languages, title types)
      * - User relationships for audit tracking
      *
+     * Note: Physical Object resources (IGSNs) are excluded from this listing
+     * because they have their own dedicated page at /igsns.
+     *
      * Performance: ~10 queries for 50+ resources with complex relationships
      *
      * @return \Illuminate\Database\Eloquent\Builder<Resource>
@@ -403,6 +410,9 @@ class ResourceController extends Controller
     protected function baseQuery()
     {
         return Resource::query()
+            ->whereDoesntHave('resourceType', function ($query): void {
+                $query->where('slug', 'physical-object');
+            })
             ->with([
                 'resourceType:id,name,slug',
                 'language:id,code,name',
