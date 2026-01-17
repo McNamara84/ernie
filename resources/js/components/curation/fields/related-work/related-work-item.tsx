@@ -97,7 +97,7 @@ export default function RelatedWorkItem({ item, index, onRemove, validationStatu
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs" data-testid="identifier-type-badge">
                             {item.identifier_type}
                         </Badge>
                     </div>

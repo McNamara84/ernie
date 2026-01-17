@@ -158,12 +158,14 @@ export type IdentifierType =
     | 'ARK'
     | 'arXiv'
     | 'bibcode'
+    | 'CSTR'
     | 'EAN13'
     | 'EISSN'
     | 'ISTC'
     | 'LISSN'
     | 'LSID'
     | 'PMID'
+    | 'RRID'
     | 'UPC'
     | 'w3id';
 

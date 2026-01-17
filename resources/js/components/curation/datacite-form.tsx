@@ -2180,14 +2180,14 @@ export default function DataCiteForm({
                         </div>
                     </AccordionContent>
                 </AccordionItem>
-                <AccordionItem value="related-work">
-                    <AccordionTrigger>
+                <AccordionItem value="related-work" data-testid="related-work-section">
+                    <AccordionTrigger data-testid="related-work-accordion-trigger">
                         <div className="flex items-center gap-2">
                             <span>Related Work</span>
                             {renderStatusBadge(relatedWorkStatus)}
                         </div>
                     </AccordionTrigger>
-                    <AccordionContent>
+                    <AccordionContent data-testid="related-work-accordion-content">
                         <SectionHeader
                             label="Related Work"
                             description="Links to related publications and datasets."

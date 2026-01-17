@@ -26,6 +26,7 @@ export interface DOIResolutionResult {
  * Validate DOI format according to DOI syntax
  * DOIs start with "10." followed by a registrant code and a suffix
  * Also accepts DOI URLs (https://doi.org/... or http://dx.doi.org/...)
+ * and doi: prefix format (doi:10.xxxx/...)
  *
  * Note on regex pattern: The pattern uses \S+ (non-whitespace) for the suffix,
  * which is intentionally permissive. According to the DOI specification (ISO 26324),
@@ -39,7 +40,9 @@ export function validateDOIFormat(doi: string): ValidationResult {
 
     // Check if it's a DOI URL and extract the DOI part
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-    const doiToValidate = doiUrlMatch ? doiUrlMatch[1] : trimmed;
+    // Also check for doi: prefix
+    const doiPrefixMatch = trimmed.match(/^doi:(.+)/i);
+    const doiToValidate = doiUrlMatch ? doiUrlMatch[1] : doiPrefixMatch ? doiPrefixMatch[1] : trimmed;
 
     // Basic DOI pattern: 10.xxxx/yyyy
     const doiPattern = /^10\.\d{4,}(?:\.\d+)*\/\S+$/;
@@ -80,7 +83,14 @@ export function validateURLFormat(url: string): ValidationResult {
 /**
  * Validate Handle format
  * Handles are typically in the format: prefix/suffix (e.g., 10273/ICDP5054EHW1001)
- * Also accepts Handle URLs (http://hdl.handle.net/prefix/suffix)
+ * Also accepts:
+ * - Handle URLs (https://hdl.handle.net/prefix/suffix)
+ * - Handle API URLs (https://hdl.handle.net/api/handles/prefix/suffix)
+ * - hdl:// protocol (hdl://prefix/suffix)
+ * - URN format (urn:handle:prefix/suffix)
+ * - Custom resolvers (e.g., https://vm11.pid.gwdg.de:8445/objects/prefix/suffix)
+ *
+ * Handle prefixes can include dots and letters (e.g., 21.T11998, 21.11145)
  *
  * Note: Handle suffixes with whitespace are not supported.
  * Query strings and fragments in Handle URLs are excluded from the identifier.
@@ -88,20 +98,42 @@ export function validateURLFormat(url: string): ValidationResult {
 export function validateHandleFormat(handle: string): ValidationResult {
     const trimmed = handle.trim();
 
-    // Check if it's a Handle URL and extract the Handle part
-    // Pattern excludes query strings (?...) and fragments (#...) from the Handle
-    const handleUrlMatch = trimmed.match(/^https?:\/\/hdl\.handle\.net\/([^?#\s]+)/i);
-    const handleToValidate = handleUrlMatch ? handleUrlMatch[1] : trimmed;
+    let handleToValidate = trimmed;
 
-    // Handle pattern: prefix/suffix where prefix is numeric and suffix has non-whitespace
-    // Note: Bare handles with whitespace in suffix are rejected for consistency
-    const handlePattern = /^\d+\/\S+$/;
+    // Extract handle from various URL/protocol formats
+    // 1. Standard hdl.handle.net URL (with or without /api/handles/)
+    const handleUrlMatch = trimmed.match(/^https?:\/\/hdl\.handle\.net\/(?:api\/handles\/)?([^?#\s]+)/i);
+    if (handleUrlMatch) {
+        handleToValidate = handleUrlMatch[1];
+    }
+    // 2. hdl:// protocol
+    else if (trimmed.toLowerCase().startsWith('hdl://')) {
+        handleToValidate = trimmed.slice(6); // Remove 'hdl://'
+    }
+    // 3. urn:handle: format
+    else if (trimmed.toLowerCase().startsWith('urn:handle:')) {
+        handleToValidate = trimmed.slice(11); // Remove 'urn:handle:'
+    }
+    // 4. Custom resolver URLs (e.g., GWDG: vm11.pid.gwdg.de)
+    else {
+        const customResolverMatch = trimmed.match(/^https?:\/\/[^/]+\/(?:objects\/)?(\d+(?:\.[A-Za-z0-9]+)*\/[^?#\s]+)/i);
+        if (customResolverMatch) {
+            handleToValidate = customResolverMatch[1];
+        }
+    }
+
+    // Handle pattern: prefix/suffix
+    // Prefix can be:
+    // - Numeric only: 2142, 10273
+    // - With dots and alphanumeric parts: 21.T11998, 21.11145, 21.T11148
+    // Suffix: any non-whitespace characters
+    const handlePattern = /^\d+(?:\.[A-Za-z0-9]+)*\/\S+$/;
 
     if (!handlePattern.test(handleToValidate)) {
         return {
             isValid: false,
             format: 'invalid',
-            message: 'Invalid Handle format. Should be in format: prefix/suffix (e.g., 11708/D386F88C) or URL (http://hdl.handle.net/prefix/suffix)',
+            message: 'Invalid Handle format. Should be in format: prefix/suffix (e.g., 11708/D386F88C or 21.T11998/0000-001A-3905-1)',
         };
     }
 
@@ -143,9 +175,10 @@ export function validateIdentifierFormat(identifier: string, type: string): Vali
 export async function resolveDOIMetadata(doi: string, timeout = 5000): Promise<DOIResolutionResult> {
     const trimmed = doi.trim();
 
-    // Extract bare DOI if URL format
+    // Extract bare DOI if URL format or doi: prefix
     const doiUrlMatch = trimmed.match(/^https?:\/\/(?:doi\.org|dx\.doi\.org)\/(.+)/i);
-    const bareDOI = doiUrlMatch ? doiUrlMatch[1] : trimmed;
+    const doiPrefixMatch = trimmed.match(/^doi:(.+)/i);
+    const bareDOI = doiUrlMatch ? doiUrlMatch[1] : doiPrefixMatch ? doiPrefixMatch[1] : trimmed;
 
     // First validate format locally
     const formatValidation = validateDOIFormat(bareDOI);
