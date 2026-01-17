@@ -77,7 +77,7 @@ test.describe('IGSN CSV Upload and List', () => {
         // Wait for either redirect to /igsns (success) or error state (duplicate)
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
-            page.waitForSelector('[data-testid="unified-dropzone"] >> text=/error|failed/i', { timeout: 30000 }).catch(() => null),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
         ]);
 
         // If we're still on dashboard with error, the IGSN already exists - navigate manually
@@ -115,7 +115,7 @@ test.describe('IGSN CSV Upload and List', () => {
         // Wait for redirect or error
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
-            page.waitForSelector('[data-testid="unified-dropzone"] >> text=/error|failed/i', { timeout: 30000 }).catch(() => null),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
         ]);
 
         // Navigate if we're still on dashboard
@@ -139,7 +139,7 @@ test.describe('IGSN CSV Upload and List', () => {
         // Wait for redirect or error
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
-            page.waitForSelector('text=/error|failed/i', { timeout: 30000 }).catch(() => null),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
         ]);
 
         // Go back to dashboard and upload second file (DIVE)
@@ -150,7 +150,7 @@ test.describe('IGSN CSV Upload and List', () => {
         // Wait for redirect or error
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
-            page.waitForSelector('text=/error|failed/i', { timeout: 30000 }).catch(() => null),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
         ]);
 
         // Navigate to IGSNs page
@@ -174,7 +174,7 @@ test.describe('IGSN CSV Upload and List', () => {
         // Wait for redirect or error (either is fine for first upload)
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
-            page.waitForSelector('text=/error|failed/i', { timeout: 30000 }).catch(() => null),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
         ]);
 
         // Now try to upload again (should fail with duplicate error)
@@ -182,11 +182,11 @@ test.describe('IGSN CSV Upload and List', () => {
         fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
 
-        // Wait for error state - check for error alert or error message
-        // The error message mentions "UNIQUE constraint" or "Duplicate entry" from database
-        await expect(
-            page.getByText(/error|failed|constraint|duplicate|no igsns were created/i).first()
-        ).toBeVisible({ timeout: 15000 });
+        // Wait for error state using data-testid (stable selector)
+        await expect(page.getByTestId('dropzone-error-state')).toBeVisible({ timeout: 15000 });
+        
+        // Verify the error alert is shown
+        await expect(page.getByTestId('dropzone-error-alert')).toBeVisible();
     });
 
     test('admin can delete IGSN from /igsns page', async ({ page }) => {
@@ -198,7 +198,7 @@ test.describe('IGSN CSV Upload and List', () => {
         // Wait for redirect or error
         await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }),
-            page.waitForSelector('text=/error|failed/i', { timeout: 30000 }).catch(() => null),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
         ]);
 
         // Navigate to IGSNs page

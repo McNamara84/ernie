@@ -191,8 +191,8 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
     // Render error state
     if (uploadState === 'error') {
         return (
-            <div className="flex w-full flex-col items-center gap-4">
-                <Alert variant="destructive">
+            <div data-testid="dropzone-error-state" className="flex w-full flex-col items-center gap-4">
+                <Alert variant="destructive" data-testid="dropzone-error-alert">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Upload Error</AlertTitle>
                     <AlertDescription>
@@ -227,7 +227,7 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
     // Render uploading state
     if (uploadState === 'uploading') {
         return (
-            <div className="flex w-full flex-col items-center gap-4">
+            <div data-testid="dropzone-uploading-state" className="flex w-full flex-col items-center gap-4">
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
                     <span>
@@ -245,8 +245,8 @@ export function UnifiedDropzone({ onXmlUpload }: UnifiedDropzoneProps) {
     // Render success state (only for CSV, XML navigates to editor)
     if (uploadState === 'success' && csvResult) {
         return (
-            <div className="flex w-full flex-col items-center gap-4">
-                <Alert>
+            <div data-testid="dropzone-success-state" className="flex w-full flex-col items-center gap-4">
+                <Alert data-testid="dropzone-success-alert">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <AlertTitle className="text-green-700">Upload Successful</AlertTitle>
                     <AlertDescription>
