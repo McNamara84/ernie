@@ -281,7 +281,7 @@ class IgsnController extends Controller
 
             case 'title':
                 $query->orderBy(function ($q) {
-                    return $q->select('title')
+                    return $q->select('title as sort_value')
                         ->from('titles')
                         ->whereColumn('titles.resource_id', 'resources.id')
                         ->orderBy('position')
@@ -302,11 +302,11 @@ class IgsnController extends Controller
 
             case 'collection_date':
                 $query->orderBy(function ($q) {
-                    return $q->select('date_value')
+                    return $q->select('date_value as sort_value')
                         ->from('resource_dates')
                         ->join('date_types', 'resource_dates.date_type_id', '=', 'date_types.id')
                         ->whereColumn('resource_dates.resource_id', 'resources.id')
-                        ->where('date_types.name', 'Collected')
+                        ->where('date_types.slug', 'Collected')
                         ->limit(1);
                 }, $sortDirection);
                 break;

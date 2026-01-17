@@ -222,10 +222,36 @@ class IgsnMetadata extends Model
     }
 
     /**
+     * Get all valid status values.
+     *
+     * @return list<string>
+     */
+    public static function getValidStatuses(): array
+    {
+        return [
+            self::STATUS_PENDING,
+            self::STATUS_UPLOADED,
+            self::STATUS_VALIDATING,
+            self::STATUS_VALIDATED,
+            self::STATUS_REGISTERING,
+            self::STATUS_REGISTERED,
+            self::STATUS_ERROR,
+        ];
+    }
+
+    /**
      * Update the upload status.
+     *
+     * @throws \InvalidArgumentException If the status is not a valid status constant
      */
     public function updateStatus(string $status): void
     {
+        if (! in_array($status, self::getValidStatuses(), true)) {
+            throw new \InvalidArgumentException(
+                "Invalid status '{$status}'. Valid statuses are: " . implode(', ', self::getValidStatuses())
+            );
+        }
+
         $this->update([
             'upload_status' => $status,
             'upload_error_message' => null,
