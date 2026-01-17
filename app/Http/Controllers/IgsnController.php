@@ -301,8 +301,9 @@ class IgsnController extends Controller
                 break;
 
             case 'collection_date':
+                // Use COALESCE to prefer start_date over date_value (consistent with formatCollectionDate)
                 $query->orderBy(function ($q) {
-                    return $q->select('date_value as sort_value')
+                    return $q->selectRaw('COALESCE(start_date, date_value) as sort_value')
                         ->from('resource_dates')
                         ->join('date_types', 'resource_dates.date_type_id', '=', 'date_types.id')
                         ->whereColumn('resource_dates.resource_id', 'resources.id')
