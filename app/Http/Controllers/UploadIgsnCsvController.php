@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UploadIgsnCsvRequest;
+use App\Models\Resource;
 use App\Services\IgsnCsvParserService;
 use App\Services\IgsnStorageService;
 use Illuminate\Http\JsonResponse;
@@ -77,6 +78,16 @@ class UploadIgsnCsvController extends Controller
                     'success' => false,
                     'message' => 'Validation failed.',
                     'errors' => $validationErrors,
+                ], 422);
+            }
+
+            // Check for duplicate IGSNs (already exist in database)
+            $duplicateErrors = $this->checkForDuplicateIgsns($parseResult['rows']);
+            if (count($duplicateErrors) > 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Duplicate IGSN(s) found. IGSNs must be globally unique.',
+                    'errors' => $duplicateErrors,
                 ], 422);
             }
 
@@ -162,6 +173,48 @@ class UploadIgsnCsvController extends Controller
                     'message' => 'Name is required.',
                 ];
             }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Check for duplicate IGSNs that already exist in the database.
+     *
+     * IGSNs (International Generic Sample Numbers) must be globally unique.
+     * This method validates that none of the IGSNs in the upload already exist.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array{row: int, igsn: string, message: string}>
+     */
+    private function checkForDuplicateIgsns(array $rows): array
+    {
+        $errors = [];
+
+        // Collect all IGSNs from the upload
+        $igsns = [];
+        foreach ($rows as $row) {
+            if (! empty($row['igsn'])) {
+                $igsns[$row['igsn']] = $row['_row_number'] ?? 0;
+            }
+        }
+
+        if (count($igsns) === 0) {
+            return $errors;
+        }
+
+        // Check which IGSNs already exist in the database
+        $existingIgsns = Resource::whereIn('doi', array_keys($igsns))
+            ->pluck('doi')
+            ->toArray();
+
+        // Report duplicates
+        foreach ($existingIgsns as $existingIgsn) {
+            $errors[] = [
+                'row' => $igsns[$existingIgsn],
+                'igsn' => $existingIgsn,
+                'message' => "IGSN '{$existingIgsn}' already exists in the database.",
+            ];
         }
 
         return $errors;

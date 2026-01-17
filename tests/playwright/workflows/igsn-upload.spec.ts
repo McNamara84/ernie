@@ -165,45 +165,38 @@ test.describe('IGSN CSV Upload and List', () => {
         await expect(page.getByRole('cell', { name: 'Rock' }).first()).toBeVisible();
     });
 
-    test('shows error for duplicate IGSN upload', async ({ page }) => {
+    test('rejects duplicate IGSN upload with clear error message', async ({ page }) => {
         // First, ensure the IGSN exists by uploading
         await page.goto('/dashboard');
         let fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
         
-        // Wait for either redirect (success) or error state
+        // Wait for either redirect (success) or error state (IGSN already exists)
         const firstUploadResult = await Promise.race([
             page.waitForURL(/\/igsns/, { timeout: 30000 }).then(() => 'redirect' as const),
             page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).then(() => 'error' as const).catch(() => 'timeout' as const),
         ]);
 
         // If first upload showed error, the IGSN already exists (from previous tests)
-        // We can verify error state is working correctly
         if (firstUploadResult === 'error') {
+            // Verify error state shows correct message about duplicate
             await expect(page.getByTestId('dropzone-error-alert')).toBeVisible();
             // Test passed - duplicate detection works
             return;
         }
 
         // First upload succeeded - now try uploading the same file again
+        // This MUST fail because IGSNs must be globally unique
         await page.goto('/dashboard');
         fileInput = page.getByTestId('unified-file-input');
         await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
 
-        // Wait for either error state (expected) or redirect (unexpected but possible if DB was cleared)
-        const secondUploadResult = await Promise.race([
-            page.getByTestId('dropzone-error-state').waitFor({ timeout: 15000 }).then(() => 'error' as const),
-            page.waitForURL(/\/igsns/, { timeout: 15000 }).then(() => 'redirect' as const),
-        ]);
-
-        if (secondUploadResult === 'error') {
-            // Expected behavior: duplicate detected
-            await expect(page.getByTestId('dropzone-error-alert')).toBeVisible();
-        } else {
-            // Redirect happened - this means the DB was cleared between uploads
-            // Navigate to /igsns and verify the IGSN exists (the system is working, just no duplicate)
-            await expect(page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first()).toBeVisible({ timeout: 10000 });
-        }
+        // Wait for error state - duplicate IGSNs are now validated before storage
+        await expect(page.getByTestId('dropzone-error-state')).toBeVisible({ timeout: 15000 });
+        await expect(page.getByTestId('dropzone-error-alert')).toBeVisible();
+        
+        // Verify the error message mentions the duplicate IGSN
+        await expect(page.getByText(/already exists/i)).toBeVisible();
     });
 
     test('admin can delete IGSN from /igsns page', async ({ page }) => {

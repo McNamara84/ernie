@@ -81,10 +81,10 @@ describe('IGSN CSV Upload Controller', function () {
         expect($resource->doi)->toBe('ICDP5071EH10001');
     });
 
-    it('creates additional resources when uploading same CSV twice', function () {
+    it('rejects duplicate IGSN upload with clear error message', function () {
         $csvContent = file_get_contents(getDoveCsvPath());
 
-        // First upload
+        // First upload - should succeed
         $file1 = UploadedFile::fake()->createWithContent('test1.csv', $csvContent);
         $this->actingAs($this->user)
             ->post('/dashboard/upload-igsn-csv', ['file' => $file1])
@@ -93,18 +93,20 @@ describe('IGSN CSV Upload Controller', function () {
 
         expect(IgsnMetadata::count())->toBe(1);
 
-        // Second upload - currently creates another entry (no unique constraint on doi)
+        // Second upload with same IGSN - should be rejected (IGSN must be globally unique)
         $file2 = UploadedFile::fake()->createWithContent('test2.csv', $csvContent);
         $response = $this->actingAs($this->user)
-            ->post('/dashboard/upload-igsn-csv', ['file' => $file2]);
+            ->post('/dashboard/upload-igsn-csv', ['file' => $file2])
+            ->assertStatus(422);
 
         $responseData = $response->json();
-        // Note: This test documents current behavior - duplicates are allowed
-        expect($responseData['success'])->toBe(true);
-        expect($responseData['created'])->toBe(1);
+        expect($responseData['success'])->toBe(false);
+        expect($responseData['message'])->toContain('Duplicate');
+        expect($responseData['errors'])->toBeArray();
+        expect($responseData['errors'][0]['message'])->toContain('already exists');
 
-        // Two IGSNs exist (no deduplication)
-        expect(IgsnMetadata::count())->toBe(2);
+        // Only one IGSN should exist (duplicate was rejected)
+        expect(IgsnMetadata::count())->toBe(1);
     });
 });
 
