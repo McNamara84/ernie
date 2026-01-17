@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { BookOpen, Edit3, FileText, Globe, Link2, Rocket, Settings, Users } from 'lucide-react';
+import { BookOpen, Edit3, FileText, FlaskConical, Globe, Link2, Rocket, Settings, Users } from 'lucide-react';
 
 import { DocsCodeBlock } from '@/components/docs/docs-code-block';
 import { DocsSection } from '@/components/docs/docs-section';
@@ -317,6 +317,97 @@ export default function Docs({ userRole }: DocsProps) {
                         After registration, you can update the DOI metadata if you make changes to the dataset. The system will synchronize the latest
                         metadata with DataCite via the REST API v2.
                     </p>
+                </>
+            ),
+        },
+        {
+            id: 'igsn-registration',
+            title: 'IGSN Registration',
+            icon: FlaskConical,
+            minRole: 'beginner',
+            content: (
+                <>
+                    <h3>Registering Physical Samples (IGSNs)</h3>
+                    <p>
+                        IGSN (International Generic Sample Number) is a unique identifier for physical samples in research. ERNIE supports
+                        bulk import of IGSN metadata via CSV files.
+                    </p>
+
+                    <h4>CSV File Format</h4>
+                    <p>
+                        IGSN data must be provided in a <strong>pipe-delimited CSV file</strong> (using <code>|</code> as separator).
+                        The file should contain headers in the first row and data rows starting from the second row.
+                    </p>
+                    <p className="mt-2">Required columns include:</p>
+                    <ul className="list-inside list-disc space-y-1 text-sm">
+                        <li><code>igsn</code> - The unique IGSN identifier</li>
+                        <li><code>name</code> - Sample name</li>
+                        <li><code>title</code> - Full title for the sample record</li>
+                        <li><code>sample_type</code> - Type of sample (e.g., Borehole, Core)</li>
+                        <li><code>material</code> - Material type (e.g., Sediment, Rock)</li>
+                        <li><code>collection_start_date</code> / <code>collection_end_date</code> - Collection date range</li>
+                        <li><code>latitude</code> / <code>longitude</code> - Geographic coordinates</li>
+                        <li><code>collector</code> - Name of the person who collected the sample</li>
+                    </ul>
+
+                    <h4>Upload Process</h4>
+                    <WorkflowSteps>
+                        <WorkflowSteps.Step number={1} title="Prepare CSV File">
+                            <p>
+                                Ensure your CSV file follows the pipe-delimited format with all required columns.
+                                The file will typically be provided by your project's data management team.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={2} title="Navigate to Dashboard">
+                            <p>
+                                Go to the <strong>Dashboard</strong> (<code>/dashboard</code>) where you will find the unified dropzone
+                                for file uploads.
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={3} title="Upload CSV File">
+                            <p>
+                                Drag and drop your CSV file onto the dropzone, or click to select a file from your computer.
+                                The system automatically detects the file type (XML for datasets, CSV for IGSNs).
+                            </p>
+                        </WorkflowSteps.Step>
+
+                        <WorkflowSteps.Step number={4} title="Review Upload Results">
+                            <p>
+                                After successful upload, a confirmation message will appear showing the number of IGSNs imported.
+                                You will be automatically redirected to the IGSN list page.
+                            </p>
+                        </WorkflowSteps.Step>
+                    </WorkflowSteps>
+
+                    <WorkflowSuccess>
+                        <strong>Success!</strong> Your IGSN data has been imported and is now available in the IGSN list.
+                    </WorkflowSuccess>
+
+                    <h4>Viewing Uploaded IGSNs</h4>
+                    <p>
+                        All uploaded IGSNs can be viewed on the dedicated <strong>IGSN List</strong> page at <code>/igsns</code>.
+                        This page displays:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>IGSN identifier</li>
+                        <li>Title</li>
+                        <li>Sample Type and Material</li>
+                        <li>Collection Date (start and end dates)</li>
+                        <li>Upload Status</li>
+                    </ul>
+                    <p className="mt-2">
+                        You can sort the table by clicking on column headers. The IGSN identifier links to the
+                        IGSN resolver for registered samples.
+                    </p>
+
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                            <strong>Note:</strong> IGSN records are managed separately from regular datasets.
+                            They appear only on the <code>/igsns</code> page, not on the general <code>/resources</code> page.
+                        </p>
+                    </div>
                 </>
             ),
         },
