@@ -54,13 +54,19 @@ class DataCiteJsonExporter
     private function buildAttributes(Resource $resource): array
     {
         $attributes = [
-            'doi' => $resource->doi,
+            'identifiers' => $this->buildIdentifiers($resource),
             'titles' => $this->buildTitles($resource),
             'publisher' => $this->buildPublisher($resource),
-            'publicationYear' => $resource->publication_year,
+            'publicationYear' => (string) $resource->publication_year,
             'types' => $this->buildTypes($resource),
             'creators' => $this->buildCreators($resource),
+            'schemaVersion' => 'http://datacite.org/schema/kernel-4',
         ];
+
+        // Add doi only if it has a value
+        if ($resource->doi !== null) {
+            $attributes['doi'] = $resource->doi;
+        }
 
         // Add optional fields only if they have data
         if ($contributors = $this->buildContributors($resource)) {
@@ -104,6 +110,21 @@ class DataCiteJsonExporter
         }
 
         return $attributes;
+    }
+
+    /**
+     * Build the identifiers array (required field per DataCite 4.6 schema)
+     *
+     * @return array<int, array<string, string>>
+     */
+    private function buildIdentifiers(Resource $resource): array
+    {
+        return [
+            [
+                'identifier' => $resource->doi ?? '',
+                'identifierType' => 'DOI',
+            ],
+        ];
     }
 
     /**
@@ -191,10 +212,15 @@ class DataCiteJsonExporter
     private function buildTypes(Resource $resource): array
     {
         $resourceType = $resource->resourceType;
+        $typeName = $resourceType->name ?? 'Other';
+
+        // Convert to DataCite format (remove spaces)
+        // e.g., "Physical Object" -> "PhysicalObject"
+        $dataCiteType = str_replace(' ', '', $typeName);
 
         return [
-            'resourceTypeGeneral' => $resourceType->name ?? 'Other',
-            'resourceType' => $resourceType->name ?? 'Other',
+            'resourceTypeGeneral' => $dataCiteType,
+            'resourceType' => $typeName,
         ];
     }
 

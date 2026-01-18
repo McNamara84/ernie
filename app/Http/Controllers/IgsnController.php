@@ -139,9 +139,10 @@ class IgsnController extends Controller
         $exporter = new DataCiteJsonExporter();
         $dataCiteData = $exporter->export($resource);
 
-        // Validate against DataCite 4.6 schema
+        // Validate attributes against DataCite 4.6 schema
+        // Schema expects flat structure, export has data.attributes wrapper
         try {
-            $validator->validate($dataCiteData);
+            $validator->validate($dataCiteData['data']['attributes']);
         } catch (JsonValidationException $e) {
             return response()->json([
                 'message' => 'JSON export validation failed against DataCite Schema.',
