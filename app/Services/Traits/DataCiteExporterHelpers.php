@@ -200,7 +200,10 @@ trait DataCiteExporterHelpers
     /**
      * Transform a GeoLocation point to DataCite format.
      *
-     * @return array{pointLongitude: float|string, pointLatitude: float|string}|null
+     * Note: Coordinates must be floats for DataCite JSON schema.
+     * Laravel's decimal cast returns strings, so we explicitly cast to float.
+     *
+     * @return array{pointLongitude: float, pointLatitude: float}|null
      */
     protected function transformGeoLocationPoint(GeoLocation $geoLocation): ?array
     {
@@ -209,15 +212,18 @@ trait DataCiteExporterHelpers
         }
 
         return [
-            'pointLongitude' => $geoLocation->point_longitude,
-            'pointLatitude' => $geoLocation->point_latitude,
+            'pointLongitude' => (float) $geoLocation->point_longitude,
+            'pointLatitude' => (float) $geoLocation->point_latitude,
         ];
     }
 
     /**
      * Transform a GeoLocation box to DataCite format.
      *
-     * @return array{westBoundLongitude: float|string, eastBoundLongitude: float|string, southBoundLatitude: float|string, northBoundLatitude: float|string}|null
+     * Note: Coordinates must be floats for DataCite JSON schema.
+     * Laravel's decimal cast returns strings, so we explicitly cast to float.
+     *
+     * @return array{westBoundLongitude: float, eastBoundLongitude: float, southBoundLatitude: float, northBoundLatitude: float}|null
      */
     protected function transformGeoLocationBox(GeoLocation $geoLocation): ?array
     {
@@ -229,10 +235,10 @@ trait DataCiteExporterHelpers
         }
 
         return [
-            'westBoundLongitude' => $geoLocation->west_bound_longitude,
-            'eastBoundLongitude' => $geoLocation->east_bound_longitude,
-            'southBoundLatitude' => $geoLocation->south_bound_latitude,
-            'northBoundLatitude' => $geoLocation->north_bound_latitude,
+            'westBoundLongitude' => (float) $geoLocation->west_bound_longitude,
+            'eastBoundLongitude' => (float) $geoLocation->east_bound_longitude,
+            'southBoundLatitude' => (float) $geoLocation->south_bound_latitude,
+            'northBoundLatitude' => (float) $geoLocation->north_bound_latitude,
         ];
     }
 
@@ -242,7 +248,9 @@ trait DataCiteExporterHelpers
      * Uses the polygon_points JSON column from geo_locations table,
      * which stores an array of {longitude, latitude} points.
      *
-     * @return array{polygonPoints: array<int, array{pointLongitude: float|string, pointLatitude: float|string}>, inPolygonPoint?: array{pointLongitude: float|string, pointLatitude: float|string}}|null
+     * Note: Coordinates must be floats for DataCite JSON schema.
+     *
+     * @return array{polygonPoints: array<int, array{pointLongitude: float, pointLatitude: float}>, inPolygonPoint?: array{pointLongitude: float, pointLatitude: float}}|null
      */
     protected function transformGeoLocationPolygon(GeoLocation $geoLocation): ?array
     {
@@ -253,8 +261,8 @@ trait DataCiteExporterHelpers
         }
 
         $polygonPoints = array_map(fn (array $point) => [
-            'pointLongitude' => $point['longitude'],
-            'pointLatitude' => $point['latitude'],
+            'pointLongitude' => (float) $point['longitude'],
+            'pointLatitude' => (float) $point['latitude'],
         ], $points);
 
         $result = ['polygonPoints' => $polygonPoints];
@@ -262,8 +270,8 @@ trait DataCiteExporterHelpers
         // Check for in-polygon-point from geo_locations columns
         if ($geoLocation->in_polygon_point_longitude !== null && $geoLocation->in_polygon_point_latitude !== null) {
             $result['inPolygonPoint'] = [
-                'pointLongitude' => $geoLocation->in_polygon_point_longitude,
-                'pointLatitude' => $geoLocation->in_polygon_point_latitude,
+                'pointLongitude' => (float) $geoLocation->in_polygon_point_longitude,
+                'pointLatitude' => (float) $geoLocation->in_polygon_point_latitude,
             ];
         }
 

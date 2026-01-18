@@ -293,7 +293,10 @@ class JsonSchemaValidator
     }
 
     /**
-     * Log validation errors for debugging.
+     * Log validation errors for debugging and auditing.
+     *
+     * Logs at error level since validation failures prevent successful export
+     * and should be visible in production logs.
      *
      * @param  array<string, mixed>  $data
      * @param  array<int, array{path: string, message: string, keyword: string, context: array<string, mixed>}>  $errors
@@ -305,7 +308,7 @@ class JsonSchemaValidator
             ?? (is_array($data['identifier'] ?? null) ? ($data['identifier']['identifier'] ?? null) : null)
             ?? 'unknown';
 
-        Log::warning('JSON Schema validation failed', [
+        Log::error('DataCite JSON Schema validation failed', [
             'doi' => $doi,
             'schema_version' => self::SCHEMA_VERSION,
             'error_count' => count($errors),
