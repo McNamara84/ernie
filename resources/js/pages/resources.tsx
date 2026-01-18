@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import AppLayout from '@/layouts/app-layout';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem, type User as AuthUser } from '@/types';
@@ -591,6 +592,9 @@ function ResourcesPage({
     const [isLandingPageModalOpen, setIsLandingPageModalOpen] = useState(false);
     const [selectedResourceForDoi, setSelectedResourceForDoi] = useState<Resource | null>(null);
     const [isDoiModalOpen, setIsDoiModalOpen] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+    const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+    const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
 
     const handleExportDataCiteJson = useCallback(async (resource: Resource) => {
         if (!resource.id) {
@@ -635,6 +639,24 @@ function ResourcesPage({
             toast.success('DataCite JSON exported successfully');
         } catch (error) {
             console.error('Failed to export DataCite JSON:', error);
+
+            if (isAxiosError(error) && error.response?.status === 422 && error.response?.data) {
+                // Validation error - show modal with details
+                try {
+                    const errorBlob = error.response.data as Blob;
+                    const errorText = await errorBlob.text();
+                    const errorData = JSON.parse(errorText);
+
+                    if (errorData.errors && Array.isArray(errorData.errors)) {
+                        setValidationErrors(errorData.errors);
+                        setValidationSchemaVersion(errorData.schema_version || '4.6');
+                        setIsValidationModalOpen(true);
+                        return;
+                    }
+                } catch {
+                    // Fall through to generic error handling
+                }
+            }
 
             let errorMessage = 'Failed to export DataCite JSON';
             if (isAxiosError(error) && error.response?.data) {
@@ -1305,6 +1327,15 @@ function ResourcesPage({
 
             {/* Import from DataCite Modal */}
             <ImportFromDataCiteModal isOpen={showImportModal} onClose={() => setShowImportModal(false)} onSuccess={handleImportSuccess} />
+
+            {/* JSON Validation Error Modal */}
+            <ValidationErrorModal
+                open={isValidationModalOpen}
+                onOpenChange={setIsValidationModalOpen}
+                errors={validationErrors}
+                resourceType="Resource"
+                schemaVersion={validationSchemaVersion}
+            />
         </AppLayout>
     );
 }

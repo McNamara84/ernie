@@ -1,7 +1,9 @@
 import { Head, router } from '@inertiajs/react';
+import axios, { isAxiosError } from 'axios';
 import { ArrowDown, ArrowUp, ArrowUpDown, FileJson, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 import { IgsnStatusBadge } from '@/components/igsns/status-badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 
@@ -164,6 +167,10 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [igsnToDelete, setIgsnToDelete] = useState<Igsn | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [exportingIgsns, setExportingIgsns] = useState<Set<number>>(new Set());
+    const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+    const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+    const [validationSchemaVersion, setValidationSchemaVersion] = useState<string>('4.6');
 
     // Update state when props change (after navigation)
     useEffect(() => {
@@ -171,6 +178,86 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
         setPagination(initialPagination);
         setSortState(initialSort || DEFAULT_SORT);
     }, [initialIgsns, initialPagination, initialSort]);
+
+    const handleExportJson = useCallback(async (igsn: Igsn) => {
+        // Mark IGSN as exporting
+        setExportingIgsns((prev) => new Set(prev).add(igsn.id));
+
+        try {
+            const response = await axios.get(`/igsns/${igsn.id}/export/json`, {
+                responseType: 'blob',
+            });
+
+            // Create blob from response
+            const blob = new Blob([response.data], { type: 'application/json' });
+
+            // Get filename from Content-Disposition header or generate it
+            const contentDisposition = response.headers['content-disposition'] as string | undefined;
+            let filename = `igsn-${igsn.igsn ?? `resource-${igsn.id}`}.json`;
+
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+
+            // Create download link and trigger download
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+
+            // Cleanup
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success('DataCite JSON exported successfully');
+        } catch (error) {
+            console.error('Failed to export DataCite JSON:', error);
+
+            if (isAxiosError(error) && error.response?.status === 422 && error.response?.data) {
+                // Validation error - show modal with details
+                try {
+                    const errorBlob = error.response.data as Blob;
+                    const errorText = await errorBlob.text();
+                    const errorData = JSON.parse(errorText);
+
+                    if (errorData.errors && Array.isArray(errorData.errors)) {
+                        setValidationErrors(errorData.errors);
+                        setValidationSchemaVersion(errorData.schema_version || '4.6');
+                        setIsValidationModalOpen(true);
+                        return;
+                    }
+                } catch {
+                    // Fall through to generic error handling
+                }
+            }
+
+            let errorMessage = 'Failed to export DataCite JSON';
+            if (isAxiosError(error) && error.response?.data) {
+                try {
+                    const errorBlob = error.response.data as Blob;
+                    const errorText = await errorBlob.text();
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || errorMessage;
+                } catch {
+                    // Ignore parsing errors
+                }
+            }
+
+            toast.error(errorMessage);
+        } finally {
+            // Remove IGSN from exporting set
+            setExportingIgsns((prev) => {
+                const next = new Set(prev);
+                next.delete(igsn.id);
+                return next;
+            });
+        }
+    }, []);
 
     const handleSortChange = useCallback(
         (key: SortKey) => {
@@ -248,13 +335,14 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="size-8" asChild>
-                                                                        <a
-                                                                            href={`/igsns/${igsn.id}/export/json`}
-                                                                            download={`igsn-${igsn.igsn ?? `resource-${igsn.id}`}.json`}
-                                                                        >
-                                                                            <FileJson className="size-4" />
-                                                                        </a>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="size-8"
+                                                                        onClick={() => handleExportJson(igsn)}
+                                                                        disabled={exportingIgsns.has(igsn.id)}
+                                                                    >
+                                                                        <FileJson className="size-4" />
                                                                     </Button>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>Export as DataCite JSON</TooltipContent>
@@ -370,6 +458,15 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* JSON Validation Error Modal */}
+            <ValidationErrorModal
+                open={isValidationModalOpen}
+                onOpenChange={setIsValidationModalOpen}
+                errors={validationErrors}
+                resourceType="IGSN"
+                schemaVersion={validationSchemaVersion}
+            />
         </AppLayout>
     );
 }
