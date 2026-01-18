@@ -1,7 +1,7 @@
 [
     {
         "version": "1.0.0dev",
-        "date": "2026-01-17",
+        "date": "2026-01-18",
         "features": [
             {
                 "title": "IGSN JSON Export",
@@ -37,6 +37,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "Enhanced Publisher Export (DataCite 4.6)",
+                "description": "Publisher element now includes full metadata according to DataCite Schema 4.6 for all GFZ Data Services publications. JSON and XML exports now output publisherIdentifier (re3data DOI), publisherIdentifierScheme, schemeUri, and lang attributes. This applies to resources created via the editor, IGSN CSV uploads, XML uploads, and DOI registration. When importing from DataCite, older GFZ Data Services records are automatically enriched with full publisher metadata, while non-GFZ publishers retain their original data."
+            },
             {
                 "title": "DataCite Schema 4.6 Compliance",
                 "description": "Added missing controlled vocabulary values from DataCite Metadata Schema 4.6: Coverage (dateType for temporal content coverage), Translator (contributorType), CSTR and RRID (relatedIdentifierTypes), and HasTranslation/IsTranslationOf (relationTypes for linking translated resources)."

@@ -9,6 +9,7 @@ use App\Models\IdentifierType;
 use App\Models\Institution;
 use App\Models\Language;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\RelationType;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
@@ -59,6 +60,7 @@ class ResourceStorageService
                 'resource_type_id' => $data['resourceType'],
                 'version' => $data['version'] ?? null,
                 'language_id' => $languageId,
+                'publisher_id' => Publisher::getDefault()?->id,
             ];
 
             $isUpdate = ! empty($data['resourceId']);

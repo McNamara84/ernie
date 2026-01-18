@@ -144,6 +144,11 @@ class DataCiteToResourceTransformer
     /**
      * Resolve or create publisher.
      *
+     * For GFZ Data Services: Always uses the default publisher with full DataCite 4.6 metadata,
+     * enriching older records that may only have the name field.
+     *
+     * For other publishers: Preserves the original metadata from DataCite.
+     *
      * @param  string|array<string, mixed>|null  $publisher
      */
     private function resolvePublisher(string|array|null $publisher): ?int
@@ -166,13 +171,22 @@ class DataCiteToResourceTransformer
             return $defaultPublisher?->id;
         }
 
+        // Special case: If publisher is "GFZ Data Services", use the default publisher
+        // with full DataCite 4.6 metadata (enriches older records that only have the name)
+        if ($publisherName === 'GFZ Data Services') {
+            $defaultPublisher = Publisher::getDefault();
+            if ($defaultPublisher !== null) {
+                return $defaultPublisher->id;
+            }
+        }
+
         $existing = Publisher::where('name', $publisherName)->first();
 
         if ($existing) {
             return $existing->id;
         }
 
-        // Create new publisher
+        // Create new publisher (for non-GFZ publishers)
         $newPublisher = Publisher::create([
             'name' => $publisherName,
             'identifier' => is_array($publisher) ? ($publisher['publisherIdentifier'] ?? null) : null,

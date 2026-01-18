@@ -325,13 +325,45 @@ describe('DataCiteJsonExporter - Subjects/Keywords', function () {
 use App\Models\Publisher;
 
 describe('DataCiteJsonExporter - Publisher', function () {
-    test('returns default publisher when none set', function () {
+    test('returns default publisher with full DataCite 4.6 fields when none set', function () {
+        // Create default publisher with all fields
+        Publisher::firstOrCreate(
+            ['name' => 'GFZ Data Services'],
+            [
+                'name' => 'GFZ Data Services',
+                'identifier' => 'https://doi.org/10.17616/R3VQ0S',
+                'identifier_scheme' => 're3data',
+                'scheme_uri' => 'https://re3data.org/',
+                'language' => 'en',
+                'is_default' => true,
+            ]
+        );
+
         $resource = Resource::factory()->create(['publisher_id' => null]);
 
         $result = $this->exporter->export($resource);
         $publisher = $result['data']['attributes']['publisher'];
 
-        expect($publisher)->toHaveKey('name', 'GFZ Data Services');
+        expect($publisher)
+            ->toHaveKey('name', 'GFZ Data Services')
+            ->toHaveKey('publisherIdentifier', 'https://doi.org/10.17616/R3VQ0S')
+            ->toHaveKey('publisherIdentifierScheme', 're3data')
+            ->toHaveKey('schemeUri', 'https://re3data.org/')
+            ->toHaveKey('lang', 'en');
+    });
+
+    test('exports publisher with all DataCite 4.6 fields when resource has publisher', function () {
+        $resource = Resource::factory()->create();
+
+        $result = $this->exporter->export($resource);
+        $publisher = $result['data']['attributes']['publisher'];
+
+        expect($publisher)
+            ->toHaveKey('name', 'GFZ Data Services')
+            ->toHaveKey('publisherIdentifier', 'https://doi.org/10.17616/R3VQ0S')
+            ->toHaveKey('publisherIdentifierScheme', 're3data')
+            ->toHaveKey('schemeUri', 'https://re3data.org/')
+            ->toHaveKey('lang', 'en');
     });
 
     test('exports custom publisher with identifier', function () {
@@ -339,6 +371,8 @@ describe('DataCiteJsonExporter - Publisher', function () {
             'name' => 'Custom Publisher',
             'identifier' => 'https://ror.org/01234567',
             'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+            'language' => 'de',
         ]);
         $resource = Resource::factory()->create([
             'publisher_id' => $publisher->id,
@@ -347,7 +381,36 @@ describe('DataCiteJsonExporter - Publisher', function () {
         $result = $this->exporter->export($resource);
         $publisherData = $result['data']['attributes']['publisher'];
 
-        expect($publisherData)->toHaveKey('name', 'Custom Publisher');
+        expect($publisherData)
+            ->toHaveKey('name', 'Custom Publisher')
+            ->toHaveKey('publisherIdentifier', 'https://ror.org/01234567')
+            ->toHaveKey('publisherIdentifierScheme', 'ROR')
+            ->toHaveKey('schemeUri', 'https://ror.org/')
+            ->toHaveKey('lang', 'de');
+    });
+
+    test('preserves imported publisher data from DataCite', function () {
+        // Simulate an imported publisher with different data
+        $importedPublisher = Publisher::factory()->create([
+            'name' => 'External Repository',
+            'identifier' => 'https://ror.org/99999999',
+            'identifier_scheme' => 'ROR',
+            'scheme_uri' => 'https://ror.org/',
+            'language' => 'fr',
+            'is_default' => false,
+        ]);
+        $resource = Resource::factory()->create([
+            'publisher_id' => $importedPublisher->id,
+        ]);
+
+        $result = $this->exporter->export($resource);
+        $publisherData = $result['data']['attributes']['publisher'];
+
+        // Should use the resource's assigned publisher, not the default
+        expect($publisherData)
+            ->toHaveKey('name', 'External Repository')
+            ->toHaveKey('publisherIdentifier', 'https://ror.org/99999999')
+            ->toHaveKey('lang', 'fr');
     });
 });
 

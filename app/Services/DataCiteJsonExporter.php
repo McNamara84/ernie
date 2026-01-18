@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -156,15 +157,21 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build publisher information
+     * Build publisher information according to DataCite Schema 4.6.
+     *
+     * Uses the resource's publisher if available, otherwise falls back
+     * to the default publisher (GFZ Data Services).
      *
      * @return array<string, string|null>
+     *
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/publisher/
      */
     private function buildPublisher(Resource $resource): array
     {
-        $publisher = $resource->publisher;
+        $publisher = $resource->publisher ?? Publisher::getDefault();
 
         if (! $publisher) {
+            // Ultimate fallback if no default publisher exists in database
             return ['name' => 'GFZ Data Services'];
         }
 
@@ -178,6 +185,11 @@ class DataCiteJsonExporter
             if ($publisher->scheme_uri) {
                 $data['schemeUri'] = $publisher->scheme_uri;
             }
+        }
+
+        // Add language attribute (DataCite 4.6)
+        if ($publisher->language) {
+            $data['lang'] = $publisher->language;
         }
 
         return $data;

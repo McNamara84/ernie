@@ -507,6 +507,96 @@ describe('DataCiteToResourceTransformer', function (): void {
                 ->and($publisher->identifier)->toBe('https://ror.org/12345');
         });
 
+        it('enriches GFZ Data Services publisher with full DataCite 4.6 metadata', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer();
+
+            // Simulate importing an older record that only has the publisher name
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/gfz.enrich.2024.001',
+                    'titles' => [['title' => 'GFZ Enrichment Test']],
+                    'creators' => [
+                        ['familyName' => 'Test', 'givenName' => 'User', 'nameType' => 'Personal'],
+                    ],
+                    'publisher' => [
+                        'name' => 'GFZ Data Services',
+                        // Old record: no identifier, no scheme, etc.
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $publisher = Publisher::find($resource->publisher_id);
+
+            // Should use the default publisher with full metadata
+            expect($publisher)->not->toBeNull()
+                ->and($publisher->name)->toBe('GFZ Data Services')
+                ->and($publisher->identifier)->toBe('https://doi.org/10.17616/R3VQ0S')
+                ->and($publisher->identifier_scheme)->toBe('re3data')
+                ->and($publisher->scheme_uri)->toBe('https://re3data.org/')
+                ->and($publisher->language)->toBe('en')
+                ->and($publisher->is_default)->toBeTrue();
+        });
+
+        it('enriches GFZ Data Services publisher when provided as string', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer();
+
+            // Older DataCite format: publisher as simple string
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/gfz.string.2024.001',
+                    'titles' => [['title' => 'GFZ String Publisher Test']],
+                    'creators' => [
+                        ['familyName' => 'Test', 'givenName' => 'User', 'nameType' => 'Personal'],
+                    ],
+                    'publisher' => 'GFZ Data Services', // String format
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $publisher = Publisher::find($resource->publisher_id);
+
+            // Should use the default publisher with full metadata
+            expect($publisher)->not->toBeNull()
+                ->and($publisher->name)->toBe('GFZ Data Services')
+                ->and($publisher->identifier)->toBe('https://doi.org/10.17616/R3VQ0S')
+                ->and($publisher->is_default)->toBeTrue();
+        });
+
+        it('preserves non-GFZ publisher metadata from DataCite', function (): void {
+            $user = User::factory()->create();
+            $transformer = new DataCiteToResourceTransformer();
+
+            // External publisher with their own metadata
+            $doiData = [
+                'attributes' => [
+                    'doi' => '10.5880/external.2024.001',
+                    'titles' => [['title' => 'External Publisher Test']],
+                    'creators' => [
+                        ['familyName' => 'Test', 'givenName' => 'User', 'nameType' => 'Personal'],
+                    ],
+                    'publisher' => [
+                        'name' => 'PANGAEA',
+                        'publisherIdentifier' => 'https://ror.org/05abcdef',
+                        'publisherIdentifierScheme' => 'ROR',
+                        'schemeUri' => 'https://ror.org/',
+                    ],
+                ],
+            ];
+
+            $resource = $transformer->transform($doiData, $user->id);
+            $publisher = Publisher::find($resource->publisher_id);
+
+            // Should preserve the original metadata, NOT use GFZ Data Services
+            expect($publisher)->not->toBeNull()
+                ->and($publisher->name)->toBe('PANGAEA')
+                ->and($publisher->identifier)->toBe('https://ror.org/05abcdef')
+                ->and($publisher->identifier_scheme)->toBe('ROR')
+                ->and($publisher->is_default)->toBeFalse();
+        });
+
         it('uses default publisher when not provided', function (): void {
             $user = User::factory()->create();
             $transformer = new DataCiteToResourceTransformer();

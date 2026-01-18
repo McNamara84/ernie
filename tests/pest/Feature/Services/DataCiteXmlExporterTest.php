@@ -136,12 +136,16 @@ describe('DataCiteXmlExporter - Required Fields', function () {
         expect($xml)->toContain('<title>Untitled</title>');
     });
 
-    test('exports required publisher', function () {
+    test('exports required publisher with all DataCite 4.6 attributes', function () {
         $resource = Resource::factory()->create();
 
         $xml = $this->exporter->export($resource);
 
         expect($xml)->toContain('<publisher')
+            ->and($xml)->toContain('publisherIdentifier="https://doi.org/10.17616/R3VQ0S"')
+            ->and($xml)->toContain('publisherIdentifierScheme="re3data"')
+            ->and($xml)->toContain('schemeURI="https://re3data.org/"')
+            ->and($xml)->toContain('xml:lang="en"')
             ->and($xml)->toContain('GFZ Data Services</publisher>');
     });
 

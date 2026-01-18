@@ -36,10 +36,17 @@ class ResourceFactory extends Factory
             ['code' => 'en', 'name' => 'English', 'active' => true, 'elmo_active' => true]
         );
 
-        // Get or create default publisher
+        // Get or create default publisher with full DataCite 4.6 fields
         $publisher = Publisher::firstOrCreate(
             ['name' => 'GFZ Data Services'],
-            ['name' => 'GFZ Data Services', 'is_default' => true]
+            [
+                'name' => 'GFZ Data Services',
+                'identifier' => 'https://doi.org/10.17616/R3VQ0S',
+                'identifier_scheme' => 're3data',
+                'scheme_uri' => 'https://re3data.org/',
+                'language' => 'en',
+                'is_default' => true,
+            ]
         );
 
         return [
