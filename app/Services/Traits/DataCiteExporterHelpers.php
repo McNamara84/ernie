@@ -39,7 +39,7 @@ trait DataCiteExporterHelpers
             'descriptions.descriptionType',
             'dates.dateType',
             'subjects',
-            'geoLocations.polygons',
+            'geoLocations',
             'rights',
             'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
@@ -239,37 +239,31 @@ trait DataCiteExporterHelpers
     /**
      * Transform a GeoLocation polygon to DataCite format.
      *
+     * Uses the polygon_points JSON column from geo_locations table,
+     * which stores an array of {longitude, latitude} points.
+     *
      * @return array{polygonPoints: array<int, array{pointLongitude: float|string, pointLatitude: float|string}>, inPolygonPoint?: array{pointLongitude: float|string, pointLatitude: float|string}}|null
      */
     protected function transformGeoLocationPolygon(GeoLocation $geoLocation): ?array
     {
-        if ($geoLocation->polygons->isEmpty()) {
+        $points = $geoLocation->polygon_points;
+
+        if ($points === null || count($points) < 3) {
             return null;
         }
 
-        // Get regular polygon points (not in-polygon-point)
-        $polygonPoints = $geoLocation->polygons
-            ->where('is_in_polygon_point', false)
-            ->sortBy('position')
-            ->map(fn ($point) => [
-                'pointLongitude' => $point->point_longitude,
-                'pointLatitude' => $point->point_latitude,
-            ])
-            ->values()
-            ->toArray();
-
-        if (count($polygonPoints) < 3) {
-            return null;
-        }
+        $polygonPoints = array_map(fn (array $point) => [
+            'pointLongitude' => $point['longitude'],
+            'pointLatitude' => $point['latitude'],
+        ], $points);
 
         $result = ['polygonPoints' => $polygonPoints];
 
-        // Check for in-polygon-point
-        $inPolygonPoint = $geoLocation->polygons->firstWhere('is_in_polygon_point', true);
-        if ($inPolygonPoint) {
+        // Check for in-polygon-point from geo_locations columns
+        if ($geoLocation->in_polygon_point_longitude !== null && $geoLocation->in_polygon_point_latitude !== null) {
             $result['inPolygonPoint'] = [
-                'pointLongitude' => $inPolygonPoint->point_longitude,
-                'pointLatitude' => $inPolygonPoint->point_latitude,
+                'pointLongitude' => $geoLocation->in_polygon_point_longitude,
+                'pointLatitude' => $geoLocation->in_polygon_point_latitude,
             ];
         }
 

@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * GeoLocation Model (DataCite #18)
@@ -29,7 +28,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Resource $resource
- * @property-read \Illuminate\Database\Eloquent\Collection<int, GeoLocationPolygon> $polygons
  *
  * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/geolocation/
  */
@@ -72,15 +70,6 @@ class GeoLocation extends Model
     {
         /** @var BelongsTo<Resource, static> $relation */
         $relation = $this->belongsTo(Resource::class);
-
-        return $relation;
-    }
-
-    /** @return HasMany<GeoLocationPolygon, static> */
-    public function polygons(): HasMany
-    {
-        /** @var HasMany<GeoLocationPolygon, static> $relation */
-        $relation = $this->hasMany(GeoLocationPolygon::class);
 
         return $relation;
     }

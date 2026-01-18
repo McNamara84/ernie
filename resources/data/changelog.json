@@ -4,6 +4,10 @@
         "date": "2026-01-17",
         "features": [
             {
+                "title": "IGSN JSON Export",
+                "description": "Individual IGSN records can now be exported as DataCite JSON files directly from the IGSN list page. Each row displays a new export button (FileJson icon) that downloads the complete metadata in DataCite submission format, ready for DOI registration or archival purposes."
+            },
+            {
                 "title": "IGSN CSV Upload and Dedicated List Page",
                 "description": "A new IGSN (International Generic Sample Number) management system has been added. Users can upload pipe-delimited CSV files containing IGSN metadata via the dashboard dropzone. Successfully uploaded IGSNs are displayed on a dedicated /igsns page with sortable columns for IGSN, Title, Sample Type, Material, Collection Date, and Upload Status. Administrators can delete IGSNs via a confirmation dialog. Physical Object resources are now excluded from the /resources page to avoid duplication."
             },
@@ -33,6 +37,10 @@
             }
         ],
         "improvements": [
+            {
+                "title": "DataCite Schema 4.6 Compliance",
+                "description": "Added missing controlled vocabulary values from DataCite Metadata Schema 4.6: Coverage (dateType for temporal content coverage), Translator (contributorType), CSTR and RRID (relatedIdentifierTypes), and HasTranslation/IsTranslationOf (relationTypes for linking translated resources)."
+            },
             {
                 "title": "Landing Page Authorization",
                 "description": "Only Curators, Group Leaders, and Admins can create and edit landing pages. Beginners no longer have access to landing page management functions."

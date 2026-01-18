@@ -41,7 +41,8 @@ test('admin users can view editor settings page', function () {
         ->has('titleTypes', 1)
         ->has('licenses', 1)
         ->has('languages', 1)
-        ->has('dateTypes', 1)
+        // 1 from test (Created) + 1 from migration (Coverage) = 2
+        ->has('dateTypes', 2)
         ->where('maxTitles', Setting::DEFAULT_LIMIT)
         ->where('maxLicenses', Setting::DEFAULT_LIMIT)
     );

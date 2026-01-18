@@ -903,46 +903,46 @@ class DataCiteXmlExporter
                 $hasContent = true;
             }
 
-            // Add polygons if they exist
-            if ($geoLocation->polygons->isNotEmpty()) {
+            // Add polygons if they exist (from polygon_points JSON column)
+            if (! empty($geoLocation->polygon_points) && count($geoLocation->polygon_points) >= 3) {
                 $geoLocationPolygon = $this->dom->createElement('geoLocationPolygon');
 
-                foreach ($geoLocation->polygons->sortBy('position') as $polygonPoint) {
-                    if ($polygonPoint->is_in_polygon_point) {
-                        // This is the inPolygonPoint
-                        $inPolygonPoint = $this->dom->createElement('inPolygonPoint');
+                // Add regular polygon points
+                foreach ($geoLocation->polygon_points as $point) {
+                    $polygonPointElement = $this->dom->createElement('polygonPoint');
 
-                        $pointLongitude = $this->dom->createElement(
-                            'pointLongitude',
-                            htmlspecialchars((string) $polygonPoint->point_longitude)
-                        );
-                        $inPolygonPoint->appendChild($pointLongitude);
+                    $pointLongitude = $this->dom->createElement(
+                        'pointLongitude',
+                        htmlspecialchars((string) $point['longitude'])
+                    );
+                    $polygonPointElement->appendChild($pointLongitude);
 
-                        $pointLatitude = $this->dom->createElement(
-                            'pointLatitude',
-                            htmlspecialchars((string) $polygonPoint->point_latitude)
-                        );
-                        $inPolygonPoint->appendChild($pointLatitude);
+                    $pointLatitude = $this->dom->createElement(
+                        'pointLatitude',
+                        htmlspecialchars((string) $point['latitude'])
+                    );
+                    $polygonPointElement->appendChild($pointLatitude);
 
-                        $geoLocationPolygon->appendChild($inPolygonPoint);
-                    } else {
-                        // Regular polygon point
-                        $polygonPointElement = $this->dom->createElement('polygonPoint');
+                    $geoLocationPolygon->appendChild($polygonPointElement);
+                }
 
-                        $pointLongitude = $this->dom->createElement(
-                            'pointLongitude',
-                            htmlspecialchars((string) $polygonPoint->point_longitude)
-                        );
-                        $polygonPointElement->appendChild($pointLongitude);
+                // Add inPolygonPoint if defined (from geo_locations columns)
+                if ($geoLocation->in_polygon_point_longitude !== null && $geoLocation->in_polygon_point_latitude !== null) {
+                    $inPolygonPoint = $this->dom->createElement('inPolygonPoint');
 
-                        $pointLatitude = $this->dom->createElement(
-                            'pointLatitude',
-                            htmlspecialchars((string) $polygonPoint->point_latitude)
-                        );
-                        $polygonPointElement->appendChild($pointLatitude);
+                    $pointLongitude = $this->dom->createElement(
+                        'pointLongitude',
+                        htmlspecialchars((string) $geoLocation->in_polygon_point_longitude)
+                    );
+                    $inPolygonPoint->appendChild($pointLongitude);
 
-                        $geoLocationPolygon->appendChild($polygonPointElement);
-                    }
+                    $pointLatitude = $this->dom->createElement(
+                        'pointLatitude',
+                        htmlspecialchars((string) $geoLocation->in_polygon_point_latitude)
+                    );
+                    $inPolygonPoint->appendChild($pointLatitude);
+
+                    $geoLocationPolygon->appendChild($inPolygonPoint);
                 }
 
                 $geoLocationElement->appendChild($geoLocationPolygon);
