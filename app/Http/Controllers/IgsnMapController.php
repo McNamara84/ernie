@@ -44,11 +44,14 @@ class IgsnMapController extends Controller
 
         /** @var \Illuminate\Support\Collection<int, array{id: int, igsn: string|null, title: string, creator: string, publication_year: int|null, geoLocations: \Illuminate\Support\Collection<int, array{id: int, latitude: float, longitude: float, place: string|null}>}> $igsns */
         $igsns = $query->get()->map(function (Resource $resource): array {
-            $mainTitle = $resource->titles->first()->value ?? 'Untitled';
+            // @phpstan-ignore nullsafe.neverNull (defensive: titles collection may be empty)
+            $mainTitle = $resource->titles->first()?->value ?? 'Untitled';
             $creator = $resource->creators->first()?->creatorable;
-            $creatorName = $creator instanceof Person
-                ? trim(($creator->given_name ?? '') . ' ' . ($creator->family_name ?? ''))
-                : ($creator->name ?? 'Unknown');
+            $creatorName = match (true) {
+                $creator instanceof Person => trim(($creator->given_name ?? '') . ' ' . ($creator->family_name ?? '')),
+                $creator !== null => $creator->name,
+                default => 'Unknown',
+            };
 
             // Get all valid point geolocations
             $geoLocations = $resource->geoLocations
