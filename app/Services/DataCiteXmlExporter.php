@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Institution;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\Resource;
 use App\Models\ResourceContributor;
 use App\Models\ResourceCreator;
@@ -297,33 +298,44 @@ class DataCiteXmlExporter
     }
 
     /**
-     * Build publisher element (required)
+     * Build publisher element (required) according to DataCite Schema 4.6.
+     *
+     * Uses the resource's publisher if available, otherwise falls back
+     * to the default publisher (GFZ Data Services).
+     *
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/publisher/
      */
     private function buildPublisher(Resource $resource): void
     {
-        $publisherModel = $resource->publisher;
+        $publisherModel = $resource->publisher ?? Publisher::getDefault();
 
         if (! $publisherModel) {
+            // Ultimate fallback if no default publisher exists in database
             $publisher = $this->dom->createElement('publisher', htmlspecialchars('GFZ Data Services'));
-        } else {
-            $publisher = $this->dom->createElement('publisher', htmlspecialchars($publisherModel->name));
+            $this->root->appendChild($publisher);
 
-            if ($publisherModel->identifier) {
-                $publisher->setAttribute('publisherIdentifier', htmlspecialchars($publisherModel->identifier));
-                if ($publisherModel->identifier_scheme) {
-                    $publisher->setAttribute('publisherIdentifierScheme', htmlspecialchars($publisherModel->identifier_scheme));
-                }
-                if ($publisherModel->scheme_uri) {
-                    $publisher->setAttribute('schemeURI', htmlspecialchars($publisherModel->scheme_uri));
-                }
+            return;
+        }
+
+        $publisher = $this->dom->createElement('publisher', htmlspecialchars($publisherModel->name));
+
+        if ($publisherModel->identifier) {
+            $publisher->setAttribute('publisherIdentifier', htmlspecialchars($publisherModel->identifier));
+            if ($publisherModel->identifier_scheme) {
+                $publisher->setAttribute('publisherIdentifierScheme', htmlspecialchars($publisherModel->identifier_scheme));
+            }
+            if ($publisherModel->scheme_uri) {
+                $publisher->setAttribute('schemeURI', htmlspecialchars($publisherModel->scheme_uri));
             }
         }
 
-        if ($resource->language) {
+        // Use publisher's language attribute (DataCite 4.6 semantics)
+        // The lang attribute refers to the language of the publisher name, not the resource
+        if ($publisherModel->language) {
             $publisher->setAttributeNS(
                 self::XML_NAMESPACE,
                 'xml:lang',
-                $resource->language->iso_code ?? 'en'
+                $publisherModel->language
             );
         }
 

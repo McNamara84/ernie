@@ -14,6 +14,7 @@ use App\Models\IgsnGeologicalAge;
 use App\Models\IgsnGeologicalUnit;
 use App\Models\IgsnMetadata;
 use App\Models\Person;
+use App\Models\Publisher;
 use App\Models\RelatedIdentifier;
 use App\Models\RelationType;
 use App\Models\Resource;
@@ -43,6 +44,8 @@ class IgsnStorageService
     private ?int $alternativeTitleTypeId = null;
 
     private ?int $collectedDateTypeId = null;
+
+    private ?int $defaultPublisherId = null;
 
     public function __construct(
         protected IgsnCsvParserService $parser,
@@ -103,6 +106,7 @@ class IgsnStorageService
             'doi' => $data['igsn'],
             'publication_year' => $this->extractYear($data['collection_start_date'] ?? ''),
             'resource_type_id' => $this->physicalObjectTypeId,
+            'publisher_id' => $this->defaultPublisherId,
             'created_by_user_id' => $userId,
         ]);
 
@@ -145,6 +149,7 @@ class IgsnStorageService
         $this->mainTitleTypeId = TitleType::where('slug', 'MainTitle')->value('id');
         $this->alternativeTitleTypeId = TitleType::where('slug', 'AlternativeTitle')->value('id');
         $this->collectedDateTypeId = DateType::where('slug', 'Collected')->value('id');
+        $this->defaultPublisherId = Publisher::getDefault()?->id;
 
         if ($this->physicalObjectTypeId === null) {
             throw new \RuntimeException('ResourceType "physical-object" not found. Please run seeders.');
