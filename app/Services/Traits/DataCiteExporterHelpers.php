@@ -39,7 +39,7 @@ trait DataCiteExporterHelpers
             'descriptions.descriptionType',
             'dates.dateType',
             'subjects',
-            'geoLocations.polygons',
+            'geoLocations',
             'rights',
             'relatedIdentifiers.identifierType',
             'relatedIdentifiers.relationType',
