@@ -76,7 +76,7 @@ class JsonSchemaValidator
             $this->logValidationErrors($data, $errors);
 
             throw new JsonValidationException(
-                message: 'JSON export validation failed against DataCite Schema '.self::SCHEMA_VERSION,
+                message: 'JSON export validation failed against DataCite Schema version '.self::SCHEMA_VERSION,
                 errors: $errors,
                 schemaVersion: self::SCHEMA_VERSION,
             );
