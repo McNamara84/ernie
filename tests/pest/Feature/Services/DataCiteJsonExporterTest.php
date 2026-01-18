@@ -175,9 +175,10 @@ describe('DataCiteJsonExporter - Contributors', function () {
             'given_name' => 'John',
             'family_name' => 'Smith',
         ]);
+        // Use the correct slug format matching the seeder (PascalCase for DataCite compliance)
         $contactPersonType = ContributorType::firstOrCreate(
-            ['slug' => 'contact-person'],
-            ['name' => 'ContactPerson']
+            ['slug' => 'ContactPerson'],
+            ['name' => 'Contact Person']
         );
 
         ResourceContributor::create([
@@ -191,6 +192,7 @@ describe('DataCiteJsonExporter - Contributors', function () {
         $result = $this->exporter->export($resource);
         $contributors = $result['data']['attributes']['contributors'];
 
+        // Exporter now uses slug for DataCite compliance (PascalCase)
         expect($contributors)->toBeArray()
             ->and($contributors[0])->toHaveKey('name', 'Smith, John')
             ->and($contributors[0])->toHaveKey('contributorType', 'ContactPerson');

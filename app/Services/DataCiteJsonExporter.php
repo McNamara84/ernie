@@ -230,7 +230,7 @@ class DataCiteJsonExporter
 
     /**
      * Mapping from database resource type names to DataCite resourceTypeGeneral values.
-     * DataCite requires camelCase without spaces.
+     * DataCite requires PascalCase without spaces.
      *
      * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/appendices/appendix-1/resourceTypeGeneral/
      *
@@ -394,8 +394,9 @@ class DataCiteJsonExporter
                 }
             }
 
-            // Regular contributor - use contributorType from lookup table
-            $contributorType = $contributor->contributorType->name ?? 'Other';
+            // Regular contributor - use contributorType slug for DataCite compliance
+            // DataCite expects PascalCase values like "ProjectLeader" not "Project Leader"
+            $contributorType = $contributor->contributorType->slug ?? 'Other';
 
             if ($contributor->contributorable_type === Person::class) {
                 $contributors[] = $this->buildPersonContributor($contributor, $contributorType);
@@ -725,7 +726,8 @@ class DataCiteJsonExporter
             $relatedData = [
                 'relatedIdentifier' => $relatedIdentifier->identifier,
                 'relatedIdentifierType' => $relatedIdentifier->identifierType->name ?? 'DOI',
-                'relationType' => $relatedIdentifier->relationType->name ?? 'References',
+                // DataCite expects PascalCase values like "IsCitedBy" not "Is Cited By"
+                'relationType' => $relatedIdentifier->relationType->slug ?? 'References',
             ];
 
             // Add resource type general if available
