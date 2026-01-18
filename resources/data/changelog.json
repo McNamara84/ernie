@@ -39,7 +39,7 @@
         "improvements": [
             {
                 "title": "Enhanced Publisher Export (DataCite 4.6)",
-                "description": "Publisher element now includes full metadata according to DataCite Schema 4.6 for all GFZ Data Services publications. JSON and XML exports now output publisherIdentifier (re3data DOI), publisherIdentifierScheme, schemeUri, and lang attributes. This applies to resources created via the editor, IGSN CSV uploads, and XML uploads. Imported resources from DataCite retain their original publisher metadata."
+                "description": "Publisher element now includes full metadata according to DataCite Schema 4.6 for all GFZ Data Services publications. JSON and XML exports now output publisherIdentifier (re3data DOI), publisherIdentifierScheme, schemeUri, and lang attributes. This applies to resources created via the editor, IGSN CSV uploads, XML uploads, and DOI registration. When importing from DataCite, older GFZ Data Services records are automatically enriched with full publisher metadata, while non-GFZ publishers retain their original data."
             },
             {
                 "title": "DataCite Schema 4.6 Compliance",
