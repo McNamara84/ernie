@@ -249,6 +249,15 @@
                 "ROR",
                 "Other"
             ]
+        },
+        "numberType": {
+            "type": "string",
+            "enum": [
+                "Article",
+                "Chapter",
+                "Report",
+                "Other"
+            ]
         }
     },
 
@@ -518,6 +527,82 @@
                     "awardTitle": {"type": "string"}
                 },
                 "required": ["funderName"]
+            },
+            "uniqueItems": true
+        },
+        "relatedItems": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "relatedItemType": {"$ref": "#/definitions/resourceTypeGeneral"},
+                    "relationType": {"$ref": "#/definitions/relationType"},
+                    "relatedItemIdentifier": {
+                        "type": "object",
+                        "properties": {
+                            "relatedItemIdentifier": {"type": "string"},
+                            "relatedItemIdentifierType": {"$ref": "#/definitions/relatedIdentifierType"},
+                            "relatedMetadataScheme": {"type": "string"},
+                            "schemeUri": {"type": "string", "format": "uri"},
+                            "schemeType": {"type": "string"}
+                        }
+                    },
+                    "creators": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "nameType": {"$ref": "#/definitions/nameType"},
+                                "givenName": {"type": "string"},
+                                "familyName": {"type": "string"}
+                            },
+                            "required": ["name"]
+                        }
+                    },
+                    "titles": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "title": {"type": "string"},
+                                "titleType": {"$ref": "#/definitions/titleType"},
+                                "lang": {"type": "string"}
+                            },
+                            "required": ["title"]
+                        },
+                        "minItems": 1
+                    },
+                    "publicationYear": {"type": "string"},
+                    "volume": {"type": "string"},
+                    "issue": {"type": "string"},
+                    "number": {
+                        "type": "object",
+                        "properties": {
+                            "number": {"type": "string"},
+                            "numberType": {"$ref": "#/definitions/numberType"}
+                        }
+                    },
+                    "firstPage": {"type": "string"},
+                    "lastPage": {"type": "string"},
+                    "publisher": {"type": "string"},
+                    "edition": {"type": "string"},
+                    "contributors": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "contributorType": {"$ref": "#/definitions/contributorType"},
+                                "name": {"type": "string"},
+                                "nameType": {"$ref": "#/definitions/nameType"},
+                                "givenName": {"type": "string"},
+                                "familyName": {"type": "string"}
+                            },
+                            "required": ["contributorType", "name"]
+                        }
+                    }
+                },
+                "required": ["relatedItemType", "relationType", "titles"]
             },
             "uniqueItems": true
         },
