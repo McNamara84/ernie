@@ -327,6 +327,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                         className="size-8"
                                                                         onClick={() => handleExportJson(igsn)}
                                                                         disabled={exportingIgsns.has(igsn.id)}
+                                                                        aria-label="Export as DataCite JSON"
                                                                     >
                                                                         <FileJson className="size-4" />
                                                                     </Button>
@@ -343,6 +344,7 @@ function IgsnsPage({ igsns: initialIgsns, pagination: initialPagination, sort: i
                                                                             size="icon"
                                                                             className="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                                             onClick={() => handleDeleteClick(igsn)}
+                                                                            aria-label="Delete IGSN"
                                                                         >
                                                                             <Trash2 className="size-4" />
                                                                         </Button>

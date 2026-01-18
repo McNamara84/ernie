@@ -220,17 +220,10 @@ test.describe('IGSN Workflow', () => {
         await expect(igsnCell).toBeVisible({ timeout: 10000 });
 
         // Get the row containing this IGSN and find its delete button
+        // Test user is always admin (see PlaywrightTestSeeder), so delete button must exist
         const row = page.locator('tr').filter({ has: igsnCell }).first();
-        const deleteButton = row.getByRole('button', { name: /delete/i });
-        
-        // Check if delete button exists (admin only)
-        const deleteButtonCount = await deleteButton.count();
-        if (deleteButtonCount === 0) {
-            // Skip test if user doesn't have delete permissions
-            test.skip();
-            return;
-        }
-
+        const deleteButton = row.getByRole('button', { name: 'Delete IGSN' });
+        await expect(deleteButton).toBeVisible({ timeout: 5000 });
         await deleteButton.click();
 
         // Confirm deletion in dialog
