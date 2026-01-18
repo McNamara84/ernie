@@ -184,6 +184,7 @@
                 "IsPreviousVersionOf",
                 "IsPartOf",
                 "HasPart",
+                "IsPublishedIn",
                 "IsReferencedBy",
                 "References",
                 "IsDocumentedBy",
@@ -200,7 +201,11 @@
                 "IsRequiredBy",
                 "Requires",
                 "IsObsoletedBy",
-                "Obsoletes"
+                "Obsoletes",
+                "IsCollectedBy",
+                "Collects",
+                "IsTranslationOf",
+                "HasTranslation"
             ]
         },
         "descriptionType": {
