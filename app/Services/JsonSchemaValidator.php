@@ -232,10 +232,10 @@ class JsonSchemaValidator
             '/type must be/i' => "Field '{$fieldName}' has an invalid type",
             '/enum/i' => "Field '{$fieldName}' has an invalid value",
             '/minimum|maximum/i' => "Field '{$fieldName}' is out of range",
-            '/pattern/i' => "Field '{$fieldName}' has an invalid format",
+            '/pattern/i' => "Field '{$fieldName}' does not match the expected pattern",
             '/minLength|maxLength/i' => "Field '{$fieldName}' has an invalid length",
             '/minItems|maxItems/i' => "Field '{$fieldName}' has an invalid number of items",
-            '/format/i' => "Field '{$fieldName}' has an invalid format",
+            '/format/i' => "Field '{$fieldName}' has an invalid format (e.g., date, URI)",
             '/additionalProperties/i' => "Field '{$fieldName}' contains unexpected properties",
         ];
 
@@ -300,7 +300,10 @@ class JsonSchemaValidator
      */
     private function logValidationErrors(array $data, array $errors): void
     {
-        $doi = $data['doi'] ?? $data['identifier']['identifier'] ?? 'unknown';
+        // Safely extract DOI from different possible locations
+        $doi = $data['doi']
+            ?? (is_array($data['identifier'] ?? null) ? ($data['identifier']['identifier'] ?? null) : null)
+            ?? 'unknown';
 
         Log::warning('JSON Schema validation failed', [
             'doi' => $doi,

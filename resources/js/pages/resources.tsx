@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 import AppLayout from '@/layouts/app-layout';
+import { extractErrorMessageFromBlob, parseValidationErrorFromBlob } from '@/lib/blob-utils';
 import { editor as editorRoute } from '@/routes';
 import { type BreadcrumbItem, type User as AuthUser } from '@/types';
 import {
@@ -642,33 +643,18 @@ function ResourcesPage({
 
             if (isAxiosError(error) && error.response?.status === 422 && error.response?.data) {
                 // Validation error - show modal with details
-                try {
-                    const errorBlob = error.response.data as Blob;
-                    const errorText = await errorBlob.text();
-                    const errorData = JSON.parse(errorText);
-
-                    if (errorData.errors && Array.isArray(errorData.errors)) {
-                        setValidationErrors(errorData.errors);
-                        setValidationSchemaVersion(errorData.schema_version || '4.6');
-                        setIsValidationModalOpen(true);
-                        return;
-                    }
-                } catch {
-                    // Fall through to generic error handling
+                const validationError = await parseValidationErrorFromBlob(error.response.data);
+                if (validationError) {
+                    setValidationErrors(validationError.errors);
+                    setValidationSchemaVersion(validationError.schema_version || '4.6');
+                    setIsValidationModalOpen(true);
+                    return;
                 }
             }
 
-            let errorMessage = 'Failed to export DataCite JSON';
-            if (isAxiosError(error) && error.response?.data) {
-                try {
-                    const errorBlob = error.response.data as Blob;
-                    const errorText = await errorBlob.text();
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorMessage;
-                } catch {
-                    // Ignore parsing errors
-                }
-            }
+            const errorMessage = isAxiosError(error) && error.response?.data
+                ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite JSON')
+                : 'Failed to export DataCite JSON';
 
             toast.error(errorMessage);
         } finally {
@@ -747,17 +733,9 @@ function ResourcesPage({
         } catch (error) {
             console.error('Failed to export DataCite XML:', error);
 
-            let errorMessage = 'Failed to export DataCite XML';
-            if (isAxiosError(error) && error.response?.data) {
-                try {
-                    const errorBlob = error.response.data as Blob;
-                    const errorText = await errorBlob.text();
-                    const errorData = JSON.parse(errorText);
-                    errorMessage = errorData.message || errorMessage;
-                } catch (e) {
-                    console.debug('Failed to parse error response:', e);
-                }
-            }
+            const errorMessage = isAxiosError(error) && error.response?.data
+                ? await extractErrorMessageFromBlob(error.response.data, 'Failed to export DataCite XML')
+                : 'Failed to export DataCite XML';
 
             toast.error(errorMessage);
         } finally {

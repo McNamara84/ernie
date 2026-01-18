@@ -124,7 +124,7 @@ export default function Docs({ userRole }: DocsProps) {
                     <h4>Exporting Metadata</h4>
                     <p>
                         From the <code>/resources</code> page, you can export any dataset's metadata as a DataCite JSON file by clicking the{' '}
-                        <strong>JSON export button</strong> (FileJson icon). All exports are automatically validated against the official
+                        <strong>JSON export button</strong> (JSON file icon). All exports are automatically validated against the official
                         DataCite Metadata Schema 4.6 to ensure compliance before download.
                     </p>
                     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
@@ -425,7 +425,7 @@ export default function Docs({ userRole }: DocsProps) {
 
                     <h4>Exporting IGSN Metadata</h4>
                     <p>
-                        Each IGSN row includes a <strong>JSON export button</strong> (FileJson icon) that allows you to download
+                        Each IGSN row includes a <strong>JSON export button</strong> (JSON file icon) that allows you to download
                         the complete metadata in DataCite JSON format. This export is useful for:
                     </p>
                     <ul className="list-inside list-disc space-y-1">

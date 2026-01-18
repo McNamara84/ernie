@@ -9,7 +9,7 @@
             },
             {
                 "title": "IGSN JSON Export",
-                "description": "Individual IGSN records can now be exported as DataCite JSON files directly from the IGSN list page. Each row displays a new export button (FileJson icon) that downloads the complete metadata in DataCite submission format, ready for DOI registration or archival purposes."
+                "description": "Individual IGSN records can now be exported as DataCite JSON files directly from the IGSN list page. Each row displays a new export button (JSON file icon) that downloads the complete metadata in DataCite submission format, ready for DOI registration or archival purposes."
             },
             {
                 "title": "IGSN CSV Upload and Dedicated List Page",

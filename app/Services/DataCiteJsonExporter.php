@@ -217,6 +217,49 @@ class DataCiteJsonExporter
     }
 
     /**
+     * Mapping from database resource type names to DataCite resourceTypeGeneral values.
+     * DataCite requires camelCase without spaces.
+     *
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/appendices/appendix-1/resourceTypeGeneral/
+     *
+     * @var array<string, string>
+     */
+    private const RESOURCE_TYPE_GENERAL_MAP = [
+        'Audiovisual' => 'Audiovisual',
+        'Award' => 'Award',
+        'Book' => 'Book',
+        'Book Chapter' => 'BookChapter',
+        'Collection' => 'Collection',
+        'Computational Notebook' => 'ComputationalNotebook',
+        'Conference Paper' => 'ConferencePaper',
+        'Conference Proceeding' => 'ConferenceProceeding',
+        'Data Paper' => 'DataPaper',
+        'Dataset' => 'Dataset',
+        'Dissertation' => 'Dissertation',
+        'Event' => 'Event',
+        'Image' => 'Image',
+        'Interactive Resource' => 'InteractiveResource',
+        'Instrument' => 'Instrument',
+        'Journal' => 'Journal',
+        'Journal Article' => 'JournalArticle',
+        'Model' => 'Model',
+        'Output Management Plan' => 'OutputManagementPlan',
+        'Peer Review' => 'PeerReview',
+        'Physical Object' => 'PhysicalObject',
+        'Preprint' => 'Preprint',
+        'Project' => 'Project',
+        'Report' => 'Report',
+        'Service' => 'Service',
+        'Software' => 'Software',
+        'Sound' => 'Sound',
+        'Standard' => 'Standard',
+        'Study Registration' => 'StudyRegistration',
+        'Text' => 'Text',
+        'Workflow' => 'Workflow',
+        'Other' => 'Other',
+    ];
+
+    /**
      * Build types (resource type) information
      *
      * @return array<string, string>
@@ -226,9 +269,10 @@ class DataCiteJsonExporter
         $resourceType = $resource->resourceType;
         $typeName = $resourceType->name ?? 'Other';
 
-        // Convert to DataCite format (remove spaces)
-        // e.g., "Physical Object" -> "PhysicalObject"
-        $dataCiteType = str_replace(' ', '', $typeName);
+        // Use explicit mapping for DataCite format
+        // Fallback to removing spaces for any unmapped types
+        $dataCiteType = self::RESOURCE_TYPE_GENERAL_MAP[$typeName]
+            ?? str_replace(' ', '', $typeName);
 
         return [
             'resourceTypeGeneral' => $dataCiteType,
