@@ -264,6 +264,10 @@
     "type": "object",
 
     "properties": {
+        "doi": {
+            "type": "string",
+            "description": "The DOI of the resource (DataCite API attribute, not in core schema)"
+        },
         "types": {
             "type": "object",
             "properties": {
