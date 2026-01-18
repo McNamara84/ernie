@@ -309,7 +309,22 @@
             "uniqueItems": true
         },
         "publisher": {
-            "type": "string"
+            "oneOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "publisherIdentifier": {"type": "string"},
+                        "publisherIdentifierScheme": {"type": "string"},
+                        "schemeUri": {"type": "string", "format": "uri"},
+                        "lang": {"type": "string"}
+                    },
+                    "required": ["name"]
+                }
+            ]
         },
         "publicationYear": {
             "type": "string",
