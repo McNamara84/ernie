@@ -55,13 +55,24 @@ class DataCiteJsonExporter
     private function buildAttributes(Resource $resource): array
     {
         $attributes = [
-            'doi' => $resource->doi,
             'titles' => $this->buildTitles($resource),
             'publisher' => $this->buildPublisher($resource),
-            'publicationYear' => $resource->publication_year,
+            'publicationYear' => (string) $resource->publication_year,
             'types' => $this->buildTypes($resource),
             'creators' => $this->buildCreators($resource),
+            'schemaVersion' => 'http://datacite.org/schema/kernel-4',
         ];
+
+        // Add identifiers only if DOI is present (required for registration, optional for export)
+        $identifiers = $this->buildIdentifiers($resource);
+        if (! empty($identifiers)) {
+            $attributes['identifiers'] = $identifiers;
+        }
+
+        // Add doi only if it has a value
+        if ($resource->doi !== null) {
+            $attributes['doi'] = $resource->doi;
+        }
 
         // Add optional fields only if they have data
         if ($contributors = $this->buildContributors($resource)) {
@@ -105,6 +116,28 @@ class DataCiteJsonExporter
         }
 
         return $attributes;
+    }
+
+    /**
+     * Build the identifiers array.
+     *
+     * Returns an empty array if DOI is not set, allowing export of draft resources.
+     * The identifiers field is only required for DataCite registration, not for preview exports.
+     *
+     * @return array<int, array<string, string>>
+     */
+    private function buildIdentifiers(Resource $resource): array
+    {
+        if (empty($resource->doi)) {
+            return [];
+        }
+
+        return [
+            [
+                'identifier' => $resource->doi,
+                'identifierType' => 'DOI',
+            ],
+        ];
     }
 
     /**
@@ -196,6 +229,49 @@ class DataCiteJsonExporter
     }
 
     /**
+     * Mapping from database resource type names to DataCite resourceTypeGeneral values.
+     * DataCite requires camelCase without spaces.
+     *
+     * @see https://datacite-metadata-schema.readthedocs.io/en/4.6/appendices/appendix-1/resourceTypeGeneral/
+     *
+     * @var array<string, string>
+     */
+    private const RESOURCE_TYPE_GENERAL_MAP = [
+        'Audiovisual' => 'Audiovisual',
+        'Award' => 'Award',
+        'Book' => 'Book',
+        'Book Chapter' => 'BookChapter',
+        'Collection' => 'Collection',
+        'Computational Notebook' => 'ComputationalNotebook',
+        'Conference Paper' => 'ConferencePaper',
+        'Conference Proceeding' => 'ConferenceProceeding',
+        'Data Paper' => 'DataPaper',
+        'Dataset' => 'Dataset',
+        'Dissertation' => 'Dissertation',
+        'Event' => 'Event',
+        'Image' => 'Image',
+        'Interactive Resource' => 'InteractiveResource',
+        'Instrument' => 'Instrument',
+        'Journal' => 'Journal',
+        'Journal Article' => 'JournalArticle',
+        'Model' => 'Model',
+        'Output Management Plan' => 'OutputManagementPlan',
+        'Peer Review' => 'PeerReview',
+        'Physical Object' => 'PhysicalObject',
+        'Preprint' => 'Preprint',
+        'Project' => 'Project',
+        'Report' => 'Report',
+        'Service' => 'Service',
+        'Software' => 'Software',
+        'Sound' => 'Sound',
+        'Standard' => 'Standard',
+        'Study Registration' => 'StudyRegistration',
+        'Text' => 'Text',
+        'Workflow' => 'Workflow',
+        'Other' => 'Other',
+    ];
+
+    /**
      * Build types (resource type) information
      *
      * @return array<string, string>
@@ -203,10 +279,16 @@ class DataCiteJsonExporter
     private function buildTypes(Resource $resource): array
     {
         $resourceType = $resource->resourceType;
+        $typeName = $resourceType->name ?? 'Other';
+
+        // Use explicit mapping for DataCite format
+        // Fallback to removing spaces for any unmapped types
+        $dataCiteType = self::RESOURCE_TYPE_GENERAL_MAP[$typeName]
+            ?? str_replace(' ', '', $typeName);
 
         return [
-            'resourceTypeGeneral' => $resourceType->name ?? 'Other',
-            'resourceType' => $resourceType->name ?? 'Other',
+            'resourceTypeGeneral' => $dataCiteType,
+            'resourceType' => $typeName,
         ];
     }
 

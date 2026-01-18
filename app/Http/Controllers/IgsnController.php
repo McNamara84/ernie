@@ -13,7 +13,10 @@ use App\Models\ResourceCreator;
 use App\Models\ResourceDate;
 use App\Models\ResourceType;
 use App\Models\TitleType;
+use App\Exceptions\JsonValidationException;
 use App\Services\DataCiteJsonExporter;
+use App\Services\JsonSchemaValidator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -125,7 +128,7 @@ class IgsnController extends Controller
      *
      * All authenticated users can export IGSNs (confirmed requirement).
      */
-    public function exportJson(Resource $resource): StreamedResponse
+    public function exportJson(Resource $resource, JsonSchemaValidator $validator): StreamedResponse|JsonResponse
     {
         // Verify this is actually an IGSN resource (has igsnMetadata)
         if ($resource->igsnMetadata === null) {
@@ -135,6 +138,18 @@ class IgsnController extends Controller
         // Generate DataCite JSON
         $exporter = new DataCiteJsonExporter();
         $dataCiteData = $exporter->export($resource);
+
+        // Validate attributes against DataCite 4.6 schema
+        // Schema expects flat structure, export has data.attributes wrapper
+        try {
+            $validator->validate($dataCiteData['data']['attributes']);
+        } catch (JsonValidationException $e) {
+            return response()->json([
+                'message' => 'JSON export validation failed against DataCite Schema.',
+                'errors' => $e->getErrors(),
+                'schema_version' => $e->getSchemaVersion(),
+            ], 422);
+        }
 
         // Generate filename from IGSN (stored in doi field)
         $igsn = $resource->doi ?? "resource-{$resource->id}";

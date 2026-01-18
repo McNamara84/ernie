@@ -120,6 +120,20 @@ export default function Docs({ userRole }: DocsProps) {
                         After saving, you can view the dataset under <code>/resources</code>, edit it again if needed, create a landing page, and
                         eventually register a DOI.
                     </p>
+
+                    <h4>Exporting Metadata</h4>
+                    <p>
+                        From the <code>/resources</code> page, you can export any dataset's metadata as a DataCite JSON file by clicking the{' '}
+                        <strong>JSON export button</strong> (JSON file icon). All exports are automatically validated against the official
+                        DataCite Metadata Schema 4.6 to ensure compliance before download.
+                    </p>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950">
+                        <p className="text-sm text-amber-900 dark:text-amber-100">
+                            <strong>Validation Errors:</strong> If the exported metadata contains schema violations, an error modal
+                            will display each issue with its JSON path and description. This helps you identify which fields need
+                            correction before the data can be submitted to DataCite.
+                        </p>
+                    </div>
                 </>
             ),
         },
@@ -406,6 +420,26 @@ export default function Docs({ userRole }: DocsProps) {
                         <p className="text-sm text-blue-900 dark:text-blue-100">
                             <strong>Note:</strong> IGSN records are managed separately from regular datasets.
                             They appear only on the <code>/igsns</code> page, not on the general <code>/resources</code> page.
+                        </p>
+                    </div>
+
+                    <h4>Exporting IGSN Metadata</h4>
+                    <p>
+                        Each IGSN row includes a <strong>JSON export button</strong> (JSON file icon) that allows you to download
+                        the complete metadata in DataCite JSON format. This export is useful for:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>Archiving metadata locally</li>
+                        <li>Manual submission to DataCite</li>
+                        <li>Integration with other systems</li>
+                    </ul>
+
+                    <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
+                        <p className="text-sm text-green-900 dark:text-green-100">
+                            <strong>Automatic Validation:</strong> All JSON exports are validated against the official
+                            DataCite Metadata Schema 4.6 before download. If any validation errors are detected, a detailed
+                            error modal will display each issue with its JSON path, helping you identify and fix problems
+                            before submission.
                         </p>
                     </div>
                 </>

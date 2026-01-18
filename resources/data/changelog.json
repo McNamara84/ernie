@@ -4,8 +4,12 @@
         "date": "2026-01-18",
         "features": [
             {
+                "title": "DataCite JSON Schema Validation",
+                "description": "All JSON exports (Resources and IGSNs) are now automatically validated against the official DataCite Metadata Schema 4.6 before download. If validation errors are detected, a detailed error modal displays each issue with its JSON path and error message in an accordion view. This ensures that all exported metadata is fully compliant with DataCite requirements before submission."
+            },
+            {
                 "title": "IGSN JSON Export",
-                "description": "Individual IGSN records can now be exported as DataCite JSON files directly from the IGSN list page. Each row displays a new export button (FileJson icon) that downloads the complete metadata in DataCite submission format, ready for DOI registration or archival purposes."
+                "description": "Individual IGSN records can now be exported as DataCite JSON files directly from the IGSN list page. Each row displays a new export button (JSON file icon) that downloads the complete metadata in DataCite submission format, ready for DOI registration or archival purposes."
             },
             {
                 "title": "IGSN CSV Upload and Dedicated List Page",
