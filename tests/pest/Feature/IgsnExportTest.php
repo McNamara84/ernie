@@ -218,11 +218,14 @@ describe('IGSN JSON Export', function () {
             'upload_status' => 'pending',
         ]);
 
-        // Export without DOI should fail because DOI is required for DataCite JSON
+        // Export without DOI should succeed - DOI is only required for registration, not export
         $response = $this->actingAs($user)
             ->get("/igsns/{$resource->id}/export/json");
 
-        $response->assertStatus(500);
+        $response->assertOk();
+        $contentDisposition = $response->headers->get('Content-Disposition');
+        expect($contentDisposition)->toBeString();
+        expect(str_contains($contentDisposition, "igsn-resource-{$resource->id}.json"))->toBeTrue();
     });
 });
 

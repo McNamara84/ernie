@@ -413,6 +413,84 @@ describe('JsonSchemaValidator', function () {
             expect($result)->toBeFalse();
         });
     });
+
+    describe('strictMode', function () {
+        it('allows data without identifiers in non-strict mode (default)', function () {
+            $validator = new JsonSchemaValidator;
+
+            // Valid data without identifiers - allowed for draft exports
+            $data = [
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
+            ];
+
+            // Non-strict mode (default) - should pass
+            expect($validator->validate($data, strictMode: false))->toBeTrue();
+        });
+
+        it('rejects data without identifiers in strict mode', function () {
+            $validator = new JsonSchemaValidator;
+
+            // Data without identifiers - not allowed for registration
+            $data = [
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
+            ];
+
+            // Strict mode - should fail because identifiers are required
+            expect(fn () => $validator->validate($data, strictMode: true))
+                ->toThrow(JsonValidationException::class);
+        });
+
+        it('passes with identifiers in strict mode', function () {
+            $validator = new JsonSchemaValidator;
+
+            // Data with identifiers - valid for registration
+            $data = [
+                'identifiers' => [['identifier' => '10.5880/test', 'identifierType' => 'DOI']],
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
+            ];
+
+            // Strict mode with identifiers - should pass
+            expect($validator->validate($data, strictMode: true))->toBeTrue();
+        });
+
+        it('isValid respects strictMode parameter', function () {
+            $validator = new JsonSchemaValidator;
+
+            $dataWithoutIdentifiers = [
+                'creators' => [['name' => 'Test Author']],
+                'titles' => [['title' => 'Test Title']],
+                'publisher' => 'Test Publisher',
+                'publicationYear' => '2026',
+                'types' => ['resourceType' => 'Dataset', 'resourceTypeGeneral' => 'Dataset'],
+                'schemaVersion' => 'http://datacite.org/schema/kernel-4',
+            ];
+
+            $errors = null;
+
+            // Non-strict mode - should be valid
+            expect($validator->isValid($dataWithoutIdentifiers, $errors, strictMode: false))->toBeTrue();
+
+            // Strict mode - should be invalid
+            expect($validator->isValid($dataWithoutIdentifiers, $errors, strictMode: true))->toBeFalse();
+            expect($errors)->not->toBeEmpty();
+            expect(collect($errors)->pluck('path')->toArray())->toContain('/identifiers');
+        });
+    });
 });
 
 describe('JsonValidationException', function () {

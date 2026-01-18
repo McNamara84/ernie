@@ -190,4 +190,34 @@ describe('Resource JSON Export with Schema Validation', function () {
         expect($attributes)->toHaveKey('publicationYear');
         expect($attributes)->toHaveKey('types');
     });
+
+    it('exports resource without DOI successfully (draft export)', function () {
+        $user = User::factory()->create();
+
+        // Create valid resource WITHOUT DOI - should still be exportable
+        $resource = createValidResource(['doi' => null]);
+
+        $response = $this->actingAs($user)
+            ->get("/resources/{$resource->id}/export-datacite-json");
+
+        // Export should succeed - DOI is only required for registration, not export
+        $response->assertOk();
+
+        $json = $response->json();
+
+        // Verify structure but identifiers should be absent
+        expect($json)->toHaveKey('data');
+        expect($json['data'])->toHaveKey('attributes');
+
+        $attributes = $json['data']['attributes'];
+        expect($attributes)->not->toHaveKey('identifiers');
+        expect($attributes)->not->toHaveKey('doi');
+
+        // Other required fields should be present
+        expect($attributes)->toHaveKey('titles');
+        expect($attributes)->toHaveKey('creators');
+        expect($attributes)->toHaveKey('publisher');
+        expect($attributes)->toHaveKey('publicationYear');
+        expect($attributes)->toHaveKey('types');
+    });
 });

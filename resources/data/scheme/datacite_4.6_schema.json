@@ -625,7 +625,6 @@
     },
 
     "required": [
-        "identifiers",
         "creators",
         "titles",
         "publisher",

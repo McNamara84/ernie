@@ -54,7 +54,6 @@ class DataCiteJsonExporter
     private function buildAttributes(Resource $resource): array
     {
         $attributes = [
-            'identifiers' => $this->buildIdentifiers($resource),
             'titles' => $this->buildTitles($resource),
             'publisher' => $this->buildPublisher($resource),
             'publicationYear' => (string) $resource->publication_year,
@@ -62,6 +61,12 @@ class DataCiteJsonExporter
             'creators' => $this->buildCreators($resource),
             'schemaVersion' => 'http://datacite.org/schema/kernel-4',
         ];
+
+        // Add identifiers only if DOI is present (required for registration, optional for export)
+        $identifiers = $this->buildIdentifiers($resource);
+        if (! empty($identifiers)) {
+            $attributes['identifiers'] = $identifiers;
+        }
 
         // Add doi only if it has a value
         if ($resource->doi !== null) {
@@ -113,18 +118,17 @@ class DataCiteJsonExporter
     }
 
     /**
-     * Build the identifiers array (required field per DataCite 4.6 schema)
+     * Build the identifiers array.
+     *
+     * Returns an empty array if DOI is not set, allowing export of draft resources.
+     * The identifiers field is only required for DataCite registration, not for preview exports.
      *
      * @return array<int, array<string, string>>
-     *
-     * @throws \InvalidArgumentException When DOI is null or empty
      */
     private function buildIdentifiers(Resource $resource): array
     {
         if (empty($resource->doi)) {
-            throw new \InvalidArgumentException(
-                'Cannot export resource without DOI. DOI is required for DataCite JSON export.'
-            );
+            return [];
         }
 
         return [

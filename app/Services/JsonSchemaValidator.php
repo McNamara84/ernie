@@ -15,6 +15,10 @@ use Opis\JsonSchema\Validator;
  *
  * This service provides validation for exported Resource and IGSN data
  * to ensure compliance with the DataCite Metadata Schema before export.
+ *
+ * Supports two validation modes:
+ * - Non-strict (default for exports): DOI/identifiers are optional, allows draft resources
+ * - Strict (for registration): All required fields including DOI must be present
  */
 class JsonSchemaValidator
 {
@@ -38,29 +42,47 @@ class JsonSchemaValidator
      * Validate JSON data against the DataCite schema.
      *
      * @param  array<string, mixed>  $data  The data to validate
+     * @param  bool  $strictMode  If true, requires identifiers/DOI (for registration). If false, allows draft resources.
      * @return bool True if validation passes
      *
      * @throws JsonValidationException If validation fails
      */
-    public function validate(array $data): bool
+    public function validate(array $data, bool $strictMode = false): bool
     {
         $schema = $this->loadSchema();
         $dataObject = $this->arrayToObject($data);
 
         $result = $this->validator->validate($dataObject, $schema);
 
-        if ($result->isValid()) {
-            return true;
+        $errors = [];
+
+        if (! $result->isValid()) {
+            $errors = $this->formatErrors($result->error());
         }
 
-        $errors = $this->formatErrors($result->error());
-        $this->logValidationErrors($data, $errors);
+        // In strict mode, additionally check for required identifiers
+        if ($strictMode && empty($data['identifiers'])) {
+            $errors[] = [
+                'path' => '/identifiers',
+                'message' => "Required field 'identifiers' is missing. DOI is required for DataCite registration. (Path: /identifiers)",
+                'keyword' => 'required',
+                'context' => [
+                    'raw_message' => 'The identifiers field is required for DataCite registration but is missing.',
+                ],
+            ];
+        }
 
-        throw new JsonValidationException(
-            message: 'JSON export validation failed against DataCite Schema '.self::SCHEMA_VERSION,
-            errors: $errors,
-            schemaVersion: self::SCHEMA_VERSION,
-        );
+        if (! empty($errors)) {
+            $this->logValidationErrors($data, $errors);
+
+            throw new JsonValidationException(
+                message: 'JSON export validation failed against DataCite Schema '.self::SCHEMA_VERSION,
+                errors: $errors,
+                schemaVersion: self::SCHEMA_VERSION,
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -68,11 +90,12 @@ class JsonSchemaValidator
      *
      * @param  array<string, mixed>  $data  The data to validate
      * @param  array<int, array{path: string, message: string, keyword: string, context: array<string, mixed>}>|null  $errors  Reference to store errors if validation fails
+     * @param  bool  $strictMode  If true, requires identifiers/DOI (for registration)
      */
-    public function isValid(array $data, ?array &$errors = null): bool
+    public function isValid(array $data, ?array &$errors = null, bool $strictMode = false): bool
     {
         try {
-            $this->validate($data);
+            $this->validate($data, $strictMode);
 
             return true;
         } catch (JsonValidationException $e) {
