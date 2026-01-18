@@ -1,7 +1,9 @@
 <?php
 
 use App\Models\IgsnMetadata;
+use App\Models\Person;
 use App\Models\Resource;
+use App\Models\ResourceCreator;
 use App\Models\ResourceType;
 use App\Models\TitleType;
 use App\Models\User;
@@ -129,6 +131,7 @@ describe('IGSN JSON Export', function () {
     it('generates correct filename from IGSN', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
@@ -136,6 +139,24 @@ describe('IGSN JSON Export', function () {
             'publication_year' => 2026,
         ]);
 
+        $resource->titles()->create([
+            'value' => 'Test IGSN Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::factory()->create([
+            'family_name' => 'Doe',
+            'given_name' => 'John',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
         IgsnMetadata::create([
             'resource_id' => $resource->id,
             'upload_status' => 'pending',
@@ -144,17 +165,96 @@ describe('IGSN JSON Export', function () {
         $response = $this->actingAs($user)
             ->get("/igsns/{$resource->id}/export/json");
 
+        $response->assertOk();
         $contentDisposition = $response->headers->get('Content-Disposition');
-        expect($contentDisposition)->toContain('igsn-ICDP5068EH50001.json');
+        expect($contentDisposition)->toBeString();
+        expect(str_contains($contentDisposition, 'igsn-ICDP5068EH50001.json'))->toBeTrue();
     });
 
     it('generates fallback filename when IGSN is null', function () {
         $user = User::factory()->create();
         $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
 
         $resource = Resource::factory()->create([
             'resource_type_id' => $physicalObjectType->id,
             'doi' => null,
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Test IGSN Sample Without DOI',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        $person = Person::factory()->create([
+            'family_name' => 'Doe',
+            'given_name' => 'John',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        $contentDisposition = $response->headers->get('Content-Disposition');
+        expect($contentDisposition)->toBeString();
+        expect(str_contains($contentDisposition, "igsn-resource-{$resource->id}.json"))->toBeTrue();
+    });
+});
+
+describe('IGSN JSON Export with Schema Validation', function () {
+    it('exports valid IGSN as DataCite JSON successfully', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-VALID-001',
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Valid IGSN Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Rock',
+            'material' => 'Granite',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+        expect($response->headers->get('Content-Type'))->toStartWith('application/json');
+    });
+
+    it('returns 422 with validation errors for invalid IGSN data', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+
+        // Create IGSN without required title
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-INVALID-001',
             'publication_year' => 2026,
         ]);
 
@@ -166,7 +266,99 @@ describe('IGSN JSON Export', function () {
         $response = $this->actingAs($user)
             ->get("/igsns/{$resource->id}/export/json");
 
-        $contentDisposition = $response->headers->get('Content-Disposition');
-        expect($contentDisposition)->toContain("igsn-resource-{$resource->id}.json");
+        $response->assertStatus(422);
+        $response->assertJson([
+            'message' => 'JSON export validation failed against DataCite Schema.',
+        ]);
+        $response->assertJsonStructure([
+            'message',
+            'errors' => [
+                '*' => ['path', 'message', 'keyword', 'context'],
+            ],
+            'schema_version',
+        ]);
+    });
+
+    it('includes schema version 4.6 in error response', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-INVALID-002',
+            'publication_year' => 2026,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('schema_version', '4.6');
+    });
+
+    it('includes human-readable error messages', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-INVALID-003',
+            'publication_year' => 2026,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertStatus(422);
+
+        $json = $response->json();
+        expect($json['errors'])->toBeArray();
+        expect($json['errors'][0]['message'])->toBeString();
+        // Message should contain both human-readable text and path
+        expect($json['errors'][0]['message'])->toContain('(Path:');
+    });
+
+    it('validates PhysicalObject as valid resourceTypeGeneral', function () {
+        $user = User::factory()->create();
+        $physicalObjectType = ResourceType::where('slug', 'physical-object')->first();
+        $mainTitleType = TitleType::where('slug', 'MainTitle')->first();
+
+        $resource = Resource::factory()->create([
+            'resource_type_id' => $physicalObjectType->id,
+            'doi' => 'IGSN-PHYSOBJ-001',
+            'publication_year' => 2026,
+        ]);
+
+        $resource->titles()->create([
+            'value' => 'Physical Object Sample',
+            'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        IgsnMetadata::create([
+            'resource_id' => $resource->id,
+            'sample_type' => 'Sediment',
+            'upload_status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get("/igsns/{$resource->id}/export/json");
+
+        $response->assertOk();
+
+        // Verify the JSON contains PhysicalObject type
+        $json = json_decode($response->streamedContent(), true);
+        $attributes = $json['data']['attributes'];
+        expect($attributes['types']['resourceTypeGeneral'])->toBe('PhysicalObject');
     });
 });
