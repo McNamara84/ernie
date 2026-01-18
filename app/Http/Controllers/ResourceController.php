@@ -10,9 +10,11 @@ use App\Models\Resource;
 use App\Models\Right;
 use App\Models\Title;
 use App\Models\User;
+use App\Exceptions\JsonValidationException;
 use App\Services\DataCiteJsonExporter;
 use App\Services\DataCiteRegistrationService;
 use App\Services\DataCiteSyncResult;
+use App\Services\JsonSchemaValidator;
 use App\Services\DataCiteSyncService;
 use App\Services\DataCiteXmlExporter;
 use App\Services\DataCiteXmlValidator;
@@ -830,10 +832,21 @@ class ResourceController extends Controller
     /**
      * Export a resource as DataCite JSON
      */
-    public function exportDataCiteJson(Resource $resource): SymfonyResponse
+    public function exportDataCiteJson(Resource $resource, JsonSchemaValidator $validator): SymfonyResponse
     {
         $exporter = new DataCiteJsonExporter;
         $dataCiteJson = $exporter->export($resource);
+
+        // Validate against DataCite 4.6 schema
+        try {
+            $validator->validate($dataCiteJson);
+        } catch (JsonValidationException $e) {
+            return response()->json([
+                'message' => 'JSON export validation failed against DataCite Schema.',
+                'errors' => $e->getErrors(),
+                'schema_version' => $e->getSchemaVersion(),
+            ], 422);
+        }
 
         // Generate filename with timestamp
         $timestamp = now()->format('YmdHis');
