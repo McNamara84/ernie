@@ -50,6 +50,19 @@ describe('IGSN JSON Export', function () {
             'position' => 1,
         ]);
 
+        // Add required creator (explicit per DataCite schema)
+        $person = Person::factory()->create([
+            'family_name' => 'Smith',
+            'given_name' => 'Jane',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
+            'position' => 1,
+        ]);
+
         // Create IGSN metadata
         IgsnMetadata::create([
             'resource_id' => $resource->id,
@@ -205,13 +218,11 @@ describe('IGSN JSON Export', function () {
             'upload_status' => 'pending',
         ]);
 
+        // Export without DOI should fail because DOI is required for DataCite JSON
         $response = $this->actingAs($user)
             ->get("/igsns/{$resource->id}/export/json");
 
-        $response->assertOk();
-        $contentDisposition = $response->headers->get('Content-Disposition');
-        expect($contentDisposition)->toBeString();
-        expect(str_contains($contentDisposition, "igsn-resource-{$resource->id}.json"))->toBeTrue();
+        $response->assertStatus(500);
     });
 });
 
@@ -230,6 +241,19 @@ describe('IGSN JSON Export with Schema Validation', function () {
         $resource->titles()->create([
             'value' => 'Valid IGSN Sample',
             'title_type_id' => $mainTitleType->id,
+            'position' => 1,
+        ]);
+
+        // Add required creator (explicit per DataCite schema)
+        $person = Person::factory()->create([
+            'family_name' => 'Miller',
+            'given_name' => 'Bob',
+        ]);
+
+        ResourceCreator::create([
+            'resource_id' => $resource->id,
+            'creatorable_type' => Person::class,
+            'creatorable_id' => $person->id,
             'position' => 1,
         ]);
 

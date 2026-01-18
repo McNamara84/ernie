@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type ValidationError,ValidationErrorModal } from '@/components/ui/validation-error-modal';
+import { type ValidationError, ValidationErrorModal } from '@/components/ui/validation-error-modal';
 
 describe('ValidationErrorModal', () => {
     const mockOnOpenChange = vi.fn();
