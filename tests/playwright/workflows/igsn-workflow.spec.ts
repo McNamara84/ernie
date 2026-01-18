@@ -5,12 +5,13 @@ import { fileURLToPath } from 'url';
 import { TEST_USER_EMAIL, TEST_USER_PASSWORD } from '../constants';
 
 /**
- * IGSN CSV Upload and List Tests
+ * IGSN Workflow Tests
  *
  * Tests the complete IGSN workflow:
  * 1. Upload CSV files via dashboard dropzone
  * 2. Verify data appears in /igsns table
  * 3. Verify data is correctly stored in database
+ * 4. Export IGSN as DataCite JSON and verify download succeeds
  * 
  * Note: These tests run in a shared database environment. Previous test runs
  * or retries may leave data in the database. Tests use .first() selectors
@@ -55,7 +56,7 @@ const DIVE_CSV_DATA = {
     city: 'Verbano-Cusio-Ossola',
 };
 
-test.describe('IGSN CSV Upload and List', () => {
+test.describe('IGSN Workflow', () => {
     test.beforeEach(async ({ page }) => {
         // Login
         await page.goto('/login');
@@ -238,5 +239,167 @@ test.describe('IGSN CSV Upload and List', () => {
 
         // Wait for the row to be removed
         await expect(row).not.toBeVisible({ timeout: 10000 });
+    });
+
+    test('can export IGSN as DataCite JSON after upload', async ({ page }) => {
+        // Step 1: Upload the DOVE CSV file
+        await page.goto('/dashboard');
+        const fileInput = page.getByTestId('unified-file-input');
+        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        
+        // Wait for redirect or error (IGSN might already exist from previous test runs)
+        await Promise.race([
+            page.waitForURL(/\/igsns/, { timeout: 30000 }),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
+        ]);
+
+        // Navigate to IGSNs page if we're still on dashboard
+        if (page.url().includes('/dashboard')) {
+            await page.goto('/igsns');
+        }
+
+        // Step 2: Verify the IGSN exists in the table
+        const igsnCell = page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first();
+        await expect(igsnCell).toBeVisible({ timeout: 10000 });
+
+        // Step 3: Find the row and click the JSON export button
+        const row = page.locator('tr').filter({ has: igsnCell }).first();
+        
+        // The export button has a FileJson icon and tooltip "Export as DataCite JSON"
+        const exportButton = row.locator('button').filter({ has: page.locator('svg.lucide-file-json') }).first();
+        await expect(exportButton).toBeVisible();
+
+        // Step 4: Set up download listener BEFORE clicking
+        const downloadPromise = page.waitForEvent('download', { timeout: 30000 });
+
+        // Click the export button
+        await exportButton.click();
+
+        // Step 5: Wait for download to complete
+        const download = await downloadPromise;
+        
+        // Verify the download was successful
+        expect(download).toBeTruthy();
+        
+        // Verify filename contains the IGSN
+        const filename = download.suggestedFilename();
+        expect(filename).toContain('.json');
+        expect(filename.toLowerCase()).toContain('igsn');
+
+        // Step 6: Read and validate the downloaded JSON content
+        const downloadPath = await download.path();
+        expect(downloadPath).toBeTruthy();
+        
+        // Read the file content
+        const fs = await import('fs/promises');
+        const jsonContent = await fs.readFile(downloadPath!, 'utf-8');
+        const jsonData = JSON.parse(jsonContent);
+
+        // Verify basic DataCite JSON structure
+        expect(jsonData).toHaveProperty('data');
+        expect(jsonData.data).toHaveProperty('type', 'dois');
+        expect(jsonData.data).toHaveProperty('attributes');
+
+        // Verify attributes contain required DataCite fields
+        const attributes = jsonData.data.attributes;
+        expect(attributes).toHaveProperty('titles');
+        expect(attributes).toHaveProperty('creators');
+        expect(attributes).toHaveProperty('publisher');
+        expect(attributes).toHaveProperty('publicationYear');
+        expect(attributes).toHaveProperty('types');
+        expect(attributes.types).toHaveProperty('resourceTypeGeneral', 'PhysicalObject');
+
+        // Verify no validation error modal appeared
+        const validationModal = page.locator('[role="dialog"]').filter({ hasText: /validation.*failed|export.*failed/i });
+        await expect(validationModal).not.toBeVisible();
+
+        // Verify success toast appeared (optional - toast might have already disappeared)
+        // Just verify no error toast is visible
+        const errorToast = page.locator('[data-sonner-toast][data-type="error"]');
+        await expect(errorToast).not.toBeVisible();
+    });
+
+    test('exported JSON passes DataCite schema validation (no validation modal)', async ({ page }) => {
+        // This test specifically verifies that the fix for contributorType, relationType, 
+        // and geoLocation coordinate types works correctly
+        
+        // Upload the DOVE CSV (which has contributors and geo coordinates)
+        await page.goto('/dashboard');
+        const fileInput = page.getByTestId('unified-file-input');
+        await fileInput.setInputFiles(resolveDatasetExample(DOVE_CSV_DATA.filename));
+        
+        await Promise.race([
+            page.waitForURL(/\/igsns/, { timeout: 30000 }),
+            page.getByTestId('dropzone-error-state').waitFor({ timeout: 30000 }).catch(() => null),
+        ]);
+
+        if (page.url().includes('/dashboard')) {
+            await page.goto('/igsns');
+        }
+
+        // Find the IGSN row
+        const igsnCell = page.getByRole('cell', { name: DOVE_CSV_DATA.igsn, exact: true }).first();
+        await expect(igsnCell).toBeVisible({ timeout: 10000 });
+
+        const row = page.locator('tr').filter({ has: igsnCell }).first();
+        const exportButton = row.locator('button').filter({ has: page.locator('svg.lucide-file-json') }).first();
+
+        // Set up listeners for both download (success) and dialog (validation error)
+        const downloadPromise = page.waitForEvent('download', { timeout: 15000 }).catch(() => null);
+        
+        // Click export
+        await exportButton.click();
+
+        // Wait a moment for either download or validation modal
+        await page.waitForTimeout(2000);
+
+        // Check if validation error modal appeared (this would indicate our fix didn't work)
+        const validationModal = page.locator('[role="dialog"]').filter({ hasText: /JSON Export Failed/i });
+        const modalVisible = await validationModal.isVisible();
+        
+        if (modalVisible) {
+            // If modal is visible, the test should fail with details about what went wrong
+            const errorText = await validationModal.textContent();
+            throw new Error(`DataCite JSON validation failed! Validation errors detected:\n${errorText}`);
+        }
+
+        // Download should have succeeded
+        const download = await downloadPromise;
+        expect(download).toBeTruthy();
+        
+        // Additional verification: read the JSON and check specific fields that were fixed
+        if (download) {
+            const downloadPath = await download.path();
+            const fs = await import('fs/promises');
+            const jsonContent = await fs.readFile(downloadPath!, 'utf-8');
+            const jsonData = JSON.parse(jsonContent);
+            const attributes = jsonData.data.attributes;
+
+            // Verify contributors have correct contributorType format (camelCase, no spaces)
+            if (attributes.contributors) {
+                for (const contributor of attributes.contributors) {
+                    expect(contributor.contributorType).toMatch(/^[A-Z][a-zA-Z]+$/);
+                    expect(contributor.contributorType).not.toContain(' ');
+                }
+            }
+
+            // Verify relatedIdentifiers have correct relationType format (camelCase, no spaces)
+            if (attributes.relatedIdentifiers) {
+                for (const ri of attributes.relatedIdentifiers) {
+                    expect(ri.relationType).toMatch(/^[A-Z][a-zA-Z]+$/);
+                    expect(ri.relationType).not.toContain(' ');
+                }
+            }
+
+            // Verify geoLocations have numeric coordinates (not strings)
+            if (attributes.geoLocations) {
+                for (const geo of attributes.geoLocations) {
+                    if (geo.geoLocationPoint) {
+                        expect(typeof geo.geoLocationPoint.pointLongitude).toBe('number');
+                        expect(typeof geo.geoLocationPoint.pointLatitude).toBe('number');
+                    }
+                }
+            }
+        }
     });
 });
