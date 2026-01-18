@@ -368,7 +368,7 @@ test.describe('IGSN Workflow', () => {
             const jsonData = JSON.parse(jsonContent);
             const attributes = jsonData.data.attributes;
 
-            // Verify contributors have correct contributorType format (camelCase, no spaces)
+            // Verify contributors have correct contributorType format (PascalCase, no spaces)
             if (attributes.contributors) {
                 for (const contributor of attributes.contributors) {
                     expect(contributor.contributorType).toMatch(/^[A-Z][a-zA-Z]+$/);
@@ -376,7 +376,7 @@ test.describe('IGSN Workflow', () => {
                 }
             }
 
-            // Verify relatedIdentifiers have correct relationType format (camelCase, no spaces)
+            // Verify relatedIdentifiers have correct relationType format (PascalCase, no spaces)
             if (attributes.relatedIdentifiers) {
                 for (const ri of attributes.relatedIdentifiers) {
                     expect(ri.relationType).toMatch(/^[A-Z][a-zA-Z]+$/);
