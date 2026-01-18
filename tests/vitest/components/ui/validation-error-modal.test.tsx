@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ValidationErrorModal, type ValidationError } from '@/components/ui/validation-error-modal';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { type ValidationError,ValidationErrorModal } from '@/components/ui/validation-error-modal';
 
 describe('ValidationErrorModal', () => {
     const mockOnOpenChange = vi.fn();
