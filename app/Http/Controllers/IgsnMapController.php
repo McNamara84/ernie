@@ -44,7 +44,7 @@ class IgsnMapController extends Controller
 
         /** @var \Illuminate\Support\Collection<int, array{id: int, igsn: string|null, title: string, creator: string, publication_year: int|null, geoLocations: \Illuminate\Support\Collection<int, array{id: int, latitude: float, longitude: float, place: string|null}>}> $igsns */
         $igsns = $query->get()->map(function (Resource $resource): array {
-            $mainTitle = $resource->titles->first()->title ?? 'Untitled';
+            $mainTitle = $resource->titles->first()->value ?? 'Untitled';
             $creator = $resource->creators->first()?->creatorable;
             $creatorName = $creator instanceof Person
                 ? trim(($creator->given_name ?? '') . ' ' . ($creator->family_name ?? ''))

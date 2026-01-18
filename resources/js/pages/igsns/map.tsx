@@ -137,7 +137,7 @@ export default function IgsnMapPage({ igsns }: IgsnMapPageProps) {
                         <FitBoundsControl bounds={bounds} />
 
                         {markers.map((marker) => (
-                            <Marker key={`${marker.id}-${marker.igsn}`} position={[marker.latitude, marker.longitude]}>
+                            <Marker key={marker.id} position={[marker.latitude, marker.longitude]}>
                                 <Popup>
                                     <div className="min-w-[200px]">
                                         <h3 className="mb-1 font-semibold">{marker.title}</h3>
