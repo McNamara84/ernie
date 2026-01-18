@@ -339,6 +339,7 @@
                     "subjectScheme": {"type": "string"},
                     "schemeUri": {"type": "string", "format": "uri"},
                     "valueUri": {"type": "string", "format": "uri"},
+                    "classificationCode": {"type": "string"},
                     "lang": {"type": "string"}
                 },
                 "required": ["subject"]
