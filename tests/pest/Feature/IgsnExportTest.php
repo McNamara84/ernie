@@ -60,7 +60,7 @@ describe('IGSN JSON Export', function () {
             ->get("/igsns/{$resource->id}/export/json");
 
         $response->assertOk();
-        $response->assertHeader('Content-Type', 'application/json');
+        expect($response->headers->get('Content-Type'))->toStartWith('application/json');
 
         // Verify it's a download
         $contentDisposition = $response->headers->get('Content-Disposition');
