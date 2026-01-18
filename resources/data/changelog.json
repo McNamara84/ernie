@@ -4,6 +4,10 @@
         "date": "2026-01-18",
         "features": [
             {
+                "title": "IGSNs Map View",
+                "description": "A new interactive map view displays all IGSNs (physical samples) with geographic coordinates on an OpenStreetMap-based map. The map automatically adjusts its viewport to show all markers. Clicking a marker reveals a popup with the sample's title, creator, and publication year. The sidebar now shows 'IGSNs List' and 'IGSNs Map' as separate menu items under IGSN Curation."
+            },
+            {
                 "title": "DataCite JSON Schema Validation",
                 "description": "All JSON exports (Resources and IGSNs) are now automatically validated against the official DataCite Metadata Schema 4.6 before download. If validation errors are detected, a detailed error modal displays each issue with its JSON path and error message in an accordion view. This ensures that all exported metadata is fully compliant with DataCite requirements before submission."
             },

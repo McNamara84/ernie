@@ -416,6 +416,20 @@ export default function Docs({ userRole }: DocsProps) {
                         IGSN resolver for registered samples.
                     </p>
 
+                    <h4>Map View</h4>
+                    <p>
+                        The <strong>IGSNs Map</strong> page at <code>/igsns-map</code> provides a geographic visualization of all
+                        physical samples that have coordinate data. The interactive map displays:
+                    </p>
+                    <ul className="list-inside list-disc space-y-1">
+                        <li>Markers for each IGSN with geographic coordinates</li>
+                        <li>Automatic viewport adjustment to show all samples</li>
+                        <li>Clickable markers with popup information (title, creator, publication year)</li>
+                    </ul>
+                    <p className="mt-2">
+                        Access the map view via the sidebar under <strong>IGSN Curation → IGSNs Map</strong>.
+                    </p>
+
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                         <p className="text-sm text-blue-900 dark:text-blue-100">
                             <strong>Note:</strong> IGSN records are managed separately from regular datasets.

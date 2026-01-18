@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ContactMessageController;
 use App\Http\Controllers\EditorController;
+use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\LandingPagePreviewController;
 use App\Http\Controllers\LandingPagePublicController;
@@ -288,6 +289,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // IGSNs (Physical Samples) routes
     Route::get('igsns', [\App\Http\Controllers\IgsnController::class, 'index'])
         ->name('igsns.index');
+    Route::get('igsns-map', [IgsnMapController::class, 'index'])
+        ->name('igsns.map');
     Route::get('igsns/{resource}/export/json', [\App\Http\Controllers\IgsnController::class, 'exportJson'])
         ->name('igsns.export.json');
     Route::delete('igsns/{resource}', [\App\Http\Controllers\IgsnController::class, 'destroy'])

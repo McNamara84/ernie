@@ -9,6 +9,7 @@ import {
     History,
     Layers,
     LayoutGrid,
+    MapPin,
     ScrollText,
     Settings,
     Users,
@@ -52,9 +53,14 @@ export function AppSidebar() {
     // IGSN CURATION section
     const igsnCurationItems: NavItem[] = [
         {
-            title: 'IGSNs',
+            title: 'IGSNs List',
             href: '/igsns',
             icon: FlaskConical,
+        },
+        {
+            title: 'IGSNs Map',
+            href: '/igsns-map',
+            icon: MapPin,
         },
         {
             title: 'IGSN Editor',

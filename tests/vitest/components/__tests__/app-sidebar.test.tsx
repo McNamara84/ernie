@@ -171,7 +171,7 @@ describe('AppSidebar', () => {
         expect(sectionCalls[1][0].label).toBe('Data Curation');
 
         // Section 3: IGSN Curation
-        expect(sectionCalls[2][0].items.map((i: NavItem) => i.title)).toEqual(['IGSNs', 'IGSN Editor']);
+        expect(sectionCalls[2][0].items.map((i: NavItem) => i.title)).toEqual(['IGSNs List', 'IGSNs Map', 'IGSN Editor']);
         expect(sectionCalls[2][0].label).toBe('IGSN Curation');
 
         // Section 4: Administration (only for admins)
