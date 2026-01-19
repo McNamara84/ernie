@@ -146,9 +146,11 @@ describe('OldDatasetsFilters Component', () => {
     it('displays result count correctly when filtered', () => {
         render(<OldDatasetsFilters {...defaultProps} resultCount={10} totalCount={150} />);
         
-        expect(screen.getByText(/showing/i)).toBeInTheDocument();
-        expect(screen.getByText('10')).toBeInTheDocument();
-        expect(screen.getByText('150')).toBeInTheDocument();
+        // The result count shows up when resultCount !== totalCount
+        // Look for the span containing "Showing" as direct text
+        const spans = screen.getAllByText(/Showing/);
+        const resultSpan = spans.find((el) => el.textContent === 'Showing 10 of 150 datasets');
+        expect(resultSpan).toBeInTheDocument();
     });
 
     it('shows clear all button when filters are active', () => {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -58,10 +58,11 @@ describe('MSLLaboratoriesField', () => {
         expect(screen.getByText('Utrecht University MSL Vocabularies')).toBeInTheDocument();
     });
 
-    it('renders search input', () => {
+    it('renders combobox trigger button', () => {
         render(<MSLLaboratoriesField {...defaultProps} />);
 
-        expect(screen.getByPlaceholderText(/Search for a laboratory/)).toBeInTheDocument();
+        // The Combobox shows a button trigger
+        expect(screen.getByRole('combobox')).toBeInTheDocument();
     });
 
     it('shows empty state when no laboratories selected', () => {
@@ -70,41 +71,37 @@ describe('MSLLaboratoriesField', () => {
         expect(screen.getByText(/No laboratories selected yet/)).toBeInTheDocument();
     });
 
-    it('displays search results when typing', async () => {
+    it('opens combobox dropdown when clicked', async () => {
         const user = userEvent.setup();
         render(<MSLLaboratoriesField {...defaultProps} />);
 
-        const searchInput = screen.getByPlaceholderText(/Search for a laboratory/);
-        await user.type(searchInput, 'TecLab');
+        const comboboxTrigger = screen.getByRole('combobox');
+        await user.click(comboboxTrigger);
 
-        await waitFor(() => {
-            expect(screen.getByText('TecLab Rock Physics')).toBeInTheDocument();
-        });
+        // Check that the dropdown opened with laboratory options
+        expect(screen.getByText('TecLab Rock Physics')).toBeInTheDocument();
     });
 
-    it('displays "no results" message when search yields nothing', async () => {
+    it('displays laboratories in dropdown', async () => {
         const user = userEvent.setup();
         render(<MSLLaboratoriesField {...defaultProps} />);
 
-        const searchInput = screen.getByPlaceholderText(/Search for a laboratory/);
-        await user.type(searchInput, 'NonExistentLab');
+        const comboboxTrigger = screen.getByRole('combobox');
+        await user.click(comboboxTrigger);
 
-        await waitFor(() => {
-            expect(screen.getByText(/No laboratories found matching/)).toBeInTheDocument();
-        });
+        expect(screen.getByText('TecLab Rock Physics')).toBeInTheDocument();
+        expect(screen.getByText('INGV Seismology Lab')).toBeInTheDocument();
+        expect(screen.getByText('Utrecht Geodynamics Lab')).toBeInTheDocument();
     });
 
-    it('calls onChange when laboratory is selected', async () => {
+    it('calls onChange when laboratory is selected from dropdown', async () => {
         const user = userEvent.setup();
         render(<MSLLaboratoriesField {...defaultProps} />);
 
-        const searchInput = screen.getByPlaceholderText(/Search for a laboratory/);
-        await user.type(searchInput, 'TecLab');
+        const comboboxTrigger = screen.getByRole('combobox');
+        await user.click(comboboxTrigger);
 
-        await waitFor(() => {
-            expect(screen.getByText('TecLab Rock Physics')).toBeInTheDocument();
-        });
-
+        // Click on a laboratory option
         await user.click(screen.getByText('TecLab Rock Physics'));
 
         expect(mockOnChange).toHaveBeenCalledWith([
@@ -195,7 +192,7 @@ describe('MSLLaboratoriesField', () => {
         expect(mockOnChange).toHaveBeenCalledWith([]);
     });
 
-    it('excludes already selected laboratories from search results', async () => {
+    it('excludes already selected laboratories from dropdown options', async () => {
         const user = userEvent.setup();
         const selectedLabs: MSLLaboratory[] = [
             {
@@ -208,28 +205,16 @@ describe('MSLLaboratoriesField', () => {
 
         render(<MSLLaboratoriesField {...defaultProps} selectedLaboratories={selectedLabs} />);
 
-        const searchInput = screen.getByPlaceholderText(/Search for a laboratory/);
-        await user.type(searchInput, 'Lab');
+        const comboboxTrigger = screen.getByRole('combobox');
+        await user.click(comboboxTrigger);
 
-        await waitFor(() => {
-            // Should show dropdown with results
-            expect(screen.getByText(/result/)).toBeInTheDocument();
-        });
-
-        // The already selected lab should NOT be in the dropdown as a button to add
-        // Get all buttons in the dropdown that could add a laboratory
-        const dropdownButtons = screen.getAllByRole('button');
-        // Filter to buttons that have TecLab in them AND are for adding (not removing)
-        const tecLabAddButtons = dropdownButtons.filter(btn => {
-            const text = btn.textContent || '';
-            // Remove buttons have X icon and are in the selected card section
-            const isRemoveButton = btn.querySelector('svg.lucide-x') !== null;
-            return text.includes('TecLab Rock Physics') && !isRemoveButton;
-        });
-        expect(tecLabAddButtons.length).toBe(0); // Not in dropdown results
+        // The selected lab should not appear in the dropdown
+        expect(screen.queryByRole('option', { name: /TecLab Rock Physics/i })).not.toBeInTheDocument();
+        // Other labs should still be available
+        expect(screen.getByText('INGV Seismology Lab')).toBeInTheDocument();
     });
 
-    it('displays multiple selected laboratories', () => {
+    it('handles multiple selected laboratories', () => {
         const selectedLabs: MSLLaboratory[] = [
             {
                 identifier: 'lab1',
