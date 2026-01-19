@@ -5,7 +5,7 @@
 ![PHP](https://img.shields.io/badge/PHP-8-777BB4?logo=php&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4-06B6D4?logo=tailwindcss&logoColor=white)
-![Pest](https://img.shields.io/badge/Pest-3-F24C6A?logo=pestphp&logoColor=white)
+![Pest](https://img.shields.io/badge/Pest-4-F24C6A?logo=pestphp&logoColor=white)
 ![Pest Coverage](https://github.com/McNamara84/ernie/blob/image-data/coverage.svg?raw=true)
 ![PHPStan](https://img.shields.io/badge/PHPStan-8-4B8BBE?logo=php&logoColor=white)
 ![Vitest Coverage](https://github.com/McNamara84/ernie/blob/image-data/vitest-coverage.svg?raw=true)
@@ -16,65 +16,19 @@ A metadata editor for reviewers of research data at GFZ Helmholtz Centre for Geo
 
 ## Features
 
-### User Management
+- **DataCite v4.6 Metadata Editor** – Complete support for DOI registration with all mandatory and recommended fields
+- **Role-Based Access Control** – Four-tier permission system (Admin, Group Leader, Curator, Beginner)
+- **IGSN Support** – Physical sample registration with CSV import and hierarchical relationships
+- **ORCID & ROR Integration** – Researcher identification and institutional affiliation lookup
+- **Controlled Vocabularies** – NASA GCMD (Science Keywords, Platforms, Instruments) and MSL keywords
+- **Interactive Google Maps** – Spatial coverage with point, bounding box, and polygon support
+- **XML Import** – Automatic metadata extraction from DataCite XML / ELMO exports
+- **Legacy Dataset Browser** – Import metadata from previous database systems
+- **Landing Page Management** – Create, preview, and publish dataset landing pages
+- **REST API** – OpenAPI 3.1 specification with interactive Swagger UI at `/api/v1/doc`
+- **Accessible Design** – WCAG 2.1 AA compliant with Radix UI and Axe-core testing
 
-- **Role-Based Access Control** – hierarchical permission system with four user roles:
-  - **Admin** – full system access including user management, DOI registration (test/production), and all curation features
-  - **Group Leader** – user management capabilities (can manage Curators and Beginners), DOI registration (test/production), full curation access
-  - **Curator** – standard curation access with test DOI registration only
-  - **Beginner** – limited curation access, restricted to test DOI registration for learning
-- **User Administration** – admins and group leaders can manage users via `/users` interface with role changes, account deactivation/reactivation, and password reset capabilities
-- **Command-Line User Creation** – secure user provisioning via `php artisan add-user {name} {email} {password}` (first user automatically becomes admin)
-- **Account Security** – deactivated users cannot login, User ID 1 is system-protected from modifications, users cannot modify their own accounts
-
-### Metadata Management
-
-- **Resource Information** – configurable resource types, title types, and dataset languages
-- **Authors & Contributors** – comprehensive management with ORCID support, role assignments, and ROR-affiliated institutions
-- **Descriptions** – multiple description types per resource (Abstract, Methods, Technical Info, etc.)
-- **Date Ranges** – temporal metadata with various DataCite date types (Created, Issued, Collected, etc.)
-- **Funding References** – project funding information with funder identification and grant numbers
-### Keywords & Controlled Vocabularies
-
-- **Keywords** – comprehensive keyword system supporting:
-  - NASA GCMD controlled vocabularies (Science Keywords, Platforms, Instruments)
-  - MSL (Materials Science and Engineering) controlled vocabulary
-  - Free-form keywords for flexible tagging
-- **Spatial & Temporal Coverage** – interactive Google Maps integration for geographic coordinates with polygon/point support, date/time ranges with timezone support
-- **Related Identifiers** – link to related publications, datasets, and resources with DataCite relation types
-- **Licenses & Rights** – configurable licenses with automatic SPDX synchronization
-
-### Data Import & Integration
-
-- **XML Upload** – automatic extraction of metadata from DataCite XML files
-- **Legacy Dataset Browser** – browse and import metadata from old datasets with intelligent field mapping
-- **ROR Integration** – automatic synchronization with Research Organization Registry for institutional affiliations
-- **ORCID Integration** – search and validate researcher identities via ORCID Public API
-- **GCMD Vocabularies** – integration with NASA's Global Change Master Directory keyword system
-- **MSL Vocabulary** – integration with Materials Science and Engineering controlled vocabulary
-
-### User Interface
-
-- **Resources Workspace** – browse, search, and manage curated resources with metadata completeness badges, status indicators, and quick actions
-- **Interactive Curation Form** – comprehensive metadata editing with real-time validation, auto-completion, and drag-and-drop reordering
-- **Dashboard** – statistics overview with resource metrics, recent activities, and quick access to key functions
-- **Accessible Design** – built with Radix UI and Tailwind CSS following WCAG 2.1 AA guidelines, tested with Axe-core
-
-### API & Documentation
-
-- **REST API** – read-only REST API with OpenAPI 3.1.0 specification at `/api/v1/doc`
-  - Interactive Swagger UI for exploring endpoints
-  - Metadata types for ELMO integration (resource types, title types, licenses, languages, roles)
-  - NASA GCMD controlled vocabularies (Science Keywords, Platforms, Instruments)
-  - ROR affiliations and ORCID search endpoints
-  - API key authentication via `X-API-Key` header or `api_key` query parameter
-- **Changelog** – interactive version history accessible at `/changelog`
-- **User Documentation** – unified, role-based documentation at `/docs`
-  - Single-page architecture with sticky sidebar navigation and scroll-spy
-  - Complete curation workflow (XML upload → DOI registration)
-  - Landing page creation and management guides
-  - User management and system administration (role-dependent visibility)
-  - Mobile-responsive with copy-to-clipboard code snippets
+📖 **[View detailed user documentation at /docs](/docs)**
 
 ## Installation
 
@@ -196,60 +150,17 @@ php artisan add-user "John Smith" john@example.com AnotherPass456
 - Admins and Group Leaders can change user roles via the `/users` interface
 - User ID 1 is system-protected and cannot be modified or deactivated
 
-#### User Roles & Permissions
-
-| Permission | Admin | Group Leader | Curator | Beginner |
-|-----------|-------|--------------|---------|----------|
-| Manage users (create, edit roles, deactivate) | ✅ | ✅ (Curator/Beginner only) | ❌ | ❌ |
-| Promote to Group Leader | ✅ | ❌ | ❌ | ❌ |
-| Register production DOI | ✅ | ✅ | ✅ | ❌ |
-| Register test DOI | ✅ | ✅ | ✅ | ✅ |
-| Full curation access | ✅ | ✅ | ✅ | ⚠️ Limited |
-| Access user management page | ✅ | ✅ | ❌ | ❌ |
-
-**Role Hierarchy** (descending privilege order):
-1. Admin (highest privileges)
-2. Group Leader
-3. Curator
-4. Beginner (most restricted)
-
-**Restrictions:**
-- Group Leaders **cannot** promote users to `group_leader` or `admin` roles
-- Beginners are **always** forced to use DataCite test mode (regardless of system setting)
-- Deactivated users **cannot** log in to the system
-- Users **cannot** modify their own accounts (must ask another admin/group leader)
-- User ID 1 **cannot** be modified, deactivated, or have password reset
-
-#### User Administration Interface
-
-Admins and Group Leaders can access the user management interface at `/users` to:
-- View all users with their roles and status
-- Change user roles (within permission constraints)
-- Deactivate/reactivate user accounts
-- Send password reset links via email
+📖 **[View detailed user management documentation at /docs](/docs)**
 
 ### Data Synchronization
 
-#### Sync SPDX Licenses
 ```bash
-php artisan spdx:sync-licenses
-```
-
-#### Fetch GCMD Vocabularies
-```bash
-php artisan get-gcmd-science-keywords
-php artisan get-gcmd-platforms
-php artisan get-gcmd-instruments
-```
-
-#### Fetch MSL Keywords
-```bash
-php artisan get-msl-keywords
-```
-
-#### Sync ROR Affiliations
-```bash
-php artisan get-ror-ids
+php artisan spdx:sync-licenses       # Sync SPDX licenses
+php artisan get-gcmd-science-keywords # Fetch GCMD Science Keywords
+php artisan get-gcmd-platforms        # Fetch GCMD Platforms
+php artisan get-gcmd-instruments      # Fetch GCMD Instruments
+php artisan get-msl-keywords          # Fetch MSL Keywords
+php artisan get-ror-ids               # Sync ROR Affiliations
 ```
 
 ## Docker Development Environment
@@ -473,359 +384,51 @@ Remove volumes (⚠️ deletes data):
 docker-compose -f docker-compose.prod.yml down -v
 ```
 
-## Development Tools
-
-### Code Quality
-
-#### PHP Linting & Formatting
-```bash
-./vendor/bin/pint          # Fix code style issues (PSR-12 standard)
-```
-
-#### JavaScript/TypeScript Linting & Formatting
-```bash
-npm run lint               # Run ESLint with auto-fix
-npm run format             # Format code with Prettier
-npm run format:check       # Check formatting without changes
-npm run types              # Type check with TypeScript (no emit)
-```
-
-#### Static Analysis
-```bash
-./vendor/bin/phpstan analyse  # Run PHPStan for static analysis (Level 8)
-```
-
-### Development Server
-
-Start the integrated development environment:
-```bash
-composer run dev           # Starts Laravel server, queue worker, and Vite
-composer run dev:ssr       # Same as above + SSR support with Inertia.js
-```
-
-The `dev` command runs three concurrent processes:
-- **Laravel server** on http://127.0.0.1:8000
-- **Queue worker** for background jobs
-- **Vite dev server** with HMR (Hot Module Replacement)
-
 ## Testing
 
-### Pest Unit Tests and Laravel Feature Tests
-
-Run all PHP tests:
-
 ```bash
-php artisan test
-# or
-composer run test
+# PHP Tests (Pest + Laravel)
+composer run test                    # Run all PHP tests
+php artisan test --coverage          # With coverage
+
+# JavaScript Tests (Vitest)
+npm test                             # Run all JS tests
+npm test -- --coverage               # With coverage
+
+# E2E Tests (Playwright)
+npx playwright install               # Install browsers (first time)
+npm run test:e2e                     # Run all E2E tests
+npm run test:e2e:ui                  # Interactive UI mode
 ```
-
-Run with coverage:
-
-```bash
-php artisan test --coverage
-```
-
-Run only unit tests:
-
-```bash
-php artisan test --testsuite=Unit
-```
-
-Run only feature tests:
-
-```bash
-php artisan test --testsuite=Feature
-```
-
-### Vitest Unit Tests and Integration Tests
-
-Run the JavaScript test suites:
-
-```bash
-npm test
-```
-
-Run with coverage:
-
-```bash
-npm test -- --coverage
-```
-
-Run in watch mode:
-
-```bash
-npm test -- --watch
-```
-
-Run a specific test file:
-
-```bash
-npx vitest run resources/js/path/to/test.test.ts
-```
-
-### Playwright E2E Tests
-
-Install Playwright browsers (first time only):
-
-```bash
-npx playwright install
-```
-
-Run all E2E tests:
-
-```bash
-npm run test:e2e
-```
-*Note: This automatically starts the Laravel server, runs tests, and stops the server.*
-
-Run tests in UI mode (interactive):
-
-```bash
-npm run test:e2e:ui
-```
-
-Run tests in headed mode (visible browser):
-
-```bash
-npm run test:e2e:headed
-```
-
-Run specific test suites:
-
-```bash
-npm run test:e2e:changelog    # Changelog tests
-npm run test:e2e:a11y         # Accessibility tests
-```
-
-Run specific test file manually:
-
-```bash
-npx playwright test tests/playwright/login.spec.ts
-```
-
-View test report:
-
-```bash
-npx playwright show-report
-```
-
-## Technology Stack
-
-### Backend
-- **Framework:** Laravel 12.x
-- **Language:** PHP 8.2+
-- **Database:** MySQL/MariaDB
-- **Queue System:** Database-backed queues
-- **Testing:** Pest 3.x with Laravel plugin
-- **HTTP Client:** Saloon PHP for external API integrations
-
-### Frontend
-- **Framework:** React 19.x
-- **SSR:** Inertia.js 2.x
-- **Build Tool:** Vite 7.x
-- **Styling:** Tailwind CSS 4.x
-- **UI Components:** Radix UI primitives
-- **Maps:** Google Maps via @vis.gl/react-google-maps
-- **Animations:** Framer Motion
-- **Charts:** Recharts
-- **Testing:** Vitest 3.x, Playwright 1.x, React Testing Library
-
-### Development Tools
-- **Code Quality:** Laravel Pint, ESLint 9.x, Prettier 3.x
-- **Static Analysis:** PHPStan (Larastan 3.x), TypeScript 5.x
-- **Package Management:** Composer 2.x, npm
-- **Process Management:** Concurrently
-- **E2E Testing:** Playwright with Axe-core for accessibility
 
 ## API Documentation
 
-ERNIE provides a **read-only REST API** (OpenAPI 3.1.0) for integration with external systems like ELMO. The API offers access to metadata types, roles, controlled vocabularies, and researcher identification services.
+ERNIE provides a **read-only REST API** (OpenAPI 3.1.0) for integration with external systems like ELMO.
 
-**📖 [View Interactive API Documentation](https://ernie.rz-vm182.gfz.de/api/v1/doc)**
+📖 **[View Interactive API Documentation](https://ernie.rz-vm182.gfz.de/api/v1/doc)**
 
-The API documentation includes:
-- All available endpoints with request/response examples
-- Authentication requirements (API key via `X-API-Key` header for protected endpoints)
-- Complete schema definitions for all data types
-- Interactive Swagger UI for testing endpoints
-- Access to NASA GCMD vocabularies, ROR affiliations, and ORCID search
-
-For API key access to protected endpoints, contact the ERNIE development team.
-
-## Project Structure
-
-```
-ernie/
-├── app/                        # Application core
-│   ├── Console/Commands/       # Artisan commands (GCMD, ROR, SPDX sync)
-│   ├── Http/                   # Controllers, Middleware, Requests
-│   ├── Models/                 # Eloquent models
-│   ├── Providers/              # Service providers
-│   ├── Services/               # Business logic services
-│   └── Support/                # Helper classes
-├── config/                     # Configuration files
-├── database/                   # Migrations, factories, seeders
-├── docker/                     # Docker configuration
-├── public/                     # Web root & compiled assets
-├── resources/                  # Frontend source code
-│   ├── css/                    # Stylesheets
-│   ├── js/                     # React components & TypeScript
-│   │   ├── Components/         # Reusable UI components
-│   │   ├── Layouts/            # Page layouts
-│   │   ├── lib/                # Utility functions
-│   │   ├── Pages/              # Inertia page components
-│   │   └── types/              # TypeScript type definitions
-│   └── views/                  # Blade templates
-├── routes/                     # Route definitions
-├── storage/                    # Application storage
-├── tests/                      # Test suites
-│   ├── Feature/                # Laravel feature tests
-│   ├── Unit/                   # Laravel unit tests
-│   ├── pest/                   # Pest-based tests
-│   ├── playwright/             # E2E tests
-│   └── vitest/                 # Frontend unit tests
-└── vendor/                     # Composer dependencies
-```
-
-## Application Routes
-
-### Public Routes
-- `/` – Homepage
-- `/about` – About page
-- `/changelog` – Version history
-- `/legal-notice` – Legal information
-- `/login` – User login
-- `/forgot-password` – Password reset request
-- `/reset-password/{token}` – Password reset with token
-- `/health` – Health check endpoint (JSON status response)
-
-### Authenticated Routes
-- `/dashboard` – Main dashboard with statistics
-- `/resources` – Browse and manage curated resources
-- `/old-datasets` – Browse legacy datasets for import
-- `/old-statistics` – Statistics overview of old datasets
-- `/curation` – Metadata curation form
-- `/users` – User management interface (admin/group leader only)
-- `/docs` – Documentation (role-based content)
-
-## Frontend Development
-
-### UI Component Library
-
-ERNIE uses a unified component library based on Radix UI primitives with Tailwind CSS styling. Key components include:
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| `EmptyState` | `components/ui/empty-state.tsx` | Consistent empty data states |
-| `ValidationAlert` | `components/ui/validation-alert.tsx` | Error, warning, and info messages |
-| `SectionHeader` | `components/curation/section-header.tsx` | Accordion section headers |
-
-### Design Tokens
-
-For detailed documentation of design patterns, spacing, grid layouts, and component usage, see:
-
-**📖 [UI Design Tokens Documentation](docs/ui-design-tokens.md)**
-
-This includes:
-- Empty state patterns and variants
-- Validation feedback with severity levels
-- Grid layout templates for form fields
-- Spacing and typography tokens
-- Component hierarchy and best practices
-- `/settings` – User settings
-  - `/settings/profile` – Edit profile
-  - `/settings/password` – Change password
-  - `/settings/appearance` – Appearance preferences
-
-### API Routes
-- `/api/changelog` – Changelog data (public, no authentication required)
-- `/api/v1/doc` – [Interactive API documentation](https://ernie.rz-vm182.gfz.de/api/v1/doc) (OpenAPI/Swagger UI)
-- `/api/v1/resource-types` – Resource type definitions
-- `/api/v1/title-types` – Title type definitions
-- `/api/v1/licenses` – License information
-- `/api/v1/languages` – Language codes and labels
-- `/api/v1/roles/authors` – Author role definitions
-- `/api/v1/roles/contributors` – Contributor role definitions
-- `/api/v1/ror-affiliations` – ROR organization affiliations
-- `/api/v1/orcid/search` – ORCID researcher search
-- `/api/v1/gcmd/*` – NASA GCMD controlled vocabularies
-
-*Note: Most `/elmo` endpoints require API key authentication via the `X-API-Key` header.*
+The API includes:
+- Metadata types (resource types, title types, licenses, languages, roles)
+- NASA GCMD controlled vocabularies
+- ROR affiliations and ORCID search endpoints
+- API key authentication via `X-API-Key` header
 
 ## Contributing
 
-### Workflow
-
-1. **Fork the repository** and clone your fork
-2. **Create a feature branch** from `main`:
+1. Fork the repository and create a feature branch from `main`
+2. Make changes following code style standards (PSR-12, ESLint + Prettier)
+3. Run quality checks before committing:
    ```bash
-   git checkout -b feature/amazing-feature
+   ./vendor/bin/pint                    # PHP code style
+   ./vendor/bin/phpstan analyse         # Static analysis (Level 8)
+   npm run lint                         # ESLint + Prettier
+   npm run types                        # TypeScript check
+   composer run test && npm test        # All tests
    ```
-3. **Make your changes** following the code style standards
-4. **Run quality checks** (see below) to ensure code quality
-5. **Write or update tests** for your changes
-6. **Commit your changes** using [Conventional Commits](https://www.conventionalcommits.org/):
-   ```bash
-   git commit -m "feat: add amazing feature"
-   ```
-7. **Push to your branch**:
-   ```bash
-   git push origin feature/amazing-feature
-   ```
-8. **Open a Pull Request** with a clear description of your changes
+4. Commit using [Conventional Commits](https://www.conventionalcommits.org/) (e.g., `feat: add feature`)
+5. Open a Pull Request
 
-### Code Style Standards
-
-- **PHP:** PSR-12 via Laravel Pint with custom Laravel preset
-- **JavaScript/TypeScript:** ESLint 9.x + Prettier 3.x with:
-  - Simple Import Sort plugin for organized imports
-  - React and React Hooks plugins
-  - Prettier plugin for Tailwind CSS class sorting
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) specification
-  - Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-  - Example: `feat(curation): add funding reference support`
-
-### Quality Checks
-
-Before committing, ensure all quality checks pass:
-
-```bash
-# PHP Code Style & Analysis
-./vendor/bin/pint                    # Fix code style (PSR-12)
-./vendor/bin/phpstan analyse         # Static analysis (Level 8)
-
-# JavaScript/TypeScript
-npm run lint                         # Lint & fix with ESLint
-npm run format                       # Format code with Prettier
-npm run types                        # Type check with TypeScript
-
-# Tests
-composer run test                    # PHP tests (Pest + Laravel)
-npm test                             # JavaScript tests (Vitest)
-npm run test:e2e                     # E2E tests (Playwright with server)
-```
-
-### Continuous Integration
-
-All pull requests are automatically checked for:
-- Code style compliance (Pint, ESLint, Prettier)
-- Static analysis (PHPStan, TypeScript)
-- Test coverage (Pest, Vitest, Playwright)
-- Type safety (TypeScript strict mode)
-- Accessibility (Axe-core in E2E tests)
-
-## Database Schema
-
-ERNIE uses a DataCite 4.6 compliant database schema with 30+ normalized tables.
-
-Key features:
-- Full DataCite 4.6 metadata coverage with all mandatory and recommended properties
-- Polymorphic relationships for creators/contributors (Person or Institution)
-- Normalized controlled vocabularies (resource types, date types, contributor types, etc.)
-- ORCID integration for persons with verification timestamps
-- ROR integration for institutions and affiliations
-- SPDX license management with usage tracking
+All PRs are automatically checked for code style, static analysis, test coverage, and accessibility.
 
 ## License
 

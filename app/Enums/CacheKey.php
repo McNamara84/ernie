@@ -30,6 +30,9 @@ enum CacheKey: string
     // ORCID cache keys
     case ORCID_PERSON = 'orcid:person';
 
+    // Editor settings cache key
+    case DOCS_EDITOR_SETTINGS = 'docs:editor_settings';
+
     // Cache statistics
     case CACHE_STATS = 'system:cache_stats';
 
@@ -77,6 +80,9 @@ enum CacheKey: string
             // ORCID person data - 24 hours
             self::ORCID_PERSON => 86400,
 
+            // Editor settings for docs - 1 hour (settings rarely change)
+            self::DOCS_EDITOR_SETTINGS => 3600,
+
             // Cache statistics - 5 minutes
             self::CACHE_STATS => 300,
         };
@@ -103,6 +109,8 @@ enum CacheKey: string
             self::ROR_AFFILIATION => ['ror', 'affiliations'],
 
             self::ORCID_PERSON => ['orcid'],
+
+            self::DOCS_EDITOR_SETTINGS => ['settings', 'docs'],
 
             self::CACHE_STATS => ['system'],
         };
