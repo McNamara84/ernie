@@ -98,7 +98,7 @@
     "clsx": "^2.1.1",
     "concurrently": "^9.0.1",
     "framer-motion": "^12.23.12",
-    "globals": "^15.14.0",
+    "globals": "^17.0.0",
     "laravel-vite-plugin": "^2.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.562.0",
