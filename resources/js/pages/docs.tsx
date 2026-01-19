@@ -1254,13 +1254,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 </div>
 
                 {/* Tabs */}
-                <DocsTabs
-                    activeTab={activeTab}
-                    onTabChange={handleTabChange}
-                    gettingStartedContent={null}
-                    datasetsContent={null}
-                    physicalSamplesContent={null}
-                />
+                <DocsTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
                 {/* Mobile Sidebar */}
                 <DocsSidebarMobile items={sidebarItems} activeId={activeId} onSectionClick={scrollToSection} />
@@ -1274,7 +1268,7 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                     <main className="min-w-0 flex-1">
                         <div className="space-y-12">
                             {currentSections.map((section) => (
-                                <DocsSection key={section.id} id={section.id} title={section.title} icon={section.icon!}>
+                                <DocsSection key={section.id} id={section.id} title={section.title} icon={section.icon}>
                                     {section.content}
                                 </DocsSection>
                             ))}

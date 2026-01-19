@@ -10,12 +10,6 @@ interface DocsTabsProps {
     activeTab: DocsTabId;
     /** Callback when tab changes */
     onTabChange: (tab: DocsTabId) => void;
-    /** Content for Getting Started tab */
-    gettingStartedContent: React.ReactNode;
-    /** Content for Datasets tab */
-    datasetsContent: React.ReactNode;
-    /** Content for Physical Samples tab */
-    physicalSamplesContent: React.ReactNode;
     /** Additional CSS classes */
     className?: string;
 }
@@ -45,17 +39,12 @@ const tabConfig = [
 ];
 
 /**
- * Documentation tabs component with icons and descriptions.
+ * Documentation tabs navigation component with icons and descriptions.
  * Provides three main sections: Getting Started, Datasets (DOI), and Physical Samples (IGSN).
+ *
+ * Note: This is a pure navigation component. Content rendering is handled by the parent component.
  */
-export function DocsTabs({
-    activeTab,
-    onTabChange,
-    gettingStartedContent,
-    datasetsContent,
-    physicalSamplesContent,
-    className,
-}: DocsTabsProps) {
+export function DocsTabs({ activeTab, onTabChange, className }: DocsTabsProps) {
     return (
         <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as DocsTabId)} className={cn('w-full', className)}>
             <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-2 bg-transparent p-0">
@@ -81,22 +70,10 @@ export function DocsTabs({
                             <tab.icon className="size-5 text-primary" />
                         </div>
                         <span className="text-sm font-semibold">{tab.label}</span>
-                        <span className="text-xs text-muted-foreground hidden sm:block">{tab.description}</span>
+                        <span className="hidden text-xs text-muted-foreground sm:block">{tab.description}</span>
                     </TabsTrigger>
                 ))}
             </TabsList>
-
-            <TabsContent value="getting-started" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
-                {gettingStartedContent}
-            </TabsContent>
-
-            <TabsContent value="datasets" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
-                {datasetsContent}
-            </TabsContent>
-
-            <TabsContent value="physical-samples" className="mt-0 focus-visible:outline-none focus-visible:ring-0">
-                {physicalSamplesContent}
-            </TabsContent>
         </Tabs>
     );
 }

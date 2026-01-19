@@ -66,14 +66,15 @@ export function useScrollSpy(sectionIds: string[], rootMargin = '-80px 0px -80% 
         });
 
         // Set initial active section (first one if none are intersecting)
-        if (elements.length > 0 && activeId === null) {
-            setActiveId(sectionIds[0]);
+        if (elements.length > 0) {
+            // Only set initial value, let IntersectionObserver handle updates
+            setActiveId((current) => current ?? sectionIds[0]);
         }
 
         return () => {
             observer.disconnect();
         };
-    }, [sectionIds, rootMargin, activeId]);
+    }, [sectionIds, rootMargin]);
 
     return activeId;
 }

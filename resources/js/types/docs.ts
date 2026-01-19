@@ -60,8 +60,8 @@ export interface DocSection {
     id: string;
     /** Section title */
     title: string;
-    /** Icon component to display */
-    icon?: React.ComponentType<{ className?: string }>;
+    /** Icon component to display (required for consistent UI) */
+    icon: React.ComponentType<{ className?: string }>;
     /** Minimum role required to see this section */
     minRole: import('@/types').UserRole;
     /** Optional condition to show section based on editor settings */
