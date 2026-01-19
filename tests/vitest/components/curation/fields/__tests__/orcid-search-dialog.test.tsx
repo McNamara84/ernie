@@ -3,7 +3,18 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OrcidSearchDialog } from '@/components/curation/fields/orcid-search-dialog';
+import type { OrcidSearchResult } from '@/services/orcid';
 import { OrcidService } from '@/services/orcid';
+
+// Type for OrcidService.searchOrcid response
+type OrcidServiceResponse = {
+    success: boolean;
+    data?: {
+        results: OrcidSearchResult[];
+        total: number;
+    };
+    error?: string;
+};
 
 // Mock OrcidService
 vi.mock('@/services/orcid', () => ({
@@ -164,10 +175,10 @@ describe('OrcidSearchDialog', () => {
 
         it('shows loading state while searching', async () => {
             const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-            let resolveSearch: (value: unknown) => void;
+            let resolveSearch!: (value: OrcidServiceResponse) => void;
             vi.mocked(OrcidService.searchOrcid).mockImplementation(
                 () =>
-                    new Promise((resolve) => {
+                    new Promise<OrcidServiceResponse>((resolve) => {
                         resolveSearch = resolve;
                     }),
             );
