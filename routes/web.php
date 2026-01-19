@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ContactMessageController;
+use App\Http\Controllers\DocsController;
 use App\Http\Controllers\EditorController;
 use App\Http\Controllers\IgsnMapController;
 use App\Http\Controllers\LandingPageController;
@@ -304,14 +305,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->name('dashboard');
 
-    Route::get('docs', function () {
-        /** @var \App\Models\User $user */
-        $user = auth()->user();
-
-        return Inertia::render('docs', [
-            'userRole' => $user->role->value,
-        ]);
-    })->name('docs');
+    Route::get('docs', [DocsController::class, 'show'])->name('docs');
 
     Route::get('editor', [EditorController::class, 'show'])->name('editor');
 
