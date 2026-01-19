@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { GCMDKeyword } from '@/types/gcmd';
 
@@ -142,10 +143,12 @@ export function GCMDTree({ keywords, selectedIds, onToggle, emptyMessage, search
     }
 
     return (
-        <div className="max-h-96 space-y-1 overflow-y-auto rounded-md border bg-muted/10 p-2">
-            {keywords.map((keyword) => (
-                <GCMDTreeNode key={keyword.id} node={keyword} selectedIds={selectedIds} onToggle={onToggle} searchQuery={searchQuery} />
-            ))}
-        </div>
+        <ScrollArea className="h-96 rounded-md border bg-muted/10">
+            <div className="space-y-1 p-2">
+                {keywords.map((keyword) => (
+                    <GCMDTreeNode key={keyword.id} node={keyword} selectedIds={selectedIds} onToggle={onToggle} searchQuery={searchQuery} />
+                ))}
+            </div>
+        </ScrollArea>
     );
 }
