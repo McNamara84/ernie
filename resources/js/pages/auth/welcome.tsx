@@ -23,7 +23,15 @@ export default function Welcome({ email, userId }: WelcomeProps) {
                     <div className="grid gap-6">
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
-                            <Input id="email" type="email" name="email" autoComplete="email" value={email} className="bg-muted mt-1 block w-full" readOnly />
+                            <Input
+                                id="email"
+                                type="email"
+                                name="email"
+                                autoComplete="email"
+                                value={email}
+                                className="mt-1 block w-full bg-muted"
+                                readOnly
+                            />
                         </div>
 
                         <div className="grid gap-2">

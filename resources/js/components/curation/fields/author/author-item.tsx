@@ -82,20 +82,13 @@ export default function AuthorItem({
     };
 
     // ORCID auto-fill, verification, and suggestions via shared hook
-    const {
-        isVerifying,
-        verificationError,
-        orcidSuggestions,
-        isLoadingSuggestions,
-        showSuggestions,
-        hideSuggestions,
-        handleOrcidSelect,
-    } = useOrcidAutofill<AuthorEntry>({
-        entry: author,
-        onEntryChange: onAuthorChange,
-        hasUserInteracted,
-        includeEmail: true, // Authors can have email auto-filled
-    });
+    const { isVerifying, verificationError, orcidSuggestions, isLoadingSuggestions, showSuggestions, hideSuggestions, handleOrcidSelect } =
+        useOrcidAutofill<AuthorEntry>({
+            entry: author,
+            onEntryChange: onAuthorChange,
+            hasUserInteracted,
+            includeEmail: true, // Authors can have email auto-filled
+        });
 
     // Handle selecting an ORCID suggestion
     const handleSelectSuggestion = async (suggestion: OrcidSearchResult) => {

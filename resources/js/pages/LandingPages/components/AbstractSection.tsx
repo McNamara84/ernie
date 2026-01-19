@@ -80,7 +80,9 @@ export function AbstractSection({ descriptions, creators, fundingReferences, sub
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm" data-testid="abstract-section">
             <h3 className="text-lg font-semibold text-gray-900">Abstract</h3>
             <div className="prose prose-sm max-w-none text-gray-700">
-                <p className="mt-0 whitespace-pre-wrap" data-testid="abstract-text">{abstract.value}</p>
+                <p className="mt-0 whitespace-pre-wrap" data-testid="abstract-text">
+                    {abstract.value}
+                </p>
             </div>
 
             {/* Creators Section */}

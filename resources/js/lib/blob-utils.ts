@@ -24,10 +24,7 @@ export async function parseJsonFromBlob<T = unknown>(blob: Blob): Promise<T | nu
  * @param defaultMessage - Fallback message if extraction fails
  * @returns The extracted error message or the default
  */
-export async function extractErrorMessageFromBlob(
-    errorData: unknown,
-    defaultMessage: string,
-): Promise<string> {
+export async function extractErrorMessageFromBlob(errorData: unknown, defaultMessage: string): Promise<string> {
     if (!(errorData instanceof Blob)) {
         return defaultMessage;
     }
@@ -56,9 +53,7 @@ export interface ValidationErrorResponse {
  * @param errorData - The Axios error response data (Blob)
  * @returns The parsed validation error response, or null if parsing fails
  */
-export async function parseValidationErrorFromBlob(
-    errorData: unknown,
-): Promise<ValidationErrorResponse | null> {
+export async function parseValidationErrorFromBlob(errorData: unknown): Promise<ValidationErrorResponse | null> {
     if (!(errorData instanceof Blob)) {
         return null;
     }

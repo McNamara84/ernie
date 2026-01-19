@@ -60,10 +60,10 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
     const displayMode: FallbackMode = hasDownloadUrl
         ? 'download'
         : contactPersonWithEmail
-            ? 'contact-form'
-            : contactPersonWithWebsite
-                ? 'website'
-                : 'fallback-message';
+          ? 'contact-form'
+          : contactPersonWithWebsite
+            ? 'website'
+            : 'fallback-message';
 
     const handleContactClick = (person: ContactPerson) => {
         setSelectedPerson(person);
@@ -120,7 +120,7 @@ export function FilesSection({ downloadUrl, licenses, contactPersons = [], datas
 
                     {/* No download available message - when no contact options are available */}
                     {displayMode === 'fallback-message' && (
-                        <p className="text-sm italic text-gray-500">
+                        <p className="text-sm text-gray-500 italic">
                             Download information not available. Please contact the authors for data access.
                         </p>
                     )}

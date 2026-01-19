@@ -84,7 +84,7 @@ export interface UseDoiValidationResult {
 
 /**
  * Custom hook for validating DOIs against the database.
- * 
+ *
  * @example
  * ```tsx
  * const {
@@ -99,10 +99,10 @@ export interface UseDoiValidationResult {
  *     excludeResourceId: resourceId,
  *     onConflict: (data) => console.log('Conflict:', data),
  * });
- * 
+ *
  * // In the input field
  * <Input onBlur={(e) => validateDoi(e.target.value)} />
- * 
+ *
  * // Render the conflict modal
  * {conflictData && (
  *     <DoiConflictModal
@@ -114,20 +114,16 @@ export interface UseDoiValidationResult {
  * ```
  */
 export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiValidationResult {
-    const { 
-        excludeResourceId, 
-        debounceMs = 300, 
-        onSuccess, 
-        onConflict, 
-        onError,
-        errorMessages,
-    } = options;
+    const { excludeResourceId, debounceMs = 300, onSuccess, onConflict, onError, errorMessages } = options;
 
     // Memoize error messages to prevent unnecessary callback recreations
-    const messages = useMemo(() => ({
-        invalidFormat: errorMessages?.invalidFormat ?? DEFAULT_ERROR_MESSAGES.INVALID_FORMAT,
-        validationFailed: errorMessages?.validationFailed ?? DEFAULT_ERROR_MESSAGES.VALIDATION_FAILED,
-    }), [errorMessages?.invalidFormat, errorMessages?.validationFailed]);
+    const messages = useMemo(
+        () => ({
+            invalidFormat: errorMessages?.invalidFormat ?? DEFAULT_ERROR_MESSAGES.INVALID_FORMAT,
+            validationFailed: errorMessages?.validationFailed ?? DEFAULT_ERROR_MESSAGES.VALIDATION_FAILED,
+        }),
+        [errorMessages?.invalidFormat, errorMessages?.validationFailed],
+    );
 
     const [isValidating, setIsValidating] = useState(false);
     const [isValid, setIsValid] = useState<boolean | null>(null);
@@ -160,115 +156,115 @@ export function useDoiValidation(options: UseDoiValidationOptions = {}): UseDoiV
         setIsValidating(false);
     }, []);
 
-    const validateDoi = useCallback((doi: string) => {
-        // Clear any existing debounce timeout
-        if (debounceTimeoutRef.current) {
-            clearTimeout(debounceTimeoutRef.current);
-        }
+    const validateDoi = useCallback(
+        (doi: string) => {
+            // Clear any existing debounce timeout
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
 
-        // Abort any pending request
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
+            // Abort any pending request
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
 
-        // If DOI is empty, reset state
-        const trimmedDoi = doi.trim();
-        if (!trimmedDoi) {
-            resetValidation();
-            return;
-        }
+            // If DOI is empty, reset state
+            const trimmedDoi = doi.trim();
+            if (!trimmedDoi) {
+                resetValidation();
+                return;
+            }
 
-        // Set validating state immediately to provide user feedback that validation is queued
-        setIsValidating(true);
-        setError(null);
-        setConflictData(null);
+            // Set validating state immediately to provide user feedback that validation is queued
+            setIsValidating(true);
+            setError(null);
+            setConflictData(null);
 
-        // Debounce the validation request
-        debounceTimeoutRef.current = setTimeout(async () => {
+            // Debounce the validation request
+            debounceTimeoutRef.current = setTimeout(async () => {
+                // Create a new abort controller for this request
+                const abortController = new AbortController();
+                abortControllerRef.current = abortController;
 
-            // Create a new abort controller for this request
-            const abortController = new AbortController();
-            abortControllerRef.current = abortController;
+                try {
+                    const response = await axios.post<DoiValidationResponse>(
+                        '/api/v1/doi/validate',
+                        {
+                            doi: trimmedDoi,
+                            exclude_resource_id: excludeResourceId,
+                        },
+                        {
+                            signal: abortController.signal,
+                        },
+                    );
 
-            try {
-                const response = await axios.post<DoiValidationResponse>(
-                    '/api/v1/doi/validate',
-                    {
-                        doi: trimmedDoi,
-                        exclude_resource_id: excludeResourceId,
-                    },
-                    {
-                        signal: abortController.signal,
-                    }
-                );
+                    const data = response.data;
 
-                const data = response.data;
-
-                // Check if format is valid
-                if (!data.is_valid_format) {
-                    setIsValid(false);
-                    setError(data.error || messages.invalidFormat);
-                    onError?.(data.error || messages.invalidFormat);
-                    return;
-                }
-
-                // Check if DOI already exists
-                if (data.exists) {
-                    // Handle case where backend couldn't generate a suggestion
-                    // (e.g., after max attempts reached). In this case, we don't
-                    // show a suggestion to avoid misleading the user.
-                    const suggestedDoi = data.suggested_doi ?? null;
-                    
-                    const conflict: DoiConflictData = {
-                        existingDoi: trimmedDoi,
-                        existingResourceId: data.existing_resource?.id,
-                        existingResourceTitle: data.existing_resource?.title ?? undefined,
-                        lastAssignedDoi: data.last_assigned_doi ?? trimmedDoi,
-                        // Only provide suggestedDoi if backend actually returned one
-                        suggestedDoi: suggestedDoi ?? '',
-                        // Flag to indicate if suggestion is available
-                        hasSuggestion: suggestedDoi !== null,
-                    };
-                    setConflictData(conflict);
-                    setShowConflictModal(true);
-                    setIsValid(false);
-                    onConflict?.(conflict);
-                    return;
-                }
-
-                // DOI is valid and available
-                setIsValid(true);
-                onSuccess?.();
-            } catch (err) {
-                // Don't report aborted requests as errors
-                if (axios.isCancel(err)) {
-                    return;
-                }
-
-                // Handle validation errors (422)
-                if (isAxiosError(err) && err.response?.status === 422) {
-                    const responseData = err.response.data as DoiValidationResponse;
-                    if (!responseData.is_valid_format) {
+                    // Check if format is valid
+                    if (!data.is_valid_format) {
                         setIsValid(false);
-                        setError(responseData.error || messages.invalidFormat);
-                        onError?.(responseData.error || messages.invalidFormat);
+                        setError(data.error || messages.invalidFormat);
+                        onError?.(data.error || messages.invalidFormat);
                         return;
                     }
-                }
 
-                // Handle other errors
-                const errorMessage = isAxiosError(err) 
-                    ? err.response?.data?.message || messages.validationFailed
-                    : messages.validationFailed;
-                
-                setError(errorMessage);
-                setIsValid(false);
-                onError?.(errorMessage);
-            } finally {
-                setIsValidating(false);
-            }
-        }, debounceMs);
-    }, [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation]);
+                    // Check if DOI already exists
+                    if (data.exists) {
+                        // Handle case where backend couldn't generate a suggestion
+                        // (e.g., after max attempts reached). In this case, we don't
+                        // show a suggestion to avoid misleading the user.
+                        const suggestedDoi = data.suggested_doi ?? null;
+
+                        const conflict: DoiConflictData = {
+                            existingDoi: trimmedDoi,
+                            existingResourceId: data.existing_resource?.id,
+                            existingResourceTitle: data.existing_resource?.title ?? undefined,
+                            lastAssignedDoi: data.last_assigned_doi ?? trimmedDoi,
+                            // Only provide suggestedDoi if backend actually returned one
+                            suggestedDoi: suggestedDoi ?? '',
+                            // Flag to indicate if suggestion is available
+                            hasSuggestion: suggestedDoi !== null,
+                        };
+                        setConflictData(conflict);
+                        setShowConflictModal(true);
+                        setIsValid(false);
+                        onConflict?.(conflict);
+                        return;
+                    }
+
+                    // DOI is valid and available
+                    setIsValid(true);
+                    onSuccess?.();
+                } catch (err) {
+                    // Don't report aborted requests as errors
+                    if (axios.isCancel(err)) {
+                        return;
+                    }
+
+                    // Handle validation errors (422)
+                    if (isAxiosError(err) && err.response?.status === 422) {
+                        const responseData = err.response.data as DoiValidationResponse;
+                        if (!responseData.is_valid_format) {
+                            setIsValid(false);
+                            setError(responseData.error || messages.invalidFormat);
+                            onError?.(responseData.error || messages.invalidFormat);
+                            return;
+                        }
+                    }
+
+                    // Handle other errors
+                    const errorMessage = isAxiosError(err) ? err.response?.data?.message || messages.validationFailed : messages.validationFailed;
+
+                    setError(errorMessage);
+                    setIsValid(false);
+                    onError?.(errorMessage);
+                } finally {
+                    setIsValidating(false);
+                }
+            }, debounceMs);
+        },
+        [excludeResourceId, debounceMs, onSuccess, onConflict, onError, messages, resetValidation],
+    );
 
     return {
         isValidating,
