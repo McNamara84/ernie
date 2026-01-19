@@ -92,7 +92,7 @@
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
     "@vis.gl/react-google-maps": "^1.5.5",
-    "@vitejs/plugin-react": "^4.6.0",
+    "@vitejs/plugin-react": "^5.1.2",
     "@yaireo/tagify": "^4.35.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
