@@ -1,5 +1,5 @@
-import { Transition } from '@headlessui/react';
 import { Form, Head, Link, usePage } from '@inertiajs/react';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import DeleteUser from '@/components/delete-user';
@@ -98,15 +98,19 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                 <div className="flex items-center gap-4">
                                     <Button disabled={processing}>Save</Button>
 
-                                    <Transition
-                                        show={recentlySuccessful}
-                                        enter="transition ease-in-out"
-                                        enterFrom="opacity-0"
-                                        leave="transition ease-in-out"
-                                        leaveTo="opacity-0"
-                                    >
-                                        <p className="text-sm text-neutral-600">Saved</p>
-                                    </Transition>
+                                    <AnimatePresence>
+                                        {recentlySuccessful && (
+                                            <motion.p
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                transition={{ ease: 'easeInOut' }}
+                                                className="text-sm text-neutral-600"
+                                            >
+                                                Saved
+                                            </motion.p>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             </>
                         )}
