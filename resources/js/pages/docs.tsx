@@ -1,18 +1,22 @@
 import { Head } from '@inertiajs/react';
 import {
     BookOpen,
+    Calendar,
+    Coins,
     Database,
     Edit3,
     FileText,
     FolderOpen,
     Globe,
     HelpCircle,
+    Layers,
     Link2,
     MapPin,
     Palette,
     Rocket,
     Settings,
     Tags,
+    Type,
     Upload,
     Users,
 } from 'lucide-react';
@@ -442,6 +446,113 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                 ),
             },
             {
+                id: 'resource-types',
+                title: 'Resource Types',
+                icon: Layers,
+                minRole: 'beginner',
+                showIf: (settings) => settings.features.hasActiveResourceTypes,
+                content: (
+                    <>
+                        <h3>Selecting Resource Types</h3>
+                        <p>Each dataset must be assigned a resource type from the DataCite controlled vocabulary:</p>
+
+                        <h4>Common Resource Types</h4>
+                        <div className="mt-2 space-y-2">
+                            <div className="rounded-lg border bg-card p-3">
+                                <h5 className="text-sm font-semibold">Dataset</h5>
+                                <p className="text-sm text-muted-foreground">
+                                    Data encoded in a defined structure. Use for tabular data, measurements, or processed results.
+                                </p>
+                            </div>
+                            <div className="rounded-lg border bg-card p-3">
+                                <h5 className="text-sm font-semibold">Collection</h5>
+                                <p className="text-sm text-muted-foreground">
+                                    Aggregation of resources. Use when grouping multiple related datasets.
+                                </p>
+                            </div>
+                            <div className="rounded-lg border bg-card p-3">
+                                <h5 className="text-sm font-semibold">Software</h5>
+                                <p className="text-sm text-muted-foreground">
+                                    Computer program or code. Use for research software, scripts, or algorithms.
+                                </p>
+                            </div>
+                            <div className="rounded-lg border bg-card p-3">
+                                <h5 className="text-sm font-semibold">PhysicalObject</h5>
+                                <p className="text-sm text-muted-foreground">
+                                    Physical samples like rock cores or specimens. Typically used with IGSN identifiers.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Tip:</strong> Administrators can configure which resource types are available in Editor Settings.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
+                id: 'titles-descriptions',
+                title: 'Titles & Descriptions',
+                icon: Type,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Titles</h3>
+                        <p>
+                            Every resource requires at least one title. You can add up to {editorSettings.limits.maxTitles} titles per resource.
+                        </p>
+
+                        <h4>Title Types</h4>
+                        <div className="mt-2 space-y-2">
+                            <div className="rounded-lg border bg-card p-3">
+                                <h5 className="text-sm font-semibold">Main Title</h5>
+                                <p className="text-sm text-muted-foreground">The primary title of the resource (required).</p>
+                            </div>
+                            {editorSettings.features.hasActiveTitleTypes && (
+                                <>
+                                    <div className="rounded-lg border bg-card p-3">
+                                        <h5 className="text-sm font-semibold">Alternative Title</h5>
+                                        <p className="text-sm text-muted-foreground">Another name by which the resource is known.</p>
+                                    </div>
+                                    <div className="rounded-lg border bg-card p-3">
+                                        <h5 className="text-sm font-semibold">Subtitle</h5>
+                                        <p className="text-sm text-muted-foreground">Secondary or explanatory title.</p>
+                                    </div>
+                                    <div className="rounded-lg border bg-card p-3">
+                                        <h5 className="text-sm font-semibold">Translated Title</h5>
+                                        <p className="text-sm text-muted-foreground">Title in another language.</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <h3 className="mt-8">Descriptions</h3>
+                        <p>Provide detailed information about your dataset with different description types:</p>
+
+                        <h4>Description Types</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Abstract:</strong> Brief summary of the resource content
+                            </li>
+                            <li>
+                                <strong>Methods:</strong> Methodology used to create or collect the data
+                            </li>
+                            <li>
+                                <strong>Technical Info:</strong> Technical details about data format, structure, or processing
+                            </li>
+                            <li>
+                                <strong>Table of Contents:</strong> Structure overview for complex datasets
+                            </li>
+                            <li>
+                                <strong>Other:</strong> Any additional descriptive information
+                            </li>
+                        </ul>
+                    </>
+                ),
+            },
+            {
                 id: 'authors-contributors',
                 title: 'Authors & Contributors',
                 icon: Users,
@@ -539,6 +650,91 @@ DATACITE_TEST_PASSWORD=your_test_password`}
                         <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
                             <p className="text-sm text-blue-900 dark:text-blue-100">
                                 <strong>Tip:</strong> Use the search box to quickly navigate to a location by name.
+                            </p>
+                        </div>
+                    </>
+                ),
+            },
+            {
+                id: 'temporal-coverage',
+                title: 'Temporal Coverage',
+                icon: Calendar,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Time Period of Data</h3>
+                        <p>Specify when the data was collected or the time period it represents:</p>
+
+                        <h4>Date Types</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Created:</strong> When the dataset was created
+                            </li>
+                            <li>
+                                <strong>Collected:</strong> When data collection occurred (supports date ranges)
+                            </li>
+                            <li>
+                                <strong>Valid:</strong> Time period for which the data is valid
+                            </li>
+                            <li>
+                                <strong>Available:</strong> When the resource became publicly available
+                            </li>
+                            <li>
+                                <strong>Submitted:</strong> When the resource was submitted
+                            </li>
+                        </ul>
+
+                        <h4>Date Formats</h4>
+                        <p>ERNIE supports various date formats following ISO 8601:</p>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <code>YYYY</code> – Year only (e.g., 2024)
+                            </li>
+                            <li>
+                                <code>YYYY-MM</code> – Year and month (e.g., 2024-06)
+                            </li>
+                            <li>
+                                <code>YYYY-MM-DD</code> – Full date (e.g., 2024-06-15)
+                            </li>
+                            <li>
+                                <code>YYYY-MM-DD/YYYY-MM-DD</code> – Date range (e.g., 2020-01-01/2024-12-31)
+                            </li>
+                        </ul>
+                    </>
+                ),
+            },
+            {
+                id: 'funding-references',
+                title: 'Funding References',
+                icon: Coins,
+                minRole: 'beginner',
+                content: (
+                    <>
+                        <h3>Acknowledging Funding Sources</h3>
+                        <p>Document the funding sources that supported your research:</p>
+
+                        <h4>Required Information</h4>
+                        <ul className="list-inside list-disc space-y-1">
+                            <li>
+                                <strong>Funder Name:</strong> Official name of the funding organization
+                            </li>
+                            <li>
+                                <strong>Funder Identifier:</strong> Crossref Funder ID or ROR ID (optional but recommended)
+                            </li>
+                            <li>
+                                <strong>Award Number:</strong> Grant or project number
+                            </li>
+                            <li>
+                                <strong>Award Title:</strong> Title of the funded project (optional)
+                            </li>
+                        </ul>
+
+                        <h4>Common Funders</h4>
+                        <p>Search for your funder by name – the system will suggest matching organizations with their official identifiers.</p>
+
+                        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                <strong>Tip:</strong> Including funder information improves discoverability and helps funders track research outputs.
                             </p>
                         </div>
                     </>
