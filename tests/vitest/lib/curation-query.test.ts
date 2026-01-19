@@ -105,7 +105,7 @@ describe('buildCurationQueryFromResource', () => {
             language: { code: null, name: null },
             titles: [{ title: 'Title', title_type: { slug: 'main-title' } }],
             licenses: [],
-        } as const;
+        };
 
         await buildCurationQueryFromResource(resource);
         await buildCurationQueryFromResource(resource);

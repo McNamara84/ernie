@@ -5,23 +5,28 @@ interface ResourceTypeReference {
 
 interface ResourceTitleTypeSummary {
     slug: string | null;
+    [key: string]: unknown;
 }
 
 interface ResourceTitleSummary {
     title: string;
     title_type: ResourceTitleTypeSummary | null;
+    [key: string]: unknown;
 }
 
 interface ResourceLicenseSummary {
     identifier: string | null;
+    [key: string]: unknown;
 }
 
 interface ResourceLanguageSummary {
     code: string | null;
+    [key: string]: unknown;
 }
 
 interface ResourceTypeSummary {
     name: string | null;
+    [key: string]: unknown;
 }
 
 type AuthorTypeSummary = 'person' | 'institution';
