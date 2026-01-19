@@ -5,11 +5,11 @@ import SwaggerUI from 'swagger-ui-react';
 
 declare global {
     interface Window {
-        __spec__?: unknown;
+        __spec__?: object;
     }
 }
 
-export function renderSwagger(spec: unknown, element: HTMLElement) {
+export function renderSwagger(spec: object, element: HTMLElement) {
     createRoot(element).render(<SwaggerUI spec={spec} />);
 }
 

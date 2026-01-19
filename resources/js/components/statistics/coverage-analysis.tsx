@@ -1,3 +1,4 @@
+import type { PieLabel } from 'recharts';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 type CoverageData = {
@@ -59,7 +60,10 @@ export default function CoverageAnalysis({ data, totalDatasets }: CoverageAnalys
                             cx="50%"
                             cy="50%"
                             labelLine={false}
-                            label={({ name, percentage }) => `${name}: ${percentage}%`}
+                            label={
+                                (((props: { name: string; payload: { percentage: string } }) =>
+                                    `${props.name}: ${props.payload.percentage}%`) as PieLabel)
+                            }
                             outerRadius={100}
                             fill="#8884d8"
                             dataKey="value"

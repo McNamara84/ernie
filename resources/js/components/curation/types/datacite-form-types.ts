@@ -7,6 +7,9 @@
 
 import type { DateType, Language, License, MSLLaboratory, RelatedIdentifier, ResourceType, Role, TitleType } from '@/types';
 
+import type { FundingReferenceEntry } from '../fields/funding-reference';
+import type { SpatialTemporalCoverageEntry } from '../fields/spatial-temporal-coverage/types';
+
 // Re-export types that are used by consumers of this module
 export type { AuthorEntry } from '../fields/author';
 export type { ContributorEntry, ContributorRoleTag } from '../fields/contributor';

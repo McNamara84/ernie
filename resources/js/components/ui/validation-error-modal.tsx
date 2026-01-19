@@ -19,12 +19,10 @@ export interface ValidationError {
     path: string;
     /** Human-readable error message with technical details */
     message: string;
-    /** The JSON Schema keyword that triggered the error */
-    keyword: string;
-    /** Additional context information */
-    context: {
-        raw_message: string;
-    };
+    /** The JSON Schema keyword that triggered the error (optional) */
+    keyword?: string;
+    /** Additional context information (optional) */
+    context?: Record<string, unknown>;
 }
 
 interface ValidationErrorModalProps {
@@ -84,11 +82,13 @@ export function ValidationErrorModal({
                                             <span className="font-medium">JSON Path:</span>{' '}
                                             <code className="rounded bg-muted px-1">{error.path}</code>
                                         </p>
-                                        <p>
-                                            <span className="font-medium">Validation Keyword:</span>{' '}
-                                            <code className="rounded bg-muted px-1">{error.keyword}</code>
-                                        </p>
-                                        {error.context?.raw_message && (
+                                        {error.keyword && (
+                                            <p>
+                                                <span className="font-medium">Validation Keyword:</span>{' '}
+                                                <code className="rounded bg-muted px-1">{error.keyword}</code>
+                                            </p>
+                                        )}
+                                        {typeof error.context?.raw_message === 'string' && (
                                             <p>
                                                 <span className="font-medium">Technical Details:</span>{' '}
                                                 <span className="font-mono text-xs">{error.context.raw_message}</span>
