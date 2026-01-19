@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react';
 
 /**
+ * Default IntersectionObserver rootMargin that accounts for the sticky header.
+ * Format: 'top right bottom left'
+ * - Top: -80px offset to account for the ~64px sticky header plus some padding
+ * - Bottom: -80% to trigger when element is in the top 20% of the viewport
+ */
+export const DEFAULT_SCROLL_SPY_ROOT_MARGIN = '-80px 0px -80% 0px';
+
+/**
+ * Scroll offset in pixels to account for the sticky header when scrolling to sections.
+ * This should approximately match the top offset in DEFAULT_SCROLL_SPY_ROOT_MARGIN.
+ */
+export const SCROLL_TO_SECTION_OFFSET = 100;
+
+/**
  * Hook for scroll-spy functionality.
  * Tracks which section is currently visible in the viewport.
  *
@@ -40,7 +54,7 @@ import { useEffect, useState } from 'react';
  * );
  * ```
  */
-export function useScrollSpy(sectionIds: string[], rootMargin = '-80px 0px -80% 0px'): string | null {
+export function useScrollSpy(sectionIds: string[], rootMargin = DEFAULT_SCROLL_SPY_ROOT_MARGIN): string | null {
     // Initialize with first section to prevent UI flicker
     const [activeId, setActiveId] = useState<string | null>(sectionIds.length > 0 ? sectionIds[0] : null);
 

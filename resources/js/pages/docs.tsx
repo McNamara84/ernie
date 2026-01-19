@@ -27,7 +27,7 @@ import { DocsSection } from '@/components/docs/docs-section';
 import { DocsSidebar, DocsSidebarMobile } from '@/components/docs/docs-sidebar';
 import { type DocsTabId, DocsTabs } from '@/components/docs/docs-tabs';
 import { WorkflowSteps, WorkflowSuccess } from '@/components/docs/workflow-steps';
-import { useScrollSpy } from '@/hooks/use-scroll-spy';
+import { SCROLL_TO_SECTION_OFFSET, useScrollSpy } from '@/hooks/use-scroll-spy';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, UserRole } from '@/types';
 import type { DocSection, DocsSidebarItem, EditorSettings } from '@/types/docs';
@@ -1228,9 +1228,8 @@ DATACITE_TEST_PASSWORD=your_test_password`}
     const scrollToSection = useCallback((id: string) => {
         const element = document.getElementById(id);
         if (element) {
-            const offset = 100;
             const elementPosition = element.getBoundingClientRect().top;
-            const offsetPosition = elementPosition + window.scrollY - offset;
+            const offsetPosition = elementPosition + window.scrollY - SCROLL_TO_SECTION_OFFSET;
             window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
         }
     }, []);

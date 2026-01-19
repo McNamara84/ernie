@@ -75,8 +75,7 @@ class DocsController extends Controller
     {
         $cacheKey = CacheKey::DOCS_EDITOR_SETTINGS;
 
-        /** @var array{thesauri: array{scienceKeywords: bool, platforms: bool, instruments: bool}, features: array{hasActiveGcmd: bool, hasActiveMsl: bool, hasActiveLicenses: bool, hasActiveResourceTypes: bool, hasActiveTitleTypes: bool, hasActiveLanguages: bool}, limits: array{maxTitles: int, maxLicenses: int}} $result */
-        $result = Cache::remember(
+        return Cache::remember(
             $cacheKey->key(),
             $cacheKey->ttl(),
             function (): array {
@@ -115,7 +114,5 @@ class DocsController extends Controller
                 ];
             }
         );
-
-        return $result;
     }
 }
