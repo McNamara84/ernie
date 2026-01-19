@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axios from 'axios';
+import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SetupLandingPageModal from '@/components/landing-pages/modals/SetupLandingPageModal';
@@ -30,6 +31,12 @@ vi.mock('axios', () => {
         isAxiosError,
     };
 });
+
+// Type-safe access to mocked axios methods
+const mockedAxiosGet = axios.get as Mock;
+const mockedAxiosPost = axios.post as Mock;
+const mockedAxiosPut = axios.put as Mock;
+const mockedAxiosDelete = axios.delete as Mock;
 
 vi.mock('@inertiajs/react', () => ({
     router: {
@@ -76,7 +83,7 @@ describe('SetupLandingPageModal', () => {
     describe('Rendering', () => {
         it('renders modal when open', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
@@ -109,7 +116,7 @@ describe('SetupLandingPageModal', () => {
 
         it('displays resource information in description', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
@@ -132,7 +139,7 @@ describe('SetupLandingPageModal', () => {
     describe('Form Fields', () => {
         it('renders all form fields', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
@@ -154,7 +161,7 @@ describe('SetupLandingPageModal', () => {
 
         it('shows default template value', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
@@ -173,7 +180,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('loads existing configuration', async () => {
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -192,7 +199,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('API Integration', () => {
         it('fetches existing config on mount', async () => {
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -211,11 +218,11 @@ describe('SetupLandingPageModal', () => {
 
         it('creates new landing page config', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
-            axios.post.mockResolvedValue({
+            mockedAxiosPost.mockResolvedValue({
                 data: {
                     landing_page: {
                         ...mockExistingConfig,
@@ -260,8 +267,8 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('updates existing landing page config', async () => {
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
-            axios.put.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosPut.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             const user = userEvent.setup();
 
@@ -299,8 +306,8 @@ describe('SetupLandingPageModal', () => {
         it('removes draft landing page preview', async () => {
             // Use a draft config (not published)
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
-            axios.delete.mockResolvedValue({ data: { message: 'Landing page deleted successfully' } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
+            mockedAxiosDelete.mockResolvedValue({ data: { message: 'Landing page deleted successfully' } });
 
             // Mock window.confirm to return true
             vi.stubGlobal('confirm', vi.fn(() => true));
@@ -336,7 +343,7 @@ describe('SetupLandingPageModal', () => {
 
         it('does not show remove button for published landing pages', async () => {
             // Published landing pages cannot be depublished because DOIs are persistent
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -357,7 +364,7 @@ describe('SetupLandingPageModal', () => {
 
         it('disables publish toggle for already published landing pages', async () => {
             // Published landing pages cannot be unpublished because DOIs are persistent
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -383,7 +390,7 @@ describe('SetupLandingPageModal', () => {
     describe('Preview URLs', () => {
         it('displays preview URL for draft configs', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -406,7 +413,7 @@ describe('SetupLandingPageModal', () => {
         });
 
         it('displays public URL for published configs', async () => {
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             render(
                 <SetupLandingPageModal
@@ -429,7 +436,7 @@ describe('SetupLandingPageModal', () => {
 
         it('copies preview URL to clipboard', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
 
             // Spy on navigator.clipboard.writeText
             const writeTextSpy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
@@ -475,7 +482,7 @@ describe('SetupLandingPageModal', () => {
     describe('Publish Toggle', () => {
         it('toggles between draft and published status', async () => {
             const draftConfig = { ...mockExistingConfig, status: 'draft' as const };
-            axios.get.mockResolvedValue({ data: { landing_page: draftConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: draftConfig } });
 
             const user = userEvent.setup();
 
@@ -503,7 +510,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('Preview Button', () => {
         it('opens preview in new tab', async () => {
-            axios.get.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
+            mockedAxiosGet.mockResolvedValue({ data: { landing_page: mockExistingConfig } });
 
             // Mock window.open
             const mockOpen = vi.fn();
@@ -543,7 +550,7 @@ describe('SetupLandingPageModal', () => {
 
     describe('Error Handling', () => {
         it('shows error message when fetch fails', async () => {
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: {
                     status: 404,
@@ -568,11 +575,11 @@ describe('SetupLandingPageModal', () => {
 
         it('shows error message when save fails', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
-            axios.post.mockRejectedValue({
+            mockedAxiosPost.mockRejectedValue({
                 isAxiosError: true,
                 response: {
                     data: { message: 'Validation failed' },
@@ -606,7 +613,7 @@ describe('SetupLandingPageModal', () => {
     describe('Close Behavior', () => {
         it('calls onClose when close button clicked', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
@@ -633,7 +640,7 @@ describe('SetupLandingPageModal', () => {
 
         it('calls onClose when cancel button clicked', async () => {
             // Mock 404 response (no landing page exists yet)
-            axios.get.mockRejectedValue({
+            mockedAxiosGet.mockRejectedValue({
                 isAxiosError: true,
                 response: { status: 404 },
             });
