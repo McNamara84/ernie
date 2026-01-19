@@ -41,7 +41,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/leaflet": "^1.9.21",
-    "@types/node": "^25.0.9",
+    "@types/node": "^24.10.9",
     "@types/papaparse": "^5.3.16",
     "@types/qrcode.react": "^1.0.5",
     "@types/yaireo__tagify": "^4.27.0",
